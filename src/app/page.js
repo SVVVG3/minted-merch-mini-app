@@ -1,103 +1,74 @@
-import Image from "next/image";
+import { getCollectionByHandle, getCollections } from '@/lib/shopify';
+import { ProductGrid } from '@/components/ProductGrid';
 
-export default function Home() {
+export const metadata = {
+  title: 'Shop with USDC',
+  description: 'Browse products and pay with USDC on Base',
+  other: {
+    'fc:frame': JSON.stringify({
+      version: "next",
+      imageUrl: "https://placehold.co/600x400/000000/FFFFFF/png?text=Shop+with+USDC",
+      button: {
+        title: "Shop Now!",
+        action: {
+          type: "launch_frame",
+          name: "shopify-mini-app",
+          url: process.env.NEXT_PUBLIC_APP_URL || "https://shopify-mini-app-frame.vercel.app",
+          splashImageUrl: "https://placehold.co/600x400/000000/FFFFFF/png?text=Loading+Shop...",
+          splashBackgroundColor: "#000000"
+        }
+      }
+    })
+  }
+};
+
+export default async function HomePage() {
+  let collection;
+  let products = [];
+  
+  try {
+    let targetHandle;
+    
+    // Check if TARGET_COLLECTION_HANDLE env variable exists
+    if (process.env.TARGET_COLLECTION_HANDLE) {
+      targetHandle = process.env.TARGET_COLLECTION_HANDLE;
+    } else {
+      // Get all collections and use the first one
+      const collections = await getCollections();
+      if (collections && collections.length > 0) {
+        targetHandle = collections[0].handle;
+      } else {
+        throw new Error('No collections found');
+      }
+    }
+
+    console.log('Fetching collection:', targetHandle);
+    
+    collection = await getCollectionByHandle(targetHandle);
+    if (collection && collection.products) {
+      products = collection.products.edges.map(edge => edge.node);
+    }
+
+    console.log('Collection:', collection);
+    console.log('Products:', products);
+  } catch (error) {
+    console.error('Error fetching collection:', error);
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow-sm sticky top-0 z-10">
+        <div className="px-4 py-3">
+          <h1 className="text-lg font-semibold text-gray-900">
+            {collection?.title || 'All Products'}
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">Pay with USDC on Base</p>
         </div>
+      </header>
+      
+      <main>
+        <ProductGrid products={products} />
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
