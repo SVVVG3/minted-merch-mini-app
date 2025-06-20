@@ -42,6 +42,59 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     prefillUserInfo();
   }, []);
 
+  useEffect(() => {
+    // Initialize Google Places Autocomplete
+    if (typeof window !== 'undefined' && window.google && window.google.maps) {
+      const input = document.getElementById('autocomplete-address');
+      if (input) {
+        const autocomplete = new window.google.maps.places.Autocomplete(input, {
+          types: ['address'],
+          componentRestrictions: { country: 'us' }
+        });
+
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          if (place.address_components) {
+            const addressComponents = place.address_components;
+            const newAddress = {
+              address1: '',
+              city: '',
+              province: '',
+              country: 'US',
+              zip: ''
+            };
+
+            // Parse address components
+            let streetNumber = '';
+            let streetName = '';
+
+            addressComponents.forEach(component => {
+              const types = component.types;
+              if (types.includes('street_number')) {
+                streetNumber = component.long_name;
+              }
+              if (types.includes('route')) {
+                streetName = component.long_name;
+              }
+              if (types.includes('locality')) {
+                newAddress.city = component.long_name;
+              }
+              if (types.includes('administrative_area_level_1')) {
+                newAddress.province = component.short_name;
+              }
+              if (types.includes('postal_code')) {
+                newAddress.zip = component.long_name;
+              }
+            });
+
+            newAddress.address1 = `${streetNumber} ${streetName}`.trim();
+            setAddress(newAddress);
+          }
+        });
+      }
+    }
+  }, []);
+
   const validateForm = () => {
     if (!email || !address.address1 || !address.city || !address.zip) {
       setError('Please fill in all required fields');
@@ -213,6 +266,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
               placeholder="123 Main St"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
+              id="autocomplete-address"
             />
           </div>
 

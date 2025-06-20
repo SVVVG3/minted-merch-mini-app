@@ -1,4 +1,4 @@
-import { kv } from '@vercel/kv';
+import { kv } from '@/lib/kv';
 import { getProductByHandle } from '@/lib/shopify';
 import { NextResponse } from 'next/server';
 

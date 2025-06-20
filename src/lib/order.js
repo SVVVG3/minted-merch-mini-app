@@ -1,13 +1,13 @@
-import { kv } from '@vercel/kv';
+import { kv } from '@/lib/kv';
 import { createOrder as createShopifyOrder } from './shopify';
 
-const ALCHEMY_BASE_RPC_URL = process.env.ALCHEMY_BASE_RPC_URL;
+const BASE_RPC_URL = process.env.BASE_RPC_URL;
 const PAYMENT_RECIPIENT_ADDRESS = process.env.NEXT_PUBLIC_PAYMENT_RECIPIENT_ADDRESS;
 const USDC_CONTRACT_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 
 export async function verifyTransaction(transactionHash, expectedAmount) {
   // Get transaction details from Alchemy
-  const txResponse = await fetch(ALCHEMY_BASE_RPC_URL, {
+  const txResponse = await fetch(BASE_RPC_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -32,7 +32,7 @@ export async function verifyTransaction(transactionHash, expectedAmount) {
   }
 
   // Get transaction receipt to ensure it was successful
-  const receiptResponse = await fetch(ALCHEMY_BASE_RPC_URL, {
+  const receiptResponse = await fetch(BASE_RPC_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
