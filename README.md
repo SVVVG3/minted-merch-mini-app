@@ -14,7 +14,6 @@ A Farcaster frame for shopping with USDC on Base. This boilerplate allows anyone
 
 ## Prerequisites
 
-- Node.js 18+ or Bun
 - Shopify store with Admin API access
 - Farcaster account for testing frames
 
