@@ -471,63 +471,49 @@ Currently our app has a fundamental gap: we collect payment but don't have prope
 
 ## Executor's Feedback or Assistance Requests
 
-**🎉 Task 14 Successfully Completed - USDC Payment Integration Working!**
+**🔧 Order Creation Issue Diagnosed and Fixed!**
 
-**What's Been Implemented:**
+**Problem Identified:**
+The payment was successful, but Shopify order creation was failing with 500 Internal Server Error because:
+1. **Domain Mismatch**: Admin API was hardcoded to use `frensdaily-shop.myshopify.com` instead of using the environment variable `shopfrensdaily.myshopify.com`
+2. **Inconsistent Configuration**: Multiple API endpoints had hardcoded domains instead of using environment variables
 
-1. **Complete USDC Contract Integration**:
-   - USDC contract ABI with ERC-20 standard functions
-   - Helper functions for amount conversion and formatting
-   - Contract configuration for Base network
+**Fixes Applied:**
+1. ✅ **Fixed Shopify Admin API Configuration** (`src/lib/shopifyAdmin.js`):
+   - Changed hardcoded domain to use `process.env.SHOPIFY_SITE_DOMAIN`
+   - Added proper environment variable validation
+   - Enhanced error handling and logging
 
-2. **Custom useUSDCPayment Hook**:
-   - Real-time USDC balance checking using Wagmi's useReadContract
-   - USDC transfer functionality using useWriteContract
-   - Transaction confirmation waiting with useWaitForTransactionReceipt
-   - Comprehensive error handling and status tracking
-   - Balance validation before payment execution
+2. ✅ **Fixed Checkout API Configuration** (`src/app/api/shopify/checkout/route.js`):
+   - Changed hardcoded domain to use environment variable consistently
+   - Ensures all Shopify API calls use the same domain
 
-3. **Complete Payment Flow UI**:
-   - CheckoutFlow component with modal interface
-   - Wallet connection status and balance display
-   - Order summary with cart items and notes
-   - Real-time transaction status updates
-   - Success/failure handling with user feedback
-   - Transaction hash display for verification
-
-4. **Cart Integration**:
-   - Seamless integration with existing cart system
-   - Automatic cart clearing after successful payment
-   - Payment amount calculation from cart total
-   - Cart notes included in payment data
+3. ✅ **Environment Validation**:
+   - Confirmed all required environment variables are present in production
+   - `SHOPIFY_SITE_DOMAIN`: ✅ `shopfrensdaily`
+   - `SHOPIFY_ACCESS_TOKEN`: ✅ 32 characters (Storefront API)
+   - `SHOPIFY_ADMIN_ACCESS_TOKEN`: ✅ 38 characters (Admin API)
 
 **Current Status:**
-- ✅ USDC payments fully functional in development environment
-- ✅ Wallet balance checking and validation working
-- ✅ Transaction approval flow with proper UI feedback
-- ✅ Payment success handling and cart clearing
-- ✅ Error handling for insufficient balance and failed transactions
-- ✅ Ready for testing in Farcaster Mini App environment
+- ✅ **Domain Configuration Fixed**: All API endpoints now use correct domain
+- ✅ **Environment Variables Validated**: All required tokens present in production
+- ✅ **Code Deployed**: Changes pushed to production and deployed
+- 🔄 **Ready for Testing**: Order creation should now work properly
 
-**Technical Implementation:**
-- Uses 1:1 USD to USDC conversion (MVP approach)
-- Transfers directly to merchant wallet: `0xEDb90eF78C78681eE504b9E00950d84443a3E86B`
-- USDC contract on Base: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
-- Proper 6-decimal USDC amount handling
-- Transaction confirmation with blockchain verification
+**Next Steps:**
+1. **User should test the complete flow again**:
+   - Add products to cart
+   - Go through checkout (address → shipping → payment)
+   - Complete USDC payment
+   - Verify order creation succeeds and shows order confirmation
 
-**Ready for Testing:**
-The USDC payment flow is now complete and ready for testing! Users can:
-1. Add items to cart
-2. Click "Pay X.XX USDC" button
-3. See their wallet balance and payment summary
-4. Execute USDC transfer to merchant wallet
-5. Get real-time transaction status updates
-6. Receive confirmation when payment succeeds
+2. **Expected Result**: After successful payment, user should see:
+   - Order confirmation screen with order number
+   - Order details (items, shipping, total)
+   - Cart automatically cleared
+   - No more "Internal server error"
 
-**Next Phase**: We're essentially ready for Phase 6 (Shopify Order Creation) since the payment flow is complete. Task 15 was completed as part of Task 14, and most of Task 16 is also done.
-
-**Please test the USDC payment functionality and let me know how it works!**
+**If the issue persists**, we may need to check Shopify Admin API permissions or investigate other potential API issues, but the domain mismatch was the most likely cause of the 500 error.
 
 ## Lessons
 
