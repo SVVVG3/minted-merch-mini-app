@@ -15,6 +15,12 @@ export function ProductCard({ product }) {
   const hasMultipleVariants = variants.length > 1;
   const isItemInCart = isInCart(product.id, defaultVariant?.id);
 
+  // Debug logging
+  if (product.title === 'OK Custom T-Shirt' || product.title === 'Bankr Hoodie') {
+    console.log(`${product.title} - Variants:`, variants.length, 'hasMultiple:', hasMultipleVariants);
+    console.log('Variant titles:', variants.map(v => v.node.title));
+  }
+
   const handleAddToCart = (e) => {
     e.preventDefault(); // Prevent navigation
     e.stopPropagation(); // Stop event bubbling

@@ -75,7 +75,7 @@ export async function getCollectionByHandle(handle) {
                   }
                 }
               }
-              variants(first: 1) {
+              variants(first: 10) {
                 edges {
                   node {
                     id
