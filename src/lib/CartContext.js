@@ -15,6 +15,7 @@ const CART_ACTIONS = {
   UPDATE_NOTES: 'UPDATE_NOTES',
   UPDATE_SHIPPING: 'UPDATE_SHIPPING',
   UPDATE_CHECKOUT: 'UPDATE_CHECKOUT',
+  UPDATE_SELECTED_SHIPPING: 'UPDATE_SELECTED_SHIPPING',
   CLEAR_CHECKOUT: 'CLEAR_CHECKOUT'
 };
 
@@ -95,7 +96,8 @@ function cartReducer(state, action) {
         items: [],
         notes: '',
         shipping: null,
-        checkout: null
+        checkout: null,
+        selectedShipping: null
       };
     }
     
@@ -120,10 +122,18 @@ function cartReducer(state, action) {
       };
     }
     
+    case CART_ACTIONS.UPDATE_SELECTED_SHIPPING: {
+      return {
+        ...state,
+        selectedShipping: action.payload.selectedShipping
+      };
+    }
+    
     case CART_ACTIONS.CLEAR_CHECKOUT: {
       return {
         ...state,
-        checkout: null
+        checkout: null,
+        selectedShipping: null
       };
     }
     
@@ -133,7 +143,8 @@ function cartReducer(state, action) {
         items: action.payload.items || [],
         notes: action.payload.notes || '',
         shipping: action.payload.shipping || null,
-        checkout: action.payload.checkout || null
+        checkout: action.payload.checkout || null,
+        selectedShipping: action.payload.selectedShipping || null
       };
     }
     
@@ -147,7 +158,8 @@ const initialCartState = {
   items: [],
   notes: '',
   shipping: null,
-  checkout: null
+  checkout: null,
+  selectedShipping: null
 };
 
 // Cart Provider Component
@@ -225,6 +237,13 @@ export function CartProvider({ children }) {
     });
   };
 
+  const updateSelectedShipping = (selectedShipping) => {
+    dispatch({
+      type: CART_ACTIONS.UPDATE_SELECTED_SHIPPING,
+      payload: { selectedShipping }
+    });
+  };
+
   const clearCheckout = () => {
     dispatch({ type: CART_ACTIONS.CLEAR_CHECKOUT });
   };
@@ -260,6 +279,7 @@ export function CartProvider({ children }) {
     updateNotes,
     updateShipping,
     updateCheckout,
+    updateSelectedShipping,
     clearCheckout,
     cartTotal,
     itemCount,

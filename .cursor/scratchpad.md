@@ -128,7 +128,7 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 ### Phase 6 — E-Commerce Checkout Flow & Shopify Order Creation
 - [x] **Task 15**: Build shipping address collection form ✅ COMPLETED
 - [x] **Task 16**: Integrate Shopify checkout API for shipping & tax calculation ✅ COMPLETED
-- [ ] **Task 17**: Update payment flow with final totals (products + shipping + taxes)
+- [x] **Task 17**: Update payment flow with final totals (products + shipping + taxes) ✅ COMPLETED
 - [ ] **Task 18**: Build Shopify Admin API client for order creation
 - [ ] **Task 19**: Build API route to create Shopify orders
 - [ ] **Task 20**: Connect payment confirmation to order creation
@@ -499,47 +499,53 @@ The USDC payment flow is now complete and ready for testing! Users can:
 - Clear Cart functionality required custom confirmation modal to work in production Mini App context
 - localStorage operations should have error handling for restricted embedded environments
 
-## Current Status: Task 16 - Integrate Shopify checkout API for shipping & tax calculation
+## Current Status: Task 17 - Update payment flow with final totals (products + shipping + taxes)
 
-**COMPLETED** ✅ - Shopify checkout API integration successfully implemented.
+**COMPLETED** ✅ - Payment flow successfully updated with shipping selection and accurate final totals.
 
 ### Implementation Summary:
-1. ✅ Created `/api/shopify/checkout` route using Shopify Storefront API
-2. ✅ Extended CartContext with checkout state management
-3. ✅ Updated CheckoutFlow with shipping/tax calculation step
-4. ✅ Tested checkout calculation - working correctly
-5. ✅ Updated UI to show detailed cost breakdown
+1. ✅ Added `selectedShipping` field to CartContext state management
+2. ✅ Updated checkout flow to 3-step process: Address → Shipping Method → Payment
+3. ✅ Added shipping method selection UI with radio buttons
+4. ✅ Updated payment calculations to include selected shipping cost
+5. ✅ Fixed final total calculation: Subtotal + Tax + Selected Shipping
+6. ✅ Updated payment button and balance checks with correct amounts
 
 ### Key Features Implemented:
-- **Cart Creation**: Uses Shopify Storefront API `cartCreate` mutation
-- **Cost Calculation**: Returns subtotal, tax, shipping, and total amounts
-- **Error Handling**: Comprehensive error handling for API failures
-- **UI Integration**: Shows detailed breakdown in checkout flow
-- **State Management**: Checkout data persisted in CartContext
-- **Multi-step Flow**: Shipping → Payment with cost calculation between steps
+- **3-Step Checkout Flow**: 
+  - Step 1: Shipping Address Collection
+  - Step 2: Shipping Method Selection (NEW)
+  - Step 3: Payment with Final Totals
+- **Shipping Method Selection**: Interactive radio button interface for choosing shipping options
+- **Accurate Total Calculation**: Final Total = Subtotal + Tax + Selected Shipping Cost
+- **Payment Integration**: USDC payment uses correct final amount including all fees
+- **State Management**: Selected shipping method persisted in CartContext
+- **UI/UX Improvements**: Step indicators, back navigation, clear pricing breakdown
 
-### API Response Format:
-```json
-{
-  "cartId": "gid://shopify/Cart/...",
-  "checkoutUrl": "https://mintedmerch.shop/cart/c/...",
-  "subtotal": {"amount": 34.99, "currencyCode": "USD"},
-  "tax": {"amount": 0, "currencyCode": "USD"},
-  "total": {"amount": 39.74, "currencyCode": "USD"},
-  "shippingRates": [{"handle": "standard", "title": "Standard Shipping", "price": {"amount": 5.99, "currencyCode": "USD"}}],
-  "lineItems": [...]
-}
+### Checkout Flow Structure:
+```
+1. Shipping Address → "Continue to Shipping Options"
+2. Shipping Method Selection → "Continue to Payment" 
+3. Payment → "Pay [Final Total] USDC"
 ```
 
-### Testing Results:
-- ✅ API endpoint responds correctly with cart creation
-- ✅ Subtotal calculation: $34.99 for OK Custom T-Shirt
-- ✅ Total calculation: $39.74 (includes shipping estimation)
-- ✅ Line items properly formatted with product and variant details
-- ✅ Cart context integration ready for checkout flow
+### Final Total Calculation:
+```javascript
+const finalTotal = cart.checkout.subtotal.amount + 
+                   cart.checkout.tax.amount + 
+                   cart.selectedShipping.price.amount;
+```
+
+### Testing Status:
+- ✅ Development server running successfully
+- ✅ No compilation errors
+- ✅ 3-step checkout flow implemented
+- ✅ Shipping selection working
+- ✅ Final totals calculated correctly
+- ✅ Payment flow updated with accurate amounts
 
 ### Next Steps:
-Ready to proceed with **Task 17: Update payment flow with final totals (products + shipping + taxes)**
+Ready to proceed with **Task 18: Build Shopify Admin API client for order creation**
 
 ## Next Steps
 

@@ -7,9 +7,9 @@ import { calculateCheckout } from '@/lib/shopify';
 import { ShippingForm } from './ShippingForm';
 
 export function CheckoutFlow() {
-  const { cart, clearCart, updateShipping, updateCheckout, clearCheckout } = useCart();
+  const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout } = useCart();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping' or 'payment'
+  const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', or 'payment'
   const [shippingData, setShippingData] = useState(cart.shipping || null);
   const [isShippingValid, setIsShippingValid] = useState(false);
   const [isCalculatingCheckout, setIsCalculatingCheckout] = useState(false);
@@ -52,7 +52,7 @@ export function CheckoutFlow() {
     setIsShippingValid(isValid);
   };
 
-  const handleContinueToPayment = async () => {
+  const handleContinueToShippingMethod = async () => {
     if (!isShippingValid || !shippingData) return;
     
     setIsCalculatingCheckout(true);
@@ -83,8 +83,8 @@ export function CheckoutFlow() {
       // Save checkout data to cart context
       updateCheckout(checkoutData);
       
-      // Move to payment step
-      setCheckoutStep('payment');
+      // Move to shipping method selection step
+      setCheckoutStep('shipping-method');
       
     } catch (error) {
       console.error('Checkout calculation error:', error);
@@ -101,10 +101,20 @@ export function CheckoutFlow() {
     }
   };
 
+  const handleContinueToPayment = () => {
+    if (!cart.selectedShipping) return;
+    setCheckoutStep('payment');
+  };
+
   const handleBackToShipping = () => {
     setCheckoutStep('shipping');
     setCheckoutError(null);
     clearCheckout(); // Clear checkout data when going back
+  };
+
+  const handleBackToShippingMethod = () => {
+    setCheckoutStep('shipping-method');
+    setCheckoutError(null);
   };
 
   const handlePayment = async () => {
@@ -120,14 +130,16 @@ export function CheckoutFlow() {
       throw new Error('Checkout calculation not available');
     }
 
-    // Use the total from checkout calculation (includes shipping and taxes)
-    const finalTotal = cart.checkout.total.amount;
+    // Calculate final total including selected shipping
+    const selectedShippingCost = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
+    const finalTotal = cart.checkout.subtotal.amount + cart.checkout.tax.amount + selectedShippingCost;
 
     // Execute the payment
     await executePayment(finalTotal, {
       items: cart.items,
       notes: cart.notes,
       shipping: shippingData,
+      selectedShipping: cart.selectedShipping,
       checkout: cart.checkout,
       total: finalTotal
     });
@@ -146,6 +158,10 @@ export function CheckoutFlow() {
     setCheckoutError(null);
     clearCheckout();
     resetPayment();
+  };
+
+  const handleShippingMethodSelect = (shippingMethod) => {
+    updateSelectedShipping(shippingMethod);
   };
 
   // Don't render if no items in cart
@@ -172,12 +188,17 @@ export function CheckoutFlow() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold">
-                    {checkoutStep === 'shipping' ? 'Shipping Information' : 'Complete Payment'}
+                    {checkoutStep === 'shipping' && 'Shipping Information'}
+                    {checkoutStep === 'shipping-method' && 'Select Shipping Method'}
+                    {checkoutStep === 'payment' && 'Complete Payment'}
                   </h2>
-                  <div className="flex items-center space-x-2 mt-1">
+                  <div className="flex items-center space-x-1 mt-1">
                     <div className={`w-2 h-2 rounded-full ${checkoutStep === 'shipping' ? 'bg-[#3eb489]' : 'bg-gray-300'}`}></div>
+                    <span className="text-xs text-gray-500">Address</span>
+                    <div className="w-3 h-px bg-gray-300"></div>
+                    <div className={`w-2 h-2 rounded-full ${checkoutStep === 'shipping-method' ? 'bg-[#3eb489]' : 'bg-gray-300'}`}></div>
                     <span className="text-xs text-gray-500">Shipping</span>
-                    <div className="w-4 h-px bg-gray-300"></div>
+                    <div className="w-3 h-px bg-gray-300"></div>
                     <div className={`w-2 h-2 rounded-full ${checkoutStep === 'payment' ? 'bg-[#3eb489]' : 'bg-gray-300'}`}></div>
                     <span className="text-xs text-gray-500">Payment</span>
                   </div>
@@ -236,17 +257,17 @@ export function CheckoutFlow() {
                   
                   {/* Continue Button */}
                   <button
-                    onClick={handleContinueToPayment}
+                    onClick={handleContinueToShippingMethod}
                     disabled={!isShippingValid || isCalculatingCheckout}
                     className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
                   >
-                    {isCalculatingCheckout ? 'Calculating shipping & taxes...' : 'Continue to Payment'}
+                    {isCalculatingCheckout ? 'Calculating shipping & taxes...' : 'Continue to Shipping Options'}
                   </button>
                 </>
               )}
 
-              {/* Payment Step */}
-              {checkoutStep === 'payment' && (
+              {/* Shipping Method Selection Step */}
+              {checkoutStep === 'shipping-method' && (
                 <>
                   {/* Back Button */}
                   <button
@@ -256,7 +277,113 @@ export function CheckoutFlow() {
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
-                    Back to Shipping
+                    Back to Shipping Address
+                  </button>
+
+                  {/* Shipping Address Summary */}
+                  {shippingData && (
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="text-sm font-medium text-gray-700 mb-1">Shipping to:</div>
+                      <div className="text-sm text-gray-600">
+                        {shippingData.firstName} {shippingData.lastName}<br />
+                        {shippingData.address1}{shippingData.address2 && `, ${shippingData.address2}`}<br />
+                        {shippingData.city}, {shippingData.province} {shippingData.zip}<br />
+                        {shippingData.country}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Order Summary */}
+                  <div className="space-y-2 border-t pt-4">
+                    <h3 className="font-medium">Order Summary</h3>
+                    {cart.items.map((item) => (
+                      <div key={item.key} className="flex justify-between text-sm">
+                        <span>{item.title} {item.variantTitle && `(${item.variantTitle})`} × {item.quantity}</span>
+                        <span>${(item.price * item.quantity).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-2 space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span>Subtotal</span>
+                        <span>${cart.checkout ? cart.checkout.subtotal.amount.toFixed(2) : cartTotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Taxes</span>
+                        <span>${cart.checkout ? cart.checkout.tax.amount.toFixed(2) : '0.00'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Shipping Method Selection */}
+                  {cart.checkout && cart.checkout.shippingRates && cart.checkout.shippingRates.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="font-medium">Select Shipping Method</h3>
+                      <div className="space-y-2">
+                        {cart.checkout.shippingRates.map((rate, index) => (
+                          <label
+                            key={rate.handle || index}
+                            className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
+                              cart.selectedShipping?.handle === rate.handle
+                                ? 'border-[#3eb489] bg-green-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-center">
+                              <input
+                                type="radio"
+                                name="shipping-method"
+                                value={rate.handle || index}
+                                checked={cart.selectedShipping?.handle === rate.handle}
+                                onChange={() => handleShippingMethodSelect(rate)}
+                                className="mr-3 text-[#3eb489] focus:ring-[#3eb489]"
+                              />
+                              <div>
+                                <div className="font-medium text-sm">{rate.title}</div>
+                                {rate.description && (
+                                  <div className="text-xs text-gray-600">{rate.description}</div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="font-medium">${rate.price.amount.toFixed(2)}</div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Total with Selected Shipping */}
+                  {cart.selectedShipping && cart.checkout && (
+                    <div className="border-t pt-3">
+                      <div className="flex justify-between font-medium text-lg">
+                        <span>Total</span>
+                        <span>${(cart.checkout.subtotal.amount + cart.checkout.tax.amount + cart.selectedShipping.price.amount).toFixed(2)} USDC</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Continue to Payment Button */}
+                  <button
+                    onClick={handleContinueToPayment}
+                    disabled={!cart.selectedShipping}
+                    className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                  >
+                    Continue to Payment
+                  </button>
+                </>
+              )}
+
+              {/* Payment Step */}
+              {checkoutStep === 'payment' && (
+                <>
+                  {/* Back Button */}
+                  <button
+                    onClick={handleBackToShippingMethod}
+                    className="flex items-center text-sm text-gray-600 hover:text-gray-800"
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back to Shipping Method
                   </button>
 
                   {/* Shipping Summary */}
@@ -303,38 +430,33 @@ export function CheckoutFlow() {
                         <span>${cart.checkout ? cart.checkout.subtotal.amount.toFixed(2) : cartTotal.toFixed(2)}</span>
                       </div>
                       
-                      {/* Shipping Rates */}
-                      {cart.checkout && cart.checkout.shippingRates && cart.checkout.shippingRates.length > 0 ? (
-                        <div className="space-y-1">
-                          {cart.checkout.shippingRates.map((rate, index) => (
-                            <div key={rate.handle} className="flex justify-between text-sm">
-                              <span>{index === 0 ? 'Shipping' : ''} {rate.title}</span>
-                              <span>${rate.price.amount.toFixed(2)}</span>
-                            </div>
-                          ))}
+                      {/* Selected Shipping Method */}
+                      {cart.selectedShipping ? (
+                        <div className="flex justify-between text-sm">
+                          <span>Shipping ({cart.selectedShipping.title})</span>
+                          <span>${cart.selectedShipping.price.amount.toFixed(2)}</span>
                         </div>
                       ) : (
                         <div className="flex justify-between text-sm text-gray-600">
                           <span>Shipping</span>
-                          <span>{cart.checkout ? 'Calculating...' : 'TBD'}</span>
+                          <span>Not selected</span>
                         </div>
                       )}
                       
                       <div className="flex justify-between text-sm">
                         <span>Taxes</span>
-                        <span>${cart.checkout ? cart.checkout.tax.amount.toFixed(2) : 'TBD'}</span>
+                        <span>${cart.checkout ? cart.checkout.tax.amount.toFixed(2) : '0.00'}</span>
                       </div>
                       
                       <div className="border-t pt-1 flex justify-between font-medium">
                         <span>Total</span>
-                        <span>${cart.checkout ? cart.checkout.total.amount.toFixed(2) : cartTotal.toFixed(2)} USDC</span>
+                        <span>
+                          ${cart.checkout && cart.selectedShipping
+                            ? (cart.checkout.subtotal.amount + cart.checkout.tax.amount + cart.selectedShipping.price.amount).toFixed(2)
+                            : cartTotal.toFixed(2)
+                          } USDC
+                        </span>
                       </div>
-                      
-                      {!cart.checkout && (
-                        <div className="text-xs text-gray-500">
-                          Final amount includes shipping and taxes
-                        </div>
-                      )}
                     </div>
                   </div>
                 </>
@@ -400,20 +522,34 @@ export function CheckoutFlow() {
               {/* Payment Actions - Only show in payment step */}
               {checkoutStep === 'payment' && paymentStatus === 'idle' && isConnected && (
                 <div className="space-y-2">
-                  {cart.checkout && !hasSufficientBalance(cart.checkout.total.amount) && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <div className="text-red-800 text-sm">
-                        Insufficient USDC balance. You need {cart.checkout.total.amount.toFixed(2)} USDC but only have {balanceNumber.toFixed(2)} USDC.
+                  {(() => {
+                    const finalTotal = cart.checkout && cart.selectedShipping
+                      ? cart.checkout.subtotal.amount + cart.checkout.tax.amount + cart.selectedShipping.price.amount
+                      : cartTotal;
+                    
+                    return !hasSufficientBalance(finalTotal) && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <div className="text-red-800 text-sm">
+                          Insufficient USDC balance. You need {finalTotal.toFixed(2)} USDC but only have {balanceNumber.toFixed(2)} USDC.
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                   
                   <button
                     onClick={handlePayment}
-                    disabled={!cart.checkout || !hasSufficientBalance(cart.checkout?.total.amount || cartTotal) || isPending}
+                    disabled={!cart.checkout || !cart.selectedShipping || !hasSufficientBalance(
+                      cart.checkout && cart.selectedShipping
+                        ? cart.checkout.subtotal.amount + cart.checkout.tax.amount + cart.selectedShipping.price.amount
+                        : cartTotal
+                    ) || isPending}
                     className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
                   >
-                    {isPending ? 'Processing...' : `Pay ${cart.checkout ? cart.checkout.total.amount.toFixed(2) : cartTotal.toFixed(2)} USDC`}
+                    {isPending ? 'Processing...' : `Pay ${
+                      cart.checkout && cart.selectedShipping
+                        ? (cart.checkout.subtotal.amount + cart.checkout.tax.amount + cart.selectedShipping.price.amount).toFixed(2)
+                        : cartTotal.toFixed(2)
+                    } USDC`}
                   </button>
                 </div>
               )}
