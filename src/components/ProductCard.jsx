@@ -54,7 +54,7 @@ export function ProductCard({ product }) {
               className={`w-full py-2 px-3 text-xs font-medium rounded-md transition-colors ${
                 isItemInCart
                   ? 'bg-green-100 text-green-800 border border-green-200'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-[#3eb489] text-white hover:bg-[#359970]'
               }`}
             >
               {isItemInCart ? '✓ In Cart' : 'Add to Cart'}

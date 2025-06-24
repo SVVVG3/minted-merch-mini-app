@@ -92,7 +92,7 @@ export function ProductDetail({
         <button
           onClick={onBuyNow}
           disabled={!selectedVariant?.availableForSale}
-          className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="w-full bg-[#3eb489] text-white py-3 px-4 rounded-lg font-medium hover:bg-[#359970] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
           {selectedVariant?.availableForSale 
             ? `Buy Now with ${parseFloat(price).toFixed(2)} USDC` 
