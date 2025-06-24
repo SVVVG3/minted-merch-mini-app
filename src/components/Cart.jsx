@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useCart } from '@/lib/CartContext';
+import { CheckoutFlow } from './CheckoutFlow';
 import Link from 'next/link';
 
 export function Cart({ isOpen, onClose }) {
@@ -39,12 +40,7 @@ export function Cart({ isOpen, onClose }) {
     setShowClearConfirm(false);
   };
 
-  const handleCheckout = () => {
-    // This will be implemented in the next phase (USDC payment)
-    console.log('Checkout button clicked - functionality will be implemented in next phase');
-    // Using console.log instead of alert for Mini App compatibility
-    // alert('Checkout functionality will be implemented in the next phase!');
-  };
+  // Checkout is now handled by the CheckoutFlow component
 
   return (
     <>
@@ -157,12 +153,7 @@ export function Cart({ isOpen, onClose }) {
             </div>
 
             {/* Checkout Button */}
-            <button
-              onClick={handleCheckout}
-              className="w-full bg-[#3eb489] text-white py-3 rounded-lg hover:bg-[#359970] transition-colors font-medium"
-            >
-              Checkout with USDC
-            </button>
+            <CheckoutFlow />
 
             <p className="text-xs text-gray-500 text-center">
               Pay with USDC on Base network
