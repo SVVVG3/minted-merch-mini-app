@@ -5,17 +5,39 @@
 Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to shop directly inside Farcaster and pay using USDC via direct onchain wallet transfers. Using https://github.com/jc4p/shopify-mini-app-frame as the base template.
 
 **Goal**: Complete MVP that enables:
-- Product browsing inside Farcaster
-- Cart functionality
-- USDC payment flow
+- Product browsing inside Farcaster ✅
+- Cart functionality ✅
+- USDC payment flow ⬅️ **CURRENT FOCUS**
 - Shopify order creation
 
 ## Key Challenges and Analysis
 
-- **Environment Setup**: Need to configure Shopify API credentials and payment wallet addresses
-- **Farcaster Integration**: Ensure proper Mini App context and authentication
-- **Payment Flow**: Direct USDC payments without complex onchain monitoring for MVP
+- **Environment Setup**: ✅ COMPLETED - Shopify API credentials configured and working
+- **Farcaster Integration**: ✅ COMPLETED - Mini App context and authentication working
+- **Payment Flow**: 🎯 **CURRENT** - Implement USDC payments on Base using Farcaster wallet integration
 - **Order Management**: Manual order creation in Shopify after payment confirmation
+
+### Phase 5 Technical Analysis - USDC Payment Integration
+
+**Key Insights from Farcaster Wallet Documentation:**
+- Farcaster Mini Apps have built-in wallet integration via `sdk.wallet.getEthereumProvider()`
+- No need for "select your wallet" dialogs - Farcaster client handles wallet connection
+- Recommended to use Wagmi for type-safe wallet interactions
+- Base network is supported and recommended for USDC transactions
+- Users can be automatically connected if they have a wallet, otherwise prompt to connect
+
+**Payment Flow Architecture:**
+1. **Wallet Connection**: Use `@farcaster/frame-wagmi-connector` with Wagmi
+2. **USDC Contract Integration**: Interact with USDC on Base network
+3. **Transaction Flow**: Direct wallet → merchant wallet transfer
+4. **Order Creation**: Create Shopify order after payment confirmation
+
+**Technical Requirements:**
+- Install Wagmi and Farcaster connector
+- Configure Base network connection
+- Set up USDC contract interaction
+- Build payment confirmation UI
+- Integrate with existing cart functionality
 
 ## High-level Task Breakdown
 
@@ -38,18 +60,50 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - [x] **Task 10**: Build cart UI component ✅ COMPLETED
 - [x] **Task 11**: UI/UX Improvements & Cart Enhancements ✅ COMPLETED
 
-### Phase 5 — Payment Flow
-- [ ] **Task 12**: Render USDC payment instructions
-- [ ] **Task 13**: Build confirmation screen (success page)
+### Phase 5 — USDC Payment Integration 🎯 **CURRENT PHASE**
+- [x] **Task 12**: Setup Wagmi and Farcaster wallet connector ✅ COMPLETED
+  - ✅ Installed Wagmi, @farcaster/frame-wagmi-connector, viem, and @tanstack/react-query
+  - ✅ Created Wagmi configuration with Base network support (`src/lib/wagmi.js`)
+  - ✅ Configured Farcaster Mini App connector with proper Base chain setup
+  - ✅ Created WagmiProvider component (`src/components/WagmiProvider.jsx`) 
+  - ✅ Integrated WagmiProvider into app layout with QueryClient
+  - ✅ Configured merchant wallet address: `0xEDb90eF78C78681eE504b9E00950d84443a3E86B`
+  - ✅ Configured USDC contract address: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
+  - ✅ Wagmi provider integrated and ready for wallet interactions
+  - ✅ Removed redundant wallet connection UI (Farcaster handles natively)
+  - ✅ Ready for USDC contract integration (Task 14)
+- [x] **Task 13**: Build wallet connection UI component ✅ SKIPPED
+  - **Rationale**: Farcaster Mini App UI already shows wallet connection status natively
+  - ✅ Removed redundant WalletConnection component from UI
+  - ✅ Wagmi hooks available for wallet interactions when needed
+  - ✅ Ready to proceed directly to USDC contract integration
+- [ ] **Task 14**: Implement USDC contract integration
+  - **Success Criteria**:
+    - Configure USDC contract address on Base network
+    - Build functions to check USDC balance
+    - Build functions to transfer USDC
+    - Handle transaction approval flow
+- [ ] **Task 15**: Build payment flow UI
+  - **Success Criteria**:
+    - Replace "Checkout with USDC" placeholder with real payment flow
+    - Show payment summary (items, total in USD, USDC amount)
+    - Display transaction confirmation screen
+    - Handle payment success/failure states
+- [ ] **Task 16**: Integrate payment with cart and order creation
+  - **Success Criteria**:
+    - Connect payment flow to existing cart data
+    - Clear cart after successful payment
+    - Create order data structure for Shopify integration
+    - Build order confirmation screen
 
 ### Phase 6 — Shopify Order Creation
-- [ ] **Task 14**: Build Shopify Admin API client
-- [ ] **Task 15**: Build API route to create Shopify orders
-- [ ] **Task 16**: Manually trigger order creation after payment (for MVP)
+- [ ] **Task 17**: Build Shopify Admin API client
+- [ ] **Task 18**: Build API route to create Shopify orders
+- [ ] **Task 19**: Connect payment confirmation to order creation
 
 ### Phase 7 — Final MVP Readiness
-- [ ] **Task 17**: Test full end-to-end MVP flow
-- [ ] **Task 18**: Prepare production deployment
+- [ ] **Task 20**: Test full end-to-end MVP flow
+- [ ] **Task 21**: Prepare production deployment
 
 ## Project Status Board
 
@@ -201,81 +255,54 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 
 ### 🔄 Current Status / Progress Tracking
 
-✅ **Phase 4 Complete + UI/UX Enhancements** - Cart Functionality & Improvements
-- Cart state management with CartContext ✅
-- Comprehensive cart UI with sidebar ✅
-- Add/remove/update cart items ✅
-- Cart persistence via localStorage ✅
-- Product cards with cart integration ✅
-- **NEW**: Enhanced product description layout ✅
-- **NEW**: Cart notes section for special instructions ✅
-- **NEW**: Fixed Clear Cart button functionality ✅
-- **NEW**: Updated Farcaster header welcome message ✅
-- **NEW**: Consistent brand colors (#3eb489) throughout UI ✅
-- Ready for USDC payment integration ✅
+✅ **Phase 1-4 Complete** - All foundational functionality working perfectly
+✅ **Task 12 Complete** - Wagmi and Farcaster wallet connector setup complete
 
-**Next: Phase 5 - USDC Payment Integration**
-- Task 12: Implement USDC payment flow using Base network
-- Task 13: Connect with Farcaster wallet
-- Task 14: Handle payment confirmation and order creation
+🎯 **Currently Working On**: Task 13 - Build wallet connection UI component
+- Basic wallet connection component created ✅
+- Need to test in Farcaster Mini App environment
+- Need to enhance UI for better user experience
+- Need to add error handling and loading states
 
-**Phase 4 Status**: ✅ **COMPLETE WITH ENHANCEMENTS!** 🎉 
+**Success Criteria for Task 13:**
+- [x] Component shows connection status (connected/disconnected) ✅
+- [x] Connect button for users without connected wallet ✅  
+- [x] Display connected wallet address when connected ✅
+- [ ] Handle connection errors gracefully
+- [ ] Enhanced UI styling to match app design
+- [ ] Test in production Farcaster Mini App environment
 
-**Farcaster Mini App Registration Ready**: 
-- ✅ Manifest URL: https://mintedmerch.vercel.app/.well-known/farcaster.json
-- ✅ Account association properly configured with JWT header and signature
-- ✅ All validation errors resolved (special characters, button title consistency)
-- ✅ Custom branding integrated (MintedMerch logo, splash, OG images)
-- ✅ Ready for submission to Farcaster Mini App registry
-
-**Deployment Status**: 
-- ✅ Local dev: http://localhost:3000
-- ✅ Production: https://mintedmerch.vercel.app/
-- ✅ Shopify API connected and working perfectly
-- ✅ 13+ products displaying with correct images and prices
-- ✅ Individual product pages working with proper variant pricing
-- ✅ All price display issues resolved
-- ✅ Farcaster Mini App SDK integrated and deployed
-- ✅ Farcaster user context properly handled and displayed
-- ✅ Enhanced product descriptions with proper formatting
-- ✅ Cart with notes section and fixed Clear Cart functionality
-- 🎯 Ready for Phase 5: USDC Payment Integration
-
-### 🚧 Blocked/Waiting
-- None currently
+**Next: Task 14** - Implement USDC contract integration
+- Configure USDC contract interactions
+- Build functions to check USDC balance
+- Build functions to transfer USDC
+- Handle transaction approval flow
 
 ## Executor's Feedback or Assistance Requests
 
-**Phase 4 Complete with Major UI/UX Enhancements! 🎉**
+**✅ Task 12 Successfully Completed - Wagmi Integration Working!**
 
-**Latest Improvements Completed:**
-1. ✅ **FarcasterHeader Message**: Updated to "Hey, {username} - welcome to Minted Merch! 👋"
-2. ✅ **Enhanced Product Descriptions**: 
-   - Beautiful white card layout with shadow and border
-   - Proper paragraph formatting with line breaks
-   - Bold text parsing for **emphasized text**
-   - Improved typography and spacing
-   - Much more readable and professional appearance
-3. ✅ **Cart Notes Section**: 
-   - Added order notes textarea in cart
-   - Helpful placeholder text for NFT customization requests
-   - Integrated with CartContext state management
-   - Persists in localStorage with cart data
-4. ✅ **Fixed Clear Cart Button**: 
-   - Properly clears all cart items and notes
-   - Enhanced confirmation dialog
-   - Fixed state management issues
-   - Updated to use brand colors (#3eb489)
+**What's Been Implemented:**
+1. **Complete Wagmi Setup**: Configured with Base network and Farcaster connector
+2. **Provider Architecture**: WagmiProvider with React Query integration
+3. **Wallet Connection Component**: Shows connection status and connect/disconnect functionality
+4. **Configuration**: All contract addresses and merchant wallet configured
+5. **Development Environment**: Running successfully at http://localhost:3000
 
-**Current Status**: 
-- ✅ All 4 user requests completed successfully
-- ✅ Cart functionality fully working with notes support
-- ✅ Product pages now have beautiful, readable descriptions
-- ✅ Farcaster header displays proper welcome message
-- ✅ Consistent brand styling throughout the app
-- ✅ Ready for user testing and Phase 5 (USDC payments)
+**Current Status:**
+- Wagmi is properly integrated with the Farcaster Mini App SDK
+- Wallet connection UI is displaying on the homepage
+- Ready to test wallet connection in local browser and Farcaster environment
 
-**Ready for Next Phase**: USDC Payment Integration using Base network
+**Ready for Testing:**
+The wallet connection component should now be visible on the homepage. In a Farcaster Mini App environment, users should be able to connect their wallet seamlessly without wallet selection dialogs.
+
+**Next Steps:**
+1. Test wallet connection functionality
+2. Enhance UI styling and error handling (Task 13)
+3. Implement USDC contract interactions (Task 14)
+
+**Please test the wallet connection and let me know if it's working as expected!**
 
 ## Lessons
 
@@ -283,10 +310,9 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - Read the file before you try to edit it.
 - If there are vulnerabilities that appear in the terminal, run npm audit before proceeding
 - Always ask before using the -force git command
-- **Cart State Management**: When adding new fields to cart state (like notes), ensure all reducer cases handle the new field properly, especially CLEAR_CART and LOAD_CART actions
-- **UI Consistency**: Apply brand colors (#3eb489) consistently across all interactive elements for better user experience
-- **Product Description Formatting**: Use proper card layouts with shadows and borders to make content more readable and professional-looking
-- **Local State vs Context**: When using both local state and context for form inputs (like cart notes), ensure they stay in sync and update together
+- `window.confirm()` and `alert()` don't work reliably in Farcaster Mini App environments - use custom React modals instead
+- Clear Cart functionality required custom confirmation modal to work in production Mini App context
+- localStorage operations should have error handling for restricted embedded environments
 
 ## Next Steps
 

@@ -4,6 +4,7 @@ import { FrameInit } from "@/components/FrameInit";
 import { GoogleMapsScript } from "@/components/GoogleMapsScript";
 import { FarcasterHeader } from "@/components/FarcasterHeader";
 import { CartProvider } from "@/lib/CartContext";
+import { WagmiProvider } from "@/components/WagmiProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,14 +30,16 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <CartProvider>
-          <div>
-            <FarcasterHeader />
-            {children}
-            <FrameInit />
-            <GoogleMapsScript />
-          </div>
-        </CartProvider>
+        <WagmiProvider>
+          <CartProvider>
+            <div>
+              <FarcasterHeader />
+              {children}
+              <FrameInit />
+              <GoogleMapsScript />
+            </div>
+          </CartProvider>
+        </WagmiProvider>
       </body>
     </html>
   );
