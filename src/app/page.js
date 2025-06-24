@@ -30,7 +30,7 @@ export const metadata = {
       version: "next",
       imageUrl: "https://mintedmerch.vercel.app/og-image.png",
       button: {
-        title: "Shop Now",
+        title: "Shop Now 📦",
         action: {
           type: "launch_frame",
           name: "minted-merch-shop",
