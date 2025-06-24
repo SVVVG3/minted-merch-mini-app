@@ -8,7 +8,8 @@ async function shopifyAdminFetch(query, variables = {}) {
     throw new Error('Missing Shopify Admin API environment variables');
   }
 
-  const SHOPIFY_ADMIN_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/admin/api/2024-07/graphql.json`;
+  // Note: Using the actual domain that Shopify redirects to (frensdaily-shop vs shopfrensdaily)
+  const SHOPIFY_ADMIN_API_URL = `https://frensdaily-shop.myshopify.com/admin/api/2024-07/graphql.json`;
 
   const response = await fetch(SHOPIFY_ADMIN_API_URL, {
     method: 'POST',
@@ -67,14 +68,14 @@ async function shopifyStorefrontFetch(query, variables = {}) {
 }
 
 async function calculateWithAdminAPI(cartItems, shippingAddress, email) {
-  console.log('🎯 Attempting Admin API calculation for accurate shipping & taxes...');
+  console.log('🎯 Using Admin GraphQL API draftOrderCalculate for accurate tax calculation...');
   
-  // Convert cart items to Shopify draft order line items format
+  // Convert cart items to Shopify draft order line items format for GraphQL
   const lineItems = cartItems.map(item => {
     let variantId = null;
     
     if (item.variant && item.variant.id) {
-      variantId = item.variant.id;
+      variantId = item.variant.id; // Keep full GID for GraphQL
     } else if (item.product && item.product.variants && item.product.variants.edges.length > 0) {
       variantId = item.product.variants.edges[0].node.id;
     }
@@ -85,12 +86,14 @@ async function calculateWithAdminAPI(cartItems, shippingAddress, email) {
 
     return {
       variantId: variantId,
-      quantity: item.quantity || 1
+      quantity: item.quantity || 1,
+      requiresShipping: true,
+      taxable: true
     };
   });
 
-  // Format addresses for Shopify Admin API
-  const shopifyShippingAddress = {
+  // Format addresses for Shopify GraphQL API
+  const shippingAddressData = {
     firstName: shippingAddress.firstName,
     lastName: shippingAddress.lastName,
     address1: shippingAddress.address1,
@@ -102,48 +105,73 @@ async function calculateWithAdminAPI(cartItems, shippingAddress, email) {
     phone: shippingAddress.phone || null
   };
 
-  const shopifyBillingAddress = {
-    firstName: shippingAddress.firstName,
-    lastName: shippingAddress.lastName,
-    address1: shippingAddress.address1,
-    address2: shippingAddress.address2 || null,
-    city: shippingAddress.city,
-    provinceCode: shippingAddress.province,
-    countryCode: shippingAddress.country || 'US',
-    zip: shippingAddress.zip,
-    phone: shippingAddress.phone || null
+  // Create draft order input for GraphQL mutation
+  const draftOrderInput = {
+    lineItems: lineItems,
+    shippingAddress: shippingAddressData,
+    billingAddress: shippingAddressData,
+    email: email || null,
+    taxExempt: false
   };
 
-  // Use Admin API draftOrderCalculate mutation to get accurate shipping rates and taxes
+  console.log('📦 Calculating draft order with GraphQL:', {
+    lineItemsCount: lineItems.length,
+    shippingAddress: `${shippingAddress.city}, ${shippingAddress.province}`,
+    lineItems: lineItems.map(item => `${item.variantId} x${item.quantity}`)
+  });
+
+  // Use GraphQL draftOrderCalculate mutation for accurate tax/shipping calculation
   const draftOrderCalculateQuery = `
     mutation draftOrderCalculate($input: DraftOrderInput!) {
       draftOrderCalculate(input: $input) {
         calculatedDraftOrder {
-          subtotalPrice
-          totalPrice
-          totalShippingPrice
-          totalTax
-          availableShippingRates {
-            handle
-            title
-            price {
+          totalPriceSet {
+            shopMoney {
               amount
+              currencyCode
             }
           }
-          lineItems(first: 50) {
-            edges {
-              node {
-                title
-                quantity
-                variant {
-                  id
-                  title
-                  price
-                }
-                originalTotal
+          subtotalPriceSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+          }
+          totalTaxSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+          }
+          totalShippingPriceSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+          }
+          availableShippingRates {
+            title
+            handle
+            price {
+              amount
+              currencyCode
+            }
+          }
+          lineItems {
+            title
+            quantity
+            variant {
+              id
+              title
+            }
+            discountedTotalSet {
+              shopMoney {
+                amount
+                currencyCode
               }
             }
           }
+          currencyCode
         }
         userErrors {
           field
@@ -153,56 +181,71 @@ async function calculateWithAdminAPI(cartItems, shippingAddress, email) {
     }
   `;
 
-  const draftOrderInput = {
-    lineItems: lineItems,
-    shippingAddress: shopifyShippingAddress,
-    billingAddress: shopifyBillingAddress,
-    email: email || null
+  const variables = {
+    input: draftOrderInput
   };
 
-  const draftOrderData = await shopifyAdminFetch(draftOrderCalculateQuery, { input: draftOrderInput });
+  console.log('🔍 Sending draftOrderCalculate mutation...');
+  const result = await shopifyAdminFetch(draftOrderCalculateQuery, variables);
 
-  if (draftOrderData.draftOrderCalculate.userErrors.length > 0) {
-    throw new Error(`Draft order calculation failed: ${JSON.stringify(draftOrderData.draftOrderCalculate.userErrors)}`);
+  if (result.draftOrderCalculate.userErrors && result.draftOrderCalculate.userErrors.length > 0) {
+    console.error('❌ draftOrderCalculate mutation errors:', result.draftOrderCalculate.userErrors);
+    throw new Error(`draftOrderCalculate failed: ${result.draftOrderCalculate.userErrors.map(e => e.message).join(', ')}`);
   }
 
-  const calculatedOrder = draftOrderData.draftOrderCalculate.calculatedDraftOrder;
-  
+  const calculatedOrder = result.draftOrderCalculate.calculatedDraftOrder;
+
+  if (!calculatedOrder) {
+    throw new Error('draftOrderCalculate returned null calculated order');
+  }
+
+  console.log('✅ draftOrderCalculate successful:', {
+    subtotal: calculatedOrder.subtotalPriceSet.shopMoney.amount,
+    totalTax: calculatedOrder.totalTaxSet.shopMoney.amount,
+    totalShipping: calculatedOrder.totalShippingPriceSet.shopMoney.amount,
+    totalPrice: calculatedOrder.totalPriceSet.shopMoney.amount,
+    availableShippingRates: calculatedOrder.availableShippingRates.length,
+    currency: calculatedOrder.currencyCode
+  });
+
+  // Format shipping rates
+  const shippingRates = calculatedOrder.availableShippingRates.map(rate => ({
+    handle: rate.handle,
+    title: rate.title,
+    price: {
+      amount: parseFloat(rate.price.amount),
+      currencyCode: rate.price.currencyCode
+    }
+  }));
+
   return {
-    cartId: `draft-order-${Date.now()}`,
+    cartId: `calculated-draft-order-${Date.now()}`,
     checkoutUrl: null,
     subtotal: {
-      amount: parseFloat(calculatedOrder.subtotalPrice),
-      currencyCode: 'USD'
+      amount: parseFloat(calculatedOrder.subtotalPriceSet.shopMoney.amount),
+      currencyCode: calculatedOrder.subtotalPriceSet.shopMoney.currencyCode
     },
     tax: {
-      amount: parseFloat(calculatedOrder.totalTax),
-      currencyCode: 'USD'
+      amount: parseFloat(calculatedOrder.totalTaxSet.shopMoney.amount),
+      currencyCode: calculatedOrder.totalTaxSet.shopMoney.currencyCode
     },
     total: {
-      amount: parseFloat(calculatedOrder.totalPrice),
-      currencyCode: 'USD'
+      amount: parseFloat(calculatedOrder.totalPriceSet.shopMoney.amount),
+      currencyCode: calculatedOrder.totalPriceSet.shopMoney.currencyCode
     },
-    shippingRates: calculatedOrder.availableShippingRates.map(rate => ({
-      handle: rate.handle,
-      title: rate.title,
-      price: {
-        amount: parseFloat(rate.price.amount),
-        currencyCode: 'USD'
-      }
-    })),
+    shippingRates: shippingRates,
     shippingRatesReady: true,
     requiresShipping: true,
-    lineItems: calculatedOrder.lineItems.edges.map(edge => ({
-      id: `line-${Date.now()}-${Math.random()}`,
-      title: edge.node.title,
-      quantity: edge.node.quantity,
+    lineItems: calculatedOrder.lineItems.map((item, index) => ({
+      id: `calculated-line-${index}`,
+      title: item.title,
+      quantity: item.quantity,
       variant: {
-        id: edge.node.variant?.id || null,
-        title: edge.node.variant?.title || 'Default',
+        id: item.variant.id,
+        title: item.variant.title || 'Default',
         price: {
-          amount: parseFloat(edge.node.variant?.price || '0'),
-          currencyCode: 'USD'
+          amount: parseFloat(item.discountedTotalSet.shopMoney.amount) / item.quantity,
+          currencyCode: item.discountedTotalSet.shopMoney.currencyCode
         }
       }
     }))
@@ -287,6 +330,17 @@ async function calculateWithStorefrontAPI(cartItems, shippingAddress, email) {
               currencyCode
             }
           }
+          deliveryGroups(first: 1) {
+            edges {
+              node {
+                id
+                deliveryOptions {
+                  title
+                  handle
+                }
+              }
+            }
+          }
           lines(first: 50) {
             edges {
               node {
@@ -340,17 +394,43 @@ async function calculateWithStorefrontAPI(cartItems, shippingAddress, email) {
 
   // Use actual Shopify calculations instead of estimates
   const subtotal = parseFloat(cart.estimatedCost.subtotalAmount.amount);
-  const actualTax = parseFloat(cart.estimatedCost.totalTaxAmount?.amount || 0);
+  let actualTax = parseFloat(cart.estimatedCost.totalTaxAmount?.amount || 0);
   const actualTotal = parseFloat(cart.estimatedCost.totalAmount.amount);
   
+  // Note: Storefront API has known limitations with tax calculation
+  // If tax is 0, it's likely due to Shopify's nexus-based tax collection
+  if (actualTax === 0 && actualTotal > subtotal) {
+    console.log('ℹ️ Storefront API returned 0 tax (likely due to nexus requirements):', {
+      subtotal: subtotal,
+      reportedTax: actualTax,
+      total: actualTotal,
+      shippingAmount: actualTotal - subtotal
+    });
+  }
+  
   // Calculate shipping as the difference (Total - Subtotal - Tax)
-  const actualShipping = actualTotal - subtotal - actualTax;
+  let actualShipping = actualTotal - subtotal - actualTax;
+  let shippingTitle = 'Shipping';
+  
+  // Try to get shipping title from delivery groups (but calculate amount from total)
+  if (cart.deliveryGroups?.edges?.length > 0) {
+    const deliveryGroup = cart.deliveryGroups.edges[0].node;
+    if (deliveryGroup.deliveryOptions?.length > 0) {
+      const deliveryOption = deliveryGroup.deliveryOptions[0];
+      shippingTitle = deliveryOption.title || 'Shipping';
+      console.log('📦 Using delivery group title:', {
+        title: shippingTitle,
+        calculatedAmount: actualShipping
+      });
+    }
+  }
 
   console.log('🔍 Shopify actual calculations:', {
     subtotal: subtotal,
     tax: actualTax,
     total: actualTotal,
-    calculatedShipping: actualShipping
+    calculatedShipping: actualShipping,
+    deliveryGroupsAvailable: cart.deliveryGroups?.edges?.length || 0
   });
 
   return {
@@ -371,7 +451,7 @@ async function calculateWithStorefrontAPI(cartItems, shippingAddress, email) {
     shippingRates: [
       {
         handle: 'shopify-calculated',
-        title: actualShipping === 0 ? 'FREE Shipping' : 'Shipping',
+        title: actualShipping === 0 ? 'FREE Shipping' : shippingTitle,
         price: {
           amount: actualShipping,
           currencyCode: 'USD'
