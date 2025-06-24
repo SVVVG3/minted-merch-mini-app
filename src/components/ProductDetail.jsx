@@ -34,36 +34,86 @@ export function ProductDetail({
   const formatDescription = (description) => {
     if (!description) return null;
     
-    // Split by double line breaks to create paragraphs
-    const paragraphs = description.split('\n\n').filter(p => p.trim());
+    // Split by single line breaks first, then process each line
+    const lines = description.split('\n').map(line => line.trim()).filter(line => line);
     
-    return paragraphs.map((paragraph, index) => {
-      // Check if paragraph contains special formatting
-      if (paragraph.includes('**')) {
-        // Handle bold text
-        const parts = paragraph.split(/(\*\*.*?\*\*)/g);
-        return (
-          <p key={index} className="text-gray-700 leading-relaxed mb-4">
-            {parts.map((part, partIndex) => {
-              if (part.startsWith('**') && part.endsWith('**')) {
-                return (
-                  <strong key={partIndex} className="font-semibold text-red-600">
-                    {part.slice(2, -2)}
-                  </strong>
-                );
-              }
-              return part;
-            })}
-          </p>
+    const elements = [];
+    let currentParagraph = [];
+    
+    lines.forEach((line, index) => {
+      // Check if line is a bullet point (starts with • or -)
+      if (line.startsWith('•') || line.startsWith('-') || line.match(/^\d+\./)) {
+        // If we have accumulated paragraph text, add it first
+        if (currentParagraph.length > 0) {
+          elements.push(
+            <p key={`p-${elements.length}`} className="text-gray-700 leading-relaxed mb-4">
+              {formatTextWithBold(currentParagraph.join(' '))}
+            </p>
+          );
+          currentParagraph = [];
+        }
+        
+        // Add bullet point as list item
+        elements.push(
+          <div key={`bullet-${index}`} className="flex items-start mb-2">
+            <span className="text-[#3eb489] font-bold mr-2 mt-1">•</span>
+            <span className="text-gray-700 leading-relaxed">
+              {formatTextWithBold(line.replace(/^[•\-]|\d+\./, '').trim())}
+            </span>
+          </div>
         );
       }
-      
-      // Regular paragraph
-      return (
-        <p key={index} className="text-gray-700 leading-relaxed mb-4">
-          {paragraph}
+      // Check if line looks like a header (all caps or ends with colon)
+      else if (line === line.toUpperCase() && line.length > 3 || line.endsWith(':')) {
+        // If we have accumulated paragraph text, add it first
+        if (currentParagraph.length > 0) {
+          elements.push(
+            <p key={`p-${elements.length}`} className="text-gray-700 leading-relaxed mb-4">
+              {formatTextWithBold(currentParagraph.join(' '))}
+            </p>
+          );
+          currentParagraph = [];
+        }
+        
+        // Add header
+        elements.push(
+          <h4 key={`header-${index}`} className="text-gray-900 font-semibold text-base mb-3 mt-4">
+            {line}
+          </h4>
+        );
+      }
+      // Regular text line
+      else {
+        currentParagraph.push(line);
+      }
+    });
+    
+    // Add any remaining paragraph text
+    if (currentParagraph.length > 0) {
+      elements.push(
+        <p key={`p-${elements.length}`} className="text-gray-700 leading-relaxed mb-4">
+          {formatTextWithBold(currentParagraph.join(' '))}
         </p>
       );
+    }
+    
+    return elements;
+  };
+
+  // Helper function to format bold text within a string
+  const formatTextWithBold = (text) => {
+    if (!text.includes('**')) return text;
+    
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, partIndex) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <strong key={partIndex} className="font-semibold text-red-600">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      return part;
     });
   };
 

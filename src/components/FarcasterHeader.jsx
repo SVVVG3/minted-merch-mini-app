@@ -17,7 +17,7 @@ export function FarcasterHeader() {
 
         return (
     <div className="bg-[#3eb489] text-white px-4 py-2 text-sm">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-center">
         <div className="flex items-center space-x-2">
           {user.pfpUrl && (
             <img 

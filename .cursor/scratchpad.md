@@ -171,6 +171,18 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
     - Fixed button styling and positioning
     - Updated brand colors throughout cart (blue → green #3eb489)
 
+- **Task 12**: Product Description Formatting & Header Centering ✅ COMPLETED
+  - ✅ **Product Description Formatting Fix**:
+    - Completely rewrote formatDescription function to handle single line breaks
+    - Added proper bullet point parsing and formatting with brand-colored bullets
+    - Implemented header detection for ALL CAPS text and text ending with colons
+    - Added proper spacing between different content types (paragraphs, bullets, headers)
+    - Fixed text flow to prevent long paragraph formatting issues
+    - Added formatTextWithBold helper function for consistent bold text handling
+  - ✅ **Farcaster Header Centering**:
+    - Changed header layout from justify-between to justify-center
+    - User profile and welcome message now properly centered in header
+
 ### 🔄 Current Status / Progress Tracking
 
 ✅ **Phase 4 Complete + UI/UX Enhancements** - Cart Functionality & Improvements
