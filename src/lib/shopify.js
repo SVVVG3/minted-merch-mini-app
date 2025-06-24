@@ -5,14 +5,14 @@ if (!SHOPIFY_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
   throw new Error('Missing Shopify environment variables');
 }
 
-const SHOPIFY_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/admin/api/2025-04/graphql.json`;
+const SHOPIFY_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/api/2024-07/graphql.json`;
 
 async function shopifyFetch(query, variables = {}) {
   const response = await fetch(SHOPIFY_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+      'X-Shopify-Storefront-Access-Token': SHOPIFY_ACCESS_TOKEN,
     },
     body: JSON.stringify({ query, variables }),
   });
@@ -49,7 +49,7 @@ export async function getCollections() {
 export async function getCollectionByHandle(handle) {
   const query = `
     query getCollection($handle: String!) {
-      collectionByHandle(handle: $handle) {
+      collection(handle: $handle) {
         id
         title
         handle
@@ -83,7 +83,7 @@ export async function getCollectionByHandle(handle) {
   `;
 
   const data = await shopifyFetch(query, { handle });
-  return data.collectionByHandle;
+  return data.collection;
 }
 
 export async function getProductByHandle(handle) {
