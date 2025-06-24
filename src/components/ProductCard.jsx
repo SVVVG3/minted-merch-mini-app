@@ -9,8 +9,10 @@ export function ProductCard({ product }) {
   const imageUrl = product.images?.edges?.[0]?.node?.url || '/placeholder.jpg';
   const imageAlt = product.images?.edges?.[0]?.node?.altText || product.title;
   
-  // Get the first available variant (default variant)
-  const defaultVariant = product.variants?.edges?.[0]?.node;
+  // Get all variants and check if product has multiple variants (sizes/options)
+  const variants = product.variants?.edges || [];
+  const defaultVariant = variants[0]?.node;
+  const hasMultipleVariants = variants.length > 1;
   const isItemInCart = isInCart(product.id, defaultVariant?.id);
 
   const handleAddToCart = (e) => {
@@ -46,19 +48,27 @@ export function ProductCard({ product }) {
           </p>
         </Link>
         
-        {/* Add to Cart Button */}
+        {/* Add to Cart or Select Size Button */}
         <div className="mt-2">
           {defaultVariant && defaultVariant.availableForSale ? (
-            <button
-              onClick={handleAddToCart}
-              className={`w-full py-2 px-3 text-xs font-medium rounded-md transition-colors ${
-                isItemInCart
-                  ? 'bg-green-100 text-green-800 border border-green-200'
-                  : 'bg-[#3eb489] text-white hover:bg-[#359970]'
-              }`}
-            >
-              {isItemInCart ? '✓ In Cart' : 'Add to Cart'}
-            </button>
+            hasMultipleVariants ? (
+              <Link href={`/product/${product.handle}`} className="block">
+                <button className="w-full py-2 px-3 text-xs font-medium rounded-md bg-[#3eb489] text-white hover:bg-[#359970] transition-colors">
+                  Select Size
+                </button>
+              </Link>
+            ) : (
+              <button
+                onClick={handleAddToCart}
+                className={`w-full py-2 px-3 text-xs font-medium rounded-md transition-colors ${
+                  isItemInCart
+                    ? 'bg-green-100 text-green-800 border border-green-200'
+                    : 'bg-[#3eb489] text-white hover:bg-[#359970]'
+                }`}
+              >
+                {isItemInCart ? '✓ In Cart' : 'Add to Cart'}
+              </button>
+            )
           ) : (
             <button
               disabled
