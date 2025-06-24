@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { VariantSelector } from './VariantSelector';
+import { useCart } from '@/lib/CartContext';
 
 export function ProductDetail({ 
   product, 
@@ -9,8 +10,19 @@ export function ProductDetail({
   onVariantChange, 
   onBuyNow 
 }) {
+  const { addItem, isInCart, getItemQuantity } = useCart();
   const mainImage = product.images?.edges?.[0]?.node;
   const price = selectedVariant?.price?.amount || product.priceRange?.minVariantPrice?.amount || '0';
+  
+  // Check if this specific variant is in cart
+  const itemInCart = isInCart(product.id, selectedVariant?.id);
+  const cartQuantity = getItemQuantity(product.id, selectedVariant?.id);
+
+  const handleAddToCart = () => {
+    if (selectedVariant && selectedVariant.availableForSale) {
+      addItem(product, selectedVariant, 1);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -27,7 +39,7 @@ export function ProductDetail({
         </div>
       </header>
 
-      <main className="pb-20">
+      <main className="pb-32">
         {mainImage && (
           <div className="aspect-square bg-white">
             <img
@@ -44,6 +56,11 @@ export function ProductDetail({
             <p className="text-2xl font-bold text-gray-900 mt-2">
               ${parseFloat(price).toFixed(2)}
             </p>
+            {itemInCart && (
+              <p className="text-sm text-green-600 mt-1">
+                {cartQuantity} in cart
+              </p>
+            )}
           </div>
 
           <VariantSelector
@@ -61,14 +78,24 @@ export function ProductDetail({
         </div>
       </main>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 space-y-3">
+        <button
+          onClick={handleAddToCart}
+          disabled={!selectedVariant?.availableForSale}
+          className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+        >
+          {selectedVariant?.availableForSale 
+            ? `Add to Cart - $${parseFloat(price).toFixed(2)}` 
+            : 'Out of Stock'}
+        </button>
+        
         <button
           onClick={onBuyNow}
           disabled={!selectedVariant?.availableForSale}
           className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
           {selectedVariant?.availableForSale 
-            ? `Buy with ${parseFloat(price).toFixed(2)} USDC` 
+            ? `Buy Now with ${parseFloat(price).toFixed(2)} USDC` 
             : 'Out of Stock'}
         </button>
       </div>

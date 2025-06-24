@@ -1,11 +1,11 @@
-import { frame } from './frame';
+import { sdk } from './frame';
 
 const USDC_CONTRACT_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'; // USDC on Base
 const BASE_CHAIN_ID = 8453;
 const BASE_CHAIN_HEX = '0x2105';
 
 export async function checkFrameContext() {
-  const context = await frame.sdk.context;
+  const context = await sdk.context;
   if (!context) {
     throw new Error('Please open this app in Farcaster');
   }
@@ -13,14 +13,14 @@ export async function checkFrameContext() {
 }
 
 export async function switchToBase() {
-  const chainId = await frame.sdk.wallet.ethProvider.request({
+  const chainId = await sdk.wallet.ethProvider.request({
     method: 'eth_chainId'
   });
   
   const chainIdDecimal = typeof chainId === 'number' ? chainId : parseInt(chainId, 16);
   
   if (chainIdDecimal !== BASE_CHAIN_ID) {
-    await frame.sdk.wallet.ethProvider.request({
+    await sdk.wallet.ethProvider.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: BASE_CHAIN_HEX }]
     });
@@ -28,7 +28,7 @@ export async function switchToBase() {
 }
 
 export async function getWalletAddress() {
-  const accounts = await frame.sdk.wallet.ethProvider.request({
+  const accounts = await sdk.wallet.ethProvider.request({
     method: 'eth_requestAccounts'
   });
   
@@ -54,7 +54,7 @@ export async function sendUSDCPayment(amount, recipient) {
   const walletAddress = await getWalletAddress();
   
   // Send transaction
-  const txHash = await frame.sdk.wallet.ethProvider.request({
+  const txHash = await sdk.wallet.ethProvider.request({
     method: 'eth_sendTransaction',
     params: [{
       from: walletAddress,
