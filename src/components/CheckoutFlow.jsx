@@ -62,14 +62,23 @@ export function CheckoutFlow() {
       // Save shipping data to cart context
       updateShipping(shippingData);
       
-      // Calculate checkout with Shopify API
       console.log('Calculating checkout with:', {
         cartItems: cart.items,
         shippingAddress: shippingData
       });
       
+      // Calculate checkout with Shopify API
       const checkoutData = await calculateCheckout(cart.items, shippingData);
       console.log('Checkout calculation result:', checkoutData);
+      
+      // Validate the response
+      if (!checkoutData) {
+        throw new Error('No checkout data received from API');
+      }
+      
+      if (!checkoutData.total || !checkoutData.subtotal) {
+        throw new Error('Invalid checkout data: missing required fields');
+      }
       
       // Save checkout data to cart context
       updateCheckout(checkoutData);
@@ -79,6 +88,13 @@ export function CheckoutFlow() {
       
     } catch (error) {
       console.error('Checkout calculation error:', error);
+      console.error('Error stack:', error.stack);
+      console.error('Error details:', {
+        message: error.message,
+        name: error.name,
+        cartItems: cart.items,
+        shippingData: shippingData
+      });
       setCheckoutError(error.message || 'Failed to calculate shipping and taxes');
     } finally {
       setIsCalculatingCheckout(false);

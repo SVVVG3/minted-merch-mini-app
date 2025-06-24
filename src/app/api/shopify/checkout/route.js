@@ -372,6 +372,11 @@ export async function POST(request) {
 
     console.log('Checkout calculation request:', {
       itemCount: cartItems.length,
+      cartItems: cartItems.map(item => ({
+        title: item.product?.title || 'Unknown',
+        variantId: item.variant?.id || 'No variant',
+        quantity: item.quantity
+      })),
       shippingAddress: shippingAddress,
       email: email
     });
@@ -394,6 +399,7 @@ export async function POST(request) {
 
     // Try Admin API first for accurate calculations
     try {
+      console.log('🎯 Trying Admin API with items:', cartItems.length);
       response = await calculateWithAdminAPI(cartItems, shippingAddress, email);
       console.log('✅ Admin API calculation successful:', {
         subtotal: response.subtotal.amount,
@@ -407,6 +413,7 @@ export async function POST(request) {
       
       // Fall back to Storefront API with estimates
       try {
+        console.log('⚠️ Trying Storefront API fallback with items:', cartItems.length);
         response = await calculateWithStorefrontAPI(cartItems, shippingAddress, email);
         console.log('⚠️ Storefront API fallback successful (estimated values):', {
           subtotal: response.subtotal.amount,
@@ -416,14 +423,23 @@ export async function POST(request) {
         });
       } catch (storefrontError) {
         console.error('❌ Both APIs failed:', { adminError: adminError.message, storefrontError: storefrontError.message });
+        console.error('❌ Storefront API error details:', storefrontError);
         throw new Error(`Both Admin API and Storefront API failed. Admin: ${adminError.message}, Storefront: ${storefrontError.message}`);
       }
     }
 
+    console.log('✅ Returning successful response:', {
+      cartId: response.cartId,
+      subtotal: response.subtotal.amount,
+      total: response.total.amount,
+      lineItemsCount: response.lineItems.length
+    });
+
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('Checkout calculation error:', error);
+    console.error('❌ Checkout calculation error:', error);
+    console.error('❌ Error stack:', error.stack);
     return NextResponse.json(
       { error: 'Failed to calculate checkout', details: error.message },
       { status: 500 }
