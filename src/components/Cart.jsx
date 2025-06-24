@@ -114,13 +114,31 @@ export function Cart({ isOpen, onClose }) {
         {/* Footer */}
         {cart.items.length > 0 && (
           <div className="border-t p-4 space-y-4">
-            {/* Clear Cart Button */}
-            <button
-              onClick={handleClearCart}
-              className="w-full text-sm text-red-600 hover:text-red-700 transition-colors py-2"
-            >
-              Clear Cart
-            </button>
+            {/* Action Buttons Row */}
+            <div className="flex justify-between items-center">
+              <button
+                onClick={() => {
+                  const notesElement = document.getElementById('cart-notes');
+                  if (notesElement) {
+                    notesElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    notesElement.focus();
+                  }
+                }}
+                className="text-sm text-[#3eb489] hover:text-[#359970] transition-colors py-2 flex items-center"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Add Notes
+              </button>
+              
+              <button
+                onClick={handleClearCart}
+                className="text-sm text-red-600 hover:text-red-700 transition-colors py-2"
+              >
+                Clear Cart
+              </button>
+            </div>
 
             {/* Total */}
             <div className="flex justify-between items-center text-lg font-semibold">

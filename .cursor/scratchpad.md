@@ -183,6 +183,22 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
     - Changed header layout from justify-between to justify-center
     - User profile and welcome message now properly centered in header
 
+- **Task 13**: Advanced Description Formatting & Cart UX Improvements ✅ COMPLETED
+  - ✅ **Advanced Product Description Parsing**:
+    - Added support for Shopify's `descriptionHtml` field for rich content
+    - Implemented intelligent text splitting based on sentence structure and patterns
+    - Added pattern recognition for product specifications (percentages, measurements, materials)
+    - Created feature detection for product attributes (structured, panels, closures, etc.)
+    - Enhanced text emphasis for parenthetical content like "(EMBROIDERED DESIGN)"
+    - Added fallback formatting for edge cases and malformed content
+    - Much improved readability with proper bullet points and headers
+  - ✅ **Cart UX Improvements**:
+    - Moved Clear Cart button to the right side of action row
+    - Added "Add Notes" button with scroll-to functionality and focus
+    - Improved cart footer layout with better spacing and organization
+    - Added edit icon to "Add Notes" button for better visual clarity
+    - Enhanced user experience for finding and using the notes section
+
 ### 🔄 Current Status / Progress Tracking
 
 ✅ **Phase 4 Complete + UI/UX Enhancements** - Cart Functionality & Improvements

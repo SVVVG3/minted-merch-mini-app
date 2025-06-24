@@ -31,68 +31,88 @@ export function ProductDetail({
   const closeCart = () => setIsCartOpen(false);
 
   // Helper function to format product description with line breaks and styling
-  const formatDescription = (description) => {
-    if (!description) return null;
+  const formatDescription = (description, descriptionHtml) => {
+    // Prefer HTML description if available, otherwise use plain text
+    let content = descriptionHtml || description;
+    if (!content) return null;
     
-    // Split by single line breaks first, then process each line
-    const lines = description.split('\n').map(line => line.trim()).filter(line => line);
+    // If we have HTML, parse it properly
+    if (descriptionHtml) {
+      return (
+        <div 
+          className="prose prose-sm max-w-none text-gray-700"
+          dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+        />
+      );
+    }
+    
+    // For plain text, create better formatting
+    // Split by periods followed by capital letters or common separators
+    let lines = content
+      .split(/(?:\.|!|\?)\s*(?=[A-Z])|•|[\r\n]+/)
+      .map(line => line.trim())
+      .filter(line => line && line.length > 2);
+    
+    // If no natural breaks found, try to split long text intelligently
+    if (lines.length === 1 && content.length > 100) {
+      // Split on common patterns: percentages, measurements, features
+      lines = content
+        .split(/(?:(?:\d+%|\d+\s*oz|\d+\s*g\/m²)\s*[•\-]?\s*)|(?:[•\-]\s*)/g)
+        .map(line => line.trim())
+        .filter(line => line && line.length > 2);
+    }
     
     const elements = [];
-    let currentParagraph = [];
     
     lines.forEach((line, index) => {
-      // Check if line is a bullet point (starts with • or -)
-      if (line.startsWith('•') || line.startsWith('-') || line.match(/^\d+\./)) {
-        // If we have accumulated paragraph text, add it first
-        if (currentParagraph.length > 0) {
-          elements.push(
-            <p key={`p-${elements.length}`} className="text-gray-700 leading-relaxed mb-4">
-              {formatTextWithBold(currentParagraph.join(' '))}
-            </p>
-          );
-          currentParagraph = [];
-        }
-        
-        // Add bullet point as list item
+      // Skip very short lines that are likely artifacts
+      if (line.length < 3) return;
+      
+      // Check for percentage or measurement patterns (likely specs)
+      if (line.match(/\d+%|\d+\s*oz|\d+\s*g\/m²|cotton|polyester|fabric|weight/i)) {
         elements.push(
-          <div key={`bullet-${index}`} className="flex items-start mb-2">
+          <div key={`spec-${index}`} className="flex items-start mb-2">
             <span className="text-[#3eb489] font-bold mr-2 mt-1">•</span>
             <span className="text-gray-700 leading-relaxed">
-              {formatTextWithBold(line.replace(/^[•\-]|\d+\./, '').trim())}
+              {formatTextWithBold(line)}
             </span>
           </div>
         );
       }
-      // Check if line looks like a header (all caps or ends with colon)
-      else if (line === line.toUpperCase() && line.length > 3 || line.endsWith(':')) {
-        // If we have accumulated paragraph text, add it first
-        if (currentParagraph.length > 0) {
-          elements.push(
-            <p key={`p-${elements.length}`} className="text-gray-700 leading-relaxed mb-4">
-              {formatTextWithBold(currentParagraph.join(' '))}
-            </p>
-          );
-          currentParagraph = [];
-        }
-        
-        // Add header
+      // Check for feature descriptions (structured, five-panel, etc.)
+      else if (line.match(/structured|panel|profile|bill|closure|snapback/i)) {
+        elements.push(
+          <div key={`feature-${index}`} className="flex items-start mb-2">
+            <span className="text-[#3eb489] font-bold mr-2 mt-1">•</span>
+            <span className="text-gray-700 leading-relaxed">
+              {formatTextWithBold(line)}
+            </span>
+          </div>
+        );
+      }
+      // Check if line looks like a header or title
+      else if (line === line.toUpperCase() && line.length > 3 || line.endsWith(':') || line.match(/^(how it works|embroidered design)/i)) {
         elements.push(
           <h4 key={`header-${index}`} className="text-gray-900 font-semibold text-base mb-3 mt-4">
-            {line}
+            {formatTextWithBold(line)}
           </h4>
         );
       }
-      // Regular text line
+      // Regular paragraph text
       else {
-        currentParagraph.push(line);
+        elements.push(
+          <p key={`p-${index}`} className="text-gray-700 leading-relaxed mb-4">
+            {formatTextWithBold(line)}
+          </p>
+        );
       }
     });
     
-    // Add any remaining paragraph text
-    if (currentParagraph.length > 0) {
+    // If no elements were created, just show the original text as a paragraph
+    if (elements.length === 0) {
       elements.push(
-        <p key={`p-${elements.length}`} className="text-gray-700 leading-relaxed mb-4">
-          {formatTextWithBold(currentParagraph.join(' '))}
+        <p key="fallback" className="text-gray-700 leading-relaxed mb-4">
+          {formatTextWithBold(content)}
         </p>
       );
     }
@@ -102,19 +122,39 @@ export function ProductDetail({
 
   // Helper function to format bold text within a string
   const formatTextWithBold = (text) => {
-    if (!text.includes('**')) return text;
+    if (!text || typeof text !== 'string') return text;
     
-    const parts = text.split(/(\*\*.*?\*\*)/g);
-    return parts.map((part, partIndex) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return (
-          <strong key={partIndex} className="font-semibold text-red-600">
-            {part.slice(2, -2)}
-          </strong>
-        );
-      }
-      return part;
-    });
+    // Handle **bold** text
+    if (text.includes('**')) {
+      const parts = text.split(/(\*\*.*?\*\*)/g);
+      return parts.map((part, partIndex) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return (
+            <strong key={partIndex} className="font-semibold text-red-600">
+              {part.slice(2, -2)}
+            </strong>
+          );
+        }
+        return part;
+      });
+    }
+    
+    // Handle (TEXT IN PARENTHESES) as emphasized
+    if (text.includes('(') && text.includes(')')) {
+      const parts = text.split(/(\([^)]+\))/g);
+      return parts.map((part, partIndex) => {
+        if (part.startsWith('(') && part.endsWith(')')) {
+          return (
+            <span key={partIndex} className="font-medium text-red-600">
+              {part}
+            </span>
+          );
+        }
+        return part;
+      });
+    }
+    
+    return text;
   };
 
   return (
@@ -193,7 +233,7 @@ export function ProductDetail({
             <div className="bg-white rounded-lg p-6 shadow-sm border">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Description</h3>
               <div className="prose prose-sm max-w-none">
-                {formatDescription(product.description)}
+                {formatDescription(product.description, product.descriptionHtml)}
               </div>
             </div>
           )}
