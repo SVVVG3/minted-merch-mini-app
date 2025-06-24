@@ -1,12 +1,11 @@
 'use client';
 
 import { useState } from 'react'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConnections } from 'wagmi'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { USDC_CONTRACT, PAYMENT_CONFIG, formatUSDCAmount, parseUSDCAmount, usdToUSDC } from './usdc'
 
 export function useUSDCPayment() {
-  const { address, isConnected, connector } = useAccount()
-  const connections = useConnections()
+  const { address, isConnected } = useAccount()
   const [paymentStatus, setPaymentStatus] = useState('idle') // idle, checking, pending, success, error
   const [error, setError] = useState(null)
   const [transactionHash, setTransactionHash] = useState(null)
@@ -65,15 +64,6 @@ export function useUSDCPayment() {
 
       if (!address) {
         throw new Error('No wallet address found')
-      }
-
-      if (!connector) {
-        throw new Error('Connector not available')
-      }
-
-      // Wait for connections to be ready (fix for getChainId error)
-      if (connections.length === 0) {
-        throw new Error('No connections available')
       }
 
       if (!usdAmount || usdAmount <= 0) {
