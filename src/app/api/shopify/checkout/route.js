@@ -213,24 +213,45 @@ async function calculateWithStorefrontAPI(cartItems, shippingAddress, email) {
   console.log('⚠️ Using Storefront API fallback (estimated costs only)...');
   
   // Convert cart items to Shopify line items format
-  const lineItems = cartItems.map(item => {
+  const lineItems = cartItems.map((item, index) => {
+    console.log(`Processing cart item ${index}:`, {
+      hasVariant: !!item.variant,
+      variantId: item.variant?.id || 'NOT FOUND',
+      hasProduct: !!item.product,
+      productTitle: item.product?.title || 'NO TITLE',
+      quantity: item.quantity,
+      itemStructure: Object.keys(item)
+    });
+
     let variantId = null;
     
     if (item.variant && item.variant.id) {
       variantId = item.variant.id;
+      console.log(`✅ Found variant ID from item.variant.id: ${variantId}`);
     } else if (item.product && item.product.variants && item.product.variants.edges.length > 0) {
       variantId = item.product.variants.edges[0].node.id;
+      console.log(`✅ Found variant ID from product.variants: ${variantId}`);
     }
 
     if (!variantId) {
+      console.error(`❌ No variant ID found for item ${index}:`, {
+        item: item,
+        variantStructure: item.variant ? Object.keys(item.variant) : 'NO VARIANT',
+        productStructure: item.product ? Object.keys(item.product) : 'NO PRODUCT'
+      });
       throw new Error(`No variant ID found for item: ${item.product?.title || 'Unknown'}`);
     }
 
-    return {
+    const lineItem = {
       merchandiseId: variantId,
       quantity: item.quantity || 1
     };
+
+    console.log(`✅ Created line item for ${item.product?.title}:`, lineItem);
+    return lineItem;
   });
+
+  console.log('📦 Final line items for Shopify:', lineItems);
 
   // Format shipping address for Shopify
   const shopifyShippingAddress = {
@@ -319,7 +340,7 @@ async function calculateWithStorefrontAPI(cartItems, shippingAddress, email) {
 
   // Calculate estimated shipping (this is a fallback estimate)
   const subtotal = parseFloat(cart.estimatedCost.subtotalAmount.amount);
-  const estimatedShipping = subtotal > 50 ? 0 : 8.98; // Free shipping over $50, otherwise $8.98
+  const estimatedShipping = subtotal >= 75 ? 0 : 8.98; // Free shipping over $75 for US orders, otherwise estimate $8.98
   const estimatedTax = subtotal * 0.0875; // Estimate 8.75% tax for CA
   const estimatedTotal = subtotal + estimatedShipping + estimatedTax;
 
@@ -340,15 +361,15 @@ async function calculateWithStorefrontAPI(cartItems, shippingAddress, email) {
     },
     shippingRates: [
       {
-        handle: 'us-flat-rate',
-        title: 'US Flat Rate',
+        handle: 'us-shipping',
+        title: estimatedShipping === 0 ? 'FREE Shipping (over $75)' : 'Shipping (estimated)',
         price: {
           amount: estimatedShipping,
           currencyCode: 'USD'
         }
       }
     ],
-    shippingRatesReady: true,
+    shippingRatesReady: false, // Mark as false since these are estimates, not real rates
     requiresShipping: true,
     lineItems: cart.lines.edges.map(edge => ({
       id: edge.node.id,
