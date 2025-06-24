@@ -36,8 +36,8 @@ export function useUSDCPayment() {
     isSuccess: isConfirmed,
     error: confirmError
   } = useWaitForTransactionReceipt({
-    hash: transactionHash,
-    enabled: !!transactionHash,
+    hash: hash, // Use the hash from writeContract, not our state
+    enabled: !!hash,
   })
 
   // Format balance for display
@@ -89,15 +89,14 @@ export function useUSDCPayment() {
       })
 
       // Execute the transfer
-      const txHash = await writeContract({
+      writeContract({
         ...USDC_CONTRACT,
         functionName: 'transfer',
         args: [PAYMENT_CONFIG.merchantWallet, usdcAmount],
       })
 
-      setTransactionHash(txHash)
-      
-      return txHash
+      // Note: hash will be available from the writeContract hook
+      // and we'll set it when the transaction is submitted
     } catch (err) {
       console.error('Payment error:', err)
       setError(err.message || 'Payment failed')
@@ -113,8 +112,13 @@ export function useUSDCPayment() {
     setTransactionHash(null)
   }
 
+  // Update transaction hash when available
+  if (hash && !transactionHash) {
+    setTransactionHash(hash)
+  }
+
   // Update status based on transaction state
-  if (transactionHash && isConfirmed && paymentStatus !== 'success') {
+  if (hash && isConfirmed && paymentStatus !== 'success') {
     setPaymentStatus('success')
   }
 
@@ -134,7 +138,7 @@ export function useUSDCPayment() {
     // Payment state
     paymentStatus,
     error,
-    transactionHash,
+    transactionHash: hash || transactionHash, // Use the most current hash
     
     // Payment functions
     executePayment,
