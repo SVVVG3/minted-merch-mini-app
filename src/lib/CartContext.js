@@ -87,14 +87,11 @@ function cartReducer(state, action) {
     }
     
     case CART_ACTIONS.CLEAR_CART: {
-      console.log('CLEAR_CART reducer case triggered - clearing cart items and notes');
-      const clearedState = {
+      return {
         ...state,
         items: [],
         notes: ''
       };
-      console.log('Cart cleared, new state:', clearedState);
-      return clearedState;
     }
     
     case CART_ACTIONS.UPDATE_NOTES: {
@@ -143,10 +140,7 @@ export function CartProvider({ children }) {
   // Save cart to localStorage whenever cart changes
   useEffect(() => {
     try {
-      const cartData = JSON.stringify(cart);
-      console.log('Saving cart to localStorage:', cartData);
-      localStorage.setItem('mintedmerch-cart', cartData);
-      console.log('Cart saved successfully to localStorage');
+      localStorage.setItem('mintedmerch-cart', JSON.stringify(cart));
     } catch (error) {
       console.error('Error saving cart to localStorage:', error);
       // In Mini App environments, localStorage might be restricted
@@ -177,13 +171,7 @@ export function CartProvider({ children }) {
   };
 
   const clearCart = () => {
-    try {
-      console.log('clearCart called - about to dispatch CLEAR_CART action');
-      dispatch({ type: CART_ACTIONS.CLEAR_CART });
-      console.log('CLEAR_CART action dispatched successfully');
-    } catch (error) {
-      console.error('Error in clearCart function:', error);
-    }
+    dispatch({ type: CART_ACTIONS.CLEAR_CART });
   };
 
   const updateNotes = (notes) => {
