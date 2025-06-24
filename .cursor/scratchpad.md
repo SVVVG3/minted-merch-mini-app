@@ -14,8 +14,42 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 
 - **Environment Setup**: ✅ COMPLETED - Shopify API credentials configured and working
 - **Farcaster Integration**: ✅ COMPLETED - Mini App context and authentication working
-- **Payment Flow**: 🎯 **CURRENT** - Implement USDC payments on Base using Farcaster wallet integration
-- **Order Management**: Manual order creation in Shopify after payment confirmation
+- **Payment Flow**: ✅ COMPLETED - USDC payments on Base using Farcaster wallet integration working
+- **E-Commerce Checkout**: 🎯 **CURRENT** - Build proper shipping/tax calculation before payment
+- **Order Management**: Automated Shopify order creation after payment confirmation
+
+### Phase 6 Technical Analysis - E-Commerce Checkout Flow
+
+**Key Requirements for Proper E-Commerce:**
+
+1. **Shipping Address Collection**
+   - Standard address form (name, address, city, state, zip, country)
+   - Address validation and formatting
+   - Integration with Farcaster user context (pre-fill name if available)
+
+2. **Shopify Checkout API Integration**
+   - Use checkoutCreate mutation to create temporary checkout
+   - Send cart line items + shipping address
+   - Receive available shipping methods and rates
+   - Get calculated taxes based on shipping location
+   - Return final pricing breakdown
+
+3. **Payment Flow Updates**
+   - Display itemized checkout summary (subtotal, shipping, taxes, total)
+   - Update USDC payment amount to include all fees
+   - Ensure payment amount matches Shopify checkout total
+
+4. **Order Creation Workflow**
+   - After successful USDC payment, create actual Shopify order
+   - Use Admin API to create order with payment marked as paid
+   - Include all customer details, shipping info, and line items
+   - Generate order confirmation and tracking
+
+**Technical Approach:**
+- **Storefront API**: For checkout creation and shipping/tax calculation
+- **Admin API**: For final order creation after payment
+- **State Management**: Extend cart context to include shipping/checkout data
+- **UI/UX**: Multi-step checkout flow (cart → shipping → payment → confirmation)
 
 ### Phase 5 Technical Analysis - USDC Payment Integration
 
@@ -91,14 +125,17 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
   - ✅ Development server running successfully with USDC payments
   - ✅ Ready for testing in Farcaster Mini App environment
 
-### Phase 6 — Shopify Order Creation
-- [ ] **Task 17**: Build Shopify Admin API client
-- [ ] **Task 18**: Build API route to create Shopify orders
-- [ ] **Task 19**: Connect payment confirmation to order creation
+### Phase 6 — E-Commerce Checkout Flow & Shopify Order Creation
+- [ ] **Task 15**: Build shipping address collection form
+- [ ] **Task 16**: Integrate Shopify checkout API for shipping & tax calculation
+- [ ] **Task 17**: Update payment flow with final totals (products + shipping + taxes)
+- [ ] **Task 18**: Build Shopify Admin API client for order creation
+- [ ] **Task 19**: Build API route to create Shopify orders
+- [ ] **Task 20**: Connect payment confirmation to order creation
 
 ### Phase 7 — Final MVP Readiness
-- [ ] **Task 20**: Test full end-to-end MVP flow
-- [ ] **Task 21**: Prepare production deployment
+- [ ] **Task 21**: Test full end-to-end MVP flow
+- [ ] **Task 22**: Prepare production deployment
 
 ## Project Status Board
 
@@ -253,25 +290,143 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 ✅ **Phase 1-4 Complete** - All foundational functionality working perfectly
 ✅ **Task 12 Complete** - Wagmi and Farcaster wallet connector setup complete
 
-🎯 **Currently Working On**: Task 15 - Build payment flow UI (COMPLETED as part of Task 14)
-- Payment flow UI already implemented in CheckoutFlow component ✅
-- Payment summary and transaction confirmation working ✅
-- Payment success/failure states properly handled ✅
+✅ **Phase 5 Complete** - All USDC payment functionality working perfectly
 
-**Success Criteria for Task 14:**
-- [x] Configure USDC contract address on Base network ✅ 
-- [x] Add USDC contract ABI for contract interactions ✅
-- [x] Build functions to check user's USDC balance ✅
-- [x] Build functions to transfer USDC to merchant wallet ✅
-- [x] Handle transaction approval flow with proper UI feedback ✅
-- [x] Add transaction status tracking (pending, success, failure) ✅
-- [x] Test USDC transactions in development environment ✅
+🎯 **Currently Working On**: Phase 6 - E-Commerce Checkout Flow & Shopify Order Creation
 
-**Next: Task 16** - Integrate payment with cart and order creation
-- Connect payment flow to existing cart data ✅ (already done)
-- Clear cart after successful payment ✅ (already done)
-- Create order data structure for Shopify integration
-- Build order confirmation screen
+✅ **Task 15 COMPLETED** - Build shipping address collection form
+
+**Implementation Summary:**
+- ✅ Created comprehensive ShippingForm component (`src/components/ShippingForm.jsx`)
+- ✅ Added all required address fields with proper validation
+- ✅ Integrated with Farcaster user context for name pre-filling
+- ✅ Extended CartContext to include shipping data storage
+- ✅ Added UPDATE_SHIPPING action to cart reducer
+- ✅ Updated CheckoutFlow to multi-step process (shipping → payment)
+- ✅ Added step indicator and navigation between steps
+- ✅ Form validation prevents proceeding without complete address
+- ✅ Responsive design matching app styling with brand colors
+- ✅ US states dropdown for US addresses, text input for other countries
+- ✅ Optional contact fields (email, phone) with validation
+- ✅ Shipping data persists in localStorage via CartContext
+- ✅ Development server running successfully with new checkout flow
+
+**Success Criteria Met:**
+- [x] ShippingForm component created with all required address fields ✅
+- [x] Form validation for required fields (name, address, city, state, zip) ✅
+- [x] Integration with existing checkout flow (appears before payment) ✅
+- [x] Shipping address stored in checkout state ✅
+- [x] Form pre-fills Farcaster username if available ✅
+- [x] Responsive design matching app styling ✅
+
+**Next: Task 16** - Integrate Shopify checkout API for shipping & tax calculation
+
+**CRITICAL ANALYSIS - Missing E-Commerce Components:**
+
+Currently our app has a fundamental gap: we collect payment but don't have proper e-commerce checkout flow. Real online stores need:
+
+1. **Shipping Address Collection** - Users must provide delivery address
+2. **Shipping Cost Calculation** - Different shipping rates based on location/method
+3. **Tax Calculation** - Sales tax based on shipping address
+4. **Final Total Calculation** - Products + Shipping + Taxes = Final Amount
+5. **Order Creation** - Create actual Shopify order with all details
+
+**Current Payment Flow Problem:**
+- User pays cart total (products only)
+- No shipping address collected
+- No shipping costs calculated
+- No taxes calculated
+- No Shopify order created
+- Merchant has payment but no order details
+
+**Revised Phase 6 Strategy:**
+
+**Task 15: Build shipping address collection form**
+- Create ShippingForm component with address fields
+- Integrate with existing checkout flow before payment
+- Add address validation and formatting
+- Store shipping address in checkout state
+
+**Task 16: Integrate Shopify checkout API for shipping & tax calculation**
+- Use Shopify Storefront API checkoutCreate mutation
+- Send cart items + shipping address to get shipping rates
+- Calculate taxes based on shipping address
+- Return final totals (subtotal + shipping + taxes)
+
+**Task 17: Update payment flow with final totals**
+- Modify CheckoutFlow to show itemized breakdown
+- Display: Subtotal, Shipping, Taxes, Final Total
+- Update USDC payment amount to final total
+- Ensure user pays correct amount including all fees
+
+**Task 18: Build Shopify Admin API client for order creation**
+- Set up Admin API credentials (different from Storefront API)
+- Create order creation functions
+- Handle order status and tracking
+
+**Task 19: Build API route to create Shopify orders**
+- Create /api/shopify/orders endpoint
+- Accept payment confirmation + order details
+- Create order in Shopify with all customer/shipping info
+- Return order confirmation details
+
+**Task 20: Connect payment confirmation to order creation**
+- After successful USDC payment, automatically create Shopify order
+- Pass all checkout data (items, shipping, customer info)
+- Display order confirmation with order number
+- Send order details to customer (if email provided)
+
+**Success Criteria for Phase 6:**
+
+**Task 15 Success Criteria:**
+- [ ] ShippingForm component created with all required address fields
+- [ ] Form validation for required fields (name, address, city, state, zip)
+- [ ] Integration with existing checkout flow (appears before payment)
+- [ ] Shipping address stored in checkout state
+- [ ] Form pre-fills Farcaster username if available
+- [ ] Responsive design matching app styling
+
+**Task 16 Success Criteria:**
+- [ ] Shopify checkoutCreate mutation implemented
+- [ ] API route created for checkout calculation (/api/shopify/checkout)
+- [ ] Cart items properly formatted for Shopify line items
+- [ ] Shipping address sent to Shopify for rate calculation
+- [ ] Available shipping methods returned and displayed
+- [ ] Tax calculation based on shipping address working
+- [ ] Final totals (subtotal + shipping + taxes) calculated correctly
+
+**Task 17 Success Criteria:**
+- [ ] CheckoutFlow updated to show itemized breakdown
+- [ ] Display: Subtotal, Shipping Method & Cost, Taxes, Final Total
+- [ ] USDC payment amount updated to final total (not just cart total)
+- [ ] User sees exact amount they'll pay before confirming
+- [ ] Payment flow prevents proceeding without shipping address
+- [ ] All pricing displays consistently formatted
+
+**Task 18 Success Criteria:**
+- [ ] Shopify Admin API credentials configured
+- [ ] Admin API client functions created (src/lib/shopifyAdmin.js)
+- [ ] Order creation function with proper data structure
+- [ ] Error handling for API failures
+- [ ] Order status tracking capabilities
+- [ ] Proper authentication headers for Admin API
+
+**Task 19 Success Criteria:**
+- [ ] /api/shopify/orders API endpoint created
+- [ ] Accepts payment confirmation + checkout data
+- [ ] Creates order in Shopify with "paid" status
+- [ ] Includes customer info, shipping address, line items
+- [ ] Returns order confirmation details (order number, tracking)
+- [ ] Proper error handling and validation
+
+**Task 20 Success Criteria:**
+- [ ] Payment success triggers automatic order creation
+- [ ] Order creation happens immediately after USDC payment confirmation
+- [ ] All checkout data (items, shipping, customer) passed to order
+- [ ] Order confirmation screen displays order number and details
+- [ ] Cart clears only after successful order creation
+- [ ] Error handling if order creation fails after payment
+- [ ] Order details stored for customer reference
 
 ## Executor's Feedback or Assistance Requests
 
