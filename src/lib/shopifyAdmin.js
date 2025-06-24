@@ -1,14 +1,28 @@
-const SHOPIFY_ADMIN_API_URL = `https://frensdaily-shop.myshopify.com/admin/api/2024-01/graphql.json`;
+const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
+const SHOPIFY_ADMIN_ACCESS_TOKEN = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
+
+if (!SHOPIFY_DOMAIN || !SHOPIFY_ADMIN_ACCESS_TOKEN) {
+  console.error('Missing Shopify Admin environment variables:', {
+    SHOPIFY_DOMAIN: !!SHOPIFY_DOMAIN,
+    SHOPIFY_ADMIN_ACCESS_TOKEN: !!SHOPIFY_ADMIN_ACCESS_TOKEN
+  });
+}
+
+const SHOPIFY_ADMIN_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/admin/api/2024-01/graphql.json`;
 
 async function shopifyAdminFetch(query, variables = {}) {
+  if (!SHOPIFY_DOMAIN || !SHOPIFY_ADMIN_ACCESS_TOKEN) {
+    throw new Error('Missing Shopify Admin environment variables. Please check SHOPIFY_SITE_DOMAIN and SHOPIFY_ADMIN_ACCESS_TOKEN.');
+  }
+
   console.log('Shopify Admin API URL:', SHOPIFY_ADMIN_API_URL);
-  console.log('Admin Access Token available:', !!process.env.SHOPIFY_ADMIN_ACCESS_TOKEN);
+  console.log('Admin Access Token available:', !!SHOPIFY_ADMIN_ACCESS_TOKEN);
   
   const response = await fetch(SHOPIFY_ADMIN_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': process.env.SHOPIFY_ADMIN_ACCESS_TOKEN,
+      'X-Shopify-Access-Token': SHOPIFY_ADMIN_ACCESS_TOKEN,
     },
     body: JSON.stringify({
       query,

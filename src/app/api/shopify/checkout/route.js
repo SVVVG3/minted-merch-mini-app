@@ -8,8 +8,7 @@ async function shopifyAdminFetch(query, variables = {}) {
     throw new Error('Missing Shopify Admin API environment variables');
   }
 
-  // Note: Using the actual domain that Shopify redirects to (frensdaily-shop vs shopfrensdaily)
-  const SHOPIFY_ADMIN_API_URL = `https://frensdaily-shop.myshopify.com/admin/api/2024-07/graphql.json`;
+  const SHOPIFY_ADMIN_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/admin/api/2024-07/graphql.json`;
 
   const response = await fetch(SHOPIFY_ADMIN_API_URL, {
     method: 'POST',
