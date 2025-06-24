@@ -9,11 +9,12 @@ import { ShippingForm } from './ShippingForm';
 export function CheckoutFlow() {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout } = useCart();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', or 'payment'
+  const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', 'payment', or 'success'
   const [shippingData, setShippingData] = useState(cart.shipping || null);
   const [isShippingValid, setIsShippingValid] = useState(false);
   const [isCalculatingCheckout, setIsCalculatingCheckout] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
+  const [orderDetails, setOrderDetails] = useState(null);
   
   const {
     balance,
@@ -145,11 +146,71 @@ export function CheckoutFlow() {
     });
   };
 
-  const handlePaymentSuccess = () => {
-    // Clear cart after successful payment
-    clearCart();
-    setIsCheckoutOpen(false);
-    resetPayment();
+  const handlePaymentSuccess = async () => {
+    try {
+      // Create order in Shopify after successful payment
+      console.log('Creating Shopify order after successful payment...');
+      
+      const orderData = {
+        cartItems: cart.items,
+        shippingAddress: shippingData,
+        billingAddress: null, // Same as shipping for now
+        customer: {
+          email: shippingData.email || '',
+          phone: shippingData.phone || ''
+        },
+        checkout: cart.checkout,
+        selectedShipping: cart.selectedShipping,
+        transactionHash: transactionHash,
+        notes: cart.notes || ''
+      };
+
+      const response = await fetch('/api/shopify/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log('Order created successfully:', result.order.name);
+        
+        // Show order confirmation instead of just clearing cart
+        setOrderDetails({
+          name: result.order.name,
+          id: result.order.id,
+          status: 'Confirmed',
+          total: {
+            amount: result.order.totalPrice,
+            currencyCode: 'USD'
+          },
+          customer: {
+            email: shippingData.email || ''
+          },
+          transactionHash: transactionHash
+        });
+        setCheckoutStep('success');
+        
+      } else {
+        console.error('Order creation failed:', result.error);
+        // Still clear cart but show warning
+        alert('Payment successful but order creation failed. Please contact support with your transaction hash: ' + transactionHash);
+        clearCart();
+        setIsCheckoutOpen(false);
+        resetPayment();
+      }
+      
+    } catch (error) {
+      console.error('Error creating order:', error);
+      // Still clear cart but show warning
+      alert('Payment successful but order creation failed. Please contact support with your transaction hash: ' + transactionHash);
+      clearCart();
+      setIsCheckoutOpen(false);
+      resetPayment();
+    }
   };
 
   const handleCloseCheckout = () => {
@@ -191,6 +252,7 @@ export function CheckoutFlow() {
                     {checkoutStep === 'shipping' && 'Shipping Information'}
                     {checkoutStep === 'shipping-method' && 'Select Shipping Method'}
                     {checkoutStep === 'payment' && 'Complete Payment'}
+                    {checkoutStep === 'success' && 'Order Confirmed!'}
                   </h2>
                   <div className="flex items-center space-x-1 mt-1">
                     <div className={`w-2 h-2 rounded-full ${checkoutStep === 'shipping' ? 'bg-[#3eb489]' : 'bg-gray-300'}`}></div>
@@ -551,6 +613,68 @@ export function CheckoutFlow() {
                         : cartTotal.toFixed(2)
                     } USDC`}
                   </button>
+                </div>
+              )}
+
+              {/* Success Step */}
+              {checkoutStep === 'success' && orderDetails && (
+                <div className="space-y-4">
+                  <div className="bg-green-50 border border-green-200 p-4 rounded-lg text-center">
+                    <svg className="w-12 h-12 mx-auto text-green-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Thank you for your order!</h3>
+                    <p className="text-gray-600 mb-3">Your order has been successfully placed and payment confirmed.</p>
+                    <div className="bg-white p-3 rounded border border-green-200">
+                      <p className="text-sm text-gray-600">Order Number</p>
+                      <p className="text-lg font-mono font-medium text-gray-900">{orderDetails.name}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                    <h4 className="font-medium text-gray-900">Order Details</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Status:</span>
+                        <span className="font-medium text-green-600">{orderDetails.status}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total:</span>
+                        <span className="font-medium">${orderDetails.total.amount} {orderDetails.total.currencyCode}</span>
+                      </div>
+                      {orderDetails.customer.email && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Email:</span>
+                          <span className="font-medium">{orderDetails.customer.email}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Transaction:</span>
+                        <span className="font-mono text-xs">{orderDetails.transactionHash?.slice(0, 8)}...{orderDetails.transactionHash?.slice(-6)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        clearCart();
+                        setIsCheckoutOpen(false);
+                        setCheckoutStep('shipping');
+                        setOrderDetails(null);
+                        resetPayment();
+                      }}
+                      className="w-full bg-[#3eb489] hover:bg-[#359970] text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                    >
+                      Continue Shopping
+                    </button>
+                    <button
+                      onClick={() => setIsCheckoutOpen(false)}
+                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               )}
 
