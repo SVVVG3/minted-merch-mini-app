@@ -8,7 +8,7 @@ if (!SHOPIFY_DOMAIN || !SHOPIFY_ADMIN_ACCESS_TOKEN) {
   });
 }
 
-const SHOPIFY_ADMIN_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/admin/api/2024-01/graphql.json`;
+const SHOPIFY_ADMIN_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/admin/api/2024-07/graphql.json`;
 
 async function shopifyAdminFetch(query, variables = {}) {
   if (!SHOPIFY_DOMAIN || !SHOPIFY_ADMIN_ACCESS_TOKEN) {
@@ -186,8 +186,12 @@ export async function createShopifyOrder(orderData) {
     }
   };
 
+  console.log('Creating order with variables:', JSON.stringify(variables, null, 2));
+  
   try {
     const response = await shopifyAdminFetch(mutation, variables);
+    
+    console.log('Shopify orderCreate response:', JSON.stringify(response, null, 2));
     
     if (response.data.orderCreate.userErrors.length > 0) {
       console.error('Order creation errors:', response.data.orderCreate.userErrors);
@@ -195,6 +199,12 @@ export async function createShopifyOrder(orderData) {
     }
 
     const order = response.data.orderCreate.order;
+    
+    if (!order) {
+      console.error('Order creation returned null order');
+      throw new Error('Order creation failed: Shopify returned null order');
+    }
+    
     console.log('Order created successfully:', order.name, order.id);
     
     return {
