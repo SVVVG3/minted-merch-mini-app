@@ -10,7 +10,7 @@ export function ProductDetail({
   onBuyNow 
 }) {
   const mainImage = product.images?.edges?.[0]?.node;
-  const price = selectedVariant?.price || product.priceRange?.minVariantPrice?.amount || '0';
+  const price = selectedVariant?.price?.amount || product.priceRange?.minVariantPrice?.amount || '0';
 
   return (
     <div className="min-h-screen bg-gray-50">
