@@ -23,7 +23,7 @@ export function VariantSelector({ variants, selectedVariant, onVariantChange }) 
             }`}
           >
             <span>{variant.title}</span>
-            <span className="ml-1">- ${parseFloat(variant.price).toFixed(2)}</span>
+            <span className="ml-1">- ${parseFloat(variant.price?.amount || 0).toFixed(2)}</span>
           </button>
         ))}
       </div>
