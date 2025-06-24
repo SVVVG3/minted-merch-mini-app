@@ -1,5 +1,5 @@
 import { getCollectionByHandle, getCollections } from '@/lib/shopify';
-import { ProductGrid } from '@/components/ProductGrid';
+import { HomePage } from '@/components/HomePage';
 
 export const metadata = {
   title: 'Minted Merch Shop - Crypto Merch with USDC',
@@ -76,20 +76,5 @@ export default async function HomePage() {
     console.error('Error fetching collection:', error);
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-3">
-          <h1 className="text-lg font-semibold text-gray-900">
-            {collection?.title || 'All Products'}
-          </h1>
-          <p className="text-xs text-gray-500 mt-0.5">Pay with USDC on Base</p>
-        </div>
-      </header>
-      
-      <main>
-        <ProductGrid products={products} />
-      </main>
-    </div>
-  );
+  return <HomePage collection={collection} products={products} />;
 }

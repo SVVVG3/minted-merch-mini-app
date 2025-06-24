@@ -15,12 +15,6 @@ export function ProductCard({ product }) {
   const hasMultipleVariants = variants.length > 1;
   const isItemInCart = isInCart(product.id, defaultVariant?.id);
 
-  // Debug logging
-  if (product.title === 'OK Custom T-Shirt' || product.title === 'Bankr Hoodie') {
-    console.log(`${product.title} - Variants:`, variants.length, 'hasMultiple:', hasMultipleVariants);
-    console.log('Variant titles:', variants.map(v => v.node.title));
-  }
-
   const handleAddToCart = (e) => {
     e.preventDefault(); // Prevent navigation
     e.stopPropagation(); // Stop event bubbling
@@ -60,7 +54,7 @@ export function ProductCard({ product }) {
             hasMultipleVariants ? (
               <Link href={`/product/${product.handle}`} className="block">
                 <button className="w-full py-2 px-3 text-xs font-medium rounded-md bg-[#3eb489] text-white hover:bg-[#359970] transition-colors">
-                  Select Size
+                  View Options
                 </button>
               </Link>
             ) : (
