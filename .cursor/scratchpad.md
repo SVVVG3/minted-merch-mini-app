@@ -21,8 +21,8 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 
 ### Phase 1 — Setup & Bootstrapping
 - [x] **Task 1**: Clone starter repo & initialize project ✅ COMPLETED
-- [ ] **Task 2**: Setup Vercel project
-- [ ] **Task 3**: Create `.env.local` file for local development
+- [x] **Task 2**: Setup Vercel project ✅ COMPLETED
+- [x] **Task 3**: Create `.env.local` file for local development ✅ COMPLETED
 
 ### Phase 2 — Shopify Integration  
 - [ ] **Task 4**: Create Shopify Storefront API credentials
@@ -60,14 +60,26 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
   - ✅ Verified dev server runs on http://localhost:3000
   - ✅ Confirmed Farcaster frame metadata properly configured
 
+- **Task 2**: Vercel project setup
+  - ✅ Pushed code to GitHub: https://github.com/SVVVG3/minted-merch-mini-app
+  - ✅ Connected repo to Vercel
+  - ✅ Configured environment variables in Vercel
+  - ✅ Successfully deployed to: https://mintedmerch.vercel.app/
+  - ✅ Updated local .env.local with production URL
+
+- **Task 3**: Local environment setup
+  - ✅ .env.local file created with proper placeholder values
+  - ✅ Updated with production Vercel URL
+
 ### 🔄 Current Status / Progress Tracking
 
-**Currently Working On**: Task 1 Documentation & Task 2 Setup
+**Currently Working On**: Phase 2 - Shopify Integration (Task 4)
 
-**Current Status**: Task 1 complete, ready to commit and proceed to Task 2 (Vercel setup)
+**Current Status**: Phase 1 complete! Ready to begin Shopify API integration
 
-**Dev Server Status**: 
-- ✅ Running on localhost:3000
+**Deployment Status**: 
+- ✅ Local dev: http://localhost:3000
+- ✅ Production: https://mintedmerch.vercel.app/
 - ⚠️ Shows expected "No products found" (Shopify not configured yet)
 - ⚠️ Shopify API errors expected until Task 4-5 completed
 
@@ -76,10 +88,11 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 
 ## Executor's Feedback or Assistance Requests
 
-**From Task 1 Completion:**
-- Project successfully initialized and running
-- Ready to commit initial setup to GitHub before proceeding
-- Need user confirmation to proceed with Task 2 (Vercel project setup)
+**Phase 1 Complete! 🎉**
+- ✅ Tasks 1-3 successfully completed
+- ✅ Project deployed and accessible at https://mintedmerch.vercel.app/
+- ✅ Ready to begin Phase 2: Shopify Integration
+- 📋 **Next Action**: Need Shopify store credentials for Task 4
 
 ## Lessons
 
