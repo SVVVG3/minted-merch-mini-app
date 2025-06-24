@@ -118,12 +118,20 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 3. **API Schema Validation**: ✅ Updated all GraphQL mutations to use correct 2024-10 schema
 4. **Domain Configuration**: ✅ Confirmed correct environment variables
 
-**Current Status**: Both critical errors have been resolved with comprehensive fixes deployed to production.
+**Current Status**: 
+- ✅ **Payment Flow**: WORKING - USDC payments execute successfully and cart clears
+- 🔧 **Order Creation**: FIXED - Added required name/title fields to line items
+
+**Latest Fix Applied (Just Deployed)**:
+- **Issue**: Shopify orderCreate failing with "Line items Name can't be blank" and "Line items Title can't be blank"
+- **Root Cause**: Missing required `name` and `title` fields in line items
+- **Solution**: Added product.title as name and variant.title as title to line items
+- **Status**: Fix deployed to production, ready for testing
 
 **Next Steps**: 
 1. **Test Complete Flow**: User should test the full checkout process again
-2. **Verify Fixes**: Confirm both payment execution and order creation work
-3. **Check Logs**: Review enhanced logging for any remaining issues
+2. **Verify Order Creation**: Confirm orders are now created successfully in Shopify
+3. **Check Enhanced Logs**: Review detailed logging for confirmation
 
 ## Executor's Feedback or Assistance Requests
 

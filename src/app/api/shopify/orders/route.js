@@ -47,12 +47,12 @@ export async function POST(request) {
 
     // Format line items for Shopify
     const lineItems = cartItems.map(item => ({
-      variantId: item.selectedVariant.id,
+      variantId: item.variant.id,
       quantity: item.quantity,
-      price: parseFloat(item.selectedVariant.price.amount),
+      price: parseFloat(item.variant.price.amount),
       // Add required name and title fields
       name: item.product.title,
-      title: item.variant?.title || item.selectedVariant?.title || 'Default',
+      title: item.variant?.title || 'Default',
       productTitle: item.product.title
     }));
 
