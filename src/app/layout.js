@@ -4,6 +4,7 @@ import { FrameInit } from "@/components/FrameInit";
 import { GoogleMapsScript } from "@/components/GoogleMapsScript";
 import { FarcasterHeader } from "@/components/FarcasterHeader";
 import { CartProvider } from "@/lib/CartContext";
+import { CartIndicator } from "@/components/CartIndicator";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,6 +34,7 @@ export default function RootLayout({ children }) {
           <div>
             <FarcasterHeader />
             {children}
+            <CartIndicator />
             <FrameInit />
             <GoogleMapsScript />
           </div>
