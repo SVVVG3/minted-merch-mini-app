@@ -3,10 +3,10 @@ import { ProductGrid } from '@/components/ProductGrid';
 
 export const metadata = {
   title: 'Minted Merch Shop - Crypto Merch with USDC',
-  description: 'Shop crypto merch directly in Farcaster and pay with USDC on Base',
+  description: 'Apparel, accessories, & more! Designed after your favorite coins, communities, & NFTs - pay with USDC on Base!',
   openGraph: {
     title: 'Minted Merch Shop',
-    description: 'Shop crypto merch directly in Farcaster and pay with USDC on Base',
+    description: 'Apparel, accessories, & more! Designed after your favorite coins, communities, & NFTs - pay with USDC on Base!',
     url: 'https://mintedmerch.vercel.app',
     siteName: 'Minted Merch Shop',
     images: [
@@ -22,7 +22,7 @@ export const metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Minted Merch Shop',
-    description: 'Shop crypto merch directly in Farcaster and pay with USDC on Base',
+    description: 'Apparel, accessories, & more! Designed after your favorite coins, communities, & NFTs - pay with USDC on Base!',
     images: ['https://mintedmerch.vercel.app/og-image.png'],
   },
   other: {
