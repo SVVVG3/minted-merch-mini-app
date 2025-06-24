@@ -20,13 +20,16 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 
 ### Current Issues Being Resolved
 
-**Issue 1: Order Creation 500 Error** 🔧 **FIXED**
-- **Root Cause**: `"Cannot read properties of undefined (reading 'id')"` in order creation
+**Issue 1: Order Creation 500 Error** ✅ **FIXED**
+- **Root Cause**: Shopify Admin API `orderCreate` mutation not supported in 2024-07 API version
 - **Solution Applied**: 
+  - ✅ Updated API version from 2024-07 to 2024-10 (orderCreate supported)
+  - ✅ Fixed mutation input type from `OrderInput!` to `OrderCreateOrderInput!`
+  - ✅ Updated GraphQL query fields to use `displayFulfillmentStatus` and `displayFinancialStatus`
+  - ✅ Fixed input structure to use `priceSet` with `shopMoney` instead of deprecated price fields
+  - ✅ Fixed transaction structure to use `amountSet` instead of deprecated amount/currency fields
   - ✅ Enhanced error handling with null checks for order object
   - ✅ Added detailed logging for Shopify API requests/responses
-  - ✅ Updated API version consistency (2024-07 across all files)
-  - ✅ Fixed domain configuration to use correct environment variable
 
 **Issue 2: Payment Connector Error** 🔧 **FIXED**
 - **Root Cause**: `"r.connector.getChainId is not a function"` - Known Wagmi issue
