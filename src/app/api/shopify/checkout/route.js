@@ -1,11 +1,44 @@
 import { NextResponse } from 'next/server';
 
-async function shopifyFetch(query, variables = {}) {
+async function shopifyAdminFetch(query, variables = {}) {
+  const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
+  const SHOPIFY_ADMIN_ACCESS_TOKEN = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
+
+  if (!SHOPIFY_DOMAIN || !SHOPIFY_ADMIN_ACCESS_TOKEN) {
+    throw new Error('Missing Shopify Admin API environment variables');
+  }
+
+  const SHOPIFY_ADMIN_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/admin/api/2024-07/graphql.json`;
+
+  const response = await fetch(SHOPIFY_ADMIN_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': SHOPIFY_ADMIN_ACCESS_TOKEN,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Shopify Admin API request failed: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  
+  if (data.errors) {
+    console.error('Shopify Admin API GraphQL errors:', data.errors);
+    throw new Error(`Shopify Admin API GraphQL errors: ${JSON.stringify(data.errors)}`);
+  }
+
+  return data.data;
+}
+
+async function shopifyStorefrontFetch(query, variables = {}) {
   const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
   const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
   if (!SHOPIFY_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
-    throw new Error('Missing Shopify environment variables');
+    throw new Error('Missing Shopify Storefront API environment variables');
   }
 
   const SHOPIFY_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/api/2024-07/graphql.json`;
@@ -19,14 +52,318 @@ async function shopifyFetch(query, variables = {}) {
     body: JSON.stringify({ query, variables }),
   });
 
+  if (!response.ok) {
+    throw new Error(`Shopify Storefront API request failed: ${response.status} ${response.statusText}`);
+  }
+
   const data = await response.json();
   
   if (data.errors) {
-    console.error('Shopify GraphQL errors:', data.errors);
-    throw new Error(data.errors[0].message);
+    console.error('Shopify Storefront API GraphQL errors:', data.errors);
+    throw new Error(`Shopify Storefront API GraphQL errors: ${JSON.stringify(data.errors)}`);
   }
 
   return data.data;
+}
+
+async function calculateWithAdminAPI(cartItems, shippingAddress, email) {
+  console.log('🎯 Attempting Admin API calculation for accurate shipping & taxes...');
+  
+  // Convert cart items to Shopify draft order line items format
+  const lineItems = cartItems.map(item => {
+    let variantId = null;
+    
+    if (item.variant && item.variant.id) {
+      variantId = item.variant.id;
+    } else if (item.product && item.product.variants && item.product.variants.edges.length > 0) {
+      variantId = item.product.variants.edges[0].node.id;
+    }
+
+    if (!variantId) {
+      throw new Error(`No variant ID found for item: ${item.product?.title || 'Unknown'}`);
+    }
+
+    return {
+      variantId: variantId,
+      quantity: item.quantity || 1
+    };
+  });
+
+  // Format addresses for Shopify Admin API
+  const shopifyShippingAddress = {
+    firstName: shippingAddress.firstName,
+    lastName: shippingAddress.lastName,
+    address1: shippingAddress.address1,
+    address2: shippingAddress.address2 || null,
+    city: shippingAddress.city,
+    provinceCode: shippingAddress.province,
+    countryCode: shippingAddress.country || 'US',
+    zip: shippingAddress.zip,
+    phone: shippingAddress.phone || null
+  };
+
+  const shopifyBillingAddress = {
+    firstName: shippingAddress.firstName,
+    lastName: shippingAddress.lastName,
+    address1: shippingAddress.address1,
+    address2: shippingAddress.address2 || null,
+    city: shippingAddress.city,
+    provinceCode: shippingAddress.province,
+    countryCode: shippingAddress.country || 'US',
+    zip: shippingAddress.zip,
+    phone: shippingAddress.phone || null
+  };
+
+  // Use Admin API draftOrderCalculate mutation to get accurate shipping rates and taxes
+  const draftOrderCalculateQuery = `
+    mutation draftOrderCalculate($input: DraftOrderInput!) {
+      draftOrderCalculate(input: $input) {
+        calculatedDraftOrder {
+          subtotalPrice
+          totalPrice
+          totalShippingPrice
+          totalTax
+          availableShippingRates {
+            handle
+            title
+            price {
+              amount
+            }
+          }
+          lineItems(first: 50) {
+            edges {
+              node {
+                title
+                quantity
+                variant {
+                  id
+                  title
+                  price
+                }
+                originalTotal
+              }
+            }
+          }
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const draftOrderInput = {
+    lineItems: lineItems,
+    shippingAddress: shopifyShippingAddress,
+    billingAddress: shopifyBillingAddress,
+    email: email || null
+  };
+
+  const draftOrderData = await shopifyAdminFetch(draftOrderCalculateQuery, { input: draftOrderInput });
+
+  if (draftOrderData.draftOrderCalculate.userErrors.length > 0) {
+    throw new Error(`Draft order calculation failed: ${JSON.stringify(draftOrderData.draftOrderCalculate.userErrors)}`);
+  }
+
+  const calculatedOrder = draftOrderData.draftOrderCalculate.calculatedDraftOrder;
+  
+  return {
+    cartId: `draft-order-${Date.now()}`,
+    checkoutUrl: null,
+    subtotal: {
+      amount: parseFloat(calculatedOrder.subtotalPrice),
+      currencyCode: 'USD'
+    },
+    tax: {
+      amount: parseFloat(calculatedOrder.totalTax),
+      currencyCode: 'USD'
+    },
+    total: {
+      amount: parseFloat(calculatedOrder.totalPrice),
+      currencyCode: 'USD'
+    },
+    shippingRates: calculatedOrder.availableShippingRates.map(rate => ({
+      handle: rate.handle,
+      title: rate.title,
+      price: {
+        amount: parseFloat(rate.price.amount),
+        currencyCode: 'USD'
+      }
+    })),
+    shippingRatesReady: true,
+    requiresShipping: true,
+    lineItems: calculatedOrder.lineItems.edges.map(edge => ({
+      id: `line-${Date.now()}-${Math.random()}`,
+      title: edge.node.title,
+      quantity: edge.node.quantity,
+      variant: {
+        id: edge.node.variant?.id || null,
+        title: edge.node.variant?.title || 'Default',
+        price: {
+          amount: parseFloat(edge.node.variant?.price || '0'),
+          currencyCode: 'USD'
+        }
+      }
+    }))
+  };
+}
+
+async function calculateWithStorefrontAPI(cartItems, shippingAddress, email) {
+  console.log('⚠️ Using Storefront API fallback (estimated costs only)...');
+  
+  // Convert cart items to Shopify line items format
+  const lineItems = cartItems.map(item => {
+    let variantId = null;
+    
+    if (item.variant && item.variant.id) {
+      variantId = item.variant.id;
+    } else if (item.product && item.product.variants && item.product.variants.edges.length > 0) {
+      variantId = item.product.variants.edges[0].node.id;
+    }
+
+    if (!variantId) {
+      throw new Error(`No variant ID found for item: ${item.product?.title || 'Unknown'}`);
+    }
+
+    return {
+      merchandiseId: variantId,
+      quantity: item.quantity || 1
+    };
+  });
+
+  // Format shipping address for Shopify
+  const shopifyShippingAddress = {
+    address1: shippingAddress.address1,
+    address2: shippingAddress.address2 || null,
+    city: shippingAddress.city,
+    province: shippingAddress.province,
+    country: shippingAddress.country || 'US',
+    zip: shippingAddress.zip,
+    firstName: shippingAddress.firstName,
+    lastName: shippingAddress.lastName,
+    phone: shippingAddress.phone || null
+  };
+
+  // Create cart with line items using Storefront API
+  const cartCreateQuery = `
+    mutation cartCreate($input: CartInput!) {
+      cartCreate(input: $input) {
+        cart {
+          id
+          checkoutUrl
+          estimatedCost {
+            totalAmount {
+              amount
+              currencyCode
+            }
+            subtotalAmount {
+              amount
+              currencyCode
+            }
+            totalTaxAmount {
+              amount
+              currencyCode
+            }
+          }
+          lines(first: 50) {
+            edges {
+              node {
+                id
+                quantity
+                merchandise {
+                  ... on ProductVariant {
+                    id
+                    title
+                    price {
+                      amount
+                      currencyCode
+                    }
+                    product {
+                      title
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        userErrors {
+          field
+          message
+          code
+        }
+      }
+    }
+  `;
+
+  const cartInput = {
+    lines: lineItems,
+    buyerIdentity: {
+      email: email || null,
+      deliveryAddressPreferences: [
+        {
+          deliveryAddress: shopifyShippingAddress
+        }
+      ]
+    }
+  };
+
+  const cartData = await shopifyStorefrontFetch(cartCreateQuery, { input: cartInput });
+
+  if (cartData.cartCreate.userErrors.length > 0) {
+    throw new Error(`Cart creation failed: ${JSON.stringify(cartData.cartCreate.userErrors)}`);
+  }
+
+  const cart = cartData.cartCreate.cart;
+
+  // Calculate estimated shipping (this is a fallback estimate)
+  const subtotal = parseFloat(cart.estimatedCost.subtotalAmount.amount);
+  const estimatedShipping = subtotal > 50 ? 0 : 8.98; // Free shipping over $50, otherwise $8.98
+  const estimatedTax = subtotal * 0.0875; // Estimate 8.75% tax for CA
+  const estimatedTotal = subtotal + estimatedShipping + estimatedTax;
+
+  return {
+    cartId: cart.id,
+    checkoutUrl: cart.checkoutUrl,
+    subtotal: {
+      amount: subtotal,
+      currencyCode: cart.estimatedCost.subtotalAmount.currencyCode
+    },
+    tax: {
+      amount: estimatedTax,
+      currencyCode: 'USD'
+    },
+    total: {
+      amount: estimatedTotal,
+      currencyCode: 'USD'
+    },
+    shippingRates: [
+      {
+        handle: 'us-flat-rate',
+        title: 'US Flat Rate',
+        price: {
+          amount: estimatedShipping,
+          currencyCode: 'USD'
+        }
+      }
+    ],
+    shippingRatesReady: true,
+    requiresShipping: true,
+    lineItems: cart.lines.edges.map(edge => ({
+      id: edge.node.id,
+      title: edge.node.merchandise.product.title,
+      quantity: edge.node.quantity,
+      variant: {
+        id: edge.node.merchandise.id,
+        title: edge.node.merchandise.title,
+        price: {
+          amount: parseFloat(edge.node.merchandise.price.amount),
+          currencyCode: edge.node.merchandise.price.currencyCode
+        }
+      }
+    }))
+  };
 }
 
 export async function POST(request) {
@@ -34,15 +371,14 @@ export async function POST(request) {
     const { cartItems, shippingAddress, email } = await request.json();
 
     console.log('Checkout calculation request:', {
-      itemCount: cartItems?.length,
-      shippingAddress: shippingAddress ? 'provided' : 'missing',
-      email: email ? 'provided' : 'missing'
+      itemCount: cartItems.length,
+      shippingAddress: shippingAddress,
+      email: email
     });
 
-    // Validate required data
     if (!cartItems || cartItems.length === 0) {
       return NextResponse.json(
-        { error: 'Cart items are required' },
+        { error: 'No cart items provided' },
         { status: 400 }
       );
     }
@@ -54,193 +390,35 @@ export async function POST(request) {
       );
     }
 
-    // Convert cart items to Shopify line items format
-    const lineItems = cartItems.map(item => {
-      // Extract variant ID from the item
-      let variantId = null;
+    let response;
+
+    // Try Admin API first for accurate calculations
+    try {
+      response = await calculateWithAdminAPI(cartItems, shippingAddress, email);
+      console.log('✅ Admin API calculation successful:', {
+        subtotal: response.subtotal.amount,
+        tax: response.tax.amount,
+        total: response.total.amount,
+        shippingRatesCount: response.shippingRates.length,
+        shippingRates: response.shippingRates.map(r => `${r.title}: $${r.price.amount}`)
+      });
+    } catch (adminError) {
+      console.warn('❌ Admin API failed, falling back to Storefront API:', adminError.message);
       
-      if (item.variant && item.variant.id) {
-        variantId = item.variant.id;
-      } else if (item.product && item.product.variants && item.product.variants.edges.length > 0) {
-        // Use first variant if no specific variant selected
-        variantId = item.product.variants.edges[0].node.id;
+      // Fall back to Storefront API with estimates
+      try {
+        response = await calculateWithStorefrontAPI(cartItems, shippingAddress, email);
+        console.log('⚠️ Storefront API fallback successful (estimated values):', {
+          subtotal: response.subtotal.amount,
+          tax: response.tax.amount,
+          total: response.total.amount,
+          shippingRatesCount: response.shippingRates.length
+        });
+      } catch (storefrontError) {
+        console.error('❌ Both APIs failed:', { adminError: adminError.message, storefrontError: storefrontError.message });
+        throw new Error(`Both Admin API and Storefront API failed. Admin: ${adminError.message}, Storefront: ${storefrontError.message}`);
       }
-
-      if (!variantId) {
-        throw new Error(`No variant ID found for item: ${item.product?.title || 'Unknown'}`);
-      }
-
-      return {
-        merchandiseId: variantId,
-        quantity: item.quantity || 1
-      };
-    });
-
-    console.log('Formatted line items:', lineItems);
-
-    // Format shipping address for Shopify
-    const shopifyShippingAddress = {
-      address1: shippingAddress.address1,
-      address2: shippingAddress.address2 || null,
-      city: shippingAddress.city,
-      province: shippingAddress.province,
-      country: shippingAddress.country || 'US',
-      zip: shippingAddress.zip,
-      firstName: shippingAddress.firstName,
-      lastName: shippingAddress.lastName,
-      phone: shippingAddress.phone || null
-    };
-
-    // Create cart with line items using Storefront API
-    const cartCreateQuery = `
-      mutation cartCreate($input: CartInput!) {
-        cartCreate(input: $input) {
-          cart {
-            id
-            checkoutUrl
-            estimatedCost {
-              totalAmount {
-                amount
-                currencyCode
-              }
-              subtotalAmount {
-                amount
-                currencyCode
-              }
-              totalTaxAmount {
-                amount
-                currencyCode
-              }
-              totalDutyAmount {
-                amount
-                currencyCode
-              }
-            }
-            lines(first: 50) {
-              edges {
-                node {
-                  id
-                  quantity
-                  estimatedCost {
-                    totalAmount {
-                      amount
-                      currencyCode
-                    }
-                  }
-                  merchandise {
-                    ... on ProductVariant {
-                      id
-                      title
-                      price {
-                        amount
-                        currencyCode
-                      }
-                      product {
-                        title
-                        handle
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-          userErrors {
-            field
-            message
-            code
-          }
-        }
-      }
-    `;
-
-    const cartInput = {
-      lines: lineItems,
-      buyerIdentity: {
-        email: email || null,
-        deliveryAddressPreferences: [
-          {
-            deliveryAddress: shopifyShippingAddress
-          }
-        ]
-      }
-    };
-
-    console.log('Creating cart with input:', JSON.stringify(cartInput, null, 2));
-
-    const cartData = await shopifyFetch(cartCreateQuery, { input: cartInput });
-
-    if (cartData.cartCreate.userErrors.length > 0) {
-      console.error('Cart creation errors:', cartData.cartCreate.userErrors);
-      return NextResponse.json(
-        { 
-          error: 'Cart creation failed', 
-          details: cartData.cartCreate.userErrors 
-        },
-        { status: 400 }
-      );
     }
-
-    const cart = cartData.cartCreate.cart;
-    console.log('Cart created successfully:', {
-      id: cart.id,
-      checkoutUrl: cart.checkoutUrl,
-      estimatedCost: cart.estimatedCost
-    });
-
-    // For the Storefront API, we get estimated costs but not detailed shipping rates
-    // The actual shipping calculation happens during checkout
-    const response = {
-      cartId: cart.id,
-      checkoutUrl: cart.checkoutUrl,
-      subtotal: {
-        amount: parseFloat(cart.estimatedCost.subtotalAmount.amount),
-        currencyCode: cart.estimatedCost.subtotalAmount.currencyCode
-      },
-      tax: {
-        amount: parseFloat(cart.estimatedCost.totalTaxAmount?.amount || '0'),
-        currencyCode: cart.estimatedCost.totalTaxAmount?.currencyCode || 'USD'
-      },
-      total: {
-        amount: parseFloat(cart.estimatedCost.totalAmount.amount),
-        currencyCode: cart.estimatedCost.totalAmount.currencyCode
-      },
-      // Storefront API doesn't provide shipping rates in cart creation
-      // These would need to be fetched separately or calculated during checkout
-      shippingRates: [
-        {
-          handle: 'standard',
-          title: 'Standard Shipping',
-          price: {
-            amount: 5.99,
-            currencyCode: 'USD'
-          }
-        }
-      ],
-      shippingRatesReady: true,
-      requiresShipping: true,
-      lineItems: cart.lines.edges.map(edge => ({
-        id: edge.node.id,
-        title: edge.node.merchandise.product.title,
-        quantity: edge.node.quantity,
-        variant: {
-          id: edge.node.merchandise.id,
-          title: edge.node.merchandise.title,
-          price: {
-            amount: parseFloat(edge.node.merchandise.price.amount),
-            currencyCode: edge.node.merchandise.price.currencyCode
-          }
-        }
-      }))
-    };
-
-    console.log('Returning cart response:', {
-      subtotal: response.subtotal.amount,
-      tax: response.tax.amount,
-      total: response.total.amount,
-      shippingRatesCount: response.shippingRates.length,
-      shippingRatesReady: response.shippingRatesReady
-    });
 
     return NextResponse.json(response);
 
