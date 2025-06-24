@@ -1,19 +1,42 @@
-import * as frame from '@farcaster/frame-sdk'
+import { sdk } from '@farcaster/frame-sdk'
 
 export async function initializeFrame() {
-  const context = await frame.sdk.context
+  try {
+    // Get the Mini App context
+    const context = await sdk.context
 
-  if (!context || !context.user) {
-    console.log('not in frame context')
-    return
+    // Store context globally for easy access
+    window.farcasterContext = context;
+    
+    if (context && context.user) {
+      console.log('Farcaster Mini App context detected:', {
+        fid: context.user.fid,
+        username: context.user.username,
+        displayName: context.user.displayName,
+        pfpUrl: context.user.pfpUrl
+      });
+      
+      // Store user info globally
+      window.userFid = context.user.fid;
+      window.farcasterUser = context.user;
+      
+      // Call ready to hide splash screen
+      await sdk.actions.ready();
+    } else {
+      console.log('Not running in Farcaster Mini App context');
+      // Still call ready in case we're in a frame without user context
+      await sdk.actions.ready();
+    }
+  } catch (error) {
+    console.log('Error initializing Farcaster context:', error);
+    // Fallback: call ready anyway to prevent splash screen from staying
+    try {
+      await sdk.actions.ready();
+    } catch (readyError) {
+      console.log('Error calling ready:', readyError);
+    }
   }
-
-  const user = context.user
-
-  window.userFid = user.fid;
-
-  // Call the ready function to remove splash screen when in a frame
-  await frame.sdk.actions.ready();
 }
 
-export { frame };
+// Export the SDK for use in other components
+export { sdk };

@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { FrameInit } from "@/components/FrameInit";
 import { GoogleMapsScript } from "@/components/GoogleMapsScript";
+import { FarcasterHeader } from "@/components/FarcasterHeader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,10 +22,14 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://auth.farcaster.xyz" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <div>
+          <FarcasterHeader />
           {children}
           <FrameInit />
           <GoogleMapsScript />
