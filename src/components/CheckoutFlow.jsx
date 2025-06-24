@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/lib/CartContext';
 import { useUSDCPayment } from '@/lib/useUSDCPayment';
 import { calculateCheckout } from '@/lib/shopify';
@@ -35,6 +35,14 @@ export function CheckoutFlow() {
 
   const cartTotal = cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const hasItems = cart.items.length > 0;
+
+  // Auto-create order when payment succeeds
+  useEffect(() => {
+    if (paymentStatus === 'success' && isConfirmed && transactionHash && checkoutStep === 'payment' && !orderDetails) {
+      console.log('Payment confirmed, auto-creating order...');
+      handlePaymentSuccess();
+    }
+  }, [paymentStatus, isConfirmed, transactionHash, checkoutStep, orderDetails]);
 
   const handleCheckout = async () => {
     if (!hasItems) return;
@@ -147,6 +155,12 @@ export function CheckoutFlow() {
   };
 
   const handlePaymentSuccess = async () => {
+    // Prevent multiple order creation attempts
+    if (orderDetails) {
+      console.log('Order already created, skipping...');
+      return;
+    }
+
     try {
       // Create order in Shopify after successful payment
       console.log('Creating Shopify order after successful payment...');
@@ -196,6 +210,7 @@ export function CheckoutFlow() {
         
       } else {
         console.error('Order creation failed:', result.error);
+        console.error('Order creation response:', result);
         // Still clear cart but show warning
         alert('Payment successful but order creation failed. Please contact support with your transaction hash: ' + transactionHash);
         clearCart();
@@ -211,6 +226,14 @@ export function CheckoutFlow() {
       setIsCheckoutOpen(false);
       resetPayment();
     }
+  };
+
+  const handleContinueShopping = () => {
+    clearCart();
+    setIsCheckoutOpen(false);
+    setCheckoutStep('shipping');
+    setOrderDetails(null);
+    resetPayment();
   };
 
   const handleCloseCheckout = () => {
@@ -560,7 +583,7 @@ export function CheckoutFlow() {
                     </div>
                   )}
                   <button
-                    onClick={handlePaymentSuccess}
+                    onClick={handleContinueShopping}
                     className="mt-2 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
                   >
                     Continue Shopping
@@ -657,13 +680,7 @@ export function CheckoutFlow() {
 
                   <div className="space-y-2">
                     <button
-                      onClick={() => {
-                        clearCart();
-                        setIsCheckoutOpen(false);
-                        setCheckoutStep('shipping');
-                        setOrderDetails(null);
-                        resetPayment();
-                      }}
+                      onClick={handleContinueShopping}
                       className="w-full bg-[#3eb489] hover:bg-[#359970] text-white font-medium py-3 px-4 rounded-lg transition-colors"
                     >
                       Continue Shopping

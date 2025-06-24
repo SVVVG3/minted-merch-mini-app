@@ -1,6 +1,9 @@
-const SHOPIFY_ADMIN_API_URL = `https://${process.env.SHOPIFY_SITE_DOMAIN}.myshopify.com/admin/api/2024-01/graphql.json`;
+const SHOPIFY_ADMIN_API_URL = `https://frensdaily-shop.myshopify.com/admin/api/2024-01/graphql.json`;
 
 async function shopifyAdminFetch(query, variables = {}) {
+  console.log('Shopify Admin API URL:', SHOPIFY_ADMIN_API_URL);
+  console.log('Admin Access Token available:', !!process.env.SHOPIFY_ADMIN_ACCESS_TOKEN);
+  
   const response = await fetch(SHOPIFY_ADMIN_API_URL, {
     method: 'POST',
     headers: {
@@ -13,12 +16,16 @@ async function shopifyAdminFetch(query, variables = {}) {
     }),
   });
 
+  console.log('Shopify Admin API Response Status:', response.status, response.statusText);
+
   if (!response.ok) {
-    console.error('Shopify Admin API Error:', response.status, response.statusText);
-    throw new Error(`Shopify Admin API request failed: ${response.status}`);
+    const errorText = await response.text();
+    console.error('Shopify Admin API Error Response:', errorText);
+    throw new Error(`Shopify Admin API request failed: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
+  console.log('Shopify Admin API Response:', JSON.stringify(data, null, 2));
   
   if (data.errors) {
     console.error('Shopify Admin API GraphQL Errors:', data.errors);
