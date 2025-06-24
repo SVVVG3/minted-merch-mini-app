@@ -8,7 +8,7 @@ async function shopifyAdminFetch(query, variables = {}) {
     throw new Error('Missing Shopify Admin API environment variables');
   }
 
-  const SHOPIFY_ADMIN_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/admin/api/2024-07/graphql.json`;
+  const SHOPIFY_ADMIN_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/admin/api/2024-10/graphql.json`;
 
   const response = await fetch(SHOPIFY_ADMIN_API_URL, {
     method: 'POST',
@@ -41,7 +41,7 @@ async function shopifyStorefrontFetch(query, variables = {}) {
     throw new Error('Missing Shopify Storefront API environment variables');
   }
 
-  const SHOPIFY_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/api/2024-07/graphql.json`;
+  const SHOPIFY_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/api/2024-10/graphql.json`;
 
   const response = await fetch(SHOPIFY_API_URL, {
     method: 'POST',

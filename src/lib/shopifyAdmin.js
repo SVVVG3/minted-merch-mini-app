@@ -8,7 +8,7 @@ if (!SHOPIFY_DOMAIN || !SHOPIFY_ADMIN_ACCESS_TOKEN) {
   });
 }
 
-const SHOPIFY_ADMIN_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/admin/api/2024-07/graphql.json`;
+const SHOPIFY_ADMIN_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/admin/api/2024-10/graphql.json`;
 
 async function shopifyAdminFetch(query, variables = {}) {
   if (!SHOPIFY_DOMAIN || !SHOPIFY_ADMIN_ACCESS_TOKEN) {
@@ -65,7 +65,7 @@ export async function createShopifyOrder(orderData) {
   } = orderData;
 
   const mutation = `
-    mutation orderCreate($order: OrderInput!) {
+    mutation orderCreate($order: OrderCreateOrderInput!) {
       orderCreate(order: $order) {
         order {
           id
@@ -112,8 +112,8 @@ export async function createShopifyOrder(orderData) {
               }
             }
           }
-          fulfillmentStatus
-          financialStatus
+          displayFulfillmentStatus
+          displayFinancialStatus
           createdAt
         }
         userErrors {
@@ -129,7 +129,12 @@ export async function createShopifyOrder(orderData) {
       lineItems: lineItems.map(item => ({
         variantId: item.variantId,
         quantity: item.quantity,
-        price: item.price.toString()
+        priceSet: {
+          shopMoney: {
+            amount: item.price.toString(),
+            currencyCode: 'USD'
+          }
+        }
       })),
       shippingAddress: {
         firstName: shippingAddress.firstName,
@@ -168,20 +173,24 @@ export async function createShopifyOrder(orderData) {
       note: notes ? `${notes}\n\nPaid with USDC on Base Network\nTransaction Hash: ${transactionHash}` : `Paid with USDC on Base Network\nTransaction Hash: ${transactionHash}`,
       shippingLines: shippingLines ? [{
         title: shippingLines.title,
-        price: shippingLines.price.toString(),
+        priceSet: {
+          shopMoney: {
+            amount: shippingLines.price.toString(),
+            currencyCode: 'USD'
+          }
+        },
         code: shippingLines.code || shippingLines.title
       }] : [],
-      totalPrice: totalPrice.toString(),
-      subtotalPrice: subtotalPrice.toString(),
-      totalTax: totalTax.toString(),
-      financialStatus: 'PAID',
       transactions: [{
         kind: 'SALE',
         status: 'SUCCESS',
-        amount: totalPrice.toString(),
-        currency: 'USD',
-        gateway: 'USDC Base Network',
-        source_name: 'Farcaster Mini App'
+        amountSet: {
+          shopMoney: {
+            amount: totalPrice.toString(),
+            currencyCode: 'USD'
+          }
+        },
+        gateway: 'USDC Base Network'
       }]
     }
   };
@@ -213,8 +222,8 @@ export async function createShopifyOrder(orderData) {
         id: order.id,
         name: order.name,
         totalPrice: order.totalPriceSet.shopMoney.amount,
-        financialStatus: order.financialStatus,
-        fulfillmentStatus: order.fulfillmentStatus,
+        financialStatus: order.displayFinancialStatus,
+        fulfillmentStatus: order.displayFulfillmentStatus,
         createdAt: order.createdAt,
         shippingAddress: order.shippingAddress,
         lineItems: order.lineItems.edges.map(edge => edge.node)
