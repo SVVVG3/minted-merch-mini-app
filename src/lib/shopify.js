@@ -115,8 +115,14 @@ export async function getProductByHandle(handle) {
               id
               title
               availableForSale
-              price
-              compareAtPrice
+              price {
+                amount
+                currencyCode
+              }
+              compareAtPrice {
+                amount
+                currencyCode
+              }
             }
           }
         }

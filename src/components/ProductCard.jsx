@@ -22,7 +22,7 @@ export function ProductCard({ product }) {
           {product.title}
         </h3>
         <p className="mt-1 text-sm font-semibold text-gray-900">
-          ${parseFloat(price)*0.01.toFixed(2)}
+          ${parseFloat(price).toFixed(2)}
         </p>
       </div>
     </Link>
