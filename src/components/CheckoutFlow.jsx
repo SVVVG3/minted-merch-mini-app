@@ -3,14 +3,17 @@
 import { useState } from 'react';
 import { useCart } from '@/lib/CartContext';
 import { useUSDCPayment } from '@/lib/useUSDCPayment';
+import { calculateCheckout } from '@/lib/shopify';
 import { ShippingForm } from './ShippingForm';
 
 export function CheckoutFlow() {
-  const { cart, clearCart, updateShipping } = useCart();
+  const { cart, clearCart, updateShipping, updateCheckout, clearCheckout } = useCart();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping' or 'payment'
   const [shippingData, setShippingData] = useState(cart.shipping || null);
   const [isShippingValid, setIsShippingValid] = useState(false);
+  const [isCalculatingCheckout, setIsCalculatingCheckout] = useState(false);
+  const [checkoutError, setCheckoutError] = useState(null);
   
   const {
     balance,
@@ -49,16 +52,43 @@ export function CheckoutFlow() {
     setIsShippingValid(isValid);
   };
 
-  const handleContinueToPayment = () => {
+  const handleContinueToPayment = async () => {
     if (!isShippingValid || !shippingData) return;
     
-    // Save shipping data to cart context
-    updateShipping(shippingData);
-    setCheckoutStep('payment');
+    setIsCalculatingCheckout(true);
+    setCheckoutError(null);
+    
+    try {
+      // Save shipping data to cart context
+      updateShipping(shippingData);
+      
+      // Calculate checkout with Shopify API
+      console.log('Calculating checkout with:', {
+        cartItems: cart.items,
+        shippingAddress: shippingData
+      });
+      
+      const checkoutData = await calculateCheckout(cart.items, shippingData);
+      console.log('Checkout calculation result:', checkoutData);
+      
+      // Save checkout data to cart context
+      updateCheckout(checkoutData);
+      
+      // Move to payment step
+      setCheckoutStep('payment');
+      
+    } catch (error) {
+      console.error('Checkout calculation error:', error);
+      setCheckoutError(error.message || 'Failed to calculate shipping and taxes');
+    } finally {
+      setIsCalculatingCheckout(false);
+    }
   };
 
   const handleBackToShipping = () => {
     setCheckoutStep('shipping');
+    setCheckoutError(null);
+    clearCheckout(); // Clear checkout data when going back
   };
 
   const handlePayment = async () => {
@@ -70,12 +100,20 @@ export function CheckoutFlow() {
       throw new Error('Please provide shipping information');
     }
 
+    if (!cart.checkout) {
+      throw new Error('Checkout calculation not available');
+    }
+
+    // Use the total from checkout calculation (includes shipping and taxes)
+    const finalTotal = cart.checkout.total.amount;
+
     // Execute the payment
-    await executePayment(cartTotal, {
+    await executePayment(finalTotal, {
       items: cart.items,
       notes: cart.notes,
       shipping: shippingData,
-      total: cartTotal
+      checkout: cart.checkout,
+      total: finalTotal
     });
   };
 
@@ -89,6 +127,8 @@ export function CheckoutFlow() {
   const handleCloseCheckout = () => {
     setIsCheckoutOpen(false);
     setCheckoutStep('shipping');
+    setCheckoutError(null);
+    clearCheckout();
     resetPayment();
   };
 
@@ -103,7 +143,7 @@ export function CheckoutFlow() {
         disabled={!hasItems || !isConnected}
         className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
       >
-        {!isConnected ? 'Connect Wallet to Pay' : `Pay ${cartTotal.toFixed(2)} USDC`}
+        {!isConnected ? 'Connect Wallet to Pay' : `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`}
       </button>
 
       {/* Checkout Modal */}
@@ -170,13 +210,21 @@ export function CheckoutFlow() {
                     </div>
                   </div>
                   
+                  {/* Checkout Error */}
+                  {checkoutError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <div className="text-red-800 text-sm font-medium">Checkout Error</div>
+                      <div className="text-red-600 text-xs mt-1">{checkoutError}</div>
+                    </div>
+                  )}
+                  
                   {/* Continue Button */}
                   <button
                     onClick={handleContinueToPayment}
-                    disabled={!isShippingValid}
+                    disabled={!isShippingValid || isCalculatingCheckout}
                     className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
                   >
-                    Continue to Payment
+                    {isCalculatingCheckout ? 'Calculating shipping & taxes...' : 'Continue to Payment'}
                   </button>
                 </>
               )}
@@ -224,7 +272,7 @@ export function CheckoutFlow() {
                     <h3 className="font-medium">Order Summary</h3>
                     {cart.items.map((item) => (
                       <div key={item.key} className="flex justify-between text-sm">
-                        <span>{item.title} {item.variantTitle && `(${item.variantTitle})`} × {item.quantity}</span>
+                        <span>{item.product.title} {item.variant?.title && `(${item.variant.title})`} × {item.quantity}</span>
                         <span>${(item.price * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
@@ -236,23 +284,41 @@ export function CheckoutFlow() {
                     <div className="border-t pt-2 space-y-1">
                       <div className="flex justify-between text-sm">
                         <span>Subtotal</span>
-                        <span>${cartTotal.toFixed(2)}</span>
+                        <span>${cart.checkout ? cart.checkout.subtotal.amount.toFixed(2) : cartTotal.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between text-sm text-gray-600">
-                        <span>Shipping</span>
-                        <span>Calculated at checkout</span>
-                      </div>
-                      <div className="flex justify-between text-sm text-gray-600">
+                      
+                      {/* Shipping Rates */}
+                      {cart.checkout && cart.checkout.shippingRates && cart.checkout.shippingRates.length > 0 ? (
+                        <div className="space-y-1">
+                          {cart.checkout.shippingRates.map((rate, index) => (
+                            <div key={rate.handle} className="flex justify-between text-sm">
+                              <span>{index === 0 ? 'Shipping' : ''} {rate.title}</span>
+                              <span>${rate.price.amount.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex justify-between text-sm text-gray-600">
+                          <span>Shipping</span>
+                          <span>{cart.checkout ? 'Calculating...' : 'TBD'}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between text-sm">
                         <span>Taxes</span>
-                        <span>Calculated at checkout</span>
+                        <span>${cart.checkout ? cart.checkout.tax.amount.toFixed(2) : 'TBD'}</span>
                       </div>
+                      
                       <div className="border-t pt-1 flex justify-between font-medium">
                         <span>Total</span>
-                        <span>${cartTotal.toFixed(2)} USDC*</span>
+                        <span>${cart.checkout ? cart.checkout.total.amount.toFixed(2) : cartTotal.toFixed(2)} USDC</span>
                       </div>
-                      <div className="text-xs text-gray-500">
-                        *Final amount will include shipping and taxes
-                      </div>
+                      
+                      {!cart.checkout && (
+                        <div className="text-xs text-gray-500">
+                          Final amount includes shipping and taxes
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>
@@ -318,20 +384,20 @@ export function CheckoutFlow() {
               {/* Payment Actions - Only show in payment step */}
               {checkoutStep === 'payment' && paymentStatus === 'idle' && isConnected && (
                 <div className="space-y-2">
-                  {!hasSufficientBalance(cartTotal) && (
+                  {cart.checkout && !hasSufficientBalance(cart.checkout.total.amount) && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                       <div className="text-red-800 text-sm">
-                        Insufficient USDC balance. You need {cartTotal.toFixed(2)} USDC but only have {balanceNumber.toFixed(2)} USDC.
+                        Insufficient USDC balance. You need {cart.checkout.total.amount.toFixed(2)} USDC but only have {balanceNumber.toFixed(2)} USDC.
                       </div>
                     </div>
                   )}
                   
                   <button
                     onClick={handlePayment}
-                    disabled={!hasSufficientBalance(cartTotal) || isPending}
+                    disabled={!cart.checkout || !hasSufficientBalance(cart.checkout?.total.amount || cartTotal) || isPending}
                     className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
                   >
-                    {isPending ? 'Processing...' : `Pay ${cartTotal.toFixed(2)} USDC`}
+                    {isPending ? 'Processing...' : `Pay ${cart.checkout ? cart.checkout.total.amount.toFixed(2) : cartTotal.toFixed(2)} USDC`}
                   </button>
                 </div>
               )}

@@ -13,7 +13,9 @@ const CART_ACTIONS = {
   CLEAR_CART: 'CLEAR_CART',
   LOAD_CART: 'LOAD_CART',
   UPDATE_NOTES: 'UPDATE_NOTES',
-  UPDATE_SHIPPING: 'UPDATE_SHIPPING'
+  UPDATE_SHIPPING: 'UPDATE_SHIPPING',
+  UPDATE_CHECKOUT: 'UPDATE_CHECKOUT',
+  CLEAR_CHECKOUT: 'CLEAR_CHECKOUT'
 };
 
 // Cart reducer function
@@ -92,7 +94,8 @@ function cartReducer(state, action) {
         ...state,
         items: [],
         notes: '',
-        shipping: null
+        shipping: null,
+        checkout: null
       };
     }
     
@@ -110,12 +113,27 @@ function cartReducer(state, action) {
       };
     }
     
+    case CART_ACTIONS.UPDATE_CHECKOUT: {
+      return {
+        ...state,
+        checkout: action.payload.checkout
+      };
+    }
+    
+    case CART_ACTIONS.CLEAR_CHECKOUT: {
+      return {
+        ...state,
+        checkout: null
+      };
+    }
+    
     case CART_ACTIONS.LOAD_CART: {
       return {
         ...state,
         items: action.payload.items || [],
         notes: action.payload.notes || '',
-        shipping: action.payload.shipping || null
+        shipping: action.payload.shipping || null,
+        checkout: action.payload.checkout || null
       };
     }
     
@@ -128,7 +146,8 @@ function cartReducer(state, action) {
 const initialCartState = {
   items: [],
   notes: '',
-  shipping: null
+  shipping: null,
+  checkout: null
 };
 
 // Cart Provider Component
@@ -199,6 +218,17 @@ export function CartProvider({ children }) {
     });
   };
 
+  const updateCheckout = (checkout) => {
+    dispatch({
+      type: CART_ACTIONS.UPDATE_CHECKOUT,
+      payload: { checkout }
+    });
+  };
+
+  const clearCheckout = () => {
+    dispatch({ type: CART_ACTIONS.CLEAR_CHECKOUT });
+  };
+
   // Cart calculations
   const cartTotal = cart.items.reduce((total, item) => {
     return total + (item.price * item.quantity);
@@ -229,6 +259,8 @@ export function CartProvider({ children }) {
     clearCart,
     updateNotes,
     updateShipping,
+    updateCheckout,
+    clearCheckout,
     cartTotal,
     itemCount,
     isInCart,

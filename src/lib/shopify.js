@@ -226,6 +226,34 @@ export async function addLineItem(checkoutId, variantId, quantity = 1) {
   return data.checkoutLineItemsAdd.checkout;
 }
 
+// Client-side function to calculate checkout totals via API
+export async function calculateCheckout(cartItems, shippingAddress, email = null) {
+  try {
+    const response = await fetch('/api/shopify/checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        cartItems,
+        shippingAddress,
+        email
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to calculate checkout');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Checkout calculation error:', error);
+    throw error;
+  }
+}
+
 export async function createOrder({ lineItems, customer, shippingAddress, transactionHash }) {
   const query = `
     mutation orderCreate($order: OrderCreateOrderInput!, $options: OrderCreateOptionsInput) {
