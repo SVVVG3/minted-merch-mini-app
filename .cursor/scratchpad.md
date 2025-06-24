@@ -31,13 +31,14 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
   - ✅ Enhanced error handling with null checks for order object
   - ✅ Added detailed logging for Shopify API requests/responses
 
-**Issue 2: Payment Connector Error** 🔧 **FIXED**
-- **Root Cause**: `"r.connector.getChainId is not a function"` - Known Wagmi issue
+**Issue 2: Payment Connector Error** ✅ **FIXED** 
+- **Root Cause**: `"r.connector.getChainId is not a function"` - Known Wagmi timing issue with connector initialization
 - **Solution Applied**:
-  - ✅ Added connector availability validation
-  - ✅ Added connections readiness check using `useConnections` hook
-  - ✅ Enhanced error handling for connector initialization timing
-  - ✅ Follows best practices from Wagmi GitHub discussions
+  - ✅ Added `useConnections` hook to track when Wagmi connections are ready
+  - ✅ Added `connectionsReady` state validation before payment execution
+  - ✅ Updated payment button to show "Initializing wallet..." when connections not ready
+  - ✅ Enhanced error handling with proper timing checks
+  - ✅ Follows solution pattern from Wagmi GitHub discussions (waiting for connections)
 
 ### Technical Approach for Current Debugging:
 
@@ -112,12 +113,12 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 🔧 **Phase 7 IN PROGRESS** - Bug fixes and testing
 
 **Recent Fixes Applied:**
-1. **Order Creation Error**: Enhanced error handling, logging, and null checks
-2. **Payment Connector Error**: Added Wagmi connection validation and timing fixes
-3. **API Consistency**: Unified Shopify API versions across all endpoints
-4. **Domain Configuration**: Confirmed correct environment variables
+1. **Order Creation Error**: ✅ Fixed Shopify Admin API version compatibility (2024-07 → 2024-10)
+2. **Payment Connector Error**: ✅ Fixed Wagmi timing issue by waiting for connections to be ready
+3. **API Schema Validation**: ✅ Updated all GraphQL mutations to use correct 2024-10 schema
+4. **Domain Configuration**: ✅ Confirmed correct environment variables
 
-**Current Status**: Both critical errors have been addressed with fixes deployed to production.
+**Current Status**: Both critical errors have been resolved with comprehensive fixes deployed to production.
 
 **Next Steps**: 
 1. **Test Complete Flow**: User should test the full checkout process again

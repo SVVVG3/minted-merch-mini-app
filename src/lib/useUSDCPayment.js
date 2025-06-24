@@ -1,18 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConnections } from 'wagmi'
+import { useState } from 'react'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { USDC_CONTRACT, PAYMENT_CONFIG, formatUSDCAmount, parseUSDCAmount, usdToUSDC } from './usdc'
+import { config } from './wagmi'
 
 export function useUSDCPayment() {
   const { address, isConnected } = useAccount()
-  const connections = useConnections()
   const [paymentStatus, setPaymentStatus] = useState('idle') // idle, checking, pending, success, error
   const [error, setError] = useState(null)
   const [transactionHash, setTransactionHash] = useState(null)
-  
-  // Check if connections are ready
-  const connectionsReady = connections && connections.length > 0
 
   // Read user's USDC balance
   const { 
@@ -24,6 +21,7 @@ export function useUSDCPayment() {
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
     enabled: !!address && isConnected,
+    config
   })
 
   // Write contract hook for USDC transfer
@@ -32,7 +30,9 @@ export function useUSDCPayment() {
     data: hash, 
     isPending: isWritePending,
     error: writeError 
-  } = useWriteContract()
+  } = useWriteContract({
+    config
+  })
 
   // Wait for transaction confirmation
   const { 
@@ -42,6 +42,7 @@ export function useUSDCPayment() {
   } = useWaitForTransactionReceipt({
     hash: hash, // Use the hash from writeContract, not our state
     enabled: !!hash,
+    config
   })
 
   // Format balance for display
@@ -68,11 +69,6 @@ export function useUSDCPayment() {
 
       if (!address) {
         throw new Error('No wallet address found')
-      }
-
-      // Wait for connections to be ready (fix for connector.getChainId error)
-      if (!connections || connections.length === 0) {
-        throw new Error('Wallet connections not ready. Please try again.')
       }
 
       if (!usdAmount || usdAmount <= 0) {
@@ -162,6 +158,5 @@ export function useUSDCPayment() {
     // Wallet state
     isConnected,
     address,
-    connectionsReady,
   }
 } 

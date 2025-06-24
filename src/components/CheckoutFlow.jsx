@@ -30,8 +30,7 @@ export function CheckoutFlow() {
     isConfirming,
     isConfirmed,
     isConnected,
-    address,
-    connectionsReady
+    address
   } = useUSDCPayment();
 
   const cartTotal = cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -608,14 +607,6 @@ export function CheckoutFlow() {
               {/* Payment Actions - Only show in payment step */}
               {checkoutStep === 'payment' && paymentStatus === 'idle' && isConnected && (
                 <div className="space-y-2">
-                  {!connectionsReady && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <div className="text-yellow-800 text-sm">
-                        Initializing wallet connection. Please wait...
-                      </div>
-                    </div>
-                  )}
-                  
                   {(() => {
                     const finalTotal = cart.checkout && cart.selectedShipping
                       ? cart.checkout.subtotal.amount + cart.checkout.tax.amount + cart.selectedShipping.price.amount
@@ -632,15 +623,14 @@ export function CheckoutFlow() {
                   
                   <button
                     onClick={handlePayment}
-                    disabled={!cart.checkout || !cart.selectedShipping || !connectionsReady || !hasSufficientBalance(
+                    disabled={!cart.checkout || !cart.selectedShipping || !hasSufficientBalance(
                       cart.checkout && cart.selectedShipping
                         ? cart.checkout.subtotal.amount + cart.checkout.tax.amount + cart.selectedShipping.price.amount
                         : cartTotal
                     ) || isPending}
                     className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
                   >
-                    {!connectionsReady ? 'Initializing wallet...' : 
-                     isPending ? 'Processing...' : `Pay ${
+                    {isPending ? 'Processing...' : `Pay ${
                       cart.checkout && cart.selectedShipping
                         ? (cart.checkout.subtotal.amount + cart.checkout.tax.amount + cart.selectedShipping.price.amount).toFixed(2)
                         : cartTotal.toFixed(2)
