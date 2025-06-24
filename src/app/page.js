@@ -43,7 +43,7 @@ export const metadata = {
   }
 };
 
-export default async function HomePage() {
+export default async function Page() {
   let collection;
   let products = [];
   
