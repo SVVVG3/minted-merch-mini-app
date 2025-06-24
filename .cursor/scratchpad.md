@@ -81,6 +81,11 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
   - ✅ Collection 'allproducts' successfully loaded
   - ✅ 13+ products displaying with images, titles, and prices
   - ✅ Products: OK Custom T-Shirt, Bankr Cap, Bankr Hoodie, and more
+  - ✅ **CRITICAL FIXES**: Fixed price display issues
+    - Fixed ProductCard price calculation (removed incorrect *0.01)
+    - Fixed individual product page prices ($NaN → correct prices)
+    - Fixed variant option prices in VariantSelector ($NaN → correct prices)
+    - All pricing now displays correctly across the entire app
 
 - **Task 3**: Local environment setup
   - ✅ .env.local file created with proper placeholder values
@@ -88,16 +93,18 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 
 ### 🔄 Current Status / Progress Tracking
 
-**Currently Working On**: Phase 3 - Payment Integration (Task 8)
+**Currently Working On**: Phase 3 - Farcaster Mini App Context (Task 7)
 
-**Current Status**: Phase 2 COMPLETE! 🎉 Shopify API working, products loading successfully
+**Current Status**: Phase 2 COMPLETE! 🎉 Shopify API working perfectly, all pricing issues resolved
 
 **Deployment Status**: 
 - ✅ Local dev: http://localhost:3000
 - ✅ Production: https://mintedmerch.vercel.app/
-- ✅ Shopify API connected and working
-- ✅ 13+ products displaying with images and prices
-- 🎯 Ready for payment integration (USDC on Base)
+- ✅ Shopify API connected and working perfectly
+- ✅ 13+ products displaying with correct images and prices
+- ✅ Individual product pages working with proper variant pricing
+- ✅ All price display issues resolved
+- 🎯 Ready for Phase 3: Farcaster Mini App Context
 
 ### 🚧 Blocked/Waiting
 - None currently
@@ -105,11 +112,13 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 ## Executor's Feedback or Assistance Requests
 
 **Phase 2 Complete! 🎉 MAJOR MILESTONE**
-- ✅ Tasks 1-5 successfully completed
+- ✅ Tasks 1-5 successfully completed + critical pricing fixes
 - ✅ Project deployed and accessible at https://mintedmerch.vercel.app/
-- ✅ Shopify API fully integrated and working
-- ✅ 13+ products displaying beautifully with images and prices
-- 🎯 **Next Action**: Begin Phase 3 - Payment Integration (Task 8)
+- ✅ Shopify API fully integrated and working perfectly
+- ✅ 13+ products displaying beautifully with correct images and prices
+- ✅ Individual product pages working with proper variant pricing
+- ✅ All price display issues completely resolved
+- 🎯 **Next Action**: Begin Phase 3 - Farcaster Mini App Context (Task 7)
 
 ## Lessons
 
