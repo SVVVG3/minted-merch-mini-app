@@ -75,6 +75,19 @@ export async function getCollectionByHandle(handle) {
                   }
                 }
               }
+              variants(first: 1) {
+                edges {
+                  node {
+                    id
+                    title
+                    availableForSale
+                    price {
+                      amount
+                      currencyCode
+                    }
+                  }
+                }
+              }
             }
           }
         }
