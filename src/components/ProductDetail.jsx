@@ -30,6 +30,43 @@ export function ProductDetail({
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);
 
+  // Helper function to format product description with line breaks and styling
+  const formatDescription = (description) => {
+    if (!description) return null;
+    
+    // Split by double line breaks to create paragraphs
+    const paragraphs = description.split('\n\n').filter(p => p.trim());
+    
+    return paragraphs.map((paragraph, index) => {
+      // Check if paragraph contains special formatting
+      if (paragraph.includes('**')) {
+        // Handle bold text
+        const parts = paragraph.split(/(\*\*.*?\*\*)/g);
+        return (
+          <p key={index} className="text-gray-700 leading-relaxed mb-4">
+            {parts.map((part, partIndex) => {
+              if (part.startsWith('**') && part.endsWith('**')) {
+                return (
+                  <strong key={partIndex} className="font-semibold text-red-600">
+                    {part.slice(2, -2)}
+                  </strong>
+                );
+              }
+              return part;
+            })}
+          </p>
+        );
+      }
+      
+      // Regular paragraph
+      return (
+        <p key={index} className="text-gray-700 leading-relaxed mb-4">
+          {paragraph}
+        </p>
+      );
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm sticky top-0 z-10">
@@ -83,7 +120,7 @@ export function ProductDetail({
           </div>
         )}
 
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-6">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">{product.title}</h2>
             <p className="text-2xl font-bold text-gray-900 mt-2">
@@ -103,9 +140,11 @@ export function ProductDetail({
           />
 
           {product.description && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Description</h3>
-              <p className="text-sm text-gray-600">{product.description}</p>
+            <div className="bg-white rounded-lg p-6 shadow-sm border">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Description</h3>
+              <div className="prose prose-sm max-w-none">
+                {formatDescription(product.description)}
+              </div>
             </div>
           )}
         </div>

@@ -36,19 +36,20 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 ### Phase 4 — Cart Functionality
 - [x] **Task 9**: Build CartContext for cart state management ✅ COMPLETED
 - [x] **Task 10**: Build cart UI component ✅ COMPLETED
+- [x] **Task 11**: UI/UX Improvements & Cart Enhancements ✅ COMPLETED
 
 ### Phase 5 — Payment Flow
-- [ ] **Task 11**: Render USDC payment instructions
-- [ ] **Task 12**: Build confirmation screen (success page)
+- [ ] **Task 12**: Render USDC payment instructions
+- [ ] **Task 13**: Build confirmation screen (success page)
 
 ### Phase 6 — Shopify Order Creation
-- [ ] **Task 13**: Build Shopify Admin API client
-- [ ] **Task 14**: Build API route to create Shopify orders
-- [ ] **Task 15**: Manually trigger order creation after payment (for MVP)
+- [ ] **Task 14**: Build Shopify Admin API client
+- [ ] **Task 15**: Build API route to create Shopify orders
+- [ ] **Task 16**: Manually trigger order creation after payment (for MVP)
 
 ### Phase 7 — Final MVP Readiness
-- [ ] **Task 16**: Test full end-to-end MVP flow
-- [ ] **Task 17**: Prepare production deployment
+- [ ] **Task 17**: Test full end-to-end MVP flow
+- [ ] **Task 18**: Prepare production deployment
 
 ## Project Status Board
 
@@ -147,22 +148,50 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
   - ✅ Enhanced Shopify API queries to include variant data
   - ✅ All cart functionality tested and working in browser
 
+- **Task 11**: UI/UX Improvements & Cart Enhancements ✅ COMPLETED
+  - ✅ **FarcasterHeader Message Update**: Changed welcome message to "Hey, {username} - welcome to Minted Merch! 👋"
+  - ✅ **Product Description Enhancement**: 
+    - Moved description to dedicated white card with shadow and border
+    - Added proper paragraph formatting with line breaks
+    - Implemented bold text parsing for **text** formatting
+    - Increased font size and improved typography
+    - Added proper spacing and visual hierarchy
+    - Used prose styling for better readability
+  - ✅ **Cart Notes Section**: 
+    - Added notes field to CartContext state management
+    - Created UPDATE_NOTES action and reducer case
+    - Added textarea in cart for order notes/special instructions
+    - Included helpful placeholder text for NFT customization
+    - Notes persist in localStorage with cart data
+    - Notes are cleared when cart is cleared
+  - ✅ **Clear Cart Button Fix**: 
+    - Fixed Clear Cart functionality to properly reset cart state
+    - Enhanced confirmation dialog to mention notes will also be cleared
+    - Added proper state management for local notes
+    - Fixed button styling and positioning
+    - Updated brand colors throughout cart (blue → green #3eb489)
+
 ### 🔄 Current Status / Progress Tracking
 
-✅ **Phase 4 Complete** - Cart Functionality
+✅ **Phase 4 Complete + UI/UX Enhancements** - Cart Functionality & Improvements
 - Cart state management with CartContext ✅
 - Comprehensive cart UI with sidebar ✅
 - Add/remove/update cart items ✅
 - Cart persistence via localStorage ✅
 - Product cards with cart integration ✅
+- **NEW**: Enhanced product description layout ✅
+- **NEW**: Cart notes section for special instructions ✅
+- **NEW**: Fixed Clear Cart button functionality ✅
+- **NEW**: Updated Farcaster header welcome message ✅
+- **NEW**: Consistent brand colors (#3eb489) throughout UI ✅
 - Ready for USDC payment integration ✅
 
 **Next: Phase 5 - USDC Payment Integration**
-- Task 11: Implement USDC payment flow using Base network
-- Task 12: Connect with Farcaster wallet
-- Task 13: Handle payment confirmation and order creation
+- Task 12: Implement USDC payment flow using Base network
+- Task 13: Connect with Farcaster wallet
+- Task 14: Handle payment confirmation and order creation
 
-**Phase 3 Status**: ✅ **COMPLETE!** 🎉 
+**Phase 4 Status**: ✅ **COMPLETE WITH ENHANCEMENTS!** 🎉 
 
 **Farcaster Mini App Registration Ready**: 
 - ✅ Manifest URL: https://mintedmerch.vercel.app/.well-known/farcaster.json
@@ -180,35 +209,56 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - ✅ All price display issues resolved
 - ✅ Farcaster Mini App SDK integrated and deployed
 - ✅ Farcaster user context properly handled and displayed
-- 🎯 Ready for Phase 4: Cart Functionality
+- ✅ Enhanced product descriptions with proper formatting
+- ✅ Cart with notes section and fixed Clear Cart functionality
+- 🎯 Ready for Phase 5: USDC Payment Integration
 
 ### 🚧 Blocked/Waiting
 - None currently
 
 ## Executor's Feedback or Assistance Requests
 
-**Phase 3 Complete! 🎉 FARCASTER MINI APP READY FOR REGISTRATION**
-- ✅ Tasks 1-8 successfully completed including all critical fixes
-- ✅ Project deployed and accessible at https://mintedmerch.vercel.app/
-- ✅ Shopify API fully integrated and working perfectly
-- ✅ Farcaster Mini App SDK integrated with proper context detection
-- ✅ App properly handles both Farcaster and non-Farcaster environments
-- ✅ FarcasterHeader component displays user info when in Farcaster context
-- ✅ useFarcaster hook available for easy context access throughout app
-- ✅ **MANIFEST READY**: Farcaster manifest at https://mintedmerch.vercel.app/.well-known/farcaster.json
-- ✅ **VALIDATION PASSED**: Account association, special characters, button consistency all fixed
-- ✅ **BRANDING COMPLETE**: Custom MintedMerch images integrated
-- ✅ **WEBHOOK READY**: Endpoint ready for Farcaster events at /api/webhook
-- 🎯 **READY FOR**: Phase 4 - Cart Functionality
+**Phase 4 Complete with Major UI/UX Enhancements! 🎉**
 
-**Next Phase**: Cart Functionality
-- Task 10: Build cart UI component
+**Latest Improvements Completed:**
+1. ✅ **FarcasterHeader Message**: Updated to "Hey, {username} - welcome to Minted Merch! 👋"
+2. ✅ **Enhanced Product Descriptions**: 
+   - Beautiful white card layout with shadow and border
+   - Proper paragraph formatting with line breaks
+   - Bold text parsing for **emphasized text**
+   - Improved typography and spacing
+   - Much more readable and professional appearance
+3. ✅ **Cart Notes Section**: 
+   - Added order notes textarea in cart
+   - Helpful placeholder text for NFT customization requests
+   - Integrated with CartContext state management
+   - Persists in localStorage with cart data
+4. ✅ **Fixed Clear Cart Button**: 
+   - Properly clears all cart items and notes
+   - Enhanced confirmation dialog
+   - Fixed state management issues
+   - Updated to use brand colors (#3eb489)
+
+**Current Status**: 
+- ✅ All 4 user requests completed successfully
+- ✅ Cart functionality fully working with notes support
+- ✅ Product pages now have beautiful, readable descriptions
+- ✅ Farcaster header displays proper welcome message
+- ✅ Consistent brand styling throughout the app
+- ✅ Ready for user testing and Phase 5 (USDC payments)
+
+**Ready for Next Phase**: USDC Payment Integration using Base network
 
 ## Lessons
 
-- **Environment Variables**: The starter template requires .env.local file with proper values to prevent 500 errors
-- **Shopify API**: Expected to see Shopify fetch errors until API credentials are configured in Tasks 4-5
-- **Google Maps**: Optional API key warning is expected and can be ignored for MVP
+- Include info useful for debugging in the program output.
+- Read the file before you try to edit it.
+- If there are vulnerabilities that appear in the terminal, run npm audit before proceeding
+- Always ask before using the -force git command
+- **Cart State Management**: When adding new fields to cart state (like notes), ensure all reducer cases handle the new field properly, especially CLEAR_CART and LOAD_CART actions
+- **UI Consistency**: Apply brand colors (#3eb489) consistently across all interactive elements for better user experience
+- **Product Description Formatting**: Use proper card layouts with shadows and borders to make content more readable and professional-looking
+- **Local State vs Context**: When using both local state and context for form inputs (like cart notes), ensure they stay in sync and update together
 
 ## Next Steps
 

@@ -27,7 +27,7 @@ export function FarcasterHeader() {
             />
           )}
           <span>
-            Hey {user.displayName || user.username}! 👋
+            Hey, {user.displayName || user.username} - welcome to Minted Merch! 👋
           </span>
         </div>
       </div>

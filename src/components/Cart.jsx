@@ -5,7 +5,8 @@ import { useCart } from '@/lib/CartContext';
 import Link from 'next/link';
 
 export function Cart({ isOpen, onClose }) {
-  const { cart, removeItem, updateQuantity, clearCart, cartTotal, itemCount } = useCart();
+  const { cart, removeItem, updateQuantity, clearCart, updateNotes, cartTotal, itemCount } = useCart();
+  const [localNotes, setLocalNotes] = useState(cart.notes || '');
   
   if (!isOpen) return null;
 
@@ -14,6 +15,19 @@ export function Cart({ isOpen, onClose }) {
       removeItem(itemKey);
     } else {
       updateQuantity(itemKey, newQuantity);
+    }
+  };
+
+  const handleNotesChange = (e) => {
+    const notes = e.target.value;
+    setLocalNotes(notes);
+    updateNotes(notes);
+  };
+
+  const handleClearCart = () => {
+    if (window.confirm('Are you sure you want to clear your cart? This will remove all items and notes.')) {
+      clearCart();
+      setLocalNotes('');
     }
   };
 
@@ -60,7 +74,7 @@ export function Cart({ isOpen, onClose }) {
               <p className="text-gray-500 mb-6">Add some items to get started!</p>
               <button
                 onClick={onClose}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                className="bg-[#3eb489] text-white px-6 py-2 rounded-lg hover:bg-[#359970] transition-colors"
               >
                 Continue Shopping
               </button>
@@ -75,6 +89,24 @@ export function Cart({ isOpen, onClose }) {
                   onRemove={() => removeItem(item.key)}
                 />
               ))}
+              
+              {/* Notes Section */}
+              <div className="border-t pt-4 mt-6">
+                <label htmlFor="cart-notes" className="block text-sm font-medium text-gray-700 mb-2">
+                  Order Notes
+                </label>
+                <textarea
+                  id="cart-notes"
+                  value={localNotes}
+                  onChange={handleNotesChange}
+                  placeholder="Add any special instructions or notes for your order..."
+                  className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent"
+                  rows={3}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Include NFT token #, OpenSea URLs, or any customization requests
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -84,12 +116,8 @@ export function Cart({ isOpen, onClose }) {
           <div className="border-t p-4 space-y-4">
             {/* Clear Cart Button */}
             <button
-              onClick={() => {
-                if (window.confirm('Are you sure you want to clear your cart?')) {
-                  clearCart();
-                }
-              }}
-              className="w-full text-sm text-red-600 hover:text-red-700 transition-colors"
+              onClick={handleClearCart}
+              className="w-full text-sm text-red-600 hover:text-red-700 transition-colors py-2"
             >
               Clear Cart
             </button>
@@ -103,7 +131,7 @@ export function Cart({ isOpen, onClose }) {
             {/* Checkout Button */}
             <button
               onClick={handleCheckout}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              className="w-full bg-[#3eb489] text-white py-3 rounded-lg hover:bg-[#359970] transition-colors font-medium"
             >
               Checkout with USDC
             </button>

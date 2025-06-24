@@ -11,7 +11,8 @@ const CART_ACTIONS = {
   REMOVE_ITEM: 'REMOVE_ITEM',
   UPDATE_QUANTITY: 'UPDATE_QUANTITY',
   CLEAR_CART: 'CLEAR_CART',
-  LOAD_CART: 'LOAD_CART'
+  LOAD_CART: 'LOAD_CART',
+  UPDATE_NOTES: 'UPDATE_NOTES'
 };
 
 // Cart reducer function
@@ -88,14 +89,23 @@ function cartReducer(state, action) {
     case CART_ACTIONS.CLEAR_CART: {
       return {
         ...state,
-        items: []
+        items: [],
+        notes: ''
+      };
+    }
+    
+    case CART_ACTIONS.UPDATE_NOTES: {
+      return {
+        ...state,
+        notes: action.payload.notes
       };
     }
     
     case CART_ACTIONS.LOAD_CART: {
       return {
         ...state,
-        items: action.payload.items || []
+        items: action.payload.items || [],
+        notes: action.payload.notes || ''
       };
     }
     
@@ -106,7 +116,8 @@ function cartReducer(state, action) {
 
 // Initial cart state
 const initialCartState = {
-  items: []
+  items: [],
+  notes: ''
 };
 
 // Cart Provider Component
@@ -161,6 +172,13 @@ export function CartProvider({ children }) {
     dispatch({ type: CART_ACTIONS.CLEAR_CART });
   };
 
+  const updateNotes = (notes) => {
+    dispatch({
+      type: CART_ACTIONS.UPDATE_NOTES,
+      payload: { notes }
+    });
+  };
+
   // Cart calculations
   const cartTotal = cart.items.reduce((total, item) => {
     return total + (item.price * item.quantity);
@@ -189,6 +207,7 @@ export function CartProvider({ children }) {
     removeItem,
     updateQuantity,
     clearCart,
+    updateNotes,
     cartTotal,
     itemCount,
     isInCart,
