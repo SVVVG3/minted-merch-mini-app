@@ -2,19 +2,40 @@ import { getCollectionByHandle, getCollections } from '@/lib/shopify';
 import { ProductGrid } from '@/components/ProductGrid';
 
 export const metadata = {
-  title: 'Shop with USDC',
-  description: 'Browse products and pay with USDC on Base',
+  title: 'Minted Merch Shop - Crypto Merch with USDC',
+  description: 'Shop crypto merch directly in Farcaster and pay with USDC on Base',
+  openGraph: {
+    title: 'Minted Merch Shop',
+    description: 'Shop crypto merch directly in Farcaster and pay with USDC on Base',
+    url: 'https://mintedmerch.vercel.app',
+    siteName: 'Minted Merch Shop',
+    images: [
+      {
+        url: 'https://mintedmerch.vercel.app/og-image.png',
+        width: 1200,
+        height: 630,
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Minted Merch Shop',
+    description: 'Shop crypto merch directly in Farcaster and pay with USDC on Base',
+    images: ['https://mintedmerch.vercel.app/og-image.png'],
+  },
   other: {
     'fc:frame': JSON.stringify({
       version: "next",
-      imageUrl: "https://placehold.co/600x400/000000/FFFFFF/png?text=Shop+with+USDC",
+      imageUrl: "https://mintedmerch.vercel.app/og-image.png",
       button: {
-        title: "Shop Now!",
+        title: "Shop Now",
         action: {
           type: "launch_frame",
-          name: "shopify-mini-app",
-          url: process.env.NEXT_PUBLIC_APP_URL || "https://shopify-mini-app-frame.vercel.app",
-          splashImageUrl: "https://placehold.co/600x400/000000/FFFFFF/png?text=Loading+Shop...",
+          name: "minted-merch-shop",
+          url: process.env.NEXT_PUBLIC_APP_URL || "https://mintedmerch.vercel.app",
+          splashImageUrl: "https://mintedmerch.vercel.app/splash.png",
           splashBackgroundColor: "#000000"
         }
       }

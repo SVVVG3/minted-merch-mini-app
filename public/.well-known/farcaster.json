@@ -1,0 +1,29 @@
+{
+  "accountAssociation": {
+    "header": "farcaster-verify:mintedmerch",
+    "payload": "eyJkb21haW4iOiJtaW50ZWRtZXJjaC52ZXJjZWwuYXBwIn0",
+    "signature": "MHhiOTEzZGY5NjZlMzQ4ZjQyNjU3OGRkZjNkNDFhZjA5ZjQ5NGNhYjg3YWQ0ZGY5NjZlMzQ4ZjQyNjU3OGRkZjNkNDFhZjA5ZjQ5NGNhYjg3YWQ0ZGY5NjZlMzQ4ZjQyNjU3OGRkZjNkNDFhZjA5ZjQ5NGNhYjg3YWQ0ZGY5NjZlMzQ4ZjQyNjU3OGRkZjNkNDFhZjA5ZjQ5NGNhYjg3YWQ0ZGY5NjZlMzQ4ZjQyNjU3OGRkZjNkNDFhZjA5ZjQ5NGNhYjg3YWQ="
+  },
+  "frame": {
+    "version": "1",
+    "name": "Minted Merch Shop",
+    "iconUrl": "https://mintedmerch.vercel.app/logo.png",
+    "homeUrl": "https://mintedmerch.vercel.app",
+    "splashImageUrl": "https://mintedmerch.vercel.app/splash.png",
+    "splashBackgroundColor": "#000000",
+    "webhookUrl": "https://mintedmerch.vercel.app/api/webhook",
+    "subtitle": "Connect and share instantly",
+    "description": "Shop crypto merch directly in Farcaster and pay with USDC on Base",
+    "primaryCategory": "shopping",
+    "tags": [
+      "crypto",
+      "merch",
+      "usdc",
+      "base",
+      "shopping"
+    ],
+    "ogTitle": "Minted Merch Shop",
+    "ogDescription": "Shop crypto merch directly in Farcaster and pay with USDC on Base",
+    "ogImageUrl": "https://mintedmerch.vercel.app/og-image.png"
+  }
+} 
