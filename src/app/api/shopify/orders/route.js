@@ -49,7 +49,11 @@ export async function POST(request) {
     const lineItems = cartItems.map(item => ({
       variantId: item.selectedVariant.id,
       quantity: item.quantity,
-      price: parseFloat(item.selectedVariant.price.amount)
+      price: parseFloat(item.selectedVariant.price.amount),
+      // Add required name and title fields
+      name: item.product.title,
+      title: item.variant?.title || item.selectedVariant?.title || 'Default',
+      productTitle: item.product.title
     }));
 
     // Calculate totals

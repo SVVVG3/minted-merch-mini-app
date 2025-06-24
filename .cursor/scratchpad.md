@@ -32,13 +32,13 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
   - ✅ Added detailed logging for Shopify API requests/responses
 
 **Issue 2: Payment Connector Error** ✅ **FIXED** 
-- **Root Cause**: `"r.connector.getChainId is not a function"` - Known Wagmi timing issue with connector initialization
+- **Root Cause**: `"r.connector.getChainId is not a function"` - Incorrect Wagmi v2 hook usage
 - **Solution Applied**:
-  - ✅ Added `useConnections` hook to track when Wagmi connections are ready
-  - ✅ Added `connectionsReady` state validation before payment execution
-  - ✅ Updated payment button to show "Initializing wallet..." when connections not ready
-  - ✅ Enhanced error handling with proper timing checks
-  - ✅ Follows solution pattern from Wagmi GitHub discussions (waiting for connections)
+  - ✅ **FINAL FIX**: Removed invalid `config` parameter from Wagmi hooks
+  - ✅ Wagmi v2 hooks automatically use config from WagmiProvider context
+  - ✅ Eliminated config divergence that was causing connector errors
+  - ✅ Simplified to follow exact Farcaster Mini App documentation pattern
+  - ✅ Removed unnecessary `useConnections` complexity
 
 ### Technical Approach for Current Debugging:
 
