@@ -1,13 +1,13 @@
-const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
-const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
-
-if (!SHOPIFY_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
-  throw new Error('Missing Shopify environment variables');
-}
-
-const SHOPIFY_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/api/2024-07/graphql.json`;
-
 async function shopifyFetch(query, variables = {}) {
+  const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
+  const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+
+  if (!SHOPIFY_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
+    throw new Error('Missing Shopify environment variables');
+  }
+
+  const SHOPIFY_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/api/2024-07/graphql.json`;
+
   const response = await fetch(SHOPIFY_API_URL, {
     method: 'POST',
     headers: {
