@@ -43,6 +43,10 @@ export const metadata = {
   }
 };
 
+// Force dynamic rendering to prevent caching issues
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function Page() {
   let collection;
   let products = [];
@@ -63,15 +67,18 @@ export default async function Page() {
       }
     }
 
-    console.log('Fetching collection:', targetHandle);
+    const timestamp = Date.now();
+    console.log(`[${timestamp}] Fetching collection:`, targetHandle);
     
     collection = await getCollectionByHandle(targetHandle);
     if (collection && collection.products) {
       products = collection.products.edges.map(edge => edge.node);
     }
 
-    console.log('Collection:', collection);
-    console.log('Products:', products);
+    console.log(`[${timestamp}] Collection:`, collection?.title);
+    console.log(`[${timestamp}] Products count:`, products.length);
+    console.log(`[${timestamp}] Product titles:`, products.map(p => p.title));
+    console.log(`[${timestamp}] Collection handle used:`, targetHandle);
   } catch (error) {
     console.error('Error fetching collection:', error);
   }
