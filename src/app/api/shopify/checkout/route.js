@@ -338,11 +338,20 @@ async function calculateWithStorefrontAPI(cartItems, shippingAddress, email) {
 
   const cart = cartData.cartCreate.cart;
 
-  // Calculate estimated shipping (this is a fallback estimate)
+  // Use actual Shopify calculations instead of estimates
   const subtotal = parseFloat(cart.estimatedCost.subtotalAmount.amount);
-  const estimatedShipping = subtotal >= 75 ? 0 : 8.98; // Free shipping over $75 for US orders, otherwise estimate $8.98
-  const estimatedTax = subtotal * 0.0875; // Estimate 8.75% tax for CA
-  const estimatedTotal = subtotal + estimatedShipping + estimatedTax;
+  const actualTax = parseFloat(cart.estimatedCost.totalTaxAmount?.amount || 0);
+  const actualTotal = parseFloat(cart.estimatedCost.totalAmount.amount);
+  
+  // Calculate shipping as the difference (Total - Subtotal - Tax)
+  const actualShipping = actualTotal - subtotal - actualTax;
+
+  console.log('🔍 Shopify actual calculations:', {
+    subtotal: subtotal,
+    tax: actualTax,
+    total: actualTotal,
+    calculatedShipping: actualShipping
+  });
 
   return {
     cartId: cart.id,
@@ -352,24 +361,24 @@ async function calculateWithStorefrontAPI(cartItems, shippingAddress, email) {
       currencyCode: cart.estimatedCost.subtotalAmount.currencyCode
     },
     tax: {
-      amount: estimatedTax,
-      currencyCode: 'USD'
+      amount: actualTax,
+      currencyCode: cart.estimatedCost.totalTaxAmount?.currencyCode || 'USD'
     },
     total: {
-      amount: estimatedTotal,
-      currencyCode: 'USD'
+      amount: actualTotal,
+      currencyCode: cart.estimatedCost.totalAmount.currencyCode
     },
     shippingRates: [
       {
-        handle: 'us-shipping',
-        title: estimatedShipping === 0 ? 'FREE Shipping (over $75)' : 'Shipping (estimated)',
+        handle: 'shopify-calculated',
+        title: actualShipping === 0 ? 'FREE Shipping' : 'Shipping',
         price: {
-          amount: estimatedShipping,
+          amount: actualShipping,
           currencyCode: 'USD'
         }
       }
     ],
-    shippingRatesReady: false, // Mark as false since these are estimates, not real rates
+    shippingRatesReady: true, // Mark as true since these are real Shopify calculations
     requiresShipping: true,
     lineItems: cart.lines.edges.map(edge => ({
       id: edge.node.id,
