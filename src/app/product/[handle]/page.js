@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 import { ProductPageClient } from './ProductPageClient';
-import { FarcasterMetaTags } from './FarcasterMetaTags';
 
 // Generate metadata for sharing
 export async function generateMetadata({ params, searchParams }) {
@@ -12,6 +11,22 @@ export async function generateMetadata({ params, searchParams }) {
     const queryString = searchParams ? new URLSearchParams(searchParams).toString() : '';
     const ogImageUrl = `${baseUrl}/api/og/product?handle=${handle}${queryString ? `&${queryString}` : ''}`;
     const productUrl = `${baseUrl}/product/${handle}${queryString ? `?${queryString}` : ''}`;
+
+    // Create Mini App embed for sharing with cache-busting
+    const frameEmbed = {
+      version: "next",
+      imageUrl: ogImageUrl,
+      button: {
+        title: `🛒 Shop Now`,
+        action: {
+          type: "launch_frame",
+          url: productUrl,
+          name: "Minted Merch Shop",
+          splashImageUrl: `${baseUrl}/splash.png`,
+          splashBackgroundColor: "#000000"
+        }
+      }
+    };
 
     return {
       title: 'Minted Merch Shop - Crypto Merchandise',
@@ -31,6 +46,10 @@ export async function generateMetadata({ params, searchParams }) {
       metadataBase: new URL(baseUrl),
       alternates: {
         canonical: productUrl,
+      },
+      // Use the proper other property for custom meta tags
+      other: {
+        'fc:frame': JSON.stringify(frameEmbed),
       }
     };
   } catch (error) {
@@ -44,15 +63,12 @@ export async function generateMetadata({ params, searchParams }) {
 
 export default function ProductPage({ params, searchParams }) {
   return (
-    <>
-      <FarcasterMetaTags handle={params.handle} searchParams={searchParams} />
-      <Suspense fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <p className="text-gray-500">Loading...</p>
-        </div>
-      }>
-        <ProductPageClient handle={params.handle} />
-      </Suspense>
-    </>
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    }>
+      <ProductPageClient handle={params.handle} />
+    </Suspense>
   );
 }
