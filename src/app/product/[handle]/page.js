@@ -1,10 +1,4 @@
-'use client';
-
-import { useState, useEffect, Suspense } from 'react';
-import { useParams } from 'next/navigation';
-import { ProductDetail } from '@/components/ProductDetail';
-import { CheckoutFlow } from '@/components/CheckoutFlow';
-import { ErrorMessage } from '@/components/ErrorMessage';
+import { Suspense } from 'react';
 import { ProductPageClient } from './ProductPageClient';
 
 // Generate metadata for sharing
