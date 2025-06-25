@@ -5,8 +5,8 @@ import { useFarcaster } from '@/lib/useFarcaster';
 
 export function ShippingForm({ onShippingChange, initialShipping = null }) {
   const { getDisplayName, getUsername } = useFarcaster();
-  const addressInputRef = useRef(null);
-  const autocompleteRef = useRef(null);
+  const addressContainerRef = useRef(null);
+  const placeAutocompleteRef = useRef(null);
   
   const [shipping, setShipping] = useState({
     firstName: '',
@@ -54,43 +54,58 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     }
   }, [initialShipping]);
 
-  // Initialize Google Places Autocomplete
+  // Initialize Google Places Autocomplete with new API
   useEffect(() => {
-    const initializeAutocomplete = () => {
+    const initializeAutocomplete = async () => {
       console.log('Checking Google Places availability:', {
         hasWindow: typeof window !== 'undefined',
         hasGoogle: typeof window !== 'undefined' && !!window.google,
         hasMaps: typeof window !== 'undefined' && !!window.google?.maps,
-        hasPlaces: typeof window !== 'undefined' && !!window.google?.maps?.places,
-        hasRef: !!addressInputRef.current,
-        hasAutocomplete: !!autocompleteRef.current,
+        hasContainer: !!addressContainerRef.current,
+        hasPlaceAutocomplete: !!placeAutocompleteRef.current,
         googlePlacesLoaded: typeof window !== 'undefined' && !!window.googlePlacesLoaded
       });
 
-      if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places && addressInputRef.current && !autocompleteRef.current) {
+      if (typeof window !== 'undefined' && window.google && window.google.maps && addressContainerRef.current && !placeAutocompleteRef.current) {
         try {
-          console.log('Initializing Google Places autocomplete...');
+          console.log('Initializing Google Places autocomplete with new API...');
           setGoogleMapsStatus('initializing');
           
-          // Test if Places API is properly accessible
-          if (!window.google.maps.places.Autocomplete) {
-            throw new Error('Google Places Autocomplete not available - API may not be properly activated');
+          // Import the places library to get access to PlaceAutocompleteElement
+          const { PlaceAutocompleteElement } = await window.google.maps.importLibrary('places');
+          
+          if (!PlaceAutocompleteElement) {
+            throw new Error('PlaceAutocompleteElement not available - API may not be properly activated');
           }
           
-          // Start with no country restrictions for global search
-          autocompleteRef.current = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+          // Create the new PlaceAutocompleteElement
+          placeAutocompleteRef.current = new PlaceAutocompleteElement({
+            // Start with no country restrictions for global search
             types: ['address']
           });
 
-          autocompleteRef.current.addListener('place_changed', () => {
-            const place = autocompleteRef.current.getPlace();
-            if (place && place.address_components) {
+          // Set up the event listener for place selection
+          placeAutocompleteRef.current.addEventListener('gmp-select', async (event) => {
+            console.log('Place selection event:', event);
+            
+            if (event.placePrediction) {
+              // Convert the prediction to a Place object
+              const place = event.placePrediction.toPlace();
+              
+              // Fetch the place details we need
+              await place.fetchFields({
+                fields: ['displayName', 'formattedAddress', 'addressComponents', 'location']
+              });
+              
               console.log('Place selected:', place);
               populateAddressFromPlace(place);
             }
           });
+
+          // Add the autocomplete element to the container
+          addressContainerRef.current.appendChild(placeAutocompleteRef.current);
           
-          console.log('Google Places autocomplete initialized successfully');
+          console.log('Google Places autocomplete initialized successfully with new API');
           setGoogleMapsStatus('ready');
         } catch (error) {
           console.error('Error initializing Google Places autocomplete:', error);
@@ -120,20 +135,19 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     
     return () => {
       clearTimeout(timer);
-      if (autocompleteRef.current) {
-        window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
+      if (placeAutocompleteRef.current) {
+        placeAutocompleteRef.current.remove();
+        placeAutocompleteRef.current = null;
       }
     };
   }, []);
 
   // Update autocomplete country restrictions when country changes
   useEffect(() => {
-    if (autocompleteRef.current && shipping.country) {
+    if (placeAutocompleteRef.current && shipping.country) {
       try {
         // Update the country restrictions based on selected country
-        autocompleteRef.current.setComponentRestrictions({
-          country: shipping.country.toLowerCase()
-        });
+        placeAutocompleteRef.current.includedRegionCodes = [shipping.country.toLowerCase()];
         console.log(`Updated autocomplete to focus on ${shipping.country}`);
       } catch (error) {
         console.warn('Could not update autocomplete country restrictions:', error);
@@ -141,35 +155,40 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     }
   }, [shipping.country]);
 
-  // Populate address fields from Google Places result
+  // Populate address fields from Google Places result (updated for new API)
   const populateAddressFromPlace = (place) => {
-    const addressComponents = place.address_components;
+    const addressComponents = place.addressComponents;
     const newShipping = { ...shipping };
 
-    // Extract address components
+    // Extract address components - the new API has a different structure
     let streetNumber = '';
     let route = '';
     
-    addressComponents.forEach(component => {
-      const types = component.types;
-      
-      if (types.includes('street_number')) {
-        streetNumber = component.long_name;
-      } else if (types.includes('route')) {
-        route = component.long_name;
-      } else if (types.includes('locality')) {
-        newShipping.city = component.long_name;
-      } else if (types.includes('administrative_area_level_1')) {
-        newShipping.province = component.short_name;
-      } else if (types.includes('postal_code')) {
-        newShipping.zip = component.long_name;
-      } else if (types.includes('country')) {
-        newShipping.country = component.short_name;
-      }
-    });
+    if (addressComponents) {
+      addressComponents.forEach(component => {
+        const types = component.types;
+        
+        if (types.includes('street_number')) {
+          streetNumber = component.longText;
+        } else if (types.includes('route')) {
+          route = component.longText;
+        } else if (types.includes('locality')) {
+          newShipping.city = component.longText;
+        } else if (types.includes('administrative_area_level_1')) {
+          newShipping.province = component.shortText;
+        } else if (types.includes('postal_code')) {
+          newShipping.zip = component.longText;
+        } else if (types.includes('country')) {
+          newShipping.country = component.shortText;
+        }
+      });
 
-    // Combine street number and route for address1
-    newShipping.address1 = `${streetNumber} ${route}`.trim();
+      // Combine street number and route for address1
+      newShipping.address1 = `${streetNumber} ${route}`.trim();
+    } else {
+      // Fallback to formatted address if address components not available
+      newShipping.address1 = place.formattedAddress || '';
+    }
 
     setShipping(newShipping);
     const valid = validateForm(newShipping);
@@ -212,6 +231,11 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     // Validate and notify parent
     const valid = validateForm(updatedShipping);
     onShippingChange(updatedShipping, valid);
+  };
+
+  // Handle manual address input changes (for the fallback input)
+  const handleAddressChange = (value) => {
+    handleChange('address1', value);
   };
 
   // US States for dropdown
@@ -324,16 +348,32 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
             </span>
           )}
         </label>
-        <input
-          type="text"
-          value={shipping.address1}
-          onChange={(e) => handleChange('address1', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3eb489] ${
-            errors.address1 ? 'border-red-500' : 'border-gray-300'
-          }`}
-          placeholder={googleMapsStatus === 'ready' ? 'Start typing your address...' : 'Street address'}
-          ref={addressInputRef}
-        />
+        
+        {/* Container for the new PlaceAutocompleteElement */}
+        {googleMapsStatus === 'ready' ? (
+          <div 
+            ref={addressContainerRef}
+            className="w-full"
+            style={{ 
+              '--gmp-place-autocomplete-input-border-radius': '8px',
+              '--gmp-place-autocomplete-input-padding': '8px 12px',
+              '--gmp-place-autocomplete-input-border-color': errors.address1 ? '#ef4444' : '#d1d5db',
+              '--gmp-place-autocomplete-input-focus-border-color': '#3eb489'
+            }}
+          />
+        ) : (
+          // Fallback input when Google Maps is not ready
+          <input
+            type="text"
+            value={shipping.address1}
+            onChange={(e) => handleAddressChange(e.target.value)}
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3eb489] ${
+              errors.address1 ? 'border-red-500' : 'border-gray-300'
+            }`}
+            placeholder={googleMapsStatus === 'ready' ? 'Start typing your address...' : 'Street address'}
+          />
+        )}
+        
         {errors.address1 && (
           <p className="text-red-500 text-xs mt-1">{errors.address1}</p>
         )}
