@@ -1,37 +1,23 @@
 import { Suspense } from 'react';
 import { ProductPageClient } from './ProductPageClient';
-import { getProductByHandle } from '@/lib/shopify';
 
 // Generate metadata for sharing
 export async function generateMetadata({ params, searchParams }) {
   const { handle } = params;
   
   try {
-    console.log('Generating metadata for handle:', handle);
-    console.log('searchParams:', searchParams);
-    
-    // Call Shopify directly instead of making HTTP request
-    const product = await getProductByHandle(handle);
-    console.log('Product fetched:', product.title);
-    
-    const mainImage = product.images?.edges?.[0]?.node;
-    const price = product.priceRange?.minVariantPrice?.amount || '0';
-
-    // Build query string for cache-busting and other parameters
+    // Build URLs with cache-busting parameters
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mintedmerch.vercel.app';
     const queryString = searchParams ? new URLSearchParams(searchParams).toString() : '';
     const ogImageUrl = `${baseUrl}/api/og/product?handle=${handle}${queryString ? `&${queryString}` : ''}`;
     const productUrl = `${baseUrl}/product/${handle}${queryString ? `?${queryString}` : ''}`;
 
-    console.log('OG Image URL:', ogImageUrl);
-    console.log('Product URL:', productUrl);
-
-    // Create Mini App embed for sharing
+    // Create Mini App embed for sharing with cache-busting
     const frameEmbed = {
       version: "next",
       imageUrl: ogImageUrl,
       button: {
-        title: `🛒 Buy ${product.title} - $${price}`,
+        title: `🛒 Shop Now`,
         action: {
           type: "launch_frame",
           url: productUrl,
@@ -42,13 +28,13 @@ export async function generateMetadata({ params, searchParams }) {
       }
     };
 
-    const metadata = {
-      title: `${product.title} - Minted Merch Shop`,
-      description: product.description || `Buy ${product.title} for $${price} USDC on Base`,
+    return {
+      title: 'Minted Merch Shop - Crypto Merchandise',
+      description: 'Shop crypto merch with USDC payments on Base',
       openGraph: {
-        title: product.title,
-        description: product.description || `Buy ${product.title} for $${price} USDC`,
-        images: [mainImage?.url || `${baseUrl}/og-image.png`],
+        title: 'Minted Merch Shop',
+        description: 'Crypto merchandise with instant USDC payments',
+        images: [ogImageUrl],
         url: productUrl,
       },
       other: {
@@ -57,14 +43,10 @@ export async function generateMetadata({ params, searchParams }) {
         'og:image': ogImageUrl,
       }
     };
-
-    console.log('Generated metadata successfully');
-    return metadata;
   } catch (error) {
     console.error('Error generating metadata:', error);
-    console.error('Error stack:', error.stack);
     return {
-      title: 'Product - Minted Merch Shop',
+      title: 'Minted Merch Shop',
       description: 'Shop crypto merch with USDC on Base'
     };
   }
