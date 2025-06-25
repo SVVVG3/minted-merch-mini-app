@@ -54,67 +54,65 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     }
   }, [initialShipping]);
 
-  // Initialize Google Places Autocomplete with new API
+  // Initialize Google Places Autocomplete (reverted to stable API)
   useEffect(() => {
-    const initializeAutocomplete = async () => {
+    const initializeAutocomplete = () => {
       console.log('Checking Google Places availability:', {
         hasWindow: typeof window !== 'undefined',
         hasGoogle: typeof window !== 'undefined' && !!window.google,
         hasMaps: typeof window !== 'undefined' && !!window.google?.maps,
-        hasContainer: !!addressContainerRef.current,
-        hasPlaceAutocomplete: !!placeAutocompleteRef.current,
+        hasPlaces: typeof window !== 'undefined' && !!window.google?.maps?.places,
+        hasAutocomplete: typeof window !== 'undefined' && !!window.google?.maps?.places?.Autocomplete,
         googlePlacesLoaded: typeof window !== 'undefined' && !!window.googlePlacesLoaded
       });
 
-      if (typeof window !== 'undefined' && window.google && window.google.maps && addressContainerRef.current && !placeAutocompleteRef.current) {
+      if (typeof window !== 'undefined' && 
+          window.google && 
+          window.google.maps && 
+          window.google.maps.places && 
+          window.google.maps.places.Autocomplete && 
+          !placeAutocompleteRef.current) {
+        
         try {
-          console.log('Initializing Google Places autocomplete with new API...');
+          console.log('Initializing Google Places autocomplete with stable API...');
           setGoogleMapsStatus('initializing');
           
-          // Import the places library to get access to PlaceAutocompleteElement
-          const { PlaceAutocompleteElement } = await window.google.maps.importLibrary('places');
+          // Create a hidden input element for the autocomplete
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.placeholder = 'Start typing an address...';
+          input.style.width = '100%';
+          input.style.padding = '12px';
+          input.style.border = '1px solid #ddd';
+          input.style.borderRadius = '8px';
+          input.style.fontSize = '16px';
           
-          if (!PlaceAutocompleteElement) {
-            throw new Error('PlaceAutocompleteElement not available - API may not be properly activated');
+          // Add the input to the container
+          if (addressContainerRef.current) {
+            addressContainerRef.current.appendChild(input);
           }
-          
-          // Create the new PlaceAutocompleteElement
-          placeAutocompleteRef.current = new PlaceAutocompleteElement({
-            // Start with no country restrictions for global search
-            types: ['address']
+
+          // Create the autocomplete instance
+          placeAutocompleteRef.current = new window.google.maps.places.Autocomplete(input, {
+            types: ['address'],
+            fields: ['address_components', 'formatted_address', 'geometry', 'name']
           });
 
           // Set up the event listener for place selection
-          placeAutocompleteRef.current.addEventListener('gmp-select', async ({ placePrediction }) => {
-            console.log('Place selection event:', placePrediction);
+          placeAutocompleteRef.current.addListener('place_changed', () => {
+            const place = placeAutocompleteRef.current.getPlace();
+            console.log('Place selected:', place);
             
-            if (placePrediction) {
-              // Convert the prediction to a Place object
-              const place = placePrediction.toPlace();
-              
-              // Fetch the place details we need
-              await place.fetchFields({
-                fields: ['displayName', 'formattedAddress', 'addressComponents', 'location']
-              });
-              
-              console.log('Place selected:', place);
+            if (place && place.address_components) {
               populateAddressFromPlace(place);
             }
           });
-
-          // Add the autocomplete element to the container
-          addressContainerRef.current.appendChild(placeAutocompleteRef.current);
           
-          console.log('Google Places autocomplete initialized successfully with new API');
+          console.log('Google Places autocomplete initialized successfully with stable API');
           setGoogleMapsStatus('ready');
         } catch (error) {
           console.error('Error initializing Google Places autocomplete:', error);
-          if (error.message && error.message.includes('ApiNotActivatedMapError')) {
-            console.error('Google Maps JavaScript API is not enabled. Please enable it in Google Cloud Console or contact support.');
-            setGoogleMapsStatus('api-not-enabled');
-          } else {
-            setGoogleMapsStatus('error');
-          }
+          setGoogleMapsStatus('error');
         }
       } else {
         console.log('Google Places API not ready yet, retrying...');
@@ -136,7 +134,11 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     return () => {
       clearTimeout(timer);
       if (placeAutocompleteRef.current) {
-        placeAutocompleteRef.current.remove();
+        // Clean up the input element
+        const container = addressContainerRef.current;
+        if (container && container.firstChild) {
+          container.removeChild(container.firstChild);
+        }
         placeAutocompleteRef.current = null;
       }
     };
@@ -146,8 +148,10 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
   useEffect(() => {
     if (placeAutocompleteRef.current && shipping.country) {
       try {
-        // Update the country restrictions based on selected country
-        placeAutocompleteRef.current.includedRegionCodes = [shipping.country.toLowerCase()];
+        // Update the country restrictions based on selected country (stable API)
+        placeAutocompleteRef.current.setComponentRestrictions({
+          country: [shipping.country.toLowerCase()]
+        });
         console.log(`Updated autocomplete to focus on ${shipping.country}`);
       } catch (error) {
         console.warn('Could not update autocomplete country restrictions:', error);
@@ -155,12 +159,12 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     }
   }, [shipping.country]);
 
-  // Populate address fields from Google Places result (updated for new API)
+  // Populate address fields from Google Places result (stable API)
   const populateAddressFromPlace = (place) => {
-    const addressComponents = place.addressComponents;
+    const addressComponents = place.address_components;
     const newShipping = { ...shipping };
 
-    // Extract address components - the new API has a different structure
+    // Extract address components - stable API structure
     let streetNumber = '';
     let route = '';
     
@@ -169,17 +173,17 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
         const types = component.types;
         
         if (types.includes('street_number')) {
-          streetNumber = component.longText;
+          streetNumber = component.long_name;
         } else if (types.includes('route')) {
-          route = component.longText;
+          route = component.long_name;
         } else if (types.includes('locality')) {
-          newShipping.city = component.longText;
+          newShipping.city = component.long_name;
         } else if (types.includes('administrative_area_level_1')) {
-          newShipping.province = component.shortText;
+          newShipping.province = component.short_name;
         } else if (types.includes('postal_code')) {
-          newShipping.zip = component.longText;
+          newShipping.zip = component.long_name;
         } else if (types.includes('country')) {
-          newShipping.country = component.shortText;
+          newShipping.country = component.short_name;
         }
       });
 
@@ -187,7 +191,7 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
       newShipping.address1 = `${streetNumber} ${route}`.trim();
     } else {
       // Fallback to formatted address if address components not available
-      newShipping.address1 = place.formattedAddress || '';
+      newShipping.address1 = place.formatted_address || '';
     }
 
     setShipping(newShipping);
@@ -349,30 +353,24 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
           )}
         </label>
         
-        {/* Container for the new PlaceAutocompleteElement */}
-        {googleMapsStatus === 'ready' ? (
-          <div 
-            ref={addressContainerRef}
-            className="w-full"
-            style={{ 
-              '--gmp-place-autocomplete-input-border-radius': '8px',
-              '--gmp-place-autocomplete-input-padding': '8px 12px',
-              '--gmp-place-autocomplete-input-border-color': errors.address1 ? '#ef4444' : '#d1d5db',
-              '--gmp-place-autocomplete-input-focus-border-color': '#3eb489'
-            }}
-          />
-        ) : (
-          // Fallback input when Google Maps is not ready
-          <input
-            type="text"
-            value={shipping.address1}
-            onChange={(e) => handleAddressChange(e.target.value)}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3eb489] ${
-              errors.address1 ? 'border-red-500' : 'border-gray-300'
-            }`}
-            placeholder={googleMapsStatus === 'ready' ? 'Start typing your address...' : 'Street address'}
-          />
-        )}
+        {/* Container for Google Places Autocomplete */}
+        <div 
+          ref={addressContainerRef}
+          className="w-full"
+        >
+          {/* Fallback input when Google Maps is not ready */}
+          {googleMapsStatus !== 'ready' && (
+            <input
+              type="text"
+              value={shipping.address1}
+              onChange={(e) => handleAddressChange(e.target.value)}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3eb489] ${
+                errors.address1 ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder={googleMapsStatus === 'waiting' || googleMapsStatus === 'initializing' ? 'Loading address autocomplete...' : 'Street address'}
+            />
+          )}
+        </div>
         
         {errors.address1 && (
           <p className="text-red-500 text-xs mt-1">{errors.address1}</p>
