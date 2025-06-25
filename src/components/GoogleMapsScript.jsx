@@ -11,12 +11,20 @@ export function GoogleMapsScript() {
     return null;
   }
 
+  // Add a global callback function
+  if (typeof window !== 'undefined') {
+    window.initGoogleMaps = () => {
+      console.log('Google Maps API loaded via callback');
+      window.googleMapsLoaded = true;
+    };
+  }
+
   return (
     <Script
-      src={`https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`}
+      src={`https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initGoogleMaps`}
       strategy="lazyOnload"
       onLoad={() => {
-        console.log('Google Maps API loaded successfully');
+        console.log('Google Maps script tag loaded');
       }}
       onError={(e) => {
         console.error('Failed to load Google Maps API:', e);

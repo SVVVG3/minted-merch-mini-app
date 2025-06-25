@@ -23,6 +23,7 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
 
   const [errors, setErrors] = useState({});
   const [isValid, setIsValid] = useState(false);
+  const [googleMapsStatus, setGoogleMapsStatus] = useState('loading');
 
   // Pre-fill name from Farcaster if available
   useEffect(() => {
@@ -55,23 +56,58 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
 
   // Initialize Google Places Autocomplete
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.google && window.google.maps && addressInputRef.current && !autocompleteRef.current) {
-      try {
-        autocompleteRef.current = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-          types: ['address'],
-          componentRestrictions: { country: ['AU', 'AT', 'BE', 'CA', 'CZ', 'DK', 'FI', 'FR', 'DE', 'HK', 'IE', 'IL', 'IT', 'JP', 'MY', 'NL', 'NZ', 'NO', 'PL', 'PT', 'SG', 'KR', 'ES', 'SE', 'CH', 'AE', 'GB', 'US'] }
-        });
+    const initializeAutocomplete = () => {
+      console.log('Checking Google Maps availability:', {
+        hasWindow: typeof window !== 'undefined',
+        hasGoogle: typeof window !== 'undefined' && !!window.google,
+        hasMaps: typeof window !== 'undefined' && !!window.google?.maps,
+        hasPlaces: typeof window !== 'undefined' && !!window.google?.maps?.places,
+        hasRef: !!addressInputRef.current,
+        hasAutocomplete: !!autocompleteRef.current,
+        googleMapsLoaded: typeof window !== 'undefined' && !!window.googleMapsLoaded
+      });
 
-        autocompleteRef.current.addListener('place_changed', () => {
-          const place = autocompleteRef.current.getPlace();
-          if (place && place.address_components) {
-            populateAddressFromPlace(place);
-          }
-        });
-      } catch (error) {
-        console.warn('Google Maps Places API not available:', error);
+      if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places && addressInputRef.current && !autocompleteRef.current) {
+        try {
+          console.log('Initializing Google Maps autocomplete...');
+          setGoogleMapsStatus('initializing');
+          
+          autocompleteRef.current = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+            types: ['address'],
+            componentRestrictions: { country: ['AU', 'AT', 'BE', 'CA', 'CZ', 'DK', 'FI', 'FR', 'DE', 'HK', 'IE', 'IL', 'IT', 'JP', 'MY', 'NL', 'NZ', 'NO', 'PL', 'PT', 'SG', 'KR', 'ES', 'SE', 'CH', 'AE', 'GB', 'US'] }
+          });
+
+          autocompleteRef.current.addListener('place_changed', () => {
+            const place = autocompleteRef.current.getPlace();
+            if (place && place.address_components) {
+              console.log('Place selected:', place);
+              populateAddressFromPlace(place);
+            }
+          });
+          
+          console.log('Google Maps autocomplete initialized successfully');
+          setGoogleMapsStatus('ready');
+        } catch (error) {
+          console.error('Error initializing Google Maps autocomplete:', error);
+          setGoogleMapsStatus('error');
+        }
+      } else {
+        console.log('Google Maps API not ready yet, retrying...');
+        setGoogleMapsStatus('waiting');
+        // Retry after a short delay
+        setTimeout(initializeAutocomplete, 500);
       }
-    }
+    };
+
+    // Add a small delay to ensure the script has loaded
+    const timer = setTimeout(initializeAutocomplete, 1000);
+    
+    return () => {
+      clearTimeout(timer);
+      if (autocompleteRef.current) {
+        window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
+      }
+    };
   }, []);
 
   // Populate address fields from Google Places result
@@ -246,6 +282,11 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Address *
+          {googleMapsStatus !== 'ready' && (
+            <span className="text-xs text-gray-500 ml-2">
+              (Maps: {googleMapsStatus})
+            </span>
+          )}
         </label>
         <input
           type="text"
@@ -254,7 +295,7 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
           className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3eb489] ${
             errors.address1 ? 'border-red-500' : 'border-gray-300'
           }`}
-          placeholder="Street address"
+          placeholder={googleMapsStatus === 'ready' ? 'Start typing your address...' : 'Street address'}
           ref={addressInputRef}
         />
         {errors.address1 && (
