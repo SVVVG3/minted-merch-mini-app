@@ -58,59 +58,48 @@ export async function GET(request) {
     const mainImage = product.images?.edges?.[0]?.node;
     const price = product.priceRange?.minVariantPrice?.amount || '0';
 
-    // Try to load and validate the external image
-    let imageElement = null;
-    let imageLoadedSuccessfully = false;
-    
-    if (mainImage?.url) {
-      try {
-        // Test if the image is accessible
-        const imageResponse = await fetch(mainImage.url, { 
-          method: 'HEAD',
-          signal: AbortSignal.timeout(3000) // 3 second timeout
-        });
-        
-        if (imageResponse.ok) {
-          imageElement = (
-            <img
-              src={mainImage.url}
-              alt={product.title}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
-            />
-          );
-          imageLoadedSuccessfully = true;
-        }
-      } catch (error) {
-        console.log('External image failed to load:', error);
-        // Will fall back to placeholder
-      }
-    }
-
-    // Fallback to placeholder if no image or image failed to load
-    if (!imageElement) {
-      imageElement = (
-        <div
-          style={{
-            fontSize: '24px',
-            color: '#666',
+    // Create rich product card without external image for now
+    const imageElement = (
+      <div
+        style={{
+          width: '300px',
+          height: '300px',
+          borderRadius: '15px',
+          border: '3px solid #3eb489',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          gap: '15px',
+          backgroundColor: 'rgba(62, 180, 137, 0.1)',
+          color: '#3eb489',
+        }}
+      >
+        <div style={{ fontSize: '64px' }}>🛒</div>
+        <div 
+          style={{ 
+            fontSize: '18px', 
             fontWeight: '600',
             textAlign: 'center',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'column',
-            gap: '10px',
+            maxWidth: '250px',
+            lineHeight: '1.2',
           }}
         >
-          <div style={{ fontSize: '48px' }}>🛒</div>
-          <div>{product.title}</div>
+          {product.title}
         </div>
-      );
-    }
+        <div 
+          style={{ 
+            fontSize: '24px', 
+            fontWeight: '700',
+            color: '#3eb489',
+          }}
+        >
+          ${price}
+        </div>
+      </div>
+    );
+    
+    const imageLoadedSuccessfully = true; // Always use normal cache time
 
     return new ImageResponse(
       (
