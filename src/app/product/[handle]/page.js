@@ -37,10 +37,19 @@ export async function generateMetadata({ params, searchParams }) {
         images: [ogImageUrl],
         url: productUrl,
       },
+      twitter: {
+        card: 'summary_large_image',
+        title: 'Minted Merch Shop',
+        description: 'Crypto merchandise with instant USDC payments',
+        images: [ogImageUrl],
+      },
+      metadataBase: new URL(baseUrl),
+      alternates: {
+        canonical: productUrl,
+      },
+      // Custom meta tags for Farcaster Mini App embed
       other: {
-        // Mini App embed meta tag (single JSON object)
         'fc:frame': JSON.stringify(frameEmbed),
-        'og:image': ogImageUrl,
       }
     };
   } catch (error) {
