@@ -177,6 +177,7 @@ The complete checkout flow should now work:
 - Clear Cart functionality required custom confirmation modal to work in production Mini App context
 - localStorage operations should have error handling for restricted embedded environments
 - **Wagmi Connector Issues**: The `"getChainId is not a function"` error is a known Wagmi timing issue that requires waiting for connections to be ready before executing transactions
+- **CRITICAL: Wagmi Hook Properties**: ⚠️ **NEVER use spread operator with USDC_CONTRACT in Wagmi hooks!** Both `useReadContract` and `writeContract` MUST use explicit `address: USDC_CONTRACT.address, abi: USDC_CONTRACT.abi` properties. Using `...USDC_CONTRACT` causes connector initialization errors.
 - **Shopify API Debugging**: Enhanced logging is crucial for diagnosing order creation issues - always log request variables and response data
 - **API Version Consistency**: Keep all Shopify API endpoints on the same version to avoid compatibility issues
 
