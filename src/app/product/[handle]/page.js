@@ -47,7 +47,7 @@ export async function generateMetadata({ params, searchParams }) {
       alternates: {
         canonical: productUrl,
       },
-      // Custom meta tags for Farcaster Mini App embed
+      // Try using other property for custom meta tags
       other: {
         'fc:frame': JSON.stringify(frameEmbed),
       }
@@ -61,7 +61,7 @@ export async function generateMetadata({ params, searchParams }) {
   }
 }
 
-export default function ProductPage({ params }) {
+export default function ProductPage({ params, searchParams }) {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
