@@ -30,13 +30,13 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <GoogleMapsScript />
+        <FrameInit />
         <WagmiProvider>
           <CartProvider>
             <div>
               <FarcasterHeader />
               {children}
-              <FrameInit />
-              <GoogleMapsScript />
             </div>
           </CartProvider>
         </WagmiProvider>

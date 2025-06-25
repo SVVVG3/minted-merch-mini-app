@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 
 export function ShippingForm({ onShippingChange, initialShipping = null }) {
   const { getDisplayName, getUsername } = useFarcaster();
+  const addressInputRef = useRef(null);
+  const autocompleteRef = useRef(null);
   
   const [shipping, setShipping] = useState({
     firstName: '',
@@ -50,6 +52,62 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
       setShipping(initialShipping);
     }
   }, [initialShipping]);
+
+  // Initialize Google Places Autocomplete
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.google && window.google.maps && addressInputRef.current && !autocompleteRef.current) {
+      try {
+        autocompleteRef.current = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+          types: ['address'],
+          componentRestrictions: { country: ['AU', 'AT', 'BE', 'CA', 'CZ', 'DK', 'FI', 'FR', 'DE', 'HK', 'IE', 'IL', 'IT', 'JP', 'MY', 'NL', 'NZ', 'NO', 'PL', 'PT', 'SG', 'KR', 'ES', 'SE', 'CH', 'AE', 'GB', 'US'] }
+        });
+
+        autocompleteRef.current.addListener('place_changed', () => {
+          const place = autocompleteRef.current.getPlace();
+          if (place && place.address_components) {
+            populateAddressFromPlace(place);
+          }
+        });
+      } catch (error) {
+        console.warn('Google Maps Places API not available:', error);
+      }
+    }
+  }, []);
+
+  // Populate address fields from Google Places result
+  const populateAddressFromPlace = (place) => {
+    const addressComponents = place.address_components;
+    const newShipping = { ...shipping };
+
+    // Extract address components
+    let streetNumber = '';
+    let route = '';
+    
+    addressComponents.forEach(component => {
+      const types = component.types;
+      
+      if (types.includes('street_number')) {
+        streetNumber = component.long_name;
+      } else if (types.includes('route')) {
+        route = component.long_name;
+      } else if (types.includes('locality')) {
+        newShipping.city = component.long_name;
+      } else if (types.includes('administrative_area_level_1')) {
+        newShipping.province = component.short_name;
+      } else if (types.includes('postal_code')) {
+        newShipping.zip = component.long_name;
+      } else if (types.includes('country')) {
+        newShipping.country = component.short_name;
+      }
+    });
+
+    // Combine street number and route for address1
+    newShipping.address1 = `${streetNumber} ${route}`.trim();
+
+    setShipping(newShipping);
+    const valid = validateForm(newShipping);
+    onShippingChange(newShipping, valid);
+  };
 
   // Validation function
   const validateForm = (data) => {
@@ -111,14 +169,34 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
   ];
 
   const COUNTRIES = [
-    { code: 'US', name: 'United States' },
-    { code: 'CA', name: 'Canada' },
-    { code: 'GB', name: 'United Kingdom' },
     { code: 'AU', name: 'Australia' },
-    { code: 'DE', name: 'Germany' },
+    { code: 'AT', name: 'Austria' },
+    { code: 'BE', name: 'Belgium' },
+    { code: 'CA', name: 'Canada' },
+    { code: 'CZ', name: 'Czechia' },
+    { code: 'DK', name: 'Denmark' },
+    { code: 'FI', name: 'Finland' },
     { code: 'FR', name: 'France' },
+    { code: 'DE', name: 'Germany' },
+    { code: 'HK', name: 'Hong Kong SAR' },
+    { code: 'IE', name: 'Ireland' },
+    { code: 'IL', name: 'Israel' },
+    { code: 'IT', name: 'Italy' },
     { code: 'JP', name: 'Japan' },
-    { code: 'MX', name: 'Mexico' }
+    { code: 'MY', name: 'Malaysia' },
+    { code: 'NL', name: 'Netherlands' },
+    { code: 'NZ', name: 'New Zealand' },
+    { code: 'NO', name: 'Norway' },
+    { code: 'PL', name: 'Poland' },
+    { code: 'PT', name: 'Portugal' },
+    { code: 'SG', name: 'Singapore' },
+    { code: 'KR', name: 'South Korea' },
+    { code: 'ES', name: 'Spain' },
+    { code: 'SE', name: 'Sweden' },
+    { code: 'CH', name: 'Switzerland' },
+    { code: 'AE', name: 'United Arab Emirates' },
+    { code: 'GB', name: 'United Kingdom' },
+    { code: 'US', name: 'United States' }
   ];
 
   return (
@@ -177,6 +255,7 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
             errors.address1 ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="Street address"
+          ref={addressInputRef}
         />
         {errors.address1 && (
           <p className="text-red-500 text-xs mt-1">{errors.address1}</p>

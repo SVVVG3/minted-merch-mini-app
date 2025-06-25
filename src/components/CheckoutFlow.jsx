@@ -198,8 +198,8 @@ export function CheckoutFlow() {
           id: result.order.id,
           status: 'Confirmed',
           total: {
-            amount: result.order.totalPrice,
-            currencyCode: 'USD'
+            amount: cart.checkout ? (cart.checkout.subtotal.amount + cart.checkout.tax.amount + (cart.selectedShipping ? cart.selectedShipping.price.amount : 0)).toFixed(2) : cartTotal.toFixed(2),
+            currencyCode: 'USDC'
           },
           customer: {
             email: shippingData.email || ''
