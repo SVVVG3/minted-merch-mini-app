@@ -77,9 +77,9 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
             throw new Error('Google Places Autocomplete not available - API may not be properly activated');
           }
           
+          // Start with no country restrictions for global search
           autocompleteRef.current = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-            types: ['address'],
-            componentRestrictions: { country: ['AU', 'AT', 'BE', 'CA', 'CZ', 'DK', 'FI', 'FR', 'DE', 'HK', 'IE', 'IL', 'IT', 'JP', 'MY', 'NL', 'NZ', 'NO', 'PL', 'PT', 'SG', 'KR', 'ES', 'SE', 'CH', 'AE', 'GB', 'US'] }
+            types: ['address']
           });
 
           autocompleteRef.current.addListener('place_changed', () => {
@@ -125,6 +125,21 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
       }
     };
   }, []);
+
+  // Update autocomplete country restrictions when country changes
+  useEffect(() => {
+    if (autocompleteRef.current && shipping.country) {
+      try {
+        // Update the country restrictions based on selected country
+        autocompleteRef.current.setComponentRestrictions({
+          country: shipping.country.toLowerCase()
+        });
+        console.log(`Updated autocomplete to focus on ${shipping.country}`);
+      } catch (error) {
+        console.warn('Could not update autocomplete country restrictions:', error);
+      }
+    }
+  }, [shipping.country]);
 
   // Populate address fields from Google Places result
   const populateAddressFromPlace = (place) => {
