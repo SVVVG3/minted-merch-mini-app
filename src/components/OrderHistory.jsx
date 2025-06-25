@@ -110,7 +110,7 @@ export function OrderHistory({ isOpen, onClose }) {
                 <div key={order.name || index} className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <div className="font-medium text-sm">Order #{order.name}</div>
+                      <div className="font-medium text-sm">Order {order.name}</div>
                       <div className="text-xs text-gray-600">{formatDate(order.timestamp)}</div>
                     </div>
                     <div className="text-right">
@@ -132,9 +132,17 @@ export function OrderHistory({ isOpen, onClose }) {
                         ? `1 item`
                         : `${order.lineItems.length} items`
                       }
-                      {order.lineItems.length <= 2 && (
+                      {order.lineItems.length <= 3 ? (
                         <span className="ml-1">
-                          ({order.lineItems.map(item => item.title || item.name).join(', ')})
+                          ({order.lineItems.map(item => {
+                            const itemName = item.title || item.name || 'Unknown Item';
+                            const variant = item.variantTitle ? ` (${item.variantTitle})` : '';
+                            return `${itemName}${variant}`;
+                          }).join(', ')})
+                        </span>
+                      ) : (
+                        <span className="ml-1">
+                          ({order.lineItems[0].title || 'Unknown Item'} and {order.lineItems.length - 1} more)
                         </span>
                       )}
                     </div>

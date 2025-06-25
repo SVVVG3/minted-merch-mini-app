@@ -258,9 +258,10 @@ export function CheckoutFlow() {
   };
 
   const handleCloseCheckout = () => {
-    // Clear cart if order was successful (on success step)
-    if (checkoutStep === 'success') {
+    // Clear cart if order was successful (either on success step or if orderDetails exist)
+    if (checkoutStep === 'success' || orderDetails) {
       clearCart();
+      setOrderDetails(null);
     }
     setIsCheckoutOpen(false);
     setCheckoutStep('shipping');
@@ -711,7 +712,7 @@ export function CheckoutFlow() {
                       Continue Shopping
                     </button>
                     <button
-                      onClick={() => setIsCheckoutOpen(false)}
+                      onClick={handleCloseCheckout}
                       className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors"
                     >
                       Close
