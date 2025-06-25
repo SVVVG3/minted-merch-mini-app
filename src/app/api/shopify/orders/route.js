@@ -78,7 +78,7 @@ export async function POST(request) {
         address1: shippingAddress.address1,
         address2: shippingAddress.address2 || '',
         city: shippingAddress.city,
-        state: shippingAddress.state,
+        state: shippingAddress.province, // Map province field to state for Shopify
         zip: shippingAddress.zip,
         country: shippingAddress.country,
         phone: shippingAddress.phone || ''
@@ -100,7 +100,12 @@ export async function POST(request) {
       lineItems: lineItems.length,
       totalPrice,
       transactionHash,
-      shippingAddress: shippingAddress.city
+      shippingAddress: {
+        city: shippingAddress.city,
+        province: shippingAddress.province,
+        country: shippingAddress.country,
+        address1: shippingAddress.address1
+      }
     });
 
     // Create order in Shopify

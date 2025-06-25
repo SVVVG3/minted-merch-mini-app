@@ -85,12 +85,12 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
           });
 
           // Set up the event listener for place selection
-          placeAutocompleteRef.current.addEventListener('gmp-select', async (event) => {
-            console.log('Place selection event:', event);
+          placeAutocompleteRef.current.addEventListener('gmp-select', async ({ placePrediction }) => {
+            console.log('Place selection event:', placePrediction);
             
-            if (event.placePrediction) {
+            if (placePrediction) {
               // Convert the prediction to a Place object
-              const place = event.placePrediction.toPlace();
+              const place = placePrediction.toPlace();
               
               // Fetch the place details we need
               await place.fetchFields({
