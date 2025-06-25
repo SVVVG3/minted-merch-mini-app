@@ -10,7 +10,7 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - USDC payment flow ✅ **WORKING**
 - Shopify order creation ✅ **WORKING**
 - Enhanced UX features ✅ **COMPLETED**
-- Viral sharing functionality ✅ **COMPLETED**
+- Viral sharing functionality ⚠️ **ISSUES IDENTIFIED**
 
 ## Key Challenges and Analysis
 
@@ -21,13 +21,45 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - **Order Management**: ✅ COMPLETED - Orders are being created successfully in Shopify
 - **Google Maps Migration**: ✅ **COMPLETED** - Migrated to new PlaceAutocompleteElement API
 - **UX Improvements**: ✅ **COMPLETED** - Fixed Google Maps clearing user data and "(Default Title)" display issues
-- **Viral Sharing System**: ✅ **COMPLETED** - Product and order success sharing with Farcaster embeds
+- **Viral Sharing System**: ⚠️ **DEBUGGING** - Mini App embeds inconsistent, some products not generating embeds
 
-### Recent Major Feature: Viral Sharing System ✅ **COMPLETED**
+### Current Issue: Inconsistent Mini App Embeds ⚠️ **DEBUGGING**
+
+**Problem**: User reports that some products are not generating Mini App embeds at all, and some are showing old placeholder images instead of the new rich product cards.
+
+**Root Cause Analysis**:
+1. **Metadata Generation Failure**: The `generateMetadata` function is falling back to error case
+2. **Missing fc:frame Meta Tags**: No `fc:frame` meta tags are being generated in the HTML
+3. **Next.js Metadata API Limitations**: The `other` property may not work as expected for custom meta tags
+4. **Cache Issues**: Farcaster may be caching old metadata for previously shared URLs
+
+**Official Repository Insights**:
+- **[farcasterxyz/mini-app-img-next](https://github.com/farcasterxyz/mini-app-img-next)**: Official Farcaster repository for Mini App image generation
+- **[builders-garden/miniapp-next-template](https://github.com/builders-garden/miniapp-next-template)**: Community template with working dynamic image examples
+- **Key Patterns**:
+  - Use proper caching headers: `Cache-Control: public, immutable, no-transform, max-age=31536000`
+  - Query parameter approach for dynamic content: `?title=Title&description=Description`
+  - Next.js ImageResponse with Edge Runtime
+  - Official documentation reference for Mini App embed format
+
+**Technical Investigation**:
+- ✅ **OG Image Generation**: Working correctly at `/api/og/product?handle=bankr-cap`
+- ❌ **Metadata Generation**: Falling back to error case (title: "Minted Merch Shop" instead of product-specific)
+- ❌ **fc:frame Meta Tags**: Not appearing in HTML response
+- ✅ **Cache Headers**: Updated to follow official patterns (max-age=31536000)
+- ✅ **Image Design**: Improved with branded product cards
+
+**Next Steps for Resolution**:
+1. **Debug Metadata Generation**: Fix the `generateMetadata` function error
+2. **Alternative Meta Tag Approach**: If Next.js metadata API doesn't work, use alternative method
+3. **Follow Official Patterns**: Implement exactly like farcasterxyz/mini-app-img-next
+4. **Test with Fresh URLs**: Use cache-busting parameters for testing
+
+### Recent Major Feature: Viral Sharing System ⚠️ **DEBUGGING**
 
 **Implementation Overview**: Created a comprehensive viral sharing system that allows users to share products and order confirmations directly in Farcaster feeds with rich embeds.
 
-**Feature 1: Product Page Sharing** ✅ **IMPLEMENTED**
+**Feature 1: Product Page Sharing** ⚠️ **DEBUGGING**
 - **Share Button**: Added share button to product page header next to cart button
 - **Dynamic Meta Tags**: Implemented server-side metadata generation for each product page
 - **Farcaster Frame Embeds**: Each product URL generates `fc:frame` meta tags with:
@@ -45,18 +77,19 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - **Dynamic OG Images**: Order-specific images via `/api/og/order?order={number}&total={amount}`
 - **Viral Share Text**: "🎉 Just bought crypto merch with USDC! Order {number} for ${total} confirmed ✅ Instant payments on Base 🔵"
 
-**Feature 3: Dynamic Open Graph Images** ✅ **IMPLEMENTED**
+**Feature 3: Dynamic Open Graph Images** ✅ **IMPROVED**
 - **Product Images**: `/api/og/product` route generates beautiful product cards with:
-  - Product image, title, and price
-  - Minted Merch branding
-  - "Shop Now on Base" call-to-action
-  - Professional dark theme with brand colors
+  - Rich branded design with shopping cart icon
+  - Product title and USDC price
+  - "Shop crypto merch with instant payments" messaging
+  - Professional dark theme with brand colors (#3eb489)
+  - Follows official Farcaster caching patterns (max-age=31536000)
 - **Order Images**: `/api/og/order` route generates celebration images with:
   - Success checkmark and confirmation message
   - Order number and total amount
   - "Paid instantly on Base" messaging
   - Branded celebration design
-- **Performance Optimized**: 5-minute cache headers for CDN optimization
+- **Performance Optimized**: Long cache headers for CDN optimization following official patterns
 - **Fallback Handling**: Graceful error handling with branded fallback images
 
 **Technical Architecture**:
@@ -149,41 +182,39 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - [x] **Task 24**: Enhanced UX features (totals, address autocomplete, country filtering) ✅ COMPLETED
 - [x] **Task 25**: Google Maps API migration to eliminate deprecation warnings ✅ COMPLETED
 
-### Phase 8 — Viral Sharing System ✅ **COMPLETED**
-- [x] **Task 26**: Implement product page sharing with Farcaster embeds ✅ COMPLETED
+### Phase 8 — Viral Sharing System ⚠️ **DEBUGGING**
+- [x] **Task 26**: Implement product page sharing with Farcaster embeds ⚠️ DEBUGGING
 - [x] **Task 27**: Add order success sharing functionality ✅ COMPLETED
 - [x] **Task 28**: Create dynamic Open Graph image generation ✅ COMPLETED
 - [x] **Task 29**: Implement cross-platform sharing logic ✅ COMPLETED
+- [ ] **Task 30**: Debug and fix Mini App embed generation issues ⚠️ IN PROGRESS
 
 ## Project Status Board
 
+### ⚠️ Current Priority: Fix Mini App Embed Issues
+
+**Issue**: Some products not generating Mini App embeds, metadata generation failing
+
+**Investigation Status**:
+- ❌ **fc:frame Meta Tags**: Not appearing in HTML response
+- ❌ **Metadata Generation**: Function throwing errors, falling back to generic metadata
+- ✅ **OG Image Generation**: Working correctly with official Farcaster patterns
+- ✅ **Share Button Logic**: Working correctly with SDK integration
+- ✅ **Cache Headers**: Updated to follow official patterns (max-age=31536000)
+
+**Next Actions**:
+1. **Debug generateMetadata Function**: Identify why it's throwing errors
+2. **Alternative Meta Tag Approach**: If Next.js metadata API is limited, use manual injection
+3. **Follow Official Examples**: Implement exactly like farcasterxyz/mini-app-img-next
+4. **Test with Cache Busting**: Verify fresh URLs work correctly
+
 ### ✅ Completed Tasks
-- **All Phase 1-8 Tasks**: Complete MVP with viral sharing functionality
-- **Task 26**: Product Page Sharing
-  - ✅ Added share button to product detail header
-  - ✅ Implemented server-side metadata generation with `generateMetadata()`
-  - ✅ Created dynamic `fc:frame` meta tags for each product
-  - ✅ Built `/api/og/product` route for dynamic product images
-  - ✅ Integrated Farcaster-aware sharing logic with fallbacks
-- **Task 27**: Order Success Sharing
-  - ✅ Added "Share My Purchase" button to order confirmation
-  - ✅ Created celebration sharing text for successful orders
-  - ✅ Built `/api/og/order` route for order success images
-  - ✅ Implemented cross-platform sharing with smart detection
-- **Task 28**: Dynamic OG Images
-  - ✅ Product cards with images, titles, prices, and branding
-  - ✅ Order celebration images with success messaging
-  - ✅ Edge runtime optimization with proper caching
-  - ✅ Fallback handling for error scenarios
-- **Task 29**: Cross-Platform Sharing
-  - ✅ Farcaster environment detection and Warpcast integration
-  - ✅ Web Share API fallback for compatible browsers
-  - ✅ Clipboard copy fallback for all other scenarios
-  - ✅ Comprehensive error handling and user feedback
+- **All Phase 1-7 Tasks**: Complete MVP with enhanced UX features
+- **Task 27**: Order Success Sharing - Working correctly
+- **Task 28**: Dynamic OG Images - Improved with official patterns  
+- **Task 29**: Cross-Platform Sharing - Working correctly
 
-### 🎉 **MVP COMPLETE + VIRAL SHARING** - All Core Features + Growth Engine Working
-
-**✅ MAJOR MILESTONE ACHIEVED**: Complete Farcaster Mini App MVP with viral sharing system is fully functional!
+### 🎯 **MVP Status: 95% COMPLETE** - Core functionality working, debugging viral sharing
 
 **Core Features Working**:
 - ✅ **Product Browsing**: Users can browse products inside Farcaster
@@ -192,20 +223,14 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - ✅ **Order Creation**: Orders successfully created in Shopify
 - ✅ **Enhanced UX**: Google Maps autocomplete, correct totals, supported countries
 - ✅ **Future-Proof**: Migrated to latest Google Maps APIs
-- ✅ **Viral Sharing**: Product and order sharing with rich Farcaster embeds
-
-**Viral Growth Engine**:
-- ✅ **Product Sharing**: Every product page has viral sharing capability
-- ✅ **Order Celebration**: Users encouraged to share successful purchases
-- ✅ **Rich Embeds**: Beautiful, branded images for social feeds
-- ✅ **Viral Loop**: Discovery → Purchase → Share → Discovery cycle
+- ⚠️ **Viral Sharing**: Partially working - order sharing works, product sharing needs debugging
 
 **Technical Stack**:
 - ✅ **Frontend**: Next.js 14 with React components
 - ✅ **Payments**: USDC on Base network via Wagmi
 - ✅ **E-commerce**: Shopify Storefront + Admin APIs
 - ✅ **Address Input**: Google Places API (New) with PlaceAutocompleteElement
-- ✅ **Sharing**: Farcaster frame embeds with dynamic OG images
+- ⚠️ **Sharing**: Farcaster frame embeds with dynamic OG images (debugging metadata generation)
 - ✅ **Deployment**: Vercel with proper environment configuration
 
 **Current Status**: 
@@ -213,50 +238,31 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - ✅ **Order Creation**: WORKING - Orders created successfully in Shopify
 - ✅ **Enhanced UX**: WORKING - All enhancements implemented and tested
 - ✅ **API Compliance**: WORKING - No deprecation warnings, future-proofed
-- ✅ **Viral Sharing**: WORKING - Mini App embeds confirmed working, dynamic images improved
-
-**Recent Fix - Dynamic Image Loading**:
-- **Issue**: Mini App embeds showing blank images instead of product photos
-- **Root Cause**: External Shopify images failing to load in Edge Runtime context
-- **Solution**: Implemented rich branded product cards with product info instead of external images
-- **Improvements**: 
-  - ✅ Rich product cards showing title, price, and branded design
-  - ✅ Consistent professional appearance for all products
-  - ✅ Eliminated external image dependency issues
-  - ✅ Brand-consistent styling with Minted Merch colors and layout
-  - ✅ Proper cache headers for optimal CDN performance
+- ⚠️ **Viral Sharing**: DEBUGGING - Order sharing works, product sharing metadata issues
 
 ## Executor's Feedback or Assistance Requests
 
-**🎉 MVP + VIRAL SHARING COMPLETION STATUS**
+**🚨 URGENT: Mini App Embed Generation Issues**
 
-**All Critical Issues Resolved + Major Feature Added**:
-- ✅ **Order Creation**: Fixed Shopify Admin API version compatibility and schema issues
-- ✅ **Payment Flow**: Fixed Wagmi connector timing and version conflicts
-- ✅ **Enhanced UX**: Implemented Google Maps autocomplete, correct totals, country filtering
-- ✅ **API Migration**: Migrated to new Google Places API to eliminate deprecation warnings
-- ✅ **Viral Sharing**: Complete sharing system with Farcaster embeds and dynamic images
+**Current Problem**: Product sharing not generating proper Mini App embeds consistently. User reports some products show no embeds, others show old placeholders.
 
-**Final Implementation**:
-- ✅ **Complete Checkout Flow**: 3-step process (address → shipping → payment) working perfectly
-- ✅ **USDC Payments**: Base network integration with proper error handling
-- ✅ **Order Management**: Successful Shopify order creation with all required fields
-- ✅ **Address Autocomplete**: Modern Google Places API with global search and country filtering
-- ✅ **Viral Growth Engine**: Product and order sharing with rich Farcaster frame embeds
-- ✅ **Cross-Platform Sharing**: Smart detection and fallbacks for all environments
-- ✅ **Production Ready**: All environment variables configured, APIs enabled, no warnings
+**Technical Analysis**:
+- **Root Cause**: `generateMetadata` function is failing and falling back to error case
+- **Evidence**: HTML shows generic "Minted Merch Shop" title instead of product-specific metadata
+- **Missing**: No `fc:frame` meta tags in HTML response
+- **Working**: OG image generation, order sharing, share button functionality
 
-**Expected Result**: 
-The Farcaster Mini App is now **PRODUCTION READY WITH VIRAL GROWTH** featuring:
-1. **Functional E-commerce** ✅ - Complete shopping experience
-2. **USDC Payment Integration** ✅ - Seamless onchain payments
-3. **Enhanced User Experience** ✅ - Address autocomplete, proper totals
-4. **Future-Proof APIs** ✅ - Latest Google Maps implementation
-5. **Error-Free Operation** ✅ - No console warnings or deprecation notices
-6. **Viral Sharing**: WORKING - Complete sharing system with rich embeds
-7. **Growth Engine** ✅ - Discovery → Purchase → Share viral loop
+**Official Repository Insights**:
+- **[farcasterxyz/mini-app-img-next](https://github.com/farcasterxyz/mini-app-img-next)**: Shows proper caching and query parameter patterns
+- **[builders-garden/miniapp-next-template](https://github.com/builders-garden/miniapp-next-template)**: Has working dynamic image examples
 
-**Next Action**: The MVP with viral sharing is complete and ready for production use. The viral sharing system will help drive organic growth through Farcaster social feeds.
+**Immediate Next Steps**:
+1. **Debug generateMetadata Function**: Find why it's throwing errors
+2. **Test Alternative Approaches**: If Next.js metadata API is limited, implement manual meta tag injection
+3. **Follow Official Patterns**: Implement exactly like the official repositories
+4. **Verify with Fresh URLs**: Test with cache-busting parameters
+
+**Expected Resolution**: Once metadata generation is fixed, Mini App embeds should work consistently for all products, completing the viral sharing system.
 
 ## Lessons
 
@@ -276,16 +282,26 @@ The Farcaster Mini App is now **PRODUCTION READY WITH VIRAL GROWTH** featuring:
 - **Variant Title Display**: When displaying product information, check if variant title is "Default Title" before showing it to users. This prevents confusing display text like "Product Name (Default Title)" and keeps the UI clean and professional.
 - **React State Closures**: When using state in event listeners (like Google Maps callbacks), use functional updates `setState(current => ...)` instead of direct state access to prevent stale closure issues.
 - **Farcaster Sharing Implementation**: For viral sharing in Farcaster Mini Apps, implement both Farcaster-specific sharing (Warpcast composer) and web fallbacks (Web Share API, clipboard). Use `fc:frame` meta tags with dynamic images for rich social embeds.
-- **Dynamic OG Images**: Use Next.js ImageResponse with Edge Runtime for dynamic Open Graph images. Always include proper cache headers (`max-age=300`) and fallback error handling to prevent gray images in social feeds.
+- **Dynamic OG Images**: Use Next.js ImageResponse with Edge Runtime for dynamic Open Graph images. Always include proper cache headers (`max-age=31536000` for official Farcaster patterns) and fallback error handling to prevent gray images in social feeds.
 - **Server-Side Metadata**: For dynamic meta tags in Next.js App Router, separate server components (for metadata) from client components (for interactivity). Use `generateMetadata()` function for dynamic `fc:frame` tags.
 - **CRITICAL: Farcaster Mini App Sharing**: ⚠️ **NEVER use external URLs like `window.open(warpcastUrl)` for sharing within Farcaster Mini Apps!** This tries to open another app within the Mini App context. Instead, use the proper Farcaster SDK method `sdk.actions.composeCast({ text, embeds })` which will minimize the Mini App and open the native Farcaster composer. React hooks like `useFarcaster()` must be called at the component level, not inside event handlers.
 - **CRITICAL: Mini App Embed Format**: ⚠️ **Mini App embeds use a completely different format than old Farcaster frames!** For Mini Apps, use a single JSON object in the `fc:frame` meta tag: `<meta name="fc:frame" content="<stringified FrameEmbed JSON>" />` with format `{version: "next", imageUrl: "...", button: {title: "...", action: {type: "launch_frame", url: "...", name: "...", splashImageUrl: "...", splashBackgroundColor: "..."}}}`. Do NOT use individual meta tags like `fc:frame:image`, `fc:frame:button:1`, etc. - those are for old frames, not Mini Apps.
+- **CRITICAL: Official Farcaster Patterns**: ⚠️ **Always follow official Farcaster repository patterns for Mini App implementations!** The [farcasterxyz/mini-app-img-next](https://github.com/farcasterxyz/mini-app-img-next) repository shows the correct caching headers (`max-age=31536000`), query parameter approaches, and Edge Runtime patterns. Community templates like [builders-garden/miniapp-next-template](https://github.com/builders-garden/miniapp-next-template) provide working examples of dynamic image generation and metadata handling.
+- **Next.js Metadata API Limitations**: ⚠️ **The Next.js 14 metadata API `other` property may not work reliably for custom meta tags like `fc:frame`!** If the metadata API fails to generate custom meta tags, consider alternative approaches like manual meta tag injection or server-side HTML modification. Always verify that custom meta tags appear in the final HTML response.
 
 ## Next Steps
 
-✅ **MVP + VIRAL SHARING COMPLETE** - All core functionality and growth engine implemented
+⚠️ **IMMEDIATE PRIORITY: Fix Mini App Embed Generation**
 
-**Optional Future Enhancements** (not required for MVP):
+**Current Issue**: Product sharing not generating consistent Mini App embeds due to metadata generation failures.
+
+**Debug Plan**:
+1. **Identify generateMetadata Error**: Add logging to find why the function is throwing errors
+2. **Test Alternative Meta Tag Methods**: If Next.js metadata API is limited, implement manual injection
+3. **Follow Official Patterns**: Implement exactly like farcasterxyz/mini-app-img-next
+4. **Verify Fresh URL Testing**: Ensure cache-busting parameters work correctly
+
+**Optional Future Enhancements** (after fixing viral sharing):
 1. **Collection Filtering**: Filter products by Shopify collections
 2. **Order Tracking**: Display order status and tracking information
 3. **User Profiles**: Save shipping addresses for repeat customers
@@ -294,4 +310,4 @@ The Farcaster Mini App is now **PRODUCTION READY WITH VIRAL GROWTH** featuring:
 6. **Advanced Sharing**: A/B test sharing messages, track viral coefficients
 7. **Social Features**: User reviews, product ratings, social proof
 
-**Production Deployment**: The application is ready for production use with all core features working correctly, enhanced UX improvements, and a complete viral sharing system that will drive organic growth through Farcaster social feeds. 
+**Production Deployment**: The application is 95% ready for production with all core features working correctly and enhanced UX improvements. Once the viral sharing metadata issue is resolved, it will have a complete growth engine through Farcaster social feeds. 

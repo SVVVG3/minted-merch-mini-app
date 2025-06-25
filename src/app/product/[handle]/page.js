@@ -5,12 +5,23 @@ import { ProductPageClient } from './ProductPageClient';
 export async function generateMetadata({ params, searchParams }) {
   const { handle } = params;
   
+  console.log('=== METADATA GENERATION START ===');
+  console.log('Handle:', handle);
+  console.log('SearchParams:', searchParams);
+  
   try {
     // Build URLs with cache-busting parameters
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mintedmerch.vercel.app';
+    console.log('Base URL:', baseUrl);
+    
     const queryString = searchParams ? new URLSearchParams(searchParams).toString() : '';
+    console.log('Query string:', queryString);
+    
     const ogImageUrl = `${baseUrl}/api/og/product?handle=${handle}${queryString ? `&${queryString}` : ''}`;
     const productUrl = `${baseUrl}/product/${handle}${queryString ? `?${queryString}` : ''}`;
+    
+    console.log('OG Image URL:', ogImageUrl);
+    console.log('Product URL:', productUrl);
 
     // Create Mini App embed for sharing with cache-busting
     const frameEmbed = {
@@ -28,7 +39,10 @@ export async function generateMetadata({ params, searchParams }) {
       }
     };
 
-    return {
+    console.log('Frame embed:', JSON.stringify(frameEmbed, null, 2));
+
+    // Simple metadata without complex operations
+    const metadata = {
       title: `${handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - Minted Merch Shop`,
       description: 'Shop crypto merch with USDC on Base',
       openGraph: {
@@ -43,26 +57,28 @@ export async function generateMetadata({ params, searchParams }) {
         description: 'Shop crypto merch with USDC on Base',
         images: [ogImageUrl],
       },
-      // Use robots meta tag approach for custom meta tags
-      robots: {
-        index: true,
-        follow: true,
-      },
-      // Add the fc:frame meta tag using the metadata API
       metadataBase: new URL(baseUrl),
       alternates: {
         canonical: productUrl,
       },
-      // Use the other property for custom meta tags - this is the correct approach
+      // Try the other property approach for fc:frame
       other: {
         'fc:frame': JSON.stringify(frameEmbed),
       },
     };
+
+    console.log('Generated metadata:', JSON.stringify(metadata, null, 2));
+    console.log('=== METADATA GENERATION SUCCESS ===');
+    
+    return metadata;
   } catch (error) {
-    console.error('Error generating metadata:', error);
+    console.error('=== METADATA GENERATION ERROR ===');
+    console.error('Error details:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
     
     // Fallback metadata
-    return {
+    const fallbackMetadata = {
       title: 'Minted Merch Shop',
       description: 'Shop crypto merch with USDC on Base',
       openGraph: {
@@ -71,6 +87,11 @@ export async function generateMetadata({ params, searchParams }) {
         images: [`${process.env.NEXT_PUBLIC_BASE_URL || 'https://mintedmerch.vercel.app'}/og-image.png`],
       },
     };
+    
+    console.log('Using fallback metadata:', JSON.stringify(fallbackMetadata, null, 2));
+    console.log('=== METADATA GENERATION FALLBACK ===');
+    
+    return fallbackMetadata;
   }
 }
 
