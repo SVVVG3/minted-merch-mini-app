@@ -3,14 +3,20 @@
 import { useState } from 'react';
 import { ProductGrid } from './ProductGrid';
 import { Cart } from './Cart';
+import { OrderHistory } from './OrderHistory';
 import { useCart } from '@/lib/CartContext';
+import { useFarcaster } from '@/lib/useFarcaster';
 
 export function HomePage({ collection, products }) {
   const { itemCount, cartTotal } = useCart();
+  const { isInFarcaster } = useFarcaster();
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false);
 
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);
+  const openOrderHistory = () => setIsOrderHistoryOpen(true);
+  const closeOrderHistory = () => setIsOrderHistoryOpen(false);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -23,8 +29,22 @@ export function HomePage({ collection, products }) {
             <p className="text-xs text-gray-500 mt-0.5">Pay with USDC on Base</p>
           </div>
           
-          {/* Cart Button */}
-          <button
+          <div className="flex items-center space-x-2">
+            {/* Order History Button - Only show in Farcaster */}
+            {isInFarcaster && (
+              <button
+                onClick={openOrderHistory}
+                className="flex items-center justify-center w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                title="Order History"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+              </button>
+            )}
+            
+            {/* Cart Button */}
+            <button
             onClick={openCart}
             className="flex items-center space-x-2 bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-2 rounded-lg transition-colors"
             title="Open Cart"
@@ -47,6 +67,7 @@ export function HomePage({ collection, products }) {
               </span>
             )}
           </button>
+          </div>
         </div>
       </header>
       
@@ -56,6 +77,9 @@ export function HomePage({ collection, products }) {
       
       {/* Cart Sidebar */}
       <Cart isOpen={isCartOpen} onClose={closeCart} />
+      
+      {/* Order History Modal */}
+      <OrderHistory isOpen={isOrderHistoryOpen} onClose={closeOrderHistory} />
     </div>
   );
 } 

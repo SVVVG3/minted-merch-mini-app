@@ -3,11 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useCart } from '@/lib/CartContext';
 import { useUSDCPayment } from '@/lib/useUSDCPayment';
+import { useFarcaster } from '@/lib/useFarcaster';
 import { calculateCheckout } from '@/lib/shopify';
+import { saveOrderToHistory } from '@/lib/orderHistory';
 import { ShippingForm } from './ShippingForm';
 
 export function CheckoutFlow() {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout } = useCart();
+  const { getFid } = useFarcaster();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', 'payment', or 'success'
   const [shippingData, setShippingData] = useState(cart.shipping || null);
@@ -192,8 +195,8 @@ export function CheckoutFlow() {
       if (result.success) {
         console.log('Order created successfully:', result.order.name);
         
-        // Show order confirmation instead of just clearing cart
-        setOrderDetails({
+        // Create order details object
+        const orderDetailsData = {
           name: result.order.name,
           id: result.order.id,
           status: 'Confirmed',
@@ -204,8 +207,26 @@ export function CheckoutFlow() {
           customer: {
             email: shippingData.email || ''
           },
-          transactionHash: transactionHash
-        });
+          transactionHash: transactionHash,
+          lineItems: cart.items.map(item => ({
+            title: item.title,
+            variantTitle: item.variantTitle,
+            quantity: item.quantity,
+            price: item.price
+          })),
+          shippingAddress: shippingData,
+          selectedShipping: cart.selectedShipping
+        };
+        
+        // Save order to history
+        const userFid = getFid();
+        if (userFid) {
+          saveOrderToHistory(userFid, orderDetailsData);
+          console.log('Order saved to history for user:', userFid);
+        }
+        
+        // Show order confirmation
+        setOrderDetails(orderDetailsData);
         setCheckoutStep('success');
         
       } else {
@@ -237,6 +258,10 @@ export function CheckoutFlow() {
   };
 
   const handleCloseCheckout = () => {
+    // Clear cart if order was successful (on success step)
+    if (checkoutStep === 'success') {
+      clearCart();
+    }
     setIsCheckoutOpen(false);
     setCheckoutStep('shipping');
     setCheckoutError(null);
