@@ -23,7 +23,7 @@ export async function generateMetadata({ params }) {
     // Create Mini App embed for sharing
     const frameEmbed = {
       version: "next",
-      imageUrl: `${baseUrl}/og-image.png`,
+      imageUrl: `${baseUrl}/api/og/product?handle=${handle}`,
       button: {
         title: `🛒 Buy ${product.title} - $${price}`,
         action: {

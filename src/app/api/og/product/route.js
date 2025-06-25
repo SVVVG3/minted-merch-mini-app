@@ -66,7 +66,7 @@ export async function GET(request) {
               border: '1px solid rgba(62, 180, 137, 0.3)',
             }}
           >
-            {/* Product Image Placeholder */}
+            {/* Product Image */}
             <div
               style={{
                 width: '300px',
@@ -78,12 +78,30 @@ export async function GET(request) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: '#fff',
-                fontSize: '24px',
-                color: '#666',
-                fontWeight: '600',
               }}
             >
-              🛒 {product.title}
+              {mainImage?.url ? (
+                <img
+                  src={mainImage.url}
+                  alt={product.title}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    fontSize: '24px',
+                    color: '#666',
+                    fontWeight: '600',
+                    textAlign: 'center',
+                  }}
+                >
+                  🛒 {product.title}
+                </div>
+              )}
             </div>
 
             {/* Product Info */}

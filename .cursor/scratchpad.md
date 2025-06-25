@@ -213,7 +213,14 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - ✅ **Order Creation**: WORKING - Orders created successfully in Shopify
 - ✅ **Enhanced UX**: WORKING - All enhancements implemented and tested
 - ✅ **API Compliance**: WORKING - No deprecation warnings, future-proofed
-- ✅ **Viral Sharing**: WORKING - Complete sharing system with rich embeds and proper SDK integration
+- 🔍 **Viral Sharing**: DEBUGGING - Mini App embeds not showing images consistently
+
+**Current Issue - Mini App Embed Images**:
+- **Problem**: Farcaster shared casts showing Mini App embeds with no images, some showing just URL previews
+- **Metadata**: ✅ Correct - `fc:frame` meta tags are properly formatted with Mini App embed JSON
+- **OG API**: ✅ Working - `/api/og/product` returns 200 status and valid images
+- **Testing**: Currently testing with static image (`og-image.png`) instead of dynamic generation
+- **Hypothesis**: Either Farcaster caching old metadata or issue with dynamic image generation in Edge Runtime
 
 ## Executor's Feedback or Assistance Requests
 
