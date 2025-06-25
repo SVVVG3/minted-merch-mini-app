@@ -10,7 +10,7 @@ export async function generateMetadata({ params }) {
     version: "next",
     imageUrl: "https://mintedmerch.vercel.app/og-image.png",
     button: {
-      title: "🛒 Shop Crypto Merch",
+      title: `Buy ${productTitle} 📦`,
       action: {
         type: "launch_frame",
         url: `https://mintedmerch.vercel.app/product/${handle}`,

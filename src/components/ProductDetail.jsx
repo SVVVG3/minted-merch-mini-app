@@ -41,7 +41,7 @@ export function ProductDetail({
         try {
           await navigator.share({
             title: `${product.title} - Minted Merch`,
-            text: `Check out this ${product.title} for $${price} USDC!`,
+            text: `Check out this ${product.title} on /mintedmerch! Order now & pay with USDC on Base 🔵`,
             url: window.location.href,
           });
         } catch (err) {
@@ -64,7 +64,7 @@ export function ProductDetail({
       // Use cache-busting parameter to create fresh URL for testing
       const timestamp = Date.now();
       const productUrl = `${window.location.origin}/product/${handle}?v=${timestamp}`;
-      const shareText = `🛒 Check out this ${product.title} for $${price} USDC!\n\nShop on /mintedmerch - pay on Base 🔵`;
+      const shareText = `Check out this ${product.title} on /mintedmerch!\n\nOrder now & pay with USDC on Base 🔵`;
       
       // Use the Farcaster SDK composeCast action
       const { sdk } = await import('../lib/frame');
