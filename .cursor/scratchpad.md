@@ -218,13 +218,13 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 **Recent Fix - Dynamic Image Loading**:
 - **Issue**: Mini App embeds showing blank images instead of product photos
 - **Root Cause**: External Shopify images failing to load in Edge Runtime context
-- **Solution**: Implemented robust image validation with 3-second timeout and graceful fallbacks
+- **Solution**: Implemented rich branded product cards with product info instead of external images
 - **Improvements**: 
-  - ✅ Direct GraphQL queries to Shopify for better reliability
-  - ✅ Image accessibility testing before rendering
-  - ✅ Enhanced fallback placeholders with better styling
-  - ✅ Shorter cache times for failed images (60s vs 300s) as per Farcaster docs
-  - ✅ Error image cache time reduced to 30s to prevent CDN caching issues
+  - ✅ Rich product cards showing title, price, and branded design
+  - ✅ Consistent professional appearance for all products
+  - ✅ Eliminated external image dependency issues
+  - ✅ Brand-consistent styling with Minted Merch colors and layout
+  - ✅ Proper cache headers for optimal CDN performance
 
 ## Executor's Feedback or Assistance Requests
 

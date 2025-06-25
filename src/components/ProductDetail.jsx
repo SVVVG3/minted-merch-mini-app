@@ -61,8 +61,9 @@ export function ProductDetail({
 
     // Farcaster sharing using SDK composeCast action
     try {
-      // Use the proper product URL that includes fc:frame meta tags for rich embeds
-      const productUrl = `${window.location.origin}/product/${handle}`;
+      // Use cache-busting parameter to create fresh URL for testing
+      const timestamp = Date.now();
+      const productUrl = `${window.location.origin}/product/${handle}?v=${timestamp}`;
       const shareText = `🛒 Check out this ${product.title} for $${price} USDC!\n\nShop on /mintedmerch - pay on Base 🔵`;
       
       // Use the Farcaster SDK composeCast action
