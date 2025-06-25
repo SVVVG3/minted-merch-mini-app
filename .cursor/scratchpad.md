@@ -21,27 +21,36 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - **Order Management**: ✅ COMPLETED - Orders are being created successfully in Shopify
 - **Google Maps Migration**: ✅ **COMPLETED** - Migrated to new PlaceAutocompleteElement API
 - **UX Improvements**: ✅ **COMPLETED** - Fixed Google Maps clearing user data and "(Default Title)" display issues
-- **Viral Sharing System**: ✅ **WORKING** - Mini App embeds now generating correctly with static OG images
+- **Viral Sharing System**: ✅ **WORKING** - Both product and order sharing with proper Mini App embeds and improved messaging
 
-### RESOLVED: Mini App Embeds Now Working ✅ **WORKING**
+### RESOLVED: Complete Viral Sharing System ✅ **WORKING**
 
-**Solution**: Following the official Farcaster documentation exactly resolved the issue.
+**Latest Updates**: Fixed remaining issues with order success sharing to complete the viral sharing system.
 
-**Root Cause**: The implementation was overcomplicating the metadata generation. The solution was to:
-1. **Follow Docs Exactly**: Used the exact `fc:frame` meta tag format from official Farcaster docs
-2. **Static Image Approach**: Used static `/og-image.png` instead of dynamic generation
-3. **Simple Metadata Function**: Removed complex async operations and error handling that was causing fallbacks
-4. **Proper JSON Structure**: Used exact frame embed structure as specified in docs
+**Order Success Sharing Fixes**:
+1. **✅ Mini App Embed**: Now uses main app URL (`window.location.origin`) instead of dynamic OG image, which generates Mini App embed using the `fc:frame` meta tag from the main page
+2. **✅ Updated Share Text**: New format with specific product names and improved messaging:
+   - Single product: "🎉 Just bought a Bankr Cap with USDC!"
+   - Multiple products: "🎉 Just bought a Bankr Cap and OK Custom T-Shirt with USDC!"
+   - Includes order number: "Order #1181 for 1.09 confirmed ✅"
+   - Proper call-to-action: "Shop on /mintedmerch - pay on Base 🔵"
 
-**Technical Verification**:
-- ✅ **fc:frame Meta Tag**: Now appearing correctly in HTML: `<meta name="fc:frame" content="{\"version\":\"next\",\"imageUrl\":\"https://mintedmerch.vercel.app/og-image.png\",\"button\":{\"title\":\"🛒 Shop Crypto Merch\",\"action\":{\"type\":\"launch_frame\",\"url\":\"https://mintedmerch.vercel.app/product/bankr-cap\",\"name\":\"Minted Merch Shop\",\"splashImageUrl\":\"https://mintedmerch.vercel.app/splash.png\",\"splashBackgroundColor\":\"#1a1a1a\"}}}">`
-- ✅ **Product-Specific Metadata**: Title shows "Bankr Cap - Minted Merch Shop" instead of generic fallback
-- ✅ **Share Button Logic**: Working correctly with SDK integration
-- ✅ **Order Success Sharing**: Working correctly
+**Product Page Sharing Updates**:
+1. **✅ Dynamic Button Text**: Mini App embed buttons now show "Buy {Product Name} 📦" instead of generic text
+2. **✅ Improved Share Text**: Updated to "Check out this {Product Name} on /mintedmerch! Order now & pay with USDC on Base 🔵"
 
-**Official Documentation Reference**:
-- **[Farcaster Mini App Sharing Docs](https://docs.farcaster.xyz/developers/guides/mini-apps/sharing)**: Exact implementation following official patterns
-- **Key Pattern**: `<meta name="fc:frame" content="<stringified FrameEmbed JSON>" />`
+**Technical Implementation**:
+- **Main App Embed**: Uses existing `fc:frame` meta tag on main page with "Shop Now 📦" button
+- **Product Names Logic**: Intelligently formats single/multiple products with proper grammar
+- **Quantity Handling**: Shows quantities when > 1 (e.g., "Bankr Cap (2x)")
+- **Variant Support**: Includes variant names when not "Default Title"
+- **Cross-Platform**: Works in both Farcaster and web environments with appropriate fallbacks
+
+**Viral Loop Complete**:
+1. **Discovery**: User sees shared product/order in Farcaster feed with Mini App embed
+2. **Engagement**: Rich embed with branded image and specific call-to-action
+3. **Conversion**: One-click to open Mini App and browse/purchase
+4. **Amplification**: User shares their purchase with specific product names, continuing the loop
 
 ### Recent Major Feature: Viral Sharing System ✅ **WORKING**
 
