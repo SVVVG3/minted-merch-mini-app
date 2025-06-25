@@ -270,17 +270,15 @@ export async function GET(request) {
         width: 1200,
         height: 800,
         headers: {
-          // Use shorter cache time if image failed to load
-          'Cache-Control': imageLoadedSuccessfully 
-            ? 'public, immutable, no-transform, max-age=300'
-            : 'public, immutable, no-transform, max-age=60',
+          // Use longer, stable cache time for better Farcaster compatibility
+          'Cache-Control': 'public, immutable, no-transform, max-age=3600, s-maxage=3600',
         },
       },
     );
   } catch (error) {
     console.error('Error generating product OG image:', error);
     
-    // Return a fallback image with short cache time
+    // Return a fallback image with stable cache time
     return new ImageResponse(
       (
         <div
@@ -307,8 +305,8 @@ export async function GET(request) {
         width: 1200,
         height: 800,
         headers: {
-          // Short cache time for error images
-          'Cache-Control': 'public, immutable, no-transform, max-age=30',
+          // Stable cache time for error images too
+          'Cache-Control': 'public, immutable, no-transform, max-age=1800, s-maxage=1800',
         },
       },
     );

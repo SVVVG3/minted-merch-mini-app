@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { ProductPageClient } from './ProductPageClient';
 
 // Generate metadata for sharing
-export async function generateMetadata({ params }) {
+export async function generateMetadata({ params, searchParams }) {
   const { handle } = params;
   
   try {
@@ -20,15 +20,20 @@ export async function generateMetadata({ params }) {
     const mainImage = product.images?.edges?.[0]?.node;
     const price = product.priceRange?.minVariantPrice?.amount || '0';
 
+    // Build query string for cache-busting and other parameters
+    const queryString = searchParams ? new URLSearchParams(searchParams).toString() : '';
+    const ogImageUrl = `${baseUrl}/api/og/product?handle=${handle}${queryString ? `&${queryString}` : ''}`;
+    const productUrl = `${baseUrl}/product/${handle}${queryString ? `?${queryString}` : ''}`;
+
     // Create Mini App embed for sharing
     const frameEmbed = {
       version: "next",
-      imageUrl: `${baseUrl}/api/og/product?handle=${handle}`,
+      imageUrl: ogImageUrl,
       button: {
         title: `🛒 Buy ${product.title} - $${price}`,
         action: {
           type: "launch_frame",
-          url: `${baseUrl}/product/${handle}`,
+          url: productUrl,
           name: "Minted Merch Shop",
           splashImageUrl: `${baseUrl}/splash.png`,
           splashBackgroundColor: "#000000"
@@ -43,12 +48,12 @@ export async function generateMetadata({ params }) {
         title: product.title,
         description: product.description || `Buy ${product.title} for $${price} USDC`,
         images: [mainImage?.url || `${baseUrl}/og-image.png`],
-        url: `${baseUrl}/product/${handle}`,
+        url: productUrl,
       },
       other: {
         // Mini App embed meta tag (single JSON object)
         'fc:frame': JSON.stringify(frameEmbed),
-        'og:image': `${baseUrl}/api/og/product?handle=${handle}`,
+        'og:image': ogImageUrl,
       }
     };
   } catch (error) {
