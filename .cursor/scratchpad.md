@@ -268,6 +268,7 @@ The Farcaster Mini App is now **PRODUCTION READY WITH VIRAL GROWTH** featuring:
 - **Dynamic OG Images**: Use Next.js ImageResponse with Edge Runtime for dynamic Open Graph images. Always include proper cache headers (`max-age=300`) and fallback error handling to prevent gray images in social feeds.
 - **Server-Side Metadata**: For dynamic meta tags in Next.js App Router, separate server components (for metadata) from client components (for interactivity). Use `generateMetadata()` function for dynamic `fc:frame` tags.
 - **CRITICAL: Farcaster Mini App Sharing**: ⚠️ **NEVER use external URLs like `window.open(warpcastUrl)` for sharing within Farcaster Mini Apps!** This tries to open another app within the Mini App context. Instead, use the proper Farcaster SDK method `sdk.actions.composeCast({ text, embeds })` which will minimize the Mini App and open the native Farcaster composer. React hooks like `useFarcaster()` must be called at the component level, not inside event handlers.
+- **CRITICAL: Mini App Embed Format**: ⚠️ **Mini App embeds use a completely different format than old Farcaster frames!** For Mini Apps, use a single JSON object in the `fc:frame` meta tag: `<meta name="fc:frame" content="<stringified FrameEmbed JSON>" />` with format `{version: "next", imageUrl: "...", button: {title: "...", action: {type: "launch_frame", url: "...", name: "...", splashImageUrl: "...", splashBackgroundColor: "..."}}}`. Do NOT use individual meta tags like `fc:frame:image`, `fc:frame:button:1`, etc. - those are for old frames, not Mini Apps.
 
 ## Next Steps
 
