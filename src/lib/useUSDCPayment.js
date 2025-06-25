@@ -81,9 +81,10 @@ export function useUSDCPayment() {
         cartData
       })
 
-      // Execute the transfer - simple Wagmi pattern
+      // Execute the transfer - exact Wagmi docs pattern
       writeContract({
-        ...USDC_CONTRACT,
+        address: USDC_CONTRACT.address,
+        abi: USDC_CONTRACT.abi,
         functionName: 'transfer',
         args: [PAYMENT_CONFIG.merchantWallet, usdcAmount],
       })
