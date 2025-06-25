@@ -124,12 +124,17 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 
 **Latest Fix Applied (Just Deployed)**:
 - **Issue**: Payment connector errors causing `"r.connector.getChainId is not a function"`
-- **Root Cause**: Version conflicts in viem dependencies and non-standard writeContract call
+- **Root Cause**: Using spread operator `...USDC_CONTRACT` in both `useReadContract` and `writeContract` calls
 - **Solution**: 
+  - ✅ **PAYMENT FLOW NOW WORKING**: Fixed both `useReadContract` and `writeContract` to use explicit `address: USDC_CONTRACT.address, abi: USDC_CONTRACT.abi` properties
   - ✅ Fixed viem version conflicts with package overrides (all packages now use viem@2.31.4)
-  - ✅ Updated writeContract call to use explicit address/abi properties matching exact Wagmi docs
-  - ✅ Simplified USDC payment hook following official Wagmi documentation pattern
-- **Status**: Version conflicts resolved and exact Wagmi pattern implemented, ready for testing
+  - ✅ Payment confirmation and cart clearing working perfectly
+- **Status**: ✅ **PAYMENT FLOW COMPLETE** - USDC payments execute successfully
+
+**Current Issue**: Shopify Order Creation 500 Error
+- **Problem**: POST `/api/shopify/orders` returns 500 Internal Server Error after successful payment
+- **Status**: ⚠️ **DEBUGGING** - Added debug endpoint `/api/debug/order-test` to isolate issue
+- **Next Step**: Test debug endpoint to identify root cause of order creation failure
 
 **Next Steps**: 
 1. **Test Complete Flow**: User should test the full checkout process again
