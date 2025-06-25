@@ -213,7 +213,7 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - ✅ **Order Creation**: WORKING - Orders created successfully in Shopify
 - ✅ **Enhanced UX**: WORKING - All enhancements implemented and tested
 - ✅ **API Compliance**: WORKING - No deprecation warnings, future-proofed
-- ✅ **Viral Sharing**: WORKING - Complete sharing system with rich embeds
+- ✅ **Viral Sharing**: WORKING - Complete sharing system with rich embeds and proper SDK integration
 
 ## Executor's Feedback or Assistance Requests
 
@@ -242,7 +242,7 @@ The Farcaster Mini App is now **PRODUCTION READY WITH VIRAL GROWTH** featuring:
 3. **Enhanced User Experience** ✅ - Address autocomplete, proper totals
 4. **Future-Proof APIs** ✅ - Latest Google Maps implementation
 5. **Error-Free Operation** ✅ - No console warnings or deprecation notices
-6. **Viral Sharing System** ✅ - Product and order sharing with rich embeds
+6. **Viral Sharing**: WORKING - Complete sharing system with rich embeds
 7. **Growth Engine** ✅ - Discovery → Purchase → Share viral loop
 
 **Next Action**: The MVP with viral sharing is complete and ready for production use. The viral sharing system will help drive organic growth through Farcaster social feeds.
@@ -267,6 +267,7 @@ The Farcaster Mini App is now **PRODUCTION READY WITH VIRAL GROWTH** featuring:
 - **Farcaster Sharing Implementation**: For viral sharing in Farcaster Mini Apps, implement both Farcaster-specific sharing (Warpcast composer) and web fallbacks (Web Share API, clipboard). Use `fc:frame` meta tags with dynamic images for rich social embeds.
 - **Dynamic OG Images**: Use Next.js ImageResponse with Edge Runtime for dynamic Open Graph images. Always include proper cache headers (`max-age=300`) and fallback error handling to prevent gray images in social feeds.
 - **Server-Side Metadata**: For dynamic meta tags in Next.js App Router, separate server components (for metadata) from client components (for interactivity). Use `generateMetadata()` function for dynamic `fc:frame` tags.
+- **CRITICAL: Farcaster Mini App Sharing**: ⚠️ **NEVER use external URLs like `window.open(warpcastUrl)` for sharing within Farcaster Mini Apps!** This tries to open another app within the Mini App context. Instead, use the proper Farcaster SDK method `sdk.actions.composeCast({ text, embeds })` which will minimize the Mini App and open the native Farcaster composer. React hooks like `useFarcaster()` must be called at the component level, not inside event handlers.
 
 ## Next Steps
 

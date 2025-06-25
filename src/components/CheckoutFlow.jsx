@@ -10,7 +10,7 @@ import { ShippingForm } from './ShippingForm';
 
 export function CheckoutFlow() {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout } = useCart();
-  const { getFid } = useFarcaster();
+  const { getFid, isInFarcaster } = useFarcaster();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', 'payment', or 'success'
   const [shippingData, setShippingData] = useState(cart.shipping || null);
@@ -274,8 +274,6 @@ export function CheckoutFlow() {
   const handleShareOrder = async () => {
     if (!orderDetails) return;
 
-    const { isInFarcaster } = useFarcaster();
-
     if (!isInFarcaster) {
       // Fallback for non-Farcaster environments
       if (navigator.share) {
@@ -300,13 +298,19 @@ export function CheckoutFlow() {
       return;
     }
 
-    // Farcaster sharing
+    // Farcaster sharing using SDK composeCast action
     try {
-      const shareText = `🎉 Just bought crypto merch with USDC!\n\nOrder ${orderDetails.name} for $${orderDetails.total.amount} confirmed ✅\n\nInstant payments on Base 🔵 Shop now:\n${window.location.origin}`;
+      const shareText = `🎉 Just bought crypto merch with USDC!\n\nOrder ${orderDetails.name} for $${orderDetails.total.amount} confirmed ✅\n\nInstant payments on Base 🔵`;
+      const shareUrl = `${window.location.origin}/api/og/order?order=${encodeURIComponent(orderDetails.name)}&total=${orderDetails.total.amount}`;
       
-      // Open Warpcast composer with the share text
-      const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}`;
-      window.open(warpcastUrl, '_blank');
+      // Use the Farcaster SDK composeCast action
+      const { sdk } = await import('../lib/frame');
+      const result = await sdk.actions.composeCast({
+        text: shareText,
+        embeds: [shareUrl],
+      });
+      
+      console.log('Order cast composed:', result);
     } catch (error) {
       console.error('Error sharing order:', error);
       // Fallback to copying link

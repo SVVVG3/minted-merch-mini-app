@@ -58,14 +58,19 @@ export function ProductDetail({
       return;
     }
 
-    // Farcaster sharing
+    // Farcaster sharing using SDK composeCast action
     try {
       const currentUrl = window.location.href;
-      const shareText = `🛒 Check out this ${product.title} for $${price} USDC!\n\nShop crypto merch with instant payments on Base 🔵\n\n${currentUrl}`;
+      const shareText = `🛒 Check out this ${product.title} for $${price} USDC!\n\nShop crypto merch with instant payments on Base 🔵`;
       
-      // Open Warpcast composer with the share text
-      const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}`;
-      window.open(warpcastUrl, '_blank');
+      // Use the Farcaster SDK composeCast action
+      const { sdk } = await import('../lib/frame');
+      const result = await sdk.actions.composeCast({
+        text: shareText,
+        embeds: [currentUrl],
+      });
+      
+      console.log('Cast composed:', result);
     } catch (error) {
       console.error('Error sharing product:', error);
       // Fallback to copying link
