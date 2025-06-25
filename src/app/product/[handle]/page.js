@@ -20,6 +20,22 @@ export async function generateMetadata({ params }) {
     const mainImage = product.images?.edges?.[0]?.node;
     const price = product.priceRange?.minVariantPrice?.amount || '0';
 
+    // Create Mini App embed for sharing
+    const frameEmbed = {
+      version: "next",
+      imageUrl: `${baseUrl}/api/og/product?handle=${handle}`,
+      button: {
+        title: `🛒 Buy ${product.title} - $${price}`,
+        action: {
+          type: "launch_frame",
+          url: `${baseUrl}/product/${handle}`,
+          name: "Minted Merch Shop",
+          splashImageUrl: `${baseUrl}/splash.png`,
+          splashBackgroundColor: "#000000"
+        }
+      }
+    };
+
     return {
       title: `${product.title} - Minted Merch Shop`,
       description: product.description || `Buy ${product.title} for $${price} USDC on Base`,
@@ -30,13 +46,8 @@ export async function generateMetadata({ params }) {
         url: `${baseUrl}/product/${handle}`,
       },
       other: {
-        // Farcaster Frame meta tags
-        'fc:frame': 'vNext',
-        'fc:frame:image': `${baseUrl}/api/og/product?handle=${handle}`,
-        'fc:frame:image:aspect_ratio': '3:2',
-        'fc:frame:button:1': `🛒 Buy ${product.title} - $${price}`,
-        'fc:frame:button:1:action': 'link',
-        'fc:frame:button:1:target': `${baseUrl}/product/${handle}`,
+        // Mini App embed meta tag (single JSON object)
+        'fc:frame': JSON.stringify(frameEmbed),
         'og:image': `${baseUrl}/api/og/product?handle=${handle}`,
       }
     };
