@@ -161,47 +161,52 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
 
   // Populate address fields from Google Places result (stable API)
   const populateAddressFromPlace = (place) => {
-    const addressComponents = place.address_components;
-    // Preserve existing firstName, lastName, phone, and email when updating address
-    const newShipping = { 
-      ...shipping,
-      // Clear address2 when using autocomplete
-      address2: ''
-    };
+    // Get current shipping state to ensure we have the latest data
+    setShipping(currentShipping => {
+      const addressComponents = place.address_components;
+      // Preserve existing firstName, lastName, phone, and email when updating address
+      const newShipping = { 
+        ...currentShipping,
+        // Clear address2 when using autocomplete
+        address2: ''
+      };
 
-    // Extract address components - stable API structure
-    let streetNumber = '';
-    let route = '';
-    
-    if (addressComponents) {
-      addressComponents.forEach(component => {
-        const types = component.types;
-        
-        if (types.includes('street_number')) {
-          streetNumber = component.long_name;
-        } else if (types.includes('route')) {
-          route = component.long_name;
-        } else if (types.includes('locality')) {
-          newShipping.city = component.long_name;
-        } else if (types.includes('administrative_area_level_1')) {
-          newShipping.province = component.short_name;
-        } else if (types.includes('postal_code')) {
-          newShipping.zip = component.long_name;
-        } else if (types.includes('country')) {
-          newShipping.country = component.short_name;
-        }
-      });
+      // Extract address components - stable API structure
+      let streetNumber = '';
+      let route = '';
+      
+      if (addressComponents) {
+        addressComponents.forEach(component => {
+          const types = component.types;
+          
+          if (types.includes('street_number')) {
+            streetNumber = component.long_name;
+          } else if (types.includes('route')) {
+            route = component.long_name;
+          } else if (types.includes('locality')) {
+            newShipping.city = component.long_name;
+          } else if (types.includes('administrative_area_level_1')) {
+            newShipping.province = component.short_name;
+          } else if (types.includes('postal_code')) {
+            newShipping.zip = component.long_name;
+          } else if (types.includes('country')) {
+            newShipping.country = component.short_name;
+          }
+        });
 
-      // Combine street number and route for address1
-      newShipping.address1 = `${streetNumber} ${route}`.trim();
-    } else {
-      // Fallback to formatted address if address components not available
-      newShipping.address1 = place.formatted_address || '';
-    }
+        // Combine street number and route for address1
+        newShipping.address1 = `${streetNumber} ${route}`.trim();
+      } else {
+        // Fallback to formatted address if address components not available
+        newShipping.address1 = place.formatted_address || '';
+      }
 
-    setShipping(newShipping);
-    const valid = validateForm(newShipping);
-    onShippingChange(newShipping, valid);
+      // Validate and notify parent
+      const valid = validateForm(newShipping);
+      onShippingChange(newShipping, valid);
+      
+      return newShipping;
+    });
   };
 
   // Validation function
