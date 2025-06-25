@@ -1,61 +1,38 @@
 import { Suspense } from 'react';
 import { ProductPageClient } from './ProductPageClient';
 
-// Generate metadata for sharing - using static OG image
-export async function generateMetadata({ params, searchParams }) {
+export async function generateMetadata({ params }) {
   const { handle } = params;
+  const productTitle = handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   
-  try {
-    // Build URLs
-    const baseUrl = 'https://mintedmerch.vercel.app';
-    const queryString = searchParams ? new URLSearchParams(searchParams).toString() : '';
-    const productUrl = `${baseUrl}/product/${handle}${queryString ? `?${queryString}` : ''}`;
-    
-    // Use static branded OG image
-    const ogImageUrl = `${baseUrl}/og-image.png`;
-
-    // Simple title transformation
-    const productTitle = handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-
-    // Create Mini App embed with static image
-    const frameEmbed = {
-      version: "next",
-      imageUrl: ogImageUrl,
-      button: {
-        title: "🛒 Shop Crypto Merch",
-        action: {
-          type: "launch_frame",
-          url: productUrl,
-          name: "Minted Merch Shop",
-          splashImageUrl: `${baseUrl}/splash.png`,
-          splashBackgroundColor: "#1a1a1a"
-        }
+  // Create frame embed exactly as shown in docs
+  const frame = {
+    version: "next",
+    imageUrl: "https://mintedmerch.vercel.app/og-image.png",
+    button: {
+      title: "🛒 Shop Crypto Merch",
+      action: {
+        type: "launch_frame",
+        url: `https://mintedmerch.vercel.app/product/${handle}`,
+        name: "Minted Merch Shop",
+        splashImageUrl: "https://mintedmerch.vercel.app/splash.png",
+        splashBackgroundColor: "#1a1a1a"
       }
-    };
+    }
+  };
 
-    // Return metadata with static image
-    return {
+  return {
+    title: `${productTitle} - Minted Merch Shop`,
+    description: 'Shop crypto merch with USDC on Base',
+    openGraph: {
       title: `${productTitle} - Minted Merch Shop`,
       description: 'Shop crypto merch with USDC on Base',
-      openGraph: {
-        title: `${productTitle} - Minted Merch Shop`,
-        description: 'Shop crypto merch with USDC on Base',
-        images: [ogImageUrl],
-      },
-      other: {
-        'fc:frame': JSON.stringify(frameEmbed),
-      },
-    };
-  } catch (error) {
-    // Simple fallback
-    return {
-      title: 'Minted Merch Shop',
-      description: 'Shop crypto merch with USDC on Base',
-      openGraph: {
-        images: ['https://mintedmerch.vercel.app/og-image.png'],
-      },
-    };
-  }
+      images: ['https://mintedmerch.vercel.app/og-image.png'],
+    },
+    other: {
+      'fc:frame': JSON.stringify(frame)
+    }
+  };
 }
 
 export default function ProductPage({ params }) {
