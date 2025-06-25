@@ -6,9 +6,7 @@ import { USDC_CONTRACT, PAYMENT_CONFIG, formatUSDCAmount, parseUSDCAmount, usdTo
 
 export function useUSDCPayment() {
   const { address, isConnected } = useAccount()
-  const [paymentStatus, setPaymentStatus] = useState('idle') // idle, checking, pending, success, error
   const [error, setError] = useState(null)
-  const [transactionHash, setTransactionHash] = useState(null)
 
   // Read user's USDC balance
   const { 
@@ -26,18 +24,16 @@ export function useUSDCPayment() {
   const { 
     writeContract, 
     data: hash, 
-    isPending: isWritePending,
+    isPending,
     error: writeError 
   } = useWriteContract()
 
   // Wait for transaction confirmation
   const { 
     isLoading: isConfirming, 
-    isSuccess: isConfirmed,
-    error: confirmError
+    isSuccess: isConfirmed 
   } = useWaitForTransactionReceipt({
-    hash: hash, // Use the hash from writeContract, not our state
-    enabled: !!hash,
+    hash,
   })
 
   // Format balance for display
@@ -51,13 +47,12 @@ export function useUSDCPayment() {
     return balanceNumber >= requiredUSDC
   }
 
-  // Execute USDC payment
+  // Execute USDC payment - simplified following Wagmi docs
   const executePayment = async (usdAmount, cartData) => {
     try {
       setError(null)
-      setPaymentStatus('checking')
 
-      // Validate inputs
+      // Basic validation
       if (!isConnected) {
         throw new Error('Wallet not connected')
       }
@@ -75,8 +70,6 @@ export function useUSDCPayment() {
         throw new Error(`Insufficient USDC balance. You need ${usdAmount} USDC but only have ${balanceNumber.toFixed(2)} USDC`)
       }
 
-      setPaymentStatus('pending')
-
       // Convert USD to USDC amount (1:1 for MVP)
       const usdcAmount = usdToUSDC(usdAmount)
 
@@ -88,45 +81,31 @@ export function useUSDCPayment() {
         cartData
       })
 
-      // Execute the transfer
+      // Execute the transfer - simple Wagmi pattern
       writeContract({
         ...USDC_CONTRACT,
         functionName: 'transfer',
         args: [PAYMENT_CONFIG.merchantWallet, usdcAmount],
       })
 
-      // Note: hash will be available from the writeContract hook
-      // and we'll set it when the transaction is submitted
     } catch (err) {
       console.error('Payment error:', err)
       setError(err.message || 'Payment failed')
-      setPaymentStatus('error')
       throw err
     }
   }
 
   // Reset payment state
   const resetPayment = () => {
-    setPaymentStatus('idle')
     setError(null)
-    setTransactionHash(null)
   }
 
-  // Update transaction hash when available
-  if (hash && !transactionHash) {
-    setTransactionHash(hash)
-  }
-
-  // Update status based on transaction state
-  if (hash && isConfirmed && paymentStatus !== 'success') {
-    setPaymentStatus('success')
-  }
-
-  if ((writeError || confirmError) && paymentStatus !== 'error') {
-    const errorMessage = writeError?.message || confirmError?.message || 'Transaction failed'
-    setError(errorMessage)
-    setPaymentStatus('error')
-  }
+  // Determine payment status based on transaction state
+  let paymentStatus = 'idle'
+  if (isPending) paymentStatus = 'pending'
+  else if (isConfirming) paymentStatus = 'confirming'
+  else if (isConfirmed) paymentStatus = 'success'
+  else if (writeError || error) paymentStatus = 'error'
 
   return {
     // Balance info
@@ -137,8 +116,8 @@ export function useUSDCPayment() {
     
     // Payment state
     paymentStatus,
-    error,
-    transactionHash: hash || transactionHash, // Use the most current hash
+    error: writeError?.message || error,
+    transactionHash: hash,
     
     // Payment functions
     executePayment,
@@ -146,7 +125,7 @@ export function useUSDCPayment() {
     hasSufficientBalance,
     
     // Transaction state
-    isPending: isWritePending,
+    isPending,
     isConfirming,
     isConfirmed,
     
