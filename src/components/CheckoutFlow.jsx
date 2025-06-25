@@ -340,7 +340,7 @@ export function CheckoutFlow() {
                     <h3 className="font-medium">Order Summary</h3>
                     {cart.items.map((item) => (
                       <div key={item.key} className="flex justify-between text-sm">
-                        <span>{item.product?.title || item.title} {item.variant?.title && `(${item.variant.title})`} × {item.quantity}</span>
+                        <span>{item.product?.title || item.title} {item.variant?.title && item.variant.title !== 'Default Title' && `(${item.variant.title})`} × {item.quantity}</span>
                         <span>${(item.price * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
@@ -409,7 +409,7 @@ export function CheckoutFlow() {
                     <h3 className="font-medium">Order Summary</h3>
                     {cart.items.map((item) => (
                       <div key={item.key} className="flex justify-between text-sm">
-                        <span>{item.product?.title || item.title} {item.variant?.title && `(${item.variant.title})`} × {item.quantity}</span>
+                        <span>{item.product?.title || item.title} {item.variant?.title && item.variant.title !== 'Default Title' && `(${item.variant.title})`} × {item.quantity}</span>
                         <span>${(item.price * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
@@ -526,7 +526,7 @@ export function CheckoutFlow() {
                     <h3 className="font-medium">Order Summary</h3>
                     {cart.items.map((item) => (
                       <div key={item.key} className="flex justify-between text-sm">
-                        <span>{item.product.title} {item.variant?.title && `(${item.variant.title})`} × {item.quantity}</span>
+                        <span>{item.product.title} {item.variant?.title && item.variant.title !== 'Default Title' && `(${item.variant.title})`} × {item.quantity}</span>
                         <span>${(item.price * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}

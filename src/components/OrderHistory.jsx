@@ -136,7 +136,8 @@ export function OrderHistory({ isOpen, onClose }) {
                         <span className="ml-1">
                           ({order.lineItems.map(item => {
                             const itemName = item.title || item.name || 'Unknown Item';
-                            const variant = item.variantTitle ? ` (${item.variantTitle})` : '';
+                            // Only show variant title if it's not "Default Title"
+                            const variant = item.variantTitle && item.variantTitle !== 'Default Title' ? ` (${item.variantTitle})` : '';
                             return `${itemName}${variant}`;
                           }).join(', ')})
                         </span>

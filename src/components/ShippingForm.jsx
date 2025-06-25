@@ -162,7 +162,12 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
   // Populate address fields from Google Places result (stable API)
   const populateAddressFromPlace = (place) => {
     const addressComponents = place.address_components;
-    const newShipping = { ...shipping };
+    // Preserve existing firstName, lastName, phone, and email when updating address
+    const newShipping = { 
+      ...shipping,
+      // Clear address2 when using autocomplete
+      address2: ''
+    };
 
     // Extract address components - stable API structure
     let streetNumber = '';

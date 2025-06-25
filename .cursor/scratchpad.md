@@ -19,6 +19,25 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - **E-Commerce Checkout**: ✅ COMPLETED - 3-step checkout with shipping/tax calculation working
 - **Order Management**: ✅ COMPLETED - Orders are being created successfully in Shopify
 - **Google Maps Migration**: ✅ **COMPLETED** - Migrated to new PlaceAutocompleteElement API
+- **UX Improvements**: ✅ **COMPLETED** - Fixed Google Maps clearing user data and "(Default Title)" display issues
+
+### Recent UX Fixes
+
+**Issue 1: Google Maps Clearing First/Last Name** ✅ **FIXED**
+- **Root Cause**: When Google Maps autocomplete selected a place, the `populateAddressFromPlace` function was creating a completely new shipping object, overwriting firstName and lastName fields
+- **Solution Applied**: 
+  - ✅ **Preserve User Data**: Modified `populateAddressFromPlace` to preserve existing firstName, lastName, phone, and email when updating address
+  - ✅ **Smart Address Update**: Only update address-related fields (address1, city, province, zip, country) from Google Maps
+  - ✅ **Clear Address2**: Reset address2 field when using autocomplete for cleaner addresses
+- **Status**: ✅ **COMPLETED** - Users can now fill in their name first, then use address autocomplete without losing their personal information
+
+**Issue 2: "(Default Title)" Display in Product Names** ✅ **FIXED**
+- **Root Cause**: Cart items store both product title and variant title, and when variant title was "Default Title", it was being displayed as "Product Name (Default Title)"
+- **Solution Applied**: 
+  - ✅ **Order History**: Updated OrderHistory component to only show variant title if it's not "Default Title"
+  - ✅ **Checkout Flow**: Updated all three instances in CheckoutFlow component (shipping, shipping-method, and payment steps) to hide "Default Title" variants
+  - ✅ **Consistent Logic**: Applied consistent filtering logic: `item.variant?.title && item.variant.title !== 'Default Title' && \`(${item.variant.title})\``
+- **Status**: ✅ **COMPLETED** - Product names now display cleanly without unnecessary "(Default Title)" text
 
 ### Recent API Migration
 
@@ -155,6 +174,8 @@ The Farcaster Mini App is now **PRODUCTION READY** with:
 - **Shopify API Debugging**: Enhanced logging is crucial for diagnosing order creation issues - always log request variables and response data
 - **API Version Consistency**: Keep all Shopify API endpoints on the same version to avoid compatibility issues
 - **Google Maps API Migration**: Google is actively deprecating older APIs. The `google.maps.places.Autocomplete` was deprecated March 1st, 2025. Always migrate to newer APIs (`PlaceAutocompleteElement`) to avoid console warnings and ensure continued functionality. The new API uses different event names (`gmp-select` vs `place_changed`), data structures (`longText/shortText` vs `long_name/short_name`), and integration methods (container-based vs input-based).
+- **Google Maps Form Preservation**: When implementing address autocomplete, always preserve existing user input (firstName, lastName, phone, email) by using spread operator with existing state rather than creating a completely new object. Only update address-related fields from the autocomplete result.
+- **Variant Title Display**: When displaying product information, check if variant title is "Default Title" before showing it to users. This prevents confusing display text like "Product Name (Default Title)" and keeps the UI clean and professional.
 
 ## Next Steps
 
@@ -167,4 +188,4 @@ The Farcaster Mini App is now **PRODUCTION READY** with:
 4. **Analytics**: Track conversion rates and popular products
 5. **Multi-Currency**: Support additional cryptocurrencies beyond USDC
 
-**Production Deployment**: The application is ready for production use with all core features working correctly. 
+**Production Deployment**: The application is ready for production use with all core features working correctly and enhanced UX improvements. 
