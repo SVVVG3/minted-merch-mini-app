@@ -23,51 +23,60 @@ export async function generateMetadata({ params, searchParams }) {
           url: productUrl,
           name: "Minted Merch Shop",
           splashImageUrl: `${baseUrl}/splash.png`,
-          splashBackgroundColor: "#000000"
+          splashBackgroundColor: "#1a1a1a"
         }
       }
     };
 
     return {
-      title: 'Minted Merch Shop - Crypto Merchandise',
-      description: 'Shop crypto merch with USDC payments on Base',
+      title: `${handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - Minted Merch Shop`,
+      description: 'Shop crypto merch with USDC on Base',
       openGraph: {
-        title: 'Minted Merch Shop',
-        description: 'Crypto merchandise with instant USDC payments',
+        title: `${handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - Minted Merch Shop`,
+        description: 'Shop crypto merch with USDC on Base',
         images: [ogImageUrl],
         url: productUrl,
       },
       twitter: {
         card: 'summary_large_image',
-        title: 'Minted Merch Shop',
-        description: 'Crypto merchandise with instant USDC payments',
+        title: `${handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - Minted Merch Shop`,
+        description: 'Shop crypto merch with USDC on Base',
         images: [ogImageUrl],
       },
+      // Use robots meta tag approach for custom meta tags
+      robots: {
+        index: true,
+        follow: true,
+      },
+      // Add the fc:frame meta tag using the metadata API
       metadataBase: new URL(baseUrl),
       alternates: {
         canonical: productUrl,
       },
-      // Use the proper other property for custom meta tags
+      // Use the other property for custom meta tags - this is the correct approach
       other: {
         'fc:frame': JSON.stringify(frameEmbed),
-      }
+      },
     };
   } catch (error) {
     console.error('Error generating metadata:', error);
+    
+    // Fallback metadata
     return {
       title: 'Minted Merch Shop',
-      description: 'Shop crypto merch with USDC on Base'
+      description: 'Shop crypto merch with USDC on Base',
+      openGraph: {
+        title: 'Minted Merch Shop',
+        description: 'Shop crypto merch with USDC on Base',
+        images: [`${process.env.NEXT_PUBLIC_BASE_URL || 'https://mintedmerch.vercel.app'}/og-image.png`],
+      },
     };
   }
 }
 
-export default function ProductPage({ params, searchParams }) {
+export default function ProductPage({ params }) {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading...</p>
-      </div>
-    }>
+    <Suspense fallback={<div>Loading...</div>}>
       <ProductPageClient handle={params.handle} />
     </Suspense>
   );

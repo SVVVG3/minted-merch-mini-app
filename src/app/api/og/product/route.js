@@ -22,11 +22,13 @@ export async function GET(request) {
         query: `
           query getProduct($handle: String!) {
             product(handle: $handle) {
+              id
               title
-              description
+              handle
               priceRange {
                 minVariantPrice {
                   amount
+                  currencyCode
                 }
               }
               images(first: 1) {
@@ -49,58 +51,16 @@ export async function GET(request) {
     }
 
     const { data } = await response.json();
-    const product = data.product;
+    const product = data?.product;
 
     if (!product) {
       throw new Error('Product not found');
     }
 
-    const mainImage = product.images?.edges?.[0]?.node;
-    const price = product.priceRange?.minVariantPrice?.amount || '0';
+    const price = parseFloat(product.priceRange?.minVariantPrice?.amount || '0');
+    const priceUSDC = (price / 3300).toFixed(2); // Convert to approximate USDC
 
-    // Create rich product card without external image for now
-    const imageElement = (
-      <div
-        style={{
-          width: '300px',
-          height: '300px',
-          borderRadius: '15px',
-          border: '3px solid #3eb489',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'column',
-          gap: '15px',
-          backgroundColor: 'rgba(62, 180, 137, 0.1)',
-          color: '#3eb489',
-        }}
-      >
-        <div style={{ fontSize: '64px' }}>🛒</div>
-        <div 
-          style={{ 
-            fontSize: '18px', 
-            fontWeight: '600',
-            textAlign: 'center',
-            maxWidth: '250px',
-            lineHeight: '1.2',
-          }}
-        >
-          {product.title}
-        </div>
-        <div 
-          style={{ 
-            fontSize: '24px', 
-            fontWeight: '700',
-            color: '#3eb489',
-          }}
-        >
-          ${price}
-        </div>
-      </div>
-    );
-    
-    const imageLoadedSuccessfully = true; // Always use normal cache time
-
+    // Create rich branded product card (no external images)
     return new ImageResponse(
       (
         <div
@@ -111,12 +71,14 @@ export async function GET(request) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#000',
-            backgroundImage: 'linear-gradient(45deg, #000 0%, #1a1a1a 100%)',
+            backgroundColor: '#1a1a1a',
+            backgroundImage: 'linear-gradient(45deg, #1a1a1a 0%, #2d2d2d 100%)',
+            fontFamily: 'Inter, sans-serif',
             position: 'relative',
+            padding: '40px',
           }}
         >
-          {/* Background Pattern */}
+          {/* Background pattern */}
           <div
             style={{
               position: 'absolute',
@@ -124,161 +86,116 @@ export async function GET(request) {
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundImage: `radial-gradient(circle at 25px 25px, #3eb489 2px, transparent 0), radial-gradient(circle at 75px 75px, #3eb489 2px, transparent 0)`,
-              backgroundSize: '100px 100px',
+              backgroundImage: 'radial-gradient(circle at 25% 25%, #3eb489 0%, transparent 50%), radial-gradient(circle at 75% 75%, #3eb489 0%, transparent 50%)',
               opacity: 0.1,
             }}
           />
-
-          {/* Main Content */}
+          
+          {/* Main content */}
           <div
             style={{
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              width: '90%',
-              maxWidth: '1000px',
-              padding: '40px',
+              justifyContent: 'center',
               backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              border: '2px solid rgba(62, 180, 137, 0.3)',
               borderRadius: '20px',
-              border: '1px solid rgba(62, 180, 137, 0.3)',
+              padding: '60px',
+              maxWidth: '800px',
+              textAlign: 'center',
+              backdropFilter: 'blur(10px)',
             }}
           >
-            {/* Product Image */}
+            {/* Shopping cart icon */}
             <div
               style={{
-                width: '300px',
-                height: '300px',
-                borderRadius: '15px',
-                overflow: 'hidden',
-                border: '3px solid #3eb489',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: '#fff',
+                fontSize: '80px',
+                marginBottom: '30px',
               }}
             >
-              {imageElement}
+              🛒
             </div>
 
-            {/* Product Info */}
-            <div
+            {/* Product title */}
+            <h1
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                justifyContent: 'center',
-                marginLeft: '40px',
-                flex: 1,
+                fontSize: '48px',
+                fontWeight: 'bold',
                 color: 'white',
+                margin: '0 0 20px 0',
+                lineHeight: '1.2',
+                textAlign: 'center',
+                maxWidth: '700px',
               }}
             >
-              {/* Brand */}
-              <div
-                style={{
-                  fontSize: '24px',
-                  fontWeight: '600',
-                  color: '#3eb489',
-                  marginBottom: '10px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '2px',
-                }}
-              >
-                Minted Merch
-              </div>
+              {product.title}
+            </h1>
 
-              {/* Product Title */}
-              <div
-                style={{
-                  fontSize: '48px',
-                  fontWeight: '800',
-                  lineHeight: '1.1',
-                  marginBottom: '20px',
-                  color: 'white',
-                  maxWidth: '500px',
-                }}
-              >
-                {product.title}
-              </div>
+            {/* Price */}
+            <div
+              style={{
+                fontSize: '36px',
+                fontWeight: 'bold',
+                color: '#3eb489',
+                margin: '0 0 30px 0',
+              }}
+            >
+              ${priceUSDC} USDC
+            </div>
 
-              {/* Price */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '15px',
-                  marginBottom: '20px',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '36px',
-                    fontWeight: '700',
-                    color: '#3eb489',
-                  }}
-                >
-                  ${price}
-                </div>
-                <div
-                  style={{
-                    fontSize: '20px',
-                    color: '#888',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  USDC
-                </div>
-              </div>
+            {/* Call to action */}
+            <div
+              style={{
+                fontSize: '24px',
+                color: '#cccccc',
+                margin: '0 0 20px 0',
+              }}
+            >
+              Shop crypto merch with instant payments
+            </div>
 
-              {/* Call to Action */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  backgroundColor: '#3eb489',
-                  padding: '15px 30px',
-                  borderRadius: '10px',
-                  fontSize: '20px',
-                  fontWeight: '600',
-                  color: 'white',
-                }}
-              >
-                🛒 Shop Now on Base
-              </div>
+            {/* Base logo/branding */}
+            <div
+              style={{
+                fontSize: '20px',
+                color: '#3eb489',
+                fontWeight: 'bold',
+              }}
+            >
+              Pay on Base 🔵
             </div>
           </div>
 
-          {/* Footer */}
+          {/* Minted Merch branding */}
           <div
             style={{
               position: 'absolute',
-              bottom: '20px',
-              right: '20px',
-              fontSize: '16px',
-              color: '#888',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
+              bottom: '30px',
+              right: '30px',
+              fontSize: '18px',
+              color: '#888888',
+              fontWeight: 'bold',
             }}
           >
-            <div>Pay with crypto • Powered by Farcaster</div>
+            mintedmerch.shop
           </div>
         </div>
       ),
       {
         width: 1200,
-        height: 800,
+        height: 630,
         headers: {
-          // Use longer, stable cache time for better Farcaster compatibility
-          'Cache-Control': 'public, immutable, no-transform, max-age=3600, s-maxage=3600',
+          // Follow official Farcaster caching patterns
+          'Cache-Control': 'public, immutable, no-transform, max-age=31536000',
         },
-      },
+      }
     );
+
   } catch (error) {
-    console.error('Error generating product OG image:', error);
+    console.error('Error generating product image:', error);
     
-    // Return a fallback image with stable cache time
+    // Return branded error image
     return new ImageResponse(
       (
         <div
@@ -289,26 +206,26 @@ export async function GET(request) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#000',
-            color: 'white',
+            backgroundColor: '#1a1a1a',
+            fontFamily: 'Inter, sans-serif',
           }}
         >
-          <div style={{ fontSize: '48px', fontWeight: '800' }}>
+          <div style={{ fontSize: '80px', marginBottom: '20px' }}>🛒</div>
+          <div style={{ fontSize: '32px', color: 'white', marginBottom: '10px' }}>
             Minted Merch Shop
           </div>
-          <div style={{ fontSize: '24px', color: '#3eb489', marginTop: '20px' }}>
-            Crypto Merch • Pay with USDC
+          <div style={{ fontSize: '24px', color: '#3eb489' }}>
+            Shop crypto merch with USDC on Base 🔵
           </div>
         </div>
       ),
       {
         width: 1200,
-        height: 800,
+        height: 630,
         headers: {
-          // Stable cache time for error images too
-          'Cache-Control': 'public, immutable, no-transform, max-age=1800, s-maxage=1800',
+          'Cache-Control': 'public, immutable, no-transform, max-age=31536000',
         },
-      },
+      }
     );
   }
 } 
