@@ -57,20 +57,25 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
   // Initialize Google Places Autocomplete
   useEffect(() => {
     const initializeAutocomplete = () => {
-      console.log('Checking Google Maps availability:', {
+      console.log('Checking Google Places availability:', {
         hasWindow: typeof window !== 'undefined',
         hasGoogle: typeof window !== 'undefined' && !!window.google,
         hasMaps: typeof window !== 'undefined' && !!window.google?.maps,
         hasPlaces: typeof window !== 'undefined' && !!window.google?.maps?.places,
         hasRef: !!addressInputRef.current,
         hasAutocomplete: !!autocompleteRef.current,
-        googleMapsLoaded: typeof window !== 'undefined' && !!window.googleMapsLoaded
+        googlePlacesLoaded: typeof window !== 'undefined' && !!window.googlePlacesLoaded
       });
 
       if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places && addressInputRef.current && !autocompleteRef.current) {
         try {
-          console.log('Initializing Google Maps autocomplete...');
+          console.log('Initializing Google Places autocomplete...');
           setGoogleMapsStatus('initializing');
+          
+          // Test if Places API is properly accessible
+          if (!window.google.maps.places.Autocomplete) {
+            throw new Error('Google Places Autocomplete not available - API may not be properly activated');
+          }
           
           autocompleteRef.current = new window.google.maps.places.Autocomplete(addressInputRef.current, {
             types: ['address'],
@@ -85,20 +90,31 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
             }
           });
           
-          console.log('Google Maps autocomplete initialized successfully');
+          console.log('Google Places autocomplete initialized successfully');
           setGoogleMapsStatus('ready');
         } catch (error) {
-          console.error('Error initializing Google Maps autocomplete:', error);
-          setGoogleMapsStatus('error');
+          console.error('Error initializing Google Places autocomplete:', error);
+          if (error.message && error.message.includes('ApiNotActivatedMapError')) {
+            console.error('Google Maps JavaScript API is not enabled. Please enable it in Google Cloud Console or contact support.');
+            setGoogleMapsStatus('api-not-enabled');
+          } else {
+            setGoogleMapsStatus('error');
+          }
         }
       } else {
-        console.log('Google Maps API not ready yet, retrying...');
+        console.log('Google Places API not ready yet, retrying...');
         setGoogleMapsStatus('waiting');
-        // Retry after a short delay
-        setTimeout(initializeAutocomplete, 500);
+        // Retry after a short delay, but stop after 20 seconds to avoid infinite loops
+        if (Date.now() - startTime < 20000) {
+          setTimeout(initializeAutocomplete, 500);
+        } else {
+          console.warn('Google Places API failed to load after 20 seconds');
+          setGoogleMapsStatus('timeout');
+        }
       }
     };
 
+    const startTime = Date.now();
     // Add a small delay to ensure the script has loaded
     const timer = setTimeout(initializeAutocomplete, 1000);
     
@@ -284,7 +300,12 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
           Address *
           {googleMapsStatus !== 'ready' && (
             <span className="text-xs text-gray-500 ml-2">
-              (Maps: {googleMapsStatus})
+              {googleMapsStatus === 'api-not-enabled' && '(API not enabled)'}
+              {googleMapsStatus === 'timeout' && '(API timeout)'}
+              {googleMapsStatus === 'error' && '(API error)'}
+              {googleMapsStatus === 'loading' && '(Loading...)'}
+              {googleMapsStatus === 'waiting' && '(Waiting...)'}
+              {googleMapsStatus === 'initializing' && '(Starting...)'}
             </span>
           )}
         </label>
@@ -300,6 +321,11 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
         />
         {errors.address1 && (
           <p className="text-red-500 text-xs mt-1">{errors.address1}</p>
+        )}
+        {googleMapsStatus === 'api-not-enabled' && (
+          <p className="text-orange-600 text-xs mt-1">
+            Address autocomplete unavailable - API not enabled
+          </p>
         )}
       </div>
 

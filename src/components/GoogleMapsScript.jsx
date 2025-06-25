@@ -13,21 +13,21 @@ export function GoogleMapsScript() {
 
   // Add a global callback function
   if (typeof window !== 'undefined') {
-    window.initGoogleMaps = () => {
-      console.log('Google Maps API loaded via callback');
-      window.googleMapsLoaded = true;
+    window.initGooglePlaces = () => {
+      console.log('Google Places API loaded via callback');
+      window.googlePlacesLoaded = true;
     };
   }
 
   return (
     <Script
-      src={`https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initGoogleMaps`}
+      src={`https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initGooglePlaces&loading=async`}
       strategy="lazyOnload"
       onLoad={() => {
-        console.log('Google Maps script tag loaded');
+        console.log('Google Places script tag loaded');
       }}
       onError={(e) => {
-        console.error('Failed to load Google Maps API:', e);
+        console.error('Failed to load Google Places API:', e);
       }}
     />
   );
