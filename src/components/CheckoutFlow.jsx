@@ -300,7 +300,7 @@ export function CheckoutFlow() {
 
     // Farcaster sharing using SDK composeCast action
     try {
-      const shareText = `🎉 Just bought crypto merch with USDC!\n\nOrder ${orderDetails.name} for $${orderDetails.total.amount} confirmed ✅\n\nInstant payments on Base 🔵`;
+      const shareText = `🎉 Just bought crypto merch with USDC!\n\nOrder ${orderDetails.name} for $${orderDetails.total.amount} confirmed ✅\n\nShop on /mintedmerch - pay on Base 🔵`;
       const shareUrl = `${window.location.origin}/api/og/order?order=${encodeURIComponent(orderDetails.name)}&total=${orderDetails.total.amount}`;
       
       // Use the Farcaster SDK composeCast action

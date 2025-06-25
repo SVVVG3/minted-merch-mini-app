@@ -86,6 +86,7 @@ export function ProductPageClient({ handle }) {
   return (
     <ProductDetail
       product={product}
+      handle={handle}
       selectedVariant={selectedVariant}
       onVariantChange={setSelectedVariant}
       onBuyNow={handleBuyNow}

@@ -9,6 +9,7 @@ import { Cart } from './Cart';
 
 export function ProductDetail({ 
   product, 
+  handle,
   selectedVariant, 
   onVariantChange, 
   onBuyNow 
@@ -60,14 +61,15 @@ export function ProductDetail({
 
     // Farcaster sharing using SDK composeCast action
     try {
-      const currentUrl = window.location.href;
-      const shareText = `🛒 Check out this ${product.title} for $${price} USDC!\n\nShop crypto merch with instant payments on Base 🔵`;
+      // Use the proper product URL that includes fc:frame meta tags for rich embeds
+      const productUrl = `${window.location.origin}/product/${handle}`;
+      const shareText = `🛒 Check out this ${product.title} for $${price} USDC!\n\nShop on /mintedmerch - pay on Base 🔵`;
       
       // Use the Farcaster SDK composeCast action
       const { sdk } = await import('../lib/frame');
       const result = await sdk.actions.composeCast({
         text: shareText,
-        embeds: [currentUrl],
+        embeds: [productUrl],
       });
       
       console.log('Cast composed:', result);
