@@ -1,34 +1,28 @@
 import { Suspense } from 'react';
 import { ProductPageClient } from './ProductPageClient';
 
-// Generate metadata for sharing
+// Generate metadata for sharing - using static OG image
 export async function generateMetadata({ params, searchParams }) {
   const { handle } = params;
   
-  console.log('=== METADATA GENERATION START ===');
-  console.log('Handle:', handle);
-  console.log('SearchParams:', searchParams);
-  
   try {
-    // Build URLs with cache-busting parameters
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mintedmerch.vercel.app';
-    console.log('Base URL:', baseUrl);
-    
+    // Build URLs
+    const baseUrl = 'https://mintedmerch.vercel.app';
     const queryString = searchParams ? new URLSearchParams(searchParams).toString() : '';
-    console.log('Query string:', queryString);
-    
-    const ogImageUrl = `${baseUrl}/api/og/product?handle=${handle}${queryString ? `&${queryString}` : ''}`;
     const productUrl = `${baseUrl}/product/${handle}${queryString ? `?${queryString}` : ''}`;
     
-    console.log('OG Image URL:', ogImageUrl);
-    console.log('Product URL:', productUrl);
+    // Use static branded OG image
+    const ogImageUrl = `${baseUrl}/og-image.png`;
 
-    // Create Mini App embed for sharing with cache-busting
+    // Simple title transformation
+    const productTitle = handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+    // Create Mini App embed with static image
     const frameEmbed = {
       version: "next",
       imageUrl: ogImageUrl,
       button: {
-        title: `🛒 Shop Now`,
+        title: "🛒 Shop Crypto Merch",
         action: {
           type: "launch_frame",
           url: productUrl,
@@ -39,59 +33,28 @@ export async function generateMetadata({ params, searchParams }) {
       }
     };
 
-    console.log('Frame embed:', JSON.stringify(frameEmbed, null, 2));
-
-    // Simple metadata without complex operations
-    const metadata = {
-      title: `${handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - Minted Merch Shop`,
+    // Return metadata with static image
+    return {
+      title: `${productTitle} - Minted Merch Shop`,
       description: 'Shop crypto merch with USDC on Base',
       openGraph: {
-        title: `${handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - Minted Merch Shop`,
-        description: 'Shop crypto merch with USDC on Base',
-        images: [ogImageUrl],
-        url: productUrl,
-      },
-      twitter: {
-        card: 'summary_large_image',
-        title: `${handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - Minted Merch Shop`,
+        title: `${productTitle} - Minted Merch Shop`,
         description: 'Shop crypto merch with USDC on Base',
         images: [ogImageUrl],
       },
-      metadataBase: new URL(baseUrl),
-      alternates: {
-        canonical: productUrl,
-      },
-      // Try the other property approach for fc:frame
       other: {
         'fc:frame': JSON.stringify(frameEmbed),
       },
     };
-
-    console.log('Generated metadata:', JSON.stringify(metadata, null, 2));
-    console.log('=== METADATA GENERATION SUCCESS ===');
-    
-    return metadata;
   } catch (error) {
-    console.error('=== METADATA GENERATION ERROR ===');
-    console.error('Error details:', error);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    
-    // Fallback metadata
-    const fallbackMetadata = {
+    // Simple fallback
+    return {
       title: 'Minted Merch Shop',
       description: 'Shop crypto merch with USDC on Base',
       openGraph: {
-        title: 'Minted Merch Shop',
-        description: 'Shop crypto merch with USDC on Base',
-        images: [`${process.env.NEXT_PUBLIC_BASE_URL || 'https://mintedmerch.vercel.app'}/og-image.png`],
+        images: ['https://mintedmerch.vercel.app/og-image.png'],
       },
     };
-    
-    console.log('Using fallback metadata:', JSON.stringify(fallbackMetadata, null, 2));
-    console.log('=== METADATA GENERATION FALLBACK ===');
-    
-    return fallbackMetadata;
   }
 }
 
