@@ -209,8 +209,8 @@ export function CheckoutFlow() {
           },
           transactionHash: transactionHash,
           lineItems: cart.items.map(item => ({
-            title: item.title,
-            variantTitle: item.variantTitle,
+            title: item.product?.title || item.title || 'Unknown Item',
+            variantTitle: item.variant?.title || item.variantTitle,
             quantity: item.quantity,
             price: item.price
           })),
@@ -340,7 +340,7 @@ export function CheckoutFlow() {
                     <h3 className="font-medium">Order Summary</h3>
                     {cart.items.map((item) => (
                       <div key={item.key} className="flex justify-between text-sm">
-                        <span>{item.title} {item.variantTitle && `(${item.variantTitle})`} × {item.quantity}</span>
+                        <span>{item.product?.title || item.title} {item.variant?.title && `(${item.variant.title})`} × {item.quantity}</span>
                         <span>${(item.price * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
@@ -409,7 +409,7 @@ export function CheckoutFlow() {
                     <h3 className="font-medium">Order Summary</h3>
                     {cart.items.map((item) => (
                       <div key={item.key} className="flex justify-between text-sm">
-                        <span>{item.title} {item.variantTitle && `(${item.variantTitle})`} × {item.quantity}</span>
+                        <span>{item.product?.title || item.title} {item.variant?.title && `(${item.variant.title})`} × {item.quantity}</span>
                         <span>${(item.price * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
