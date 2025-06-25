@@ -270,6 +270,55 @@ export function CheckoutFlow() {
     resetPayment();
   };
 
+  // Share order success function
+  const handleShareOrder = async () => {
+    if (!orderDetails) return;
+
+    const { isInFarcaster } = useFarcaster();
+
+    if (!isInFarcaster) {
+      // Fallback for non-Farcaster environments
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Order Confirmed - Minted Merch',
+            text: `🎉 Just bought crypto merch with USDC! Order ${orderDetails.name}`,
+            url: window.location.origin,
+          });
+        } catch (err) {
+          console.log('Error sharing:', err);
+        }
+      } else {
+        // Copy link to clipboard
+        try {
+          await navigator.clipboard.writeText(`🎉 Just bought crypto merch with USDC! Order ${orderDetails.name} - ${window.location.origin}`);
+          alert('Order details copied to clipboard!');
+        } catch (err) {
+          console.log('Error copying to clipboard:', err);
+        }
+      }
+      return;
+    }
+
+    // Farcaster sharing
+    try {
+      const shareText = `🎉 Just bought crypto merch with USDC!\n\nOrder ${orderDetails.name} for $${orderDetails.total.amount} confirmed ✅\n\nInstant payments on Base 🔵 Shop now:\n${window.location.origin}`;
+      
+      // Open Warpcast composer with the share text
+      const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}`;
+      window.open(warpcastUrl, '_blank');
+    } catch (error) {
+      console.error('Error sharing order:', error);
+      // Fallback to copying link
+      try {
+        await navigator.clipboard.writeText(`🎉 Just bought crypto merch with USDC! Order ${orderDetails.name} - ${window.location.origin}`);
+        alert('Order details copied to clipboard!');
+      } catch (err) {
+        console.log('Error copying to clipboard:', err);
+      }
+    }
+  };
+
   const handleShippingMethodSelect = (shippingMethod) => {
     updateSelectedShipping(shippingMethod);
   };
@@ -705,6 +754,17 @@ export function CheckoutFlow() {
                   </div>
 
                   <div className="space-y-2">
+                    {/* Share Order Button */}
+                    <button
+                      onClick={handleShareOrder}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+                      </svg>
+                      <span>Share My Purchase</span>
+                    </button>
+                    
                     <button
                       onClick={handleContinueShopping}
                       className="w-full bg-[#3eb489] hover:bg-[#359970] text-white font-medium py-3 px-4 rounded-lg transition-colors"

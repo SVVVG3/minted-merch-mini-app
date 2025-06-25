@@ -1,96 +1,77 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import { ProductDetail } from '@/components/ProductDetail';
 import { CheckoutFlow } from '@/components/CheckoutFlow';
 import { ErrorMessage } from '@/components/ErrorMessage';
+import { ProductPageClient } from './ProductPageClient';
 
-export default function ProductPage() {
-  const { handle } = useParams();
-  const [product, setProduct] = useState(null);
-  const [selectedVariant, setSelectedVariant] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [checkoutData, setCheckoutData] = useState(null);
-  const [showCheckout, setShowCheckout] = useState(false);
-
-  useEffect(() => {
-    fetchProduct();
-  }, [handle]);
-
-  const fetchProduct = async () => {
-    try {
-      const response = await fetch(`/api/shopify/products?handle=${handle}`);
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error('Failed to load product');
-      }
-      
-      setProduct(data);
-      
-      if (data.variants?.edges?.length > 0) {
-        setSelectedVariant(data.variants.edges[0].node);
-      }
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      setError('Failed to load product. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleBuyNow = () => {
-    if (!selectedVariant) return;
-    
-    setCheckoutData({
-      product: product,
-      variant: selectedVariant,
-      quantity: 1
+// Generate metadata for sharing
+export async function generateMetadata({ params }) {
+  const { handle } = params;
+  
+  try {
+    // Fetch product data for meta tags
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mintedmerch.vercel.app';
+    const response = await fetch(`${baseUrl}/api/shopify/products?handle=${handle}`, {
+      cache: 'no-store' // Ensure fresh data for sharing
     });
-    setShowCheckout(true);
-  };
+    
+    if (!response.ok) {
+      throw new Error('Product not found');
+    }
+    
+    const product = await response.json();
+    const mainImage = product.images?.edges?.[0]?.node;
+    const price = product.priceRange?.minVariantPrice?.amount || '0';
+    
+    // Create frame embed for Farcaster sharing
+    const frameEmbed = {
+      version: "next",
+      imageUrl: `${baseUrl}/api/og/product?handle=${handle}`,
+      button: {
+        title: `🛒 Buy ${product.title} - $${price}`,
+        action: {
+          type: "launch_frame",
+          url: `${baseUrl}/product/${handle}`,
+          name: "Minted Merch Shop",
+          splashImageUrl: `${baseUrl}/splash.png`,
+          splashBackgroundColor: "#000000"
+        }
+      }
+    };
 
-  if (loading) {
-    return (
+    return {
+      title: `${product.title} - Minted Merch Shop`,
+      description: product.description || `Buy ${product.title} for $${price} USDC on Base`,
+      openGraph: {
+        title: product.title,
+        description: product.description || `Buy ${product.title} for $${price} USDC`,
+        images: [mainImage?.url || `${baseUrl}/og-image.png`],
+        url: `${baseUrl}/product/${handle}`,
+      },
+      other: {
+        'fc:frame': JSON.stringify(frameEmbed)
+      }
+    };
+  } catch (error) {
+    console.error('Error generating metadata:', error);
+    return {
+      title: 'Product - Minted Merch Shop',
+      description: 'Shop crypto merch with USDC on Base'
+    };
+  }
+}
+
+export default function ProductPage({ params }) {
+  return (
+    <Suspense fallback={
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p className="text-gray-500">Loading...</p>
       </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <ErrorMessage message={error} type="error" />
-      </div>
-    );
-  }
-
-  if (!product) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Product not found</p>
-      </div>
-    );
-  }
-
-  if (showCheckout) {
-    return (
-      <CheckoutFlow 
-        checkoutData={checkoutData} 
-        onBack={() => setShowCheckout(false)}
-      />
-    );
-  }
-
-  return (
-    <ProductDetail
-      product={product}
-      selectedVariant={selectedVariant}
-      onVariantChange={setSelectedVariant}
-      onBuyNow={handleBuyNow}
-    />
+    }>
+      <ProductPageClient handle={params.handle} />
+    </Suspense>
   );
 }

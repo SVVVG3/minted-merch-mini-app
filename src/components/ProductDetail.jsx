@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { VariantSelector } from './VariantSelector';
 import { useCart } from '@/lib/CartContext';
+import { useFarcaster } from '@/lib/useFarcaster';
 import { Cart } from './Cart';
 
 export function ProductDetail({ 
@@ -13,6 +14,7 @@ export function ProductDetail({
   onBuyNow 
 }) {
   const { addItem, isInCart, getItemQuantity, itemCount, cartTotal } = useCart();
+  const { isInFarcaster } = useFarcaster();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const mainImage = product.images?.edges?.[0]?.node;
   const price = selectedVariant?.price?.amount || product.priceRange?.minVariantPrice?.amount || '0';
@@ -29,6 +31,52 @@ export function ProductDetail({
 
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);
+
+  // Share product function
+  const handleShareProduct = async () => {
+    if (!isInFarcaster) {
+      // Fallback for non-Farcaster environments
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `${product.title} - Minted Merch`,
+            text: `Check out this ${product.title} for $${price} USDC!`,
+            url: window.location.href,
+          });
+        } catch (err) {
+          console.log('Error sharing:', err);
+        }
+      } else {
+        // Copy link to clipboard
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          alert('Link copied to clipboard!');
+        } catch (err) {
+          console.log('Error copying to clipboard:', err);
+        }
+      }
+      return;
+    }
+
+    // Farcaster sharing
+    try {
+      const currentUrl = window.location.href;
+      const shareText = `🛒 Check out this ${product.title} for $${price} USDC!\n\nShop crypto merch with instant payments on Base 🔵\n\n${currentUrl}`;
+      
+      // Open Warpcast composer with the share text
+      const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}`;
+      window.open(warpcastUrl, '_blank');
+    } catch (error) {
+      console.error('Error sharing product:', error);
+      // Fallback to copying link
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        alert('Link copied to clipboard!');
+      } catch (err) {
+        console.log('Error copying to clipboard:', err);
+      }
+    }
+  };
 
   // Helper function to format product description with line breaks and styling
   const formatDescription = (description, descriptionHtml) => {
@@ -172,30 +220,43 @@ export function ProductDetail({
             </h1>
           </div>
           
-          {/* Cart Button */}
-          <button
-            onClick={openCart}
-            className="flex items-center space-x-2 bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-2 rounded-lg transition-colors"
-            title="Open Cart"
-          >
-            <div className="relative">
+          <div className="flex items-center space-x-2">
+            {/* Share Button */}
+            <button
+              onClick={handleShareProduct}
+              className="flex items-center justify-center w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+              title="Share Product"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5-6M20 13v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
               </svg>
-              
-              {/* Item Count Badge */}
+            </button>
+
+            {/* Cart Button */}
+            <button
+              onClick={openCart}
+              className="flex items-center space-x-2 bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-2 rounded-lg transition-colors"
+              title="Open Cart"
+            >
+              <div className="relative">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5-6M20 13v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6" />
+                </svg>
+                
+                {/* Item Count Badge */}
+                {itemCount > 0 && (
+                  <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                    {itemCount > 99 ? '99+' : itemCount}
+                  </div>
+                )}
+              </div>
               {itemCount > 0 && (
-                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center">
-                  {itemCount > 99 ? '99+' : itemCount}
-                </div>
+                <span className="text-sm font-medium">
+                  ${cartTotal.toFixed(2)}
+                </span>
               )}
-            </div>
-            {itemCount > 0 && (
-              <span className="text-sm font-medium">
-                ${cartTotal.toFixed(2)}
-              </span>
-            )}
-          </button>
+            </button>
+          </div>
         </div>
       </header>
 
