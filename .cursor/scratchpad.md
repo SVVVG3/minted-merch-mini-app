@@ -124,9 +124,12 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 
 **Latest Fix Applied (Just Deployed)**:
 - **Issue**: Payment connector errors causing `"r.connector.getChainId is not a function"`
-- **Root Cause**: Over-engineered connector validation and state management
-- **Solution**: Simplified USDC payment hook to follow exact Wagmi documentation pattern
-- **Status**: Simplified approach deployed, ready for testing
+- **Root Cause**: Version conflicts in viem dependencies and non-standard writeContract call
+- **Solution**: 
+  - ✅ Fixed viem version conflicts with package overrides (all packages now use viem@2.31.4)
+  - ✅ Updated writeContract call to use explicit address/abi properties matching exact Wagmi docs
+  - ✅ Simplified USDC payment hook following official Wagmi documentation pattern
+- **Status**: Version conflicts resolved and exact Wagmi pattern implemented, ready for testing
 
 **Next Steps**: 
 1. **Test Complete Flow**: User should test the full checkout process again

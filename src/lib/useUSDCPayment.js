@@ -14,7 +14,8 @@ export function useUSDCPayment() {
     isLoading: isLoadingBalance, 
     refetch: refetchBalance 
   } = useReadContract({
-    ...USDC_CONTRACT,
+    address: USDC_CONTRACT.address,
+    abi: USDC_CONTRACT.abi,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
     enabled: !!address && isConnected,
