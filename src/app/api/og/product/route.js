@@ -11,17 +11,106 @@ export async function GET(request) {
       throw new Error('Product handle is required');
     }
 
-    // Fetch product data
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mintedmerch.vercel.app';
-    const response = await fetch(`${baseUrl}/api/shopify/products?handle=${handle}`);
-    
+    // Fetch product data from Shopify
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SHOPIFY_STORE_URL}/api/2023-10/graphql.json`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Storefront-Access-Token': process.env.NEXT_PUBLIC_SHOPIFY_STOREFRONT_ACCESS_TOKEN,
+      },
+      body: JSON.stringify({
+        query: `
+          query getProduct($handle: String!) {
+            product(handle: $handle) {
+              title
+              description
+              priceRange {
+                minVariantPrice {
+                  amount
+                }
+              }
+              images(first: 1) {
+                edges {
+                  node {
+                    url
+                    altText
+                  }
+                }
+              }
+            }
+          }
+        `,
+        variables: { handle },
+      }),
+    });
+
     if (!response.ok) {
+      throw new Error('Failed to fetch product');
+    }
+
+    const { data } = await response.json();
+    const product = data.product;
+
+    if (!product) {
       throw new Error('Product not found');
     }
 
-    const product = await response.json();
     const mainImage = product.images?.edges?.[0]?.node;
     const price = product.priceRange?.minVariantPrice?.amount || '0';
+
+    // Try to load and validate the external image
+    let imageElement = null;
+    let imageLoadedSuccessfully = false;
+    
+    if (mainImage?.url) {
+      try {
+        // Test if the image is accessible
+        const imageResponse = await fetch(mainImage.url, { 
+          method: 'HEAD',
+          signal: AbortSignal.timeout(3000) // 3 second timeout
+        });
+        
+        if (imageResponse.ok) {
+          imageElement = (
+            <img
+              src={mainImage.url}
+              alt={product.title}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          );
+          imageLoadedSuccessfully = true;
+        }
+      } catch (error) {
+        console.log('External image failed to load:', error);
+        // Will fall back to placeholder
+      }
+    }
+
+    // Fallback to placeholder if no image or image failed to load
+    if (!imageElement) {
+      imageElement = (
+        <div
+          style={{
+            fontSize: '24px',
+            color: '#666',
+            fontWeight: '600',
+            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            gap: '10px',
+          }}
+        >
+          <div style={{ fontSize: '48px' }}>🛒</div>
+          <div>{product.title}</div>
+        </div>
+      );
+    }
 
     return new ImageResponse(
       (
@@ -80,28 +169,7 @@ export async function GET(request) {
                 backgroundColor: '#fff',
               }}
             >
-              {mainImage?.url ? (
-                <img
-                  src={mainImage.url}
-                  alt={product.title}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    fontSize: '24px',
-                    color: '#666',
-                    fontWeight: '600',
-                    textAlign: 'center',
-                  }}
-                >
-                  🛒 {product.title}
-                </div>
-              )}
+              {imageElement}
             </div>
 
             {/* Product Info */}
@@ -213,14 +281,17 @@ export async function GET(request) {
         width: 1200,
         height: 800,
         headers: {
-          'Cache-Control': 'public, immutable, no-transform, max-age=300',
+          // Use shorter cache time if image failed to load
+          'Cache-Control': imageLoadedSuccessfully 
+            ? 'public, immutable, no-transform, max-age=300'
+            : 'public, immutable, no-transform, max-age=60',
         },
       },
     );
   } catch (error) {
     console.error('Error generating product OG image:', error);
     
-    // Return a fallback image
+    // Return a fallback image with short cache time
     return new ImageResponse(
       (
         <div
@@ -246,6 +317,10 @@ export async function GET(request) {
       {
         width: 1200,
         height: 800,
+        headers: {
+          // Short cache time for error images
+          'Cache-Control': 'public, immutable, no-transform, max-age=30',
+        },
       },
     );
   }
