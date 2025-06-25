@@ -1,38 +1,24 @@
 import { Suspense } from 'react';
 import { ProductPageClient } from './ProductPageClient';
+import { getProductByHandle } from '@/lib/shopify';
 
 // Generate metadata for sharing
 export async function generateMetadata({ params, searchParams }) {
   const { handle } = params;
   
   try {
-    // Fetch product data for meta tags
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mintedmerch.vercel.app';
-    const apiUrl = `${baseUrl}/api/shopify/products?handle=${handle}`;
-    
     console.log('Generating metadata for handle:', handle);
-    console.log('API URL:', apiUrl);
     console.log('searchParams:', searchParams);
     
-    const response = await fetch(apiUrl, {
-      cache: 'no-store' // Ensure fresh data for sharing
-    });
-    
-    console.log('Response status:', response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API response error:', errorText);
-      throw new Error(`Product not found: ${response.status}`);
-    }
-    
-    const product = await response.json();
+    // Call Shopify directly instead of making HTTP request
+    const product = await getProductByHandle(handle);
     console.log('Product fetched:', product.title);
     
     const mainImage = product.images?.edges?.[0]?.node;
     const price = product.priceRange?.minVariantPrice?.amount || '0';
 
     // Build query string for cache-busting and other parameters
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mintedmerch.vercel.app';
     const queryString = searchParams ? new URLSearchParams(searchParams).toString() : '';
     const ogImageUrl = `${baseUrl}/api/og/product?handle=${handle}${queryString ? `&${queryString}` : ''}`;
     const productUrl = `${baseUrl}/product/${handle}${queryString ? `?${queryString}` : ''}`;
