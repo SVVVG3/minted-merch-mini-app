@@ -8,15 +8,27 @@ export async function generateMetadata({ params, searchParams }) {
   try {
     // Fetch product data for meta tags
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mintedmerch.vercel.app';
-    const response = await fetch(`${baseUrl}/api/shopify/products?handle=${handle}`, {
+    const apiUrl = `${baseUrl}/api/shopify/products?handle=${handle}`;
+    
+    console.log('Generating metadata for handle:', handle);
+    console.log('API URL:', apiUrl);
+    console.log('searchParams:', searchParams);
+    
+    const response = await fetch(apiUrl, {
       cache: 'no-store' // Ensure fresh data for sharing
     });
     
+    console.log('Response status:', response.status);
+    
     if (!response.ok) {
-      throw new Error('Product not found');
+      const errorText = await response.text();
+      console.error('API response error:', errorText);
+      throw new Error(`Product not found: ${response.status}`);
     }
     
     const product = await response.json();
+    console.log('Product fetched:', product.title);
+    
     const mainImage = product.images?.edges?.[0]?.node;
     const price = product.priceRange?.minVariantPrice?.amount || '0';
 
@@ -24,6 +36,9 @@ export async function generateMetadata({ params, searchParams }) {
     const queryString = searchParams ? new URLSearchParams(searchParams).toString() : '';
     const ogImageUrl = `${baseUrl}/api/og/product?handle=${handle}${queryString ? `&${queryString}` : ''}`;
     const productUrl = `${baseUrl}/product/${handle}${queryString ? `?${queryString}` : ''}`;
+
+    console.log('OG Image URL:', ogImageUrl);
+    console.log('Product URL:', productUrl);
 
     // Create Mini App embed for sharing
     const frameEmbed = {
@@ -41,7 +56,7 @@ export async function generateMetadata({ params, searchParams }) {
       }
     };
 
-    return {
+    const metadata = {
       title: `${product.title} - Minted Merch Shop`,
       description: product.description || `Buy ${product.title} for $${price} USDC on Base`,
       openGraph: {
@@ -56,8 +71,12 @@ export async function generateMetadata({ params, searchParams }) {
         'og:image': ogImageUrl,
       }
     };
+
+    console.log('Generated metadata successfully');
+    return metadata;
   } catch (error) {
     console.error('Error generating metadata:', error);
+    console.error('Error stack:', error.stack);
     return {
       title: 'Product - Minted Merch Shop',
       description: 'Shop crypto merch with USDC on Base'
