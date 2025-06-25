@@ -274,13 +274,27 @@ export function CheckoutFlow() {
   const handleShareOrder = async () => {
     if (!orderDetails) return;
 
+    // Get product names from cart items
+    const productNames = cart.items.map(item => {
+      const productName = item.product?.title || item.title;
+      const variantName = item.variant?.title && item.variant.title !== 'Default Title' ? item.variant.title : '';
+      const quantity = item.quantity > 1 ? ` (${item.quantity}x)` : '';
+      return variantName ? `${productName} (${variantName})${quantity}` : `${productName}${quantity}`;
+    });
+    
+    const productText = productNames.length === 1 
+      ? productNames[0]
+      : productNames.length === 2
+        ? `${productNames[0]} and ${productNames[1]}`
+        : `${productNames.slice(0, -1).join(', ')}, and ${productNames[productNames.length - 1]}`;
+
     if (!isInFarcaster) {
       // Fallback for non-Farcaster environments
       if (navigator.share) {
         try {
           await navigator.share({
             title: 'Order Confirmed - Minted Merch',
-            text: `🎉 Just bought crypto merch with USDC! Order ${orderDetails.name}`,
+            text: `🎉 Just bought a ${productText} with USDC! Order #${orderDetails.name} for ${orderDetails.total.amount} confirmed ✅ Shop on /mintedmerch - pay on Base 🔵`,
             url: window.location.origin,
           });
         } catch (err) {
@@ -289,7 +303,7 @@ export function CheckoutFlow() {
       } else {
         // Copy link to clipboard
         try {
-          await navigator.clipboard.writeText(`🎉 Just bought crypto merch with USDC! Order ${orderDetails.name} - ${window.location.origin}`);
+          await navigator.clipboard.writeText(`🎉 Just bought a ${productText} with USDC! Order #${orderDetails.name} for ${orderDetails.total.amount} confirmed ✅ Shop on /mintedmerch - pay on Base 🔵 - ${window.location.origin}`);
           alert('Order details copied to clipboard!');
         } catch (err) {
           console.log('Error copying to clipboard:', err);
@@ -300,14 +314,16 @@ export function CheckoutFlow() {
 
     // Farcaster sharing using SDK composeCast action
     try {
-      const shareText = `🎉 Just bought crypto merch with USDC!\n\nOrder ${orderDetails.name} for $${orderDetails.total.amount} confirmed ✅\n\nShop on /mintedmerch - pay on Base 🔵`;
-      const shareUrl = `${window.location.origin}/api/og/order?order=${encodeURIComponent(orderDetails.name)}&total=${orderDetails.total.amount}`;
+      const shareText = `🎉 Just bought a ${productText} with USDC!\n\nOrder #${orderDetails.name} for ${orderDetails.total.amount} confirmed ✅\n\nShop on /mintedmerch - pay on Base 🔵`;
+      
+      // Use main app URL for Mini App embed instead of dynamic OG image
+      const appUrl = window.location.origin;
       
       // Use the Farcaster SDK composeCast action
       const { sdk } = await import('../lib/frame');
       const result = await sdk.actions.composeCast({
         text: shareText,
-        embeds: [shareUrl],
+        embeds: [appUrl],
       });
       
       console.log('Order cast composed:', result);
@@ -315,7 +331,7 @@ export function CheckoutFlow() {
       console.error('Error sharing order:', error);
       // Fallback to copying link
       try {
-        await navigator.clipboard.writeText(`🎉 Just bought crypto merch with USDC! Order ${orderDetails.name} - ${window.location.origin}`);
+        await navigator.clipboard.writeText(`🎉 Just bought a ${productText} with USDC! Order #${orderDetails.name} for ${orderDetails.total.amount} confirmed ✅ Shop on /mintedmerch - pay on Base 🔵 - ${window.location.origin}`);
         alert('Order details copied to clipboard!');
       } catch (err) {
         console.log('Error copying to clipboard:', err);
