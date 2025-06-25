@@ -2,6 +2,9 @@
   "name": "shopify-mini-app-frame",
   "version": "0.1.0",
   "private": true,
+  "overrides": {
+    "viem": "^2.31.4"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
