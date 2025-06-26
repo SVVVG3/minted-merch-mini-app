@@ -5,10 +5,12 @@ export async function POST(request) {
   try {
     const body = await request.json();
     
-    // Log the webhook event for debugging
+    // Enhanced logging for debugging
     console.log('=== FARCASTER WEBHOOK RECEIVED ===');
     console.log('Timestamp:', new Date().toISOString());
+    console.log('Headers:', Object.fromEntries(request.headers.entries()));
     console.log('Event:', JSON.stringify(body, null, 2));
+    console.log('=== END WEBHOOK DATA ===');
 
     // Handle different webhook events
     switch (body.type) {
@@ -31,16 +33,21 @@ export async function POST(request) {
     // Return success response
     return NextResponse.json({ 
       success: true,
-      message: 'Webhook processed successfully'
+      message: 'Webhook processed successfully',
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {
-    console.error('Webhook error:', error);
+    console.error('=== WEBHOOK ERROR ===');
+    console.error('Timestamp:', new Date().toISOString());
+    console.error('Error:', error);
+    console.error('=== END WEBHOOK ERROR ===');
     
     return NextResponse.json(
       { 
         success: false, 
-        error: 'Failed to process webhook' 
+        error: 'Failed to process webhook',
+        timestamp: new Date().toISOString()
       },
       { status: 500 }
     );
