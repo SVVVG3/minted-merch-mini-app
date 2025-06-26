@@ -13,6 +13,6 @@
     "buttonTitle": "Shop Now 📦",
     "splashImageUrl": "https://mintedmerch.vercel.app/splash.png",
     "splashBackgroundColor": "#f7f7f7",
-    "webhookUrl": "https://mintedmerch.vercel.app/api/webhook"
+    "webhookUrl": "https://api.neynar.com/f/app/11f2fe11-b70c-40fa-b653-9770b7588bdf/event"
   }
 } 
