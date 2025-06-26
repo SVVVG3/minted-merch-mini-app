@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createOrUpdateProfile, enableNotifications, disableNotifications } from '@/lib/supabase';
-import { sendWelcomeForNewUser } from '@/lib/neynar';
+import { createOrUpdateUserProfile, getUserProfile } from '@/lib/supabase';
+import { sendWelcomeNotification } from '@/lib/neynar';
 
 export async function POST(request) {
   try {
@@ -50,11 +50,12 @@ async function handleFarcasterEvent(body, userFid) {
         console.log('📱 User added Mini App');
         
         // Create/update user profile (we may not have full user data from webhook)
-        const profileResult = await createOrUpdateProfile(userFid, {
+        const profileResult = await createOrUpdateUserProfile({
+          fid: userFid,
           username: `user_${userFid}`, // Fallback username
-          displayName: null,
+          display_name: null,
           bio: null,
-          pfpUrl: null
+          pfp_url: null
         });
 
         if (!profileResult.success) {
@@ -64,104 +65,92 @@ async function handleFarcasterEvent(body, userFid) {
 
         console.log('✅ Profile created/updated:', profileResult.profile);
 
-        // If notification details are provided, enable notifications
+        // If notification details are provided, this means they added with notifications enabled
         if (notificationDetails && notificationDetails.token) {
-          console.log('🔔 Enabling notifications with token from webhook');
+          console.log('🔔 User added Mini App with notifications enabled!');
+          console.log('Notification token provided by Farcaster:', notificationDetails.token);
           
-          const notificationResult = await enableNotifications(
-            userFid,
-            notificationDetails.token,
-            notificationDetails.url
-          );
-
-          if (notificationResult.success) {
-            console.log('✅ Notifications enabled successfully');
+          // Send welcome notification immediately since they just enabled notifications
+          try {
+            console.log('Sending welcome notification for new Mini App add with notifications...');
+            const welcomeResult = await sendWelcomeNotification(userFid);
+            console.log('Welcome notification result:', welcomeResult);
             
-            // Send welcome notification
-            try {
-              const welcomeResult = await sendWelcomeForNewUser(userFid);
-              console.log('Welcome notification result:', welcomeResult);
-            } catch (welcomeError) {
-              console.error('Failed to send welcome notification:', welcomeError);
-            }
-          } else {
-            console.error('Failed to enable notifications:', notificationResult.error);
+            return NextResponse.json({ 
+              success: true, 
+              message: 'Mini App added with notifications enabled',
+              profileCreated: true,
+              notificationsEnabled: true,
+              welcomeNotificationSent: welcomeResult.success
+            });
+          } catch (welcomeError) {
+            console.error('Failed to send welcome notification:', welcomeError);
+            return NextResponse.json({ 
+              success: true, 
+              message: 'Mini App added with notifications enabled, but welcome notification failed',
+              profileCreated: true,
+              notificationsEnabled: true,
+              welcomeNotificationError: welcomeError.message
+            });
           }
+        } else {
+          console.log('📱 User added Mini App without notifications');
+          return NextResponse.json({ 
+            success: true, 
+            message: 'Mini App added successfully (no notifications)',
+            profileCreated: true,
+            notificationsEnabled: false
+          });
         }
 
-        return NextResponse.json({ 
-          success: true, 
-          message: 'Mini App added successfully',
-          profileCreated: true,
-          notificationsEnabled: !!notificationDetails?.token
-        });
-
       case 'notifications_enabled':
-        console.log('🔔 User enabled notifications');
+        console.log('🔔 User enabled notifications for existing Mini App');
         
         if (!notificationDetails || !notificationDetails.token) {
           console.error('No notification details provided');
           return NextResponse.json({ success: false, error: 'No notification token provided' });
         }
 
-        const enableResult = await enableNotifications(
-          userFid,
-          notificationDetails.token,
-          notificationDetails.url
-        );
-
-        if (enableResult.success) {
-          console.log('✅ Notifications enabled successfully');
-          
-          // Send welcome notification for newly enabled notifications
-          try {
-            const welcomeResult = await sendWelcomeForNewUser(userFid);
-            console.log('Welcome notification result:', welcomeResult);
-          } catch (welcomeError) {
-            console.error('Failed to send welcome notification:', welcomeError);
-          }
+        console.log('Notification token provided by Farcaster:', notificationDetails.token);
+        
+        // Send welcome notification since they just enabled notifications
+        try {
+          console.log('Sending welcome notification for newly enabled notifications...');
+          const welcomeResult = await sendWelcomeNotification(userFid);
+          console.log('Welcome notification result:', welcomeResult);
           
           return NextResponse.json({ 
             success: true, 
             message: 'Notifications enabled successfully',
-            welcomeNotificationSent: true
+            welcomeNotificationSent: welcomeResult.success
           });
-        } else {
-          console.error('Failed to enable notifications:', enableResult.error);
-          return NextResponse.json({ success: false, error: 'Failed to enable notifications' });
+        } catch (welcomeError) {
+          console.error('Failed to send welcome notification:', welcomeError);
+          return NextResponse.json({ 
+            success: true, 
+            message: 'Notifications enabled, but welcome notification failed',
+            welcomeNotificationError: welcomeError.message
+          });
         }
 
       case 'notifications_disabled':
         console.log('🔕 User disabled notifications');
         
-        const disableResult = await disableNotifications(userFid);
-        
-        if (disableResult.success) {
-          console.log('✅ Notifications disabled successfully');
-          return NextResponse.json({ 
-            success: true, 
-            message: 'Notifications disabled successfully' 
-          });
-        } else {
-          console.error('Failed to disable notifications:', disableResult.error);
-          return NextResponse.json({ success: false, error: 'Failed to disable notifications' });
-        }
+        // No action needed - Neynar manages the token status
+        console.log('✅ Notification disable event received (Neynar manages token status)');
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Notifications disabled successfully' 
+        });
 
       case 'frame_removed':
         console.log('📱❌ User removed Mini App');
         
-        // Disable notifications when Mini App is removed
-        const removeResult = await disableNotifications(userFid);
-        
-        if (removeResult.success) {
-          console.log('✅ Notifications disabled due to Mini App removal');
-        } else {
-          console.error('Failed to disable notifications on removal:', removeResult.error);
-        }
-
+        // No action needed - Neynar manages the token status
+        console.log('✅ Mini App removal event received (Neynar manages token status)');
         return NextResponse.json({ 
           success: true, 
-          message: 'Mini App removed, notifications disabled' 
+          message: 'Mini App removed successfully' 
         });
 
       default:
@@ -187,18 +176,20 @@ async function handleFrameInteraction(body, userFid) {
   
   // For legacy frame interactions, just create/update profile
   try {
-    const profileResult = await createOrUpdateProfile(userFid, {
+    const profileResult = await createOrUpdateUserProfile({
+      fid: userFid,
       username: `user_${userFid}`,
-      displayName: null,
+      display_name: null,
       bio: null,
-      pfpUrl: null
+      pfp_url: null
     });
 
     if (profileResult.success) {
       console.log('✅ Profile created/updated for frame interaction');
       return NextResponse.json({ 
         success: true, 
-        message: 'Frame interaction processed' 
+        message: 'Frame interaction processed',
+        profileCreated: true
       });
     } else {
       console.error('Failed to create/update profile:', profileResult.error);
@@ -207,19 +198,17 @@ async function handleFrameInteraction(body, userFid) {
   } catch (error) {
     console.error('Error handling frame interaction:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to process frame interaction' },
+      { success: false, error: 'Failed to process interaction' },
       { status: 500 }
     );
   }
 }
 
-// Handle GET requests for webhook verification
+// GET endpoint for webhook verification
 export async function GET() {
   return NextResponse.json({ 
-    message: 'Minted Merch Farcaster webhook endpoint',
-    status: 'active',
-    timestamp: new Date().toISOString(),
-    expectedEvents: ['frame_added', 'frame_removed', 'notifications_enabled', 'notifications_disabled'],
-    features: ['supabase_integration', 'notification_token_storage', 'user_profile_management']
+    success: true, 
+    message: 'Minted Merch webhook endpoint is active',
+    timestamp: new Date().toISOString()
   });
 } 

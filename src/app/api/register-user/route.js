@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createOrUpdateUserProfile } from '@/lib/supabase';
-import { sendWelcomeForNewUser } from '@/lib/neynar';
 
 export async function POST(request) {
   try {
@@ -13,7 +12,7 @@ export async function POST(request) {
       );
     }
 
-    console.log('Registering user:', userFid, userData);
+    console.log('Registering user profile:', userFid, userData);
 
     // Create or update user profile in Supabase (without notification tokens)
     const profileResult = await createOrUpdateUserProfile({
@@ -34,21 +33,12 @@ export async function POST(request) {
 
     console.log('User profile created/updated successfully:', profileResult.profile);
 
-    // Try to send welcome notification (if user has notifications enabled in Neynar)
-    // This will gracefully fail if user hasn't enabled notifications yet
-    const welcomeResult = await sendWelcomeForNewUser(userFid);
-    
+    // Don't send welcome notification here - it should only be sent 
+    // when user adds Mini App with notifications via webhook
     return NextResponse.json({
       success: true,
-      message: 'User registered successfully',
-      profile: profileResult.profile,
-      welcomeNotification: {
-        attempted: true,
-        success: welcomeResult.success,
-        skipped: welcomeResult.skipped || false,
-        reason: welcomeResult.reason || null,
-        error: welcomeResult.error || null
-      }
+      message: 'User profile registered successfully',
+      profile: profileResult.profile
     });
 
   } catch (error) {
