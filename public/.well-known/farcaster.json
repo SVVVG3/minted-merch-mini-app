@@ -11,7 +11,7 @@
     "homeUrl": "https://mintedmerch.vercel.app",
     "splashImageUrl": "https://mintedmerch.vercel.app/splash.png",
     "splashBackgroundColor": "#000000",
-    "webhookUrl": "https://mintedmerch.vercel.app/api/webhook",
+    "webhookUrl": "https://api.neynar.com/f/app/11f2fe11-b70c-40fa-b653-9770b7588bdf/event",
     "buttonTitle": "Shop Now 📦",
     "subtitle": "Connect and share instantly",
     "description": "Apparel, accessories, and more! Designed after your favorite coins, communities, and NFTs - pay with USDC on Base!",

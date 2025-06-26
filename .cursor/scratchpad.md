@@ -11,6 +11,14 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - Shopify order creation ✅ **WORKING**
 - Enhanced UX features ✅ **COMPLETED**
 - Viral sharing functionality ✅ **WORKING**
+- **Neynar notification system** 🎯 **NEW FEATURE REQUEST**
+
+**New Feature - Neynar Notifications**: Implement a comprehensive notification system through Neynar to enhance user engagement and provide real-time updates about their mini app interactions, order status, and shipping updates.
+
+**Notification Types to Implement**:
+1. **Welcome Notifications**: Send greeting when users add the mini app
+2. **Order Confirmation**: Send notification with order number when users complete purchases
+3. **Shipping Updates**: Send tracking notifications when orders are shipped
 
 ## Key Challenges and Analysis
 
@@ -22,6 +30,42 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - **Google Maps Migration**: ✅ **COMPLETED** - Migrated to new PlaceAutocompleteElement API
 - **UX Improvements**: ✅ **COMPLETED** - Fixed Google Maps clearing user data and "(Default Title)" display issues
 - **Viral Sharing System**: ✅ **WORKING** - Both product and order sharing with proper Mini App embeds and improved messaging
+- **Neynar Notification Integration**: 🎯 **NEW CHALLENGE** - Setting up comprehensive notification system
+
+### NEW CHALLENGE: Neynar Notification System Implementation
+
+**Key Technical Challenges**:
+
+1. **Webhook Configuration**: 
+   - Current webhook URL: `https://mintedmerch.vercel.app/api/webhook`
+   - Need to update to Neynar webhook URL: `https://api.neynar.com/f/app/11f2fe11-b70c-40fa-b653-9770b7588bdf/event`
+   - Update Farcaster manifest to route Mini App events through Neynar
+
+2. **Neynar SDK Integration**:
+   - No existing Neynar dependencies in package.json
+   - Need to install `@neynar/nodejs-sdk` or `@neynar/react`
+   - Configure Neynar API credentials and client ID
+
+3. **Notification Trigger Points**:
+   - **Welcome Notifications**: Hook into existing webhook handler for `app.added` events
+   - **Order Confirmation**: Integrate with existing order creation flow in `CheckoutFlow.jsx`
+   - **Shipping Updates**: Create new fulfillment webhook/API for when orders are marked as shipped
+
+4. **User Permission Management**:
+   - Need to prompt users to add mini app and enable notifications
+   - Implement Neynar's `addMiniApp()` flow for notification permission
+   - Handle notification permission revokes automatically
+
+5. **Notification Content Strategy**:
+   - Design engaging notification messages with proper emojis and branding
+   - Include actionable information (order numbers, tracking numbers)
+   - Maintain consistent brand voice matching existing viral sharing
+
+6. **Integration Points Analysis**:
+   - **Current Order Flow**: Order creation happens in `src/app/api/shopify/orders/route.js`
+   - **Current Webhook Handler**: Basic event logging in `src/app/api/webhook/route.js`
+   - **Current Farcaster Integration**: Uses `@farcaster/frame-sdk` for Mini App context
+   - **Shipping/Fulfillment**: `fulfillOrder()` function exists in `src/lib/shopifyAdmin.js`
 
 ### RESOLVED: Complete Viral Sharing System ✅ **WORKING**
 
@@ -178,9 +222,104 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - [x] **Task 29**: Implement cross-platform sharing logic ✅ COMPLETED
 - [x] **Task 30**: Fix Mini App embed generation following official docs ✅ COMPLETED
 
+### Phase 9 — Neynar Notification System 🎯 **NEW PHASE**
+
+**Task 31: Setup Neynar SDK and authentication** 🎯
+- **Objective**: Install and configure Neynar SDK with proper API credentials
+- **Actions**:
+  - Install `@neynar/nodejs-sdk` for server-side notifications
+  - Install `@neynar/react` for client-side Mini App interactions
+  - Add `NEYNAR_API_KEY` to environment variables
+  - Create Neynar client configuration in `src/lib/neynar.js`
+  - Test API connectivity with basic user lookup
+- **Success Criteria**: Neynar client can authenticate and make API calls successfully
+- **Integration Points**: Environment configuration, new SDK setup
+
+**Task 32: Update Farcaster manifest with Neynar webhook URL** 🎯
+- **Objective**: Route Mini App events through Neynar for notification management
+- **Actions**:
+  - Update `public/.well-known/farcaster.json` manifest
+  - Change `webhookUrl` from current to `https://api.neynar.com/f/app/11f2fe11-b70c-40fa-b653-9770b7588bdf/event`
+  - Test webhook URL in Farcaster dev tools
+  - Update frame version to latest (4.2.0)
+  - Verify Mini App still loads correctly
+- **Success Criteria**: Farcaster routes Mini App events to Neynar webhook, events appear in Neynar dashboard
+- **Integration Points**: Farcaster manifest, webhook routing
+
+**Task 33: Implement Mini App add/notification permission prompt** 🎯
+- **Objective**: Guide users to add Mini App and enable notifications
+- **Actions**:
+  - Install and setup `MiniAppProvider` context wrapper
+  - Add `useMiniApp` hook to detect app installation status
+  - Create "Add to Farcaster" prompt component for non-installed users
+  - Implement `addMiniApp()` flow with notification permission request
+  - Handle notification permission approval/denial gracefully
+  - Add visual indicators for notification status
+- **Success Criteria**: Users can add Mini App and enable notifications in one flow
+- **Integration Points**: React context, HomePage component, user experience flow
+
+**Task 34: Create welcome notification system** 🎯
+- **Objective**: Send personalized welcome notification when users add the Mini App
+- **Actions**:
+  - Create notification content template for welcome messages
+  - Test notification delivery using Neynar dev portal
+  - Implement server-side notification sending logic
+  - Design welcome notification with proper branding and call-to-action
+  - Test notification appears correctly in Farcaster client
+- **Success Criteria**: New users receive welcome notification immediately after adding Mini App
+- **Integration Points**: Neynar webhook events, notification content management
+
+**Task 35: Implement order confirmation notifications** 🎯
+- **Objective**: Send notification with order number when users complete purchases
+- **Actions**:
+  - Identify order creation success point in `CheckoutFlow.jsx`
+  - Extract user FID from Farcaster context during checkout
+  - Create order confirmation notification template with order number and total
+  - Integrate notification sending into `handlePaymentSuccess()` function
+  - Add error handling for notification failures
+  - Test end-to-end order confirmation flow
+- **Success Criteria**: Users receive order confirmation notification with order details after successful purchase
+- **Integration Points**: CheckoutFlow component, order creation API, Neynar notifications
+
+**Task 36: Build shipping/tracking notification system** 🎯
+- **Objective**: Send tracking notifications when orders are marked as shipped
+- **Actions**:
+  - Create API endpoint for order fulfillment updates (`/api/fulfillment`)
+  - Integrate with existing `fulfillOrder()` function in `shopifyAdmin.js`
+  - Store user FID mapping to order IDs for notification targeting
+  - Create shipping notification template with tracking information
+  - Implement Shopify webhook for fulfillment status changes (optional)
+  - Build manual fulfillment trigger for testing
+- **Success Criteria**: Users receive shipping notifications with tracking details when orders are fulfilled
+- **Integration Points**: Shopify fulfillment API, order-to-user mapping, notification delivery
+
+**Task 37: Test notification delivery and user experience** 🎯
+- **Objective**: Validate all notification types work correctly across different scenarios
+- **Actions**:
+  - Test welcome notifications for new Mini App installations
+  - Test order confirmation notifications with real order flow
+  - Test shipping notifications with mock fulfillment data
+  - Verify notifications appear correctly in Farcaster client
+  - Test notification click behavior and deep-linking
+  - Validate notification content formatting and branding
+- **Success Criteria**: All three notification types deliver consistently with proper content and functionality
+- **Integration Points**: Complete notification system, user testing
+
+**Task 38: Add notification analytics and monitoring** 🎯
+- **Objective**: Track notification performance and user engagement
+- **Actions**:
+  - Review Neynar analytics dashboard for notification metrics
+  - Implement logging for notification send attempts and failures
+  - Add notification open rate tracking if available
+  - Create monitoring alerts for notification delivery issues
+  - Document notification system for future maintenance
+- **Success Criteria**: Notification system has proper monitoring and analytics in place
+- **Integration Points**: Neynar analytics, system monitoring, documentation
+
 ## Project Status Board
 
 ### 🎯 **MVP Status: 100% COMPLETE** - All core functionality working including viral sharing
+### 🚀 **NEW FEATURE: Neynar Notifications** - Ready for implementation
 
 **Core Features Working**:
 - ✅ **Product Browsing**: Users can browse products inside Farcaster
@@ -191,6 +330,12 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - ✅ **Future-Proof**: Migrated to latest Google Maps APIs
 - ✅ **Viral Sharing**: Product and order sharing with Mini App embeds working
 
+**New Feature - Neynar Notifications** 🎯:
+- 🎯 **Welcome Notifications**: Greet users when they add the Mini App
+- 🎯 **Order Confirmations**: Send order number and total after successful purchases
+- 🎯 **Shipping Updates**: Notify with tracking numbers when orders ship
+- 🎯 **User Engagement**: Enhance retention through timely, relevant notifications
+
 **Technical Stack**:
 - ✅ **Frontend**: Next.js 14 with React components
 - ✅ **Payments**: USDC on Base network via Wagmi
@@ -198,6 +343,7 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - ✅ **Address Input**: Google Places API (New) with PlaceAutocompleteElement
 - ✅ **Sharing**: Farcaster frame embeds with static OG images
 - ✅ **Deployment**: Vercel with proper environment configuration
+- 🎯 **Notifications**: Neynar SDK + Mini App notification system (to be implemented)
 
 **Current Status**: 
 - ✅ **Payment Flow**: WORKING - USDC payments execute successfully
@@ -205,10 +351,46 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - ✅ **Enhanced UX**: WORKING - All enhancements implemented and tested
 - ✅ **API Compliance**: WORKING - No deprecation warnings, future-proofed
 - ✅ **Viral Sharing**: WORKING - Both product and order sharing generating proper Mini App embeds
+- 🎯 **Neynar Notifications**: PLANNED - Comprehensive notification system ready for implementation
+
+**Next Implementation Phase**:
+- 🎯 **Task 31-38**: Complete Neynar notification system (8 tasks)
+- 🎯 **Estimated Timeline**: 2-3 development sessions
+- 🎯 **Key Dependencies**: Neynar API key, webhook URL update, SDK installation
 
 ## Executor's Feedback or Assistance Requests
 
-**🎉 SUCCESS: Viral Sharing System Complete**
+**✅ TASK 31 COMPLETE: Neynar SDK Setup and Authentication**
+
+**Status**: Neynar SDK integration successfully implemented and tested.
+
+**Completed Actions**:
+- ✅ **Installed Neynar SDKs**: Successfully installed `@neynar/nodejs-sdk@3.19.0` and `@neynar/react@1.2.5`
+- ✅ **Created Neynar Client**: Built comprehensive `/src/lib/neynar.js` with client configuration and helper functions
+- ✅ **Notification Functions Ready**: Implemented `sendWelcomeNotification`, `sendOrderConfirmationNotification`, and `sendShippingNotification`
+- ✅ **Debug Endpoint Created**: Built `/api/debug/neynar-test` for testing connectivity and notification sending
+- ✅ **Build Verification**: Project builds successfully with new dependencies
+- ✅ **Error Handling**: Graceful fallback when API key not provided
+- ✅ **API Connectivity Verified**: Successfully tested API connection with `lookupUserByUsername` method
+
+**✅ TASK 32 COMPLETE: Farcaster Manifest Updated with Neynar Webhook**
+
+**Status**: Farcaster manifest successfully updated with Neynar events webhook URL.
+
+**Completed Actions**:
+- ✅ **Webhook URL Updated**: Changed from `https://mintedmerch.vercel.app/api/webhook` to `https://api.neynar.com/f/app/11f2fe11-b70c-40fa-b653-9770b7588bdf/event`
+- ✅ **Client ID Integration**: Using the provided Neynar client ID in webhook URL
+- ✅ **Manifest Validation**: Updated `public/.well-known/farcaster.json` follows Neynar documentation format
+- ✅ **Event Handling**: Neynar will now handle mini app add/remove and notification events automatically
+
+**Implementation Details**:
+- **Webhook Configuration**: Neynar webhook URL properly formatted with client ID `11f2fe11-b70c-40fa-b653-9770b7588bdf`
+- **Event Management**: Neynar will automatically manage notification tokens and user preferences
+- **No Manual Webhook Code**: Neynar handles all webhook processing, eliminating need for custom webhook handlers
+
+**Ready for Task 33**: Manifest updated, ready to proceed with Mini App permission prompt implementation.
+
+**Previous Success: Viral Sharing System Complete** ✅
 
 **Resolution**: Following the official Farcaster documentation exactly resolved all Mini App embed issues.
 
@@ -223,8 +405,6 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - ✅ **Product Metadata**: Dynamic titles like "Bankr Cap - Minted Merch Shop" 
 - ✅ **Share Functionality**: Both product and order sharing working
 - ✅ **Cross-Platform**: Works in Farcaster and web environments
-
-**Ready for Production**: The viral sharing system is now complete and ready for users to share products and orders in Farcaster feeds with rich Mini App embeds.
 
 ## Lessons
 
