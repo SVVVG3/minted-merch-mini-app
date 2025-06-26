@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
 import { sendWelcomeNotification } from '@/lib/neynar';
+import { 
+  getOrCreateProfile, 
+  storeNotificationToken, 
+  disableNotificationToken 
+} from '@/lib/supabase';
 
 export async function POST(request) {
   try {
@@ -19,8 +24,12 @@ export async function POST(request) {
       const decodedPayload = JSON.parse(Buffer.from(body.payload, 'base64url').toString());
       console.log('Decoded Payload:', JSON.stringify(decodedPayload, null, 2));
       
+      // Decode the header to get user information
+      const decodedHeader = JSON.parse(Buffer.from(body.header, 'base64url').toString());
+      console.log('Decoded Header:', JSON.stringify(decodedHeader, null, 2));
+      
       // Handle the event based on the decoded payload
-      await handleFarcasterEvent(decodedPayload, body);
+      await handleFarcasterEvent(decodedPayload, decodedHeader, body);
     } else {
       // Handle direct event format (for testing)
       console.log('Processing direct event format');
@@ -54,25 +63,28 @@ export async function POST(request) {
 }
 
 // Handle Farcaster events in the proper format
-async function handleFarcasterEvent(payload, signedData) {
+async function handleFarcasterEvent(payload, header, signedData) {
   console.log('=== HANDLING FARCASTER EVENT ===');
   console.log('Event type:', payload.event);
+  console.log('User FID:', header.fid);
+  
+  const userFid = header.fid;
   
   switch (payload.event) {
     case 'frame_added':
-      await handleFrameAdded(payload, signedData);
+      await handleFrameAdded(payload, userFid);
       break;
     
     case 'frame_removed':
-      await handleFrameRemoved(payload, signedData);
+      await handleFrameRemoved(payload, userFid);
       break;
     
     case 'notifications_enabled':
-      await handleNotificationsEnabled(payload, signedData);
+      await handleNotificationsEnabled(payload, userFid);
       break;
     
     case 'notifications_disabled':
-      await handleNotificationsDisabled(payload, signedData);
+      await handleNotificationsDisabled(payload, userFid);
       break;
     
     default:
@@ -99,27 +111,53 @@ async function handleDirectEvent(body) {
 }
 
 // Handle frame_added event (the correct Farcaster event)
-async function handleFrameAdded(payload, signedData) {
+async function handleFrameAdded(payload, userFid) {
   console.log('=== FRAME ADDED ===');
-  
-  // Extract user FID from the signed data header
-  const headerData = JSON.parse(Buffer.from(signedData.header, 'base64url').toString());
-  const userFid = headerData.fid;
-  const notificationDetails = payload.notificationDetails;
-  
   console.log('User FID:', userFid);
-  console.log('Header data:', headerData);
-  console.log('Notification details:', notificationDetails);
+  console.log('Notification details:', payload.notificationDetails);
   
   if (!userFid) {
-    console.log('No user FID found in header data');
+    console.log('No user FID found in event data');
     return;
   }
 
+  // First, ensure user profile exists in our database
+  try {
+    const profileResult = await getOrCreateProfile(userFid, {
+      username: `user_${userFid}`, // We'll update this with real data later
+      display_name: null,
+      bio: null,
+      pfp_url: null
+    });
+
+    if (!profileResult.success) {
+      console.error('Failed to create/get user profile:', profileResult.error);
+      // Continue anyway, don't block the notification flow
+    } else {
+      console.log('User profile ready:', profileResult.profile?.id);
+    }
+  } catch (error) {
+    console.error('Error handling user profile:', error);
+    // Continue anyway
+  }
+
   // Check if user enabled notifications
-  if (notificationDetails && notificationDetails.token) {
-    console.log('🎉 User enabled notifications - sending welcome notification!');
+  if (payload.notificationDetails && payload.notificationDetails.token) {
+    console.log('🎉 User enabled notifications - storing token and sending welcome notification!');
     
+    // Store the notification token in our database
+    try {
+      const tokenResult = await storeNotificationToken(userFid, payload.notificationDetails);
+      if (tokenResult.success) {
+        console.log('✅ Notification token stored successfully');
+      } else {
+        console.error('❌ Failed to store notification token:', tokenResult.error);
+      }
+    } catch (error) {
+      console.error('Error storing notification token:', error);
+    }
+    
+    // Send welcome notification
     try {
       const result = await sendWelcomeNotification(userFid);
       console.log('Welcome notification result:', result);
@@ -133,54 +171,80 @@ async function handleFrameAdded(payload, signedData) {
       console.error('Error sending welcome notification:', error);
     }
   } else {
-    console.log('User did not enable notifications - no welcome notification sent');
+    console.log('User did not enable notifications - no token to store');
   }
 }
 
 // Handle frame_removed event
-async function handleFrameRemoved(payload, signedData) {
+async function handleFrameRemoved(payload, userFid) {
   console.log('=== FRAME REMOVED ===');
-  
-  const headerData = JSON.parse(Buffer.from(signedData.header, 'base64url').toString());
-  const userFid = headerData.fid;
-  
   console.log('User FID:', userFid);
   
   if (userFid) {
     console.log(`User ${userFid} removed the Mini App`);
-    // Could track this for analytics or cleanup
+    
+    // Disable their notification token
+    try {
+      const result = await disableNotificationToken(userFid);
+      if (result.success) {
+        console.log('✅ Notification token disabled successfully');
+      } else {
+        console.error('❌ Failed to disable notification token:', result.error);
+      }
+    } catch (error) {
+      console.error('Error disabling notification token:', error);
+    }
   }
 }
 
 // Handle notifications_enabled event
-async function handleNotificationsEnabled(payload, signedData) {
+async function handleNotificationsEnabled(payload, userFid) {
   console.log('=== NOTIFICATIONS ENABLED ===');
-  
-  const headerData = JSON.parse(Buffer.from(signedData.header, 'base64url').toString());
-  const userFid = headerData.fid;
-  const notificationDetails = payload.notificationDetails;
-  
   console.log('User FID:', userFid);
-  console.log('Notification details:', notificationDetails);
+  console.log('Notification details:', payload.notificationDetails);
   
-  if (userFid && notificationDetails) {
+  if (userFid && payload.notificationDetails) {
     console.log(`User ${userFid} enabled notifications`);
-    // Could send a welcome notification here too
+    
+    // Store the new notification token
+    try {
+      const tokenResult = await storeNotificationToken(userFid, payload.notificationDetails);
+      if (tokenResult.success) {
+        console.log('✅ Notification token stored successfully');
+        
+        // Send a welcome notification since they just enabled notifications
+        const result = await sendWelcomeNotification(userFid);
+        if (result.success) {
+          console.log('✅ Welcome notification sent!');
+        }
+      } else {
+        console.error('❌ Failed to store notification token:', tokenResult.error);
+      }
+    } catch (error) {
+      console.error('Error handling notifications enabled:', error);
+    }
   }
 }
 
 // Handle notifications_disabled event
-async function handleNotificationsDisabled(payload, signedData) {
+async function handleNotificationsDisabled(payload, userFid) {
   console.log('=== NOTIFICATIONS DISABLED ===');
-  
-  const headerData = JSON.parse(Buffer.from(signedData.header, 'base64url').toString());
-  const userFid = headerData.fid;
-  
   console.log('User FID:', userFid);
   
   if (userFid) {
     console.log(`User ${userFid} disabled notifications`);
-    // Could track this for analytics
+    
+    // Disable their notification token
+    try {
+      const result = await disableNotificationToken(userFid);
+      if (result.success) {
+        console.log('✅ Notification token disabled successfully');
+      } else {
+        console.error('❌ Failed to disable notification token:', result.error);
+      }
+    } catch (error) {
+      console.error('Error disabling notification token:', error);
+    }
   }
 }
 
@@ -237,6 +301,7 @@ export async function GET() {
     message: 'Minted Merch Farcaster webhook endpoint',
     status: 'active',
     timestamp: new Date().toISOString(),
-    expectedEvents: ['frame_added', 'frame_removed', 'notifications_enabled', 'notifications_disabled']
+    expectedEvents: ['frame_added', 'frame_removed', 'notifications_enabled', 'notifications_disabled'],
+    features: ['supabase_integration', 'notification_token_storage', 'user_profile_management']
   });
 } 
