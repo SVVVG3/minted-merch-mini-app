@@ -11,8 +11,17 @@
     "homeUrl": "https://mintedmerch.vercel.app",
     "imageUrl": "https://mintedmerch.vercel.app/og-image.png",
     "buttonTitle": "Shop Now 📦",
+    "subtitle": "Buy merch with USDC on Base",
+    "description": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
+    "primaryCategory": "shopping",
+    "tags": ["merchandise", "crypto", "usdc", "shopping", "apparel", "web3", "ecommerce", "base", "nft"],
+    "tagline": "Premium crypto merch, paid with USDC",
     "splashImageUrl": "https://mintedmerch.vercel.app/splash.png",
-    "splashBackgroundColor": "#f7f7f7",
+    "splashBackgroundColor": "#000000",
+    "heroImageUrl": "https://mintedmerch.vercel.app/og-image.png",
+    "ogTitle": "Minted Merch - Premium Crypto Merchandise",
+    "ogDescription": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
+    "ogImageUrl": "https://mintedmerch.vercel.app/og-image.png",
     "webhookUrl": "https://mintedmerch.vercel.app/api/webhook"
   }
 } 
