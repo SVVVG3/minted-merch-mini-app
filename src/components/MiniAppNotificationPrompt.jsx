@@ -8,7 +8,7 @@ export function MiniAppNotificationPrompt({ onClose, orderNumber }) {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
 
-  // Use Farcaster Frame SDK directly for Mini App functionality
+  // Use Farcaster Frame SDK directly (Alternative approach from Neynar docs)
   const handleAddMiniApp = async () => {
     if (!isReady || !window.sdk) {
       console.warn('Farcaster SDK not ready');
@@ -19,7 +19,7 @@ export function MiniAppNotificationPrompt({ onClose, orderNumber }) {
     try {
       console.log('Attempting to add Mini App using Farcaster SDK...');
       
-      // Use the Farcaster Frame SDK's addFrame method
+      // Use the Farcaster Frame SDK's addFrame method (as per Neynar docs alternative)
       const addResult = await window.sdk.actions.addFrame();
       console.log('Add Mini App result:', addResult);
       
@@ -28,8 +28,8 @@ export function MiniAppNotificationPrompt({ onClose, orderNumber }) {
         notificationDetails: addResult.notificationDetails || null 
       });
       
-      // If successfully added, send welcome notification
-      if (addResult.added) {
+      // If successfully added with notifications, send welcome notification
+      if (addResult.added && addResult.notificationDetails) {
         const userFid = getFid();
         if (userFid) {
           try {
@@ -49,7 +49,7 @@ export function MiniAppNotificationPrompt({ onClose, orderNumber }) {
           }
         }
         
-        // Close after a brief delay
+        // Close after a brief delay to show success
         setTimeout(() => {
           onClose();
         }, 3000);

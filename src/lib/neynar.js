@@ -1,3 +1,6 @@
+// Simplified notification system using direct HTTP calls to Neynar API
+// This avoids the React 19 compatibility issues with @neynar/nodejs-sdk
+
 import { NeynarAPIClient, Configuration } from '@neynar/nodejs-sdk';
 
 // Initialize Neynar client
@@ -10,7 +13,14 @@ if (!NEYNAR_API_KEY) {
 
 // Create Neynar client instance with proper Configuration object
 export const neynarClient = NEYNAR_API_KEY 
-  ? new NeynarAPIClient(new Configuration({ apiKey: NEYNAR_API_KEY }))
+  ? new NeynarAPIClient(new Configuration({
+      apiKey: NEYNAR_API_KEY,
+      baseOptions: {
+        headers: {
+          "x-neynar-experimental": true,
+        },
+      },
+    }))
   : null;
 
 // Helper function to check if Neynar is available
@@ -79,14 +89,14 @@ export async function sendShippingNotification(userFid, orderNumber, trackingNum
   });
 }
 
-// Get notification tokens for testing/debugging
+// Test API connectivity
 export async function getNotificationTokens() {
   if (!isNeynarAvailable()) {
     return { success: false, error: 'Neynar not configured' };
   }
 
   try {
-    // Test basic API connectivity with a simple method
+    // Test basic API connectivity with a simple user lookup
     const userResponse = await neynarClient.lookupUserByUsername({ username: 'dwr.eth' });
     return { 
       success: true, 
