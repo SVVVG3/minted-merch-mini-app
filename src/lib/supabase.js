@@ -1,27 +1,37 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Supabase configuration
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+// Create Supabase client
+export const supabase = SUPABASE_URL && SUPABASE_ANON_KEY 
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+// Helper function to check if Supabase is available
+export function isSupabaseAvailable() {
+  return supabase !== null;
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create or update user profile (simplified - no notification tokens)
+export async function createOrUpdateUserProfile(profileData) {
+  if (!isSupabaseAvailable()) {
+    console.log('Supabase not available');
+    return { success: false, error: 'Supabase not configured' };
+  }
 
-// Profile management functions
-export async function createOrUpdateProfile(fid, userData) {
   try {
-    console.log('Creating/updating profile for FID:', fid, 'with data:', userData);
-    
+    console.log('Creating/updating user profile:', profileData);
+
     const { data, error } = await supabase
       .from('profiles')
       .upsert({
-        fid: fid,
-        username: userData.username || `user_${fid}`,
-        display_name: userData.displayName || null,
-        bio: userData.bio || null,
-        pfp_url: userData.pfpUrl || null,
+        fid: profileData.fid,
+        username: profileData.username,
+        display_name: profileData.display_name,
+        bio: profileData.bio,
+        pfp_url: profileData.pfp_url,
         updated_at: new Date().toISOString()
       }, {
         onConflict: 'fid',
@@ -31,173 +41,208 @@ export async function createOrUpdateProfile(fid, userData) {
       .single();
 
     if (error) {
-      console.error('Error creating/updating profile:', error);
+      console.error('Supabase error creating/updating profile:', error);
       return { success: false, error: error.message };
     }
 
     console.log('Profile created/updated successfully:', data);
-    return { success: true, profile: data, isNew: !data.created_at };
+    return { success: true, profile: data };
   } catch (error) {
-    console.error('Unexpected error in createOrUpdateProfile:', error);
+    console.error('Error creating/updating profile:', error);
     return { success: false, error: error.message };
   }
 }
 
-export async function getProfile(fid) {
+// Get user profile by FID
+export async function getUserProfile(userFid) {
+  if (!isSupabaseAvailable()) {
+    console.log('Supabase not available');
+    return { success: false, error: 'Supabase not configured' };
+  }
+
   try {
-    console.log('Getting profile for FID:', fid);
-    
+    console.log('Getting user profile for FID:', userFid);
+
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('fid', fid)
+      .eq('fid', userFid)
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('Error getting profile:', error);
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows found
+        console.log('No profile found for FID:', userFid);
+        return { success: true, profile: null };
+      }
+      console.error('Supabase error getting profile:', error);
       return { success: false, error: error.message };
     }
 
-    console.log('Profile retrieved:', data);
+    console.log('Profile found:', data);
     return { success: true, profile: data };
   } catch (error) {
-    console.error('Unexpected error in getProfile:', error);
+    console.error('Error getting profile:', error);
     return { success: false, error: error.message };
   }
 }
 
-export async function enableNotifications(fid, notificationToken, notificationUrl = 'https://api.farcaster.xyz/v1/frame-notifications') {
+// Get all user profiles (for admin/debug purposes)
+export async function getAllProfiles() {
+  if (!isSupabaseAvailable()) {
+    console.log('Supabase not available');
+    return { success: false, error: 'Supabase not configured' };
+  }
+
   try {
-    console.log('Enabling notifications for FID:', fid, 'with token:', notificationToken);
-    
+    console.log('Getting all user profiles...');
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Supabase error getting profiles:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`Found ${data?.length || 0} profiles`);
+    return { success: true, profiles: data || [] };
+  } catch (error) {
+    console.error('Error getting profiles:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Update user profile
+export async function updateUserProfile(userFid, updates) {
+  if (!isSupabaseAvailable()) {
+    console.log('Supabase not available');
+    return { success: false, error: 'Supabase not configured' };
+  }
+
+  try {
+    console.log('Updating user profile for FID:', userFid, 'with updates:', updates);
+
     const { data, error } = await supabase
       .from('profiles')
       .update({
-        notifications_enabled: true,
-        notification_token: notificationToken,
-        notification_url: notificationUrl,
+        ...updates,
         updated_at: new Date().toISOString()
       })
-      .eq('fid', fid)
+      .eq('fid', userFid)
       .select()
       .single();
 
     if (error) {
-      console.error('Error enabling notifications:', error);
+      console.error('Supabase error updating profile:', error);
       return { success: false, error: error.message };
     }
 
-    console.log('Notifications enabled successfully:', data);
+    console.log('Profile updated successfully:', data);
     return { success: true, profile: data };
   } catch (error) {
-    console.error('Unexpected error in enableNotifications:', error);
+    console.error('Error updating profile:', error);
     return { success: false, error: error.message };
   }
 }
 
-export async function disableNotifications(fid) {
+// Delete user profile
+export async function deleteUserProfile(userFid) {
+  if (!isSupabaseAvailable()) {
+    console.log('Supabase not available');
+    return { success: false, error: 'Supabase not configured' };
+  }
+
   try {
-    console.log('Disabling notifications for FID:', fid);
-    
-    const { data, error } = await supabase
+    console.log('Deleting user profile for FID:', userFid);
+
+    const { error } = await supabase
       .from('profiles')
-      .update({
-        notifications_enabled: false,
-        notification_token: null,
-        notification_url: 'https://api.farcaster.xyz/v1/frame-notifications',
-        updated_at: new Date().toISOString()
-      })
-      .eq('fid', fid)
-      .select()
-      .single();
+      .delete()
+      .eq('fid', userFid);
 
     if (error) {
-      console.error('Error disabling notifications:', error);
+      console.error('Supabase error deleting profile:', error);
       return { success: false, error: error.message };
     }
 
-    console.log('Notifications disabled successfully:', data);
-    return { success: true, profile: data };
+    console.log('Profile deleted successfully');
+    return { success: true };
   } catch (error) {
-    console.error('Unexpected error in disableNotifications:', error);
+    console.error('Error deleting profile:', error);
     return { success: false, error: error.message };
   }
 }
 
-export async function getNotificationToken(fid) {
-  try {
-    console.log('Getting notification token for FID:', fid);
-    
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('notification_token, notification_url, notifications_enabled')
-      .eq('fid', fid)
-      .eq('notifications_enabled', true)
-      .single();
+// Get profile count (for debugging)
+export async function getProfileCount() {
+  if (!isSupabaseAvailable()) {
+    console.log('Supabase not available');
+    return { success: false, error: 'Supabase not configured' };
+  }
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('Error getting notification token:', error);
+  try {
+    const { count, error } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      console.error('Supabase error getting profile count:', error);
       return { success: false, error: error.message };
     }
 
-    if (!data || !data.notifications_enabled) {
-      console.log('No active notification token found for FID:', fid);
-      return { success: true, token: null };
+    return { success: true, count: count || 0 };
+  } catch (error) {
+    console.error('Error getting profile count:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Test Supabase connection
+export async function testSupabaseConnection() {
+  if (!isSupabaseAvailable()) {
+    return { 
+      success: false, 
+      error: 'Supabase not configured',
+      supabaseAvailable: false 
+    };
+  }
+
+  try {
+    console.log('Testing Supabase connection...');
+    
+    // Test basic connectivity by getting profile count
+    const { count, error } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      console.error('Supabase connection test failed:', error);
+      return { 
+        success: false, 
+        error: error.message,
+        supabaseAvailable: true,
+        connected: false
+      };
     }
 
-    console.log('Notification token retrieved for FID:', fid);
+    console.log('Supabase connection test successful, profile count:', count);
     return { 
       success: true, 
-      token: data.notification_token,
-      url: data.notification_url
+      supabaseAvailable: true,
+      connected: true,
+      profileCount: count || 0,
+      timestamp: new Date().toISOString()
     };
   } catch (error) {
-    console.error('Unexpected error in getNotificationToken:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-export async function getAllNotificationTokens() {
-  try {
-    console.log('Getting all active notification tokens');
-    
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('fid, notification_token, notification_url')
-      .eq('notifications_enabled', true)
-      .not('notification_token', 'is', null);
-
-    if (error) {
-      console.error('Error getting all notification tokens:', error);
-      return { success: false, error: error.message };
-    }
-
-    console.log('Retrieved', data?.length || 0, 'active notification tokens');
-    return { success: true, tokens: data || [] };
-  } catch (error) {
-    console.error('Unexpected error in getAllNotificationTokens:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-export async function getUsersWithNotifications() {
-  try {
-    console.log('Getting users with notifications enabled');
-    
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('notifications_enabled', true);
-
-    if (error) {
-      console.error('Error getting users with notifications:', error);
-      return { success: false, error: error.message };
-    }
-
-    console.log('Found', data?.length || 0, 'users with notifications enabled');
-    return { success: true, users: data || [] };
-  } catch (error) {
-    console.error('Unexpected error in getUsersWithNotifications:', error);
-    return { success: false, error: error.message };
+    console.error('Error testing Supabase connection:', error);
+    return { 
+      success: false, 
+      error: error.message,
+      supabaseAvailable: true,
+      connected: false
+    };
   }
 } 

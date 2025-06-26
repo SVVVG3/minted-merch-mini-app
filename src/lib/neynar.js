@@ -2,11 +2,6 @@
 // This avoids the React 19 compatibility issues with @neynar/nodejs-sdk
 
 import { NeynarAPIClient, Configuration } from '@neynar/nodejs-sdk';
-import { 
-  getNotificationToken, 
-  getUsersWithNotifications,
-  isSupabaseAvailable 
-} from '@/lib/supabase';
 
 // Initialize Neynar client
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
@@ -33,6 +28,51 @@ export function isNeynarAvailable() {
   return neynarClient !== null;
 }
 
+// Fetch notification tokens for specific users from Neynar
+export async function fetchNotificationTokensFromNeynar(userFids = []) {
+  if (!isNeynarAvailable()) {
+    console.log('Neynar not available, cannot fetch notification tokens');
+    return { success: false, error: 'Neynar not configured' };
+  }
+
+  try {
+    console.log('Fetching notification tokens from Neynar for FIDs:', userFids);
+    
+    // Use Neynar's API to get notification tokens
+    const response = await neynarClient.fetchNotificationTokens({
+      fids: userFids.length > 0 ? userFids.join(',') : undefined,
+      limit: 100
+    });
+
+    console.log('Notification tokens fetched from Neynar:', response);
+    return { 
+      success: true, 
+      tokens: response.notification_tokens || [],
+      hasNext: !!response.next?.cursor
+    };
+  } catch (error) {
+    console.error('Error fetching notification tokens from Neynar:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Check if user has notification token via Neynar API
+export async function hasNotificationTokenInNeynar(userFid) {
+  const result = await fetchNotificationTokensFromNeynar([userFid]);
+  
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  const userToken = result.tokens.find(token => token.fid === userFid && token.status === 'enabled');
+  
+  return {
+    success: true,
+    hasToken: !!userToken,
+    token: userToken || null
+  };
+}
+
 // Send welcome notification when user adds the Mini App
 export async function sendWelcomeNotification(userFid) {
   if (!isNeynarAvailable()) {
@@ -40,27 +80,25 @@ export async function sendWelcomeNotification(userFid) {
     return { success: false, error: 'Neynar not configured' };
   }
 
-  // If Supabase is available, check if user has active notification token
-  if (isSupabaseAvailable()) {
-    try {
-      const tokenResult = await getNotificationToken(userFid);
-      if (!tokenResult.success) {
-        console.log('Failed to check notification token:', tokenResult.error);
-        // Continue anyway, let Neynar handle the token validation
-      } else if (!tokenResult.token) {
-        console.log('User does not have active notification token in database');
-        return { 
-          success: false, 
-          error: 'User has not enabled notifications',
-          status: 'token_not_found'
-        };
-      } else {
-        console.log('User has active notification token in database:', tokenResult.token.id);
-      }
-    } catch (error) {
-      console.error('Error checking notification token:', error);
-      // Continue anyway
+  // Check if user has active notification token via Neynar API
+  try {
+    const tokenCheck = await hasNotificationTokenInNeynar(userFid);
+    if (!tokenCheck.success) {
+      console.log('Failed to check notification token:', tokenCheck.error);
+      // Continue anyway, let Neynar handle the token validation
+    } else if (!tokenCheck.hasToken) {
+      console.log('User does not have active notification token in Neynar');
+      return { 
+        success: false, 
+        error: 'User has not enabled notifications',
+        status: 'token_not_found'
+      };
+    } else {
+      console.log('User has active notification token in Neynar:', tokenCheck.token);
     }
+  } catch (error) {
+    console.error('Error checking notification token:', error);
+    // Continue anyway
   }
 
   try {
@@ -133,36 +171,31 @@ export async function sendWelcomeForNewUser(userFid) {
   }
 }
 
-// Send notification to all users with active tokens
+// Send notification to all users with active tokens (using Neynar's managed tokens)
 export async function sendNotificationToAllUsers(notificationData) {
   if (!isNeynarAvailable()) {
     console.log('Neynar not available, skipping bulk notification');
     return { success: false, error: 'Neynar not configured' };
   }
 
-  if (!isSupabaseAvailable()) {
-    console.log('Supabase not available, cannot get user list');
-    return { success: false, error: 'Supabase not configured' };
-  }
-
   try {
-    console.log('Getting users with active notification tokens...');
+    console.log('Getting users with active notification tokens from Neynar...');
     
-    const usersResult = await getUsersWithNotifications();
-    if (!usersResult.success) {
-      console.error('Failed to get users with notifications:', usersResult.error);
-      return { success: false, error: usersResult.error };
+    const tokensResult = await fetchNotificationTokensFromNeynar();
+    if (!tokensResult.success) {
+      console.error('Failed to get notification tokens from Neynar:', tokensResult.error);
+      return { success: false, error: tokensResult.error };
     }
 
-    const users = usersResult.users || [];
-    if (users.length === 0) {
-      console.log('No users with active notification tokens found');
+    const activeTokens = tokensResult.tokens.filter(token => token.status === 'enabled');
+    if (activeTokens.length === 0) {
+      console.log('No users with active notification tokens found in Neynar');
       return { success: true, sent: 0, message: 'No users to notify' };
     }
 
-    console.log(`Sending notification to ${users.length} users...`);
+    console.log(`Sending notification to ${activeTokens.length} users...`);
     
-    const targetFids = users.map(user => user.fid);
+    const targetFids = activeTokens.map(token => token.fid);
     
     const response = await neynarClient.publishFrameNotifications({
       targetFids: targetFids,
@@ -193,22 +226,20 @@ export async function sendOrderConfirmationNotification(userFid, orderDetails) {
     return { success: false, error: 'Neynar not configured' };
   }
 
-  // Check if user has active notification token
-  if (isSupabaseAvailable()) {
-    try {
-      const tokenResult = await getNotificationToken(userFid);
-      if (!tokenResult.success || !tokenResult.token) {
-        console.log('User does not have active notification token - skipping order confirmation');
-        return { 
-          success: false, 
-          error: 'User has not enabled notifications',
-          status: 'token_not_found'
-        };
-      }
-    } catch (error) {
-      console.error('Error checking notification token:', error);
-      // Continue anyway
+  // Check if user has active notification token via Neynar API
+  try {
+    const tokenCheck = await hasNotificationTokenInNeynar(userFid);
+    if (!tokenCheck.success || !tokenCheck.hasToken) {
+      console.log('User does not have active notification token, skipping order confirmation');
+      return { 
+        success: false, 
+        error: 'User has not enabled notifications',
+        status: 'token_not_found'
+      };
     }
+  } catch (error) {
+    console.error('Error checking notification token:', error);
+    return { success: false, error: 'Failed to check notification permissions' };
   }
 
   try {
@@ -217,9 +248,9 @@ export async function sendOrderConfirmationNotification(userFid, orderDetails) {
     const response = await neynarClient.publishFrameNotifications({
       targetFids: [userFid],
       notification: {
-        title: "✅ Order Confirmed!",
-        body: `Your order #${orderDetails.id} for $${orderDetails.total} has been confirmed. We'll notify you when it ships!`,
-        target_url: `https://mintedmerch.vercel.app/order/${orderDetails.id}`
+        title: "📦 Order Confirmed!",
+        body: `Your order #${orderDetails.orderNumber} has been confirmed. Total: $${orderDetails.total}`,
+        target_url: `https://mintedmerch.vercel.app/order/${orderDetails.orderNumber}`
       }
     });
 
@@ -227,7 +258,7 @@ export async function sendOrderConfirmationNotification(userFid, orderDetails) {
     return { success: true, data: response };
   } catch (error) {
     console.error('Error sending order confirmation notification:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error.message, details: error.response?.data };
   }
 }
 
@@ -238,22 +269,20 @@ export async function sendShippingNotification(userFid, shippingDetails) {
     return { success: false, error: 'Neynar not configured' };
   }
 
-  // Check if user has active notification token
-  if (isSupabaseAvailable()) {
-    try {
-      const tokenResult = await getNotificationToken(userFid);
-      if (!tokenResult.success || !tokenResult.token) {
-        console.log('User does not have active notification token - skipping shipping notification');
-        return { 
-          success: false, 
-          error: 'User has not enabled notifications',
-          status: 'token_not_found'
-        };
-      }
-    } catch (error) {
-      console.error('Error checking notification token:', error);
-      // Continue anyway
+  // Check if user has active notification token via Neynar API
+  try {
+    const tokenCheck = await hasNotificationTokenInNeynar(userFid);
+    if (!tokenCheck.success || !tokenCheck.hasToken) {
+      console.log('User does not have active notification token, skipping shipping notification');
+      return { 
+        success: false, 
+        error: 'User has not enabled notifications',
+        status: 'token_not_found'
+      };
     }
+  } catch (error) {
+    console.error('Error checking notification token:', error);
+    return { success: false, error: 'Failed to check notification permissions' };
   }
 
   try {
@@ -262,9 +291,9 @@ export async function sendShippingNotification(userFid, shippingDetails) {
     const response = await neynarClient.publishFrameNotifications({
       targetFids: [userFid],
       notification: {
-        title: "📦 Your Order Has Shipped!",
-        body: `Order #${shippingDetails.orderId} is on its way! Track: ${shippingDetails.trackingNumber}`,
-        target_url: `https://mintedmerch.vercel.app/tracking/${shippingDetails.trackingNumber}`
+        title: "🚚 Your Order Has Shipped!",
+        body: `Order #${shippingDetails.orderNumber} is on its way! Track: ${shippingDetails.trackingNumber}`,
+        target_url: `https://mintedmerch.vercel.app/track/${shippingDetails.trackingNumber}`
       }
     });
 
@@ -272,50 +301,65 @@ export async function sendShippingNotification(userFid, shippingDetails) {
     return { success: true, data: response };
   } catch (error) {
     console.error('Error sending shipping notification:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error.message, details: error.response?.data };
   }
 }
 
-// Test API connectivity and notification status
+// Get notification status for a user (using Neynar's managed tokens)
 export async function getNotificationStatus(userFid) {
-  const results = {
-    neynarAvailable: isNeynarAvailable(),
-    supabaseAvailable: isSupabaseAvailable(),
-    userFid: userFid,
-    timestamp: new Date().toISOString()
-  };
-
   if (!isNeynarAvailable()) {
-    results.error = 'Neynar not configured';
-    return results;
+    return { 
+      success: false, 
+      error: 'Neynar not configured',
+      enabled: false,
+      hasToken: false
+    };
   }
 
-  // Test Neynar API connectivity
   try {
-    const userResponse = await neynarClient.lookupUserByUsername({ username: 'dwr.eth' });
-    results.neynarConnected = true;
+    const tokenCheck = await hasNotificationTokenInNeynar(userFid);
+    
+    return {
+      success: true,
+      enabled: tokenCheck.hasToken,
+      hasToken: tokenCheck.hasToken,
+      token: tokenCheck.token,
+      source: 'neynar_managed'
+    };
   } catch (error) {
-    results.neynarConnected = false;
-    results.neynarError = error.message;
+    console.error('Error getting notification status:', error);
+    return { 
+      success: false, 
+      error: error.message,
+      enabled: false,
+      hasToken: false
+    };
+  }
+}
+
+// Test notification function
+export async function sendTestNotification(userFid, message = "Test notification from Minted Merch!") {
+  if (!isNeynarAvailable()) {
+    console.log('Neynar not available, skipping test notification');
+    return { success: false, error: 'Neynar not configured' };
   }
 
-  // Check user's notification token status
-  if (isSupabaseAvailable() && userFid) {
-    try {
-      const tokenResult = await getNotificationToken(userFid);
-      results.tokenStatus = {
-        success: tokenResult.success,
-        hasToken: !!tokenResult.token,
-        token: tokenResult.token,
-        error: tokenResult.error
-      };
-    } catch (error) {
-      results.tokenStatus = {
-        success: false,
-        error: error.message
-      };
-    }
-  }
+  try {
+    console.log('Sending test notification to user FID:', userFid);
+    
+    const response = await neynarClient.publishFrameNotifications({
+      targetFids: [userFid],
+      notification: {
+        title: "🧪 Test Notification",
+        body: message,
+        target_url: "https://mintedmerch.vercel.app"
+      }
+    });
 
-  return results;
+    console.log('Test notification sent successfully:', response);
+    return { success: true, data: response };
+  } catch (error) {
+    console.error('Error sending test notification:', error);
+    return { success: false, error: error.message, details: error.response?.data };
+  }
 } 

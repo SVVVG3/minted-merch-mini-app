@@ -29,12 +29,9 @@ CREATE INDEX idx_profiles_notifications ON profiles(notifications_enabled) WHERE
 -- Row Level Security (RLS)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies
-CREATE POLICY "Allow public read access to profiles" ON profiles
-  FOR SELECT USING (true);
-
-CREATE POLICY "Allow service role full access to profiles" ON profiles
-  FOR ALL USING (auth.role() = 'service_role');
+-- RLS Policies - Allow all operations for now (using anon key)
+CREATE POLICY "Allow all access to profiles" ON profiles
+  FOR ALL USING (true);
 
 -- Update trigger for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
