@@ -5,12 +5,12 @@
     "signature": "MHg0ZTlhYzJkOWJkYzBhODgzOGY5NzNhODM5YzQzZDEwMjBiNWM4ZDY1YmJhNjcxNGJhMDhkNTU0YTQ4MDI2NzE0NGI4YmQzYWM1ZGVkNWZlM2U5ZGYzMjI5NDMzZGI5YjRiZjJjNGVkNzQ4ZWNkNDJmNGNjNzMyNzg0NDFiMGZmMTFj"
   },
   "frame": {
-    "version": "4.2.0",
+    "version": "1",
     "name": "Minted Merch",
     "iconUrl": "https://mintedmerch.vercel.app/icon-192.png",
+    "homeUrl": "https://mintedmerch.vercel.app",
     "splashImageUrl": "https://mintedmerch.vercel.app/splash.png",
     "splashBackgroundColor": "#f7f7f7",
-    "homeUrl": "https://mintedmerch.vercel.app",
     "webhookUrl": "https://mintedmerch.vercel.app/api/webhook"
   }
 } 
