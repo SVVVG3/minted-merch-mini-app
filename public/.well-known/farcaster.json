@@ -14,13 +14,13 @@
     "subtitle": "Buy merch with USDC on Base",
     "description": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
     "primaryCategory": "shopping",
-    "tagline": "Crypto merch, paid with USDC",
+    "webhookUrl": "https://api.neynar.com/f/app/11f2fe11-b70c-40fa-b653-9770b7588bdf/event",
     "splashImageUrl": "https://mintedmerch.vercel.app/splash.png",
     "splashBackgroundColor": "#000000",
+    "tagline": "Crypto merch, paid with USDC",
     "heroImageUrl": "https://mintedmerch.vercel.app/og-image.png",
     "ogTitle": "Minted Merch - Crypto Apparel",
     "ogDescription": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
-    "ogImageUrl": "https://mintedmerch.vercel.app/og-image.png",
-    "webhookUrl": "https://api.neynar.com/f/app/11f2fe11-b70c-40fa-b653-9770b7588bdf/event"
+    "ogImageUrl": "https://mintedmerch.vercel.app/og-image.png"
   }
 } 
