@@ -21,6 +21,6 @@
     "ogTitle": "Minted Merch - Crypto Apparel",
     "ogDescription": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
     "ogImageUrl": "https://mintedmerch.vercel.app/og-image.png",
-    "webhookUrl": "https://mintedmerch.vercel.app/api/webhook"
+    "webhookUrl": "https://api.neynar.com/f/app/11f2fe11-b70c-40fa-b653-9770b7588bdf/event"
   }
 } 
