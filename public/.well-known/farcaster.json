@@ -14,16 +14,6 @@
     "subtitle": "Buy merch with USDC on Base",
     "description": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
     "primaryCategory": "shopping",
-    "tags": [
-      "merchandise",
-      "crypto",
-      "usdc",
-      "shopping",
-      "apparel",
-      "ecommerce",
-      "base",
-      "nft"
-    ],
     "tagline": "Crypto merch, paid with USDC",
     "splashImageUrl": "https://mintedmerch.vercel.app/splash.png",
     "splashBackgroundColor": "#000000",
