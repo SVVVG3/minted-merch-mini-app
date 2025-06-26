@@ -388,14 +388,16 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - **Event Management**: Neynar will automatically manage notification tokens and user preferences
 - **No Manual Webhook Code**: Neynar handles all webhook processing, eliminating need for custom webhook handlers
 
-**✅ TASK 33 COMPLETE: Mini App Notification Prompt Implementation**
+**✅ TASK 33 COMPLETE: Mini App Notification Prompt Implementation (Fixed Build Issues)**
 
-**Status**: Mini App permission prompt successfully implemented with strategic user experience optimization.
+**Status**: Mini App permission prompt successfully implemented with working build and deployment.
 
 **Completed Actions**:
-- ✅ **MiniAppProvider Integration**: Added `MiniAppProvider` from `@neynar/react` to `src/app/layout.js` as context wrapper
+- ✅ **Build Issues Fixed**: Resolved React 19 compatibility issues with `@neynar/react` package
+- ✅ **SDK Configuration**: Proper Neynar SDK setup with Configuration object for server-side notifications
+- ✅ **Alternative Implementation**: Used Farcaster Frame SDK directly (`sdk.actions.addFrame()`) per Neynar docs
 - ✅ **Notification Prompt Component**: Created `src/components/MiniAppNotificationPrompt.jsx` with:
-  - Uses `useMiniApp` hook to detect if app is already added
+  - Uses Farcaster Frame SDK for Mini App addition (React 19 compatible)
   - Modal interface that appears after successful order completion
   - Shows order number and prompts user to add Mini App for notifications
   - Handles loading states, success/failure results, and auto-closes after success
@@ -403,9 +405,11 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - ✅ **Welcome Notification API**: Created `/api/send-welcome-notification` endpoint to send welcome notifications
 - ✅ **Automatic Welcome Notification**: Enhanced prompt to use `useFarcaster` hook and automatically send welcome notification when user successfully adds Mini App
 - ✅ **Strategic UX Decision**: Implemented user's requested change to only prompt AFTER successful order completion (better conversion)
+- ✅ **Deployment Ready**: Build succeeds and deploys to Vercel successfully
 
 **Technical Implementation**:
-- **Context Integration**: Neynar MiniAppProvider wraps entire app for notification functionality
+- **Server-side**: `@neynar/nodejs-sdk` with proper Configuration object for notifications
+- **Client-side**: Farcaster Frame SDK (`window.sdk.actions.addFrame()`) for Mini App addition
 - **Smart Detection**: Component detects if Mini App is already added to avoid redundant prompts
 - **Order-Triggered Flow**: Prompt appears specifically after order success with order number context
 - **Automatic Notifications**: Seamless welcome notification sending upon successful Mini App addition
@@ -418,7 +422,7 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 4. **Automatic Welcome**: System automatically sends welcome notification upon successful addition
 5. **Future Notifications**: User now receives order confirmations and shipping updates
 
-**Build Status**: Code committed and pushed to repository. Local build was hanging (common Next.js issue), so deployed via Vercel for testing.
+**Build Status**: ✅ Build succeeds, code committed and pushed to repository, Vercel deployment working.
 
 **Ready for Task 34**: Mini App prompt implemented, ready to proceed with order confirmation notification integration.
 
@@ -461,6 +465,7 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - **CRITICAL: Farcaster Mini App Sharing**: ⚠️ **NEVER use external URLs like `window.open(warpcastUrl)` for sharing within Farcaster Mini Apps!** This tries to open another app within the Mini App context. Instead, use the proper Farcaster SDK method `sdk.actions.composeCast({ text, embeds })` which will minimize the Mini App and open the native Farcaster composer. React hooks like `useFarcaster()` must be called at the component level, not inside event handlers.
 - **CRITICAL: Follow Official Documentation Exactly**: ⚠️ **Always implement exactly as specified in official Farcaster documentation!** The [Farcaster Mini App Sharing docs](https://docs.farcaster.xyz/developers/guides/mini-apps/sharing) provide the exact format for `fc:frame` meta tags. Don't overcomplicate with async operations, complex error handling, or dynamic generation unless absolutely necessary. Simple, static implementations following the docs exactly are most reliable.
 - **CRITICAL: Next.js Metadata API**: ⚠️ **The Next.js 14 metadata API works reliably when kept simple!** Use synchronous `generateMetadata()` functions without complex async operations. The `other` property works correctly for custom meta tags like `fc:frame` when the implementation follows the documentation patterns exactly.
+- **CRITICAL: React 19 & Neynar SDK Compatibility**: ⚠️ **The `@neynar/react` package (v1.2.5) has React 19 compatibility issues despite npm documentation claiming support!** The `MiniAppProvider` causes `createContext is not a function` build errors. Use the alternative approach from Neynar docs: Farcaster Frame SDK directly with `window.sdk.actions.addFrame()` for client-side Mini App functionality, and `@neynar/nodejs-sdk` with proper Configuration object for server-side notifications. This hybrid approach works perfectly with React 19.
 
 ## Next Steps
 

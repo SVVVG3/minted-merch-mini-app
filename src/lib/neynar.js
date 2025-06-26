@@ -28,65 +28,122 @@ export function isNeynarAvailable() {
   return neynarClient !== null;
 }
 
-// Send notification to specific user
-export async function sendNotification({ targetFid, title, body, targetUrl }) {
+// Send welcome notification when user adds the Mini App
+export async function sendWelcomeNotification(userFid) {
   if (!isNeynarAvailable()) {
-    console.warn('Neynar client not available - notification not sent');
+    console.log('Neynar not available, skipping welcome notification');
     return { success: false, error: 'Neynar not configured' };
   }
 
   try {
-    console.log('Sending notification:', { targetFid, title, body, targetUrl });
+    console.log('Sending welcome notification to user FID:', userFid);
     
-    const result = await neynarClient.publishFrameNotifications({
-      target_fids: [targetFid],
+    const response = await neynarClient.publishFrameNotifications({
+      targetFids: [userFid],
       notification: {
-        title,
-        body,
-        target_url: targetUrl
+        title: "🎉 Welcome to Minted Merch!",
+        body: "Thanks for adding our Mini App! Browse our exclusive collection and get 10% off your first order with code WELCOME10.",
+        target_url: "https://mintedmerch.vercel.app"
       }
     });
-    
-    console.log('Notification sent successfully:', result);
-    return { success: true, result };
+
+    console.log('Welcome notification sent successfully:', response);
+    return { success: true, data: response };
   } catch (error) {
-    console.error('Error sending notification:', error);
+    console.error('Error sending welcome notification:', error);
+    console.error('Full error details:', error.response?.data || error);
+    return { success: false, error: error.message, details: error.response?.data };
+  }
+}
+
+// Send welcome notification for new users (simplified approach)
+export async function sendWelcomeForNewUser(userFid) {
+  if (!isNeynarAvailable()) {
+    console.log('Neynar not available, skipping welcome notification');
+    return { success: false, error: 'Neynar not configured' };
+  }
+
+  try {
+    console.log('Sending welcome notification for new user FID:', userFid);
+    
+    // Simply send the welcome notification - Neynar will handle delivery based on user permissions
+    const response = await neynarClient.publishFrameNotifications({
+      targetFids: [userFid],
+      notification: {
+        title: "👋 Welcome to Minted Merch!",
+        body: "Discover our exclusive collection of premium merchandise. Start shopping now!",
+        target_url: "https://mintedmerch.vercel.app"
+      }
+    });
+
+    console.log('Welcome notification sent successfully:', response);
+    return { success: true, data: response };
+  } catch (error) {
+    console.error('Error sending welcome notification:', error);
+    console.error('Full error details:', error.response?.data || error);
+    
+    // If error is about user not having notification permissions, that's expected
+    if (error.message && error.message.includes('notification')) {
+      console.log('User does not have notification permissions yet - this is normal');
+      return { success: true, skipped: true, reason: 'User has not enabled notifications' };
+    }
+    
+    return { success: false, error: error.message, details: error.response?.data };
+  }
+}
+
+// Send order confirmation notification
+export async function sendOrderConfirmationNotification(userFid, orderDetails) {
+  if (!isNeynarAvailable()) {
+    console.log('Neynar not available, skipping order confirmation notification');
+    return { success: false, error: 'Neynar not configured' };
+  }
+
+  try {
+    console.log('Sending order confirmation notification to user FID:', userFid);
+    
+    const response = await neynarClient.publishFrameNotifications({
+      targetFids: [userFid],
+      notification: {
+        title: "✅ Order Confirmed!",
+        body: `Your order #${orderDetails.id} for $${orderDetails.total} has been confirmed. We'll notify you when it ships!`,
+        target_url: `https://mintedmerch.vercel.app/order/${orderDetails.id}`
+      }
+    });
+
+    console.log('Order confirmation notification sent successfully:', response);
+    return { success: true, data: response };
+  } catch (error) {
+    console.error('Error sending order confirmation notification:', error);
     return { success: false, error: error.message };
   }
 }
 
-// Send welcome notification
-export async function sendWelcomeNotification(userFid) {
-  return await sendNotification({
-    targetFid: userFid,
-    title: "🎉 Welcome to Minted Merch!",
-    body: "Thanks for adding our shop! Browse crypto merch and pay with USDC on Base 🔵",
-    targetUrl: process.env.NEXT_PUBLIC_APP_URL || "https://mintedmerch.vercel.app"
-  });
-}
-
-// Send order confirmation notification
-export async function sendOrderConfirmationNotification(userFid, orderNumber, totalAmount) {
-  return await sendNotification({
-    targetFid: userFid,
-    title: `✅ Order ${orderNumber} Confirmed!`,
-    body: `Your order for ${totalAmount} USDC is confirmed. Thanks for shopping with crypto! 🚀`,
-    targetUrl: process.env.NEXT_PUBLIC_APP_URL || "https://mintedmerch.vercel.app"
-  });
-}
-
 // Send shipping notification
-export async function sendShippingNotification(userFid, orderNumber, trackingNumber, trackingCompany = 'Carrier') {
-  const trackingText = trackingNumber 
-    ? `Tracking: ${trackingNumber} via ${trackingCompany}` 
-    : 'Your order is on the way!';
+export async function sendShippingNotification(userFid, shippingDetails) {
+  if (!isNeynarAvailable()) {
+    console.log('Neynar not available, skipping shipping notification');
+    return { success: false, error: 'Neynar not configured' };
+  }
+
+  try {
+    console.log('Sending shipping notification to user FID:', userFid);
     
-  return await sendNotification({
-    targetFid: userFid,
-    title: `📦 Order ${orderNumber} Shipped!`,
-    body: `${trackingText} Check your order status anytime! 🚚`,
-    targetUrl: process.env.NEXT_PUBLIC_APP_URL || "https://mintedmerch.vercel.app"
-  });
+    const response = await neynarClient.publishFrameNotifications({
+      targetFids: [userFid],
+      notification: {
+        title: "📦 Your Order Has Shipped!",
+        body: `Order #${shippingDetails.orderId} is on its way! Track: ${shippingDetails.trackingNumber}`,
+        target_url: `https://mintedmerch.vercel.app/tracking/${shippingDetails.trackingNumber}`
+      }
+    });
+
+    console.log('Shipping notification sent successfully:', response);
+    return { success: true, data: response };
+  } catch (error) {
+    console.error('Error sending shipping notification:', error);
+    return { success: false, error: error.message };
+  }
 }
 
 // Test API connectivity

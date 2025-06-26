@@ -15,7 +15,7 @@ export async function POST(request) {
       );
     }
     
-    // Send welcome notification
+    // Send welcome notification - this is for users who explicitly add the Mini App
     const result = await sendWelcomeNotification(userFid);
     
     console.log('Welcome notification result:', result);
@@ -24,19 +24,19 @@ export async function POST(request) {
       return NextResponse.json({
         success: true,
         message: 'Welcome notification sent successfully',
-        result: result.result
+        data: result.data
       });
     } else {
-      return NextResponse.json(
-        { success: false, error: result.error },
-        { status: 500 }
-      );
+      return NextResponse.json({
+        success: false,
+        error: result.error
+      }, { status: 400 });
     }
     
   } catch (error) {
-    console.error('Error in welcome notification endpoint:', error);
+    console.error('Error in send-welcome-notification:', error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ProductGrid } from './ProductGrid';
 import { Cart } from './Cart';
 import { OrderHistory } from './OrderHistory';
@@ -9,9 +9,46 @@ import { useFarcaster } from '@/lib/useFarcaster';
 
 export function HomePage({ collection, products }) {
   const { itemCount, cartTotal } = useCart();
-  const { isInFarcaster } = useFarcaster();
+  const { isInFarcaster, isReady, getFid } = useFarcaster();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false);
+
+  // Check for welcome notification when user visits the app
+  useEffect(() => {
+    const checkWelcomeNotification = async () => {
+      // Only check if we're in Farcaster and have user data
+      if (!isInFarcaster || !isReady) return;
+      
+      const userFid = getFid();
+      if (!userFid) return;
+      
+      try {
+        console.log('Checking welcome notification for FID:', userFid);
+        const response = await fetch('/api/check-welcome-notification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userFid }),
+        });
+        
+        const result = await response.json();
+        console.log('Welcome notification check result:', result);
+        
+        if (result.notificationSent) {
+          console.log('Welcome notification sent to user!');
+        } else if (result.skipped) {
+          console.log('Welcome notification skipped:', result.reason);
+        }
+      } catch (error) {
+        console.error('Error checking welcome notification:', error);
+      }
+    };
+
+    // Small delay to ensure Farcaster context is fully loaded
+    const timer = setTimeout(checkWelcomeNotification, 1000);
+    return () => clearTimeout(timer);
+  }, [isInFarcaster, isReady, getFid]);
 
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);
