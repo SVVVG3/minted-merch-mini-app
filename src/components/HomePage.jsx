@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { ProductGrid } from './ProductGrid';
 import { Cart } from './Cart';
 import { OrderHistory } from './OrderHistory';
-import { NotificationPrompt } from './NotificationPrompt';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 
@@ -13,11 +12,8 @@ export function HomePage({ collection, products }) {
   const { isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user } = useFarcaster();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false);
-  const [registrationStatus, setRegistrationStatus] = useState(null);
-  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
-  const [hasNotifications, setHasNotifications] = useState(false);
 
-  // Register user profile when they visit the app (without notifications initially)
+  // Register user profile when they visit the app (notifications handled by Farcaster)
   useEffect(() => {
     const registerUserProfile = async () => {
       // Only register if we're in Farcaster and have user data
@@ -35,13 +31,13 @@ export function HomePage({ collection, products }) {
         const userData = {
           username: getUsername() || `user_${userFid}`,
           displayName: getDisplayName() || null,
-          bio: null, // We don't have bio from Farcaster context
+          bio: user?.bio || null, // Try to get bio from user context
           pfpUrl: getPfpUrl() || null
         };
 
         console.log('Registering user profile with data:', userData);
         
-        // Register user profile without notification token initially
+        // Register user profile only (notifications are handled by Farcaster webhooks)
         const response = await fetch('/api/register-user', {
           method: 'POST',
           headers: {
@@ -50,26 +46,20 @@ export function HomePage({ collection, products }) {
           body: JSON.stringify({ 
             userFid,
             userData
-            // No notificationToken - user will enable separately
+            // No notificationToken - handled by Farcaster Mini App system
           }),
         });
         
         const result = await response.json();
         console.log('User profile registration result:', result);
         
-        setRegistrationStatus(result);
-        
         if (result.success) {
           console.log('✅ User profile successfully registered!');
           
           if (result.profile.isNew) {
-            console.log('🎉 New user profile created - show notification prompt');
-            // Show notification prompt for new users after a delay
-            setTimeout(() => setShowNotificationPrompt(true), 2000);
+            console.log('🎉 New user profile created');
           } else {
             console.log('👤 Existing user profile updated');
-            // For existing users, check if they already have notifications enabled
-            checkNotificationStatus(userFid);
           }
         } else {
           console.error('❌ User profile registration failed:', result.error);
@@ -77,10 +67,6 @@ export function HomePage({ collection, products }) {
         
       } catch (error) {
         console.error('Error registering user profile:', error);
-        setRegistrationStatus({
-          success: false,
-          error: error.message
-        });
       }
     };
 
@@ -88,41 +74,6 @@ export function HomePage({ collection, products }) {
     const timer = setTimeout(registerUserProfile, 1000);
     return () => clearTimeout(timer);
   }, [isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user]);
-
-  // Check if user already has notifications enabled
-  const checkNotificationStatus = async (userFid) => {
-    try {
-      const response = await fetch(`/api/debug/supabase-test?testType=token&userFid=${userFid}`);
-      const result = await response.json();
-      
-      if (result.tests?.token?.success && result.tests.token.operations?.initial_get?.token) {
-        console.log('✅ User already has notifications enabled');
-        setHasNotifications(true);
-      } else {
-        console.log('❌ User does not have notifications enabled');
-        setShowNotificationPrompt(true);
-      }
-    } catch (error) {
-      console.error('Error checking notification status:', error);
-    }
-  };
-
-  const handleNotificationEnabled = (result) => {
-    console.log('🎉 Notifications successfully enabled!', result);
-    setHasNotifications(true);
-    setShowNotificationPrompt(false);
-    
-    // Update registration status to reflect notification enablement
-    setRegistrationStatus(prev => ({
-      ...prev,
-      notifications: result.notifications
-    }));
-  };
-
-  const handleDismissNotificationPrompt = () => {
-    setShowNotificationPrompt(false);
-    console.log('User dismissed notification prompt');
-  };
 
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);
@@ -137,34 +88,7 @@ export function HomePage({ collection, products }) {
             <h1 className="text-lg font-semibold text-gray-900">
               {collection?.title || 'All Products'}
             </h1>
-            <div className="flex items-center space-x-2">
-              <p className="text-xs text-gray-500 mt-0.5">Pay with USDC on Base</p>
-              
-              {/* Registration Status Indicator (for debugging) */}
-              {isInFarcaster && registrationStatus && (
-                <div className="flex items-center space-x-1">
-                  {registrationStatus.success ? (
-                    <>
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-xs text-green-600">
-                        {registrationStatus.profile?.isNew ? 'Registered' : 'Updated'}
-                      </span>
-                      {hasNotifications && (
-                        <>
-                          <div className="w-2 h-2 bg-blue-500 rounded-full ml-1"></div>
-                          <span className="text-xs text-blue-600">Notifications on</span>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                      <span className="text-xs text-red-600">Registration failed</span>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
+            <p className="text-xs text-gray-500 mt-0.5">Pay with USDC on Base</p>
           </div>
           
           <div className="flex items-center space-x-2">
@@ -210,17 +134,6 @@ export function HomePage({ collection, products }) {
       </header>
       
       <main>
-        {/* Notification Prompt - Only show in Farcaster for users without notifications */}
-        {isInFarcaster && showNotificationPrompt && !hasNotifications && (
-          <div className="px-4 pt-4">
-            <NotificationPrompt
-              userFid={getFid()}
-              onNotificationEnabled={handleNotificationEnabled}
-              onDismiss={handleDismissNotificationPrompt}
-            />
-          </div>
-        )}
-        
         <ProductGrid products={products} />
       </main>
       

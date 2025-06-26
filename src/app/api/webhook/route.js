@@ -1,297 +1,215 @@
 import { NextResponse } from 'next/server';
-import { sendWelcomeNotification } from '@/lib/neynar';
-import { 
-  getOrCreateProfile, 
-  storeNotificationToken, 
-  disableNotificationToken 
-} from '@/lib/supabase';
+import { createOrUpdateProfile, enableNotifications, disableNotifications } from '@/lib/supabase';
+import { sendWelcomeForNewUser } from '@/lib/neynar';
 
 export async function POST(request) {
   try {
+    console.log('=== WEBHOOK RECEIVED ===');
+    
     const body = await request.json();
-    
-    // Enhanced logging for debugging
-    console.log('=== FARCASTER WEBHOOK RECEIVED ===');
-    console.log('Timestamp:', new Date().toISOString());
-    console.log('Headers:', Object.fromEntries(request.headers.entries()));
-    console.log('Raw Body:', JSON.stringify(body, null, 2));
-    
-    // Handle Farcaster's JSON Farcaster Signature format
-    if (body.header && body.payload && body.signature) {
-      console.log('Processing JSON Farcaster Signature format');
-      
-      // Decode the payload to get the actual event data
-      const decodedPayload = JSON.parse(Buffer.from(body.payload, 'base64url').toString());
-      console.log('Decoded Payload:', JSON.stringify(decodedPayload, null, 2));
-      
-      // Decode the header to get user information
-      const decodedHeader = JSON.parse(Buffer.from(body.header, 'base64url').toString());
-      console.log('Decoded Header:', JSON.stringify(decodedHeader, null, 2));
-      
-      // Handle the event based on the decoded payload
-      await handleFarcasterEvent(decodedPayload, decodedHeader, body);
-    } else {
-      // Handle direct event format (for testing)
-      console.log('Processing direct event format');
-      await handleDirectEvent(body);
-    }
-    
-    console.log('=== END WEBHOOK DATA ===');
+    console.log('Webhook payload:', JSON.stringify(body, null, 2));
 
-    // Return success response
-    return NextResponse.json({ 
-      success: true,
-      message: 'Webhook processed successfully',
-      timestamp: new Date().toISOString()
-    });
+    // Extract user info from the webhook
+    const userFid = body.untrustedData?.fid;
+    
+    if (!userFid) {
+      console.log('No user FID found in webhook payload');
+      return NextResponse.json({ success: false, error: 'No user FID provided' });
+    }
+
+    console.log('Processing webhook for user FID:', userFid);
+
+    // Handle different webhook events
+    if (body.event) {
+      return await handleFarcasterEvent(body, userFid);
+    }
+
+    // Handle legacy frame interactions (if any)
+    return await handleFrameInteraction(body, userFid);
 
   } catch (error) {
-    console.error('=== WEBHOOK ERROR ===');
-    console.error('Timestamp:', new Date().toISOString());
-    console.error('Error:', error);
-    console.error('=== END WEBHOOK ERROR ===');
-    
+    console.error('Error processing webhook:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to process webhook',
-        timestamp: new Date().toISOString()
-      },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
 }
 
-// Handle Farcaster events in the proper format
-async function handleFarcasterEvent(payload, header, signedData) {
+async function handleFarcasterEvent(body, userFid) {
+  const { event, notificationDetails } = body;
+  
   console.log('=== HANDLING FARCASTER EVENT ===');
-  console.log('Event type:', payload.event);
-  console.log('User FID:', header.fid);
-  
-  const userFid = header.fid;
-  
-  switch (payload.event) {
-    case 'frame_added':
-      await handleFrameAdded(payload, userFid);
-      break;
-    
-    case 'frame_removed':
-      await handleFrameRemoved(payload, userFid);
-      break;
-    
-    case 'notifications_enabled':
-      await handleNotificationsEnabled(payload, userFid);
-      break;
-    
-    case 'notifications_disabled':
-      await handleNotificationsDisabled(payload, userFid);
-      break;
-    
-    default:
-      console.log('Unknown Farcaster event type:', payload.event);
-  }
-}
-
-// Handle direct events (for testing)
-async function handleDirectEvent(body) {
-  console.log('=== HANDLING DIRECT EVENT ===');
-  
-  switch (body.type) {
-    case 'app.added':
-      await handleAppAdded(body);
-      break;
-    
-    case 'app.removed':
-      await handleAppRemoved(body);
-      break;
-    
-    default:
-      console.log('Unknown direct event type:', body.type);
-  }
-}
-
-// Handle frame_added event (the correct Farcaster event)
-async function handleFrameAdded(payload, userFid) {
-  console.log('=== FRAME ADDED ===');
-  console.log('User FID:', userFid);
-  console.log('Notification details:', payload.notificationDetails);
-  
-  if (!userFid) {
-    console.log('No user FID found in event data');
-    return;
-  }
-
-  // First, ensure user profile exists in our database
-  try {
-    const profileResult = await getOrCreateProfile(userFid, {
-      username: `user_${userFid}`, // We'll update this with real data later
-      display_name: null,
-      bio: null,
-      pfp_url: null
-    });
-
-    if (!profileResult.success) {
-      console.error('Failed to create/get user profile:', profileResult.error);
-      // Continue anyway, don't block the notification flow
-    } else {
-      console.log('User profile ready:', profileResult.profile?.id);
-    }
-  } catch (error) {
-    console.error('Error handling user profile:', error);
-    // Continue anyway
-  }
-
-  // Check if user enabled notifications
-  if (payload.notificationDetails && payload.notificationDetails.token) {
-    console.log('🎉 User enabled notifications - storing token and sending welcome notification!');
-    
-    // Store the notification token in our database
-    try {
-      const tokenResult = await storeNotificationToken(userFid, payload.notificationDetails);
-      if (tokenResult.success) {
-        console.log('✅ Notification token stored successfully');
-      } else {
-        console.error('❌ Failed to store notification token:', tokenResult.error);
-      }
-    } catch (error) {
-      console.error('Error storing notification token:', error);
-    }
-    
-    // Send welcome notification
-    try {
-      const result = await sendWelcomeNotification(userFid);
-      console.log('Welcome notification result:', result);
-      
-      if (result.success) {
-        console.log('✅ Welcome notification sent successfully!');
-      } else {
-        console.log('❌ Failed to send welcome notification:', result.error);
-      }
-    } catch (error) {
-      console.error('Error sending welcome notification:', error);
-    }
-  } else {
-    console.log('User did not enable notifications - no token to store');
-  }
-}
-
-// Handle frame_removed event
-async function handleFrameRemoved(payload, userFid) {
-  console.log('=== FRAME REMOVED ===');
-  console.log('User FID:', userFid);
-  
-  if (userFid) {
-    console.log(`User ${userFid} removed the Mini App`);
-    
-    // Disable their notification token
-    try {
-      const result = await disableNotificationToken(userFid);
-      if (result.success) {
-        console.log('✅ Notification token disabled successfully');
-      } else {
-        console.error('❌ Failed to disable notification token:', result.error);
-      }
-    } catch (error) {
-      console.error('Error disabling notification token:', error);
-    }
-  }
-}
-
-// Handle notifications_enabled event
-async function handleNotificationsEnabled(payload, userFid) {
-  console.log('=== NOTIFICATIONS ENABLED ===');
-  console.log('User FID:', userFid);
-  console.log('Notification details:', payload.notificationDetails);
-  
-  if (userFid && payload.notificationDetails) {
-    console.log(`User ${userFid} enabled notifications`);
-    
-    // Store the new notification token
-    try {
-      const tokenResult = await storeNotificationToken(userFid, payload.notificationDetails);
-      if (tokenResult.success) {
-        console.log('✅ Notification token stored successfully');
-        
-        // Send a welcome notification since they just enabled notifications
-        const result = await sendWelcomeNotification(userFid);
-        if (result.success) {
-          console.log('✅ Welcome notification sent!');
-        }
-      } else {
-        console.error('❌ Failed to store notification token:', tokenResult.error);
-      }
-    } catch (error) {
-      console.error('Error handling notifications enabled:', error);
-    }
-  }
-}
-
-// Handle notifications_disabled event
-async function handleNotificationsDisabled(payload, userFid) {
-  console.log('=== NOTIFICATIONS DISABLED ===');
-  console.log('User FID:', userFid);
-  
-  if (userFid) {
-    console.log(`User ${userFid} disabled notifications`);
-    
-    // Disable their notification token
-    try {
-      const result = await disableNotificationToken(userFid);
-      if (result.success) {
-        console.log('✅ Notification token disabled successfully');
-      } else {
-        console.error('❌ Failed to disable notification token:', result.error);
-      }
-    } catch (error) {
-      console.error('Error disabling notification token:', error);
-    }
-  }
-}
-
-// Legacy handlers for backward compatibility
-async function handleAppAdded(body) {
-  console.log('=== MINI APP ADDED (LEGACY) ===');
-  
-  const userFid = body.data?.user?.fid;
-  const notificationDetails = body.data?.notification_details;
-  
+  console.log('Event type:', event);
   console.log('User FID:', userFid);
   console.log('Notification details:', notificationDetails);
-  
-  if (!userFid) {
-    console.log('No user FID found in webhook data');
-    return;
-  }
 
-  // Check if user enabled notifications
-  if (notificationDetails && notificationDetails.token) {
-    console.log('User enabled notifications - sending welcome notification');
-    
-    try {
-      const result = await sendWelcomeNotification(userFid);
-      console.log('Welcome notification result:', result);
-      
-      if (result.success) {
-        console.log('✅ Welcome notification sent successfully!');
-      } else {
-        console.log('❌ Failed to send welcome notification:', result.error);
-      }
-    } catch (error) {
-      console.error('Error sending welcome notification:', error);
+  try {
+    switch (event) {
+      case 'frame_added':
+        console.log('📱 User added Mini App');
+        
+        // Create/update user profile (we may not have full user data from webhook)
+        const profileResult = await createOrUpdateProfile(userFid, {
+          username: `user_${userFid}`, // Fallback username
+          displayName: null,
+          bio: null,
+          pfpUrl: null
+        });
+
+        if (!profileResult.success) {
+          console.error('Failed to create/update profile:', profileResult.error);
+          return NextResponse.json({ success: false, error: 'Failed to create profile' });
+        }
+
+        console.log('✅ Profile created/updated:', profileResult.profile);
+
+        // If notification details are provided, enable notifications
+        if (notificationDetails && notificationDetails.token) {
+          console.log('🔔 Enabling notifications with token from webhook');
+          
+          const notificationResult = await enableNotifications(
+            userFid,
+            notificationDetails.token,
+            notificationDetails.url
+          );
+
+          if (notificationResult.success) {
+            console.log('✅ Notifications enabled successfully');
+            
+            // Send welcome notification
+            try {
+              const welcomeResult = await sendWelcomeForNewUser(userFid);
+              console.log('Welcome notification result:', welcomeResult);
+            } catch (welcomeError) {
+              console.error('Failed to send welcome notification:', welcomeError);
+            }
+          } else {
+            console.error('Failed to enable notifications:', notificationResult.error);
+          }
+        }
+
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Mini App added successfully',
+          profileCreated: true,
+          notificationsEnabled: !!notificationDetails?.token
+        });
+
+      case 'notifications_enabled':
+        console.log('🔔 User enabled notifications');
+        
+        if (!notificationDetails || !notificationDetails.token) {
+          console.error('No notification details provided');
+          return NextResponse.json({ success: false, error: 'No notification token provided' });
+        }
+
+        const enableResult = await enableNotifications(
+          userFid,
+          notificationDetails.token,
+          notificationDetails.url
+        );
+
+        if (enableResult.success) {
+          console.log('✅ Notifications enabled successfully');
+          
+          // Send welcome notification for newly enabled notifications
+          try {
+            const welcomeResult = await sendWelcomeForNewUser(userFid);
+            console.log('Welcome notification result:', welcomeResult);
+          } catch (welcomeError) {
+            console.error('Failed to send welcome notification:', welcomeError);
+          }
+          
+          return NextResponse.json({ 
+            success: true, 
+            message: 'Notifications enabled successfully',
+            welcomeNotificationSent: true
+          });
+        } else {
+          console.error('Failed to enable notifications:', enableResult.error);
+          return NextResponse.json({ success: false, error: 'Failed to enable notifications' });
+        }
+
+      case 'notifications_disabled':
+        console.log('🔕 User disabled notifications');
+        
+        const disableResult = await disableNotifications(userFid);
+        
+        if (disableResult.success) {
+          console.log('✅ Notifications disabled successfully');
+          return NextResponse.json({ 
+            success: true, 
+            message: 'Notifications disabled successfully' 
+          });
+        } else {
+          console.error('Failed to disable notifications:', disableResult.error);
+          return NextResponse.json({ success: false, error: 'Failed to disable notifications' });
+        }
+
+      case 'frame_removed':
+        console.log('📱❌ User removed Mini App');
+        
+        // Disable notifications when Mini App is removed
+        const removeResult = await disableNotifications(userFid);
+        
+        if (removeResult.success) {
+          console.log('✅ Notifications disabled due to Mini App removal');
+        } else {
+          console.error('Failed to disable notifications on removal:', removeResult.error);
+        }
+
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Mini App removed, notifications disabled' 
+        });
+
+      default:
+        console.log('⚠️ Unknown event type:', event);
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Event received but not handled',
+          event: event
+        });
     }
-  } else {
-    console.log('User did not enable notifications - no welcome notification sent');
+  } catch (error) {
+    console.error('Error handling Farcaster event:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to process event' },
+      { status: 500 }
+    );
   }
 }
 
-async function handleAppRemoved(body) {
-  console.log('=== MINI APP REMOVED (LEGACY) ===');
-  
-  const userFid = body.data?.user?.fid;
+async function handleFrameInteraction(body, userFid) {
+  console.log('=== HANDLING LEGACY FRAME INTERACTION ===');
   console.log('User FID:', userFid);
   
-  if (userFid) {
-    console.log(`User ${userFid} removed the Mini App`);
+  // For legacy frame interactions, just create/update profile
+  try {
+    const profileResult = await createOrUpdateProfile(userFid, {
+      username: `user_${userFid}`,
+      displayName: null,
+      bio: null,
+      pfpUrl: null
+    });
+
+    if (profileResult.success) {
+      console.log('✅ Profile created/updated for frame interaction');
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Frame interaction processed' 
+      });
+    } else {
+      console.error('Failed to create/update profile:', profileResult.error);
+      return NextResponse.json({ success: false, error: 'Failed to process interaction' });
+    }
+  } catch (error) {
+    console.error('Error handling frame interaction:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to process frame interaction' },
+      { status: 500 }
+    );
   }
 }
 

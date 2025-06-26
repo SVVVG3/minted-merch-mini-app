@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server';
-import { getOrCreateProfile, storeNotificationToken } from '@/lib/supabase';
-import { sendWelcomeNotification } from '@/lib/neynar';
+import { createOrUpdateProfile, enableNotifications } from '@/lib/supabase';
+import { sendWelcomeForNewUser } from '@/lib/neynar';
 
 export async function POST(request) {
   try {
-    const body = await request.json();
-    const { userFid, userData, notificationToken } = body;
-
-    console.log('=== USER REGISTRATION ===');
+    console.log('=== USER REGISTRATION REQUEST ===');
+    
+    const { userFid, userData, notificationToken } = await request.json();
+    
     console.log('User FID:', userFid);
     console.log('User Data:', userData);
-    console.log('Notification Token:', notificationToken ? 'Provided' : 'Not provided');
-
+    console.log('Notification Token:', notificationToken ? 'provided' : 'not provided');
+    
     if (!userFid) {
       return NextResponse.json(
         { success: false, error: 'User FID is required' },
@@ -19,14 +19,10 @@ export async function POST(request) {
       );
     }
 
-    // Create or update user profile
-    const profileResult = await getOrCreateProfile(userFid, {
-      username: userData?.username || `user_${userFid}`,
-      display_name: userData?.displayName || userData?.display_name || null,
-      bio: userData?.bio || null,
-      pfp_url: userData?.pfpUrl || userData?.pfp_url || null
-    });
-
+    // Step 1: Create or update user profile
+    console.log('Step 1: Creating/updating user profile...');
+    const profileResult = await createOrUpdateProfile(userFid, userData || {});
+    
     if (!profileResult.success) {
       console.error('Failed to create/update profile:', profileResult.error);
       return NextResponse.json(
@@ -35,63 +31,76 @@ export async function POST(request) {
       );
     }
 
-    console.log('Profile result:', profileResult.isNew ? 'Created new profile' : 'Updated existing profile');
+    console.log('✅ Profile created/updated successfully');
+    
+    // Step 2: Handle notifications if token provided
+    let notificationResult = {
+      tokenStored: false,
+      welcomeSent: false,
+      error: null
+    };
 
-    let notificationResult = null;
-    let welcomeResult = null;
-
-    // If notification token is provided, store it and send welcome notification
-    if (notificationToken) {
-      console.log('Storing notification token and sending welcome notification...');
+    if (notificationToken && notificationToken.token) {
+      console.log('Step 2: Enabling notifications...');
       
-      notificationResult = await storeNotificationToken(userFid, {
-        token: notificationToken.token || `manual_token_${Date.now()}`,
-        url: notificationToken.url || 'https://api.farcaster.xyz/v1/frame-notifications'
-      });
+      const enableResult = await enableNotifications(
+        userFid,
+        notificationToken.token,
+        notificationToken.url || 'https://api.farcaster.xyz/v1/frame-notifications'
+      );
 
-      if (notificationResult.success) {
-        console.log('✅ Notification token stored successfully');
-        
-        // Send welcome notification
-        welcomeResult = await sendWelcomeNotification(userFid);
-        if (welcomeResult.success) {
-          console.log('✅ Welcome notification sent successfully!');
-        } else {
-          console.log('❌ Failed to send welcome notification:', welcomeResult.error);
+      if (enableResult.success) {
+        console.log('✅ Notifications enabled successfully');
+        notificationResult.tokenStored = true;
+
+        // Step 3: Send welcome notification
+        console.log('Step 3: Sending welcome notification...');
+        try {
+          const welcomeResult = await sendWelcomeForNewUser(userFid);
+          console.log('Welcome notification result:', welcomeResult);
+          
+          if (welcomeResult.success && !welcomeResult.skipped) {
+            notificationResult.welcomeSent = true;
+            console.log('✅ Welcome notification sent successfully');
+          } else if (welcomeResult.skipped) {
+            console.log('ℹ️ Welcome notification skipped:', welcomeResult.reason);
+          } else {
+            console.log('❌ Welcome notification failed:', welcomeResult.error);
+            notificationResult.error = welcomeResult.error;
+          }
+        } catch (welcomeError) {
+          console.error('Error sending welcome notification:', welcomeError);
+          notificationResult.error = welcomeError.message;
         }
       } else {
-        console.error('❌ Failed to store notification token:', notificationResult.error);
+        console.error('Failed to enable notifications:', enableResult.error);
+        notificationResult.error = enableResult.error;
       }
     } else {
-      console.log('No notification token provided - user has not enabled notifications');
+      console.log('No notification token provided - skipping notification setup');
     }
 
-    return NextResponse.json({
+    // Return comprehensive result
+    const response = {
       success: true,
       profile: {
         isNew: profileResult.isNew,
-        id: profileResult.profile?.id,
-        fid: userFid
+        id: profileResult.profile.id,
+        fid: profileResult.profile.fid
       },
-      notifications: {
-        tokenStored: notificationResult?.success || false,
-        welcomeSent: welcomeResult?.success || false,
-        error: notificationResult?.error || welcomeResult?.error || null
-      },
+      notifications: notificationResult,
       timestamp: new Date().toISOString()
-    });
+    };
+
+    console.log('=== REGISTRATION COMPLETE ===');
+    console.log('Response:', response);
+    
+    return NextResponse.json(response);
 
   } catch (error) {
-    console.error('=== USER REGISTRATION ERROR ===');
-    console.error('Error:', error);
-    
+    console.error('Error in register-user:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to register user',
-        details: error.message,
-        timestamp: new Date().toISOString()
-      },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

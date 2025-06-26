@@ -1,230 +1,226 @@
 import { NextResponse } from 'next/server';
-import { 
-  isSupabaseAvailable,
-  getOrCreateProfile,
-  storeNotificationToken,
-  getNotificationToken,
-  getUsersWithNotifications
-} from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const testType = searchParams.get('testType') || 'connectivity';
+  const userFid = parseInt(searchParams.get('userFid')) || 466111;
+
+  const response = {
+    timestamp: new Date().toISOString(),
+    testType,
+    userFid,
+    supabaseAvailable: !!supabase,
+    tests: {}
+  };
+
+  if (!supabase) {
+    response.error = 'Supabase client not available';
+    return NextResponse.json(response);
+  }
+
   try {
-    const { searchParams } = new URL(request.url);
-    const testType = searchParams.get('testType') || 'connectivity';
-    const userFid = parseInt(searchParams.get('userFid')) || 466111;
-
-    console.log('=== SUPABASE DEBUG TEST ===');
-    console.log('Test type:', testType);
-    console.log('User FID:', userFid);
-
-    const results = {
-      timestamp: new Date().toISOString(),
-      testType,
-      userFid,
-      supabaseAvailable: isSupabaseAvailable(),
-      tests: {}
-    };
-
-    if (!isSupabaseAvailable()) {
-      results.error = 'Supabase not configured - check environment variables';
-      return NextResponse.json(results);
-    }
-
     switch (testType) {
       case 'connectivity':
-        results.tests.connectivity = await testConnectivity();
+        response.tests.connectivity = await testConnectivity();
         break;
       
       case 'profile':
-        results.tests.profile = await testProfile(userFid);
+        response.tests.profile = await testProfile(userFid);
         break;
       
-      case 'token':
-        results.tests.token = await testNotificationToken(userFid);
+      case 'notifications':
+        response.tests.notifications = await testNotifications(userFid);
         break;
       
       case 'full':
-        results.tests.connectivity = await testConnectivity();
-        results.tests.profile = await testProfile(userFid);
-        results.tests.token = await testNotificationToken(userFid);
-        results.tests.users = await testGetUsers();
+        response.tests.connectivity = await testConnectivity();
+        response.tests.profile = await testProfile(userFid);
+        response.tests.notifications = await testNotifications(userFid);
         break;
       
       default:
-        results.error = 'Unknown test type. Use: connectivity, profile, token, or full';
+        response.error = 'Unknown test type. Use: connectivity, profile, notifications, or full';
     }
-
-    console.log('=== SUPABASE DEBUG RESULTS ===');
-    console.log(JSON.stringify(results, null, 2));
-
-    return NextResponse.json(results);
-
   } catch (error) {
-    console.error('=== SUPABASE DEBUG ERROR ===');
-    console.error('Error:', error);
-    
-    return NextResponse.json({
-      success: false,
-      error: error.message,
-      timestamp: new Date().toISOString()
-    }, { status: 500 });
+    response.error = error.message;
+    console.error('Debug test error:', error);
   }
+
+  return NextResponse.json(response);
 }
 
-export async function POST(request) {
-  try {
-    const body = await request.json();
-    const { testType, userFid, tokenData } = body;
-
-    console.log('=== SUPABASE DEBUG POST TEST ===');
-    console.log('Test type:', testType);
-    console.log('User FID:', userFid);
-
-    const results = {
-      timestamp: new Date().toISOString(),
-      testType,
-      userFid,
-      supabaseAvailable: isSupabaseAvailable()
-    };
-
-    if (!isSupabaseAvailable()) {
-      results.error = 'Supabase not configured - check environment variables';
-      return NextResponse.json(results);
-    }
-
-    switch (testType) {
-      case 'create_profile':
-        results.profileResult = await getOrCreateProfile(userFid, {
-          username: `test_user_${userFid}`,
-          display_name: 'Test User',
-          bio: 'Test profile for debugging',
-          pfp_url: 'https://example.com/avatar.png'
-        });
-        break;
-      
-      case 'store_token':
-        if (!tokenData) {
-          results.error = 'tokenData required for store_token test';
-          break;
-        }
-        results.tokenResult = await storeNotificationToken(userFid, tokenData);
-        break;
-      
-      case 'simulate_add':
-        // Simulate the full flow of adding a Mini App with notifications
-        results.profileResult = await getOrCreateProfile(userFid, {
-          username: `user_${userFid}`,
-          display_name: 'Simulated User',
-          bio: null,
-          pfp_url: null
-        });
-        
-        if (results.profileResult.success) {
-          results.tokenResult = await storeNotificationToken(userFid, {
-            token: `test_token_${Date.now()}`,
-            url: 'https://api.farcaster.xyz/v1/frame-notifications'
-          });
-        }
-        break;
-      
-      default:
-        results.error = 'Unknown POST test type. Use: create_profile, store_token, or simulate_add';
-    }
-
-    return NextResponse.json(results);
-
-  } catch (error) {
-    console.error('=== SUPABASE DEBUG POST ERROR ===');
-    console.error('Error:', error);
-    
-    return NextResponse.json({
-      success: false,
-      error: error.message,
-      timestamp: new Date().toISOString()
-    }, { status: 500 });
-  }
-}
-
-// Test basic connectivity
 async function testConnectivity() {
+  console.log('Testing Supabase connectivity...');
+  
   try {
-    const { supabase } = await import('@/lib/supabase');
-    const { data, error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
-    
+    const { count, error } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
+
     if (error) {
-      return { success: false, error: error.message };
+      return {
+        success: false,
+        error: error.message
+      };
     }
-    
-    return { 
-      success: true, 
-      message: 'Database connection successful',
-      profileCount: data?.length || 0
-    };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-}
 
-// Test profile operations
-async function testProfile(userFid) {
-  try {
-    const result = await getOrCreateProfile(userFid, {
-      username: `debug_user_${userFid}`,
-      display_name: 'Debug User',
-      bio: 'Created during debug test',
-      pfp_url: null
-    });
-    
-    return result;
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-}
-
-// Test notification token operations
-async function testNotificationToken(userFid) {
-  try {
-    // First, try to get existing token
-    const getResult = await getNotificationToken(userFid);
-    
-    if (!getResult.success) {
-      return { success: false, error: getResult.error, operation: 'get_token' };
-    }
-    
-    const testToken = {
-      token: `debug_token_${Date.now()}`,
-      url: 'https://api.farcaster.xyz/v1/frame-notifications'
-    };
-    
-    // Store a test token
-    const storeResult = await storeNotificationToken(userFid, testToken);
-    
-    if (!storeResult.success) {
-      return { success: false, error: storeResult.error, operation: 'store_token' };
-    }
-    
-    // Get the token again to verify it was stored
-    const verifyResult = await getNotificationToken(userFid);
-    
     return {
       success: true,
-      operations: {
-        initial_get: getResult,
-        store: storeResult,
-        verify_get: verifyResult
-      }
+      message: 'Database connection successful',
+      profileCount: count
     };
   } catch (error) {
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error.message
+    };
   }
 }
 
-// Test getting users with notifications
-async function testGetUsers() {
+async function testProfile(userFid) {
+  console.log('Testing profile operations for FID:', userFid);
+  
   try {
-    const result = await getUsersWithNotifications();
-    return result;
+    // Test profile retrieval
+    const { data: profile, error: fetchError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('fid', userFid)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      return {
+        success: false,
+        error: fetchError.message
+      };
+    }
+
+    const isNew = !profile;
+
+    // If no profile exists, create one for testing
+    if (isNew) {
+      console.log('Creating test profile...');
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          fid: userFid,
+          username: `test_user_${userFid}`,
+          display_name: 'Test User',
+          bio: 'Test bio',
+          pfp_url: null,
+          notifications_enabled: false
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        return {
+          success: false,
+          error: createError.message
+        };
+      }
+
+      return {
+        success: true,
+        profile: newProfile,
+        isNew: true
+      };
+    }
+
+    return {
+      success: true,
+      profile: profile,
+      isNew: false
+    };
+
   } catch (error) {
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+async function testNotifications(userFid) {
+  console.log('Testing notification operations for FID:', userFid);
+  
+  try {
+    const operations = {};
+
+    // Test 1: Get current notification status
+    const { data: currentProfile, error: getCurrentError } = await supabase
+      .from('profiles')
+      .select('notifications_enabled, notification_token, notification_url')
+      .eq('fid', userFid)
+      .single();
+
+    operations.initial_get = {
+      success: !getCurrentError,
+      error: getCurrentError?.message,
+      notificationsEnabled: currentProfile?.notifications_enabled || false,
+      hasToken: !!currentProfile?.notification_token
+    };
+
+    if (getCurrentError && getCurrentError.code !== 'PGRST116') {
+      return {
+        success: false,
+        error: getCurrentError.message,
+        operations
+      };
+    }
+
+    // Test 2: Enable notifications with a test token
+    const testToken = `debug_token_${Date.now()}`;
+    const { data: updatedProfile, error: enableError } = await supabase
+      .from('profiles')
+      .update({
+        notifications_enabled: true,
+        notification_token: testToken,
+        notification_url: 'https://api.farcaster.xyz/v1/frame-notifications',
+        updated_at: new Date().toISOString()
+      })
+      .eq('fid', userFid)
+      .select()
+      .single();
+
+    operations.enable = {
+      success: !enableError,
+      error: enableError?.message,
+      data: updatedProfile
+    };
+
+    if (enableError) {
+      return {
+        success: false,
+        error: enableError.message,
+        operations
+      };
+    }
+
+    // Test 3: Verify the update worked
+    const { data: verifyProfile, error: verifyError } = await supabase
+      .from('profiles')
+      .select('notifications_enabled, notification_token, notification_url')
+      .eq('fid', userFid)
+      .single();
+
+    operations.verify = {
+      success: !verifyError,
+      error: verifyError?.message,
+      notificationsEnabled: verifyProfile?.notifications_enabled,
+      tokenMatches: verifyProfile?.notification_token === testToken
+    };
+
+    return {
+      success: true,
+      operations
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
   }
 } 

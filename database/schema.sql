@@ -1,58 +1,42 @@
--- Minted Merch Database Schema
--- This schema is based on the working GameLink implementation
+-- Minted Merch Mini App Database Schema
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Drop existing tables if they exist
+DROP TABLE IF EXISTS notification_tokens;
+DROP TABLE IF EXISTS profiles;
 
--- Profiles table for storing Farcaster user data
-CREATE TABLE IF NOT EXISTS profiles (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+-- Single profiles table with notification support
+CREATE TABLE profiles (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   fid INTEGER UNIQUE NOT NULL,
   username TEXT NOT NULL,
   display_name TEXT,
   bio TEXT,
   pfp_url TEXT,
+  
+  -- Notification fields
+  notifications_enabled BOOLEAN DEFAULT FALSE,
+  notification_token TEXT,
+  notification_url TEXT DEFAULT 'https://api.farcaster.xyz/v1/frame-notifications',
+  
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Notification tokens table for storing user notification permissions
-CREATE TABLE IF NOT EXISTS notification_tokens (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  fid INTEGER UNIQUE NOT NULL REFERENCES profiles(fid) ON DELETE CASCADE,
-  token TEXT NOT NULL,
-  url TEXT NOT NULL,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Indexes for performance
+CREATE INDEX idx_profiles_fid ON profiles(fid);
+CREATE INDEX idx_profiles_notifications ON profiles(notifications_enabled) WHERE notifications_enabled = TRUE;
 
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_profiles_fid ON profiles(fid);
-CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username);
-CREATE INDEX IF NOT EXISTS idx_notification_tokens_fid ON notification_tokens(fid);
-CREATE INDEX IF NOT EXISTS idx_notification_tokens_active ON notification_tokens(is_active);
-
--- Row Level Security (RLS) policies
+-- Row Level Security (RLS)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notification_tokens ENABLE ROW LEVEL SECURITY;
 
--- Allow public read access to profiles (for discovery)
-CREATE POLICY "Public profiles are viewable by everyone" ON profiles
+-- RLS Policies
+CREATE POLICY "Allow public read access to profiles" ON profiles
   FOR SELECT USING (true);
 
--- Allow users to insert/update their own profile
-CREATE POLICY "Users can insert their own profile" ON profiles
-  FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow service role full access to profiles" ON profiles
+  FOR ALL USING (auth.role() = 'service_role');
 
-CREATE POLICY "Users can update their own profile" ON profiles
-  FOR UPDATE USING (true);
-
--- Notification tokens should only be accessible by the system
-CREATE POLICY "Only system can access notification tokens" ON notification_tokens
-  FOR ALL USING (true);
-
--- Function to automatically update updated_at timestamp
+-- Update trigger for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -61,9 +45,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Triggers to automatically update updated_at
-CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_notification_tokens_updated_at BEFORE UPDATE ON notification_tokens
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); 
+CREATE TRIGGER update_profiles_updated_at 
+  BEFORE UPDATE ON profiles 
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_updated_at_column(); 
