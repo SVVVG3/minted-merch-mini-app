@@ -1,30 +1,16 @@
 {
   "accountAssociation": {
-    "header": "eyJmaWQiOjQ2NjExMSwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDQ0ZDRjNThlZmNCYjQ0NjM5RDY0NDIwMTc1Q2Y1MTlhQTMxOTFhODYifQ",
+    "header": "eyJmaWQiOjkxNTIsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg4MmFBMzM3MzI4ZDc5ZGI3ZjJmQjQ1NjE5MDFiOWY5QTZiYzQ0QkE1In0",
     "payload": "eyJkb21haW4iOiJtaW50ZWRtZXJjaC52ZXJjZWwuYXBwIn0",
-    "signature": "MHg4ZjhjMzQ5MWU4MjQ1YzA4ZWEyZWIyYjIwOGUzMjc0MDQ5ZGJkOTE0NjU2MTE1ZWY3MDU4MzYwZGVjYzU4Y2NhNGNmODFiYzI3MjdjN2FlZGNiZmRiNGU3ZmNkZTU0YWYyMTI0OGI0NTc2MTFmNDQ4Njg0NTIyMmUwYzlhYjM1MjFi"
+    "signature": "MHg0ZTlhYzJkOWJkYzBhODgzOGY5NzNhODM5YzQzZDEwMjBiNWM4ZDY1YmJhNjcxNGJhMDhkNTU0YTQ4MDI2NzE0NGI4YmQzYWM1ZGVkNWZlM2U5ZGYzMjI5NDMzZGI5YjRiZjJjNGVkNzQ4ZWNkNDJmNGNjNzMyNzg0NDFiMGZmMTFj"
   },
   "frame": {
-    "version": "1",
-    "name": "Minted Merch Shop",
-    "iconUrl": "https://mintedmerch.vercel.app/logo.png",
-    "homeUrl": "https://mintedmerch.vercel.app",
+    "version": "4.2.0",
+    "name": "Minted Merch",
+    "iconUrl": "https://mintedmerch.vercel.app/icon-192.png",
     "splashImageUrl": "https://mintedmerch.vercel.app/splash.png",
-    "splashBackgroundColor": "#000000",
-    "webhookUrl": "https://api.neynar.com/f/app/11f2fe11-b70c-40fa-b653-9770b7588bdf/event",
-    "buttonTitle": "Shop Now 📦",
-    "subtitle": "Connect and share instantly",
-    "description": "Apparel, accessories, and more! Designed after your favorite coins, communities, and NFTs - pay with USDC on Base!",
-    "primaryCategory": "shopping",
-    "tags": [
-      "crypto",
-      "merch",
-      "usdc",
-      "base",
-      "shopping"
-    ],
-    "ogTitle": "Minted Merch Shop",
-    "ogDescription": "Apparel accessories and more - pay with USDC on Base",
-    "ogImageUrl": "https://mintedmerch.vercel.app/og-image.png"
+    "splashBackgroundColor": "#f7f7f7",
+    "homeUrl": "https://mintedmerch.vercel.app",
+    "webhookUrl": "https://mintedmerch.vercel.app/api/webhook"
   }
 } 
