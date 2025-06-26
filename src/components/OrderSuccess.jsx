@@ -1,4 +1,11 @@
+'use client';
+
+import { useState } from 'react';
+import { MiniAppNotificationPrompt } from './MiniAppNotificationPrompt';
+
 export function OrderSuccess({ orderDetails }) {
+  const [showMiniAppPrompt, setShowMiniAppPrompt] = useState(true);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm sticky top-0 z-10">
@@ -45,6 +52,14 @@ export function OrderSuccess({ orderDetails }) {
           Continue Shopping
         </button>
       </main>
+
+      {/* Mini App Notification Prompt */}
+      {showMiniAppPrompt && (
+        <MiniAppNotificationPrompt
+          orderNumber={orderDetails.name}
+          onClose={() => setShowMiniAppPrompt(false)}
+        />
+      )}
     </div>
   );
 }

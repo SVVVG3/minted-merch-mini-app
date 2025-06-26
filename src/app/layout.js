@@ -5,6 +5,7 @@ import { GoogleMapsScript } from "@/components/GoogleMapsScript";
 import { FarcasterHeader } from "@/components/FarcasterHeader";
 import { CartProvider } from "@/lib/CartContext";
 import { WagmiProvider } from "@/components/WagmiProvider";
+import { MiniAppProvider } from '@neynar/react';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,14 +33,16 @@ export default function RootLayout({ children }) {
       >
         <GoogleMapsScript />
         <FrameInit />
-        <WagmiProvider>
-          <CartProvider>
-            <div>
-              <FarcasterHeader />
-              {children}
-            </div>
-          </CartProvider>
-        </WagmiProvider>
+        <MiniAppProvider>
+          <WagmiProvider>
+            <CartProvider>
+              <div>
+                <FarcasterHeader />
+                {children}
+              </div>
+            </CartProvider>
+          </WagmiProvider>
+        </MiniAppProvider>
       </body>
     </html>
   );
