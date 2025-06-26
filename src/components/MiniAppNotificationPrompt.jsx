@@ -1,34 +1,35 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useMiniApp } from '@neynar/react';
 import { useFarcaster } from '@/lib/useFarcaster';
 
 export function MiniAppNotificationPrompt({ onClose, orderNumber }) {
-  const { isSDKLoaded, addMiniApp, context } = useMiniApp();
-  const { getFid } = useFarcaster();
+  const { isReady, user, getFid } = useFarcaster();
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
 
-  // Check if user has already added the Mini App
-  const isAlreadyAdded = context?.added;
-
+  // Use Farcaster Frame SDK directly for Mini App functionality
   const handleAddMiniApp = async () => {
-    if (!isSDKLoaded) {
-      console.warn('Mini App SDK not loaded yet');
+    if (!isReady || !window.sdk) {
+      console.warn('Farcaster SDK not ready');
       return;
     }
 
     setIsLoading(true);
     try {
-      console.log('Attempting to add Mini App...');
-      const addResult = await addMiniApp();
+      console.log('Attempting to add Mini App using Farcaster SDK...');
+      
+      // Use the Farcaster Frame SDK's addFrame method
+      const addResult = await window.sdk.actions.addFrame();
       console.log('Add Mini App result:', addResult);
       
-      setResult(addResult);
+      setResult({ 
+        added: addResult.added || false, 
+        notificationDetails: addResult.notificationDetails || null 
+      });
       
-      // If successfully added with notifications, send welcome notification
-      if (addResult.added && addResult.notificationDetails) {
+      // If successfully added, send welcome notification
+      if (addResult.added) {
         const userFid = getFid();
         if (userFid) {
           try {
@@ -61,8 +62,8 @@ export function MiniAppNotificationPrompt({ onClose, orderNumber }) {
     }
   };
 
-  // Don't show prompt if already added
-  if (isAlreadyAdded) {
+  // Check if we're in a Farcaster environment
+  if (!isReady) {
     return null;
   }
 
@@ -101,7 +102,7 @@ export function MiniAppNotificationPrompt({ onClose, orderNumber }) {
                   {result.notificationDetails ? (
                     <p className="text-sm">✅ Notifications enabled - you'll get updates on your order!</p>
                   ) : (
-                    <p className="text-sm">📱 Mini App added, but notifications weren't enabled.</p>
+                    <p className="text-sm">📱 Mini App added successfully!</p>
                   )}
                 </div>
               ) : (
@@ -123,7 +124,7 @@ export function MiniAppNotificationPrompt({ onClose, orderNumber }) {
             {!result && (
               <button
                 onClick={handleAddMiniApp}
-                disabled={isLoading || !isSDKLoaded}
+                disabled={isLoading || !isReady}
                 className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isLoading ? (
