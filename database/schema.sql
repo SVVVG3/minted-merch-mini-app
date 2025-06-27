@@ -1,6 +1,9 @@
 -- Minted Merch Mini App Database Schema
 
 -- Drop existing tables if they exist
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS discount_codes;
 DROP TABLE IF EXISTS notification_tokens;
 DROP TABLE IF EXISTS profiles;
 
@@ -50,6 +53,54 @@ CREATE TRIGGER update_profiles_updated_at
   FOR EACH ROW 
   EXECUTE FUNCTION update_updated_at_column();
 
+-- Discount codes table for tracking first-order discounts
+CREATE TABLE IF NOT EXISTS discount_codes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  fid INTEGER NOT NULL REFERENCES profiles(fid) ON DELETE CASCADE,
+  
+  -- Discount code details
+  code TEXT UNIQUE NOT NULL, -- Format: WELCOME15-{shortId}
+  discount_type TEXT NOT NULL DEFAULT 'percentage' CHECK (discount_type IN ('percentage', 'fixed')),
+  discount_value DECIMAL(5,2) NOT NULL DEFAULT 15.00, -- 15% for welcome discount
+  
+  -- Usage tracking
+  is_used BOOLEAN DEFAULT FALSE,
+  used_at TIMESTAMP WITH TIME ZONE,
+  order_id TEXT, -- Reference to the order where this code was used
+  
+  -- Code metadata
+  code_type TEXT NOT NULL DEFAULT 'welcome' CHECK (code_type IN ('welcome', 'promotional', 'referral')),
+  expires_at TIMESTAMP WITH TIME ZONE, -- Optional expiration date
+  minimum_order_amount DECIMAL(10,2), -- Optional minimum order requirement
+  
+  -- Timestamps
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for discount_codes table
+CREATE INDEX IF NOT EXISTS idx_discount_codes_fid ON discount_codes(fid);
+CREATE INDEX IF NOT EXISTS idx_discount_codes_code ON discount_codes(code);
+CREATE INDEX IF NOT EXISTS idx_discount_codes_is_used ON discount_codes(is_used);
+CREATE INDEX IF NOT EXISTS idx_discount_codes_code_type ON discount_codes(code_type);
+CREATE INDEX IF NOT EXISTS idx_discount_codes_expires_at ON discount_codes(expires_at);
+
+-- Enable RLS for discount_codes
+ALTER TABLE discount_codes ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for discount_codes table
+CREATE POLICY "Users can view their own discount codes" ON discount_codes
+  FOR SELECT USING (fid = (SELECT fid FROM profiles WHERE fid = discount_codes.fid));
+
+CREATE POLICY "Allow all operations on discount_codes for now" ON discount_codes
+  FOR ALL USING (true);
+
+-- Trigger to update updated_at for discount_codes
+CREATE TRIGGER update_discount_codes_updated_at 
+  BEFORE UPDATE ON discount_codes 
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_updated_at_column();
+
 -- Orders table for tracking order lifecycle and notifications
 CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -88,6 +139,11 @@ CREATE TABLE IF NOT EXISTS orders (
   payment_method TEXT,
   payment_status TEXT,
   payment_intent_id TEXT,
+  
+  -- Discount information
+  discount_code TEXT, -- The discount code used for this order
+  discount_amount DECIMAL(10,2) DEFAULT 0.00, -- Amount discounted
+  discount_percentage DECIMAL(5,2), -- Percentage discount applied
   
   -- Notification tracking
   order_confirmation_sent BOOLEAN DEFAULT FALSE,

@@ -12,8 +12,20 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - Enhanced UX features ✅ **COMPLETED**
 - Viral sharing functionality ✅ **WORKING**
 - **Neynar notification system** 🎯 **NEW FEATURE REQUEST**
+- **15% First Order Discount System** 🎯 **NEW FEATURE REQUEST**
 
 **New Feature - Neynar Notifications**: Implement a comprehensive notification system through Neynar to enhance user engagement and provide real-time updates about their mini app interactions, order status, and shipping updates.
+
+**New Feature - First Order Discount System**: Implement a 15% discount system for new users that integrates with the welcome notification system. Users receive a unique discount code in their welcome notification that can be applied to their first order.
+
+**Discount System Requirements**:
+1. **Unique Discount Codes**: Generate unique codes for each user (e.g., "WELCOME15-{shortUserId}")
+2. **Welcome Notification Integration**: Include discount code in welcome notification message
+3. **Discount Validation**: API endpoint to validate discount codes and check usage
+4. **Checkout Integration**: Add discount code input field to checkout flow
+5. **Order Processing**: Apply 15% discount to order total when valid code is used
+6. **Usage Tracking**: Prevent multiple uses of the same discount code
+7. **Database Schema**: Track discount codes and their usage status
 
 **Notification Types to Implement**:
 1. **Welcome Notifications**: Send greeting when users add the mini app ✅ **COMPLETED**
@@ -21,6 +33,53 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 3. **Shipping Updates**: Send tracking notifications when orders are shipped ✅ **COMPLETED**
 
 **NEW FEATURE - Order Notification System**: 🎯 **COMPLETED** - Implemented comprehensive order tracking and notification system with Supabase database integration.
+
+## High-level Task Breakdown
+
+### 15% First Order Discount System Implementation
+
+**Phase 1: Database Schema & Core Infrastructure** 
+- [ ] **Task 1.1**: Create discount_codes table in database schema
+  - **Success Criteria**: Table created with fields: id, user_fid, code, discount_percent, is_used, used_at, created_at
+  - **Testing**: Can insert and query discount codes
+- [ ] **Task 1.2**: Create discount utility functions
+  - **Success Criteria**: Functions to generate, validate, and mark codes as used
+  - **Testing**: Unit tests pass for all utility functions
+
+**Phase 2: Welcome Notification Enhancement**
+- [ ] **Task 2.1**: Update welcome notification to include discount code
+  - **Success Criteria**: Welcome notifications include unique 15% off code
+  - **Testing**: New users receive notification with working discount code
+- [ ] **Task 2.2**: Generate unique discount codes for new users
+  - **Success Criteria**: Each user gets unique code (format: WELCOME15-{shortId})
+  - **Testing**: No duplicate codes generated for different users
+
+**Phase 3: Checkout Flow Integration**
+- [ ] **Task 3.1**: Add discount code input field to checkout UI
+  - **Success Criteria**: Input field appears in checkout flow with validation
+  - **Testing**: Users can enter and validate discount codes
+- [ ] **Task 3.2**: Implement discount validation API endpoint
+  - **Success Criteria**: API validates codes and returns discount amount
+  - **Testing**: Valid/invalid codes handled correctly
+- [ ] **Task 3.3**: Apply discount calculations to order totals
+  - **Success Criteria**: 15% discount applied to subtotal, taxes recalculated
+  - **Testing**: Order totals calculate correctly with discount
+
+**Phase 4: Order Processing & Usage Tracking**
+- [ ] **Task 4.1**: Update order creation to track discount usage
+  - **Success Criteria**: Orders record which discount code was used
+  - **Testing**: Discount codes marked as used after successful order
+- [ ] **Task 4.2**: Prevent multiple uses of same discount code
+  - **Success Criteria**: Used codes cannot be applied to new orders
+  - **Testing**: Error shown when trying to reuse expired codes
+
+**Phase 5: Testing & Documentation**
+- [ ] **Task 5.1**: Create comprehensive test endpoints
+  - **Success Criteria**: Debug endpoints for testing discount system
+  - **Testing**: Full discount flow can be tested end-to-end
+- [ ] **Task 5.2**: Update documentation and user experience
+  - **Success Criteria**: Clear messaging about discount in UI
+  - **Testing**: Users understand how to use their discount codes
 
 ## Key Challenges and Analysis
 
@@ -198,6 +257,55 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - **Error Resilience**: Simple implementation without complex error handling
 
 **Viral Loop Implementation**:
+
+## Project Status Board
+
+### Current Sprint: 15% First Order Discount System
+
+**In Progress:**
+- [ ] Task 1.1: Create discount_codes table in database schema
+- [ ] Task 1.2: Create discount utility functions
+
+**Blocked/Waiting:**
+- None currently
+
+**Completed:**
+- None yet
+
+**Next Up:**
+- Task 2.1: Update welcome notification to include discount code
+- Task 2.2: Generate unique discount codes for new users
+
+## Current Status / Progress Tracking
+
+**Current Phase**: Planning Complete - Ready for Implementation
+**Next Milestone**: Database schema and core infrastructure (Phase 1)
+**Estimated Completion**: 2-3 development sessions
+
+**Key Implementation Notes**:
+- Database schema will extend existing Supabase setup
+- Discount codes will integrate with existing welcome notification system
+- Checkout flow modifications will build on existing CheckoutFlow.jsx
+- Order tracking will extend existing orders table structure
+
+## Executor's Feedback or Assistance Requests
+
+**Ready to Begin Implementation**: 
+- Database schema is well-defined and ready to implement
+- Integration points with existing systems are clearly identified
+- All required components have been analyzed and planned
+
+**Implementation Approach**:
+- Will start with database schema creation and testing
+- Then build utility functions for discount code management
+- Finally integrate with UI and order processing flow
+
+**Questions for User**:
+1. Should the discount be applied to subtotal only, or include shipping/taxes?
+2. Do you want any expiration date on discount codes (e.g., 30 days)?
+3. Should there be any minimum order amount to use the discount?
+
+## Lessons
 1. **Discovery**: User sees shared product/order in Farcaster feed
 2. **Engagement**: Rich embed with branded image and clear CTA
 3. **Conversion**: One-click to open Mini App and purchase
