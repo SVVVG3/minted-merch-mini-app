@@ -107,8 +107,8 @@ export async function sendWelcomeNotification(userFid) {
     const response = await neynarClient.publishFrameNotifications({
       targetFids: [userFid],
       notification: {
-        title: "🎉 Welcome to Minted Merch!",
-        body: "Thanks for adding our Mini App! Browse our exclusive collection and get 10% off your first order with code WELCOME10.",
+        title: "👋 Welcome to Minted Merch!",
+        body: "Discover our exclusive collection of premium merchandise. Start shopping now!",
         target_url: "https://mintedmerch.vercel.app"
       }
     });
