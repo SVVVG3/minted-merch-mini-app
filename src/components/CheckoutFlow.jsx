@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useCart } from '@/lib/CartContext';
 import { useUSDCPayment } from '@/lib/useUSDCPayment';
 import { useFarcaster } from '@/lib/useFarcaster';
@@ -18,13 +18,15 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const [isCalculatingCheckout, setIsCalculatingCheckout] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
   const [orderDetails, setOrderDetails] = useState(null);
+  const buyNowProcessed = useRef(false);
 
   // Handle Buy Now functionality by adding item to cart
   useEffect(() => {
-    if (checkoutData && checkoutData.product && checkoutData.variant) {
-      // Add the item to cart for Buy Now
+    if (checkoutData && checkoutData.product && checkoutData.variant && !buyNowProcessed.current) {
+      // Add the item to cart for Buy Now (only once)
       addItem(checkoutData.product, checkoutData.variant, checkoutData.quantity || 1);
       setIsCheckoutOpen(true);
+      buyNowProcessed.current = true;
     }
   }, [checkoutData, addItem]);
   
