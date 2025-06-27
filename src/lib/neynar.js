@@ -142,7 +142,7 @@ export async function checkUserNotificationStatus(targetFid) {
   try {
     console.log('🔍 Checking notification status for FID:', targetFid);
 
-    const response = await fetch(`${NEYNAR_BASE_URL}/v2/farcaster/frame/notifications/tokens?target_fids=${targetFid}`, {
+    const response = await fetch(`${NEYNAR_BASE_URL}/v2/farcaster/frame/notification_tokens/?fids=${targetFid}`, {
       method: 'GET',
       headers: {
         'x-api-key': NEYNAR_API_KEY
@@ -162,12 +162,17 @@ export async function checkUserNotificationStatus(targetFid) {
 
     // Check if user has any active notification tokens
     const tokens = responseData.notification_tokens || [];
-    const userTokens = tokens.filter(token => token.fid === targetFid && token.is_active);
+    const userTokens = tokens.filter(token => token.fid === targetFid);
+    const activeTokens = userTokens.filter(token => token.status === 'enabled');
+
+    console.log(`Found ${userTokens.length} total tokens, ${activeTokens.length} active tokens`);
 
     return {
-      hasNotifications: userTokens.length > 0,
-      tokenCount: userTokens.length,
-      tokens: userTokens
+      hasNotifications: activeTokens.length > 0,
+      tokenCount: activeTokens.length,
+      totalTokens: userTokens.length,
+      tokens: activeTokens,
+      allTokens: userTokens
     };
 
   } catch (error) {
