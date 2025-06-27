@@ -7,34 +7,48 @@ export async function POST(request) {
   try {
     console.log('=== FARCASTER WEBHOOK RECEIVED ===');
     
-    // Get raw body for parsing signed webhook event
+    // Get raw body
     const rawBody = await request.text();
-    console.log('Raw webhook body received');
+    console.log('Raw webhook body received, length:', rawBody.length);
 
-    // Parse and verify the signed Farcaster webhook event
     let eventData;
+    
+    // First, try to parse as simple JSON (unsigned events)
     try {
-      console.log('Parsing signed Farcaster webhook event...');
-      eventData = await parseWebhookEvent(rawBody, verifyAppKeyWithNeynar);
-      console.log('✅ Webhook event parsed and verified successfully');
-      console.log('Event data:', JSON.stringify(eventData, null, 2));
-    } catch (parseError) {
-      console.error('❌ Failed to parse/verify webhook event:', parseError);
+      console.log('Attempting to parse as simple JSON webhook event...');
+      const simpleEvent = JSON.parse(rawBody);
+      console.log('✅ Parsed as simple JSON:', JSON.stringify(simpleEvent, null, 2));
       
-      // If parsing fails, try to handle as legacy format for debugging
+      // Check if this looks like a simple Farcaster event
+      if (simpleEvent.event && typeof simpleEvent.event === 'string') {
+        console.log('✅ Detected simple Farcaster event format');
+        eventData = {
+          event: simpleEvent.event,
+          notificationDetails: simpleEvent.notificationDetails,
+          fid: simpleEvent.fid || simpleEvent.untrustedData?.fid
+        };
+      } else {
+        throw new Error('Not a simple Farcaster event format');
+      }
+    } catch (jsonError) {
+      console.log('⚠️ Not simple JSON, attempting signed event parsing...');
+      
+      // Try to parse as signed Farcaster webhook event
       try {
-        const legacyBody = JSON.parse(rawBody);
-        console.log('Attempting to handle as legacy format:', JSON.stringify(legacyBody, null, 2));
+        console.log('Parsing signed Farcaster webhook event...');
+        eventData = await parseWebhookEvent(rawBody, verifyAppKeyWithNeynar);
+        console.log('✅ Webhook event parsed and verified successfully');
+        console.log('Event data:', JSON.stringify(eventData, null, 2));
+      } catch (parseError) {
+        console.error('❌ Failed to parse as signed webhook event:', parseError);
+        
+        // Log the raw body for debugging (first 500 chars)
+        console.log('Raw body sample:', rawBody.substring(0, 500));
+        
         return NextResponse.json({ 
           success: false, 
-          error: 'Invalid webhook signature or format',
+          error: 'Invalid webhook format - not simple JSON or signed event',
           details: parseError.message 
-        }, { status: 400 });
-      } catch (jsonError) {
-        console.error('❌ Not valid JSON either:', jsonError);
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Invalid webhook format' 
         }, { status: 400 });
       }
     }
@@ -46,6 +60,11 @@ export async function POST(request) {
     if (!userFid) {
       console.error('No user FID found in webhook event');
       return NextResponse.json({ success: false, error: 'No user FID provided' }, { status: 400 });
+    }
+
+    if (!eventType) {
+      console.error('No event type found in webhook event');
+      return NextResponse.json({ success: false, error: 'No event type provided' }, { status: 400 });
     }
 
     console.log('🔗 FARCASTER EVENT:', eventType);
@@ -297,6 +316,6 @@ export async function GET() {
     success: true, 
     message: 'Minted Merch webhook endpoint is active',
     timestamp: new Date().toISOString(),
-    version: '2.0 - Farcaster signed events'
+    version: '3.0 - Handles both signed and unsigned Farcaster events'
   });
 } 
