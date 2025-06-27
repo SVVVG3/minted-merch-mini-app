@@ -8,16 +8,25 @@ import { calculateCheckout } from '@/lib/shopify';
 import { saveOrderToHistory } from '@/lib/orderHistory';
 import { ShippingForm } from './ShippingForm';
 
-export function CheckoutFlow() {
-  const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout } = useCart();
+export function CheckoutFlow({ checkoutData, onBack }) {
+  const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem } = useCart();
   const { getFid, isInFarcaster } = useFarcaster();
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(checkoutData ? true : false);
   const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', 'payment', or 'success'
   const [shippingData, setShippingData] = useState(cart.shipping || null);
   const [isShippingValid, setIsShippingValid] = useState(false);
   const [isCalculatingCheckout, setIsCalculatingCheckout] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
   const [orderDetails, setOrderDetails] = useState(null);
+
+  // Handle Buy Now functionality by adding item to cart
+  useEffect(() => {
+    if (checkoutData && checkoutData.product && checkoutData.variant) {
+      // Add the item to cart for Buy Now
+      addItem(checkoutData.product, checkoutData.variant, checkoutData.quantity || 1);
+      setIsCheckoutOpen(true);
+    }
+  }, [checkoutData, addItem]);
   
   const {
     balance,
@@ -256,6 +265,11 @@ export function CheckoutFlow() {
     setCheckoutStep('shipping');
     setOrderDetails(null);
     resetPayment();
+    
+    // If this is a Buy Now checkout, call the onBack function to return to product page
+    if (checkoutData && onBack) {
+      onBack();
+    }
   };
 
   const handleCloseCheckout = () => {
@@ -269,6 +283,11 @@ export function CheckoutFlow() {
     setCheckoutError(null);
     clearCheckout();
     resetPayment();
+    
+    // If this is a Buy Now checkout, call the onBack function to return to product page
+    if (checkoutData && onBack) {
+      onBack();
+    }
   };
 
   // Share order success function
