@@ -171,6 +171,7 @@ export async function validateDiscountCode(code, fid = null) {
     return { 
       success: true, 
       isValid: true,
+      code: discountCode.code,
       discountCode: discountCode,
       discountType: discountCode.discount_type,
       discountValue: discountCode.discount_value,

@@ -422,7 +422,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
       // Apply the discount
       setAppliedDiscount({
-        code: result.code,
+        code: result.code || discountCode.trim().toUpperCase(),
         discountType: result.discountType,
         discountValue: result.discountValue,
         discountAmount: result.discountAmount,
