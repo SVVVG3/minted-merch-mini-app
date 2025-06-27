@@ -235,10 +235,11 @@ export function ProductDetail({
               className="flex items-center justify-center w-10 h-10 bg-[#8A63D2] hover:bg-[#7C5BC7] text-white rounded-lg transition-colors"
               title="Share on Farcaster"
             >
-                            {/* Farcaster Arch Logo */}
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12c0 1.66.41 3.22 1.14 4.58L12 8l8.86 8.58c.73-1.36 1.14-2.92 1.14-4.58 0-5.52-4.48-10-10-10z"/>
-                <path d="M3.86 17.5C5.28 19.94 8.47 22 12 22s6.72-2.06 8.14-4.5L12 9.5 3.86 17.5z"/>
+                            {/* Official Farcaster Logo */}
+              <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
+                <path d="M257.778 155.556H742.222V844.444H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333S337.446 441.677 329.586 528.889H328.889V844.444H257.778V155.556Z"/>
+                <path d="M128.889 253.333L157.778 253.333V746.667H128.889V253.333Z"/>
+                <path d="M842.222 253.333H871.111V746.667H842.222V253.333Z"/>
               </svg>
             </button>
 
