@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@cloudflare/workers-types": "^4.20250620.0",
+    "@farcaster/frame-node": "^0.0.41",
     "@farcaster/frame-sdk": "^0.0.64",
     "@farcaster/frame-wagmi-connector": "^0.0.53",
     "@neynar/nodejs-sdk": "^3.19.0",

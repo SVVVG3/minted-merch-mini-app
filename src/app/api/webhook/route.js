@@ -1,70 +1,70 @@
 import { NextResponse } from 'next/server';
 import { createOrUpdateUserProfile, getUserProfile, markWelcomeNotificationSent } from '@/lib/supabase';
 import { sendWelcomeNotification } from '@/lib/neynar';
-import { createHmac } from 'crypto';
+import { parseWebhookEvent, verifyAppKeyWithNeynar } from '@farcaster/frame-node';
 
 export async function POST(request) {
   try {
-    console.log('=== WEBHOOK RECEIVED ===');
+    console.log('=== FARCASTER WEBHOOK RECEIVED ===');
     
-    // Get raw body for signature verification
+    // Get raw body for parsing signed webhook event
     const rawBody = await request.text();
-    
-    // Verify webhook signature if secret is provided
-    if (process.env.NEYNAR_WEBHOOK_SECRET) {
-      const signature = request.headers.get('X-Neynar-Signature');
-      if (!signature) {
-        console.error('Missing webhook signature');
-        return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
-      }
+    console.log('Raw webhook body received');
 
-      const hmac = createHmac('sha512', process.env.NEYNAR_WEBHOOK_SECRET);
-      hmac.update(rawBody);
-      const expectedSignature = hmac.digest('hex');
-
-      if (signature !== expectedSignature) {
-        console.error('Invalid webhook signature');
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-      }
+    // Parse and verify the signed Farcaster webhook event
+    let eventData;
+    try {
+      console.log('Parsing signed Farcaster webhook event...');
+      eventData = await parseWebhookEvent(rawBody, verifyAppKeyWithNeynar);
+      console.log('✅ Webhook event parsed and verified successfully');
+      console.log('Event data:', JSON.stringify(eventData, null, 2));
+    } catch (parseError) {
+      console.error('❌ Failed to parse/verify webhook event:', parseError);
       
-      console.log('✅ Webhook signature verified');
-    } else {
-      console.log('⚠️ No webhook secret configured - skipping signature verification');
+      // If parsing fails, try to handle as legacy format for debugging
+      try {
+        const legacyBody = JSON.parse(rawBody);
+        console.log('Attempting to handle as legacy format:', JSON.stringify(legacyBody, null, 2));
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Invalid webhook signature or format',
+          details: parseError.message 
+        }, { status: 400 });
+      } catch (jsonError) {
+        console.error('❌ Not valid JSON either:', jsonError);
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Invalid webhook format' 
+        }, { status: 400 });
+      }
     }
-    
-    const body = JSON.parse(rawBody);
-    console.log('🔗 WEBHOOK EVENT RECEIVED:', body.event || 'frame_interaction');
-    console.log('Webhook payload:', JSON.stringify(body, null, 2));
 
-    // Extract user info from the webhook
-    const userFid = body.untrustedData?.fid;
+    // Extract user FID and event type from parsed data
+    const userFid = eventData.fid;
+    const eventType = eventData.event;
     
     if (!userFid) {
-      console.log('No user FID found in webhook payload');
-      return NextResponse.json({ success: false, error: 'No user FID provided' });
+      console.error('No user FID found in webhook event');
+      return NextResponse.json({ success: false, error: 'No user FID provided' }, { status: 400 });
     }
 
-    console.log('Processing webhook for user FID:', userFid);
+    console.log('🔗 FARCASTER EVENT:', eventType);
+    console.log('👤 User FID:', userFid);
 
-    // Handle different webhook events
-    if (body.event) {
-      return await handleFarcasterEvent(body, userFid);
-    }
-
-    // Handle legacy frame interactions (if any)
-    return await handleFrameInteraction(body, userFid);
+    // Handle different Farcaster webhook events
+    return await handleFarcasterEvent(eventData);
 
   } catch (error) {
-    console.error('Error processing webhook:', error);
+    console.error('❌ Error processing webhook:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: 'Internal server error', details: error.message },
       { status: 500 }
     );
   }
 }
 
-async function handleFarcasterEvent(body, userFid) {
-  const { event, notificationDetails } = body;
+async function handleFarcasterEvent(eventData) {
+  const { fid: userFid, event, notificationDetails } = eventData;
   
   console.log('=== HANDLING FARCASTER EVENT ===');
   console.log('Event type:', event);
@@ -74,37 +74,42 @@ async function handleFarcasterEvent(body, userFid) {
   try {
     switch (event) {
       case 'frame_added':
-        console.log('📱 User added Mini App');
+        console.log('📱 User added Mini App to Farcaster');
         
-        // Create/update user profile (we may not have full user data from webhook)
+        // Create/update user profile
         const profileResult = await createOrUpdateUserProfile({
           fid: userFid,
-          username: `user_${userFid}`, // Fallback username
+          username: `user_${userFid}`, // Fallback username - we may get more data later
           display_name: null,
           bio: null,
           pfp_url: null
         });
 
         if (!profileResult.success) {
-          console.error('Failed to create/update profile:', profileResult.error);
-          return NextResponse.json({ success: false, error: 'Failed to create profile' });
+          console.error('❌ Failed to create/update profile:', profileResult.error);
+          return NextResponse.json({ 
+            success: false, 
+            error: 'Failed to create profile',
+            details: profileResult.error 
+          }, { status: 500 });
         }
 
-        console.log('✅ Profile created/updated:', profileResult.profile);
+        console.log('✅ Profile created/updated for FID:', userFid);
 
-        // If notification details are provided, this means they added with notifications enabled
-        if (notificationDetails && notificationDetails.token) {
-          console.log('🔔 User added Mini App with notifications enabled!');
-          console.log('Notification token provided by Farcaster:', notificationDetails.token);
-          console.log('Notification URL provided by Farcaster:', notificationDetails.url);
+        // Check if notifications are enabled (token provided)
+        if (notificationDetails && notificationDetails.token && notificationDetails.url) {
+          console.log('🔔 User added Mini App WITH notifications enabled!');
+          console.log('Notification URL:', notificationDetails.url);
+          console.log('Token received (length):', notificationDetails.token.length);
           
-          // Send welcome notification directly using the token and URL from Farcaster
+          // Send welcome notification using Farcaster's provided token and URL
           try {
-            console.log('Sending welcome notification using Farcaster token and URL...');
+            console.log('Sending welcome notification via Farcaster notification system...');
             const welcomeResult = await sendDirectWelcomeNotification(
               notificationDetails.url,
               notificationDetails.token
             );
+            
             console.log('Welcome notification result:', welcomeResult);
             
             // Mark notification as sent if successful
@@ -120,25 +125,31 @@ async function handleFarcasterEvent(body, userFid) {
             return NextResponse.json({ 
               success: true, 
               message: 'Mini App added with notifications enabled',
+              event: 'frame_added',
+              userFid,
               profileCreated: true,
               notificationsEnabled: true,
               welcomeNotificationSent: welcomeResult.success
             });
           } catch (welcomeError) {
-            console.error('Failed to send welcome notification:', welcomeError);
+            console.error('❌ Failed to send welcome notification:', welcomeError);
             return NextResponse.json({ 
               success: true, 
               message: 'Mini App added with notifications enabled, but welcome notification failed',
+              event: 'frame_added',
+              userFid,
               profileCreated: true,
               notificationsEnabled: true,
               welcomeNotificationError: welcomeError.message
             });
           }
         } else {
-          console.log('📱 User added Mini App without notifications');
+          console.log('📱 User added Mini App WITHOUT notifications');
           return NextResponse.json({ 
             success: true, 
             message: 'Mini App added successfully (no notifications)',
+            event: 'frame_added',
+            userFid,
             profileCreated: true,
             notificationsEnabled: false
           });
@@ -147,20 +158,25 @@ async function handleFarcasterEvent(body, userFid) {
       case 'notifications_enabled':
         console.log('🔔 User enabled notifications for existing Mini App');
         
-        if (!notificationDetails || !notificationDetails.token) {
-          console.error('No notification details provided');
-          return NextResponse.json({ success: false, error: 'No notification token provided' });
+        if (!notificationDetails || !notificationDetails.token || !notificationDetails.url) {
+          console.error('❌ No notification details provided for notifications_enabled event');
+          return NextResponse.json({ 
+            success: false, 
+            error: 'No notification token/URL provided' 
+          }, { status: 400 });
         }
 
-        console.log('Notification token provided by Farcaster:', notificationDetails.token);
+        console.log('Notification URL:', notificationDetails.url);
+        console.log('Token received (length):', notificationDetails.token.length);
         
-        // Send welcome notification using the token and URL from Farcaster
+        // Send welcome notification using Farcaster's provided token and URL
         try {
-          console.log('Sending welcome notification using Farcaster token and URL...');
+          console.log('Sending welcome notification via Farcaster notification system...');
           const welcomeResult = await sendDirectWelcomeNotification(
             notificationDetails.url,
             notificationDetails.token
           );
+          
           console.log('Welcome notification result:', welcomeResult);
           
           // Mark notification as sent if successful
@@ -176,83 +192,55 @@ async function handleFarcasterEvent(body, userFid) {
           return NextResponse.json({ 
             success: true, 
             message: 'Notifications enabled successfully',
+            event: 'notifications_enabled',
+            userFid,
             welcomeNotificationSent: welcomeResult.success
           });
         } catch (welcomeError) {
-          console.error('Failed to send welcome notification:', welcomeError);
+          console.error('❌ Failed to send welcome notification:', welcomeError);
           return NextResponse.json({ 
             success: true, 
             message: 'Notifications enabled, but welcome notification failed',
+            event: 'notifications_enabled',
+            userFid,
             welcomeNotificationError: welcomeError.message
           });
         }
 
       case 'notifications_disabled':
         console.log('🔕 User disabled notifications');
-        
-        // No action needed - Neynar manages the token status
-        console.log('✅ Notification disable event received (Neynar manages token status)');
+        console.log('✅ Notification disable event received');
         return NextResponse.json({ 
           success: true, 
-          message: 'Notifications disabled successfully' 
+          message: 'Notifications disabled event received',
+          event: 'notifications_disabled',
+          userFid
         });
 
       case 'frame_removed':
-        console.log('📱❌ User removed Mini App');
-        
-        // No action needed - Neynar manages the token status
-        console.log('✅ Mini App removal event received (Neynar manages token status)');
+        console.log('❌ User removed Mini App');
+        console.log('✅ Mini App removal event received');
         return NextResponse.json({ 
           success: true, 
-          message: 'Mini App removed successfully' 
+          message: 'Mini App removal event received',
+          event: 'frame_removed',
+          userFid
         });
 
       default:
-        console.log('⚠️ Unknown event type:', event);
+        console.log('❓ Unknown event type:', event);
         return NextResponse.json({ 
           success: true, 
-          message: 'Event received but not handled',
-          event: event
+          message: 'Unknown event type received',
+          event,
+          userFid
         });
     }
-  } catch (error) {
-    console.error('Error handling Farcaster event:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to process event' },
-      { status: 500 }
-    );
-  }
-}
 
-async function handleFrameInteraction(body, userFid) {
-  console.log('=== HANDLING LEGACY FRAME INTERACTION ===');
-  console.log('User FID:', userFid);
-  
-  // For legacy frame interactions, just create/update profile
-  try {
-    const profileResult = await createOrUpdateUserProfile({
-      fid: userFid,
-      username: `user_${userFid}`,
-      display_name: null,
-      bio: null,
-      pfp_url: null
-    });
-
-    if (profileResult.success) {
-      console.log('✅ Profile created/updated for frame interaction');
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Frame interaction processed',
-        profileCreated: true
-      });
-    } else {
-      console.error('Failed to create/update profile:', profileResult.error);
-      return NextResponse.json({ success: false, error: 'Failed to process interaction' });
-    }
   } catch (error) {
-    console.error('Error handling frame interaction:', error);
+    console.error('❌ Error handling Farcaster event:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to process interaction' },
+      { success: false, error: 'Error handling event', details: error.message },
       { status: 500 }
     );
   }
@@ -277,29 +265,28 @@ async function sendDirectWelcomeNotification(notificationUrl, token) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(notification)
+      body: JSON.stringify(notification),
     });
 
     const responseText = await response.text();
     console.log('Notification response status:', response.status);
     console.log('Notification response body:', responseText);
 
-    if (response.ok) {
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (e) {
-        responseData = { rawResponse: responseText };
-      }
-      
-      console.log('✅ Welcome notification sent successfully');
-      return { success: true, response: responseData };
-    } else {
-      console.error('❌ Failed to send welcome notification:', response.status, responseText);
-      return { success: false, error: `HTTP ${response.status}: ${responseText}` };
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${responseText}`);
     }
+
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError) {
+      console.log('Response is not JSON, treating as success');
+      result = { success: true, rawResponse: responseText };
+    }
+
+    return { success: true, result };
   } catch (error) {
-    console.error('❌ Error sending direct welcome notification:', error);
+    console.error('❌ Failed to send direct welcome notification:', error);
     return { success: false, error: error.message };
   }
 }
@@ -309,6 +296,7 @@ export async function GET() {
   return NextResponse.json({ 
     success: true, 
     message: 'Minted Merch webhook endpoint is active',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    version: '2.0 - Farcaster signed events'
   });
 } 
