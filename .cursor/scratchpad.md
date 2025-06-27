@@ -16,9 +16,11 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 **New Feature - Neynar Notifications**: Implement a comprehensive notification system through Neynar to enhance user engagement and provide real-time updates about their mini app interactions, order status, and shipping updates.
 
 **Notification Types to Implement**:
-1. **Welcome Notifications**: Send greeting when users add the mini app
-2. **Order Confirmation**: Send notification with order number when users complete purchases
-3. **Shipping Updates**: Send tracking notifications when orders are shipped
+1. **Welcome Notifications**: Send greeting when users add the mini app ✅ **COMPLETED**
+2. **Order Confirmation**: Send notification with order number when users complete purchases ✅ **COMPLETED**
+3. **Shipping Updates**: Send tracking notifications when orders are shipped ✅ **COMPLETED**
+
+**NEW FEATURE - Order Notification System**: 🎯 **COMPLETED** - Implemented comprehensive order tracking and notification system with Supabase database integration.
 
 ## Key Challenges and Analysis
 
@@ -66,6 +68,69 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
    - **Current Webhook Handler**: Basic event logging in `src/app/api/webhook/route.js`
    - **Current Farcaster Integration**: Uses `@farcaster/frame-sdk` for Mini App context
    - **Shipping/Fulfillment**: `fulfillOrder()` function exists in `src/lib/shopifyAdmin.js`
+
+### NEW FEATURE: Order Notification System ✅ **COMPLETED**
+
+**Implementation Overview**: Built a comprehensive order tracking and notification system that automatically sends notifications to users when their orders are confirmed, shipped, and delivered.
+
+**Key Components Implemented**:
+
+1. **Database Schema** ✅ **COMPLETED**
+   - **Orders Table**: Complete order tracking with status, amounts, shipping info, and notification flags
+   - **Order Items Table**: Detailed product tracking (optional normalized data)
+   - **RLS Policies**: Proper security with user-based access control
+   - **Indexes**: Optimized queries for order lookups and status filtering
+
+2. **Order Management Library** (`src/lib/orders.js`) ✅ **COMPLETED**
+   - `createOrder()`: Create new orders in database
+   - `updateOrderStatus()`: Update status and trigger appropriate notifications
+   - `addTrackingInfo()`: Add shipping tracking and send shipping notifications
+   - `getUserOrders()`: Fetch user's order history
+   - `getOrdersNeedingNotifications()`: Find orders requiring notifications
+
+3. **Enhanced Notification Functions** ✅ **COMPLETED**
+   - **Order Confirmation**: "📦 Order Confirmed! Your order #{orderId} has been confirmed. Total: {amount} {currency}"
+   - **Shipping Notification**: "🚚 Your Order Has Shipped! Order #{orderId} is on its way! Track: {trackingNumber}"
+   - **Notification Tracking**: Database flags to prevent duplicate notifications
+   - **Status-Based Triggers**: Automatic notifications based on order status changes
+
+4. **API Endpoints** ✅ **COMPLETED**
+   - `POST /api/orders/create`: Create new orders
+   - `POST /api/orders/update-status`: Update order status and trigger notifications
+   - `POST /api/orders/add-tracking`: Add tracking info and send shipping notifications
+   - `GET /api/debug/orders-test`: Comprehensive system testing
+
+5. **Payment Integration** ✅ **COMPLETED**
+   - **Enhanced Order Session**: Now includes user FID for notifications
+   - **Payment Verification**: Automatically creates Supabase order when payment confirmed
+   - **Dual Order Creation**: Creates both Shopify order (fulfillment) and Supabase order (notifications)
+   - **Order Confirmation**: Automatic notification when payment verified
+
+**Order Status Flow**:
+1. `pending` → Order created but payment not confirmed
+2. `paid` → Payment confirmed, **order confirmation notification sent**
+3. `processing` → Order being prepared for shipment
+4. `shipped` → Order shipped, **shipping notification sent**
+5. `delivered` → Order delivered (optional delivery notification)
+6. `cancelled` / `refunded` → Order cancelled or refunded
+
+**Integration Points**:
+- **Payment Verification** (`/api/verify-payment`): Creates Supabase order with `paid` status
+- **Order Session** (`/api/order-session`): Includes user FID for notification targeting
+- **Neynar Integration**: Uses existing notification system for delivery
+- **Shopify Sync**: Orders created in both systems for complete tracking
+
+**Testing & Debugging**:
+- **Comprehensive Test Suite**: `/api/debug/orders-test` validates entire system
+- **Test Coverage**: Database connection, order creation, status updates, notifications, cleanup
+- **Error Handling**: Graceful failure handling without breaking order flow
+- **Documentation**: Complete API documentation in `docs/ORDER_NOTIFICATIONS.md`
+
+**Technical Architecture**:
+- **Database**: Supabase with proper RLS and foreign key constraints
+- **Notifications**: Neynar API with status checking and delivery confirmation
+- **Order Tracking**: Complete lifecycle from creation to delivery
+- **Dual Storage**: Shopify for fulfillment, Supabase for notifications and analytics
 
 ### RESOLVED: Complete Viral Sharing System ✅ **WORKING**
 

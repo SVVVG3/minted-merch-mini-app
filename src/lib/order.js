@@ -1,5 +1,6 @@
 import { kv } from '@/lib/kv';
 import { createOrder as createShopifyOrder } from './shopify';
+import { createOrder as createSupabaseOrder } from './orders';
 
 const BASE_RPC_URL = process.env.BASE_RPC_URL;
 const PAYMENT_RECIPIENT_ADDRESS = process.env.NEXT_PUBLIC_PAYMENT_RECIPIENT_ADDRESS;
@@ -109,6 +110,49 @@ export async function createOrderFromSession(sessionId, transactionHash) {
     shippingAddress: sessionData.shippingAddress,
     transactionHash
   });
+
+  // Create order in Supabase database for notifications and tracking
+  try {
+    const supabaseOrderData = {
+      fid: sessionData.fid, // Should be included in session data
+      orderId: order.name, // Use Shopify order name as our order ID
+      sessionId: sessionId,
+      status: 'paid', // Payment is verified at this point
+      currency: 'USDC',
+      amountTotal: parseFloat(order.totalPriceSet.shopMoney.amount),
+      amountSubtotal: parseFloat(order.subtotalPriceSet?.shopMoney?.amount || order.totalPriceSet.shopMoney.amount),
+      amountTax: parseFloat(order.totalTaxSet?.shopMoney?.amount || '0'),
+      amountShipping: parseFloat(order.totalShippingPriceSet?.shopMoney?.amount || '0'),
+      customerEmail: sessionData.customer.email,
+      customerName: sessionData.customer.firstName ? 
+        `${sessionData.customer.firstName} ${sessionData.customer.lastName || ''}`.trim() : 
+        sessionData.customer.email,
+      shippingAddress: sessionData.shippingAddress,
+      shippingMethod: sessionData.shippingMethod || 'Standard',
+      lineItems: sessionData.lineItems.map(item => ({
+        id: item.variantId,
+        title: item.title,
+        quantity: item.quantity,
+        price: parseFloat(item.price),
+        variant: item.variantTitle
+      })),
+      paymentMethod: 'USDC',
+      paymentStatus: 'completed',
+      paymentIntentId: transactionHash
+    };
+
+    const supabaseResult = await createSupabaseOrder(supabaseOrderData);
+    
+    if (supabaseResult.success) {
+      console.log('✅ Order created in Supabase:', supabaseResult.order.order_id);
+    } else {
+      console.error('❌ Failed to create order in Supabase:', supabaseResult.error);
+      // Don't fail the entire order creation, just log the error
+    }
+  } catch (error) {
+    console.error('❌ Error creating Supabase order:', error);
+    // Don't fail the entire order creation, just log the error
+  }
 
   // Store transaction hash with order details
   await kv.set(`tx:${transactionHash}`, {

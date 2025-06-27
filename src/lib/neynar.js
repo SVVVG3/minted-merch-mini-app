@@ -336,8 +336,8 @@ export async function sendOrderConfirmationNotification(userFid, orderDetails) {
 
   // Check if user has active notification token via Neynar API
   try {
-    const tokenCheck = await hasNotificationTokenInNeynar(userFid);
-    if (!tokenCheck.success || !tokenCheck.hasToken) {
+    const tokenCheck = await checkUserNotificationStatus(userFid);
+    if (!tokenCheck.hasNotifications) {
       console.log('User does not have active notification token, skipping order confirmation');
       return { 
         success: false, 
@@ -353,20 +353,51 @@ export async function sendOrderConfirmationNotification(userFid, orderDetails) {
   try {
     console.log('Sending order confirmation notification to user FID:', userFid);
     
-    const response = await neynarClient.publishFrameNotifications({
-      targetFids: [userFid],
-      notification: {
-        title: "📦 Order Confirmed!",
-        body: `Your order #${orderDetails.orderNumber} has been confirmed. Total: $${orderDetails.total}`,
-        target_url: `https://mintedmerch.vercel.app/order/${orderDetails.orderNumber}`
-      }
+    const notification = {
+      title: "📦 Order Confirmed!",
+      body: `Your order #${orderDetails.orderId} has been confirmed. Total: ${orderDetails.amount} ${orderDetails.currency}`,
+      target_url: `https://mintedmerch.vercel.app`,
+      uuid: generateUUID()
+    };
+
+    const requestBody = {
+      target_fids: [userFid],
+      notification: notification
+    };
+
+    const response = await fetch(`${NEYNAR_BASE_URL}/v2/farcaster/frame/notifications/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': NEYNAR_API_KEY
+      },
+      body: JSON.stringify(requestBody)
     });
 
-    console.log('Order confirmation notification sent successfully:', response);
-    return { success: true, data: response };
+    const responseData = await response.json();
+    console.log('Order confirmation notification response:', responseData);
+
+    if (!response.ok) {
+      console.error('Order confirmation notification failed:', response.status, responseData);
+      return {
+        success: false,
+        error: `Neynar API error: ${response.status}`,
+        details: responseData
+      };
+    }
+
+    const deliveries = responseData.notification_deliveries || [];
+    const userDelivery = deliveries.find(d => d.fid === userFid);
+
+    return {
+      success: userDelivery?.status === 'success',
+      delivery: userDelivery,
+      notificationId: notification.uuid
+    };
+
   } catch (error) {
     console.error('Error sending order confirmation notification:', error);
-    return { success: false, error: error.message, details: error.response?.data };
+    return { success: false, error: error.message };
   }
 }
 
@@ -379,8 +410,8 @@ export async function sendShippingNotification(userFid, shippingDetails) {
 
   // Check if user has active notification token via Neynar API
   try {
-    const tokenCheck = await hasNotificationTokenInNeynar(userFid);
-    if (!tokenCheck.success || !tokenCheck.hasToken) {
+    const tokenCheck = await checkUserNotificationStatus(userFid);
+    if (!tokenCheck.hasNotifications) {
       console.log('User does not have active notification token, skipping shipping notification');
       return { 
         success: false, 
@@ -396,20 +427,51 @@ export async function sendShippingNotification(userFid, shippingDetails) {
   try {
     console.log('Sending shipping notification to user FID:', userFid);
     
-    const response = await neynarClient.publishFrameNotifications({
-      targetFids: [userFid],
-      notification: {
-        title: "🚚 Your Order Has Shipped!",
-        body: `Order #${shippingDetails.orderNumber} is on its way! Track: ${shippingDetails.trackingNumber}`,
-        target_url: `https://mintedmerch.vercel.app/track/${shippingDetails.trackingNumber}`
-      }
+    const notification = {
+      title: "🚚 Your Order Has Shipped!",
+      body: `Order #${shippingDetails.orderId} is on its way!${shippingDetails.trackingNumber ? ` Track: ${shippingDetails.trackingNumber}` : ''}`,
+      target_url: shippingDetails.trackingUrl || `https://mintedmerch.vercel.app`,
+      uuid: generateUUID()
+    };
+
+    const requestBody = {
+      target_fids: [userFid],
+      notification: notification
+    };
+
+    const response = await fetch(`${NEYNAR_BASE_URL}/v2/farcaster/frame/notifications/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': NEYNAR_API_KEY
+      },
+      body: JSON.stringify(requestBody)
     });
 
-    console.log('Shipping notification sent successfully:', response);
-    return { success: true, data: response };
+    const responseData = await response.json();
+    console.log('Shipping notification response:', responseData);
+
+    if (!response.ok) {
+      console.error('Shipping notification failed:', response.status, responseData);
+      return {
+        success: false,
+        error: `Neynar API error: ${response.status}`,
+        details: responseData
+      };
+    }
+
+    const deliveries = responseData.notification_deliveries || [];
+    const userDelivery = deliveries.find(d => d.fid === userFid);
+
+    return {
+      success: userDelivery?.status === 'success',
+      delivery: userDelivery,
+      notificationId: notification.uuid
+    };
+
   } catch (error) {
     console.error('Error sending shipping notification:', error);
-    return { success: false, error: error.message, details: error.response?.data };
+    return { success: false, error: error.message };
   }
 }
 

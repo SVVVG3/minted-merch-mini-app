@@ -12,7 +12,8 @@ export async function POST(request) {
       variantPrice, // Price from frontend for validation
       quantity, 
       customer, 
-      shippingAddress 
+      shippingAddress,
+      fid // User's Farcaster ID for notifications
     } = await request.json();
 
     // Validate required fields
@@ -34,6 +35,7 @@ export async function POST(request) {
       }],
       customer,
       shippingAddress,
+      fid, // Store FID for notifications
       amount: variantPrice, // Store the expected amount
       createdAt: Date.now(),
       expiresAt: Date.now() + (15 * 60 * 1000) // 15 minutes
