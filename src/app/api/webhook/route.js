@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createOrUpdateUserProfile, getUserProfile } from '@/lib/supabase';
+import { createOrUpdateUserProfile, getUserProfile, markWelcomeNotificationSent } from '@/lib/supabase';
 import { sendWelcomeNotification } from '@/lib/neynar';
 import { createHmac } from 'crypto';
 
@@ -102,6 +102,16 @@ async function handleFarcasterEvent(body, userFid) {
             const welcomeResult = await sendWelcomeNotification(userFid);
             console.log('Welcome notification result:', welcomeResult);
             
+            // Mark notification as sent if successful
+            if (welcomeResult.success) {
+              const markResult = await markWelcomeNotificationSent(userFid);
+              if (markResult.success) {
+                console.log('✅ Welcome notification marked as sent in database');
+              } else {
+                console.log('⚠️ Failed to mark welcome notification as sent:', markResult.error);
+              }
+            }
+            
             return NextResponse.json({ 
               success: true, 
               message: 'Mini App added with notifications enabled',
@@ -144,6 +154,16 @@ async function handleFarcasterEvent(body, userFid) {
           console.log('Sending welcome notification for newly enabled notifications...');
           const welcomeResult = await sendWelcomeNotification(userFid);
           console.log('Welcome notification result:', welcomeResult);
+          
+          // Mark notification as sent if successful
+          if (welcomeResult.success) {
+            const markResult = await markWelcomeNotificationSent(userFid);
+            if (markResult.success) {
+              console.log('✅ Welcome notification marked as sent in database');
+            } else {
+              console.log('⚠️ Failed to mark welcome notification as sent:', markResult.error);
+            }
+          }
           
           return NextResponse.json({ 
             success: true, 

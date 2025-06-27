@@ -14,7 +14,7 @@
     "subtitle": "Buy merch with USDC on Base",
     "description": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
     "primaryCategory": "shopping",
-    "webhookUrl": "https://api.neynar.com/f/app/11f2fe11-b70c-40fa-b653-9770b7588bdf/event",
+    "webhookUrl": "https://mintedmerch.vercel.app/api/webhook",
     "splashImageUrl": "https://mintedmerch.vercel.app/splash.png",
     "splashBackgroundColor": "#000000",
     "tagline": "Crypto merch, paid with USDC",
