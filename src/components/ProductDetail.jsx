@@ -218,26 +218,28 @@ export function ProductDetail({
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center">
-            <Link href="/" className="mr-3">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </Link>
-            <h1 className="text-lg font-semibold text-gray-900 truncate">
-              {product.title}
-            </h1>
-          </div>
+        <div className="px-4 py-3 flex items-center gap-3">
+          {/* Back Button */}
+          <Link href="/" className="flex-shrink-0">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
           
-          <div className="flex items-center space-x-2">
+          {/* Title - takes available space but can truncate */}
+          <h1 className="text-lg font-semibold text-gray-900 truncate min-w-0 flex-1">
+            {product.title}
+          </h1>
+          
+          {/* Action Buttons - fixed width, never shrink */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* Share Button */}
             <button
               onClick={handleShareProduct}
               className="flex items-center justify-center w-10 h-10 bg-[#8A63D2] hover:bg-[#7C5BC7] text-white rounded-lg transition-colors"
               title="Share on Farcaster"
             >
-                            {/* Official Farcaster Logo */}
+              {/* Official Farcaster Logo */}
               <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
                 <path d="M257.778 155.556H742.222V844.445H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.445H257.778V155.556Z"/>
                 <path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.445H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/>
@@ -248,7 +250,7 @@ export function ProductDetail({
             {/* Cart Button */}
             <button
               onClick={openCart}
-              className="flex items-center space-x-2 bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-2 rounded-lg transition-colors"
+              className="flex items-center gap-2 bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-2 rounded-lg transition-colors"
               title="Open Cart"
             >
               <div className="relative">
@@ -264,7 +266,7 @@ export function ProductDetail({
                 )}
               </div>
               {itemCount > 0 && (
-                <span className="text-sm font-medium">
+                <span className="text-sm font-medium whitespace-nowrap">
                   ${cartTotal.toFixed(2)}
                 </span>
               )}
