@@ -87,6 +87,64 @@ export function HomePage({ collection, products }) {
     return () => clearTimeout(timer);
   }, [isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user, context]);
 
+  // Real-time notification monitoring - check periodically if notifications get enabled during session
+  useEffect(() => {
+    if (!isInFarcaster || !isReady) return;
+    
+    const userFid = getFid();
+    if (!userFid) return;
+
+    let notificationCheckCount = 0;
+    const maxChecks = 12; // Check for 2 minutes (12 * 10 seconds)
+    
+    const checkForNewNotifications = async () => {
+      try {
+        notificationCheckCount++;
+        console.log(`🔔 Checking for newly enabled notifications (${notificationCheckCount}/${maxChecks})...`);
+        
+        // Register user again to trigger notification check
+        const response = await fetch('/api/register-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            fid: userFid,
+            username: getUsername() || `user_${userFid}`,
+            displayName: getDisplayName() || null,
+            bio: user?.bio || null,
+            pfpUrl: getPfpUrl() || null
+          }),
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.welcomeNotificationSent) {
+          console.log('🎉 Welcome notification sent during session monitoring!');
+          clearInterval(notificationMonitor); // Stop monitoring once notification is sent
+        } else if (result.success && result.hasNotifications) {
+          console.log('✅ User has notifications but welcome already sent');
+          clearInterval(notificationMonitor); // Stop monitoring if they already have notifications
+        }
+        
+        // Stop monitoring after max checks
+        if (notificationCheckCount >= maxChecks) {
+          console.log('📱 Stopped monitoring for notifications after 2 minutes');
+          clearInterval(notificationMonitor);
+        }
+        
+      } catch (error) {
+        console.error('Error checking for new notifications:', error);
+      }
+    };
+    
+    // Start monitoring after 5 seconds, then every 10 seconds
+    const notificationMonitor = setInterval(checkForNewNotifications, 10000);
+    
+    // Cleanup interval on unmount
+    return () => clearInterval(notificationMonitor);
+  }, [isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user]);
+
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);
   const openOrderHistory = () => setIsOrderHistoryOpen(true);
