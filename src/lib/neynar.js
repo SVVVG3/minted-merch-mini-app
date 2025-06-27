@@ -5,10 +5,11 @@ import { NeynarAPIClient, Configuration } from '@neynar/nodejs-sdk';
 
 // Initialize Neynar client
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
+const NEYNAR_BASE_URL = 'https://api.neynar.com';
 const NEYNAR_CLIENT_ID = process.env.NEYNAR_CLIENT_ID || '11f2fe11-b70c-40fa-b653-9770b7588bdf';
 
 if (!NEYNAR_API_KEY) {
-  console.warn('NEYNAR_API_KEY not found in environment variables. Neynar features will be disabled.');
+  console.warn('⚠️ NEYNAR_API_KEY not found in environment variables');
 }
 
 // Create Neynar client instance with proper Configuration object
@@ -57,82 +58,178 @@ export async function fetchNotificationTokensFromNeynar(userFids = []) {
 }
 
 // Check if user has notification token via Neynar API
-export async function hasNotificationTokenInNeynar(userFid) {
-  const result = await fetchNotificationTokensFromNeynar([userFid]);
-  
-  if (!result.success) {
-    return { success: false, error: result.error };
-  }
-
-  const userToken = result.tokens.find(token => token.fid === userFid && token.status === 'enabled');
-  
-  return {
-    success: true,
-    hasToken: !!userToken,
-    token: userToken || null
-  };
+export async function hasNotificationTokenInNeynar(targetFid) {
+  const status = await checkUserNotificationStatus(targetFid);
+  return status.hasNotifications;
 }
 
-// Send welcome notification when user adds the Mini App
-export async function sendWelcomeNotification(userFid) {
-  if (!isNeynarAvailable()) {
-    console.log('Neynar not available, skipping welcome notification');
-    return { success: false, error: 'Neynar not configured' };
-  }
-
-  // Check if user has active notification token via Neynar API
+/**
+ * Send a welcome notification using Neynar's managed notification system
+ * This uses Neynar's API to send notifications to users who have enabled notifications for our Mini App
+ */
+export async function sendWelcomeNotificationWithNeynar(targetFid) {
   try {
-    const tokenCheck = await hasNotificationTokenInNeynar(userFid);
-    if (!tokenCheck.success) {
-      console.log('Failed to check notification token:', tokenCheck.error);
-      // Continue anyway, let Neynar handle the token validation
-    } else if (!tokenCheck.hasToken) {
-      console.log('User does not have active notification token in Neynar');
-      return { 
-        success: false, 
-        error: 'User has not enabled notifications',
-        status: 'token_not_found'
+    console.log('🔔 Sending welcome notification via Neynar managed system for FID:', targetFid);
+
+    const notification = {
+      title: "👋 Welcome to Minted Merch!",
+      body: "Discover our exclusive collection of premium merchandise. Start shopping now!",
+      target_url: "https://mintedmerch.vercel.app",
+      uuid: `welcome-${targetFid}-${Date.now()}`
+    };
+
+    const requestBody = {
+      target_fids: [targetFid], // Send to specific user
+      notification: notification
+    };
+
+    console.log('Sending notification request to Neynar:', JSON.stringify(requestBody, null, 2));
+
+    const response = await fetch(`${NEYNAR_BASE_URL}/v2/farcaster/frame/notifications/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': NEYNAR_API_KEY
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const responseData = await response.json();
+    console.log('Neynar notification response:', JSON.stringify(responseData, null, 2));
+
+    if (!response.ok) {
+      console.error('❌ Neynar notification failed:', response.status, responseData);
+      return {
+        success: false,
+        error: `Neynar API error: ${response.status}`,
+        details: responseData
+      };
+    }
+
+    // Check if notification was delivered successfully
+    const deliveries = responseData.notification_deliveries || [];
+    const userDelivery = deliveries.find(d => d.fid === targetFid);
+
+    if (userDelivery && userDelivery.status === 'success') {
+      console.log('✅ Welcome notification sent successfully via Neynar');
+      return {
+        success: true,
+        delivery: userDelivery,
+        notificationId: notification.uuid
       };
     } else {
-      console.log('User has active notification token in Neynar:', tokenCheck.token);
+      console.log('⚠️ Notification not delivered:', userDelivery);
+      return {
+        success: false,
+        error: 'Notification not delivered',
+        delivery: userDelivery
+      };
     }
-  } catch (error) {
-    console.error('Error checking notification token:', error);
-    // Continue anyway
-  }
 
+  } catch (error) {
+    console.error('❌ Error sending welcome notification via Neynar:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Check if a user has notification tokens available via Neynar
+ */
+export async function checkUserNotificationStatus(targetFid) {
   try {
-    console.log('Sending welcome notification to user FID:', userFid);
-    
-    const response = await neynarClient.publishFrameNotifications({
-      targetFids: [userFid],
-      notification: {
-        title: "👋 Welcome to Minted Merch!",
-        body: "Discover our exclusive collection of premium merchandise. Start shopping now!",
-        target_url: "https://mintedmerch.vercel.app"
+    console.log('🔍 Checking notification status for FID:', targetFid);
+
+    const response = await fetch(`${NEYNAR_BASE_URL}/v2/farcaster/frame/notifications/tokens?target_fids=${targetFid}`, {
+      method: 'GET',
+      headers: {
+        'x-api-key': NEYNAR_API_KEY
       }
     });
 
-    console.log('Welcome notification sent successfully:', response);
-    return { success: true, data: response };
-  } catch (error) {
-    console.error('Error sending welcome notification:', error);
-    console.error('Full error details:', error.response?.data || error);
-    
-    // Parse the error to provide better feedback
-    const errorMessage = error.response?.data?.message || error.message;
-    
-    if (errorMessage && errorMessage.toLowerCase().includes('token')) {
-      return { 
-        success: false, 
-        error: 'User has not enabled notifications',
-        status: 'token_disabled',
-        details: error.response?.data 
+    const responseData = await response.json();
+    console.log('Neynar token check response:', JSON.stringify(responseData, null, 2));
+
+    if (!response.ok) {
+      console.error('❌ Failed to check notification status:', response.status, responseData);
+      return {
+        hasNotifications: false,
+        error: `API error: ${response.status}`
       };
     }
-    
-    return { success: false, error: error.message, details: error.response?.data };
+
+    // Check if user has any active notification tokens
+    const tokens = responseData.notification_tokens || [];
+    const userTokens = tokens.filter(token => token.fid === targetFid && token.is_active);
+
+    return {
+      hasNotifications: userTokens.length > 0,
+      tokenCount: userTokens.length,
+      tokens: userTokens
+    };
+
+  } catch (error) {
+    console.error('❌ Error checking notification status:', error);
+    return {
+      hasNotifications: false,
+      error: error.message
+    };
   }
+}
+
+/**
+ * Send a notification to multiple users using Neynar's managed system
+ */
+export async function sendNotificationToUsers(targetFids, notification) {
+  try {
+    console.log('🔔 Sending notification to multiple users via Neynar:', targetFids);
+
+    const requestBody = {
+      target_fids: targetFids,
+      notification: {
+        ...notification,
+        uuid: notification.uuid || `notification-${Date.now()}`
+      }
+    };
+
+    const response = await fetch(`${NEYNAR_BASE_URL}/v2/farcaster/frame/notifications/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': NEYNAR_API_KEY
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `Neynar API error: ${response.status}`,
+        details: responseData
+      };
+    }
+
+    return {
+      success: true,
+      deliveries: responseData.notification_deliveries || []
+    };
+
+  } catch (error) {
+    console.error('❌ Error sending notifications via Neynar:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+// Legacy functions - keeping for backward compatibility but they now use Neynar
+export async function sendWelcomeNotification(targetFid) {
+  return await sendWelcomeNotificationWithNeynar(targetFid);
 }
 
 // Send welcome notification for new users (simplified approach)
