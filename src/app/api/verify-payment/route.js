@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createOrderFromSession } from '@/lib/order';
 
-export const runtime = 'edge';
+// Removed edge runtime due to Supabase client compatibility issues
 
 export async function POST(request) {
   try {
