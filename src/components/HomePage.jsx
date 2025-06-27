@@ -87,7 +87,7 @@ export function HomePage({ collection, products }) {
     return () => clearTimeout(timer);
   }, [isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user, context]);
 
-  // Real-time notification monitoring - check periodically if notifications get enabled during session
+  // Real-time notification monitoring - check aggressively for newly enabled notifications
   useEffect(() => {
     if (!isInFarcaster || !isReady) return;
     
@@ -95,12 +95,14 @@ export function HomePage({ collection, products }) {
     if (!userFid) return;
 
     let notificationCheckCount = 0;
-    const maxChecks = 12; // Check for 2 minutes (12 * 10 seconds)
+    let isMonitoring = true;
     
     const checkForNewNotifications = async () => {
+      if (!isMonitoring) return;
+      
       try {
         notificationCheckCount++;
-        console.log(`🔔 Checking for newly enabled notifications (${notificationCheckCount}/${maxChecks})...`);
+        console.log(`🔔 Checking for newly enabled notifications (check #${notificationCheckCount})...`);
         
         // Register user again to trigger notification check
         const response = await fetch('/api/register-user', {
@@ -121,29 +123,62 @@ export function HomePage({ collection, products }) {
         
         if (result.success && result.welcomeNotificationSent) {
           console.log('🎉 Welcome notification sent during session monitoring!');
-          clearInterval(notificationMonitor); // Stop monitoring once notification is sent
+          isMonitoring = false; // Stop monitoring once notification is sent
+          return;
         } else if (result.success && result.hasNotifications) {
           console.log('✅ User has notifications but welcome already sent');
-          clearInterval(notificationMonitor); // Stop monitoring if they already have notifications
+          isMonitoring = false; // Stop monitoring if they already have notifications
+          return;
         }
         
-        // Stop monitoring after max checks
-        if (notificationCheckCount >= maxChecks) {
-          console.log('📱 Stopped monitoring for notifications after 2 minutes');
-          clearInterval(notificationMonitor);
+        // Adaptive timing: check more frequently at first, then slow down
+        let nextCheckDelay;
+        if (notificationCheckCount <= 6) {
+          nextCheckDelay = 3000; // First 18 seconds: check every 3 seconds
+        } else if (notificationCheckCount <= 12) {
+          nextCheckDelay = 5000; // Next 30 seconds: check every 5 seconds  
+        } else if (notificationCheckCount <= 20) {
+          nextCheckDelay = 10000; // Next 80 seconds: check every 10 seconds
+        } else {
+          console.log('📱 Stopped monitoring for notifications after 2+ minutes');
+          isMonitoring = false;
+          return;
+        }
+        
+        // Schedule next check
+        if (isMonitoring) {
+          setTimeout(checkForNewNotifications, nextCheckDelay);
         }
         
       } catch (error) {
         console.error('Error checking for new notifications:', error);
+        // Continue monitoring even if there's an error
+        if (isMonitoring && notificationCheckCount < 20) {
+          setTimeout(checkForNewNotifications, 5000);
+        }
       }
     };
     
-    // Start monitoring after 5 seconds, then every 10 seconds
-    const notificationMonitor = setInterval(checkForNewNotifications, 10000);
+    // Start first check after 2 seconds
+    const initialTimer = setTimeout(checkForNewNotifications, 2000);
     
-    // Cleanup interval on unmount
-    return () => clearInterval(notificationMonitor);
-  }, [isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user]);
+         // Also check when window regains focus (user might have switched to enable notifications)
+     const handleFocus = () => {
+       if (isMonitoring && notificationCheckCount < 20) {
+         console.log('🔍 Window focused - checking for notifications...');
+         checkForNewNotifications();
+       }
+     };
+     
+     window.addEventListener('focus', handleFocus);
+     
+     // Cleanup on unmount
+     return () => {
+       isMonitoring = false;
+       clearTimeout(initialTimer);
+       window.removeEventListener('focus', handleFocus);
+     };
+   }, [isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user]);
 
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);
