@@ -33,6 +33,7 @@ export async function POST(request) {
     }
     
     const body = JSON.parse(rawBody);
+    console.log('🔗 WEBHOOK EVENT RECEIVED:', body.event || 'frame_interaction');
     console.log('Webhook payload:', JSON.stringify(body, null, 2));
 
     // Extract user info from the webhook
