@@ -9,11 +9,11 @@ import { useFarcaster } from '@/lib/useFarcaster';
 
 export function HomePage({ collection, products }) {
   const { itemCount, cartTotal } = useCart();
-  const { isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user } = useFarcaster();
+  const { isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user, context, hasNotifications, getNotificationDetails } = useFarcaster();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false);
 
-  // Register user profile when they visit the app (notifications handled by Farcaster)
+  // Register user profile and check for notifications when they visit the app
   useEffect(() => {
     const registerUserProfile = async () => {
       // Only register if we're in Farcaster and have user data
@@ -26,6 +26,13 @@ export function HomePage({ collection, products }) {
         console.log('=== REGISTERING USER PROFILE ===');
         console.log('User FID:', userFid);
         console.log('User Data:', user);
+        console.log('Full Farcaster Context:', context);
+        
+        // Check if user has notification details (Mini App added with notifications)
+        const userHasNotifications = hasNotifications();
+        const notificationDetails = getNotificationDetails();
+        console.log('User has notifications enabled:', userHasNotifications);
+        console.log('Notification details:', notificationDetails);
         
         // Prepare user data for registration
         const userData = {
@@ -37,7 +44,7 @@ export function HomePage({ collection, products }) {
 
         console.log('Registering user profile with data:', userData);
         
-        // Register user profile only (notifications are handled by Farcaster webhooks)
+        // Register user profile
         const response = await fetch('/api/register-user', {
           method: 'POST',
           headers: {
@@ -46,7 +53,6 @@ export function HomePage({ collection, products }) {
           body: JSON.stringify({ 
             userFid,
             userData
-            // No notificationToken - handled by Farcaster Mini App system
           }),
         });
         
@@ -61,6 +67,34 @@ export function HomePage({ collection, products }) {
           } else {
             console.log('👤 Existing user profile updated');
           }
+          
+          // If user has notifications enabled, send welcome notification
+          if (userHasNotifications) {
+            console.log('🔔 User has notifications enabled - sending welcome notification...');
+            
+            try {
+              const welcomeResponse = await fetch('/api/send-welcome-notification', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ userFid }),
+              });
+              
+              const welcomeResult = await welcomeResponse.json();
+              console.log('Welcome notification result:', welcomeResult);
+              
+              if (welcomeResult.success) {
+                console.log('✅ Welcome notification sent successfully!');
+              } else {
+                console.log('❌ Welcome notification failed:', welcomeResult.error);
+              }
+            } catch (welcomeError) {
+              console.error('Error sending welcome notification:', welcomeError);
+            }
+          } else {
+            console.log('📱 User does not have notifications enabled');
+          }
         } else {
           console.error('❌ User profile registration failed:', result.error);
         }
@@ -73,7 +107,7 @@ export function HomePage({ collection, products }) {
     // Small delay to ensure Farcaster context is fully loaded
     const timer = setTimeout(registerUserProfile, 1000);
     return () => clearTimeout(timer);
-  }, [isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user]);
+  }, [isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user, context]);
 
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);

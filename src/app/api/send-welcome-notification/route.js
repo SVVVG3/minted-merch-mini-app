@@ -5,39 +5,48 @@ export async function POST(request) {
   try {
     const { userFid } = await request.json();
     
-    console.log('=== SENDING WELCOME NOTIFICATION ===');
-    console.log('User FID:', userFid);
-    
     if (!userFid) {
       return NextResponse.json(
-        { success: false, error: 'User FID is required' },
+        { success: false, error: 'userFid is required' },
         { status: 400 }
       );
     }
+
+    console.log('Manually sending welcome notification to user FID:', userFid);
+
+    // Send welcome notification
+    const welcomeResult = await sendWelcomeNotification(userFid);
     
-    // Send welcome notification - this is for users who explicitly add the Mini App
-    const result = await sendWelcomeNotification(userFid);
-    
-    console.log('Welcome notification result:', result);
-    
-    if (result.success) {
+    if (welcomeResult.success) {
+      console.log('✅ Welcome notification sent successfully');
       return NextResponse.json({
         success: true,
         message: 'Welcome notification sent successfully',
-        data: result.data
+        data: welcomeResult.data
       });
     } else {
+      console.log('❌ Welcome notification failed:', welcomeResult.error);
       return NextResponse.json({
         success: false,
-        error: result.error
-      }, { status: 400 });
+        error: welcomeResult.error,
+        status: welcomeResult.status,
+        details: welcomeResult.details
+      });
     }
-    
+
   } catch (error) {
-    console.error('Error in send-welcome-notification:', error);
+    console.error('Error sending welcome notification:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: 'Internal server error', details: error.message },
       { status: 500 }
     );
   }
+}
+
+export async function GET() {
+  return NextResponse.json({
+    success: true,
+    message: 'Welcome notification endpoint is active',
+    usage: 'POST with {"userFid": 123456} to send welcome notification'
+  });
 } 

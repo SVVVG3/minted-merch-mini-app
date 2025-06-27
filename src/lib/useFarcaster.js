@@ -56,5 +56,8 @@ export function useFarcaster() {
     getUsername: () => user?.username,
     getDisplayName: () => user?.displayName,
     getPfpUrl: () => user?.pfpUrl,
+    // Notification helpers
+    hasNotifications: () => !!(context?.client?.notificationDetails || context?.notificationDetails),
+    getNotificationDetails: () => context?.client?.notificationDetails || context?.notificationDetails,
   };
 } 

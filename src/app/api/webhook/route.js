@@ -1,12 +1,38 @@
 import { NextResponse } from 'next/server';
 import { createOrUpdateUserProfile, getUserProfile } from '@/lib/supabase';
 import { sendWelcomeNotification } from '@/lib/neynar';
+import { createHmac } from 'crypto';
 
 export async function POST(request) {
   try {
     console.log('=== WEBHOOK RECEIVED ===');
     
-    const body = await request.json();
+    // Get raw body for signature verification
+    const rawBody = await request.text();
+    
+    // Verify webhook signature if secret is provided
+    if (process.env.NEYNAR_WEBHOOK_SECRET) {
+      const signature = request.headers.get('X-Neynar-Signature');
+      if (!signature) {
+        console.error('Missing webhook signature');
+        return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+      }
+
+      const hmac = createHmac('sha512', process.env.NEYNAR_WEBHOOK_SECRET);
+      hmac.update(rawBody);
+      const expectedSignature = hmac.digest('hex');
+
+      if (signature !== expectedSignature) {
+        console.error('Invalid webhook signature');
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      }
+      
+      console.log('✅ Webhook signature verified');
+    } else {
+      console.log('⚠️ No webhook secret configured - skipping signature verification');
+    }
+    
+    const body = JSON.parse(rawBody);
     console.log('Webhook payload:', JSON.stringify(body, null, 2));
 
     // Extract user info from the webhook
