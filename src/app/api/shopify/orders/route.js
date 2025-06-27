@@ -19,6 +19,20 @@ export async function POST(request) {
       fid // User's Farcaster ID for notifications
     } = body;
 
+    // Debug logging
+    console.log('📦 Order creation request received:', {
+      hasFid: !!fid,
+      fid: fid,
+      fidType: typeof fid,
+      hasCartItems: !!cartItems,
+      cartItemsLength: cartItems?.length,
+      hasShippingAddress: !!shippingAddress,
+      hasTransactionHash: !!transactionHash,
+      transactionHash: transactionHash,
+      customerEmail: customer?.email,
+      timestamp: new Date().toISOString()
+    });
+
     // Validate required fields
     if (!cartItems || cartItems.length === 0) {
       return NextResponse.json(
