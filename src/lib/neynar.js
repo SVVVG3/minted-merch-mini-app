@@ -77,14 +77,30 @@ function generateUUID() {
 /**
  * Send a welcome notification using Neynar's managed notification system
  * This uses Neynar's API to send notifications to users who have enabled notifications for our Mini App
+ * Now includes a unique 15% discount code for first-time users
  */
 export async function sendWelcomeNotificationWithNeynar(targetFid) {
   try {
     console.log('🔔 Sending welcome notification via Neynar managed system for FID:', targetFid);
 
+    // Generate or get existing welcome discount code for this user
+    const { createWelcomeDiscountCode } = await import('./discounts');
+    const discountResult = await createWelcomeDiscountCode(targetFid);
+    
+    let discountCode = null;
+    if (discountResult.success) {
+      discountCode = discountResult.code;
+      console.log('✅ Discount code for welcome notification:', discountCode);
+    } else {
+      console.log('⚠️ Could not create discount code:', discountResult.error);
+    }
+
+    // Create notification message with or without discount code
     const notification = {
       title: "👋 Welcome to Minted Merch!",
-      body: "Discover our exclusive collection of premium merchandise. Start shopping now!",
+      body: discountCode 
+        ? `Get 15% off your first order with code ${discountCode}! Shop premium crypto merch now.`
+        : "Discover our exclusive collection of premium merchandise. Start shopping now!",
       target_url: "https://mintedmerch.vercel.app",
       uuid: generateUUID()
     };
@@ -253,12 +269,26 @@ export async function sendWelcomeForNewUser(userFid) {
   try {
     console.log('Sending welcome notification for new user FID:', userFid);
     
+    // Generate or get existing welcome discount code for this user
+    const { createWelcomeDiscountCode } = await import('./discounts');
+    const discountResult = await createWelcomeDiscountCode(userFid);
+    
+    let discountCode = null;
+    if (discountResult.success) {
+      discountCode = discountResult.code;
+      console.log('✅ Discount code for welcome notification:', discountCode);
+    } else {
+      console.log('⚠️ Could not create discount code:', discountResult.error);
+    }
+    
     // Simply send the welcome notification - Neynar will handle delivery based on user permissions
     const response = await neynarClient.publishFrameNotifications({
       targetFids: [userFid],
       notification: {
         title: "👋 Welcome to Minted Merch!",
-        body: "Discover our exclusive collection of premium merchandise. Start shopping now!",
+        body: discountCode 
+          ? `Get 15% off your first order with code ${discountCode}! Shop premium crypto merch now.`
+          : "Discover our exclusive collection of premium merchandise. Start shopping now!",
         target_url: "https://mintedmerch.vercel.app"
       }
     });

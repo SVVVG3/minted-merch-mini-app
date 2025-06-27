@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { hasNotificationTokenInNeynar, sendWelcomeNotification } from '@/lib/neynar';
+import { createWelcomeDiscountCode } from '@/lib/discounts';
 
 export async function POST(request) {
   try {
@@ -34,6 +35,21 @@ export async function POST(request) {
     }
 
     console.log('User profile created/updated:', profile);
+
+    // Generate welcome discount code for new users (regardless of notification status)
+    let discountCode = null;
+    try {
+      const discountResult = await createWelcomeDiscountCode(fid);
+      if (discountResult.success) {
+        discountCode = discountResult.code;
+        console.log('✅ Welcome discount code generated:', discountCode, 'isExisting:', discountResult.isExisting);
+      } else {
+        console.log('⚠️ Could not create discount code:', discountResult.error);
+      }
+    } catch (discountError) {
+      console.error('Error generating discount code:', discountError);
+      // Don't fail registration if discount code generation fails
+    }
 
     // Check if user has notifications enabled and hasn't received welcome notification
     const hasNotifications = await hasNotificationTokenInNeynar(fid);
@@ -72,7 +88,8 @@ export async function POST(request) {
       success: true, 
       profile,
       hasNotifications,
-      welcomeNotificationSent: hasNotifications && !profile.welcome_notification_sent
+      welcomeNotificationSent: hasNotifications && !profile.welcome_notification_sent,
+      discountCode: discountCode // Include discount code in response for debugging
     });
 
   } catch (error) {
