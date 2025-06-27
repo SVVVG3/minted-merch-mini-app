@@ -17,7 +17,9 @@ export function ProductDetail({
   const { addItem, isInCart, getItemQuantity, itemCount, cartTotal } = useCart();
   const { isInFarcaster } = useFarcaster();
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const mainImage = product.images?.edges?.[0]?.node;
+  
+  // Use variant image if available, otherwise fall back to first product image
+  const mainImage = selectedVariant?.image || product.images?.edges?.[0]?.node;
   const price = selectedVariant?.price?.amount || product.priceRange?.minVariantPrice?.amount || '0';
   
   // Check if this specific variant is in cart

@@ -114,7 +114,7 @@ export async function getProductByHandle(handle) {
             currencyCode
           }
         }
-        images(first: 5) {
+        images(first: 10) {
           edges {
             node {
               url
@@ -122,7 +122,7 @@ export async function getProductByHandle(handle) {
             }
           }
         }
-        variants(first: 10) {
+        variants(first: 50) {
           edges {
             node {
               id
@@ -135,6 +135,14 @@ export async function getProductByHandle(handle) {
               compareAtPrice {
                 amount
                 currencyCode
+              }
+              image {
+                url
+                altText
+              }
+              selectedOptions {
+                name
+                value
               }
             }
           }
