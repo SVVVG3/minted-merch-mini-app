@@ -511,6 +511,7 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - ✅ **Database**: Supabase schema applied and ready for testing
 - ✅ **Deployment**: Fixed and stable
 - ✅ **Welcome Notification Fix**: Restored missing welcome notification tracking columns
+- ✅ **Order Notification Integration**: Fixed checkout flow to create Supabase orders and send notifications
 
 **Previous Success: Viral Sharing System Complete** ✅
 
