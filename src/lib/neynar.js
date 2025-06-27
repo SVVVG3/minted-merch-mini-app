@@ -153,30 +153,25 @@ export async function checkUserNotificationStatus(targetFid) {
   try {
     console.log('🔍 Checking notification status for FID:', targetFid);
 
-    const response = await fetch(`${NEYNAR_BASE_URL}/v2/farcaster/frame/notification_tokens/?fids=${targetFid}`, {
-      method: 'GET',
-      headers: {
-        'x-api-key': NEYNAR_API_KEY
-      }
-    });
-
-    const responseData = await response.json();
-    console.log('Neynar token check response:', JSON.stringify(responseData, null, 2));
-
-    if (!response.ok) {
-      console.error('❌ Failed to check notification status:', response.status, responseData);
-      return {
-        hasNotifications: false,
-        error: `API error: ${response.status}`
-      };
+    if (!isNeynarAvailable()) {
+      console.log('Neynar not available, cannot check notification status');
+      return { hasNotifications: false, error: 'Neynar not configured' };
     }
 
+    // Use the SDK to fetch notification tokens for this specific user
+    const response = await neynarClient.fetchNotificationTokens({
+      fids: targetFid.toString(),
+      limit: 100
+    });
+
+    console.log('Neynar token check response:', JSON.stringify(response, null, 2));
+
     // Check if user has any active notification tokens
-    const tokens = responseData.notification_tokens || [];
+    const tokens = response.notification_tokens || [];
     const userTokens = tokens.filter(token => token.fid === targetFid);
     const activeTokens = userTokens.filter(token => token.status === 'enabled');
 
-    console.log(`Found ${userTokens.length} total tokens, ${activeTokens.length} active tokens`);
+    console.log(`Found ${userTokens.length} total tokens, ${activeTokens.length} active tokens for FID ${targetFid}`);
 
     return {
       hasNotifications: activeTokens.length > 0,
