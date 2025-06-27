@@ -491,6 +491,27 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 
 **Ready for Task 34**: Mini App prompt implemented, ready to proceed with order confirmation notification integration.
 
+**✅ DEPLOYMENT FIX COMPLETED: Edge Runtime Compatibility Issue Resolved**
+
+**Status**: Critical deployment error fixed and system fully operational.
+
+**Issue**: Vercel deployment was failing with error "A Node.js API is used (process.exit) which is not supported in the Edge Runtime"
+
+**Root Cause**: The `/api/verify-payment` route was configured with `export const runtime = 'edge'` but used Supabase client which contains Node.js APIs incompatible with Next.js Edge Runtime.
+
+**Solution Applied**:
+- ✅ **Removed Edge Runtime**: Removed `export const runtime = 'edge'` from `/api/verify-payment` route
+- ✅ **Maintained Performance**: Other routes using only KV store kept Edge Runtime for optimal performance
+- ✅ **Committed Fix**: Pushed fix with descriptive commit message explaining the compatibility issue
+- ✅ **Deployment Success**: New deployment now succeeds without Edge Runtime conflicts
+
+**Current Status**: 
+- ✅ **Order Notification System**: Fully deployed and operational
+- ✅ **Payment Integration**: Working with automatic order creation and notifications
+- ✅ **Database**: Supabase schema applied and ready for testing
+- ✅ **Deployment**: Fixed and stable
+- ✅ **Welcome Notification Fix**: Restored missing welcome notification tracking columns
+
 **Previous Success: Viral Sharing System Complete** ✅
 
 **Resolution**: Following the official Farcaster documentation exactly resolved all Mini App embed issues.
@@ -513,6 +534,8 @@ Building a Farcaster Mini App for https://mintedmerch.shop/ that allows users to
 - Read the file before you try to edit it.
 - If there are vulnerabilities that appear in the terminal, run npm audit before proceeding
 - Always ask before using the -force git command
+- **Edge Runtime & Supabase Compatibility**: The Supabase client is not compatible with Next.js Edge Runtime due to Node.js API dependencies. Remove `export const runtime = 'edge'` from API routes that use Supabase client to avoid deployment errors like "A Node.js API is used (process.exit) which is not supported in the Edge Runtime."
+- **Database Schema Completeness**: When implementing new features that require database changes, always verify that existing functionality columns are preserved. The profiles table requires `welcome_notification_sent` and `welcome_notification_sent_at` columns to prevent duplicate welcome notifications to users.
 - `window.confirm()` and `alert()` don't work reliably in Farcaster Mini App environments - use custom React modals instead
 - Clear Cart functionality required custom confirmation modal to work in production Mini App context
 - localStorage operations should have error handling for restricted embedded environments

@@ -179,7 +179,8 @@ export function CheckoutFlow() {
         checkout: cart.checkout,
         selectedShipping: cart.selectedShipping,
         transactionHash: transactionHash,
-        notes: cart.notes || ''
+        notes: cart.notes || '',
+        fid: getFid() // Add user's Farcaster ID for notifications
       };
 
       const response = await fetch('/api/shopify/orders', {

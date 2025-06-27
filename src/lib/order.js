@@ -145,6 +145,16 @@ export async function createOrderFromSession(sessionId, transactionHash) {
     
     if (supabaseResult.success) {
       console.log('✅ Order created in Supabase:', supabaseResult.order.order_id);
+      
+      // Send order confirmation notification since order status is 'paid'
+      try {
+        const { sendOrderConfirmationNotificationAndMark } = await import('./orders');
+        await sendOrderConfirmationNotificationAndMark(supabaseResult.order);
+        console.log('✅ Order confirmation notification sent');
+      } catch (notificationError) {
+        console.error('❌ Failed to send order confirmation notification:', notificationError);
+        // Don't fail the order creation, just log the error
+      }
     } else {
       console.error('❌ Failed to create order in Supabase:', supabaseResult.error);
       // Don't fail the entire order creation, just log the error

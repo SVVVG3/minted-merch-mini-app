@@ -1,4 +1,6 @@
 import { createShopifyOrder, getOrderStatus } from '@/lib/shopifyAdmin';
+import { createOrder as createSupabaseOrder } from '@/lib/orders';
+import { sendOrderConfirmationNotificationAndMark } from '@/lib/orders';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -13,7 +15,8 @@ export async function POST(request) {
       checkout,
       selectedShipping,
       transactionHash,
-      notes
+      notes,
+      fid // User's Farcaster ID for notifications
     } = body;
 
     // Validate required fields
@@ -113,6 +116,59 @@ export async function POST(request) {
 
     if (result.success) {
       console.log('Order created successfully:', result.order.name);
+      
+      // Create order in Supabase database for notifications and tracking
+      if (fid) {
+        try {
+          const supabaseOrderData = {
+            fid: fid,
+            orderId: result.order.name, // Use Shopify order name as our order ID
+            sessionId: null, // No session for direct orders
+            status: 'paid', // Payment is verified at this point
+            currency: 'USDC',
+            amountTotal: totalPrice,
+            amountSubtotal: subtotalPrice,
+            amountTax: totalTax,
+            amountShipping: shippingPrice,
+            customerEmail: customer?.email || shippingAddress.email || '',
+            customerName: shippingAddress.firstName ? 
+              `${shippingAddress.firstName} ${shippingAddress.lastName || ''}`.trim() : 
+              (customer?.email || shippingAddress.email || ''),
+            shippingAddress: shippingAddress,
+            shippingMethod: selectedShipping.title || 'Standard',
+            lineItems: lineItems.map(item => ({
+              id: item.variantId,
+              title: item.productTitle,
+              quantity: item.quantity,
+              price: item.price,
+              variant: item.title !== 'Default' ? item.title : null
+            })),
+            paymentMethod: 'USDC',
+            paymentStatus: 'completed',
+            paymentIntentId: transactionHash
+          };
+
+          const supabaseResult = await createSupabaseOrder(supabaseOrderData);
+          
+          if (supabaseResult.success) {
+            console.log('✅ Order created in Supabase:', supabaseResult.order.order_id);
+            
+            // Send order confirmation notification
+            try {
+              await sendOrderConfirmationNotificationAndMark(supabaseResult.order);
+              console.log('✅ Order confirmation notification sent');
+            } catch (notificationError) {
+              console.error('❌ Failed to send order confirmation notification:', notificationError);
+            }
+          } else {
+            console.error('❌ Failed to create order in Supabase:', supabaseResult.error);
+          }
+        } catch (error) {
+          console.error('❌ Error creating Supabase order:', error);
+        }
+      } else {
+        console.log('⚠️ No FID provided, skipping Supabase order creation and notifications');
+      }
       
       return NextResponse.json({
         success: true,
