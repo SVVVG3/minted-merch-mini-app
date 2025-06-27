@@ -13,6 +13,11 @@ CREATE TABLE IF NOT EXISTS profiles (
   display_name TEXT,
   bio TEXT,
   pfp_url TEXT,
+  
+  -- Welcome notification tracking
+  welcome_notification_sent BOOLEAN DEFAULT FALSE,
+  welcome_notification_sent_at TIMESTAMP WITH TIME ZONE,
+  
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
