@@ -1,13 +1,100 @@
 import { supabase } from './supabase';
 import { sendOrderConfirmationNotification, sendShippingNotification } from './neynar';
+import { markDiscountCodeAsUsed, validateDiscountCode } from './discounts';
 
 /**
- * Create a new order in the database
+ * Validate discount code before order creation
+ */
+export async function validateDiscountForOrder(discountCode, fid, subtotal) {
+  try {
+    if (!discountCode) {
+      return { success: true, isValid: false }; // No discount code provided
+    }
+
+    console.log('Validating discount code for order creation:', { discountCode, fid, subtotal });
+
+    // Validate the discount code
+    const validationResult = await validateDiscountCode(discountCode, fid);
+    
+    if (!validationResult.success || !validationResult.isValid) {
+      console.log('Discount code validation failed:', validationResult.error);
+      return {
+        success: false,
+        error: validationResult.error || 'Invalid discount code',
+        isValid: false
+      };
+    }
+
+    // Double-check that the code hasn't been used (race condition protection)
+    const { data: discountCodeData, error: fetchError } = await supabase
+      .from('discount_codes')
+      .select('is_used, used_at, order_id')
+      .eq('code', discountCode.toUpperCase())
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching discount code for validation:', fetchError);
+      return {
+        success: false,
+        error: 'Failed to validate discount code',
+        isValid: false
+      };
+    }
+
+    if (discountCodeData.is_used) {
+      console.log('Discount code already used:', discountCodeData);
+      return {
+        success: false,
+        error: 'This discount code has already been used',
+        isValid: false
+      };
+    }
+
+    console.log('✅ Discount code is valid for order creation');
+    return {
+      success: true,
+      isValid: true,
+      discountCode: validationResult.discountCode,
+      discountType: validationResult.discountType,
+      discountValue: validationResult.discountValue
+    };
+
+  } catch (error) {
+    console.error('Error validating discount code for order:', error);
+    return {
+      success: false,
+      error: 'Failed to validate discount code',
+      isValid: false
+    };
+  }
+}
+
+/**
+ * Create a new order in the database with enhanced discount tracking
  */
 export async function createOrder(orderData) {
   try {
     console.log('Creating order in database:', orderData);
 
+    // Validate discount code if provided (final validation before order creation)
+    if (orderData.discountCode) {
+      const discountValidation = await validateDiscountForOrder(
+        orderData.discountCode, 
+        orderData.fid, 
+        orderData.amountSubtotal
+      );
+
+      if (!discountValidation.success || !discountValidation.isValid) {
+        console.error('Discount validation failed during order creation:', discountValidation.error);
+        return { 
+          success: false, 
+          error: discountValidation.error || 'Invalid discount code',
+          errorType: 'DISCOUNT_VALIDATION_FAILED'
+        };
+      }
+    }
+
+    // Create the order
     const { data: order, error } = await supabase
       .from('orders')
       .insert({
@@ -20,6 +107,9 @@ export async function createOrder(orderData) {
         amount_subtotal: orderData.amountSubtotal,
         amount_tax: orderData.amountTax,
         amount_shipping: orderData.amountShipping,
+        discount_code: orderData.discountCode || null,
+        discount_amount: orderData.discountAmount || 0,
+        discount_percentage: orderData.discountPercentage || null,
         customer_email: orderData.customerEmail,
         customer_name: orderData.customerName,
         shipping_address: orderData.shippingAddress,
@@ -36,6 +126,22 @@ export async function createOrder(orderData) {
     if (error) {
       console.error('Error creating order:', error);
       return { success: false, error: error.message };
+    }
+
+    // Mark discount code as used immediately after successful order creation
+    if (orderData.discountCode && order) {
+      try {
+        const markUsedResult = await markDiscountCodeAsUsed(orderData.discountCode, order.order_id);
+        if (!markUsedResult.success) {
+          console.error('Failed to mark discount code as used:', markUsedResult.error);
+          // Don't fail the order creation, but log the issue
+        } else {
+          console.log('✅ Discount code marked as used:', orderData.discountCode);
+        }
+      } catch (discountError) {
+        console.error('Error marking discount code as used:', discountError);
+        // Don't fail the order creation
+      }
     }
 
     console.log('Order created successfully:', order);
@@ -305,6 +411,146 @@ export async function getOrdersNeedingNotifications() {
 
   } catch (error) {
     console.error('Error in getOrdersNeedingNotifications:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get discount usage statistics
+ */
+export async function getDiscountUsageStats(fid = null) {
+  try {
+    console.log('Getting discount usage statistics for FID:', fid);
+
+    let ordersQuery = supabase
+      .from('orders')
+      .select('discount_code, discount_amount, discount_percentage, amount_total, amount_subtotal, created_at, status');
+
+    if (fid) {
+      ordersQuery = ordersQuery.eq('fid', fid);
+    }
+
+    const { data: orders, error } = await ordersQuery
+      .not('discount_code', 'is', null)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching discount usage stats:', error);
+      return { success: false, error: error.message };
+    }
+
+    // Calculate statistics
+    const stats = {
+      totalOrdersWithDiscounts: orders.length,
+      totalDiscountAmount: orders.reduce((sum, order) => sum + (parseFloat(order.discount_amount) || 0), 0),
+      totalOrderValue: orders.reduce((sum, order) => sum + (parseFloat(order.amount_total) || 0), 0),
+      totalOriginalValue: orders.reduce((sum, order) => sum + (parseFloat(order.amount_subtotal) || 0), 0),
+      averageDiscountAmount: 0,
+      averageDiscountPercentage: 0,
+      discountCodeUsage: {},
+      ordersByStatus: {}
+    };
+
+    if (orders.length > 0) {
+      stats.averageDiscountAmount = stats.totalDiscountAmount / orders.length;
+      
+      // Calculate average discount percentage
+      const percentageOrders = orders.filter(order => order.discount_percentage);
+      if (percentageOrders.length > 0) {
+        stats.averageDiscountPercentage = percentageOrders.reduce((sum, order) => 
+          sum + parseFloat(order.discount_percentage), 0) / percentageOrders.length;
+      }
+
+      // Count discount code usage
+      orders.forEach(order => {
+        if (order.discount_code) {
+          stats.discountCodeUsage[order.discount_code] = (stats.discountCodeUsage[order.discount_code] || 0) + 1;
+        }
+        
+        stats.ordersByStatus[order.status] = (stats.ordersByStatus[order.status] || 0) + 1;
+      });
+    }
+
+    console.log('Discount usage statistics:', stats);
+    return { success: true, stats, orders };
+
+  } catch (error) {
+    console.error('Error in getDiscountUsageStats:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Check if a user has used any discount codes
+ */
+export async function hasUserUsedDiscounts(fid) {
+  try {
+    console.log('Checking if user has used discount codes:', fid);
+
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select('discount_code')
+      .eq('fid', fid)
+      .not('discount_code', 'is', null)
+      .limit(1);
+
+    if (error) {
+      console.error('Error checking user discount usage:', error);
+      return { success: false, error: error.message };
+    }
+
+    const hasUsedDiscounts = orders && orders.length > 0;
+    console.log('User has used discounts:', hasUsedDiscounts);
+
+    return { 
+      success: true, 
+      hasUsedDiscounts,
+      discountOrdersCount: orders ? orders.length : 0
+    };
+
+  } catch (error) {
+    console.error('Error in hasUserUsedDiscounts:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Prevent duplicate discount usage across multiple order attempts
+ */
+export async function checkDiscountUsageConflict(discountCode, excludeOrderId = null) {
+  try {
+    console.log('Checking for discount usage conflicts:', { discountCode, excludeOrderId });
+
+    let query = supabase
+      .from('orders')
+      .select('order_id, status, created_at, fid')
+      .eq('discount_code', discountCode.toUpperCase());
+
+    if (excludeOrderId) {
+      query = query.neq('order_id', excludeOrderId);
+    }
+
+    const { data: conflictingOrders, error } = await query;
+
+    if (error) {
+      console.error('Error checking discount usage conflicts:', error);
+      return { success: false, error: error.message };
+    }
+
+    const hasConflict = conflictingOrders && conflictingOrders.length > 0;
+    
+    if (hasConflict) {
+      console.log('Discount usage conflict detected:', conflictingOrders);
+    }
+
+    return {
+      success: true,
+      hasConflict,
+      conflictingOrders: conflictingOrders || []
+    };
+
+  } catch (error) {
+    console.error('Error in checkDiscountUsageConflict:', error);
     return { success: false, error: error.message };
   }
 } 
