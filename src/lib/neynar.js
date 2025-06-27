@@ -429,7 +429,7 @@ export async function sendShippingNotification(userFid, shippingDetails) {
     
     const notification = {
       title: "🚚 Your Order Has Shipped!",
-      body: `Order #${shippingDetails.orderId} is on its way!${shippingDetails.trackingNumber ? ` Track: ${shippingDetails.trackingNumber}` : ''}`,
+      body: `Order ${shippingDetails.orderId} is on its way!${shippingDetails.trackingNumber ? ` Track: ${shippingDetails.trackingNumber}` : ''}`,
       target_url: shippingDetails.trackingUrl || `https://mintedmerch.vercel.app`,
       uuid: generateUUID()
     };
