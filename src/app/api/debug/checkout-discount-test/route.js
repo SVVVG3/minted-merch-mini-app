@@ -87,7 +87,11 @@ export async function GET() {
     try {
       if (!testDiscountCode) throw new Error('No discount code to test');
       
-      const response = await fetch(`${process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'http://localhost:3000'}/api/validate-discount`, {
+      const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                      process.env.NODE_ENV === 'production' ? 'https://mintedmerch.vercel.app' : 
+                      'http://localhost:3000';
+      
+      const response = await fetch(`${baseUrl}/api/validate-discount`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -140,7 +144,8 @@ export async function GET() {
         throw new Error('Discount code validation failed');
       }
       
-      const discountAmount = calculateDiscountAmount(testSubtotal, validationResult);
+      const discountResult = calculateDiscountAmount(testSubtotal, validationResult);
+      const discountAmount = discountResult.discountAmount;
       const expectedAmount = testSubtotal * 0.15; // 15% of $150 = $22.50
       
       if (Math.abs(discountAmount - expectedAmount) > 0.01) {
@@ -255,7 +260,11 @@ export async function GET() {
     try {
       const invalidCode = 'INVALID123';
       
-      const response = await fetch(`${process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'http://localhost:3000'}/api/validate-discount`, {
+      const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                      process.env.NODE_ENV === 'production' ? 'https://mintedmerch.vercel.app' : 
+                      'http://localhost:3000';
+      
+      const response = await fetch(`${baseUrl}/api/validate-discount`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

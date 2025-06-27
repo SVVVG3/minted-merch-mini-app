@@ -46,13 +46,20 @@ export async function POST(request) {
     }
 
     // Calculate discount amount
-    const discountAmount = calculateDiscountAmount(subtotal, validationResult);
+    const discountResult = calculateDiscountAmount(subtotal, validationResult);
+    
+    if (discountResult.error) {
+      return NextResponse.json({
+        success: false,
+        error: discountResult.error
+      }, { status: 400 });
+    }
     
     console.log('Discount validation successful:', {
       code,
       discountType: validationResult.discountType,
       discountValue: validationResult.discountValue,
-      discountAmount,
+      discountAmount: discountResult.discountAmount,
       subtotal
     });
 
@@ -62,7 +69,8 @@ export async function POST(request) {
       code: validationResult.code,
       discountType: validationResult.discountType,
       discountValue: validationResult.discountValue,
-      discountAmount: discountAmount,
+      discountAmount: discountResult.discountAmount,
+      finalTotal: discountResult.finalTotal,
       message: `${validationResult.discountValue}% discount applied!`
     });
 
@@ -107,7 +115,7 @@ export async function GET(request) {
       });
     }
 
-    const discountAmount = calculateDiscountAmount(subtotal, validationResult);
+    const discountResult = calculateDiscountAmount(subtotal, validationResult);
     
     return NextResponse.json({
       success: true,
@@ -115,9 +123,9 @@ export async function GET(request) {
       code: validationResult.code,
       discountType: validationResult.discountType,
       discountValue: validationResult.discountValue,
-      discountAmount: discountAmount,
+      discountAmount: discountResult.discountAmount,
       subtotal: subtotal,
-      finalAmount: subtotal - discountAmount,
+      finalAmount: discountResult.finalTotal,
       message: `${validationResult.discountValue}% discount applied!`
     });
 
