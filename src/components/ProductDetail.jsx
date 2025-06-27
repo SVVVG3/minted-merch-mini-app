@@ -232,11 +232,13 @@ export function ProductDetail({
             {/* Share Button */}
             <button
               onClick={handleShareProduct}
-              className="flex items-center justify-center w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-              title="Share Product"
+              className="flex items-center justify-center w-10 h-10 bg-[#8A63D2] hover:bg-[#7C5BC7] text-white rounded-lg transition-colors"
+              title="Share on Farcaster"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+                            {/* Farcaster Arch Logo */}
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12c0 1.66.41 3.22 1.14 4.58L12 8l8.86 8.58c.73-1.36 1.14-2.92 1.14-4.58 0-5.52-4.48-10-10-10z"/>
+                <path d="M3.86 17.5C5.28 19.94 8.47 22 12 22s6.72-2.06 8.14-4.5L12 9.5 3.86 17.5z"/>
               </svg>
             </button>
 
