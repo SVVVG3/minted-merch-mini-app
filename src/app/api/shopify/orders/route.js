@@ -1,6 +1,7 @@
 import { createShopifyOrder, getOrderStatus } from '@/lib/shopifyAdmin';
 import { createOrder as createSupabaseOrder } from '@/lib/orders';
 import { sendOrderConfirmationNotificationAndMark } from '@/lib/orders';
+import { markDiscountCodeAsUsed } from '@/lib/discounts';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -16,7 +17,9 @@ export async function POST(request) {
       selectedShipping,
       transactionHash,
       notes,
-      fid // User's Farcaster ID for notifications
+      fid, // User's Farcaster ID for notifications
+      appliedDiscount, // Discount information
+      discountAmount // Discount amount
     } = body;
 
     // Debug logging
@@ -30,6 +33,9 @@ export async function POST(request) {
       hasTransactionHash: !!transactionHash,
       transactionHash: transactionHash,
       customerEmail: customer?.email,
+      hasDiscount: !!appliedDiscount,
+      discountCode: appliedDiscount?.code,
+      discountAmount: discountAmount,
       timestamp: new Date().toISOString()
     });
 
@@ -73,11 +79,13 @@ export async function POST(request) {
       productTitle: item.product.title
     }));
 
-    // Calculate totals
+    // Calculate totals with discount
     const subtotalPrice = parseFloat(checkout.subtotal.amount);
+    const discountAmountValue = discountAmount ? parseFloat(discountAmount) : 0;
+    const subtotalAfterDiscount = subtotalPrice - discountAmountValue;
     const totalTax = parseFloat(checkout.tax.amount);
     const shippingPrice = parseFloat(selectedShipping.price.amount);
-    const totalPrice = subtotalPrice + totalTax + shippingPrice;
+    const totalPrice = subtotalAfterDiscount + totalTax + shippingPrice;
 
     // Format shipping lines
     const shippingLines = {
@@ -106,11 +114,16 @@ export async function POST(request) {
         phone: customer?.phone || shippingAddress.phone || ''
       },
       totalPrice,
-      subtotalPrice,
+      subtotalPrice: subtotalAfterDiscount, // Use discounted subtotal
       totalTax,
       shippingLines,
       transactionHash,
-      notes: notes || ''
+      notes: notes || '',
+      discountCodes: appliedDiscount ? [{
+        code: appliedDiscount.code,
+        amount: discountAmountValue,
+        type: appliedDiscount.discountType
+      }] : []
     };
 
     console.log('Creating Shopify order with data:', {
@@ -141,9 +154,12 @@ export async function POST(request) {
             status: 'paid', // Payment is verified at this point
             currency: 'USDC',
             amountTotal: totalPrice,
-            amountSubtotal: subtotalPrice,
+            amountSubtotal: subtotalAfterDiscount, // Use discounted subtotal
             amountTax: totalTax,
             amountShipping: shippingPrice,
+            discountCode: appliedDiscount?.code || null, // Track discount code
+            discountAmount: discountAmountValue, // Track discount amount
+            discountPercentage: appliedDiscount?.discountValue || null, // Track discount percentage
             customerEmail: customer?.email || shippingAddress.email || '',
             customerName: shippingAddress.firstName ? 
               `${shippingAddress.firstName} ${shippingAddress.lastName || ''}`.trim() : 
@@ -166,6 +182,20 @@ export async function POST(request) {
           
           if (supabaseResult.success) {
             console.log('✅ Order created in Supabase:', supabaseResult.order.order_id);
+            
+            // Mark discount code as used if one was applied
+            if (appliedDiscount && appliedDiscount.code) {
+              try {
+                const markUsedResult = await markDiscountCodeAsUsed(appliedDiscount.code, supabaseResult.order.order_id);
+                if (markUsedResult.success) {
+                  console.log('✅ Discount code marked as used:', appliedDiscount.code);
+                } else {
+                  console.error('❌ Failed to mark discount code as used:', markUsedResult.error);
+                }
+              } catch (discountError) {
+                console.error('❌ Error marking discount code as used:', discountError);
+              }
+            }
             
             // Send order confirmation notification
             try {

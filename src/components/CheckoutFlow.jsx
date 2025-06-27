@@ -19,6 +19,12 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const [checkoutError, setCheckoutError] = useState(null);
   const [orderDetails, setOrderDetails] = useState(null);
   const buyNowProcessed = useRef(false);
+  
+  // Discount code state
+  const [discountCode, setDiscountCode] = useState('');
+  const [appliedDiscount, setAppliedDiscount] = useState(null);
+  const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
+  const [discountError, setDiscountError] = useState(null);
 
   // Handle Buy Now functionality by adding item to cart
   useEffect(() => {
@@ -153,9 +159,11 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       throw new Error('Checkout calculation not available');
     }
 
-    // Calculate final total including selected shipping
+    // Calculate final total including selected shipping and discount
     const selectedShippingCost = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
-    const finalTotal = cart.checkout.subtotal.amount + cart.checkout.tax.amount + selectedShippingCost;
+    const discountAmount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+    const subtotalWithDiscount = cart.checkout.subtotal.amount - discountAmount;
+    const finalTotal = subtotalWithDiscount + cart.checkout.tax.amount + selectedShippingCost;
 
     // Execute the payment
     await executePayment(finalTotal, {
@@ -164,6 +172,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       shipping: shippingData,
       selectedShipping: cart.selectedShipping,
       checkout: cart.checkout,
+      appliedDiscount: appliedDiscount,
+      discountAmount: discountAmount,
       total: finalTotal
     });
   };
@@ -191,7 +201,9 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         selectedShipping: cart.selectedShipping,
         transactionHash: transactionHash,
         notes: cart.notes || '',
-        fid: getFid() // Add user's Farcaster ID for notifications
+        fid: getFid(), // Add user's Farcaster ID for notifications
+        appliedDiscount: appliedDiscount, // Include discount information
+        discountAmount: appliedDiscount ? appliedDiscount.discountAmount : 0
       };
 
       const response = await fetch('/api/shopify/orders', {
@@ -363,6 +375,70 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
   const handleShippingMethodSelect = (shippingMethod) => {
     updateSelectedShipping(shippingMethod);
+  };
+
+  // Discount code functions
+  const handleApplyDiscount = async () => {
+    if (!discountCode.trim()) {
+      setDiscountError('Please enter a discount code');
+      return;
+    }
+
+    if (!cart.checkout) {
+      setDiscountError('Please calculate checkout first');
+      return;
+    }
+
+    setIsValidatingDiscount(true);
+    setDiscountError(null);
+
+    try {
+      const userFid = getFid();
+      if (!userFid) {
+        throw new Error('User not authenticated');
+      }
+
+      const response = await fetch('/api/validate-discount', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: discountCode.trim().toUpperCase(),
+          fid: userFid,
+          subtotal: cart.checkout.subtotal.amount
+        })
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Invalid discount code');
+      }
+
+      // Apply the discount
+      setAppliedDiscount({
+        code: result.code,
+        discountType: result.discountType,
+        discountValue: result.discountValue,
+        discountAmount: result.discountAmount,
+        message: result.message
+      });
+
+      console.log('✅ Discount applied:', result);
+
+    } catch (error) {
+      console.error('❌ Error applying discount:', error);
+      setDiscountError(error.message);
+    } finally {
+      setIsValidatingDiscount(false);
+    }
+  };
+
+  const handleRemoveDiscount = () => {
+    setAppliedDiscount(null);
+    setDiscountCode('');
+    setDiscountError(null);
   };
 
   // Don't render if no items in cart
@@ -612,6 +688,56 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                     </div>
                   )}
 
+                  {/* Discount Code Section */}
+                  <div className="space-y-3 border border-gray-200 rounded-lg p-3">
+                    <h3 className="font-medium text-gray-900">Discount Code</h3>
+                    
+                    {!appliedDiscount ? (
+                      <div className="space-y-2">
+                        <div className="flex space-x-2">
+                          <input
+                            type="text"
+                            value={discountCode}
+                            onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                            placeholder="Enter discount code"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent"
+                            disabled={isValidatingDiscount}
+                          />
+                          <button
+                            onClick={handleApplyDiscount}
+                            disabled={!discountCode.trim() || isValidatingDiscount}
+                            className="px-4 py-2 bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-sm font-medium rounded-md transition-colors"
+                          >
+                            {isValidatingDiscount ? 'Validating...' : 'Apply'}
+                          </button>
+                        </div>
+                        
+                        {discountError && (
+                          <div className="text-red-600 text-xs">{discountError}</div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm font-medium text-green-800">
+                              {appliedDiscount.message}
+                            </div>
+                            <div className="text-xs text-green-600">
+                              Code: {appliedDiscount.code}
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleRemoveDiscount}
+                            className="text-green-600 hover:text-green-800 text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Order Summary */}
                   <div className="space-y-2">
                     <h3 className="font-medium">Order Summary</h3>
@@ -631,6 +757,14 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                         <span>Subtotal</span>
                         <span>${cart.checkout ? cart.checkout.subtotal.amount.toFixed(2) : cartTotal.toFixed(2)}</span>
                       </div>
+                      
+                      {/* Discount Line Item */}
+                      {appliedDiscount && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Discount ({appliedDiscount.code})</span>
+                          <span>-${appliedDiscount.discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
                       
                       {/* Selected Shipping Method */}
                       {cart.selectedShipping ? (
@@ -653,10 +787,16 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                       <div className="border-t pt-1 flex justify-between font-medium">
                         <span>Total</span>
                         <span>
-                          ${cart.checkout && cart.selectedShipping
-                            ? (cart.checkout.subtotal.amount + cart.checkout.tax.amount + cart.selectedShipping.price.amount).toFixed(2)
-                            : cartTotal.toFixed(2)
-                          } USDC
+                          ${(() => {
+                            if (cart.checkout && cart.selectedShipping) {
+                              const subtotal = cart.checkout.subtotal.amount;
+                              const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+                              const shipping = cart.selectedShipping.price.amount;
+                              const tax = cart.checkout.tax.amount;
+                              return (subtotal - discount + shipping + tax).toFixed(2);
+                            }
+                            return cartTotal.toFixed(2);
+                          })()} USDC
                         </span>
                       </div>
                     </div>
@@ -725,9 +865,11 @@ export function CheckoutFlow({ checkoutData, onBack }) {
               {checkoutStep === 'payment' && paymentStatus === 'idle' && isConnected && (
                 <div className="space-y-2">
                   {(() => {
-                    const finalTotal = cart.checkout && cart.selectedShipping
-                      ? cart.checkout.subtotal.amount + cart.checkout.tax.amount + cart.selectedShipping.price.amount
-                      : cartTotal;
+                    const subtotal = cart.checkout ? cart.checkout.subtotal.amount : cartTotal;
+                    const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+                    const shipping = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
+                    const tax = cart.checkout ? cart.checkout.tax.amount : 0;
+                    const finalTotal = subtotal - discount + shipping + tax;
                     
                     return !hasSufficientBalance(finalTotal) && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -740,18 +882,22 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                   
                   <button
                     onClick={handlePayment}
-                    disabled={!cart.checkout || !cart.selectedShipping || !hasSufficientBalance(
-                      cart.checkout && cart.selectedShipping
-                        ? cart.checkout.subtotal.amount + cart.checkout.tax.amount + cart.selectedShipping.price.amount
-                        : cartTotal
-                    ) || isPending}
+                    disabled={!cart.checkout || !cart.selectedShipping || !hasSufficientBalance((() => {
+                      const subtotal = cart.checkout ? cart.checkout.subtotal.amount : cartTotal;
+                      const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+                      const shipping = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
+                      const tax = cart.checkout ? cart.checkout.tax.amount : 0;
+                      return subtotal - discount + shipping + tax;
+                    })()) || isPending}
                     className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
                   >
-                    {isPending ? 'Processing...' : `Pay ${
-                      cart.checkout && cart.selectedShipping
-                        ? (cart.checkout.subtotal.amount + cart.checkout.tax.amount + cart.selectedShipping.price.amount).toFixed(2)
-                        : cartTotal.toFixed(2)
-                    } USDC`}
+                    {isPending ? 'Processing...' : `Pay ${(() => {
+                      const subtotal = cart.checkout ? cart.checkout.subtotal.amount : cartTotal;
+                      const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+                      const shipping = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
+                      const tax = cart.checkout ? cart.checkout.tax.amount : 0;
+                      return (subtotal - discount + shipping + tax).toFixed(2);
+                    })()} USDC`}
                   </button>
                 </div>
               )}
