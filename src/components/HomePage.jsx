@@ -6,6 +6,7 @@ import { Cart } from './Cart';
 import { OrderHistory } from './OrderHistory';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { hasWelcomeNotificationBeenSent, markWelcomeNotificationSent } from '@/lib/supabase';
 
 export function HomePage({ collection, products }) {
   const { itemCount, cartTotal } = useCart();
@@ -68,29 +69,49 @@ export function HomePage({ collection, products }) {
             console.log('👤 Existing user profile updated');
           }
           
-          // If user has notifications enabled, send welcome notification
+          // If user has notifications enabled, check if we've already sent welcome notification
           if (userHasNotifications) {
-            console.log('🔔 User has notifications enabled - sending welcome notification...');
+            console.log('🔔 User has notifications enabled - checking if welcome notification already sent...');
             
             try {
-              const welcomeResponse = await fetch('/api/send-welcome-notification', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ userFid }),
-              });
+              // Check if we've already sent a welcome notification to this user
+              const notificationStatus = await hasWelcomeNotificationBeenSent(userFid);
+              console.log('Welcome notification status:', notificationStatus);
               
-              const welcomeResult = await welcomeResponse.json();
-              console.log('Welcome notification result:', welcomeResult);
-              
-              if (welcomeResult.success) {
-                console.log('✅ Welcome notification sent successfully!');
+              if (notificationStatus.success && !notificationStatus.sent) {
+                console.log('📬 Sending welcome notification for first time...');
+                
+                const welcomeResponse = await fetch('/api/send-welcome-notification', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ userFid }),
+                });
+                
+                const welcomeResult = await welcomeResponse.json();
+                console.log('Welcome notification result:', welcomeResult);
+                
+                if (welcomeResult.success) {
+                  console.log('✅ Welcome notification sent successfully!');
+                  
+                  // Mark notification as sent in database
+                  const markResult = await markWelcomeNotificationSent(userFid);
+                  if (markResult.success) {
+                    console.log('✅ Welcome notification marked as sent in database');
+                  } else {
+                    console.log('⚠️ Failed to mark welcome notification as sent:', markResult.error);
+                  }
+                } else {
+                  console.log('❌ Welcome notification failed:', welcomeResult.error);
+                }
+              } else if (notificationStatus.success && notificationStatus.sent) {
+                console.log('✅ Welcome notification already sent to this user on:', notificationStatus.sentAt);
               } else {
-                console.log('❌ Welcome notification failed:', welcomeResult.error);
+                console.log('❌ Failed to check welcome notification status:', notificationStatus.error);
               }
             } catch (welcomeError) {
-              console.error('Error sending welcome notification:', welcomeError);
+              console.error('Error handling welcome notification:', welcomeError);
             }
           } else {
             console.log('📱 User does not have notifications enabled');

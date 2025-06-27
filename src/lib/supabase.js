@@ -176,6 +176,75 @@ export async function deleteUserProfile(userFid) {
   }
 }
 
+// Mark welcome notification as sent for a user
+export async function markWelcomeNotificationSent(userFid) {
+  if (!isSupabaseAvailable()) {
+    console.log('Supabase not available');
+    return { success: false, error: 'Supabase not configured' };
+  }
+
+  try {
+    console.log('Marking welcome notification as sent for FID:', userFid);
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        welcome_notification_sent: true,
+        welcome_notification_sent_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('fid', userFid)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase error marking welcome notification sent:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('Welcome notification marked as sent:', data);
+    return { success: true, profile: data };
+  } catch (error) {
+    console.error('Error marking welcome notification sent:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Check if welcome notification was already sent to a user
+export async function hasWelcomeNotificationBeenSent(userFid) {
+  if (!isSupabaseAvailable()) {
+    console.log('Supabase not available');
+    return { success: false, error: 'Supabase not configured' };
+  }
+
+  try {
+    console.log('Checking if welcome notification was sent for FID:', userFid);
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('welcome_notification_sent, welcome_notification_sent_at')
+      .eq('fid', userFid)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No profile found - notification not sent
+        console.log('No profile found for FID:', userFid, '- notification not sent');
+        return { success: true, sent: false };
+      }
+      console.error('Supabase error checking welcome notification status:', error);
+      return { success: false, error: error.message };
+    }
+
+    const sent = data?.welcome_notification_sent || false;
+    console.log('Welcome notification sent status for FID:', userFid, '- sent:', sent);
+    return { success: true, sent, sentAt: data?.welcome_notification_sent_at };
+  } catch (error) {
+    console.error('Error checking welcome notification status:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Get profile count (for debugging)
 export async function getProfileCount() {
   if (!isSupabaseAvailable()) {
