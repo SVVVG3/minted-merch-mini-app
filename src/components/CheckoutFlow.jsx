@@ -162,8 +162,12 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     // Calculate final total including selected shipping and discount
     const selectedShippingCost = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
     const discountAmount = appliedDiscount ? appliedDiscount.discountAmount : 0;
-    const subtotalWithDiscount = cart.checkout.subtotal.amount - discountAmount;
-    const finalTotal = subtotalWithDiscount + cart.checkout.tax.amount + selectedShippingCost;
+    const originalSubtotal = cart.checkout.subtotal.amount;
+    const subtotalWithDiscount = originalSubtotal - discountAmount;
+    // Recalculate taxes based on discounted subtotal
+    const taxRate = cart.checkout.tax.amount / originalSubtotal;
+    const adjustedTax = subtotalWithDiscount * taxRate;
+    const finalTotal = subtotalWithDiscount + adjustedTax + selectedShippingCost;
 
     // Execute the payment
     await executePayment(finalTotal, {
@@ -721,7 +725,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="text-sm font-medium text-green-800">
-                              {appliedDiscount.message}
+                              15% discount applied!
                             </div>
                             <div className="text-xs text-green-600">
                               Code: {appliedDiscount.code}
@@ -761,7 +765,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                       {/* Discount Line Item */}
                       {appliedDiscount && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Discount ({appliedDiscount.code})</span>
+                          <span>Discount (15%)</span>
                           <span>-${appliedDiscount.discountAmount.toFixed(2)}</span>
                         </div>
                       )}
@@ -781,7 +785,20 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                       
                       <div className="flex justify-between text-sm">
                         <span>Taxes</span>
-                        <span>${cart.checkout ? cart.checkout.tax.amount.toFixed(2) : '0.00'}</span>
+                        <span>
+                          ${(() => {
+                            if (cart.checkout) {
+                              // Recalculate taxes based on discounted subtotal
+                              const originalSubtotal = cart.checkout.subtotal.amount;
+                              const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+                              const discountedSubtotal = originalSubtotal - discount;
+                              const taxRate = cart.checkout.tax.amount / originalSubtotal;
+                              const adjustedTax = discountedSubtotal * taxRate;
+                              return adjustedTax.toFixed(2);
+                            }
+                            return '0.00';
+                          })()}
+                        </span>
                       </div>
                       
                       <div className="border-t pt-1 flex justify-between font-medium">
@@ -792,8 +809,11 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                               const subtotal = cart.checkout.subtotal.amount;
                               const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
                               const shipping = cart.selectedShipping.price.amount;
-                              const tax = cart.checkout.tax.amount;
-                              return (subtotal - discount + shipping + tax).toFixed(2);
+                              // Recalculate taxes based on discounted subtotal
+                              const discountedSubtotal = subtotal - discount;
+                              const taxRate = cart.checkout.tax.amount / subtotal;
+                              const adjustedTax = discountedSubtotal * taxRate;
+                              return (discountedSubtotal + shipping + adjustedTax).toFixed(2);
                             }
                             return cartTotal.toFixed(2);
                           })()} USDC
