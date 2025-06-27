@@ -95,11 +95,15 @@ async function handleFarcasterEvent(body, userFid) {
         if (notificationDetails && notificationDetails.token) {
           console.log('🔔 User added Mini App with notifications enabled!');
           console.log('Notification token provided by Farcaster:', notificationDetails.token);
+          console.log('Notification URL provided by Farcaster:', notificationDetails.url);
           
-          // Send welcome notification immediately since they just enabled notifications
+          // Send welcome notification directly using the token and URL from Farcaster
           try {
-            console.log('Sending welcome notification for new Mini App add with notifications...');
-            const welcomeResult = await sendWelcomeNotification(userFid);
+            console.log('Sending welcome notification using Farcaster token and URL...');
+            const welcomeResult = await sendDirectWelcomeNotification(
+              notificationDetails.url,
+              notificationDetails.token
+            );
             console.log('Welcome notification result:', welcomeResult);
             
             // Mark notification as sent if successful
@@ -149,10 +153,13 @@ async function handleFarcasterEvent(body, userFid) {
 
         console.log('Notification token provided by Farcaster:', notificationDetails.token);
         
-        // Send welcome notification since they just enabled notifications
+        // Send welcome notification using the token and URL from Farcaster
         try {
-          console.log('Sending welcome notification for newly enabled notifications...');
-          const welcomeResult = await sendWelcomeNotification(userFid);
+          console.log('Sending welcome notification using Farcaster token and URL...');
+          const welcomeResult = await sendDirectWelcomeNotification(
+            notificationDetails.url,
+            notificationDetails.token
+          );
           console.log('Welcome notification result:', welcomeResult);
           
           // Mark notification as sent if successful
@@ -247,6 +254,52 @@ async function handleFrameInteraction(body, userFid) {
       { success: false, error: 'Failed to process interaction' },
       { status: 500 }
     );
+  }
+}
+
+// Helper function to send welcome notification directly using Farcaster token and URL
+async function sendDirectWelcomeNotification(notificationUrl, token) {
+  try {
+    const notification = {
+      notificationId: `welcome-${Date.now()}`,
+      title: "👋 Welcome to Minted Merch!",
+      body: "Discover our exclusive collection of premium merchandise. Start shopping now!",
+      targetUrl: "https://mintedmerch.vercel.app",
+      tokens: [token]
+    };
+
+    console.log('Sending notification to URL:', notificationUrl);
+    console.log('Notification payload:', JSON.stringify(notification, null, 2));
+
+    const response = await fetch(notificationUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(notification)
+    });
+
+    const responseText = await response.text();
+    console.log('Notification response status:', response.status);
+    console.log('Notification response body:', responseText);
+
+    if (response.ok) {
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (e) {
+        responseData = { rawResponse: responseText };
+      }
+      
+      console.log('✅ Welcome notification sent successfully');
+      return { success: true, response: responseData };
+    } else {
+      console.error('❌ Failed to send welcome notification:', response.status, responseText);
+      return { success: false, error: `HTTP ${response.status}: ${responseText}` };
+    }
+  } catch (error) {
+    console.error('❌ Error sending direct welcome notification:', error);
+    return { success: false, error: error.message };
   }
 }
 
