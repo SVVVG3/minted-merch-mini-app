@@ -124,7 +124,7 @@ export async function GET() {
         throw new Error('Could not create discount code for notification');
       }
 
-      const notificationBody = `Get 15% off your first order with code ${discountResult.code}!`;
+      const notificationBody = `Get 15% off your first order with code: ${discountResult.code}`;
       
       // Validate the notification message format
       if (!notificationBody.includes(discountResult.code)) {
@@ -158,7 +158,7 @@ export async function GET() {
     // Test 5: Check Message Length (Neynar has limits)
     try {
       const discountResult = await createWelcomeDiscountCode(testFid);
-      const notificationBody = `Get 15% off your first order with code ${discountResult.code}!`;
+      const notificationBody = `Get 15% off your first order with code: ${discountResult.code}`;
       
       // Check if message is within reasonable limits (Neynar typically allows ~128 chars)
       if (notificationBody.length > 120) {

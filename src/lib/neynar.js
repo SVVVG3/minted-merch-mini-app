@@ -99,7 +99,7 @@ export async function sendWelcomeNotificationWithNeynar(targetFid) {
     const notification = {
       title: "👋 Welcome to Minted Merch!",
       body: discountCode 
-        ? `Get 15% off your first order with code ${discountCode}!`
+        ? `Get 15% off your first order with code: ${discountCode}`
         : "Discover our exclusive collection of premium merchandise. Start shopping now!",
       target_url: "https://mintedmerch.vercel.app",
       uuid: generateUUID()
@@ -287,7 +287,7 @@ export async function sendWelcomeForNewUser(userFid) {
               notification: {
           title: "👋 Welcome to Minted Merch!",
           body: discountCode 
-            ? `Get 15% off your first order with code ${discountCode}!`
+            ? `Get 15% off your first order with code: ${discountCode}`
             : "Discover our exclusive collection of premium merchandise. Start shopping now!",
           target_url: "https://mintedmerch.vercel.app"
         }
