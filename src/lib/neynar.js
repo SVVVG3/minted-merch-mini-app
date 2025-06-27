@@ -99,7 +99,7 @@ export async function sendWelcomeNotificationWithNeynar(targetFid) {
     const notification = {
       title: "👋 Welcome to Minted Merch!",
       body: discountCode 
-        ? `Get 15% off your first order with code ${discountCode}! Shop premium crypto merch now.`
+        ? `Get 15% off your first order with code ${discountCode}!`
         : "Discover our exclusive collection of premium merchandise. Start shopping now!",
       target_url: "https://mintedmerch.vercel.app",
       uuid: generateUUID()
@@ -284,13 +284,13 @@ export async function sendWelcomeForNewUser(userFid) {
     // Simply send the welcome notification - Neynar will handle delivery based on user permissions
     const response = await neynarClient.publishFrameNotifications({
       targetFids: [userFid],
-      notification: {
-        title: "👋 Welcome to Minted Merch!",
-        body: discountCode 
-          ? `Get 15% off your first order with code ${discountCode}! Shop premium crypto merch now.`
-          : "Discover our exclusive collection of premium merchandise. Start shopping now!",
-        target_url: "https://mintedmerch.vercel.app"
-      }
+              notification: {
+          title: "👋 Welcome to Minted Merch!",
+          body: discountCode 
+            ? `Get 15% off your first order with code ${discountCode}!`
+            : "Discover our exclusive collection of premium merchandise. Start shopping now!",
+          target_url: "https://mintedmerch.vercel.app"
+        }
     });
 
     console.log('Welcome notification sent successfully:', response);
