@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { isNeynarAvailable, getNotificationTokens, neynarClient } from '@/lib/neynar';
+import { isNeynarAvailable, fetchNotificationTokensFromNeynar, neynarClient } from '@/lib/neynar';
 
 export async function GET() {
   try {
@@ -26,7 +26,7 @@ export async function GET() {
     
     try {
       // Try to get notification tokens as a basic API test
-      const tokenResult = await getNotificationTokens();
+      const tokenResult = await fetchNotificationTokensFromNeynar([]);
       apiTest = tokenResult;
       console.log('API connectivity test result:', tokenResult);
     } catch (error) {
