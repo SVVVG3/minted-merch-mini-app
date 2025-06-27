@@ -73,7 +73,9 @@ export function Cart({ isOpen, onClose }) {
             <div className="flex flex-col items-center justify-center h-full p-8 text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                           <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17M17 13v4a2 2 0 01-2 2H9a2 2 0 01-2-2v-4m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-1.5 6M7 13l-1.5-6" />
+            <circle cx="9" cy="19" r="1" />
+            <circle cx="20" cy="19" r="1" />
           </svg>
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">Your cart is empty</h3>
