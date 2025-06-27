@@ -27,20 +27,12 @@ export async function POST(request) {
       });
     }
 
-    // Check if user has notifications enabled via Neynar
+    // Check if user has any notification tokens (for logging purposes)
     const notificationStatus = await checkUserNotificationStatus(fid);
     console.log('User notification status:', notificationStatus);
 
-    if (!notificationStatus.hasNotifications) {
-      console.log('User does not have notifications enabled');
-      return NextResponse.json({
-        success: false,
-        error: 'User has not enabled notifications',
-        details: notificationStatus
-      });
-    }
-
     // Send welcome notification via Neynar managed system
+    // Note: Neynar can send notifications even with "disabled" tokens
     const result = await sendWelcomeNotificationWithNeynar(fid);
     console.log('Welcome notification result:', result);
 
@@ -57,13 +49,15 @@ export async function POST(request) {
         success: true,
         message: 'Welcome notification sent successfully',
         notificationId: result.notificationId,
-        delivery: result.delivery
+        delivery: result.delivery,
+        tokenStatus: notificationStatus
       });
     } else {
       return NextResponse.json({
         success: false,
         error: result.error,
-        details: result.details
+        details: result.details,
+        tokenStatus: notificationStatus
       });
     }
 

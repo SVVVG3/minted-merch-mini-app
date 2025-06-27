@@ -64,6 +64,17 @@ export async function hasNotificationTokenInNeynar(targetFid) {
 }
 
 /**
+ * Generate a proper UUID v4
+ */
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+/**
  * Send a welcome notification using Neynar's managed notification system
  * This uses Neynar's API to send notifications to users who have enabled notifications for our Mini App
  */
@@ -75,7 +86,7 @@ export async function sendWelcomeNotificationWithNeynar(targetFid) {
       title: "👋 Welcome to Minted Merch!",
       body: "Discover our exclusive collection of premium merchandise. Start shopping now!",
       target_url: "https://mintedmerch.vercel.app",
-      uuid: `welcome-${targetFid}-${Date.now()}`
+      uuid: generateUUID()
     };
 
     const requestBody = {
