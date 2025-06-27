@@ -19,8 +19,15 @@ export async function POST(request) {
     const body = await request.text();
     const signature = request.headers.get('x-shopify-hmac-sha256');
     const topic = request.headers.get('x-shopify-topic');
+    const shopDomain = request.headers.get('x-shopify-shop-domain');
     
-    console.log('📦 Shopify fulfillment webhook received:', topic);
+    console.log('📦 Shopify fulfillment webhook received:', {
+      topic,
+      shopDomain,
+      hasSignature: !!signature,
+      bodyLength: body.length,
+      timestamp: new Date().toISOString()
+    });
 
     // Verify webhook signature (if secret is configured)
     const webhookSecret = process.env.SHOPIFY_WEBHOOK_SECRET;
@@ -30,6 +37,11 @@ export async function POST(request) {
         console.error('❌ Invalid Shopify webhook signature');
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
       }
+      console.log('✅ Webhook signature verified');
+    } else if (webhookSecret) {
+      console.warn('⚠️ Webhook secret configured but no signature provided');
+    } else {
+      console.log('ℹ️ No webhook secret configured, skipping signature verification');
     }
 
     const fulfillmentData = JSON.parse(body);
