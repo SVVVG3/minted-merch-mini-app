@@ -354,8 +354,8 @@ export async function sendOrderConfirmationNotification(userFid, orderDetails) {
     console.log('Sending order confirmation notification to user FID:', userFid);
     
     const notification = {
-      title: "📦 Order Confirmed!",
-      body: `Your order #${orderDetails.orderId} has been confirmed. Total: ${orderDetails.amount} ${orderDetails.currency}`,
+      title: "📦 Minted Merch Order Confirmed!",
+      body: `Your order ${orderDetails.orderId} has been confirmed. Total: ${orderDetails.amount} ${orderDetails.currency}. We will send you a notification when your order ships. Thank you for choosing Minted Merch!`,
       target_url: `https://mintedmerch.vercel.app`,
       uuid: generateUUID()
     };
