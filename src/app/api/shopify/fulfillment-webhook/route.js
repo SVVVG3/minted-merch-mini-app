@@ -55,6 +55,9 @@ export async function POST(request) {
       case 'fulfillments/update':
         await handleFulfillmentUpdate(fulfillmentData);
         break;
+      case 'orders/fulfilled':
+        await handleOrderFulfilled(fulfillmentData);
+        break;
       default:
         console.log(`Unhandled fulfillment topic: ${topic}`);
     }
@@ -164,6 +167,66 @@ async function handleFulfillmentUpdate(fulfillment) {
 
   } catch (error) {
     console.error('❌ Error handling fulfillment update:', error);
+  }
+}
+
+async function handleOrderFulfilled(orderData) {
+  try {
+    console.log('📦 Processing order fulfilled event...');
+
+    const orderName = orderData.name;
+    const fulfillments = orderData.fulfillments || [];
+
+    if (!orderName) {
+      console.error('❌ No order name found in order fulfilled data');
+      return;
+    }
+
+    // Check if we have this order in our Supabase database
+    const orderResult = await getOrder(orderName);
+    
+    if (!orderResult.success) {
+      console.log(`ℹ️ Order ${orderName} not found in Supabase database - likely not a Mini App order`);
+      return;
+    }
+
+    console.log(`📦 Found order ${orderName} in database, processing fulfillment...`);
+
+    // Get tracking info from the first fulfillment
+    let trackingInfo = null;
+    if (fulfillments.length > 0) {
+      const fulfillment = fulfillments[0];
+      if (fulfillment.tracking_number) {
+        trackingInfo = {
+          trackingNumber: fulfillment.tracking_number,
+          trackingUrl: fulfillment.tracking_url || generateTrackingUrl(fulfillment.tracking_number, fulfillment.tracking_company),
+          carrier: fulfillment.tracking_company || 'Unknown'
+        };
+      }
+    }
+
+    // Update order with tracking information and send notification
+    if (trackingInfo) {
+      const trackingResult = await addTrackingInfo(orderName, trackingInfo);
+
+      if (trackingResult.success) {
+        console.log(`✅ Order ${orderName} fulfilled with tracking info and shipping notification sent`);
+      } else {
+        console.error(`❌ Failed to add tracking info for order ${orderName}:`, trackingResult.error);
+      }
+    } else {
+      // No tracking number, just update status to shipped
+      const statusResult = await updateOrderStatus(orderName, 'shipped');
+      
+      if (statusResult.success) {
+        console.log(`✅ Order ${orderName} marked as shipped (no tracking info available)`);
+      } else {
+        console.error(`❌ Failed to update order status for ${orderName}:`, statusResult.error);
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Error handling order fulfilled:', error);
   }
 }
 

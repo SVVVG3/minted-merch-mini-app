@@ -43,7 +43,8 @@ export async function GET() {
 
       const fulfillmentWebhooks = result.webhooks.filter(w => 
         w.topic === 'fulfillments/create' || 
-        w.topic === 'fulfillments/update'
+        w.topic === 'fulfillments/update' ||
+        w.topic === 'orders/fulfilled'
       );
 
       return Response.json({

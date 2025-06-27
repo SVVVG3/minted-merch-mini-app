@@ -13,7 +13,7 @@ export async function POST() {
 
     const webhookData = {
       webhook: {
-        topic: 'fulfillments/create',
+        topic: 'orders/fulfilled',
         address: 'https://mintedmerch.vercel.app/api/shopify/fulfillment-webhook',
         format: 'json'
       }
