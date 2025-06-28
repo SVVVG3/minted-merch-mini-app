@@ -170,18 +170,8 @@ export async function GET(request) {
               
               <div
                 style={{
-                  fontSize: '24px',
-                  color: '#888',
-                  marginBottom: '20px',
-                }}
-              >
-                🛒 Minted Merch Shop
-              </div>
-              
-              <div
-                style={{
                   fontSize: '20px',
-                  color: '#3eb489',
+                  color: '#888',
                 }}
               >
                 Paid with USDC on Base 🔵
@@ -189,15 +179,15 @@ export async function GET(request) {
             </div>
           </div>
           
-          {/* Logo in Bottom Right Corner */}
+          {/* Logo in Bottom Right Corner - Doubled Size */}
           {logoImageSrc && (
             <div
               style={{
                 position: 'absolute',
                 bottom: '30px',
                 right: '30px',
-                width: '80px',
-                height: '80px',
+                width: '160px',
+                height: '160px',
                 borderRadius: '12px',
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 display: 'flex',
@@ -210,8 +200,8 @@ export async function GET(request) {
                 src={logoImageSrc}
                 alt="Minted Merch"
                 style={{
-                  width: '60px',
-                  height: '60px',
+                  width: '120px',
+                  height: '120px',
                   objectFit: 'contain',
                 }}
               />

@@ -111,24 +111,13 @@ export async function GET(request) {
               
               <div
                 style={{
-                  fontSize: '36px',
-                  color: '#3eb489',
-                  fontWeight: 'bold',
-                  marginBottom: '40px',
-                  lineHeight: '1.2',
-                }}
-              >
-                Premium Crypto Merchandise
-              </div>
-              
-              <div
-                style={{
                   fontSize: '28px',
-                  color: '#888',
+                  color: '#3eb489',
                   marginBottom: '25px',
+                  lineHeight: '1.3',
                 }}
               >
-                Shop apparel, accessories, & more!
+                Shop apparel, accessories, & more - designed after your favorite coins, communities, & NFTs!
               </div>
               
               <div
@@ -151,35 +140,6 @@ export async function GET(request) {
               </div>
             </div>
           </div>
-          
-          {/* Logo in Bottom Right Corner */}
-          {logoImageSrc && (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '30px',
-                right: '30px',
-                width: '80px',
-                height: '80px',
-                borderRadius: '12px',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px solid rgba(255, 255, 255, 0.2)',
-              }}
-            >
-              <img
-                src={logoImageSrc}
-                alt="Minted Merch"
-                style={{
-                  width: '60px',
-                  height: '60px',
-                  objectFit: 'contain',
-                }}
-              />
-            </div>
-          )}
         </div>
       ),
       {
