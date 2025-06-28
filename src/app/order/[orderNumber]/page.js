@@ -8,9 +8,9 @@ export async function generateMetadata({ params }) {
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app').replace(/\/$/, '');
   const dynamicImageUrl = `${baseUrl}/api/og/order?orderNumber=${orderNumber}`;
   
-  // Create frame embed with dynamic order image - use version "1" for Mini App embeds
+  // Create frame embed with dynamic order image - use version "next" for Mini App embeds
   const frame = {
-    version: "1",
+    version: "next",
     imageUrl: dynamicImageUrl,
     button: {
       title: "Shop More Merch 🛒",

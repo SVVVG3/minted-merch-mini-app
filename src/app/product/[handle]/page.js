@@ -36,9 +36,9 @@ export async function generateMetadata({ params }) {
       
       const dynamicImageUrl = `${baseUrl}/api/og/product?${ogParams.toString()}`;
       
-      // Create frame embed with dynamic product image - use version "1" for Mini App embeds
+      // Create frame embed with dynamic product image - use version "next" for Mini App embeds
       const frame = {
-        version: "1",
+        version: "next",
         imageUrl: dynamicImageUrl,
         button: {
           title: `Buy ${title} 📦`,
@@ -90,7 +90,7 @@ export async function generateMetadata({ params }) {
   const fallbackImageUrl = `${baseUrl}/api/og/product?handle=${handle}&title=${encodeURIComponent(productTitle)}`;
   
   const frame = {
-    version: "1",
+    version: "next",
     imageUrl: fallbackImageUrl,
     button: {
       title: `Buy ${productTitle} 📦`,

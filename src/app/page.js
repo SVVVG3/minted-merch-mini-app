@@ -5,9 +5,9 @@ export async function generateMetadata() {
   // Fix URL construction to avoid double slashes
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app').replace(/\/$/, '');
   
-  // Create frame embed for home page - use version "1" for Mini App embeds
+  // Create frame embed for home page - use version "next" for Mini App embeds
   const frame = {
-    version: "1",
+    version: "next",
     imageUrl: `${baseUrl}/splash.png`,
     button: {
       title: "Shop Crypto Merch 🛒",
