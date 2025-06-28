@@ -360,6 +360,38 @@ export async function addTrackingInfo(orderId, trackingData) {
 }
 
 /**
+ * Cancel an order and update its status
+ */
+export async function cancelOrder(orderId, cancelReason = 'cancelled_in_shopify') {
+  try {
+    console.log(`Cancelling order ${orderId} with reason: ${cancelReason}`);
+
+    const { data: order, error } = await supabase
+      .from('orders')
+      .update({
+        status: 'cancelled',
+        archived_at: new Date().toISOString(),
+        archived_in_shopify: cancelReason === 'cancelled_in_shopify'
+      })
+      .eq('order_id', orderId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error cancelling order:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('✅ Order cancelled successfully:', order.order_id);
+    return { success: true, order };
+
+  } catch (error) {
+    console.error('Error in cancelOrder:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Archive an order instead of deleting it
  */
 export async function archiveOrder(orderId, archiveReason = 'archived_in_shopify') {
@@ -370,8 +402,9 @@ export async function archiveOrder(orderId, archiveReason = 'archived_in_shopify
       .from('orders')
       .update({
         archived_at: new Date().toISOString(),
-        archived_in_shopify: archiveReason === 'archived_in_shopify',
-        status: 'cancelled' // Update status to reflect archived state
+        archived_in_shopify: archiveReason === 'archived_in_shopify'
+        // Note: We preserve the original status (shipped, delivered, etc.) when archiving
+        // Archiving is separate from order status - archived orders keep their fulfillment status
       })
       .eq('order_id', orderId)
       .select()

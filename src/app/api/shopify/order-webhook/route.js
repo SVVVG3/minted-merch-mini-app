@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { archiveOrder, getOrder } from '@/lib/orders';
+import { archiveOrder, cancelOrder, getOrder } from '@/lib/orders';
 import crypto from 'crypto';
 
 // Verify Shopify webhook signature
@@ -143,13 +143,13 @@ async function handleOrderCancelled(order) {
 
     console.log(`📦 Found order ${orderName} in database, marking as cancelled...`);
 
-    // Archive the cancelled order
-    const archiveResult = await archiveOrder(orderName, 'cancelled_in_shopify');
+    // Cancel the order (this sets status to cancelled AND archives it)
+    const cancelResult = await cancelOrder(orderName, 'cancelled_in_shopify');
     
-    if (archiveResult.success) {
-      console.log(`✅ Order ${orderName} successfully marked as cancelled`);
+    if (cancelResult.success) {
+      console.log(`✅ Order ${orderName} successfully cancelled and archived`);
     } else {
-      console.error(`❌ Failed to mark order ${orderName} as cancelled:`, archiveResult.error);
+      console.error(`❌ Failed to cancel order ${orderName}:`, cancelResult.error);
     }
 
   } catch (error) {
