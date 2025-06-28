@@ -210,14 +210,6 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         discountAmount: appliedDiscount ? appliedDiscount.discountAmount : 0
       };
 
-      console.log('Order data being sent:', {
-        hasCartItems: !!orderData.cartItems,
-        cartItemsLength: orderData.cartItems?.length,
-        hasShippingAddress: !!orderData.shippingAddress,
-        hasTransactionHash: !!orderData.transactionHash,
-        fid: orderData.fid
-      });
-
       const response = await fetch('/api/shopify/orders', {
         method: 'POST',
         headers: {
@@ -226,18 +218,9 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         body: JSON.stringify(orderData),
       });
 
-      console.log('Order creation response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Order creation failed with status:', response.status, errorText);
-        throw new Error(`Order creation failed: ${response.status} ${errorText}`);
-      }
-
       const result = await response.json();
-      console.log('Order creation result:', result);
 
-      if (result.success && result.order) {
+      if (result.success) {
         console.log('Order created successfully:', result.order.name);
         
         // Create order details object
@@ -263,67 +246,34 @@ export function CheckoutFlow({ checkoutData, onBack }) {
           selectedShipping: cart.selectedShipping
         };
         
-        console.log('Setting order details:', orderDetailsData);
-        
-        // Save order to history (non-blocking)
-        try {
-          const userFid = getFid();
-          if (userFid) {
-            saveOrderToHistory(userFid, orderDetailsData);
-            console.log('Order saved to history for user:', userFid);
-          }
-        } catch (historyError) {
-          console.error('Error saving to order history (non-critical):', historyError);
-          // Don't fail the success flow for history errors
+        // Save order to history
+        const userFid = getFid();
+        if (userFid) {
+          saveOrderToHistory(userFid, orderDetailsData);
+          console.log('Order saved to history for user:', userFid);
         }
         
         // Show order confirmation
-        console.log('Setting checkout step to success...');
         setOrderDetails(orderDetailsData);
         setCheckoutStep('success');
-        console.log('Order success flow completed successfully');
         
       } else {
         console.error('Order creation failed:', result.error);
         console.error('Order creation response:', result);
-        throw new Error(result.error || 'Order creation failed');
+        // Still clear cart but show warning
+        alert('Payment successful but order creation failed. Please contact support with your transaction hash: ' + transactionHash);
+        clearCart();
+        setIsCheckoutOpen(false);
+        resetPayment();
       }
       
     } catch (error) {
-      console.error('Error in handlePaymentSuccess:', error);
-      console.error('Error stack:', error.stack);
-      
-      // Create a fallback order details object using available data
-      const fallbackOrderDetails = {
-        name: `TX-${transactionHash?.slice(-8) || 'UNKNOWN'}`,
-        id: 'pending',
-        status: 'Payment Confirmed',
-        total: {
-          amount: cart.checkout ? (cart.checkout.subtotal.amount + cart.checkout.tax.amount + (cart.selectedShipping ? cart.selectedShipping.price.amount : 0)).toFixed(2) : cartTotal.toFixed(2),
-          currencyCode: 'USDC'
-        },
-        customer: {
-          email: shippingData?.email || ''
-        },
-        transactionHash: transactionHash,
-        lineItems: cart.items.map(item => ({
-          title: item.product?.title || item.title || 'Unknown Item',
-          variantTitle: item.variant?.title || item.variantTitle,
-          quantity: item.quantity,
-          price: item.price
-        })),
-        shippingAddress: shippingData,
-        selectedShipping: cart.selectedShipping,
-        isError: true,
-        errorMessage: 'Payment successful, but order processing encountered an issue. Please contact support with your transaction hash.'
-      };
-      
-      console.log('Using fallback order details due to error');
-      setOrderDetails(fallbackOrderDetails);
-      setCheckoutStep('success');
-      
-      // Show user-friendly error message but still show success page
-      alert(`Payment successful! Transaction hash: ${transactionHash}\n\nThere was an issue processing your order details, but your payment went through. Please contact support if needed.`);
+      console.error('Error creating order:', error);
+      // Still clear cart but show warning
+      alert('Payment successful but order creation failed. Please contact support with your transaction hash: ' + transactionHash);
+      clearCart();
+      setIsCheckoutOpen(false);
+      resetPayment();
     }
   };
 
@@ -975,14 +925,6 @@ export function CheckoutFlow({ checkoutData, onBack }) {
               {/* Success Step */}
               {checkoutStep === 'success' && orderDetails && (
                 <div className="space-y-4">
-                  {/* Show error message if there was an issue */}
-                  {orderDetails.isError && (
-                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                      <div className="text-yellow-800 text-sm font-medium">⚠️ Order Processing Notice</div>
-                      <div className="text-yellow-700 text-sm mt-1">{orderDetails.errorMessage}</div>
-                    </div>
-                  )}
-                  
                   <div className="bg-green-50 border border-green-200 p-4 rounded-lg text-center">
                     <svg className="w-12 h-12 mx-auto text-green-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -991,7 +933,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                     <p className="text-gray-600 mb-3">Your order has been successfully placed and payment confirmed.</p>
                     <div className="bg-white p-3 rounded border border-green-200">
                       <p className="text-sm text-gray-600">Order Number</p>
-                      <p className="text-lg font-mono font-medium text-gray-900">{orderDetails.name || 'Processing...'}</p>
+                      <p className="text-lg font-mono font-medium text-gray-900">{orderDetails.name}</p>
                     </div>
                   </div>
 
@@ -1000,30 +942,22 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Status:</span>
-                        <span className={`font-medium ${orderDetails.isError ? 'text-yellow-600' : 'text-green-600'}`}>
-                          {orderDetails.status || 'Processing...'}
-                        </span>
+                        <span className="font-medium text-green-600">{orderDetails.status}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total:</span>
-                        <span className="font-medium">
-                          ${orderDetails.total?.amount || '0.00'} {orderDetails.total?.currencyCode || 'USDC'}
-                        </span>
+                        <span className="font-medium">${orderDetails.total.amount} {orderDetails.total.currencyCode}</span>
                       </div>
-                      {orderDetails.customer?.email && (
+                      {orderDetails.customer.email && (
                         <div className="flex justify-between">
                           <span className="text-gray-600">Email:</span>
                           <span className="font-medium">{orderDetails.customer.email}</span>
                         </div>
                       )}
-                      {orderDetails.transactionHash && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Transaction:</span>
-                          <span className="font-mono text-xs">
-                            {orderDetails.transactionHash.slice(0, 8)}...{orderDetails.transactionHash.slice(-6)}
-                          </span>
-                        </div>
-                      )}
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Transaction:</span>
+                        <span className="font-mono text-xs">{orderDetails.transactionHash?.slice(0, 8)}...{orderDetails.transactionHash?.slice(-6)}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -1042,41 +976,18 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                       <span>Share My Purchase</span>
                     </button>
                     
-                    {/* View Order Page Button - Only show if we have a proper order name */}
-                    {orderDetails.name && !orderDetails.isError && (() => {
-                      try {
-                        // Get product names from cart items
-                        const productNames = cart.items.map(item => {
-                          const productName = item.product?.title || item.title;
-                          const variantName = item.variant?.title && item.variant.title !== 'Default Title' ? item.variant.title : '';
-                          const quantity = item.quantity > 1 ? ` (${item.quantity}x)` : '';
-                          return variantName ? `${productName} (${variantName})${quantity}` : `${productName}${quantity}`;
-                        });
-                        
-                        const productText = productNames.length === 1 
-                          ? productNames[0]
-                          : productNames.length === 2
-                            ? `${productNames[0]} and ${productNames[1]}`
-                            : `${productNames.slice(0, -1).join(', ')}, and ${productNames[productNames.length - 1]}`;
-
-                        return (
-                          <a
-                            href={`/order/${encodeURIComponent(orderDetails.name)}?total=${encodeURIComponent(orderDetails.total.amount)}&products=${encodeURIComponent(productText)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                            <span>View Shareable Order</span>
-                          </a>
-                        );
-                      } catch (error) {
-                        console.error('Error creating order page link:', error);
-                        return null;
-                      }
-                    })()}
+                    {/* View Order Page Button */}
+                    <a
+                      href={`/order/${encodeURIComponent(orderDetails.name)}?total=${encodeURIComponent(orderDetails.total.amount)}&products=${encodeURIComponent(productText)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      <span>View Shareable Order</span>
+                    </a>
                     
                     <button
                       onClick={handleContinueShopping}
