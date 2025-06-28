@@ -11,10 +11,113 @@ export async function GET(request) {
       throw new Error('Product handle is required');
     }
 
-    // Convert handle to display title
-    const productTitle = handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    // Fetch product data from Shopify using the correct domain format
+    const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
+    const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+    
+    if (!SHOPIFY_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
+      throw new Error('Missing Shopify environment variables');
+    }
 
-    // Create rich branded product card without external dependencies
+    const response = await fetch(`https://${SHOPIFY_DOMAIN}.myshopify.com/api/2024-07/graphql.json`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Storefront-Access-Token': SHOPIFY_ACCESS_TOKEN,
+      },
+      body: JSON.stringify({
+        query: `
+          query getProductByHandle($handle: String!) {
+            product(handle: $handle) {
+              title
+              featuredImage {
+                url
+                altText
+              }
+              priceRange {
+                minVariantPrice {
+                  amount
+                  currencyCode
+                }
+              }
+            }
+          }
+        `,
+        variables: { handle },
+      }),
+    });
+
+    const data = await response.json();
+    const product = data.data?.product;
+
+    if (!product) {
+      throw new Error('Product not found');
+    }
+
+    const productTitle = product.title;
+    const productImage = product.featuredImage?.url;
+    const price = product.priceRange?.minVariantPrice?.amount;
+
+    // Fetch the product image if available
+    let imageElement = null;
+    if (productImage) {
+      try {
+        const imageResponse = await fetch(productImage);
+        const imageBuffer = await imageResponse.arrayBuffer();
+        const base64Image = `data:${imageResponse.headers.get('content-type') || 'image/jpeg'};base64,${Buffer.from(imageBuffer).toString('base64')}`;
+        
+        imageElement = (
+          <img
+            src={base64Image}
+            width={400}
+            height={400}
+            style={{
+              borderRadius: '16px',
+              objectFit: 'cover',
+            }}
+            alt={product.featuredImage?.altText || productTitle}
+          />
+        );
+      } catch (imageError) {
+        console.error('Error loading product image:', imageError);
+        // Fall back to cart icon if image fails
+        imageElement = (
+          <div
+            style={{
+              width: '400px',
+              height: '400px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#2a2a2a',
+              borderRadius: '16px',
+              fontSize: '120px',
+            }}
+          >
+            🛒
+          </div>
+        );
+      }
+    } else {
+      // No product image available, use cart icon
+      imageElement = (
+        <div
+          style={{
+            width: '400px',
+            height: '400px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#2a2a2a',
+            borderRadius: '16px',
+            fontSize: '120px',
+          }}
+        >
+          🛒
+        </div>
+      );
+    }
+
     return new ImageResponse(
       (
         <div
@@ -22,17 +125,14 @@ export async function GET(request) {
             height: '100%',
             width: '100%',
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#1a1a1a',
-            backgroundImage: 'linear-gradient(45deg, #1a1a1a 0%, #2d2d2d 100%)',
-            fontFamily: 'Inter, sans-serif',
+            backgroundColor: '#000',
+            backgroundImage: 'linear-gradient(45deg, #000 0%, #1a1a1a 100%)',
             position: 'relative',
-            padding: '40px',
           }}
         >
-          {/* Background pattern */}
+          {/* Background Pattern */}
           <div
             style={{
               position: 'absolute',
@@ -45,90 +145,108 @@ export async function GET(request) {
             }}
           />
           
-          {/* Main content */}
+          {/* Main Content */}
           <div
             style={{
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-              border: '2px solid rgba(62, 180, 137, 0.3)',
-              borderRadius: '20px',
+              justifyContent: 'space-between',
+              width: '90%',
+              maxWidth: '1100px',
               padding: '60px',
-              maxWidth: '900px',
-              backdropFilter: 'blur(10px)',
-              textAlign: 'center',
             }}
           >
-            {/* Shopping cart icon */}
+            {/* Product Image */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {imageElement}
+            </div>
+            
+            {/* Product Info */}
             <div
               style={{
-                fontSize: '100px',
-                marginBottom: '40px',
-              }}
-            >
-              🛒
-            </div>
-
-            {/* Product title */}
-            <h1
-              style={{
-                fontSize: '56px',
-                fontWeight: 'bold',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                textAlign: 'right',
                 color: 'white',
-                margin: '0 0 30px 0',
-                lineHeight: '1.2',
-                maxWidth: '700px',
+                marginLeft: '60px',
               }}
             >
-              {productTitle}
-            </h1>
-
-            {/* Price placeholder */}
-            <div
-              style={{
-                fontSize: '48px',
-                fontWeight: 'bold',
-                color: '#3eb489',
-                margin: '0 0 40px 0',
-              }}
-            >
-              Pay with USDC
-            </div>
-
-            {/* Call to action */}
-            <div
-              style={{
-                fontSize: '28px',
-                color: '#cccccc',
-                margin: '0 0 30px 0',
-              }}
-            >
-              Shop crypto merch with instant payments
-            </div>
-
-            {/* Base logo/branding */}
-            <div
-              style={{
-                fontSize: '24px',
-                color: '#3eb489',
-                fontWeight: 'bold',
-              }}
-            >
-              Pay on Base 🔵
+              <div
+                style={{
+                  fontSize: '48px',
+                  fontWeight: 'bold',
+                  marginBottom: '20px',
+                  maxWidth: '500px',
+                  lineHeight: 1.2,
+                }}
+              >
+                {productTitle}
+              </div>
+              
+              {price && (
+                <div
+                  style={{
+                    fontSize: '36px',
+                    color: '#3eb489',
+                    fontWeight: 'bold',
+                    marginBottom: '20px',
+                  }}
+                >
+                  ${parseFloat(price).toFixed(2)} USD
+                </div>
+              )}
+              
+              <div
+                style={{
+                  fontSize: '24px',
+                  color: '#3eb489',
+                  marginBottom: '10px',
+                  fontWeight: '600',
+                }}
+              >
+                Pay with USDC
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '18px',
+                  color: '#888',
+                  marginBottom: '20px',
+                }}
+              >
+                Shop crypto merch with instant payments
+              </div>
+              
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontSize: '16px',
+                  color: '#3eb489',
+                }}
+              >
+                <span style={{ marginRight: '8px' }}>Pay on Base</span>
+                <div
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    backgroundColor: '#3eb489',
+                    borderRadius: '50%',
+                  }}
+                />
+              </div>
             </div>
           </div>
-
-          {/* Minted Merch branding */}
+          
+          {/* Bottom Right Branding */}
           <div
             style={{
               position: 'absolute',
               bottom: '30px',
-              right: '30px',
-              fontSize: '20px',
-              color: '#888888',
-              fontWeight: 'bold',
+              right: '40px',
+              fontSize: '14px',
+              color: '#666',
             }}
           >
             mintedmerch.shop
@@ -137,14 +255,13 @@ export async function GET(request) {
       ),
       {
         width: 1200,
-        height: 800, // 3:2 aspect ratio (1200:800 = 3:2) as required by Mini Apps
+        height: 800,
       }
     );
-
   } catch (error) {
-    console.error('Error generating product image:', error);
+    console.error('Error generating OG image:', error);
     
-    // Return branded error image
+    // Fallback error image
     return new ImageResponse(
       (
         <div
@@ -156,21 +273,23 @@ export async function GET(request) {
             alignItems: 'center',
             justifyContent: 'center',
             backgroundColor: '#1a1a1a',
-            fontFamily: 'Inter, sans-serif',
+            color: 'white',
+            fontSize: '48px',
+            fontWeight: 'bold',
           }}
         >
-          <div style={{ fontSize: '80px', marginBottom: '20px' }}>🛒</div>
-          <div style={{ fontSize: '32px', color: 'white', marginBottom: '10px' }}>
+          <div>🛒</div>
+          <div style={{ fontSize: '24px', color: '#3eb489', marginTop: '20px' }}>
             Minted Merch Shop
           </div>
-          <div style={{ fontSize: '24px', color: '#3eb489' }}>
-            Shop crypto merch with USDC on Base 🔵
+          <div style={{ fontSize: '18px', color: '#888', marginTop: '10px' }}>
+            Crypto merch with USDC payments
           </div>
         </div>
       ),
       {
         width: 1200,
-        height: 800, // 3:2 aspect ratio (1200:800 = 3:2) as required by Mini Apps
+        height: 800,
       }
     );
   }
