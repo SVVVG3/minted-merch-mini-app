@@ -5,13 +5,122 @@ export const runtime = 'edge';
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const handle = searchParams.get('handle') || 'test';
+    const handle = searchParams.get('handle');
+    
+    // Get product data from URL parameters (passed from the frontend)
+    const title = searchParams.get('title') || 'Product';
+    const price = searchParams.get('price') || '0.00';
+    const imageUrl = searchParams.get('image');
+    
+    // If we have image URL, try to display the actual product image
+    if (imageUrl) {
+      return new ImageResponse(
+        (
+          <div
+            style={{
+              height: '100%',
+              width: '100%',
+              display: 'flex',
+              backgroundColor: '#1a1a1a',
+              color: 'white',
+              padding: '60px',
+            }}
+          >
+            {/* Product Image */}
+            <div
+              style={{
+                width: '400px',
+                height: '400px',
+                borderRadius: '20px',
+                overflow: 'hidden',
+                marginRight: '60px',
+                backgroundColor: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <img
+                src={imageUrl}
+                alt={title}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                }}
+              />
+            </div>
+            
+            {/* Product Info */}
+            <div
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '48px',
+                  fontWeight: 'bold',
+                  marginBottom: '20px',
+                  lineHeight: '1.2',
+                }}
+              >
+                {title}
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '36px',
+                  color: '#3eb489',
+                  fontWeight: 'bold',
+                  marginBottom: '30px',
+                }}
+              >
+                ${parseFloat(price).toFixed(2)}
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '24px',
+                  color: '#888',
+                  marginBottom: '20px',
+                }}
+              >
+                🛒 Minted Merch Shop
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '18px',
+                  color: '#888',
+                  marginBottom: '20px',
+                }}
+              >
+                Shop crypto merch with instant payments
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '16px',
+                  color: '#3eb489',
+                }}
+              >
+                Pay with USDC on Base 🔵
+              </div>
+            </div>
+          </div>
+        ),
+        {
+          width: 1200,
+          height: 800,
+        }
+      );
+    }
 
-    // For now, use static data to test ImageResponse
-    // We know from debug endpoint that Shopify API works
-    const productTitle = "Gdupi Cap";
-    const price = "29.97";
-
+    // Fallback to cart icon if no product image
     return new ImageResponse(
       (
         <div
@@ -19,99 +128,68 @@ export async function GET(request) {
             height: '100%',
             width: '100%',
             display: 'flex',
-            flexDirection: 'row',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#000',
+            backgroundColor: '#1a1a1a',
             color: 'white',
             padding: '60px',
           }}
         >
-          {/* Product Icon */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            marginRight: '60px'
-          }}>
-            <div
-              style={{
-                width: '400px',
-                height: '400px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: '#2a2a2a',
-                borderRadius: '16px',
-                fontSize: '120px',
-              }}
-            >
-              🛒
-            </div>
+          <div style={{ fontSize: '120px', marginBottom: '40px' }}>
+            🛒
           </div>
           
-          {/* Product Info */}
           <div
             style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-start',
-              textAlign: 'left',
-              color: 'white',
+              fontSize: '48px',
+              fontWeight: 'bold',
+              marginBottom: '20px',
+              textAlign: 'center',
+              lineHeight: '1.2',
             }}
           >
-            <div
-              style={{
-                fontSize: '48px',
-                fontWeight: 'bold',
-                marginBottom: '20px',
-                maxWidth: '500px',
-                lineHeight: 1.2,
-              }}
-            >
-              {productTitle}
-            </div>
-            
-            <div
-              style={{
-                fontSize: '36px',
-                color: '#3eb489',
-                fontWeight: 'bold',
-                marginBottom: '20px',
-              }}
-            >
-              ${parseFloat(price).toFixed(2)} USD
-            </div>
-            
-            <div
-              style={{
-                fontSize: '24px',
-                color: '#3eb489',
-                marginBottom: '10px',
-                fontWeight: '600',
-              }}
-            >
-              Pay with USDC
-            </div>
-            
-            <div
-              style={{
-                fontSize: '18px',
-                color: '#888',
-                marginBottom: '20px',
-              }}
-            >
-              Shop crypto merch with instant payments
-            </div>
-            
-            <div
-              style={{
-                fontSize: '16px',
-                color: '#3eb489',
-              }}
-            >
-              Pay on Base 🔵
-            </div>
+            {title}
+          </div>
+          
+          <div
+            style={{
+              fontSize: '36px',
+              color: '#3eb489',
+              fontWeight: 'bold',
+              marginBottom: '30px',
+            }}
+          >
+            ${parseFloat(price).toFixed(2)}
+          </div>
+          
+          <div
+            style={{
+              fontSize: '24px',
+              color: '#888',
+              marginBottom: '20px',
+            }}
+          >
+            Minted Merch Shop
+          </div>
+          
+          <div
+            style={{
+              fontSize: '18px',
+              color: '#888',
+              marginBottom: '20px',
+            }}
+          >
+            Shop crypto merch with instant payments
+          </div>
+          
+          <div
+            style={{
+              fontSize: '16px',
+              color: '#3eb489',
+            }}
+          >
+            Pay with USDC on Base 🔵
           </div>
         </div>
       ),
