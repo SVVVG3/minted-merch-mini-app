@@ -4,54 +4,28 @@ import React from 'react';
 // Use edge runtime for ImageResponse compatibility
 export const runtime = 'nodejs';
 
-export async function GET(request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const title = searchParams.get('title') || 'Product';
-    const price = searchParams.get('price') || '0.00';
-    
-    return new ImageResponse(
-      (
-        <div
-          style={{
-            height: '100%',
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#1a1a1a',
-            color: 'white',
-            fontSize: '48px',
-            fontWeight: 'bold',
-          }}
-        >
-          <div style={{ fontSize: '120px', marginBottom: '40px' }}>
-            📦
-          </div>
-          <div style={{ fontSize: '48px', marginBottom: '20px' }}>
-            {title}
-          </div>
-          <div style={{ fontSize: '36px', color: '#3eb489', marginBottom: '30px' }}>
-            ${parseFloat(price).toFixed(2)}
-          </div>
-          <div style={{ fontSize: '24px', color: '#888' }}>
-            Minted Merch Shop
-          </div>
-        </div>
-      ),
-      {
-        width: 1200,
-        height: 800, // Using 3:2 ratio for Farcaster Mini Apps
-      }
-    );
-    
-  } catch (error) {
-    console.error('OG Error:', error);
-    
-    return new Response(`Error: ${error.message}`, {
-      status: 500,
-      headers: { 'Content-Type': 'text/plain' }
-    });
-  }
+export async function GET() {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          fontSize: 40,
+          color: 'black',
+          background: 'white',
+          width: '100%',
+          height: '100%',
+          padding: '50px 200px',
+          textAlign: 'center',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        👋 Hello from Minted Merch
+      </div>
+    ),
+    {
+      width: 1200,
+      height: 800,
+    },
+  );
 } 
