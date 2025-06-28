@@ -1,5 +1,4 @@
 import { ImageResponse } from 'next/og';
-import { NextRequest } from 'next/server';
 
 // Use edge runtime for ImageResponse compatibility
 export const runtime = 'edge';
@@ -22,22 +21,11 @@ export async function GET(request) {
             justifyContent: 'center',
             backgroundColor: '#1a1a1a',
             color: 'white',
-            fontSize: '48px',
-            fontWeight: 'bold',
           }}
         >
-          <div style={{ fontSize: '120px', marginBottom: '40px' }}>
-            📦
-          </div>
-          <div style={{ fontSize: '48px', marginBottom: '20px' }}>
-            {title}
-          </div>
-          <div style={{ fontSize: '36px', color: '#3eb489', marginBottom: '30px' }}>
-            ${parseFloat(price).toFixed(2)}
-          </div>
-          <div style={{ fontSize: '24px', color: '#888' }}>
-            Minted Merch Shop
-          </div>
+          <div style={{ fontSize: '120px' }}>📦</div>
+          <div style={{ fontSize: '48px', color: 'white' }}>{title}</div>
+          <div style={{ fontSize: '36px', color: '#3eb489' }}>${price}</div>
         </div>
       ),
       {
@@ -47,7 +35,7 @@ export async function GET(request) {
     );
     
   } catch (error) {
-    console.error('Error generating OG image:', error);
+    console.error('OG Error:', error);
     
     return new Response(`Error: ${error.message}`, {
       status: 500,
