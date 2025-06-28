@@ -4,13 +4,6 @@ export const runtime = 'edge';
 
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const handle = searchParams.get('handle') || 'test-product';
-
-    // Use static test data instead of Shopify API
-    const productTitle = "Test Product";
-    const price = "29.99";
-
     return new ImageResponse(
       (
         <div
@@ -36,7 +29,7 @@ export async function GET(request) {
             marginBottom: '20px',
             textAlign: 'center'
           }}>
-            {productTitle}
+            Test Product
           </div>
           
           <div style={{ 
@@ -44,7 +37,7 @@ export async function GET(request) {
             color: '#3eb489',
             marginBottom: '30px'
           }}>
-            ${parseFloat(price).toFixed(2)} USD
+            $29.99 USD
           </div>
           
           <div style={{ 

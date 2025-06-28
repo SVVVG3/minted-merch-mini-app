@@ -30,6 +30,10 @@ export async function GET(request) {
           query getProductByHandle($handle: String!) {
             product(handle: $handle) {
               title
+              featuredImage {
+                url
+                altText
+              }
               priceRange {
                 minVariantPrice {
                   amount
@@ -51,6 +55,7 @@ export async function GET(request) {
     }
 
     const productTitle = product.title;
+    const productImage = product.featuredImage?.url;
     const price = product.priceRange?.minVariantPrice?.amount;
 
     return new ImageResponse(
@@ -91,22 +96,35 @@ export async function GET(request) {
               padding: '60px',
             }}
           >
-            {/* Product Icon */}
+            {/* Product Image or Icon */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div
-                style={{
-                  width: '400px',
-                  height: '400px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#2a2a2a',
-                  borderRadius: '16px',
-                  fontSize: '120px',
-                }}
-              >
-                🛒
-              </div>
+              {productImage ? (
+                <img
+                  src={productImage}
+                  width={400}
+                  height={400}
+                  style={{
+                    borderRadius: '16px',
+                    objectFit: 'cover',
+                  }}
+                  alt={product.featuredImage?.altText || productTitle}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: '400px',
+                    height: '400px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#2a2a2a',
+                    borderRadius: '16px',
+                    fontSize: '120px',
+                  }}
+                >
+                  🛒
+                </div>
+              )}
             </div>
             
             {/* Product Info */}
