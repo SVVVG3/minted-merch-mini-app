@@ -354,17 +354,17 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     try {
       const shareText = `🎉 Just bought a ${productText} with USDC!\n\nOrder ${orderDetails.name} for ${orderDetails.total.amount} confirmed ✅\n\nShop on /mintedmerch - pay on Base 🔵`;
       
-      // Use main app URL for Mini App embed instead of dynamic OG image
-      const appUrl = window.location.origin;
+      // Use dynamic OG image URL for richer order sharing experience with product details
+      const dynamicImageUrl = `${window.location.origin}/api/og/order?order=${encodeURIComponent(orderDetails.name)}&total=${encodeURIComponent(orderDetails.total.amount)}&products=${encodeURIComponent(productText)}`;
       
-      // Use the Farcaster SDK composeCast action
+      // Use the Farcaster SDK composeCast action with dynamic order image
       const { sdk } = await import('../lib/frame');
       const result = await sdk.actions.composeCast({
         text: shareText,
-        embeds: [appUrl],
+        embeds: [dynamicImageUrl],
       });
       
-      console.log('Order cast composed:', result);
+      console.log('Order cast composed with dynamic image:', result);
     } catch (error) {
       console.error('Error sharing order:', error);
       // Fallback to copying link

@@ -5,10 +5,13 @@ export async function generateMetadata({ params }) {
   const { handle } = params;
   const productTitle = handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   
-  // Create frame embed exactly as shown in docs
+  // Use dynamic OG image for richer product sharing
+  const dynamicImageUrl = `https://mintedmerch.vercel.app/api/og/product?handle=${handle}`;
+  
+  // Create frame embed with dynamic product image
   const frame = {
     version: "next",
-    imageUrl: "https://mintedmerch.vercel.app/og-image.png",
+    imageUrl: dynamicImageUrl,
     button: {
       title: `Buy ${productTitle} 📦`,
       action: {
@@ -27,7 +30,7 @@ export async function generateMetadata({ params }) {
     openGraph: {
       title: `${productTitle} - Minted Merch Shop`,
       description: 'Shop crypto merch with USDC on Base',
-      images: ['https://mintedmerch.vercel.app/og-image.png'],
+      images: [dynamicImageUrl],
     },
     other: {
       'fc:frame': JSON.stringify(frame)

@@ -63,19 +63,18 @@ export function ProductDetail({
 
     // Farcaster sharing using SDK composeCast action
     try {
-      // Use cache-busting parameter to create fresh URL for testing
-      const timestamp = Date.now();
-      const productUrl = `${window.location.origin}/product/${handle}?v=${timestamp}`;
+      // Use dynamic OG image URL for richer sharing experience
+      const dynamicImageUrl = `${window.location.origin}/api/og/product?handle=${handle}`;
       const shareText = `Check out this ${product.title} on /mintedmerch!\n\nOrder now & pay with USDC on Base 🔵`;
       
-      // Use the Farcaster SDK composeCast action
+      // Use the Farcaster SDK composeCast action with dynamic image
       const { sdk } = await import('../lib/frame');
       const result = await sdk.actions.composeCast({
         text: shareText,
-        embeds: [productUrl],
+        embeds: [dynamicImageUrl],
       });
       
-      console.log('Cast composed:', result);
+      console.log('Cast composed with dynamic image:', result);
     } catch (error) {
       console.error('Error sharing product:', error);
       // Fallback to copying link

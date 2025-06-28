@@ -11,17 +11,24 @@ export async function GET(request) {
       throw new Error('Product handle is required');
     }
 
-    // Fetch product data from Shopify
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SHOPIFY_STORE_URL}/api/2023-10/graphql.json`, {
+    // Fetch product data from Shopify using the correct domain format
+    const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
+    const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+    
+    if (!SHOPIFY_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
+      throw new Error('Missing Shopify environment variables');
+    }
+
+    const response = await fetch(`https://${SHOPIFY_DOMAIN}.myshopify.com/api/2024-07/graphql.json`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Shopify-Storefront-Access-Token': process.env.NEXT_PUBLIC_SHOPIFY_STOREFRONT_ACCESS_TOKEN,
+        'X-Shopify-Storefront-Access-Token': SHOPIFY_ACCESS_TOKEN,
       },
       body: JSON.stringify({
         query: `
           query getProduct($handle: String!) {
-            product(handle: $handle) {
+            productByHandle(handle: $handle) {
               id
               title
               handle
@@ -51,14 +58,15 @@ export async function GET(request) {
     }
 
     const { data } = await response.json();
-    const product = data?.product;
+    const product = data?.productByHandle;
 
     if (!product) {
       throw new Error('Product not found');
     }
 
     const price = parseFloat(product.priceRange?.minVariantPrice?.amount || '0');
-    const priceUSDC = (price / 3300).toFixed(2); // Convert to approximate USDC
+    const priceUSDC = (price / 3300).toFixed(2);
+    const productImage = product.images?.edges?.[0]?.node?.url; // Convert to approximate USDC
 
     // Create rich branded product card (no external images)
     return new ImageResponse(
@@ -95,75 +103,114 @@ export async function GET(request) {
           <div
             style={{
               display: 'flex',
-              flexDirection: 'column',
+              flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: 'rgba(255, 255, 255, 0.05)',
               border: '2px solid rgba(62, 180, 137, 0.3)',
               borderRadius: '20px',
-              padding: '60px',
-              maxWidth: '800px',
-              textAlign: 'center',
+              padding: '40px',
+              maxWidth: '1000px',
+              gap: '40px',
               backdropFilter: 'blur(10px)',
             }}
           >
-            {/* Shopping cart icon */}
+            {/* Product Image */}
+            {productImage && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '300px',
+                  height: '300px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '15px',
+                  border: '1px solid rgba(62, 180, 137, 0.2)',
+                  overflow: 'hidden',
+                }}
+              >
+                <img
+                  src={productImage}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Product Details */}
             <div
               style={{
-                fontSize: '80px',
-                marginBottom: '30px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: productImage ? 'flex-start' : 'center',
+                justifyContent: 'center',
+                flex: 1,
+                textAlign: productImage ? 'left' : 'center',
               }}
             >
-              🛒
-            </div>
+              {/* Shopping cart icon (only if no product image) */}
+              {!productImage && (
+                <div
+                  style={{
+                    fontSize: '80px',
+                    marginBottom: '30px',
+                  }}
+                >
+                  🛒
+                </div>
+              )}
 
-            {/* Product title */}
-            <h1
-              style={{
-                fontSize: '48px',
-                fontWeight: 'bold',
-                color: 'white',
-                margin: '0 0 20px 0',
-                lineHeight: '1.2',
-                textAlign: 'center',
-                maxWidth: '700px',
-              }}
-            >
-              {product.title}
-            </h1>
+              {/* Product title */}
+              <h1
+                style={{
+                  fontSize: '48px',
+                  fontWeight: 'bold',
+                  color: 'white',
+                  margin: '0 0 20px 0',
+                  lineHeight: '1.2',
+                  maxWidth: '500px',
+                }}
+              >
+                {product.title}
+              </h1>
 
-            {/* Price */}
-            <div
-              style={{
-                fontSize: '36px',
-                fontWeight: 'bold',
-                color: '#3eb489',
-                margin: '0 0 30px 0',
-              }}
-            >
-              ${priceUSDC} USDC
-            </div>
+              {/* Price */}
+              <div
+                style={{
+                  fontSize: '36px',
+                  fontWeight: 'bold',
+                  color: '#3eb489',
+                  margin: '0 0 30px 0',
+                }}
+              >
+                ${priceUSDC} USDC
+              </div>
 
-            {/* Call to action */}
-            <div
-              style={{
-                fontSize: '24px',
-                color: '#cccccc',
-                margin: '0 0 20px 0',
-              }}
-            >
-              Shop crypto merch with instant payments
-            </div>
+              {/* Call to action */}
+              <div
+                style={{
+                  fontSize: '24px',
+                  color: '#cccccc',
+                  margin: '0 0 20px 0',
+                }}
+              >
+                Shop crypto merch with instant payments
+              </div>
 
-            {/* Base logo/branding */}
-            <div
-              style={{
-                fontSize: '20px',
-                color: '#3eb489',
-                fontWeight: 'bold',
-              }}
-            >
-              Pay on Base 🔵
+              {/* Base logo/branding */}
+              <div
+                style={{
+                  fontSize: '20px',
+                  color: '#3eb489',
+                  fontWeight: 'bold',
+                }}
+              >
+                Pay on Base 🔵
+              </div>
             </div>
           </div>
 

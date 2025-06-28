@@ -7,6 +7,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const orderNumber = searchParams.get('order');
     const total = searchParams.get('total');
+    const products = searchParams.get('products'); // New: product names for the order
 
     if (!orderNumber) {
       throw new Error('Order number is required');
@@ -91,6 +92,22 @@ export async function GET(request) {
             >
               Order Confirmed! 🎉
             </div>
+
+            {/* Product Names (if provided) */}
+            {products && (
+              <div
+                style={{
+                  fontSize: '24px',
+                  color: '#ccc',
+                  marginBottom: '15px',
+                  textAlign: 'center',
+                  maxWidth: '600px',
+                  lineHeight: '1.3',
+                }}
+              >
+                {decodeURIComponent(products)}
+              </div>
+            )}
 
             {/* Order Details */}
             <div
