@@ -354,17 +354,17 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     try {
       const shareText = `🎉 Just bought a ${productText} with USDC!\n\nOrder ${orderDetails.name} for ${orderDetails.total.amount} confirmed ✅\n\nShop on /mintedmerch - pay on Base 🔵`;
       
-      // Use dynamic OG image URL for richer order sharing experience with product details
-      const dynamicImageUrl = `${window.location.origin}/api/og/order?order=${encodeURIComponent(orderDetails.name)}&total=${encodeURIComponent(orderDetails.total.amount)}&products=${encodeURIComponent(productText)}`;
+      // Use dedicated order page URL with dynamic OG images
+      const orderUrl = `${window.location.origin}/order/${encodeURIComponent(orderDetails.name)}?total=${encodeURIComponent(orderDetails.total.amount)}&products=${encodeURIComponent(productText)}`;
       
-      // Use the Farcaster SDK composeCast action with dynamic order image
+      // Use the Farcaster SDK composeCast action with order URL
       const { sdk } = await import('../lib/frame');
       const result = await sdk.actions.composeCast({
         text: shareText,
-        embeds: [dynamicImageUrl],
+        embeds: [orderUrl],
       });
       
-      console.log('Order cast composed with dynamic image:', result);
+      console.log('Order cast composed with order page embed:', result);
     } catch (error) {
       console.error('Error sharing order:', error);
       // Fallback to copying link
@@ -975,6 +975,19 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                       </svg>
                       <span>Share My Purchase</span>
                     </button>
+                    
+                    {/* View Order Page Button */}
+                    <a
+                      href={`/order/${encodeURIComponent(orderDetails.name)}?total=${encodeURIComponent(orderDetails.total.amount)}&products=${encodeURIComponent(productText)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      <span>View Shareable Order</span>
+                    </a>
                     
                     <button
                       onClick={handleContinueShopping}

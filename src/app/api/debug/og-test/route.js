@@ -30,17 +30,17 @@ export async function GET(request) {
           {
             name: 'Order: Simple',
             url: `${baseUrl}/api/og/order?order=1234&total=25.50`,
-            testUrl: null,
+            testUrl: `${baseUrl}/order/1234?total=25.50`,
           },
           {
             name: 'Order: With Products',
             url: `${baseUrl}/api/og/order?order=5678&total=45.99&products=${encodeURIComponent('Bankr Cap and OK Custom T-Shirt')}`,
-            testUrl: null,
+            testUrl: `${baseUrl}/order/5678?total=45.99&products=${encodeURIComponent('Bankr Cap and OK Custom T-Shirt')}`,
           },
           {
             name: 'Order: Single Product',
             url: `${baseUrl}/api/og/order?order=9999&total=15.25&products=${encodeURIComponent('Bankr Cap (2x)')}`,
-            testUrl: null,
+            testUrl: `${baseUrl}/order/9999?total=15.25&products=${encodeURIComponent('Bankr Cap (2x)')}`,
           }
         ]
       });
