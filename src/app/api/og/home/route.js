@@ -103,7 +103,7 @@ export async function GET(request) {
                   fontWeight: 'bold',
                   marginBottom: '30px',
                   lineHeight: '1.1',
-                  color: 'white',
+                  color: '#3eb489',
                 }}
               >
                 Minted Merch
@@ -112,7 +112,7 @@ export async function GET(request) {
               <div
                 style={{
                   fontSize: '28px',
-                  color: '#3eb489',
+                  color: 'white',
                   marginBottom: '25px',
                   lineHeight: '1.3',
                 }}
@@ -168,8 +168,8 @@ export async function GET(request) {
           }}
         >
           <div style={{ fontSize: 100, color: '#3eb489' }}>🛒</div>
-          <div style={{ fontSize: 48, marginTop: 20 }}>Minted Merch</div>
-          <div style={{ fontSize: 32, color: '#3eb489', marginTop: 20 }}>Shop apparel, accessories, & more!</div>
+          <div style={{ fontSize: 48, marginTop: 20, color: '#3eb489' }}>Minted Merch</div>
+          <div style={{ fontSize: 32, color: 'white', marginTop: 20 }}>Shop apparel, accessories, & more!</div>
           <div style={{ fontSize: 24, color: '#888', marginTop: 20 }}>Premium crypto merchandise</div>
         </div>
       ),
