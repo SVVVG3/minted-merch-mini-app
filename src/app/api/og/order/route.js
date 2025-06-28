@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og';
 
-export const runtime = 'edge';
+// Use Node.js runtime as specified in Vercel docs
+export const runtime = 'nodejs';
 
 export async function GET(request) {
   try {
@@ -34,130 +35,80 @@ export async function GET(request) {
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundImage: `radial-gradient(circle at 25px 25px, #3eb489 2px, transparent 0), radial-gradient(circle at 75px 75px, #3eb489 2px, transparent 0)`,
-              backgroundSize: '100px 100px',
               opacity: 0.1,
+              backgroundImage: 'radial-gradient(circle at 50% 50%, #3eb489 1px, transparent 1px)',
+              backgroundSize: '50px 50px',
             }}
           />
-
-          {/* Main Content */}
+          
+          {/* Success Icon */}
           <div
             style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '90%',
-              maxWidth: '800px',
-              padding: '60px',
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-              borderRadius: '20px',
-              border: '1px solid rgba(62, 180, 137, 0.3)',
+              fontSize: '120px',
+              marginBottom: '40px',
+            }}
+          >
+            ✅
+          </div>
+          
+          {/* Order Success Message */}
+          <div
+            style={{
+              fontSize: '48px',
+              fontWeight: 'bold',
+              color: 'white',
+              marginBottom: '20px',
               textAlign: 'center',
             }}
           >
-            {/* Success Icon */}
-            <div
-              style={{
-                width: '120px',
-                height: '120px',
-                borderRadius: '60px',
-                backgroundColor: '#3eb489',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '30px',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '60px',
-                  color: 'white',
-                }}
-              >
-                ✓
-              </div>
-            </div>
-
-            {/* Success Message */}
-            <div
-              style={{
-                fontSize: '48px',
-                fontWeight: '800',
-                color: 'white',
-                marginBottom: '20px',
-              }}
-            >
-              Order Confirmed! 🎉
-            </div>
-
-            {/* Order Details */}
-            <div
-              style={{
-                fontSize: '32px',
-                color: '#3eb489',
-                marginBottom: '20px',
-                fontWeight: 'bold',
-              }}
-            >
-              Order #{orderNumber}
-            </div>
-
-            {/* Call to Action */}
-            <div
-              style={{
-                fontSize: '24px',
-                color: '#ccc',
-                marginBottom: '20px',
-              }}
-            >
-              Paid instantly with USDC on Base 🔵
-            </div>
-
-            {/* Brand */}
-            <div
-              style={{
-                fontSize: '28px',
-                fontWeight: '600',
-                color: '#3eb489',
-                textTransform: 'uppercase',
-                letterSpacing: '2px',
-              }}
-            >
-              Minted Merch
-            </div>
+            Order Confirmed!
           </div>
-
-          {/* Footer */}
+          
+          {/* Order Number */}
           <div
             style={{
-              position: 'absolute',
-              bottom: '20px',
-              fontSize: '16px',
-              color: '#888',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
+              fontSize: '24px',
+              color: '#3eb489',
+              marginBottom: '30px',
+              fontWeight: 'bold',
             }}
           >
-            <div>Shop crypto merch • mintedmerch.shop</div>
+            Order #{orderNumber}
+          </div>
+          
+          {/* Shop Info */}
+          <div
+            style={{
+              fontSize: '20px',
+              color: '#888',
+              marginBottom: '10px',
+            }}
+          >
+            🛒 Minted Merch Shop
+          </div>
+          
+          <div
+            style={{
+              fontSize: '16px',
+              color: '#888',
+            }}
+          >
+            Paid with USDC on Base 🔵
           </div>
         </div>
       ),
       {
         width: 1200,
-        height: 800, // 3:2 aspect ratio as required by Mini Apps
+        height: 800, // Use 3:2 aspect ratio as required by Farcaster Mini Apps
         headers: {
-          // Cache for 1 hour since order confirmations don't change often
           'Cache-Control': 'public, immutable, no-transform, max-age=3600',
           'Content-Type': 'image/png',
         },
-      },
+      }
     );
   } catch (error) {
     console.error('Error generating order OG image:', error);
     
-    // Return a fallback image with no cache to avoid caching errors
     return new ImageResponse(
       (
         <div
@@ -169,23 +120,24 @@ export async function GET(request) {
             alignItems: 'center',
             justifyContent: 'center',
             backgroundColor: '#1a1a1a',
-            fontFamily: 'Inter, sans-serif',
+            color: 'white',
+            fontSize: '48px',
+            fontWeight: 'bold',
           }}
         >
-          <div style={{ fontSize: '80px', marginBottom: '20px' }}>🎉</div>
-          <div style={{ fontSize: '32px', color: 'white', marginBottom: '10px' }}>
-            Order Confirmed!
-          </div>
-          <div style={{ fontSize: '24px', color: '#3eb489' }}>
+          <div>🛒</div>
+          <div style={{ fontSize: '24px', color: '#3eb489', marginTop: '20px' }}>
             Minted Merch Shop
+          </div>
+          <div style={{ fontSize: '18px', color: '#888', marginTop: '10px' }}>
+            Order confirmation
           </div>
         </div>
       ),
       {
         width: 1200,
-        height: 800, // 3:2 aspect ratio as required by Mini Apps
+        height: 800, // Use 3:2 aspect ratio as required by Farcaster Mini Apps
         headers: {
-          // Don't cache error images
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Content-Type': 'image/png',
         },
