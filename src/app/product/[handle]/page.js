@@ -9,7 +9,7 @@ export async function generateMetadata({ params }) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app';
   const dynamicImageUrl = `${baseUrl}/api/og/product?handle=${handle}`;
   
-  // Create frame embed with dynamic product image - use version "1" as per docs
+  // Create frame embed with dynamic product image - use version "1" for Mini Apps
   const frame = {
     version: "1",
     imageUrl: dynamicImageUrl,

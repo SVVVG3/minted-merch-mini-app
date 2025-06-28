@@ -176,7 +176,7 @@ export async function GET(request) {
       ),
       {
         width: 1200,
-        height: 800,
+        height: 800, // 3:2 aspect ratio as required by Mini Apps
         headers: {
           // Follow Farcaster dynamic image caching recommendations
           'Cache-Control': 'public, immutable, no-transform, max-age=3600',
@@ -215,7 +215,7 @@ export async function GET(request) {
       ),
       {
         width: 1200,
-        height: 800,
+        height: 800, // 3:2 aspect ratio as required by Mini Apps
         headers: {
           // Short cache for fallback images to prevent error caching
           'Cache-Control': 'public, no-transform, max-age=60',
