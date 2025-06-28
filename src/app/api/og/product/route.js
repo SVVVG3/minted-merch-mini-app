@@ -25,7 +25,7 @@ export async function GET(request) {
     const title = searchParams.get('title') || 'Product';
     const price = searchParams.get('price') || '0.00';
     const imageUrl = searchParams.get('image');
-    const priceText = '$' + price;
+    const priceText = price + ' USDC';
     
     // Fetch and convert external image if provided
     let productImageSrc = null;
@@ -40,19 +40,21 @@ export async function GET(request) {
             width: '100%',
             height: '100%',
             display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             backgroundColor: '#1a1a1a',
             color: 'white',
             fontFamily: 'Arial, sans-serif',
-            padding: '60px',
+            padding: '40px',
           }}
         >
           {/* Product Image Section */}
           <div
             style={{
-              width: '400px',
-              height: '400px',
+              width: '350px',
+              height: '350px',
               borderRadius: '20px',
-              marginRight: '60px',
+              marginRight: '50px',
               backgroundColor: '#2a2a2a',
               display: 'flex',
               alignItems: 'center',
@@ -83,6 +85,7 @@ export async function GET(request) {
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
+              alignItems: 'flex-start',
             }}
           >
             <div
@@ -124,7 +127,7 @@ export async function GET(request) {
                 marginBottom: '20px',
               }}
             >
-              Shop crypto merch with instant payments
+              Shop apparel, accessories, & more!
             </div>
             
             <div
