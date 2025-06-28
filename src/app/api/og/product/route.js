@@ -59,22 +59,8 @@ export async function GET(request) {
     const productImage = product.featuredImage?.url;
     const price = product.priceRange?.minVariantPrice?.amount;
 
-    // Fetch external image properly using Node.js runtime
-    let imageData = null;
-    if (productImage) {
-      try {
-        const imageResponse = await fetch(productImage);
-        if (imageResponse.ok) {
-          const arrayBuffer = await imageResponse.arrayBuffer();
-          imageData = arrayBuffer;
-        }
-      } catch (imageError) {
-        console.error('Error loading product image:', imageError);
-      }
-    }
-
-    // Create image element - use fetched image data or fallback
-    const imageElement = imageData ? (
+    // Simple approach - use image URL directly in Node.js runtime
+    const imageElement = productImage ? (
       <img
         src={productImage}
         width={400}
