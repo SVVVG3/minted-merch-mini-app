@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 
-// Use Node.js runtime as recommended by Vercel docs for OG image generation
-export const runtime = 'nodejs';
+// Use edge runtime for ImageResponse compatibility
+export const runtime = 'edge';
 
 export async function GET(request) {
   try {
