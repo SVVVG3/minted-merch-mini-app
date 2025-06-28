@@ -1,4 +1,5 @@
 import { ImageResponse } from '@vercel/og';
+import React from 'react';
 
 // Use edge runtime for ImageResponse compatibility
 export const runtime = 'nodejs';
