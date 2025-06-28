@@ -11,55 +11,10 @@ export async function GET(request) {
       throw new Error('Product handle is required');
     }
 
-    // Fetch product data from Shopify using the correct domain format
-    const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
-    const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
-    
-    if (!SHOPIFY_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
-      throw new Error('Missing Shopify environment variables');
-    }
+    // Convert handle to display title
+    const productTitle = handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-    const response = await fetch(`https://${SHOPIFY_DOMAIN}.myshopify.com/api/2024-07/graphql.json`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Storefront-Access-Token': SHOPIFY_ACCESS_TOKEN,
-      },
-      body: JSON.stringify({
-        query: `
-          query getProduct($handle: String!) {
-            productByHandle(handle: $handle) {
-              id
-              title
-              handle
-              priceRange {
-                minVariantPrice {
-                  amount
-                  currencyCode
-                }
-              }
-            }
-          }
-        `,
-        variables: { handle },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch product');
-    }
-
-    const { data } = await response.json();
-    const product = data?.productByHandle;
-
-    if (!product) {
-      throw new Error('Product not found');
-    }
-
-    const price = parseFloat(product.priceRange?.minVariantPrice?.amount || '0');
-    const priceUSDC = (price / 3300).toFixed(2);
-
-    // Create rich branded product card without external images to avoid loading issues
+    // Create rich branded product card without external dependencies
     return new ImageResponse(
       (
         <div
@@ -127,10 +82,10 @@ export async function GET(request) {
                 maxWidth: '700px',
               }}
             >
-              {product.title}
+              {productTitle}
             </h1>
 
-            {/* Price */}
+            {/* Price placeholder */}
             <div
               style={{
                 fontSize: '48px',
@@ -139,7 +94,7 @@ export async function GET(request) {
                 margin: '0 0 40px 0',
               }}
             >
-              ${priceUSDC} USDC
+              Pay with USDC
             </div>
 
             {/* Call to action */}
