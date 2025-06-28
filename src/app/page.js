@@ -8,9 +8,9 @@ export async function generateMetadata() {
   // Create frame embed for home page - use version "next" for Mini App embeds
   const frame = {
     version: "next",
-    imageUrl: `${baseUrl}/splash.png`,
+    imageUrl: `${baseUrl}/api/og/home`,
     button: {
-      title: "Shop Crypto Merch 🛒",
+      title: "Shop Now 📦",
       action: {
         type: "launch_frame",
         url: baseUrl,
@@ -34,7 +34,7 @@ export async function generateMetadata() {
       siteName: 'Minted Merch Shop',
       images: [
         {
-          url: `${baseUrl}/splash.png`,
+          url: `${baseUrl}/api/og/home`,
           width: 1200,
           height: 800,
           alt: 'Minted Merch Shop - Crypto Merchandise',
@@ -46,7 +46,7 @@ export async function generateMetadata() {
       card: 'summary_large_image',
       title: 'Minted Merch Shop - Crypto Merch with USDC on Base',
       description: 'Shop premium crypto merchandise and pay instantly with USDC on Base blockchain. Apparel, accessories, and more designed after your favorite coins and communities.',
-      images: [`${baseUrl}/splash.png`],
+      images: [`${baseUrl}/api/og/home`],
     },
   };
 }

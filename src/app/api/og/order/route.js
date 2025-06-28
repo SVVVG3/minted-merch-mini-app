@@ -36,6 +36,15 @@ export async function GET(request) {
       productImageSrc = await fetchImageAsDataUrl(imageUrl);
     }
     
+    // Fetch logo image
+    const logoUrl = 'https://mintedmerch.vercel.app/logo.png';
+    let logoImageSrc = null;
+    try {
+      logoImageSrc = await fetchImageAsDataUrl(logoUrl);
+    } catch (error) {
+      console.error('Error fetching logo:', error);
+    }
+    
     return new ImageResponse(
       (
         <div
@@ -48,30 +57,34 @@ export async function GET(request) {
             backgroundColor: '#1a1a1a',
             color: 'white',
             fontFamily: 'Arial, sans-serif',
-            padding: '40px',
+            padding: '60px',
+            position: 'relative',
           }}
         >
-          {/* Centered Content Container */}
+          {/* Centered Content Container - Larger Scale */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '50px',
+              gap: '80px',
+              width: '100%',
+              height: '100%',
             }}
           >
-            {/* Product Image Section */}
+            {/* Product Image Section - Larger */}
             <div
               style={{
-                width: '350px',
-                height: '350px',
-                borderRadius: '20px',
+                width: '450px',
+                height: '450px',
+                borderRadius: '24px',
                 backgroundColor: '#2a2a2a',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                border: '2px solid #3eb489',
+                border: '3px solid #3eb489',
                 overflow: 'hidden',
+                flexShrink: 0,
               }}
             >
               {productImageSrc ? (
@@ -93,28 +106,29 @@ export async function GET(request) {
                     justifyContent: 'center',
                   }}
                 >
-                  <div style={{ fontSize: '80px', marginBottom: '10px', color: '#3eb489' }}>✅</div>
-                  <div style={{ fontSize: '24px', color: '#3eb489' }}>Order Complete!</div>
+                  <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>✅</div>
+                  <div style={{ fontSize: '32px', color: '#3eb489' }}>Order Complete!</div>
                 </div>
               )}
             </div>
             
-            {/* Order Info Section */}
+            {/* Order Info Section - Larger */}
             <div
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
                 alignItems: 'flex-start',
-                maxWidth: '400px',
+                maxWidth: '500px',
+                flex: 1,
               }}
             >
               <div
                 style={{
-                  fontSize: '48px',
+                  fontSize: '56px',
                   fontWeight: 'bold',
-                  marginBottom: '20px',
-                  lineHeight: '1.2',
+                  marginBottom: '30px',
+                  lineHeight: '1.1',
                   color: '#3eb489',
                 }}
               >
@@ -123,9 +137,9 @@ export async function GET(request) {
               
               <div
                 style={{
-                  fontSize: '32px',
+                  fontSize: '40px',
                   fontWeight: 'bold',
-                  marginBottom: '20px',
+                  marginBottom: '25px',
                   color: 'white',
                 }}
               >
@@ -134,9 +148,10 @@ export async function GET(request) {
               
               <div
                 style={{
-                  fontSize: '24px',
-                  marginBottom: '20px',
+                  fontSize: '28px',
+                  marginBottom: '25px',
                   lineHeight: '1.3',
+                  color: 'white',
                 }}
               >
                 {products}
@@ -144,10 +159,10 @@ export async function GET(request) {
               
               <div
                 style={{
-                  fontSize: '28px',
+                  fontSize: '36px',
                   color: '#3eb489',
                   fontWeight: 'bold',
-                  marginBottom: '30px',
+                  marginBottom: '40px',
                 }}
               >
                 {totalText}
@@ -155,9 +170,9 @@ export async function GET(request) {
               
               <div
                 style={{
-                  fontSize: '20px',
+                  fontSize: '24px',
                   color: '#888',
-                  marginBottom: '15px',
+                  marginBottom: '20px',
                 }}
               >
                 🛒 Minted Merch Shop
@@ -165,7 +180,7 @@ export async function GET(request) {
               
               <div
                 style={{
-                  fontSize: '16px',
+                  fontSize: '20px',
                   color: '#3eb489',
                 }}
               >
@@ -173,6 +188,35 @@ export async function GET(request) {
               </div>
             </div>
           </div>
+          
+          {/* Logo in Bottom Right Corner */}
+          {logoImageSrc && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '30px',
+                right: '30px',
+                width: '80px',
+                height: '80px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid rgba(255, 255, 255, 0.2)',
+              }}
+            >
+              <img
+                src={logoImageSrc}
+                alt="Minted Merch"
+                style={{
+                  width: '60px',
+                  height: '60px',
+                  objectFit: 'contain',
+                }}
+              />
+            </div>
+          )}
         </div>
       ),
       {

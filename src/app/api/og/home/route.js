@@ -1,6 +1,5 @@
 import { ImageResponse } from '@vercel/og';
 
-// Use edge runtime for ImageResponse compatibility
 export const runtime = 'nodejs';
 
 async function fetchImageAsDataUrl(imageUrl) {
@@ -21,18 +20,6 @@ async function fetchImageAsDataUrl(imageUrl) {
 
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const title = searchParams.get('title') || 'Product';
-    const price = searchParams.get('price') || '0.00';
-    const imageUrl = searchParams.get('image');
-    const priceText = price + ' USDC';
-    
-    // Fetch and convert external image if provided
-    let productImageSrc = null;
-    if (imageUrl) {
-      productImageSrc = await fetchImageAsDataUrl(imageUrl);
-    }
-    
     // Fetch logo image
     const logoUrl = 'https://mintedmerch.vercel.app/logo.png';
     let logoImageSrc = null;
@@ -69,7 +56,7 @@ export async function GET(request) {
               height: '100%',
             }}
           >
-            {/* Product Image Section - Larger */}
+            {/* Logo Section - Larger */}
             <div
               style={{
                 width: '450px',
@@ -84,22 +71,22 @@ export async function GET(request) {
                 flexShrink: 0,
               }}
             >
-              {productImageSrc ? (
+              {logoImageSrc ? (
                 <img
-                  src={productImageSrc}
-                  alt={title}
+                  src={logoImageSrc}
+                  alt="Minted Merch"
                   style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
+                    width: '300px',
+                    height: '300px',
+                    objectFit: 'contain',
                   }}
                 />
               ) : (
-                <div style={{ fontSize: '120px', color: '#3eb489' }}>📦</div>
+                <div style={{ fontSize: '120px', color: '#3eb489' }}>🛒</div>
               )}
             </div>
             
-            {/* Product Info Section - Larger */}
+            {/* Brand Info Section - Larger */}
             <div
               style={{
                 display: 'flex',
@@ -112,44 +99,55 @@ export async function GET(request) {
             >
               <div
                 style={{
-                  fontSize: '64px',
+                  fontSize: '72px',
                   fontWeight: 'bold',
                   marginBottom: '30px',
                   lineHeight: '1.1',
                   color: 'white',
                 }}
               >
-                {title}
+                Minted Merch
               </div>
               
               <div
                 style={{
-                  fontSize: '48px',
+                  fontSize: '36px',
                   color: '#3eb489',
                   fontWeight: 'bold',
                   marginBottom: '40px',
+                  lineHeight: '1.2',
                 }}
               >
-                {priceText}
+                Premium Crypto Merchandise
               </div>
               
               <div
                 style={{
                   fontSize: '28px',
                   color: '#888',
-                  marginBottom: '20px',
+                  marginBottom: '25px',
                 }}
               >
-                🛒 Minted Merch Shop
+                Shop apparel, accessories, & more!
               </div>
               
               <div
                 style={{
                   fontSize: '24px',
                   color: '#3eb489',
+                  marginBottom: '20px',
                 }}
               >
-                Shop apparel, accessories, & more!
+                Pay with USDC on Base 🔵
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '20px',
+                  color: '#888',
+                }}
+              >
+                Instant payments • Premium quality
               </div>
             </div>
           </div>
@@ -209,10 +207,10 @@ export async function GET(request) {
             fontFamily: 'Arial, sans-serif',
           }}
         >
-          <div style={{ fontSize: 100, color: '#3eb489' }}>📦</div>
+          <div style={{ fontSize: 100, color: '#3eb489' }}>🛒</div>
           <div style={{ fontSize: 48, marginTop: 20 }}>Minted Merch</div>
           <div style={{ fontSize: 32, color: '#3eb489', marginTop: 20 }}>Shop apparel, accessories, & more!</div>
-          <div style={{ fontSize: 24, color: '#888', marginTop: 20 }}>Error loading product details</div>
+          <div style={{ fontSize: 24, color: '#888', marginTop: 20 }}>Premium crypto merchandise</div>
         </div>
       ),
       {
