@@ -1,7 +1,6 @@
 import { ImageResponse } from 'next/og';
 
-// Remove edge runtime - use Node.js runtime for external image support
-// export const runtime = 'edge';
+// Use Node.js runtime for external image support
 
 export async function GET(request) {
   try {
@@ -59,19 +58,8 @@ export async function GET(request) {
     const productImage = product.featuredImage?.url;
     const price = product.priceRange?.minVariantPrice?.amount;
 
-    // Simple approach - use image URL directly in Node.js runtime
-    const imageElement = productImage ? (
-      <img
-        src={productImage}
-        width={400}
-        height={400}
-        style={{
-          borderRadius: '16px',
-          objectFit: 'cover',
-        }}
-        alt={product.featuredImage?.altText || productTitle}
-      />
-    ) : (
+    // For now, use cart icon instead of external image to test basic functionality
+    const imageElement = (
       <div
         style={{
           width: '400px',
