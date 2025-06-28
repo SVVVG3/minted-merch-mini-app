@@ -28,12 +28,18 @@ export async function GET(request) {
     const itemCount = parseInt(searchParams.get('itemCount') || '1');
     const imageUrl = searchParams.get('image');
     
-    // Fix order number formatting - remove URL encoding
-    const displayOrderNumber = decodeURIComponent(orderNumber);
+    console.log('OG Order Image params:', { orderNumber, total, products, itemCount, imageUrl });
+    
+    // Fix order number formatting - remove URL encoding and ensure single #
+    let displayOrderNumber = decodeURIComponent(orderNumber);
+    // Remove any double ## that might have been added
+    displayOrderNumber = displayOrderNumber.replace(/^#+/, '#');
     
     // Format total properly
     const totalValue = parseFloat(total);
     const totalText = totalValue > 0 ? `${totalValue.toFixed(2)} USDC` : '0.00 USDC';
+    
+    console.log('Processed values:', { displayOrderNumber, totalText, products });
     
     // Fetch and convert external image if provided
     let productImageSrc = null;
