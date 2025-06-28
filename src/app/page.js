@@ -5,9 +5,9 @@ export async function generateMetadata() {
   // Fix URL construction to avoid double slashes
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app').replace(/\/$/, '');
   
-  // Create frame embed for home page - use version "1" for Mini Apps
+  // Create frame embed for home page - use version "next" for Mini App embeds
   const frame = {
-    version: "1",
+    version: "next",
     imageUrl: `${baseUrl}/splash.png`,
     button: {
       title: "Shop Crypto Merch 🛒",
@@ -23,30 +23,31 @@ export async function generateMetadata() {
 
   return {
     title: 'Minted Merch Shop - Crypto Merch with USDC on Base',
-    description: 'Shop premium crypto merchandise and pay instantly with USDC on Base blockchain. Fast, secure, and decentralized shopping experience.',
+    description: 'Shop premium crypto merchandise and pay instantly with USDC on Base blockchain. Apparel, accessories, and more designed after your favorite coins and communities.',
+    metadataBase: new URL(baseUrl),
+    other: {
+      'fc:frame': JSON.stringify(frame),
+    },
     openGraph: {
       title: 'Minted Merch Shop - Crypto Merch with USDC on Base',
-      description: 'Shop premium crypto merchandise and pay instantly with USDC on Base blockchain. Fast, secure, and decentralized shopping experience.',
+      description: 'Shop premium crypto merchandise and pay instantly with USDC on Base blockchain. Apparel, accessories, and more designed after your favorite coins and communities.',
+      siteName: 'Minted Merch Shop',
       images: [
         {
           url: `${baseUrl}/splash.png`,
           width: 1200,
           height: 800,
-          alt: 'Minted Merch Shop - Crypto Merch with USDC on Base',
-        }
+          alt: 'Minted Merch Shop - Crypto Merchandise',
+        },
       ],
       type: 'website',
-      siteName: 'Minted Merch Shop',
     },
     twitter: {
       card: 'summary_large_image',
       title: 'Minted Merch Shop - Crypto Merch with USDC on Base',
-      description: 'Shop premium crypto merchandise and pay instantly with USDC on Base blockchain. Fast, secure, and decentralized shopping experience.',
+      description: 'Shop premium crypto merchandise and pay instantly with USDC on Base blockchain. Apparel, accessories, and more designed after your favorite coins and communities.',
       images: [`${baseUrl}/splash.png`],
     },
-    other: {
-      'fc:frame': JSON.stringify(frame)
-    }
   };
 }
 

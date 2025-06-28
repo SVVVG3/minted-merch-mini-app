@@ -9,9 +9,9 @@ export async function generateMetadata({ params }) {
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app').replace(/\/$/, '');
   const dynamicImageUrl = `${baseUrl}/api/og/product?handle=${handle}`;
   
-  // Create frame embed with dynamic product image - use version "1" for Mini Apps
+  // Create frame embed with dynamic product image - use version "next" for Mini App embeds
   const frame = {
-    version: "1",
+    version: "next",
     imageUrl: dynamicImageUrl,
     button: {
       title: `Buy ${productTitle} 📦`,
@@ -28,19 +28,23 @@ export async function generateMetadata({ params }) {
   return {
     title: `${productTitle} - Minted Merch Shop`,
     description: `Shop ${productTitle} with USDC on Base blockchain. Crypto merch with instant payments.`,
+    metadataBase: new URL(baseUrl),
+    other: {
+      'fc:frame': JSON.stringify(frame),
+    },
     openGraph: {
       title: `${productTitle} - Minted Merch Shop`,
       description: `Shop ${productTitle} with USDC on Base blockchain. Crypto merch with instant payments.`,
+      siteName: 'Minted Merch Shop',
       images: [
         {
           url: dynamicImageUrl,
           width: 1200,
           height: 800,
           alt: `${productTitle} - Minted Merch Shop`,
-        }
+        },
       ],
       type: 'website',
-      siteName: 'Minted Merch Shop',
     },
     twitter: {
       card: 'summary_large_image',
@@ -48,9 +52,6 @@ export async function generateMetadata({ params }) {
       description: `Shop ${productTitle} with USDC on Base blockchain. Crypto merch with instant payments.`,
       images: [dynamicImageUrl],
     },
-    other: {
-      'fc:frame': JSON.stringify(frame)
-    }
   };
 }
 

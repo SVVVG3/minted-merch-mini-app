@@ -8,9 +8,9 @@ export async function generateMetadata({ params }) {
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app').replace(/\/$/, '');
   const dynamicImageUrl = `${baseUrl}/api/og/order?orderNumber=${orderNumber}`;
   
-  // Create frame embed with dynamic order image - use version "1" for Mini Apps
+  // Create frame embed with dynamic order image - use version "next" for Mini App embeds
   const frame = {
-    version: "1",
+    version: "next",
     imageUrl: dynamicImageUrl,
     button: {
       title: "Shop More Merch 🛒",
@@ -26,30 +26,31 @@ export async function generateMetadata({ params }) {
 
   return {
     title: `Order ${orderNumber} - Minted Merch Shop`,
-    description: `Your crypto merch order ${orderNumber} has been confirmed! Paid with USDC on Base blockchain.`,
+    description: 'Your order has been confirmed! Shop more crypto merch with instant USDC payments.',
+    metadataBase: new URL(baseUrl),
+    other: {
+      'fc:frame': JSON.stringify(frame),
+    },
     openGraph: {
       title: `Order ${orderNumber} - Minted Merch Shop`,
-      description: `Your crypto merch order ${orderNumber} has been confirmed! Paid with USDC on Base blockchain.`,
+      description: 'Your order has been confirmed! Shop more crypto merch with instant USDC payments.',
+      siteName: 'Minted Merch Shop',
       images: [
         {
           url: dynamicImageUrl,
           width: 1200,
           height: 800,
           alt: `Order ${orderNumber} - Minted Merch Shop`,
-        }
+        },
       ],
       type: 'website',
-      siteName: 'Minted Merch Shop',
     },
     twitter: {
       card: 'summary_large_image',
       title: `Order ${orderNumber} - Minted Merch Shop`,
-      description: `Your crypto merch order ${orderNumber} has been confirmed! Paid with USDC on Base blockchain.`,
+      description: 'Your order has been confirmed! Shop more crypto merch with instant USDC payments.',
       images: [dynamicImageUrl],
     },
-    other: {
-      'fc:frame': JSON.stringify(frame)
-    }
   };
 }
 
