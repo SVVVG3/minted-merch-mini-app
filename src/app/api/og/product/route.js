@@ -231,10 +231,14 @@ export async function GET(request) {
       ),
       {
         width: 1200,
-        height: 630,
+        height: 800, // 3:2 aspect ratio (1200:800 = 3:2) as recommended by Farcaster
         headers: {
           // Follow Farcaster dynamic image caching recommendations
           'Cache-Control': 'public, immutable, no-transform, max-age=3600',
+          'Content-Type': 'image/png',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET',
+          'Access-Control-Allow-Headers': 'Content-Type',
         },
       }
     );
@@ -268,10 +272,14 @@ export async function GET(request) {
       ),
       {
         width: 1200,
-        height: 630,
+        height: 800, // 3:2 aspect ratio (1200:800 = 3:2) as recommended by Farcaster
         headers: {
           // Short cache for fallback images to prevent error caching
           'Cache-Control': 'public, no-transform, max-age=60',
+          'Content-Type': 'image/png',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET',
+          'Access-Control-Allow-Headers': 'Content-Type',
         },
       }
     );

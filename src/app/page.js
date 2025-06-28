@@ -27,16 +27,16 @@ export const metadata = {
   },
   other: {
     'fc:frame': JSON.stringify({
-      version: "next",
+      version: "1",
       imageUrl: "https://mintedmerch.vercel.app/og-image.png",
       button: {
         title: "Shop Now 📦",
         action: {
           type: "launch_frame",
-          name: "minted-merch-shop",
+          name: "Minted Merch Shop",
           url: process.env.NEXT_PUBLIC_APP_URL || "https://mintedmerch.vercel.app",
           splashImageUrl: "https://mintedmerch.vercel.app/splash.png",
-          splashBackgroundColor: "#000000"
+          splashBackgroundColor: "#1a1a1a"
         }
       }
     })

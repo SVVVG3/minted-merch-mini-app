@@ -6,19 +6,20 @@ export async function generateMetadata({ params }) {
   const productTitle = handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   
   // Use dynamic OG image for richer product sharing
-  const dynamicImageUrl = `https://mintedmerch.vercel.app/api/og/product?handle=${handle}`;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app';
+  const dynamicImageUrl = `${baseUrl}/api/og/product?handle=${handle}`;
   
-  // Create frame embed with dynamic product image
+  // Create frame embed with dynamic product image - use version "1" as per docs
   const frame = {
-    version: "next",
+    version: "1",
     imageUrl: dynamicImageUrl,
     button: {
       title: `Buy ${productTitle} 📦`,
       action: {
         type: "launch_frame",
-        url: `https://mintedmerch.vercel.app/product/${handle}`,
+        url: `${baseUrl}/product/${handle}`,
         name: "Minted Merch Shop",
-        splashImageUrl: "https://mintedmerch.vercel.app/splash.png",
+        splashImageUrl: `${baseUrl}/splash.png`,
         splashBackgroundColor: "#1a1a1a"
       }
     }
@@ -26,10 +27,25 @@ export async function generateMetadata({ params }) {
 
   return {
     title: `${productTitle} - Minted Merch Shop`,
-    description: 'Shop crypto merch with USDC on Base',
+    description: `Shop ${productTitle} with USDC on Base blockchain. Crypto merch with instant payments.`,
     openGraph: {
       title: `${productTitle} - Minted Merch Shop`,
-      description: 'Shop crypto merch with USDC on Base',
+      description: `Shop ${productTitle} with USDC on Base blockchain. Crypto merch with instant payments.`,
+      images: [
+        {
+          url: dynamicImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${productTitle} - Minted Merch Shop`,
+        }
+      ],
+      type: 'website',
+      siteName: 'Minted Merch Shop',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${productTitle} - Minted Merch Shop`,
+      description: `Shop ${productTitle} with USDC on Base blockchain. Crypto merch with instant payments.`,
       images: [dynamicImageUrl],
     },
     other: {

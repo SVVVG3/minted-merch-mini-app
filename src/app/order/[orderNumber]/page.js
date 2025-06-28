@@ -7,30 +7,48 @@ export async function generateMetadata({ params, searchParams }) {
   const products = searchParams.products;
   
   // Use dynamic OG image for order sharing
-  const dynamicImageUrl = `https://mintedmerch.vercel.app/api/og/order?order=${encodeURIComponent(orderNumber)}${total ? `&total=${encodeURIComponent(total)}` : ''}${products ? `&products=${encodeURIComponent(products)}` : ''}`;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app';
+  const dynamicImageUrl = `${baseUrl}/api/og/order?order=${encodeURIComponent(orderNumber)}${total ? `&total=${encodeURIComponent(total)}` : ''}${products ? `&products=${encodeURIComponent(products)}` : ''}`;
   
-  // Create frame embed with dynamic order image
+  // Create frame embed with dynamic order image - use version "1" as per docs
   const frame = {
-    version: "next",
+    version: "1",
     imageUrl: dynamicImageUrl,
     button: {
       title: "Shop More 🛒",
       action: {
         type: "launch_frame",
-        url: "https://mintedmerch.vercel.app",
+        url: baseUrl,
         name: "Minted Merch Shop",
-        splashImageUrl: "https://mintedmerch.vercel.app/splash.png",
+        splashImageUrl: `${baseUrl}/splash.png`,
         splashBackgroundColor: "#1a1a1a"
       }
     }
   };
 
+  const description = `Order ${orderNumber} confirmed! ${products ? `Purchased: ${products}` : 'Thank you for your purchase!'} Paid with USDC on Base blockchain.`;
+
   return {
     title: `Order ${orderNumber} Confirmed - Minted Merch`,
-    description: `Order ${orderNumber} confirmed! ${products ? `Purchased: ${products}` : 'Thank you for your purchase!'} Paid with USDC on Base.`,
+    description: description,
     openGraph: {
       title: `Order ${orderNumber} Confirmed - Minted Merch`,
-      description: `Order ${orderNumber} confirmed! ${products ? `Purchased: ${products}` : 'Thank you for your purchase!'} Paid with USDC on Base.`,
+      description: description,
+      images: [
+        {
+          url: dynamicImageUrl,
+          width: 1200,
+          height: 800,
+          alt: `Order ${orderNumber} Confirmation - Minted Merch`,
+        }
+      ],
+      type: 'website',
+      siteName: 'Minted Merch Shop',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `Order ${orderNumber} Confirmed - Minted Merch`,
+      description: description,
       images: [dynamicImageUrl],
     },
     other: {
