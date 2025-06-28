@@ -7,6 +7,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const title = searchParams.get('title') || 'Product';
   const price = searchParams.get('price') || '0.00';
+  const priceText = '$' + price;
   
   return new ImageResponse(
     (
@@ -25,7 +26,7 @@ export async function GET(request) {
       >
         <div style={{ fontSize: 100 }}>📦</div>
         <div style={{ fontSize: 48, marginTop: 20 }}>{title}</div>
-        <div style={{ fontSize: 36, color: '#3eb489', marginTop: 20 }}>${price}</div>
+        <div style={{ fontSize: 36, color: '#3eb489', marginTop: 20 }}>{priceText}</div>
         <div style={{ fontSize: 24, color: '#888', marginTop: 20 }}>Minted Merch Shop</div>
       </div>
     ),
