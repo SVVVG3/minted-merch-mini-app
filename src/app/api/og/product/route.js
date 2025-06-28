@@ -3,6 +3,22 @@ import { ImageResponse } from '@vercel/og';
 // Use edge runtime for ImageResponse compatibility
 export const runtime = 'nodejs';
 
+async function fetchImageAsDataUrl(imageUrl) {
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) throw new Error('Failed to fetch image');
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    
+    return `data:${contentType};base64,${buffer.toString('base64')}`;
+  } catch (error) {
+    console.error('Error fetching image:', error);
+    return null;
+  }
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -10,6 +26,12 @@ export async function GET(request) {
     const price = searchParams.get('price') || '0.00';
     const imageUrl = searchParams.get('image');
     const priceText = '$' + price;
+    
+    // Fetch and convert external image if provided
+    let productImageSrc = null;
+    if (imageUrl) {
+      productImageSrc = await fetchImageAsDataUrl(imageUrl);
+    }
     
     return new ImageResponse(
       (
@@ -39,9 +61,9 @@ export async function GET(request) {
               overflow: 'hidden',
             }}
           >
-            {imageUrl ? (
+            {productImageSrc ? (
               <img
-                src={imageUrl}
+                src={productImageSrc}
                 alt={title}
                 style={{
                   width: '100%',
