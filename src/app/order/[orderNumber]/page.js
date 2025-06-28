@@ -1,21 +1,19 @@
 import { Suspense } from 'react';
 import { OrderSuccessClient } from './OrderSuccessClient';
 
-export async function generateMetadata({ params, searchParams }) {
+export async function generateMetadata({ params }) {
   const { orderNumber } = params;
-  const total = searchParams.total;
-  const products = searchParams.products;
   
-  // Use dynamic OG image for order sharing
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app';
-  const dynamicImageUrl = `${baseUrl}/api/og/order?order=${encodeURIComponent(orderNumber)}${total ? `&total=${encodeURIComponent(total)}` : ''}${products ? `&products=${encodeURIComponent(products)}` : ''}`;
+  // Fix URL construction to avoid double slashes
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app').replace(/\/$/, '');
+  const dynamicImageUrl = `${baseUrl}/api/og/order?orderNumber=${orderNumber}`;
   
   // Create frame embed with dynamic order image - use version "1" for Mini Apps
   const frame = {
     version: "1",
     imageUrl: dynamicImageUrl,
     button: {
-      title: "Shop More 🛒",
+      title: "Shop More Merch 🛒",
       action: {
         type: "launch_frame",
         url: baseUrl,
@@ -26,20 +24,18 @@ export async function generateMetadata({ params, searchParams }) {
     }
   };
 
-  const description = `Order ${orderNumber} confirmed! ${products ? `Purchased: ${products}` : 'Thank you for your purchase!'} Paid with USDC on Base blockchain.`;
-
   return {
-    title: `Order ${orderNumber} Confirmed - Minted Merch`,
-    description: description,
+    title: `Order ${orderNumber} - Minted Merch Shop`,
+    description: `Your crypto merch order ${orderNumber} has been confirmed! Paid with USDC on Base blockchain.`,
     openGraph: {
-      title: `Order ${orderNumber} Confirmed - Minted Merch`,
-      description: description,
+      title: `Order ${orderNumber} - Minted Merch Shop`,
+      description: `Your crypto merch order ${orderNumber} has been confirmed! Paid with USDC on Base blockchain.`,
       images: [
         {
           url: dynamicImageUrl,
           width: 1200,
           height: 800,
-          alt: `Order ${orderNumber} Confirmation - Minted Merch`,
+          alt: `Order ${orderNumber} - Minted Merch Shop`,
         }
       ],
       type: 'website',
@@ -47,8 +43,8 @@ export async function generateMetadata({ params, searchParams }) {
     },
     twitter: {
       card: 'summary_large_image',
-      title: `Order ${orderNumber} Confirmed - Minted Merch`,
-      description: description,
+      title: `Order ${orderNumber} - Minted Merch Shop`,
+      description: `Your crypto merch order ${orderNumber} has been confirmed! Paid with USDC on Base blockchain.`,
       images: [dynamicImageUrl],
     },
     other: {
@@ -60,18 +56,10 @@ export async function generateMetadata({ params, searchParams }) {
 // Force dynamic rendering to prevent caching issues
 export const dynamic = 'force-dynamic';
 
-export default function OrderPage({ params, searchParams }) {
+export default function OrderPage({ params }) {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading order details...</p>
-      </div>
-    }>
-      <OrderSuccessClient 
-        orderNumber={params.orderNumber}
-        total={searchParams.total}
-        products={searchParams.products}
-      />
+    <Suspense fallback={<div>Loading...</div>}>
+      <OrderSuccessClient orderNumber={params.orderNumber} />
     </Suspense>
   );
 } 

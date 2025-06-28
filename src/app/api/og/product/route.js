@@ -38,14 +38,6 @@ export async function GET(request) {
                   currencyCode
                 }
               }
-              images(first: 1) {
-                edges {
-                  node {
-                    url
-                    altText
-                  }
-                }
-              }
             }
           }
         `,
@@ -66,9 +58,8 @@ export async function GET(request) {
 
     const price = parseFloat(product.priceRange?.minVariantPrice?.amount || '0');
     const priceUSDC = (price / 3300).toFixed(2);
-    const productImage = product.images?.edges?.[0]?.node?.url; // Convert to approximate USDC
 
-    // Create rich branded product card (no external images)
+    // Create rich branded product card without external images to avoid loading issues
     return new ImageResponse(
       (
         <div
@@ -103,114 +94,74 @@ export async function GET(request) {
           <div
             style={{
               display: 'flex',
-              flexDirection: 'row',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: 'rgba(255, 255, 255, 0.05)',
               border: '2px solid rgba(62, 180, 137, 0.3)',
               borderRadius: '20px',
-              padding: '40px',
-              maxWidth: '1000px',
-              gap: '40px',
+              padding: '60px',
+              maxWidth: '900px',
               backdropFilter: 'blur(10px)',
+              textAlign: 'center',
             }}
           >
-            {/* Product Image */}
-            {productImage && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '300px',
-                  height: '300px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  borderRadius: '15px',
-                  border: '1px solid rgba(62, 180, 137, 0.2)',
-                  overflow: 'hidden',
-                }}
-              >
-                <img
-                  src={productImage}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'contain',
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Product Details */}
+            {/* Shopping cart icon */}
             <div
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: productImage ? 'flex-start' : 'center',
-                justifyContent: 'center',
-                flex: 1,
-                textAlign: productImage ? 'left' : 'center',
+                fontSize: '100px',
+                marginBottom: '40px',
               }}
             >
-              {/* Shopping cart icon (only if no product image) */}
-              {!productImage && (
-                <div
-                  style={{
-                    fontSize: '80px',
-                    marginBottom: '30px',
-                  }}
-                >
-                  🛒
-                </div>
-              )}
+              🛒
+            </div>
 
-              {/* Product title */}
-              <h1
-                style={{
-                  fontSize: '48px',
-                  fontWeight: 'bold',
-                  color: 'white',
-                  margin: '0 0 20px 0',
-                  lineHeight: '1.2',
-                  maxWidth: '500px',
-                }}
-              >
-                {product.title}
-              </h1>
+            {/* Product title */}
+            <h1
+              style={{
+                fontSize: '56px',
+                fontWeight: 'bold',
+                color: 'white',
+                margin: '0 0 30px 0',
+                lineHeight: '1.2',
+                maxWidth: '700px',
+              }}
+            >
+              {product.title}
+            </h1>
 
-              {/* Price */}
-              <div
-                style={{
-                  fontSize: '36px',
-                  fontWeight: 'bold',
-                  color: '#3eb489',
-                  margin: '0 0 30px 0',
-                }}
-              >
-                ${priceUSDC} USDC
-              </div>
+            {/* Price */}
+            <div
+              style={{
+                fontSize: '48px',
+                fontWeight: 'bold',
+                color: '#3eb489',
+                margin: '0 0 40px 0',
+              }}
+            >
+              ${priceUSDC} USDC
+            </div>
 
-              {/* Call to action */}
-              <div
-                style={{
-                  fontSize: '24px',
-                  color: '#cccccc',
-                  margin: '0 0 20px 0',
-                }}
-              >
-                Shop crypto merch with instant payments
-              </div>
+            {/* Call to action */}
+            <div
+              style={{
+                fontSize: '28px',
+                color: '#cccccc',
+                margin: '0 0 30px 0',
+              }}
+            >
+              Shop crypto merch with instant payments
+            </div>
 
-              {/* Base logo/branding */}
-              <div
-                style={{
-                  fontSize: '20px',
-                  color: '#3eb489',
-                  fontWeight: 'bold',
-                }}
-              >
-                Pay on Base 🔵
-              </div>
+            {/* Base logo/branding */}
+            <div
+              style={{
+                fontSize: '24px',
+                color: '#3eb489',
+                fontWeight: 'bold',
+              }}
+            >
+              Pay on Base 🔵
             </div>
           </div>
 
@@ -220,7 +171,7 @@ export async function GET(request) {
               position: 'absolute',
               bottom: '30px',
               right: '30px',
-              fontSize: '18px',
+              fontSize: '20px',
               color: '#888888',
               fontWeight: 'bold',
             }}
@@ -232,14 +183,6 @@ export async function GET(request) {
       {
         width: 1200,
         height: 800, // 3:2 aspect ratio (1200:800 = 3:2) as required by Mini Apps
-        headers: {
-          // Follow Farcaster dynamic image caching recommendations
-          'Cache-Control': 'public, immutable, no-transform, max-age=3600',
-          'Content-Type': 'image/png',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET',
-          'Access-Control-Allow-Headers': 'Content-Type',
-        },
       }
     );
 
@@ -273,14 +216,6 @@ export async function GET(request) {
       {
         width: 1200,
         height: 800, // 3:2 aspect ratio (1200:800 = 3:2) as required by Mini Apps
-        headers: {
-          // Short cache for fallback images to prevent error caching
-          'Cache-Control': 'public, no-transform, max-age=60',
-          'Content-Type': 'image/png',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET',
-          'Access-Control-Allow-Headers': 'Content-Type',
-        },
       }
     );
   }

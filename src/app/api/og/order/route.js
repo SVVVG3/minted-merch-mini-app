@@ -5,9 +5,7 @@ export const runtime = 'edge';
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const orderNumber = searchParams.get('order');
-    const total = searchParams.get('total');
-    const products = searchParams.get('products'); // New: product names for the order
+    const orderNumber = searchParams.get('orderNumber');
 
     if (!orderNumber) {
       throw new Error('Order number is required');
@@ -93,55 +91,27 @@ export async function GET(request) {
               Order Confirmed! 🎉
             </div>
 
-            {/* Product Names (if provided) */}
-            {products && (
-              <div
-                style={{
-                  fontSize: '24px',
-                  color: '#ccc',
-                  marginBottom: '15px',
-                  textAlign: 'center',
-                  maxWidth: '600px',
-                  lineHeight: '1.3',
-                }}
-              >
-                {decodeURIComponent(products)}
-              </div>
-            )}
-
             {/* Order Details */}
             <div
               style={{
-                fontSize: '24px',
-                color: '#888',
-                marginBottom: '10px',
+                fontSize: '32px',
+                color: '#3eb489',
+                marginBottom: '20px',
+                fontWeight: 'bold',
               }}
             >
-              Order {orderNumber}
+              Order #{orderNumber}
             </div>
-
-            {total && (
-              <div
-                style={{
-                  fontSize: '36px',
-                  fontWeight: '700',
-                  color: '#3eb489',
-                  marginBottom: '30px',
-                }}
-              >
-                ${total} USDC
-              </div>
-            )}
 
             {/* Call to Action */}
             <div
               style={{
-                fontSize: '20px',
+                fontSize: '24px',
                 color: '#ccc',
                 marginBottom: '20px',
               }}
             >
-              Paid instantly on Base 🔵
+              Paid instantly with USDC on Base 🔵
             </div>
 
             {/* Brand */}
@@ -170,21 +140,13 @@ export async function GET(request) {
               gap: '10px',
             }}
           >
-            <div>Shop crypto merch • Pay with USDC • Powered by Farcaster</div>
+            <div>Shop crypto merch • mintedmerch.shop</div>
           </div>
         </div>
       ),
       {
         width: 1200,
         height: 800, // 3:2 aspect ratio as required by Mini Apps
-        headers: {
-          // Follow Farcaster dynamic image caching recommendations
-          'Cache-Control': 'public, immutable, no-transform, max-age=3600',
-          'Content-Type': 'image/png',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET',
-          'Access-Control-Allow-Headers': 'Content-Type',
-        },
       },
     );
   } catch (error) {
@@ -201,30 +163,23 @@ export async function GET(request) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#000',
-            color: 'white',
+            backgroundColor: '#1a1a1a',
+            fontFamily: 'Inter, sans-serif',
           }}
         >
-          <div style={{ fontSize: '48px', fontWeight: '800' }}>
-            Order Confirmed! 🎉
+          <div style={{ fontSize: '80px', marginBottom: '20px' }}>🎉</div>
+          <div style={{ fontSize: '32px', color: 'white', marginBottom: '10px' }}>
+            Order Confirmed!
           </div>
-          <div style={{ fontSize: '24px', color: '#3eb489', marginTop: '20px' }}>
-            Minted Merch • Crypto Merch • USDC
+          <div style={{ fontSize: '24px', color: '#3eb489' }}>
+            Minted Merch Shop
           </div>
         </div>
       ),
       {
         width: 1200,
         height: 800, // 3:2 aspect ratio as required by Mini Apps
-        headers: {
-          // Short cache for fallback images to prevent error caching
-          'Cache-Control': 'public, no-transform, max-age=60',
-          'Content-Type': 'image/png',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET',
-          'Access-Control-Allow-Headers': 'Content-Type',
-        },
-      },
+      }
     );
   }
 } 

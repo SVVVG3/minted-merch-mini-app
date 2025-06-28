@@ -5,8 +5,8 @@ export async function generateMetadata({ params }) {
   const { handle } = params;
   const productTitle = handle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   
-  // Use dynamic OG image for richer product sharing
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app';
+  // Fix URL construction to avoid double slashes
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app').replace(/\/$/, '');
   const dynamicImageUrl = `${baseUrl}/api/og/product?handle=${handle}`;
   
   // Create frame embed with dynamic product image - use version "1" for Mini Apps

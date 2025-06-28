@@ -1,47 +1,54 @@
 import { getCollectionByHandle, getCollections } from '@/lib/shopify';
 import { HomePage } from '@/components/HomePage';
 
-export const metadata = {
-  title: 'Minted Merch Shop - Crypto Merch with USDC',
-  description: 'Apparel, accessories, & more! Designed after your favorite coins, communities, & NFTs - pay with USDC on Base!',
-  openGraph: {
-    title: 'Minted Merch Shop',
-    description: 'Apparel, accessories, & more! Designed after your favorite coins, communities, & NFTs - pay with USDC on Base!',
-    url: 'https://mintedmerch.vercel.app',
-    siteName: 'Minted Merch Shop',
-    images: [
-      {
-        url: 'https://mintedmerch.vercel.app/og-image.png',
-        width: 1200,
-        height: 630,
-      },
-    ],
-    locale: 'en_US',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Minted Merch Shop',
-    description: 'Apparel, accessories, & more! Designed after your favorite coins, communities, & NFTs - pay with USDC on Base!',
-    images: ['https://mintedmerch.vercel.app/og-image.png'],
-  },
-  other: {
-    'fc:frame': JSON.stringify({
-      version: "1",
-      imageUrl: "https://mintedmerch.vercel.app/og-image.png",
-      button: {
-        title: "Shop Now 📦",
-        action: {
-          type: "launch_frame",
-          name: "Minted Merch Shop",
-          url: process.env.NEXT_PUBLIC_APP_URL || "https://mintedmerch.vercel.app",
-          splashImageUrl: "https://mintedmerch.vercel.app/splash.png",
-          splashBackgroundColor: "#1a1a1a"
-        }
+export async function generateMetadata() {
+  // Fix URL construction to avoid double slashes
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app').replace(/\/$/, '');
+  
+  // Create frame embed for home page - use version "1" for Mini Apps
+  const frame = {
+    version: "1",
+    imageUrl: `${baseUrl}/splash.png`,
+    button: {
+      title: "Shop Crypto Merch 🛒",
+      action: {
+        type: "launch_frame",
+        url: baseUrl,
+        name: "Minted Merch Shop",
+        splashImageUrl: `${baseUrl}/splash.png`,
+        splashBackgroundColor: "#1a1a1a"
       }
-    })
-  }
-};
+    }
+  };
+
+  return {
+    title: 'Minted Merch Shop - Crypto Merch with USDC on Base',
+    description: 'Shop premium crypto merchandise and pay instantly with USDC on Base blockchain. Fast, secure, and decentralized shopping experience.',
+    openGraph: {
+      title: 'Minted Merch Shop - Crypto Merch with USDC on Base',
+      description: 'Shop premium crypto merchandise and pay instantly with USDC on Base blockchain. Fast, secure, and decentralized shopping experience.',
+      images: [
+        {
+          url: `${baseUrl}/splash.png`,
+          width: 1200,
+          height: 800,
+          alt: 'Minted Merch Shop - Crypto Merch with USDC on Base',
+        }
+      ],
+      type: 'website',
+      siteName: 'Minted Merch Shop',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: 'Minted Merch Shop - Crypto Merch with USDC on Base',
+      description: 'Shop premium crypto merchandise and pay instantly with USDC on Base blockchain. Fast, secure, and decentralized shopping experience.',
+      images: [`${baseUrl}/splash.png`],
+    },
+    other: {
+      'fc:frame': JSON.stringify(frame)
+    }
+  };
+}
 
 // Force dynamic rendering to prevent caching issues
 export const dynamic = 'force-dynamic';
