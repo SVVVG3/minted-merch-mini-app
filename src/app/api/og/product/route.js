@@ -48,95 +48,104 @@ export async function GET(request) {
             padding: '40px',
           }}
         >
-          {/* Product Image Section */}
+          {/* Centered Content Container */}
           <div
             style={{
-              width: '350px',
-              height: '350px',
-              borderRadius: '20px',
-              marginRight: '50px',
-              backgroundColor: '#2a2a2a',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: '2px solid #3eb489',
-              overflow: 'hidden',
+              gap: '50px',
             }}
           >
-            {productImageSrc ? (
-              <img
-                src={productImageSrc}
-                alt={title}
+            {/* Product Image Section */}
+            <div
+              style={{
+                width: '350px',
+                height: '350px',
+                borderRadius: '20px',
+                backgroundColor: '#2a2a2a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid #3eb489',
+                overflow: 'hidden',
+              }}
+            >
+              {productImageSrc ? (
+                <img
+                  src={productImageSrc}
+                  alt={title}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+              ) : (
+                <div style={{ fontSize: '120px', color: '#3eb489' }}>📦</div>
+              )}
+            </div>
+            
+            {/* Product Info Section */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'flex-start',
+                maxWidth: '400px',
+              }}
+            >
+              <div
                 style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
+                  fontSize: '48px',
+                  fontWeight: 'bold',
+                  marginBottom: '20px',
+                  lineHeight: '1.2',
                 }}
-              />
-            ) : (
-              <div style={{ fontSize: '120px', color: '#3eb489' }}>📦</div>
-            )}
-          </div>
-          
-          {/* Product Info Section */}
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'flex-start',
-            }}
-          >
-            <div
-              style={{
-                fontSize: '48px',
-                fontWeight: 'bold',
-                marginBottom: '20px',
-                lineHeight: '1.2',
-              }}
-            >
-              {title}
-            </div>
-            
-            <div
-              style={{
-                fontSize: '36px',
-                color: '#3eb489',
-                fontWeight: 'bold',
-                marginBottom: '30px',
-              }}
-            >
-              {priceText}
-            </div>
-            
-            <div
-              style={{
-                fontSize: '24px',
-                color: '#888',
-                marginBottom: '20px',
-              }}
-            >
-              🛒 Minted Merch Shop
-            </div>
-            
-            <div
-              style={{
-                fontSize: '18px',
-                color: '#888',
-                marginBottom: '20px',
-              }}
-            >
-              Shop apparel, accessories, & more!
-            </div>
-            
-            <div
-              style={{
-                fontSize: '16px',
-                color: '#3eb489',
-              }}
-            >
-              Pay with USDC on Base 🔵
+              >
+                {title}
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '36px',
+                  color: '#3eb489',
+                  fontWeight: 'bold',
+                  marginBottom: '30px',
+                }}
+              >
+                {priceText}
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '24px',
+                  color: '#888',
+                  marginBottom: '20px',
+                }}
+              >
+                🛒 Minted Merch Shop
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '18px',
+                  color: '#888',
+                  marginBottom: '20px',
+                }}
+              >
+                Shop apparel, accessories, & more!
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '16px',
+                  color: '#3eb489',
+                }}
+              >
+                Pay with USDC on Base 🔵
+              </div>
             </div>
           </div>
         </div>
