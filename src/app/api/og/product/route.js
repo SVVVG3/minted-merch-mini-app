@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 
-// Use Node.js runtime for external image support
+export const runtime = 'edge';
 
 export async function GET(request) {
   try {
@@ -30,10 +30,6 @@ export async function GET(request) {
           query getProductByHandle($handle: String!) {
             product(handle: $handle) {
               title
-              featuredImage {
-                url
-                altText
-              }
               priceRange {
                 minVariantPrice {
                   amount
@@ -55,26 +51,7 @@ export async function GET(request) {
     }
 
     const productTitle = product.title;
-    const productImage = product.featuredImage?.url;
     const price = product.priceRange?.minVariantPrice?.amount;
-
-    // For now, use cart icon instead of external image to test basic functionality
-    const imageElement = (
-      <div
-        style={{
-          width: '400px',
-          height: '400px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#2a2a2a',
-          borderRadius: '16px',
-          fontSize: '120px',
-        }}
-      >
-        🛒
-      </div>
-    );
 
     return new ImageResponse(
       (
@@ -114,9 +91,22 @@ export async function GET(request) {
               padding: '60px',
             }}
           >
-            {/* Product Image */}
+            {/* Product Icon */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {imageElement}
+              <div
+                style={{
+                  width: '400px',
+                  height: '400px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#2a2a2a',
+                  borderRadius: '16px',
+                  fontSize: '120px',
+                }}
+              >
+                🛒
+              </div>
             </div>
             
             {/* Product Info */}
