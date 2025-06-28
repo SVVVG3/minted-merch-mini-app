@@ -12,8 +12,10 @@ export async function GET(request) {
     const price = searchParams.get('price') || '0.00';
     const imageUrl = searchParams.get('image');
     
-    // Create the ImageResponse
-    const imageResponse = new ImageResponse(
+    // For now, let's not use external images to ensure reliability
+    // We'll focus on making the embeds work first
+    
+    return new ImageResponse(
       (
         <div
           style={{
@@ -25,35 +27,23 @@ export async function GET(request) {
             padding: '60px',
           }}
         >
-          {/* Product Image or Cart Icon */}
+          {/* Product Icon */}
           <div
             style={{
               width: '400px',
               height: '400px',
               borderRadius: '20px',
-              overflow: 'hidden',
               marginRight: '60px',
-              backgroundColor: 'white',
+              backgroundColor: '#2a2a2a',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              border: '2px solid #3eb489',
             }}
           >
-            {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={title}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                }}
-              />
-            ) : (
-              <div style={{ fontSize: '120px', color: '#3eb489' }}>
-                🛒
-              </div>
-            )}
+            <div style={{ fontSize: '120px', color: '#3eb489' }}>
+              📦
+            </div>
           </div>
           
           {/* Product Info */}
@@ -128,8 +118,6 @@ export async function GET(request) {
         },
       }
     );
-
-    return imageResponse;
     
   } catch (error) {
     console.error('Error generating OG image:', error);
