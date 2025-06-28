@@ -24,11 +24,16 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const orderNumber = searchParams.get('orderNumber') || 'ORDER-123';
     const total = searchParams.get('total') || '0.00';
-    const products = searchParams.get('products') || 'crypto merch';
+    const products = searchParams.get('products') || '1 item';
     const itemCount = parseInt(searchParams.get('itemCount') || '1');
     const imageUrl = searchParams.get('image');
     
-    const totalText = parseFloat(total).toFixed(2) + ' USDC';
+    // Fix order number formatting - remove URL encoding
+    const displayOrderNumber = decodeURIComponent(orderNumber);
+    
+    // Format total properly
+    const totalValue = parseFloat(total);
+    const totalText = totalValue > 0 ? `${totalValue.toFixed(2)} USDC` : '0.00 USDC';
     
     // Fetch and convert external image if provided
     let productImageSrc = null;
@@ -143,7 +148,7 @@ export async function GET(request) {
                   color: 'white',
                 }}
               >
-                {orderNumber}
+                {displayOrderNumber}
               </div>
               
               <div
@@ -160,7 +165,7 @@ export async function GET(request) {
               <div
                 style={{
                   fontSize: '36px',
-                  color: '#3eb489',
+                  color: 'white',
                   fontWeight: 'bold',
                   marginBottom: '40px',
                 }}
@@ -171,7 +176,7 @@ export async function GET(request) {
               <div
                 style={{
                   fontSize: '20px',
-                  color: '#888',
+                  color: '#3eb489',
                 }}
               >
                 Paid with USDC on Base 🔵

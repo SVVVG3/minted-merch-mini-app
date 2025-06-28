@@ -5,8 +5,19 @@ import { getOrder } from '@/lib/orders';
 // Function to fetch product image from Shopify by variant ID
 async function fetchProductImageByVariantId(variantId) {
   try {
+    // Handle different variant ID formats
+    let cleanVariantId = variantId;
+    
     // Remove the 'gid://shopify/ProductVariant/' prefix if it exists
-    const cleanVariantId = variantId.replace('gid://shopify/ProductVariant/', '');
+    if (typeof variantId === 'string' && variantId.includes('gid://shopify/ProductVariant/')) {
+      cleanVariantId = variantId.replace('gid://shopify/ProductVariant/', '');
+    }
+    
+    // If it's still not a number, try to extract it
+    if (typeof cleanVariantId === 'string' && !cleanVariantId.match(/^\d+$/)) {
+      console.log('Variant ID format not recognized:', variantId);
+      return null;
+    }
     
     const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
     const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
@@ -84,7 +95,7 @@ export async function generateMetadata({ params }) {
   let orderData = null;
   let firstProductImage = null;
   let orderTotal = null;
-  let productTitles = 'crypto merch';
+  let productDescription = 'crypto merch';
   
   try {
     const orderResult = await getOrder(orderNumber);
@@ -92,7 +103,7 @@ export async function generateMetadata({ params }) {
       orderData = orderResult.order;
       orderTotal = orderData.amount_total;
       
-      // Get first product image and titles
+      // Get first product image and create product description
       if (orderData.line_items && orderData.line_items.length > 0) {
         const firstItem = orderData.line_items[0];
         
@@ -101,11 +112,12 @@ export async function generateMetadata({ params }) {
           firstProductImage = await fetchProductImageByVariantId(firstItem.id);
         }
         
-        // Create a nice product list
-        if (orderData.line_items.length === 1) {
-          productTitles = firstItem.title;
+        // Create product description based on item count
+        const itemCount = orderData.line_items.length;
+        if (itemCount === 1) {
+          productDescription = `1 item`;
         } else {
-          productTitles = `${firstItem.title} + ${orderData.line_items.length - 1} more item${orderData.line_items.length > 2 ? 's' : ''}`;
+          productDescription = `${itemCount} items`;
         }
       }
     }
@@ -118,9 +130,9 @@ export async function generateMetadata({ params }) {
   
   // Enhanced dynamic image URL with product information
   const imageParams = new URLSearchParams({
-    orderNumber,
+    orderNumber: orderNumber, // Don't encode here, let URLSearchParams handle it
     total: orderTotal?.toString() || '0.00',
-    products: productTitles,
+    products: productDescription,
     itemCount: orderData?.line_items?.length?.toString() || '1'
   });
   
@@ -136,7 +148,7 @@ export async function generateMetadata({ params }) {
     version: "next",
     imageUrl: dynamicImageUrl,
     button: {
-      title: "Shop More Merch 🛒",
+      title: "Shop Now 📦",
       action: {
         type: "launch_frame",
         url: baseUrl,
@@ -149,14 +161,14 @@ export async function generateMetadata({ params }) {
 
   return {
     title: `Order ${orderNumber} - Minted Merch Shop`,
-    description: `Order confirmed! ${productTitles} purchased with USDC on Base.`,
+    description: `Order confirmed! ${productDescription} purchased with USDC on Base.`,
     metadataBase: new URL(baseUrl),
     other: {
       'fc:frame': JSON.stringify(frame),
     },
     openGraph: {
       title: `Order ${orderNumber} - Minted Merch Shop`,
-      description: `Order confirmed! ${productTitles} purchased with USDC on Base.`,
+      description: `Order confirmed! ${productDescription} purchased with USDC on Base.`,
       siteName: 'Minted Merch Shop',
       images: [
         {
@@ -171,7 +183,7 @@ export async function generateMetadata({ params }) {
     twitter: {
       card: 'summary_large_image',
       title: `Order ${orderNumber} - Minted Merch Shop`,
-      description: `Order confirmed! ${productTitles} purchased with USDC on Base.`,
+      description: `Order confirmed! ${productDescription} purchased with USDC on Base.`,
       images: [dynamicImageUrl],
     },
   };
