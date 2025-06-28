@@ -1,119 +1,312 @@
-# Shopify Mini App Frame
+# Minted Merch Mini App
 
-A Farcaster frame for shopping with USDC on Base. This boilerplate allows anyone to create a mobile-first e-commerce experience integrated with Shopify and cryptocurrency payments.
+A complete Farcaster Mini App for crypto merchandise with USDC payments, automated notifications, discount systems, and comprehensive order management. Built for the Base blockchain ecosystem.
 
-## Features
+## 🌟 Features
 
-- 🛍️ Shopify integration for product catalog
-- 🎯 Farcaster frame compatibility
-- 💰 USDC payments on Base network
-- 📱 Mobile-first design
-- 🎨 Customizable theme system
-- ⚡ Server-side rendering with Next.js
-- 🔐 Frame authentication
+### 🛍️ **E-commerce Core**
+- **Shopify Integration**: Full product catalog, inventory management, and order fulfillment
+- **USDC Payments**: Native Base blockchain payments with automatic verification
+- **Cart Management**: Persistent shopping cart with real-time calculations
+- **Shipping Integration**: Real-time shipping rates and address validation
+- **Tax Calculation**: Automatic tax computation based on shipping address
 
-## Prerequisites
+### 🎯 **Farcaster Integration**
+- **Native Mini App**: Seamless integration with Farcaster protocol
+- **Frame Authentication**: Secure user authentication via Farcaster
+- **Social Sharing**: Built-in viral sharing mechanisms
+- **User Profiles**: Automatic profile creation and management
 
-- Shopify store with Admin API access
-- Farcaster account for testing frames
+### 🔔 **Smart Notifications**
+- **Order Confirmations**: Instant payment confirmation notifications
+- **Shipping Updates**: Automated tracking notifications with carrier links
+- **Welcome Messages**: New user onboarding with discount codes
+- **Delivery Tracking**: Real-time shipment status updates
 
-## Setup
+### 💰 **Advanced Discount System**
+- **First Order Discounts**: 15% off welcome discounts for new users
+- **Unique Code Generation**: Cryptographically secure discount codes
+- **Usage Tracking**: Prevents duplicate usage and fraud
+- **Analytics**: Comprehensive discount usage statistics
 
-1. Clone the repository:
+### 📊 **Order Management**
+- **Dual Database System**: Shopify for fulfillment, Supabase for notifications
+- **Webhook Integration**: Real-time sync between Shopify and internal database
+- **Archive Handling**: Proper order archiving without data loss
+- **Status Tracking**: Complete order lifecycle management
+
+### 🔐 **Security & Reliability**
+- **Transaction Verification**: On-chain payment verification
+- **Webhook Security**: HMAC signature verification for all webhooks
+- **Rate Limiting**: Protection against abuse and spam
+- **Error Handling**: Comprehensive error tracking and recovery
+
+## 🛠️ Tech Stack
+
+### **Frontend**
+- **Next.js 14**: React framework with App Router
+- **TailwindCSS**: Utility-first CSS framework
+- **Wagmi**: React hooks for Ethereum interactions
+- **Viem**: TypeScript interface for Ethereum
+
+### **Backend**
+- **Supabase**: PostgreSQL database with real-time features
+- **Shopify Admin API**: E-commerce backend and fulfillment
+- **Neynar API**: Farcaster protocol integration
+- **Cloudflare KV**: High-performance caching layer
+
+### **Blockchain**
+- **Base Network**: Layer 2 Ethereum scaling solution
+- **USDC**: Native stablecoin payments
+- **Smart Contract Integration**: Direct on-chain interactions
+
+### **External Services**
+- **Google Maps API**: Address autocomplete and validation
+- **Carrier APIs**: Real-time shipping rate calculation
+- **Webhook Infrastructure**: Event-driven architecture
+
+## 📋 Prerequisites
+
+- **Shopify Store**: Admin API access with fulfillment permissions
+- **Supabase Account**: PostgreSQL database setup
+- **Neynar API Key**: Farcaster protocol integration
+- **Base Network**: Wallet setup for USDC transactions
+- **Cloudflare Account**: KV storage for caching (optional)
+
+## 🚀 Quick Start
+
+### 1. Clone and Install
 ```bash
-git clone https://github.com/yourusername/shopify-mini-app-frame.git
-cd shopify-mini-app-frame
-```
-
-2. Install dependencies:
-```bash
-bun install
-# or
+git clone https://github.com/SVVVG3/minted-merch-mini-app.git
+cd minted-merch-mini-app
 npm install
 ```
 
-3. Configure environment variables:
-Create a `.env` file with the following variables:
+### 2. Environment Configuration
+Create `.env.local` with the following variables:
 
 ```env
 # Shopify Configuration
-SHOPIFY_SITE_DOMAIN=your-store-name
-SHOPIFY_ACCESS_TOKEN=shpat_xxxxxxxxxxxxx
-TARGET_COLLECTION_HANDLE=all
+SHOPIFY_SITE_DOMAIN=your-store.myshopify.com
+SHOPIFY_ADMIN_ACCESS_TOKEN=shpat_xxxxxxxxxxxxx
+SHOPIFY_WEBHOOK_SECRET=your-webhook-secret
+TARGET_COLLECTION_HANDLE=crypto-merch
+
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Neynar API (Farcaster)
+NEYNAR_API_KEY=your-neynar-api-key
 
 # Payment Configuration
 PAYMENT_RECIPIENT_ADDRESS=0xYourWalletAddress
 NEXT_PUBLIC_PAYMENT_RECIPIENT_ADDRESS=0xYourWalletAddress
 
-# Optional: Google Maps API for address autocomplete
-GOOGLE_MAPS_API_KEY=your-api-key
+# Optional Services
+GOOGLE_MAPS_API_KEY=your-google-maps-key
+CLOUDFLARE_KV_NAMESPACE_ID=your-kv-namespace
+CLOUDFLARE_KV_API_TOKEN=your-kv-token
 ```
 
-4. Run the development server:
+### 3. Database Setup
 ```bash
-bun dev
-# or
+# Run the database migration
+npm run db:migrate
+
+# Or manually apply the schema
+psql -h your-supabase-host -U postgres -d postgres -f database/schema.sql
+```
+
+### 4. Webhook Configuration
+```bash
+# Set up Shopify webhooks
+curl -X POST "https://your-app.vercel.app/api/shopify/setup-webhook"
+curl -X POST "https://your-app.vercel.app/api/shopify/setup-order-webhook"
+```
+
+### 5. Run Development Server
+```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
-
-## Customization
-
-### Theme
-Edit `src/styles/theme.css` to customize:
-- Colors
-- Typography
-- Spacing
-- Shadows
-- Border radius
-
-### Shopify Store
-1. Update `SHOPIFY_SITE_DOMAIN` to your store's subdomain
-2. Generate an Admin API access token from your Shopify admin
-3. Set `TARGET_COLLECTION_HANDLE` to display a specific collection
-
-### Payment Recipient
-Update `PAYMENT_RECIPIENT_ADDRESS` to your wallet address where USDC payments should be sent.
-
-## Project Structure
+## 📁 Project Structure
 
 ```
-src/
-├── app/
-│   ├── api/              # API routes
-│   ├── product/          # Product detail pages
-│   ├── layout.js         # Root layout
-│   └── page.js           # Homepage
-├── components/           # React components
-├── lib/                  # Utility functions
-│   ├── frame.js          # Farcaster frame SDK
-│   ├── shopify.js        # Shopify API client
-│   └── theme.js          # Theme configuration
-└── styles/              # CSS files
+├── src/
+│   ├── app/
+│   │   ├── api/                    # API routes
+│   │   │   ├── debug/              # Testing endpoints
+│   │   │   ├── orders/             # Order management
+│   │   │   ├── shopify/            # Shopify integration
+│   │   │   └── webhook/            # Webhook handlers
+│   │   ├── product/[handle]/       # Product pages
+│   │   └── page.js                 # Homepage
+│   ├── components/                 # React components
+│   │   ├── Cart.jsx                # Shopping cart
+│   │   ├── CheckoutFlow.jsx        # Payment flow
+│   │   ├── OrderHistory.jsx        # User orders
+│   │   └── ProductGrid.jsx         # Product display
+│   ├── lib/                        # Core utilities
+│   │   ├── discounts.js            # Discount system
+│   │   ├── frame.js                # Farcaster integration
+│   │   ├── neynar.js               # Notifications
+│   │   ├── orders.js               # Order management
+│   │   ├── payment.js              # USDC payments
+│   │   ├── shopify.js              # Shopify API
+│   │   └── supabase.js             # Database client
+│   └── styles/                     # Styling
+├── database/
+│   └── schema.sql                  # Database schema
+├── docs/                           # Documentation
+└── public/                         # Static assets
 ```
 
-## Deployment
+## 🔧 Configuration Guide
+
+### Shopify Setup
+1. **Create Private App** in Shopify Admin
+2. **Enable Admin API** with these permissions:
+   - `read_products, write_products`
+   - `read_orders, write_orders`
+   - `read_fulfillments, write_fulfillments`
+3. **Configure Webhooks** for order updates and fulfillments
+
+### Supabase Setup
+1. **Create Project** on Supabase
+2. **Apply Schema** from `database/schema.sql`
+3. **Configure RLS** policies for security
+4. **Set up Authentication** (optional for admin features)
+
+### Neynar Setup
+1. **Get API Key** from Neynar Dashboard
+2. **Configure Webhook** for notification delivery
+3. **Test Notifications** with debug endpoints
+
+### Payment Setup
+1. **Deploy to Base Mainnet** or Sepolia testnet
+2. **Configure Wallet** for receiving USDC
+3. **Test Payments** with small amounts first
+
+## 🧪 Testing
+
+### Debug Endpoints
+- `/api/debug/discount-test` - Test discount system
+- `/api/debug/order-items-test` - Test order processing
+- `/api/debug/test-order-archiving` - Test archiving logic
+- `/api/debug/neynar-test` - Test notifications
+
+### Manual Testing
+```bash
+# Test discount creation
+curl "https://your-app.vercel.app/api/debug/welcome-discount-test"
+
+# Test order processing
+curl "https://your-app.vercel.app/api/debug/order-processing-test"
+
+# Test notifications
+curl "https://your-app.vercel.app/api/debug/test-shipping-notification"
+```
+
+## 📊 Analytics & Monitoring
+
+### Built-in Analytics
+- **Order Metrics**: Revenue, conversion rates, average order value
+- **Discount Usage**: Code performance and fraud detection
+- **User Behavior**: Cart abandonment and purchase patterns
+- **Notification Delivery**: Success rates and engagement
+
+### Database Queries
+```sql
+-- Revenue analytics
+SELECT SUM(amount_total) FROM orders WHERE status = 'shipped';
+
+-- Discount performance
+SELECT discount_code, COUNT(*), SUM(discount_amount) FROM orders 
+WHERE discount_code IS NOT NULL GROUP BY discount_code;
+
+-- User engagement
+SELECT COUNT(DISTINCT fid) FROM orders WHERE created_at > NOW() - INTERVAL '30 days';
+```
+
+## 🚀 Deployment
 
 ### Vercel (Recommended)
-1. Push to GitHub
-2. Import to Vercel
-3. Add environment variables
-4. Deploy
+1. **Connect Repository** to Vercel
+2. **Add Environment Variables** from your `.env.local`
+3. **Deploy** with automatic CI/CD
 
-### Frame Metadata
-Update the frame metadata in `src/app/page.js`:
-- `imageUrl`: Preview image for your frame
-- `url`: Your deployed app URL
-- `splashImageUrl`: Loading screen image
+### Custom Deployment
+```bash
+# Build for production
+npm run build
 
-## Testing in Farcaster
+# Start production server
+npm start
+```
 
-1. Deploy your app
-2. Share the URL in Warpcast
-3. The frame preview should appear
-4. Click "Shop Now!" to launch the frame
+### Post-Deployment
+1. **Configure Webhooks** with your production URL
+2. **Test Payment Flow** with real USDC transactions
+3. **Monitor Logs** for any issues
 
-## License
+## 🔐 Security Considerations
 
-MIT
+### API Security
+- **Webhook Verification**: All Shopify webhooks are HMAC verified
+- **Rate Limiting**: Built-in protection against abuse
+- **Input Validation**: Comprehensive data sanitization
+
+### Payment Security
+- **On-chain Verification**: All payments verified on Base blockchain
+- **Address Validation**: Recipient address verification
+- **Amount Verification**: Exact payment amount checking
+
+### Data Protection
+- **RLS Policies**: Row-level security in Supabase
+- **API Key Management**: Secure environment variable handling
+- **User Privacy**: Minimal data collection and retention
+
+## 🤝 Contributing
+
+1. **Fork** the repository
+2. **Create** a feature branch
+3. **Test** thoroughly with debug endpoints
+4. **Submit** a pull request with detailed description
+
+## 📚 Documentation
+
+- **API Reference**: `/docs/API.md`
+- **Database Schema**: `/docs/DATABASE.md`
+- **Webhook Guide**: `/docs/WEBHOOKS.md`
+- **Deployment Guide**: `/docs/DEPLOYMENT.md`
+
+## 🐛 Troubleshooting
+
+### Common Issues
+- **Payment Failures**: Check Base network status and gas fees
+- **Webhook Errors**: Verify HMAC secrets and endpoint URLs
+- **Notification Issues**: Check Neynar API key and rate limits
+- **Database Errors**: Verify Supabase connection and RLS policies
+
+### Debug Tools
+- **Health Check**: `/api/debug/env-test`
+- **Database Test**: `/api/debug/supabase-test`
+- **Payment Test**: `/api/debug/checkout-test`
+
+## 📄 License
+
+MIT License - see LICENSE file for details
+
+## 🙏 Acknowledgments
+
+- **@jc4p** for the starter repo
+- **Farcaster Team** for the Mini App framework
+- **Shopify** for the comprehensive e-commerce API
+- **Base Team** for the scalable L2 infrastructure
+- **Supabase** for the real-time database platform
+
+---
+
+Vibe Coded with ❤️ by @SVVVG3.eth for the Farcaster and Base ecosystems

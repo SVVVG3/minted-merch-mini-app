@@ -40,3 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# internal development documentation
+.cursor/
+tasks.md
+architecture.md
