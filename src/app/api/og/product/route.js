@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 
-// Use Node.js runtime as specified in Vercel docs
+// Use Node.js runtime as recommended by Vercel docs for OG image generation
 export const runtime = 'nodejs';
 
 export async function GET(request) {
@@ -13,19 +13,8 @@ export async function GET(request) {
     const price = searchParams.get('price') || '0.00';
     const imageUrl = searchParams.get('image');
     
-    // Load external image using fetch as shown in Vercel docs
-    let productImage = null;
-    if (imageUrl) {
-      try {
-        const imageResponse = await fetch(imageUrl);
-        if (imageResponse.ok) {
-          const arrayBuffer = await imageResponse.arrayBuffer();
-          productImage = arrayBuffer;
-        }
-      } catch (error) {
-        console.log('Failed to load external image:', error);
-      }
-    }
+    // For now, focus on getting the embeds working with product info
+    // We'll add external images back once the basic functionality works
     
     return new ImageResponse(
       (
@@ -39,36 +28,23 @@ export async function GET(request) {
             padding: '60px',
           }}
         >
-          {/* Product Image or Icon */}
+          {/* Product Icon */}
           <div
             style={{
               width: '400px',
               height: '400px',
               borderRadius: '20px',
               marginRight: '60px',
-              backgroundColor: productImage ? 'white' : '#2a2a2a',
+              backgroundColor: '#2a2a2a',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               border: '2px solid #3eb489',
-              overflow: 'hidden',
             }}
           >
-            {productImage ? (
-              <img
-                src={imageUrl}
-                alt={title}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                }}
-              />
-            ) : (
-              <div style={{ fontSize: '120px', color: '#3eb489' }}>
-                📦
-              </div>
-            )}
+            <div style={{ fontSize: '120px', color: '#3eb489' }}>
+              📦
+            </div>
           </div>
           
           {/* Product Info */}
@@ -137,8 +113,8 @@ export async function GET(request) {
         width: 1200,
         height: 800, // Use 3:2 aspect ratio as required by Farcaster Mini Apps
         headers: {
-          'Cache-Control': 'public, immutable, no-transform, max-age=300',
           'Content-Type': 'image/png',
+          'Cache-Control': 'public, immutable, no-transform, max-age=300',
         },
       }
     );
@@ -176,8 +152,8 @@ export async function GET(request) {
         width: 1200,
         height: 800, // Use 3:2 aspect ratio as required by Farcaster Mini Apps
         headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Content-Type': 'image/png',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
         },
       }
     );

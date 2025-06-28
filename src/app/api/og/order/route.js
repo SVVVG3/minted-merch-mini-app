@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 
-// Use Node.js runtime as specified in Vercel docs
+// Use Node.js runtime as recommended by Vercel docs for OG image generation
 export const runtime = 'nodejs';
 
 export async function GET(request) {
@@ -101,8 +101,8 @@ export async function GET(request) {
         width: 1200,
         height: 800, // Use 3:2 aspect ratio as required by Farcaster Mini Apps
         headers: {
-          'Cache-Control': 'public, immutable, no-transform, max-age=3600',
           'Content-Type': 'image/png',
+          'Cache-Control': 'public, immutable, no-transform, max-age=3600',
         },
       }
     );
@@ -138,8 +138,8 @@ export async function GET(request) {
         width: 1200,
         height: 800, // Use 3:2 aspect ratio as required by Farcaster Mini Apps
         headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Content-Type': 'image/png',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
         },
       }
     );
