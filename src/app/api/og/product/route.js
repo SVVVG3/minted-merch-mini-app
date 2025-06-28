@@ -5,53 +5,12 @@ export const runtime = 'edge';
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const handle = searchParams.get('handle');
+    const handle = searchParams.get('handle') || 'test';
 
-    if (!handle) {
-      throw new Error('Product handle is required');
-    }
-
-    // Fetch product data from Shopify using the correct domain format
-    const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
-    const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
-    
-    if (!SHOPIFY_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
-      throw new Error('Missing Shopify environment variables');
-    }
-
-    const response = await fetch(`https://${SHOPIFY_DOMAIN}.myshopify.com/api/2024-07/graphql.json`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Storefront-Access-Token': SHOPIFY_ACCESS_TOKEN,
-      },
-      body: JSON.stringify({
-        query: `
-          query getProductByHandle($handle: String!) {
-            product(handle: $handle) {
-              title
-              priceRange {
-                minVariantPrice {
-                  amount
-                  currencyCode
-                }
-              }
-            }
-          }
-        `,
-        variables: { handle },
-      }),
-    });
-
-    const data = await response.json();
-    const product = data.data?.product;
-
-    if (!product) {
-      throw new Error('Product not found');
-    }
-
-    const productTitle = product.title;
-    const price = product.priceRange?.minVariantPrice?.amount;
+    // For now, use static data to test ImageResponse
+    // We know from debug endpoint that Shopify API works
+    const productTitle = "Gdupi Cap";
+    const price = "29.97";
 
     return new ImageResponse(
       (
@@ -113,18 +72,16 @@ export async function GET(request) {
               {productTitle}
             </div>
             
-            {price && (
-              <div
-                style={{
-                  fontSize: '36px',
-                  color: '#3eb489',
-                  fontWeight: 'bold',
-                  marginBottom: '20px',
-                }}
-              >
-                ${parseFloat(price).toFixed(2)} USD
-              </div>
-            )}
+            <div
+              style={{
+                fontSize: '36px',
+                color: '#3eb489',
+                fontWeight: 'bold',
+                marginBottom: '20px',
+              }}
+            >
+              ${parseFloat(price).toFixed(2)} USD
+            </div>
             
             <div
               style={{
