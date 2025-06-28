@@ -12,34 +12,34 @@ export async function GET(request) {
     const price = searchParams.get('price') || '0.00';
     const imageUrl = searchParams.get('image');
     
-    // If we have image URL, try to display the actual product image
-    if (imageUrl) {
-      return new ImageResponse(
-        (
+    // Create the ImageResponse
+    const imageResponse = new ImageResponse(
+      (
+        <div
+          style={{
+            height: '100%',
+            width: '100%',
+            display: 'flex',
+            backgroundColor: '#1a1a1a',
+            color: 'white',
+            padding: '60px',
+          }}
+        >
+          {/* Product Image or Cart Icon */}
           <div
             style={{
-              height: '100%',
-              width: '100%',
+              width: '400px',
+              height: '400px',
+              borderRadius: '20px',
+              overflow: 'hidden',
+              marginRight: '60px',
+              backgroundColor: 'white',
               display: 'flex',
-              backgroundColor: '#1a1a1a',
-              color: 'white',
-              padding: '60px',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            {/* Product Image */}
-            <div
-              style={{
-                width: '400px',
-                height: '400px',
-                borderRadius: '20px',
-                overflow: 'hidden',
-                marginRight: '60px',
-                backgroundColor: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
+            {imageUrl ? (
               <img
                 src={imageUrl}
                 alt={title}
@@ -49,159 +49,92 @@ export async function GET(request) {
                   objectFit: 'contain',
                 }}
               />
-            </div>
-            
-            {/* Product Info */}
+            ) : (
+              <div style={{ fontSize: '120px', color: '#3eb489' }}>
+                🛒
+              </div>
+            )}
+          </div>
+          
+          {/* Product Info */}
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+            }}
+          >
             <div
               style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
+                fontSize: '48px',
+                fontWeight: 'bold',
+                marginBottom: '20px',
+                lineHeight: '1.2',
               }}
             >
-              <div
-                style={{
-                  fontSize: '48px',
-                  fontWeight: 'bold',
-                  marginBottom: '20px',
-                  lineHeight: '1.2',
-                }}
-              >
-                {title}
-              </div>
-              
-              <div
-                style={{
-                  fontSize: '36px',
-                  color: '#3eb489',
-                  fontWeight: 'bold',
-                  marginBottom: '30px',
-                }}
-              >
-                ${parseFloat(price).toFixed(2)}
-              </div>
-              
-              <div
-                style={{
-                  fontSize: '24px',
-                  color: '#888',
-                  marginBottom: '20px',
-                }}
-              >
-                🛒 Minted Merch Shop
-              </div>
-              
-              <div
-                style={{
-                  fontSize: '18px',
-                  color: '#888',
-                  marginBottom: '20px',
-                }}
-              >
-                Shop crypto merch with instant payments
-              </div>
-              
-              <div
-                style={{
-                  fontSize: '16px',
-                  color: '#3eb489',
-                }}
-              >
-                Pay with USDC on Base 🔵
-              </div>
+              {title}
             </div>
-          </div>
-        ),
-        {
-          width: 1200,
-          height: 800,
-        }
-      );
-    }
-
-    // Fallback to cart icon if no product image
-    return new ImageResponse(
-      (
-        <div
-          style={{
-            height: '100%',
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#1a1a1a',
-            color: 'white',
-            padding: '60px',
-          }}
-        >
-          <div style={{ fontSize: '120px', marginBottom: '40px' }}>
-            🛒
-          </div>
-          
-          <div
-            style={{
-              fontSize: '48px',
-              fontWeight: 'bold',
-              marginBottom: '20px',
-              textAlign: 'center',
-              lineHeight: '1.2',
-            }}
-          >
-            {title}
-          </div>
-          
-          <div
-            style={{
-              fontSize: '36px',
-              color: '#3eb489',
-              fontWeight: 'bold',
-              marginBottom: '30px',
-            }}
-          >
-            ${parseFloat(price).toFixed(2)}
-          </div>
-          
-          <div
-            style={{
-              fontSize: '24px',
-              color: '#888',
-              marginBottom: '20px',
-            }}
-          >
-            Minted Merch Shop
-          </div>
-          
-          <div
-            style={{
-              fontSize: '18px',
-              color: '#888',
-              marginBottom: '20px',
-            }}
-          >
-            Shop crypto merch with instant payments
-          </div>
-          
-          <div
-            style={{
-              fontSize: '16px',
-              color: '#3eb489',
-            }}
-          >
-            Pay with USDC on Base 🔵
+            
+            <div
+              style={{
+                fontSize: '36px',
+                color: '#3eb489',
+                fontWeight: 'bold',
+                marginBottom: '30px',
+              }}
+            >
+              ${parseFloat(price).toFixed(2)}
+            </div>
+            
+            <div
+              style={{
+                fontSize: '24px',
+                color: '#888',
+                marginBottom: '20px',
+              }}
+            >
+              🛒 Minted Merch Shop
+            </div>
+            
+            <div
+              style={{
+                fontSize: '18px',
+                color: '#888',
+                marginBottom: '20px',
+              }}
+            >
+              Shop crypto merch with instant payments
+            </div>
+            
+            <div
+              style={{
+                fontSize: '16px',
+                color: '#3eb489',
+              }}
+            >
+              Pay with USDC on Base 🔵
+            </div>
           </div>
         </div>
       ),
       {
         width: 1200,
         height: 800,
+        headers: {
+          // Cache for 5 minutes to balance freshness with performance
+          'Cache-Control': 'public, immutable, no-transform, max-age=300',
+          'Content-Type': 'image/png',
+        },
       }
     );
+
+    return imageResponse;
+    
   } catch (error) {
     console.error('Error generating OG image:', error);
     
-    // Fallback error image
+    // Fallback error image with no cache to avoid caching errors
     return new ImageResponse(
       (
         <div
@@ -230,6 +163,11 @@ export async function GET(request) {
       {
         width: 1200,
         height: 800,
+        headers: {
+          // Don't cache error images
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Content-Type': 'image/png',
+        },
       }
     );
   }

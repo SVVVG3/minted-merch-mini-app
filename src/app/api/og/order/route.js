@@ -147,12 +147,17 @@ export async function GET(request) {
       {
         width: 1200,
         height: 800, // 3:2 aspect ratio as required by Mini Apps
+        headers: {
+          // Cache for 1 hour since order confirmations don't change often
+          'Cache-Control': 'public, immutable, no-transform, max-age=3600',
+          'Content-Type': 'image/png',
+        },
       },
     );
   } catch (error) {
     console.error('Error generating order OG image:', error);
     
-    // Return a fallback image
+    // Return a fallback image with no cache to avoid caching errors
     return new ImageResponse(
       (
         <div
@@ -179,6 +184,11 @@ export async function GET(request) {
       {
         width: 1200,
         height: 800, // 3:2 aspect ratio as required by Mini Apps
+        headers: {
+          // Don't cache error images
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Content-Type': 'image/png',
+        },
       }
     );
   }
