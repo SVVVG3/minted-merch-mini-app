@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS orders (
   carrier TEXT, -- UPS, FedEx, USPS, etc.
   
   -- Product information
-  line_items JSONB NOT NULL, -- Array of products ordered
+  line_items JSONB NOT NULL, -- Array of products ordered (primary storage)
   
   -- Payment information
   payment_method TEXT,
@@ -144,6 +144,10 @@ CREATE TABLE IF NOT EXISTS orders (
   discount_code TEXT, -- The discount code used for this order
   discount_amount DECIMAL(10,2) DEFAULT 0.00, -- Amount discounted
   discount_percentage DECIMAL(5,2), -- Percentage discount applied
+  
+  -- Archive tracking (DO NOT DELETE ORDERS - ARCHIVE THEM INSTEAD)
+  archived_at TIMESTAMP WITH TIME ZONE, -- When order was archived
+  archived_in_shopify BOOLEAN DEFAULT FALSE, -- Whether archived in Shopify
   
   -- Notification tracking
   order_confirmation_sent BOOLEAN DEFAULT FALSE,
@@ -166,6 +170,8 @@ CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
 CREATE INDEX IF NOT EXISTS idx_orders_tracking_number ON orders(tracking_number);
+CREATE INDEX IF NOT EXISTS idx_orders_archived_at ON orders(archived_at);
+CREATE INDEX IF NOT EXISTS idx_orders_archived_in_shopify ON orders(archived_in_shopify);
 
 -- Enable RLS for orders
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
@@ -183,7 +189,10 @@ CREATE TRIGGER update_orders_updated_at
   FOR EACH ROW 
   EXECUTE FUNCTION update_updated_at_column();
 
--- Order items table for detailed product tracking (optional - if you want normalized data)
+-- Order items table for detailed product tracking
+-- NOTE: This table provides normalized storage of line items for advanced querying
+-- The primary line items data is stored in orders.line_items JSONB column
+-- This table is automatically populated when orders are created
 CREATE TABLE IF NOT EXISTS order_items (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
@@ -201,8 +210,8 @@ CREATE TABLE IF NOT EXISTS order_items (
   quantity INTEGER NOT NULL DEFAULT 1,
   total DECIMAL(10,2) NOT NULL,
   
-  -- Product details
-  product_data JSONB, -- Store complete product data
+  -- Product details (complete product data from line_items)
+  product_data JSONB,
   
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

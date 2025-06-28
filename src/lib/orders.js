@@ -128,23 +128,55 @@ export async function createOrder(orderData) {
       return { success: false, error: error.message };
     }
 
-    // Mark discount code as used immediately after successful order creation
-    if (orderData.discountCode && order) {
+    console.log('✅ Order created successfully:', order.order_id);
+
+    // Create order items in the normalized table
+    if (orderData.lineItems && orderData.lineItems.length > 0) {
       try {
-        const markUsedResult = await markDiscountCodeAsUsed(orderData.discountCode, order.order_id);
-        if (!markUsedResult.success) {
-          console.error('Failed to mark discount code as used:', markUsedResult.error);
-          // Don't fail the order creation, but log the issue
+        const orderItems = orderData.lineItems.map(item => ({
+          order_id: order.id,
+          product_id: item.id || 'unknown',
+          product_handle: item.handle || null,
+          product_title: item.title || 'Unknown Product',
+          variant_id: item.variantId || item.id,
+          variant_title: item.variant || 'Default Title',
+          sku: item.sku || null,
+          price: parseFloat(item.price) || 0,
+          quantity: parseInt(item.quantity) || 1,
+          total: (parseFloat(item.price) || 0) * (parseInt(item.quantity) || 1),
+          product_data: item
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(orderItems);
+
+        if (itemsError) {
+          console.error('Error creating order items:', itemsError);
+          // Don't fail the order creation, just log the error
         } else {
-          console.log('✅ Discount code marked as used:', orderData.discountCode);
+          console.log('✅ Order items created successfully');
         }
-      } catch (discountError) {
-        console.error('Error marking discount code as used:', discountError);
-        // Don't fail the order creation
+      } catch (itemsError) {
+        console.error('Error processing order items:', itemsError);
+        // Don't fail the order creation, just log the error
       }
     }
 
-    console.log('Order created successfully:', order);
+    // Mark discount code as used if provided
+    if (orderData.discountCode) {
+      try {
+        const markUsedResult = await markDiscountCodeAsUsed(orderData.discountCode, order.order_id);
+        if (markUsedResult.success) {
+          console.log('✅ Discount code marked as used:', orderData.discountCode);
+        } else {
+          console.error('❌ Failed to mark discount code as used:', markUsedResult.error);
+        }
+      } catch (discountError) {
+        console.error('❌ Error marking discount code as used:', discountError);
+      }
+    }
+
     return { success: true, order };
 
   } catch (error) {
@@ -328,16 +360,54 @@ export async function addTrackingInfo(orderId, trackingData) {
 }
 
 /**
- * Get orders for a specific user
+ * Archive an order instead of deleting it
  */
-export async function getUserOrders(fid, limit = 50) {
+export async function archiveOrder(orderId, archiveReason = 'archived_in_shopify') {
   try {
-    const { data: orders, error } = await supabase
+    console.log(`Archiving order ${orderId} with reason: ${archiveReason}`);
+
+    const { data: order, error } = await supabase
+      .from('orders')
+      .update({
+        archived_at: new Date().toISOString(),
+        archived_in_shopify: archiveReason === 'archived_in_shopify',
+        status: 'cancelled' // Update status to reflect archived state
+      })
+      .eq('order_id', orderId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error archiving order:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('✅ Order archived successfully:', order.order_id);
+    return { success: true, order };
+
+  } catch (error) {
+    console.error('Error in archiveOrder:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get orders for a specific user (excluding archived by default)
+ */
+export async function getUserOrders(fid, limit = 50, includeArchived = false) {
+  try {
+    let query = supabase
       .from('orders')
       .select('*')
       .eq('fid', fid)
       .order('created_at', { ascending: false })
       .limit(limit);
+
+    if (!includeArchived) {
+      query = query.is('archived_at', null);
+    }
+
+    const { data: orders, error } = await query;
 
     if (error) {
       console.error('Error fetching user orders:', error);
