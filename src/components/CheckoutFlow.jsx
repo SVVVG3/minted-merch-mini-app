@@ -923,87 +923,103 @@ export function CheckoutFlow({ checkoutData, onBack }) {
               )}
 
               {/* Success Step */}
-              {checkoutStep === 'success' && orderDetails && (
-                <div className="space-y-4">
-                  <div className="bg-green-50 border border-green-200 p-4 rounded-lg text-center">
-                    <svg className="w-12 h-12 mx-auto text-green-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Thank you for your order!</h3>
-                    <p className="text-gray-600 mb-3">Your order has been successfully placed and payment confirmed.</p>
-                    <div className="bg-white p-3 rounded border border-green-200">
-                      <p className="text-sm text-gray-600">Order Number</p>
-                      <p className="text-lg font-mono font-medium text-gray-900">{orderDetails.name}</p>
-                    </div>
-                  </div>
+              {checkoutStep === 'success' && orderDetails && (() => {
+                // Generate product text for order page link
+                const productNames = cart.items.map(item => {
+                  const productName = item.product?.title || item.title;
+                  const variantName = item.variant?.title && item.variant.title !== 'Default Title' ? item.variant.title : '';
+                  const quantity = item.quantity > 1 ? ` (${item.quantity}x)` : '';
+                  return variantName ? `${productName} (${variantName})${quantity}` : `${productName}${quantity}`;
+                });
+                
+                const productText = productNames.length === 1 
+                  ? productNames[0]
+                  : productNames.length === 2
+                    ? `${productNames[0]} and ${productNames[1]}`
+                    : `${productNames.slice(0, -1).join(', ')}, and ${productNames[productNames.length - 1]}`;
 
-                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                    <h4 className="font-medium text-gray-900">Order Details</h4>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Status:</span>
-                        <span className="font-medium text-green-600">{orderDetails.status}</span>
+                return (
+                  <div className="space-y-4">
+                    <div className="bg-green-50 border border-green-200 p-4 rounded-lg text-center">
+                      <svg className="w-12 h-12 mx-auto text-green-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Thank you for your order!</h3>
+                      <p className="text-gray-600 mb-3">Your order has been successfully placed and payment confirmed.</p>
+                      <div className="bg-white p-3 rounded border border-green-200">
+                        <p className="text-sm text-gray-600">Order Number</p>
+                        <p className="text-lg font-mono font-medium text-gray-900">{orderDetails.name}</p>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Total:</span>
-                        <span className="font-medium">${orderDetails.total.amount} {orderDetails.total.currencyCode}</span>
-                      </div>
-                      {orderDetails.customer.email && (
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                      <h4 className="font-medium text-gray-900">Order Details</h4>
+                      <div className="space-y-1 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Email:</span>
-                          <span className="font-medium">{orderDetails.customer.email}</span>
+                          <span className="text-gray-600">Status:</span>
+                          <span className="font-medium text-green-600">{orderDetails.status}</span>
                         </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Transaction:</span>
-                        <span className="font-mono text-xs">{orderDetails.transactionHash?.slice(0, 8)}...{orderDetails.transactionHash?.slice(-6)}</span>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Total:</span>
+                          <span className="font-medium">${orderDetails.total.amount} {orderDetails.total.currencyCode}</span>
+                        </div>
+                        {orderDetails.customer.email && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Email:</span>
+                            <span className="font-medium">{orderDetails.customer.email}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Transaction:</span>
+                          <span className="font-mono text-xs">{orderDetails.transactionHash?.slice(0, 8)}...{orderDetails.transactionHash?.slice(-6)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    {/* Share Order Button */}
-                    <button
-                      onClick={handleShareOrder}
-                      className="w-full bg-[#8A63D2] hover:bg-[#7C5BC7] text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
-                    >
-                      {/* Official Farcaster Logo */}
-                      <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
-                        <path d="M257.778 155.556H742.222V844.445H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.445H257.778V155.556Z"/>
-                        <path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.445H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/>
-                        <path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.445H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/>
-                      </svg>
-                      <span>Share My Purchase</span>
-                    </button>
-                    
-                    {/* View Order Page Button */}
-                    <a
-                      href={`/order/${encodeURIComponent(orderDetails.name)}?total=${encodeURIComponent(orderDetails.total.amount)}&products=${encodeURIComponent(productText)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                      <span>View Shareable Order</span>
-                    </a>
-                    
-                    <button
-                      onClick={handleContinueShopping}
-                      className="w-full bg-[#3eb489] hover:bg-[#359970] text-white font-medium py-3 px-4 rounded-lg transition-colors"
-                    >
-                      Continue Shopping
-                    </button>
-                    <button
-                      onClick={handleCloseCheckout}
-                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors"
-                    >
-                      Close
-                    </button>
+                    <div className="space-y-2">
+                      {/* Share Order Button */}
+                      <button
+                        onClick={handleShareOrder}
+                        className="w-full bg-[#8A63D2] hover:bg-[#7C5BC7] text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                      >
+                        {/* Official Farcaster Logo */}
+                        <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
+                          <path d="M257.778 155.556H742.222V844.445H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.445H257.778V155.556Z"/>
+                          <path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.445H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/>
+                          <path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.445H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/>
+                        </svg>
+                        <span>Share My Purchase</span>
+                      </button>
+                      
+                      {/* View Order Page Button */}
+                      <a
+                        href={`/order/${encodeURIComponent(orderDetails.name)}?total=${encodeURIComponent(orderDetails.total.amount)}&products=${encodeURIComponent(productText)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        <span>View Shareable Order</span>
+                      </a>
+                      
+                      <button
+                        onClick={handleContinueShopping}
+                        className="w-full bg-[#3eb489] hover:bg-[#359970] text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                      >
+                        Continue Shopping
+                      </button>
+                      <button
+                        onClick={handleCloseCheckout}
+                        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
             </div>
           </div>
