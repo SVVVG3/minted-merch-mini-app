@@ -58,65 +58,34 @@ export async function GET(request) {
     const productImage = product.featuredImage?.url;
     const price = product.priceRange?.minVariantPrice?.amount;
 
-    // Fetch the product image if available
-    let imageElement = null;
-    if (productImage) {
-      try {
-        const imageResponse = await fetch(productImage);
-        const imageBuffer = await imageResponse.arrayBuffer();
-        const base64Image = `data:${imageResponse.headers.get('content-type') || 'image/jpeg'};base64,${Buffer.from(imageBuffer).toString('base64')}`;
-        
-        imageElement = (
-          <img
-            src={base64Image}
-            width={400}
-            height={400}
-            style={{
-              borderRadius: '16px',
-              objectFit: 'cover',
-            }}
-            alt={product.featuredImage?.altText || productTitle}
-          />
-        );
-      } catch (imageError) {
-        console.error('Error loading product image:', imageError);
-        // Fall back to cart icon if image fails
-        imageElement = (
-          <div
-            style={{
-              width: '400px',
-              height: '400px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: '#2a2a2a',
-              borderRadius: '16px',
-              fontSize: '120px',
-            }}
-          >
-            🛒
-          </div>
-        );
-      }
-    } else {
-      // No product image available, use cart icon
-      imageElement = (
-        <div
-          style={{
-            width: '400px',
-            height: '400px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#2a2a2a',
-            borderRadius: '16px',
-            fontSize: '120px',
-          }}
-        >
-          🛒
-        </div>
-      );
-    }
+    // Use product image directly or fall back to cart icon
+    const imageElement = productImage ? (
+      <img
+        src={productImage}
+        width={400}
+        height={400}
+        style={{
+          borderRadius: '16px',
+          objectFit: 'cover',
+        }}
+        alt={product.featuredImage?.altText || productTitle}
+      />
+    ) : (
+      <div
+        style={{
+          width: '400px',
+          height: '400px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#2a2a2a',
+          borderRadius: '16px',
+          fontSize: '120px',
+        }}
+      >
+        🛒
+      </div>
+    );
 
     return new ImageResponse(
       (
