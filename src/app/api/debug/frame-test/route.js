@@ -22,7 +22,7 @@ export async function GET(request) {
             url: `${baseUrl}/product/${handle}`,
             name: "Minted Merch Shop",
             splashImageUrl: `${baseUrl}/splash.png`,
-            splashBackgroundColor: "#1a1a1a"
+            splashBackgroundColor: "#000000"
           }
         }
       };
@@ -63,7 +63,7 @@ export async function GET(request) {
             url: baseUrl,
             name: "Minted Merch Shop",
             splashImageUrl: `${baseUrl}/splash.png`,
-            splashBackgroundColor: "#1a1a1a"
+            splashBackgroundColor: "#000000"
           }
         }
       };

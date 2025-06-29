@@ -47,7 +47,7 @@ export async function generateMetadata({ params }) {
             url: `${baseUrl}/product/${handle}`,
             name: "Minted Merch Shop",
             splashImageUrl: `${baseUrl}/splash.png`,
-            splashBackgroundColor: "#1a1a1a"
+            splashBackgroundColor: "#000000"
           }
         }
       };
@@ -99,7 +99,7 @@ export async function generateMetadata({ params }) {
         url: `${baseUrl}/product/${handle}`,
         name: "Minted Merch Shop",
         splashImageUrl: `${baseUrl}/splash.png`,
-        splashBackgroundColor: "#1a1a1a"
+                    splashBackgroundColor: "#000000"
       }
     }
   };
