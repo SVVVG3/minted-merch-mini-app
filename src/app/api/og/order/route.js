@@ -47,6 +47,8 @@ export async function GET(request) {
     
     // Fetch and convert external image if provided
     let productImageSrc = null;
+    let productImageFailed = false;
+    
     if (imageUrl) {
       console.log('=== ATTEMPTING TO FETCH PRODUCT IMAGE ===');
       console.log('Image URL:', imageUrl);
@@ -54,7 +56,7 @@ export async function GET(request) {
       try {
         // Add timeout and retry logic for reliability
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // Reduced to 5 seconds
         
         const response = await fetch(imageUrl, { 
           signal: controller.signal,
@@ -70,7 +72,7 @@ export async function GET(request) {
           contentType: response.headers.get('content-type')
         });
         
-        if (response.ok) {
+        if (response.ok && response.status === 200) {
           const arrayBuffer = await response.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
           const contentType = response.headers.get('content-type') || 'image/jpeg';
@@ -85,11 +87,13 @@ export async function GET(request) {
           console.log('✅ Data URL created, length:', productImageSrc.length);
         } else {
           console.error('❌ Image fetch failed:', response.status, response.statusText);
+          productImageFailed = true;
         }
       } catch (error) {
         console.error('❌ Error fetching product image:', error.message);
+        productImageFailed = true;
         if (error.name === 'AbortError') {
-          console.error('❌ Image fetch timed out after 10 seconds');
+          console.error('❌ Image fetch timed out after 5 seconds');
         }
       }
     } else {
@@ -109,7 +113,9 @@ export async function GET(request) {
     
     console.log('=== FINAL RENDER DECISION ===');
     console.log('Will show product image:', !!productImageSrc);
+    console.log('Product image failed:', productImageFailed);
     console.log('Will show logo:', !!logoImageSrc);
+    console.log('Image URL provided:', !!imageUrl);
     
     return new ImageResponse(
       (
@@ -170,10 +176,24 @@ export async function GET(request) {
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    textAlign: 'center',
+                    padding: '20px',
                   }}
                 >
-                  <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>✅</div>
-                  <div style={{ fontSize: '32px', color: '#3eb489' }}>Order Complete!</div>
+                  {productImageFailed ? (
+                    <>
+                      <div style={{ fontSize: '80px', marginBottom: '20px', color: '#ff6b6b' }}>❌</div>
+                      <div style={{ fontSize: '24px', color: '#ff6b6b', marginBottom: '10px' }}>Image Failed</div>
+                      <div style={{ fontSize: '16px', color: '#888' }}>
+                        {imageUrl ? 'Fetch Error' : 'No URL'}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>✅</div>
+                      <div style={{ fontSize: '32px', color: '#3eb489' }}>Order Complete!</div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
