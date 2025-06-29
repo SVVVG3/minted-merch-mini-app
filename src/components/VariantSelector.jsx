@@ -14,7 +14,7 @@ export function VariantSelector({ variants, selectedVariant, onVariantChange }) 
           const variant = variants.find(({ node }) => node.id === selectedId)?.node;
           if (variant) onVariantChange(variant);
         }}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent bg-white"
+        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent bg-white min-h-[48px]"
       >
         {variants.map(({ node: variant }) => (
           <option
