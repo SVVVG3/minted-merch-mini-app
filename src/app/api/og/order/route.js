@@ -126,7 +126,7 @@ export async function GET(request) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#1a1a1a',
+            backgroundColor: '#000000',
             color: 'white',
             fontFamily: 'Arial, sans-serif',
             padding: '60px',
@@ -293,7 +293,7 @@ export async function GET(request) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#1a1a1a',
+            backgroundColor: '#000000',
             color: 'white',
             fontFamily: 'Arial, sans-serif',
           }}
