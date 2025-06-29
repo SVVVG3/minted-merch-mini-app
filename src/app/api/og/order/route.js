@@ -157,17 +157,6 @@ export async function GET(request) {
               
               <div
                 style={{
-                  fontSize: '40px',
-                  fontWeight: 'bold',
-                  marginBottom: '25px',
-                  color: 'white',
-                }}
-              >
-                {displayOrderNumber}
-              </div>
-              
-              <div
-                style={{
                   fontSize: '28px',
                   marginBottom: '40px',
                   lineHeight: '1.3',

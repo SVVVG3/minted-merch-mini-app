@@ -332,7 +332,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         try {
           await navigator.share({
             title: 'Order Confirmed - Minted Merch',
-            text: `🎉 Just bought a ${productText} with USDC! Order ${orderDetails.name} for ${orderDetails.total.amount} confirmed ✅ Shop on /mintedmerch - pay on Base 🔵`,
+            text: `🎉 Just bought a ${productText} with USDC! Shop on /mintedmerch - pay on Base 🔵`,
             url: window.location.origin,
           });
         } catch (err) {
@@ -341,7 +341,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       } else {
         // Copy link to clipboard
         try {
-          await navigator.clipboard.writeText(`🎉 Just bought a ${productText} with USDC! Order ${orderDetails.name} for ${orderDetails.total.amount} confirmed ✅ Shop on /mintedmerch - pay on Base 🔵 - ${window.location.origin}`);
+          await navigator.clipboard.writeText(`🎉 Just bought a ${productText} with USDC! Shop on /mintedmerch - pay on Base 🔵 - ${window.location.origin}`);
           alert('Order details copied to clipboard!');
         } catch (err) {
           console.log('Error copying to clipboard:', err);
@@ -352,7 +352,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
     // Farcaster sharing using SDK composeCast action
     try {
-      const shareText = `🎉 Just bought a ${productText} with USDC!\n\nOrder ${orderDetails.name} for ${orderDetails.total.amount} confirmed ✅\n\nShop on /mintedmerch - pay on Base 🔵`;
+      const shareText = `🎉 Just bought a ${productText} with USDC!\n\nShop on /mintedmerch - pay on Base 🔵`;
       
       // Use dedicated order page URL with dynamic OG images
       const orderUrl = `${window.location.origin}/order/${encodeURIComponent(orderDetails.name)}?total=${encodeURIComponent(orderDetails.total.amount)}&products=${encodeURIComponent(productText)}`;
@@ -369,7 +369,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       console.error('Error sharing order:', error);
       // Fallback to copying link
       try {
-        await navigator.clipboard.writeText(`🎉 Just bought a ${productText} with USDC! Order ${orderDetails.name} for ${orderDetails.total.amount} confirmed ✅ Shop on /mintedmerch - pay on Base 🔵 - ${window.location.origin}`);
+        await navigator.clipboard.writeText(`🎉 Just bought a ${productText} with USDC! Shop on /mintedmerch - pay on Base 🔵 - ${window.location.origin}`);
         alert('Order details copied to clipboard!');
       } catch (err) {
         console.log('Error copying to clipboard:', err);
