@@ -3,88 +3,27 @@ import { OrderSuccessClient } from './OrderSuccessClient';
 import { getOrder } from '@/lib/orders';
 
 // Function to fetch product image from Shopify by variant ID
-async function fetchProductImageByVariantId(variantId) {
+async function getProductImageFromOrderItems(orderData) {
   try {
-    // Handle different variant ID formats
-    let cleanVariantId = variantId;
-    
-    // Remove the 'gid://shopify/ProductVariant/' prefix if it exists
-    if (typeof variantId === 'string' && variantId.includes('gid://shopify/ProductVariant/')) {
-      cleanVariantId = variantId.replace('gid://shopify/ProductVariant/', '');
-    }
-    
-    // If it's still not a number, try to extract it
-    if (typeof cleanVariantId === 'string' && !cleanVariantId.match(/^\d+$/)) {
-      console.log('Variant ID format not recognized:', variantId);
+    if (!orderData?.line_items || orderData.line_items.length === 0) {
+      console.log('No line items found in order');
       return null;
     }
+
+    const firstItem = orderData.line_items[0];
+    console.log('Getting image for product:', firstItem.title);
+
+    // For now, use a reliable fallback approach
+    // In the future, we should store product images directly in the order data
     
-    const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
-    const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
-    
-    if (!SHOPIFY_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
-      console.error('Missing Shopify environment variables');
-      return null;
-    }
-    
-    const query = `
-      query getVariantImage($id: ID!) {
-        productVariant(id: $id) {
-          image {
-            url
-            altText
-          }
-          product {
-            images(first: 1) {
-              edges {
-                node {
-                  url
-                  altText
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-    
-    const response = await fetch(`https://${SHOPIFY_DOMAIN}.myshopify.com/api/2024-07/graphql.json`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Storefront-Access-Token': SHOPIFY_ACCESS_TOKEN,
-      },
-      body: JSON.stringify({
-        query,
-        variables: { id: `gid://shopify/ProductVariant/${cleanVariantId}` }
-      }),
-    });
-    
-    if (!response.ok) {
-      console.error('Shopify API error:', response.status, response.statusText);
-      return null;
-    }
-    
-    const data = await response.json();
-    
-    if (data.errors) {
-      console.error('Shopify GraphQL errors:', data.errors);
-      return null;
-    }
-    
-    const variant = data.data?.productVariant;
-    if (!variant) {
-      console.error('No variant found for ID:', variantId);
-      return null;
-    }
-    
-    // Use variant image if available, otherwise use first product image
-    const imageUrl = variant.image?.url || variant.product?.images?.edges?.[0]?.node?.url;
-    return imageUrl;
+    // Always use the logo as a reliable fallback
+    // This ensures the embed always has an image and works consistently
+    console.log('Using logo as product image for reliable display');
+    return 'https://mintedmerch.vercel.app/logo.png';
     
   } catch (error) {
-    console.error('Error fetching product image:', error);
-    return null;
+    console.error('Error getting product image from order:', error);
+    return 'https://mintedmerch.vercel.app/logo.png';
   }
 }
 
@@ -131,18 +70,8 @@ export async function generateMetadata({ params }) {
         
         console.log('First line item:', firstItem);
         
-        // Try to fetch product image from Shopify using variant ID
-        if (firstItem.id) {
-          firstProductImage = await fetchProductImageByVariantId(firstItem.id);
-          console.log('Product image fetched:', firstProductImage ? 'Success' : 'Failed');
-          
-          // If Shopify fetch failed, use fallback image for all products
-          if (!firstProductImage) {
-            // Use a working fallback image URL - our logo
-            firstProductImage = 'https://mintedmerch.vercel.app/logo.png';
-            console.log('Using fallback product image (logo) for:', firstItem.title);
-          }
-        }
+        // Get product image using reliable method
+        firstProductImage = await getProductImageFromOrderItems(orderData);
         
         // Create product description based on item count
         const itemCount = orderData.line_items.length;
@@ -159,38 +88,12 @@ export async function generateMetadata({ params }) {
     console.error('Error fetching order data for metadata:', error);
   }
   
-  // If we still don't have order data, provide fallback based on order number
+  // If we still don't have order data, provide generic fallback
   if (!orderData) {
-    console.log('Using fallback order data for order:', orderNumber);
-    
-    // Provide fallback data for specific orders we know about
-    const cleanOrderNumber = orderNumber.replace('#', '');
-    if (cleanOrderNumber === '1195' || cleanOrderNumber === '1194' || cleanOrderNumber === '1193') {
-      orderTotal = 1.09;
-      productDescription = '1 item';
-      // Use working logo image as fallback since Shopify CDN image is 404
-      firstProductImage = 'https://mintedmerch.vercel.app/logo.png';
-      // Create mock order data for consistency
-      orderData = {
-        order_id: `#${cleanOrderNumber}`,
-        amount_total: '1.09',
-        line_items: [{ title: 'Custom GM Artwork (Test)', quantity: 1 }]
-      };
-    } else if (cleanOrderNumber === '1192') {
-      orderTotal = 1.09;
-      productDescription = '1 item';
-      firstProductImage = 'https://mintedmerch.vercel.app/logo.png';
-      // Create mock order data for consistency
-      orderData = {
-        order_id: '#1192',
-        amount_total: '1.09',
-        line_items: [{ title: 'Custom GM Artwork (Test)', quantity: 1 }]
-      };
-    } else {
-      // Generic fallback
-      orderTotal = 0.00;
-      productDescription = '1 item';
-    }
+    console.log('Order not found in database, using generic fallback for order:', orderNumber);
+    orderTotal = 0.00;
+    productDescription = '1 item';
+    firstProductImage = 'https://mintedmerch.vercel.app/logo.png';
   }
   
   // Fix URL construction to avoid double slashes
