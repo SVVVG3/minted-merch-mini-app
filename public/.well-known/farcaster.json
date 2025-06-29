@@ -17,7 +17,7 @@
     "webhookUrl": "https://api.neynar.com/f/app/11f2fe11-b70c-40fa-b653-9770b7588bdf/event",
     "splashImageUrl": "https://mintedmerch.vercel.app/splash.png",
     "splashBackgroundColor": "#000000",
-    "tagline": "Order apparel and more with USDC",
+    "tagline": "Order merch and more with USDC",
     "heroImageUrl": "https://mintedmerch.vercel.app/og-image.png",
     "tags": [
       "merch",
