@@ -101,19 +101,16 @@ export async function generateMetadata({ params }) {
   // Fix URL construction to avoid double slashes
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app').replace(/\/$/, '');
   
-  // Enhanced dynamic image URL with product information
+  // Simplified dynamic image URL - let the OG route fetch data from database
   // Use the actual order_id from database if available, otherwise format the orderNumber
   const displayOrderNumber = orderData?.order_id || (orderNumber.startsWith('#') ? orderNumber : `#${orderNumber}`);
   
   const imageParams = new URLSearchParams({
-    orderNumber: displayOrderNumber,
-    total: orderTotal?.toString() || '0.00',
-    products: productDescription,
-    itemCount: orderData?.line_items?.length?.toString() || '1'
+    orderNumber: displayOrderNumber
   });
   
-  // Add first product image if available
-  if (firstProductImage) {
+  // Add first product image if available (this is the key parameter)
+  if (firstProductImage && firstProductImage !== 'https://mintedmerch.vercel.app/logo.png') {
     imageParams.set('image', firstProductImage);
   }
   
