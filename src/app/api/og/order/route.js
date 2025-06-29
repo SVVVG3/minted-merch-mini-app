@@ -5,16 +5,22 @@ export const runtime = 'nodejs';
 
 async function fetchImageAsDataUrl(imageUrl) {
   try {
+    console.log('Fetching image from URL:', imageUrl);
     const response = await fetch(imageUrl);
-    if (!response.ok) throw new Error('Failed to fetch image');
+    console.log('Image fetch response status:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    }
     
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const contentType = response.headers.get('content-type') || 'image/jpeg';
     
+    console.log('Image fetched successfully, content-type:', contentType, 'size:', buffer.length);
     return `data:${contentType};base64,${buffer.toString('base64')}`;
   } catch (error) {
-    console.error('Error fetching image:', error);
+    console.error('Error fetching image from', imageUrl, ':', error);
     return null;
   }
 }
@@ -44,7 +50,11 @@ export async function GET(request) {
     // Fetch and convert external image if provided
     let productImageSrc = null;
     if (imageUrl) {
+      console.log('Attempting to fetch product image:', imageUrl);
       productImageSrc = await fetchImageAsDataUrl(imageUrl);
+      console.log('Product image fetch result:', productImageSrc ? 'Success' : 'Failed');
+    } else {
+      console.log('No product image URL provided');
     }
     
     // Fetch logo image
