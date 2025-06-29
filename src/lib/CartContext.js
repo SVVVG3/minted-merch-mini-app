@@ -47,7 +47,7 @@ function cartReducer(state, action) {
             id: product.id,
             title: product.title,
             handle: product.handle,
-            image: product.images?.edges?.[0]?.node || null
+            image: variant?.image || product.images?.edges?.[0]?.node || null
           },
           variant: variant || null,
           quantity: quantity,

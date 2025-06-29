@@ -214,9 +214,9 @@ function CartItem({ item, onQuantityChange, onRemove }) {
     <div className="flex gap-3 p-3 bg-gray-50 rounded-lg">
       {/* Product Image */}
       <div className="w-16 h-16 bg-gray-200 rounded-md overflow-hidden flex-shrink-0">
-        {item.product.image?.url ? (
+        {(item.variant?.image?.url || item.product.image?.url) ? (
           <img
-            src={item.product.image.url}
+            src={item.variant?.image?.url || item.product.image.url}
             alt={item.product.title}
             className="w-full h-full object-cover"
           />
