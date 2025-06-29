@@ -166,13 +166,21 @@ export async function POST(request) {
               (customer?.email || shippingAddress.email || ''),
             shippingAddress: shippingAddress,
             shippingMethod: selectedShipping.title || 'Standard',
-            lineItems: lineItems.map(item => ({
-              id: item.variantId,
-              title: item.productTitle,
-              quantity: item.quantity,
-              price: item.price,
-              variant: item.title !== 'Default' ? item.title : null
-            })),
+            lineItems: lineItems.map(item => {
+              // Extract product image URL from the cart item
+              const productImageUrl = cartItems.find(cartItem => 
+                cartItem.variant?.id === item.variantId
+              )?.product?.image?.url || null;
+              
+              return {
+                id: item.variantId,
+                title: item.productTitle,
+                quantity: item.quantity,
+                price: item.price,
+                variant: item.title !== 'Default' ? item.title : null,
+                imageUrl: productImageUrl // Store the product image URL!
+              };
+            }),
             paymentMethod: 'USDC',
             paymentStatus: 'completed',
             paymentIntentId: transactionHash

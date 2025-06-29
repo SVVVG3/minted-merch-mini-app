@@ -7,18 +7,20 @@ async function getProductImageFromOrderItems(orderData) {
   try {
     if (!orderData?.line_items || orderData.line_items.length === 0) {
       console.log('No line items found in order');
-      return null;
+      return 'https://mintedmerch.vercel.app/logo.png';
     }
 
     const firstItem = orderData.line_items[0];
     console.log('Getting image for product:', firstItem.title);
 
-    // For now, use a reliable fallback approach
-    // In the future, we should store product images directly in the order data
-    
-    // Always use the logo as a reliable fallback
-    // This ensures the embed always has an image and works consistently
-    console.log('Using logo as product image for reliable display');
+    // Check if we have a stored product image URL
+    if (firstItem.imageUrl) {
+      console.log('Using stored product image URL:', firstItem.imageUrl);
+      return firstItem.imageUrl;
+    }
+
+    // Fallback to logo if no image URL is stored
+    console.log('No product image URL found, using logo fallback');
     return 'https://mintedmerch.vercel.app/logo.png';
     
   } catch (error) {
