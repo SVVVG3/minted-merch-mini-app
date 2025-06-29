@@ -312,6 +312,9 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const handleShareOrder = async () => {
     if (!orderDetails) return;
 
+    // Small delay to ensure database is updated
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     // Get product names from cart items
     const productNames = cart.items.map(item => {
       const productName = item.product?.title || item.title;
@@ -354,8 +357,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     try {
       const shareText = `🎉 Just bought a ${productText} with USDC!\n\nShop on /mintedmerch - pay on Base 🔵`;
       
-      // Use dedicated order page URL with dynamic OG images
-      const orderUrl = `${window.location.origin}/order/${encodeURIComponent(orderDetails.name)}?total=${encodeURIComponent(orderDetails.total.amount)}&products=${encodeURIComponent(productText)}`;
+      // Use clean order page URL - let the page fetch data from database
+      const orderUrl = `${window.location.origin}/order/${encodeURIComponent(orderDetails.name)}`;
       
       // Use the Farcaster SDK composeCast action with order URL
       const { sdk } = await import('../lib/frame');
