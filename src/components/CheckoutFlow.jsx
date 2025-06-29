@@ -361,7 +361,9 @@ Shop on /mintedmerch - pay on Base 🔵`;
       
       // Use clean order page URL with cache-busting for immediate shares
       const timestamp = Date.now();
-      const orderUrl = `${window.location.origin}/order/${orderDetails.name}?t=${timestamp}`;
+      // Remove # from order number for clean URL (database stores #1202, but URL should be /order/1202)
+      const cleanOrderNumber = orderDetails.name.replace('#', '');
+      const orderUrl = `${window.location.origin}/order/${cleanOrderNumber}?t=${timestamp}`;
       
       console.log('Sharing order URL with cache-busting:', orderUrl);
       
