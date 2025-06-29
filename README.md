@@ -14,6 +14,8 @@ A complete Farcaster Mini App for crypto merchandise with USDC payments, automat
 ### 🎯 **Farcaster Integration**
 - **Native Mini App**: Seamless integration with Farcaster protocol
 - **Frame Authentication**: Secure user authentication via Farcaster
+- **Dynamic Order Sharing**: Smart cast generation with product images
+- **Mini App Embeds**: Rich order confirmation cards with real product visuals
 - **Social Sharing**: Built-in viral sharing mechanisms
 - **User Profiles**: Automatic profile creation and management
 
@@ -189,6 +191,48 @@ npm run dev
 2. **Configure Wallet** for receiving USDC
 3. **Test Payments** with small amounts first
 
+## 🖼️ Dynamic Order Sharing System
+
+### **Smart Product Image Integration**
+Our Farcaster Mini App embeds feature dynamic product images that automatically display the actual purchased items instead of generic placeholders.
+
+### **Technical Implementation**
+
+#### **Image Storage Strategy**
+- **Order Creation**: Product image URLs are captured and stored directly in order data during checkout
+- **Database Storage**: Each line item includes `imageUrl` field from cart context
+- **Fallback System**: Graceful degradation to Minted Merch logo if images fail
+
+#### **Share Button Architecture**
+```javascript
+// Clean URL generation without double encoding
+const cleanOrderNumber = orderDetails.name.replace('#', '');
+const orderUrl = `${window.location.origin}/order/${cleanOrderNumber}?t=${timestamp}`;
+```
+
+#### **OG Image Generation**
+- **Dynamic Rendering**: Real-time image composition using Canvas API
+- **Product Integration**: Fetches stored product images from order data
+- **Cache Busting**: Timestamp-based cache invalidation for immediate sharing
+- **Error Handling**: Comprehensive fallback logic for failed image fetches
+
+#### **Key Technical Challenges Solved**
+1. **Double URL Encoding**: Fixed `encodeURIComponent()` causing `%23%25231202` instead of `%231202`
+2. **Fragment Identifier Issues**: Removed `#` symbols from share URLs to prevent routing conflicts
+3. **Timing Synchronization**: Cache-busting ensures fresh images for immediate post-purchase shares
+4. **Image Reliability**: Stored URLs during order creation instead of complex GraphQL fetching
+
+#### **URL Architecture**
+- **Share Button**: `https://mintedmerch.vercel.app/order/1202?t=1751161234567`
+- **Manual Casts**: `https://mintedmerch.vercel.app/order/1202`
+- **OG Images**: `/api/og/order?orderNumber=1202&image=https://cdn.shopify.com/...&t=...`
+
+### **Visual Results**
+- ✅ **Product Images**: Actual purchased items displayed in Mini App embeds
+- ✅ **Order Details**: Clean order numbers, item counts, and payment status
+- ✅ **Consistent Experience**: Share button and manual casts show identical results
+- ✅ **Performance**: Sub-5-second image generation with fallback handling
+
 ## 🧪 Testing
 
 ### Debug Endpoints
@@ -196,6 +240,7 @@ npm run dev
 - `/api/debug/order-items-test` - Test order processing
 - `/api/debug/test-order-archiving` - Test archiving logic
 - `/api/debug/neynar-test` - Test notifications
+- `/api/debug/og-order-debug` - Test dynamic image generation
 
 ### Manual Testing
 ```bash
