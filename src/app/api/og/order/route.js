@@ -41,11 +41,7 @@ export async function GET(request) {
     // Remove any double ## that might have been added
     displayOrderNumber = displayOrderNumber.replace(/^#+/, '#');
     
-    // Format total properly
-    const totalValue = parseFloat(total);
-    const totalText = totalValue > 0 ? `${totalValue.toFixed(2)} USDC` : '0.00 USDC';
-    
-    console.log('Processed values:', { displayOrderNumber, totalText, products });
+    console.log('Processed values:', { displayOrderNumber, products });
     
     // Fetch and convert external image if provided
     let productImageSrc = null;
@@ -53,6 +49,9 @@ export async function GET(request) {
       console.log('Attempting to fetch product image:', imageUrl);
       productImageSrc = await fetchImageAsDataUrl(imageUrl);
       console.log('Product image fetch result:', productImageSrc ? 'Success' : 'Failed');
+      if (!productImageSrc) {
+        console.error('Failed to fetch product image from:', imageUrl);
+      }
     } else {
       console.log('No product image URL provided');
     }
@@ -170,23 +169,12 @@ export async function GET(request) {
               <div
                 style={{
                   fontSize: '28px',
-                  marginBottom: '25px',
+                  marginBottom: '40px',
                   lineHeight: '1.3',
                   color: 'white',
                 }}
               >
                 {products}
-              </div>
-              
-              <div
-                style={{
-                  fontSize: '36px',
-                  color: 'white',
-                  fontWeight: 'bold',
-                  marginBottom: '40px',
-                }}
-              >
-                {totalText}
               </div>
               
               <div
