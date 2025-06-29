@@ -33,8 +33,10 @@ export async function GET(request) {
     const products = searchParams.get('products') || '1 item';
     const itemCount = parseInt(searchParams.get('itemCount') || '1');
     const imageUrl = searchParams.get('image');
+    const bustCache = searchParams.get('t'); // Cache busting parameter
     
-    console.log('OG Order Image params:', { orderNumber, total, products, itemCount, imageUrl });
+    console.log('=== OG Order Image Generation ===');
+    console.log('Raw params:', { orderNumber, total, products, itemCount, imageUrl, bustCache });
     
     // Fix order number formatting - remove URL encoding and ensure single #
     let displayOrderNumber = decodeURIComponent(orderNumber);
@@ -46,24 +48,68 @@ export async function GET(request) {
     // Fetch and convert external image if provided
     let productImageSrc = null;
     if (imageUrl) {
-      console.log('Attempting to fetch product image:', imageUrl);
-      productImageSrc = await fetchImageAsDataUrl(imageUrl);
-      console.log('Product image fetch result:', productImageSrc ? 'Success' : 'Failed');
-      if (!productImageSrc) {
-        console.error('Failed to fetch product image from:', imageUrl);
+      console.log('=== ATTEMPTING TO FETCH PRODUCT IMAGE ===');
+      console.log('Image URL:', imageUrl);
+      
+      try {
+        // Add timeout and retry logic for reliability
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        const response = await fetch(imageUrl, { 
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'Minted-Merch-OG/1.0'
+          }
+        });
+        clearTimeout(timeoutId);
+        
+        console.log('Image fetch response:', { 
+          status: response.status, 
+          statusText: response.statusText,
+          contentType: response.headers.get('content-type')
+        });
+        
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const contentType = response.headers.get('content-type') || 'image/jpeg';
+          
+          console.log('✅ Image fetched successfully:', { 
+            contentType, 
+            size: buffer.length,
+            sizeKB: Math.round(buffer.length / 1024)
+          });
+          
+          productImageSrc = `data:${contentType};base64,${buffer.toString('base64')}`;
+          console.log('✅ Data URL created, length:', productImageSrc.length);
+        } else {
+          console.error('❌ Image fetch failed:', response.status, response.statusText);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching product image:', error.message);
+        if (error.name === 'AbortError') {
+          console.error('❌ Image fetch timed out after 10 seconds');
+        }
       }
     } else {
-      console.log('No product image URL provided');
+      console.log('ℹ️ No product image URL provided');
     }
     
-    // Fetch logo image
+    // Fetch logo image with better error handling
     const logoUrl = 'https://mintedmerch.vercel.app/logo.png';
     let logoImageSrc = null;
     try {
+      console.log('Fetching logo from:', logoUrl);
       logoImageSrc = await fetchImageAsDataUrl(logoUrl);
+      console.log('Logo fetch result:', logoImageSrc ? '✅ Success' : '❌ Failed');
     } catch (error) {
-      console.error('Error fetching logo:', error);
+      console.error('❌ Error fetching logo:', error);
     }
+    
+    console.log('=== FINAL RENDER DECISION ===');
+    console.log('Will show product image:', !!productImageSrc);
+    console.log('Will show logo:', !!logoImageSrc);
     
     return new ImageResponse(
       (

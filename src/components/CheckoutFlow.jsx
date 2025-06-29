@@ -355,10 +355,15 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
     // Farcaster sharing using SDK composeCast action
     try {
-      const shareText = `🎉 Just bought a ${productText} with USDC!\n\nShop on /mintedmerch - pay on Base 🔵`;
+      const shareText = `🎉 Just bought a ${productText} with USDC!
+
+Shop on /mintedmerch - pay on Base 🔵`;
       
-      // Use clean order page URL - let the page fetch data from database
-      const orderUrl = `${window.location.origin}/order/${encodeURIComponent(orderDetails.name)}`;
+      // Use clean order page URL with cache-busting for immediate shares
+      const timestamp = Date.now();
+      const orderUrl = `${window.location.origin}/order/${encodeURIComponent(orderDetails.name)}?t=${timestamp}`;
+      
+      console.log('Sharing order URL with cache-busting:', orderUrl);
       
       // Use the Farcaster SDK composeCast action with order URL
       const { sdk } = await import('../lib/frame');

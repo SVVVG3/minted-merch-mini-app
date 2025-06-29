@@ -29,8 +29,13 @@ async function getProductImageFromOrderItems(orderData) {
   }
 }
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata({ params, searchParams }) {
   const { orderNumber } = params;
+  const cacheBust = searchParams?.t; // Cache-busting parameter from share button
+  
+  console.log('=== Order Page Metadata Generation ===');
+  console.log('Order number:', orderNumber);
+  console.log('Cache bust param:', cacheBust);
   
   // Fetch order data from database to get rich product information
   let orderData = null;
@@ -109,14 +114,22 @@ export async function generateMetadata({ params }) {
     orderNumber: displayOrderNumber
   });
   
-  // Add first product image if available (this is the key parameter)
-  if (firstProductImage && firstProductImage !== 'https://mintedmerch.vercel.app/logo.png') {
+  // Add first product image if available
+  if (firstProductImage) {
     imageParams.set('image', firstProductImage);
+    console.log('✅ Adding product image to OG params:', firstProductImage);
+  } else {
+    console.log('⚠️ No product image found for order');
+  }
+  
+  // Add cache-busting parameter if provided (for immediate shares)
+  if (cacheBust) {
+    imageParams.set('t', cacheBust);
+    console.log('🔄 Adding cache-busting parameter:', cacheBust);
   }
   
   const dynamicImageUrl = `${baseUrl}/api/og/order?${imageParams.toString()}`;
-  
-  console.log('Generated OG image URL:', dynamicImageUrl);
+  console.log('📸 Final OG image URL:', dynamicImageUrl);
   
   // Create frame embed with dynamic order image - use version "next" for Mini App embeds
   const frame = {
