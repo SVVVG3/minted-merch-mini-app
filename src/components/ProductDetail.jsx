@@ -11,8 +11,7 @@ export function ProductDetail({
   product, 
   handle,
   selectedVariant, 
-  onVariantChange, 
-  onBuyNow 
+  onVariantChange
 }) {
   const { addItem, isInCart, getItemQuantity, itemCount, cartTotal } = useCart();
   const { isInFarcaster } = useFarcaster();
@@ -315,7 +314,7 @@ export function ProductDetail({
         </div>
       </main>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 space-y-3">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4">
         <button
           onClick={handleAddToCart}
           disabled={!selectedVariant?.availableForSale}
@@ -323,16 +322,6 @@ export function ProductDetail({
         >
           {selectedVariant?.availableForSale 
             ? `Add to Cart - $${parseFloat(price).toFixed(2)}` 
-            : 'Out of Stock'}
-        </button>
-        
-        <button
-          onClick={onBuyNow}
-          disabled={!selectedVariant?.availableForSale}
-          className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-        >
-          {selectedVariant?.availableForSale 
-            ? `Buy Now with ${parseFloat(price).toFixed(2)} USDC` 
             : 'Out of Stock'}
         </button>
       </div>

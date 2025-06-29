@@ -10,8 +10,7 @@ export function ProductPageClient({ handle }) {
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [checkoutData, setCheckoutData] = useState(null);
-  const [showCheckout, setShowCheckout] = useState(false);
+
 
   useEffect(() => {
     fetchProduct();
@@ -39,16 +38,7 @@ export function ProductPageClient({ handle }) {
     }
   };
 
-  const handleBuyNow = () => {
-    if (!selectedVariant) return;
-    
-    setCheckoutData({
-      product: product,
-      variant: selectedVariant,
-      quantity: 1
-    });
-    setShowCheckout(true);
-  };
+
 
   if (loading) {
     return (
@@ -74,22 +64,14 @@ export function ProductPageClient({ handle }) {
     );
   }
 
-  if (showCheckout) {
-    return (
-      <CheckoutFlow 
-        checkoutData={checkoutData} 
-        onBack={() => setShowCheckout(false)}
+
+
+      return (
+      <ProductDetail
+        product={product}
+        handle={handle}
+        selectedVariant={selectedVariant}
+        onVariantChange={setSelectedVariant}
       />
     );
-  }
-
-  return (
-    <ProductDetail
-      product={product}
-      handle={handle}
-      selectedVariant={selectedVariant}
-      onVariantChange={setSelectedVariant}
-      onBuyNow={handleBuyNow}
-    />
-  );
 } 

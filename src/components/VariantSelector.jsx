@@ -3,30 +3,30 @@ export function VariantSelector({ variants, selectedVariant, onVariantChange }) 
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label htmlFor="variant-select" className="block text-sm font-medium text-gray-700 mb-2">
         Options
       </label>
-      <div className="flex flex-wrap gap-2">
+      <select
+        id="variant-select"
+        value={selectedVariant?.id || ''}
+        onChange={(e) => {
+          const selectedId = e.target.value;
+          const variant = variants.find(({ node }) => node.id === selectedId)?.node;
+          if (variant) onVariantChange(variant);
+        }}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent bg-white"
+      >
         {variants.map(({ node: variant }) => (
-          <button
+          <option
             key={variant.id}
-            onClick={() => onVariantChange(variant)}
+            value={variant.id}
             disabled={!variant.availableForSale}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-              selectedVariant?.id === variant.id
-                ? 'bg-[#3eb489] text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            } ${
-              !variant.availableForSale
-                ? 'opacity-50 cursor-not-allowed line-through'
-                : ''
-            }`}
           >
-            <span>{variant.title}</span>
-            <span className="ml-1">- ${parseFloat(variant.price?.amount || 0).toFixed(2)}</span>
-          </button>
+            {variant.title} - ${parseFloat(variant.price?.amount || 0).toFixed(2)}
+            {!variant.availableForSale ? ' (Out of Stock)' : ''}
+          </option>
         ))}
-      </div>
+      </select>
     </div>
   );
 }
