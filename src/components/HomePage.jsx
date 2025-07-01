@@ -6,12 +6,50 @@ import { Cart } from './Cart';
 import { OrderHistory } from './OrderHistory';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
 
 export function HomePage({ collection, products }) {
   const { itemCount, cartTotal } = useCart();
   const { isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user, context, hasNotifications, getNotificationDetails } = useFarcaster();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false);
+  const [notificationContext, setNotificationContext] = useState(null);
+
+  // URL Parameter Detection - Detect notification clicks and discount codes
+  useEffect(() => {
+    console.log('🔍 === URL PARAMETER DETECTION ===');
+    
+    // Extract URL parameters for notification detection
+    const params = extractNotificationParams();
+    console.log('URL Parameters extracted:', params);
+    
+    // Store notification context if detected
+    if (params.hasNotificationParams) {
+      console.log('🎯 Notification arrival detected!');
+      console.log('- Discount code:', params.discountCode);
+      console.log('- Notification source:', params.notificationSource);
+      console.log('- Referrer:', params.referrer);
+      
+      // Store context for later use
+      const stored = storeNotificationContext(params);
+      if (stored) {
+        setNotificationContext(params);
+      }
+    } else {
+      // Check if there's a pending discount code from a previous session
+      const pendingDiscount = getPendingDiscountCode();
+      if (pendingDiscount) {
+        console.log('💾 Found pending discount code from previous session:', pendingDiscount);
+        setNotificationContext({
+          hasNotificationParams: true,
+          discountCode: pendingDiscount.discountCode,
+          notificationSource: 'previous_session',
+          timestamp: pendingDiscount.timestamp,
+          hoursAgo: pendingDiscount.hoursAgo
+        });
+      }
+    }
+  }, []); // Run once on component mount
 
   // Register user profile and check for notifications when they visit the app
   useEffect(() => {
