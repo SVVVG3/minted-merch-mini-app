@@ -3,10 +3,22 @@
 import { useState } from 'react';
 import { useCart } from '@/lib/CartContext';
 import { CheckoutFlow } from './CheckoutFlow';
+import { DiscountCodeSection } from './DiscountCodeSection';
 import Link from 'next/link';
 
 export function Cart({ isOpen, onClose }) {
-  const { cart, removeItem, updateQuantity, clearCart, updateNotes, cartTotal, itemCount } = useCart();
+  const { 
+    cart, 
+    removeItem, 
+    updateQuantity, 
+    clearCart, 
+    updateNotes, 
+    cartSubtotal, 
+    cartTotal, 
+    itemCount,
+    applyDiscount,
+    removeDiscount
+  } = useCart();
   const [localNotes, setLocalNotes] = useState(cart.notes || '');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   
@@ -38,6 +50,16 @@ export function Cart({ isOpen, onClose }) {
 
   const cancelClearCart = () => {
     setShowClearConfirm(false);
+  };
+
+  const handleDiscountApplied = (discount) => {
+    console.log('💰 Discount applied in cart:', discount);
+    applyDiscount(discount);
+  };
+
+  const handleDiscountRemoved = () => {
+    console.log('🗑️ Discount removed from cart');
+    removeDiscount();
   };
 
   // Checkout is now handled by the CheckoutFlow component
@@ -113,6 +135,16 @@ export function Cart({ isOpen, onClose }) {
                   Include NFT token #, OpenSea URLs, or any customization requests
                 </p>
               </div>
+
+              {/* Discount Code Section */}
+              <div className="border-t pt-4 mt-6">
+                <DiscountCodeSection
+                  onDiscountApplied={handleDiscountApplied}
+                  onDiscountRemoved={handleDiscountRemoved}
+                  subtotal={cartSubtotal}
+                  autoPopulate={true}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -146,10 +178,27 @@ export function Cart({ isOpen, onClose }) {
               </button>
             </div>
 
-            {/* Total */}
-            <div className="flex justify-between items-center text-lg font-semibold">
-              <span>Total:</span>
-              <span>${cartTotal.toFixed(2)} USD</span>
+            {/* Total Summary */}
+            <div className="space-y-2">
+              {/* Subtotal */}
+              <div className="flex justify-between items-center text-sm">
+                <span>Subtotal:</span>
+                <span>${cartSubtotal.toFixed(2)} USD</span>
+              </div>
+              
+              {/* Discount Line */}
+              {cart.appliedDiscount && (
+                <div className="flex justify-between items-center text-sm text-green-600">
+                  <span>Discount ({cart.appliedDiscount.discountValue}%):</span>
+                  <span>-${cart.appliedDiscount.discountAmount.toFixed(2)} USD</span>
+                </div>
+              )}
+              
+              {/* Total */}
+              <div className="flex justify-between items-center text-lg font-semibold border-t pt-2">
+                <span>Total:</span>
+                <span>${cartTotal.toFixed(2)} USD</span>
+              </div>
             </div>
 
             {/* Checkout Button */}

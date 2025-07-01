@@ -16,7 +16,9 @@ const CART_ACTIONS = {
   UPDATE_SHIPPING: 'UPDATE_SHIPPING',
   UPDATE_CHECKOUT: 'UPDATE_CHECKOUT',
   UPDATE_SELECTED_SHIPPING: 'UPDATE_SELECTED_SHIPPING',
-  CLEAR_CHECKOUT: 'CLEAR_CHECKOUT'
+  CLEAR_CHECKOUT: 'CLEAR_CHECKOUT',
+  APPLY_DISCOUNT: 'APPLY_DISCOUNT',
+  REMOVE_DISCOUNT: 'REMOVE_DISCOUNT'
 };
 
 // Cart reducer function
@@ -97,7 +99,8 @@ function cartReducer(state, action) {
         notes: '',
         shipping: null,
         checkout: null,
-        selectedShipping: null
+        selectedShipping: null,
+        appliedDiscount: null
       };
     }
     
@@ -129,14 +132,28 @@ function cartReducer(state, action) {
       };
     }
     
-    case CART_ACTIONS.CLEAR_CHECKOUT: {
+        case CART_ACTIONS.CLEAR_CHECKOUT: {
       return {
         ...state,
         checkout: null,
         selectedShipping: null
       };
     }
-    
+
+    case CART_ACTIONS.APPLY_DISCOUNT: {
+      return {
+        ...state,
+        appliedDiscount: action.payload.discount
+      };
+    }
+
+    case CART_ACTIONS.REMOVE_DISCOUNT: {
+      return {
+        ...state,
+        appliedDiscount: null
+      };
+    }
+
     case CART_ACTIONS.LOAD_CART: {
       return {
         ...state,
@@ -144,7 +161,8 @@ function cartReducer(state, action) {
         notes: action.payload.notes || '',
         shipping: action.payload.shipping || null,
         checkout: action.payload.checkout || null,
-        selectedShipping: action.payload.selectedShipping || null
+        selectedShipping: action.payload.selectedShipping || null,
+        appliedDiscount: action.payload.appliedDiscount || null
       };
     }
     
@@ -159,7 +177,8 @@ const initialCartState = {
   notes: '',
   shipping: null,
   checkout: null,
-  selectedShipping: null
+  selectedShipping: null,
+  appliedDiscount: null
 };
 
 // Cart Provider Component
@@ -248,10 +267,28 @@ export function CartProvider({ children }) {
     dispatch({ type: CART_ACTIONS.CLEAR_CHECKOUT });
   };
 
+  const applyDiscount = (discount) => {
+    dispatch({
+      type: CART_ACTIONS.APPLY_DISCOUNT,
+      payload: { discount }
+    });
+  };
+
+  const removeDiscount = () => {
+    dispatch({ type: CART_ACTIONS.REMOVE_DISCOUNT });
+  };
+
   // Cart calculations
-  const cartTotal = cart.items.reduce((total, item) => {
+  const cartSubtotal = cart.items.reduce((total, item) => {
     return total + (item.price * item.quantity);
   }, 0);
+
+  const cartTotal = (() => {
+    if (cart.appliedDiscount && cart.appliedDiscount.discountAmount) {
+      return Math.max(0, cartSubtotal - cart.appliedDiscount.discountAmount);
+    }
+    return cartSubtotal;
+  })();
 
   const itemCount = cart.items.reduce((count, item) => {
     return count + item.quantity;
@@ -281,6 +318,9 @@ export function CartProvider({ children }) {
     updateCheckout,
     updateSelectedShipping,
     clearCheckout,
+    applyDiscount,
+    removeDiscount,
+    cartSubtotal,
     cartTotal,
     itemCount,
     isInCart,
