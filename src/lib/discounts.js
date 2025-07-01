@@ -319,4 +319,226 @@ export async function hasUnusedWelcomeDiscount(fid) {
     console.error('Error in hasUnusedWelcomeDiscount:', error);
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Get all available (unused) discount codes for a user
+ */
+export async function getUserAvailableDiscounts(fid, includeUsed = false) {
+  try {
+    console.log('Getting available discount codes for FID:', fid, 'includeUsed:', includeUsed);
+
+    if (!fid || typeof fid !== 'number') {
+      return { 
+        success: false, 
+        error: 'Valid FID is required',
+        discountCodes: []
+      };
+    }
+
+    // Build query conditions
+    let query = supabase
+      .from('discount_codes')
+      .select('*')
+      .eq('fid', fid)
+      .order('created_at', { ascending: false }); // Most recent first
+
+    // Filter by usage status if specified
+    if (!includeUsed) {
+      query = query.eq('is_used', false);
+    }
+
+    // Add expiration filter (exclude expired codes unless includeUsed is true)
+    if (!includeUsed) {
+      query = query.or('expires_at.is.null,expires_at.gt.' + new Date().toISOString());
+    }
+
+    const { data: discountCodes, error: fetchError } = await query;
+
+    if (fetchError) {
+      console.error('Error fetching user discount codes:', fetchError);
+      return { 
+        success: false, 
+        error: fetchError.message,
+        discountCodes: []
+      };
+    }
+
+    // Process and categorize the codes
+    const processedCodes = discountCodes.map(code => {
+      const isExpired = code.expires_at && new Date(code.expires_at) < new Date();
+      const isUsable = !code.is_used && !isExpired;
+      
+      return {
+        ...code,
+        isUsable,
+        isExpired,
+        displayText: formatDiscountDisplayText(code),
+        expirationStatus: getExpirationStatus(code)
+      };
+    });
+
+    // Separate into categories
+    const usableCodes = processedCodes.filter(code => code.isUsable);
+    const usedCodes = processedCodes.filter(code => code.is_used);
+    const expiredCodes = processedCodes.filter(code => code.isExpired && !code.is_used);
+
+    console.log(`✅ Found ${processedCodes.length} total codes for FID ${fid}:`);
+    console.log(`- Usable: ${usableCodes.length}`);
+    console.log(`- Used: ${usedCodes.length}`);
+    console.log(`- Expired: ${expiredCodes.length}`);
+
+    return { 
+      success: true,
+      discountCodes: processedCodes,
+      summary: {
+        total: processedCodes.length,
+        usable: usableCodes.length,
+        used: usedCodes.length,
+        expired: expiredCodes.length
+      },
+      categorized: {
+        usable: usableCodes,
+        used: usedCodes,
+        expired: expiredCodes
+      }
+    };
+
+  } catch (error) {
+    console.error('Error in getUserAvailableDiscounts:', error);
+    return { 
+      success: false, 
+      error: error.message,
+      discountCodes: []
+    };
+  }
+}
+
+/**
+ * Get the best available discount code for a user
+ * Returns the highest value unused, non-expired code
+ */
+export async function getBestAvailableDiscount(fid) {
+  try {
+    const result = await getUserAvailableDiscounts(fid, false);
+    
+    if (!result.success || result.categorized.usable.length === 0) {
+      return {
+        success: false,
+        error: 'No usable discount codes available',
+        discountCode: null
+      };
+    }
+
+    // Sort by discount value (percentage or fixed amount)
+    const sortedCodes = result.categorized.usable.sort((a, b) => {
+      if (a.discount_type === 'percentage' && b.discount_type === 'percentage') {
+        return b.discount_value - a.discount_value; // Higher percentage first
+      } else if (a.discount_type === 'fixed' && b.discount_type === 'fixed') {
+        return b.discount_value - a.discount_value; // Higher amount first
+      } else if (a.discount_type === 'percentage') {
+        return -1; // Prefer percentage over fixed for simplicity
+      } else {
+        return 1;
+      }
+    });
+
+    const bestCode = sortedCodes[0];
+    
+    console.log(`🎯 Best available discount for FID ${fid}:`, bestCode.code, `(${bestCode.discount_value}% off)`);
+
+    return {
+      success: true,
+      discountCode: bestCode,
+      alternativeCodes: sortedCodes.slice(1) // Other available codes
+    };
+
+  } catch (error) {
+    console.error('Error in getBestAvailableDiscount:', error);
+    return { 
+      success: false, 
+      error: error.message,
+      discountCode: null
+    };
+  }
+}
+
+/**
+ * Check if user has any specific type of discount codes
+ */
+export async function hasDiscountOfType(fid, codeType = 'welcome') {
+  try {
+    const { data: codes, error } = await supabase
+      .from('discount_codes')
+      .select('code, is_used, expires_at')
+      .eq('fid', fid)
+      .eq('code_type', codeType);
+
+    if (error) {
+      console.error(`Error checking ${codeType} discount for FID ${fid}:`, error);
+      return { success: false, error: error.message };
+    }
+
+    const usableCodes = codes.filter(code => {
+      const isExpired = code.expires_at && new Date(code.expires_at) < new Date();
+      return !code.is_used && !isExpired;
+    });
+
+    return { 
+      success: true, 
+      hasDiscount: usableCodes.length > 0,
+      count: usableCodes.length,
+      codes: usableCodes
+    };
+
+  } catch (error) {
+    console.error(`Error in hasDiscountOfType(${codeType}):`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Format discount code for user display
+ */
+function formatDiscountDisplayText(discountCode) {
+  const value = discountCode.discount_value;
+  const type = discountCode.discount_type;
+  
+  if (type === 'percentage') {
+    return `${value}% off`;
+  } else if (type === 'fixed') {
+    return `$${value} off`;
+  } else {
+    return `${value} discount`;
+  }
+}
+
+/**
+ * Get expiration status for a discount code
+ */
+function getExpirationStatus(discountCode) {
+  if (!discountCode.expires_at) {
+    return { status: 'no_expiration', message: 'No expiration' };
+  }
+
+  const expirationDate = new Date(discountCode.expires_at);
+  const now = new Date();
+  const timeDiff = expirationDate - now;
+
+  if (timeDiff <= 0) {
+    return { status: 'expired', message: 'Expired' };
+  }
+
+  const daysUntilExpiration = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+  const hoursUntilExpiration = Math.floor(timeDiff / (1000 * 60 * 60));
+
+  if (daysUntilExpiration > 7) {
+    return { status: 'valid', message: `Expires in ${daysUntilExpiration} days` };
+  } else if (daysUntilExpiration > 1) {
+    return { status: 'expiring_soon', message: `Expires in ${daysUntilExpiration} days` };
+  } else if (hoursUntilExpiration > 1) {
+    return { status: 'expiring_today', message: `Expires in ${hoursUntilExpiration} hours` };
+  } else {
+    return { status: 'expiring_soon', message: 'Expires soon' };
+  }
 } 

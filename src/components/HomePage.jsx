@@ -7,6 +7,7 @@ import { OrderHistory } from './OrderHistory';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
+import { getBestAvailableDiscount, hasDiscountOfType } from '@/lib/discounts';
 
 export function HomePage({ collection, products }) {
   const { itemCount, cartTotal } = useCart();
@@ -14,6 +15,12 @@ export function HomePage({ collection, products }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false);
   const [notificationContext, setNotificationContext] = useState(null);
+  const [userDiscounts, setUserDiscounts] = useState({
+    isLoading: true,
+    bestDiscount: null,
+    availableDiscounts: [],
+    error: null
+  });
 
   // URL Parameter Detection - Detect notification clicks and discount codes
   useEffect(() => {
@@ -111,6 +118,9 @@ export function HomePage({ collection, products }) {
           } else {
             console.log('📱 User does not have notifications enabled');
           }
+
+          // After successful registration, check for user's available discount codes
+          loadUserDiscounts(userFid);
         } else {
           console.error('❌ User profile registration failed:', result.error);
         }
@@ -217,6 +227,95 @@ export function HomePage({ collection, products }) {
        window.removeEventListener('focus', handleFocus);
      };
    }, [isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user]);
+
+  // Load user's available discount codes
+  const loadUserDiscounts = async (fid) => {
+    try {
+      console.log('🔍 === LOADING USER DISCOUNT CODES ===');
+      console.log('FID:', fid);
+      
+      setUserDiscounts(prev => ({ ...prev, isLoading: true, error: null }));
+
+      // First, check for pending discount from URL parameters
+      const pendingDiscount = getPendingDiscountCode();
+      console.log('Pending discount from URL:', pendingDiscount);
+
+      // Load user's best available discount code
+      const bestDiscountResult = await getBestAvailableDiscount(fid);
+      console.log('Best discount result:', bestDiscountResult);
+
+      // Load welcome discount status
+      const welcomeDiscountResult = await hasDiscountOfType(fid, 'welcome');
+      console.log('Welcome discount status:', welcomeDiscountResult);
+
+      // Determine which discount to prioritize
+      let activeDiscount = null;
+      let discountSource = null;
+
+      // Priority 1: Pending discount from URL (fresh notification click)
+      if (pendingDiscount && pendingDiscount.discountCode) {
+        activeDiscount = {
+          code: pendingDiscount.discountCode,
+          source: 'notification_click',
+          displayText: '15% off', // Default for welcome codes
+          isUsable: true,
+          timestamp: pendingDiscount.timestamp
+        };
+        discountSource = 'notification_click';
+        console.log('🎯 Using discount from notification click:', pendingDiscount.discountCode);
+      } 
+      // Priority 2: Best available discount from database
+      else if (bestDiscountResult.success && bestDiscountResult.discountCode) {
+        activeDiscount = bestDiscountResult.discountCode;
+        discountSource = 'user_account';
+        console.log('🎯 Using best available discount from account:', activeDiscount.code);
+      }
+      // Priority 3: No available discounts
+      else {
+        console.log('❌ No available discount codes found');
+      }
+
+      setUserDiscounts({
+        isLoading: false,
+        bestDiscount: activeDiscount,
+        availableDiscounts: bestDiscountResult.alternativeCodes || [],
+        hasWelcomeDiscount: welcomeDiscountResult.hasDiscount,
+        discountSource,
+        error: null
+      });
+
+      // If we have an active discount, make it available for cart integration
+      if (activeDiscount) {
+        console.log('✅ Active discount ready for cart integration:', activeDiscount.code);
+        // Store in sessionStorage for cart access
+        sessionStorage.setItem('activeDiscountCode', JSON.stringify({
+          code: activeDiscount.code,
+          source: discountSource,
+          displayText: activeDiscount.displayText || formatDiscountText(activeDiscount),
+          timestamp: new Date().toISOString()
+        }));
+      }
+
+    } catch (error) {
+      console.error('❌ Error loading user discount codes:', error);
+      setUserDiscounts({
+        isLoading: false,
+        bestDiscount: null,
+        availableDiscounts: [],
+        error: error.message
+      });
+    }
+  };
+
+  // Helper function to format discount display text
+  const formatDiscountText = (discount) => {
+    if (discount.discount_type === 'percentage') {
+      return `${discount.discount_value}% off`;
+    } else if (discount.discount_type === 'fixed') {
+      return `$${discount.discount_value} off`;
+    }
+    return 'Discount available';
+  };
 
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);
