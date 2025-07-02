@@ -9,7 +9,7 @@ import { saveOrderToHistory } from '@/lib/orderHistory';
 import { ShippingForm } from './ShippingForm';
 
 export function CheckoutFlow({ checkoutData, onBack }) {
-  const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem } = useCart();
+  const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
   const { getFid, isInFarcaster } = useFarcaster();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(checkoutData ? true : false);
   const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', 'payment', or 'success'
@@ -19,12 +19,6 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const [checkoutError, setCheckoutError] = useState(null);
   const [orderDetails, setOrderDetails] = useState(null);
   const buyNowProcessed = useRef(false);
-  
-  // Discount code state
-  const [discountCode, setDiscountCode] = useState('');
-  const [appliedDiscount, setAppliedDiscount] = useState(null);
-  const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
-  const [discountError, setDiscountError] = useState(null);
 
   // Handle Buy Now functionality by adding item to cart
   useEffect(() => {
@@ -53,7 +47,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     address
   } = useUSDCPayment();
 
-  const cartTotal = cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  // Use cart total from context instead of calculating locally
   const hasItems = cart.items.length > 0;
 
   // Auto-create order when payment succeeds
@@ -159,7 +153,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       throw new Error('Checkout calculation not available');
     }
 
-    // Calculate final total including selected shipping and discount
+    // Calculate final total including selected shipping and discount (from CartContext)
     const selectedShippingCost = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
     const discountAmount = appliedDiscount ? appliedDiscount.discountAmount : 0;
     const originalSubtotal = cart.checkout.subtotal.amount;
@@ -206,7 +200,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         transactionHash: transactionHash,
         notes: cart.notes || '',
         fid: getFid(), // Add user's Farcaster ID for notifications
-        appliedDiscount: appliedDiscount, // Include discount information
+        appliedDiscount: appliedDiscount, // Include discount information from CartContext
         discountAmount: appliedDiscount ? appliedDiscount.discountAmount : 0
       };
 
@@ -223,13 +217,18 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       if (result.success) {
         console.log('Order created successfully:', result.order.name);
         
+        // Calculate final total with discount
+        const finalOrderTotal = appliedDiscount 
+          ? cart.checkout.subtotal.amount - appliedDiscount.discountAmount + cart.checkout.tax.amount + (cart.selectedShipping ? cart.selectedShipping.price.amount : 0)
+          : cart.checkout.subtotal.amount + cart.checkout.tax.amount + (cart.selectedShipping ? cart.selectedShipping.price.amount : 0);
+        
         // Create order details object
         const orderDetailsData = {
           name: result.order.name,
           id: result.order.id,
           status: 'Confirmed',
           total: {
-            amount: cart.checkout ? (cart.checkout.subtotal.amount + cart.checkout.tax.amount + (cart.selectedShipping ? cart.selectedShipping.price.amount : 0)).toFixed(2) : cartTotal.toFixed(2),
+            amount: finalOrderTotal.toFixed(2),
             currencyCode: 'USDC'
           },
           customer: {
@@ -243,7 +242,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
             price: item.price
           })),
           shippingAddress: shippingData,
-          selectedShipping: cart.selectedShipping
+          selectedShipping: cart.selectedShipping,
+          appliedDiscount: appliedDiscount
         };
         
         // Save order to history
@@ -278,181 +278,69 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   };
 
   const handleContinueShopping = () => {
-    clearCart();
     setIsCheckoutOpen(false);
     setCheckoutStep('shipping');
-    setOrderDetails(null);
+    setCheckoutError(null);
     resetPayment();
+    setOrderDetails(null);
     
-    // If this is a Buy Now checkout, call the onBack function to return to product page
-    if (checkoutData && onBack) {
+    // Optionally clear cart after successful order
+    if (orderDetails) {
+      clearCart();
+    }
+    
+    // Call parent's onBack if provided
+    if (onBack) {
       onBack();
     }
   };
 
   const handleCloseCheckout = () => {
-    // Clear cart if order was successful (either on success step or if orderDetails exist)
-    if (checkoutStep === 'success' || orderDetails) {
-      clearCart();
-      setOrderDetails(null);
-    }
     setIsCheckoutOpen(false);
     setCheckoutStep('shipping');
     setCheckoutError(null);
-    clearCheckout();
     resetPayment();
+    setOrderDetails(null);
     
-    // If this is a Buy Now checkout, call the onBack function to return to product page
-    if (checkoutData && onBack) {
+    // Call parent's onBack if provided
+    if (onBack) {
       onBack();
     }
   };
 
   // Share order success function
   const handleShareOrder = async () => {
-    if (!orderDetails) return;
+    if (!orderDetails || !isInFarcaster) return;
 
-    // Small delay to ensure database is updated
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Get product names from cart items
-    const productNames = cart.items.map(item => {
-      const productName = item.product?.title || item.title;
-      const variantName = item.variant?.title && item.variant.title !== 'Default Title' ? item.variant.title : '';
-      const quantity = item.quantity > 1 ? ` (${item.quantity}x)` : '';
-      return variantName ? `${productName} (${variantName})${quantity}` : `${productName}${quantity}`;
-    });
-    
-    const productText = productNames.length === 1 
-      ? productNames[0]
-      : productNames.length === 2
-        ? `${productNames[0]} and ${productNames[1]}`
-        : `${productNames.slice(0, -1).join(', ')}, and ${productNames[productNames.length - 1]}`;
-
-    if (!isInFarcaster) {
-      // Fallback for non-Farcaster environments
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            title: 'Order Confirmed - Minted Merch',
-            text: `🎉 Just bought a ${productText} with USDC! Shop on /mintedmerch - pay on Base 🔵`,
-            url: window.location.origin,
-          });
-        } catch (err) {
-          console.log('Error sharing:', err);
-        }
-      } else {
-        // Copy link to clipboard
-        try {
-          await navigator.clipboard.writeText(`🎉 Just bought a ${productText} with USDC! Shop on /mintedmerch - pay on Base 🔵 - ${window.location.origin}`);
-          alert('Order details copied to clipboard!');
-        } catch (err) {
-          console.log('Error copying to clipboard:', err);
-        }
-      }
-      return;
-    }
-
-    // Farcaster sharing using SDK composeCast action
     try {
-      const shareText = `🎉 Just bought a ${productText} with USDC!
-
-Shop on /mintedmerch - pay on Base 🔵`;
+      const orderUrl = `${window.location.origin}/order/${orderDetails.name}`;
       
-      // Use clean order page URL with cache-busting for immediate shares
-      const timestamp = Date.now();
-      // Remove # from order number for clean URL (database stores #1202, but URL should be /order/1202)
-      const cleanOrderNumber = orderDetails.name.replace('#', '');
-      const orderUrl = `${window.location.origin}/order/${cleanOrderNumber}?t=${timestamp}`;
+      // Create a share intent for Farcaster
+      const shareText = `Just placed my order #${orderDetails.name} on Minted Merch! 🛍️\n\n${orderUrl}`;
       
-      console.log('Sharing order URL with cache-busting:', orderUrl);
-      
-      // Use the Farcaster SDK composeCast action with order URL
-      const { sdk } = await import('../lib/frame');
-      const result = await sdk.actions.composeCast({
-        text: shareText,
-        embeds: [orderUrl],
-      });
-      
-      console.log('Order cast composed with order page embed:', result);
+      // Try to use the Farcaster sharing API if available
+      if (window.parent && window.parent.postMessage) {
+        window.parent.postMessage({
+          type: 'createCast',
+          data: {
+            cast: {
+              text: shareText,
+              embeds: [orderUrl]
+            }
+          }
+        }, '*');
+      } else {
+        // Fallback: copy to clipboard
+        await navigator.clipboard.writeText(shareText);
+        alert('Order details copied to clipboard!');
+      }
     } catch (error) {
       console.error('Error sharing order:', error);
-      // Fallback to copying link
-      try {
-        await navigator.clipboard.writeText(`🎉 Just bought a ${productText} with USDC! Shop on /mintedmerch - pay on Base 🔵 - ${window.location.origin}`);
-        alert('Order details copied to clipboard!');
-      } catch (err) {
-        console.log('Error copying to clipboard:', err);
-      }
     }
   };
 
   const handleShippingMethodSelect = (shippingMethod) => {
     updateSelectedShipping(shippingMethod);
-  };
-
-  // Discount code functions
-  const handleApplyDiscount = async () => {
-    if (!discountCode.trim()) {
-      setDiscountError('Please enter a discount code');
-      return;
-    }
-
-    if (!cart.checkout) {
-      setDiscountError('Please calculate checkout first');
-      return;
-    }
-
-    setIsValidatingDiscount(true);
-    setDiscountError(null);
-
-    try {
-      const userFid = getFid();
-      if (!userFid) {
-        throw new Error('User not authenticated');
-      }
-
-      const response = await fetch('/api/validate-discount', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          code: discountCode.trim().toUpperCase(),
-          fid: userFid,
-          subtotal: cart.checkout.subtotal.amount
-        })
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Invalid discount code');
-      }
-
-      // Apply the discount
-      setAppliedDiscount({
-        code: result.code || discountCode.trim().toUpperCase(),
-        discountType: result.discountType,
-        discountValue: result.discountValue,
-        discountAmount: result.discountAmount,
-        message: result.message
-      });
-
-      console.log('✅ Discount applied:', result);
-
-    } catch (error) {
-      console.error('❌ Error applying discount:', error);
-      setDiscountError(error.message);
-    } finally {
-      setIsValidatingDiscount(false);
-    }
-  };
-
-  const handleRemoveDiscount = () => {
-    setAppliedDiscount(null);
-    setDiscountCode('');
-    setDiscountError(null);
   };
 
   // Don't render if no items in cart
@@ -466,7 +354,11 @@ Shop on /mintedmerch - pay on Base 🔵`;
         disabled={!hasItems || !isConnected}
         className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
       >
-        {!isConnected ? 'Connect Wallet to Pay' : `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`}
+        {!isConnected ? 'Connect Wallet to Pay' : (
+          appliedDiscount 
+            ? `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`
+            : `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`
+        )}
       </button>
 
       {/* Checkout Modal */}
@@ -530,9 +422,21 @@ Shop on /mintedmerch - pay on Base 🔵`;
                         <strong>Notes:</strong> {cart.notes}
                       </div>
                     )}
-                    <div className="border-t pt-2 flex justify-between font-medium">
-                      <span>Subtotal</span>
-                      <span>${cartTotal.toFixed(2)}</span>
+                    <div className="border-t pt-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Subtotal</span>
+                        <span>${cartSubtotal.toFixed(2)}</span>
+                      </div>
+                      {appliedDiscount && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Discount ({appliedDiscount.discountValue}%)</span>
+                          <span>-${appliedDiscount.discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-medium">
+                        <span>Total</span>
+                        <span>${cartTotal.toFixed(2)}</span>
+                      </div>
                     </div>
                     <div className="text-sm text-gray-600">
                       Shipping and taxes will be calculated in the next step
@@ -585,7 +489,7 @@ Shop on /mintedmerch - pay on Base 🔵`;
                     </div>
                   )}
 
-                  {/* Order Summary */}
+                  {/* Order Summary with Discount */}
                   <div className="space-y-2 border-t pt-4">
                     <h3 className="font-medium">Order Summary</h3>
                     {cart.items.map((item) => (
@@ -594,64 +498,93 @@ Shop on /mintedmerch - pay on Base 🔵`;
                         <span>${(item.price * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
-                    <div className="border-t pt-2 space-y-1">
+                    <div className="border-t pt-2">
                       <div className="flex justify-between text-sm">
                         <span>Subtotal</span>
-                        <span>${cart.checkout ? cart.checkout.subtotal.amount.toFixed(2) : cartTotal.toFixed(2)}</span>
+                        <span>${cart.checkout ? cart.checkout.subtotal.amount.toFixed(2) : cartSubtotal.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Taxes</span>
-                        <span>${cart.checkout ? cart.checkout.tax.amount.toFixed(2) : '0.00'}</span>
-                      </div>
+                      {appliedDiscount && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Discount ({appliedDiscount.discountValue}%)</span>
+                          <span>-${appliedDiscount.discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {cart.checkout && (
+                        <div className="flex justify-between text-sm">
+                          <span>Taxes</span>
+                          <span>${cart.checkout.tax.amount.toFixed(2)}</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
 
-                  {/* Shipping Method Selection */}
-                  {cart.checkout && cart.checkout.shippingRates && cart.checkout.shippingRates.length > 0 && (
-                    <div className="space-y-3">
-                      <h3 className="font-medium">Select Shipping Method</h3>
-                      <div className="space-y-2">
-                        {cart.checkout.shippingRates.map((rate, index) => (
-                          <label
-                            key={rate.handle || index}
-                            className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
-                              cart.selectedShipping?.handle === rate.handle
-                                ? 'border-[#3eb489] bg-green-50'
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            <div className="flex items-center">
-                              <input
-                                type="radio"
-                                name="shipping-method"
-                                value={rate.handle || index}
-                                checked={cart.selectedShipping?.handle === rate.handle}
-                                onChange={() => handleShippingMethodSelect(rate)}
-                                className="mr-3 text-[#3eb489] focus:ring-[#3eb489]"
-                              />
-                              <div>
-                                <div className="font-medium text-sm">{rate.title}</div>
-                                {rate.description && (
-                                  <div className="text-xs text-gray-600">{rate.description}</div>
-                                )}
+                    {/* Shipping Methods */}
+                    {cart.checkout?.availableShippingRates && (
+                      <div>
+                        <h4 className="font-medium text-sm mb-2">Select Shipping Method</h4>
+                        <div className="space-y-2">
+                          {cart.checkout.availableShippingRates.map((rate, index) => (
+                            <label key={index} className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                              <div className="flex items-center">
+                                <input
+                                  type="radio"
+                                  name="shipping-method"
+                                  value={rate.handle || index}
+                                  checked={cart.selectedShipping?.handle === rate.handle}
+                                  onChange={() => handleShippingMethodSelect(rate)}
+                                  className="mr-3 text-[#3eb489] focus:ring-[#3eb489]"
+                                />
+                                <div>
+                                  <div className="font-medium text-sm">{rate.title}</div>
+                                  {rate.description && (
+                                    <div className="text-xs text-gray-600">{rate.description}</div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                            <div className="font-medium">${rate.price.amount.toFixed(2)}</div>
-                          </label>
-                        ))}
+                              <div className="font-medium">${rate.price.amount.toFixed(2)}</div>
+                            </label>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Total with Selected Shipping */}
-                  {cart.selectedShipping && cart.checkout && (
-                    <div className="border-t pt-3">
-                      <div className="flex justify-between font-medium text-lg">
-                        <span>Total</span>
-                        <span>${(cart.checkout.subtotal.amount + cart.checkout.tax.amount + cart.selectedShipping.price.amount).toFixed(2)} USDC</span>
+                    {/* Total with Selected Shipping */}
+                    {cart.selectedShipping && cart.checkout && (
+                      <div className="border-t pt-3">
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span>Subtotal</span>
+                            <span>${cart.checkout.subtotal.amount.toFixed(2)}</span>
+                          </div>
+                          {appliedDiscount && (
+                            <div className="flex justify-between text-sm text-green-600">
+                              <span>Discount ({appliedDiscount.discountValue}%)</span>
+                              <span>-${appliedDiscount.discountAmount.toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-sm">
+                            <span>Shipping ({cart.selectedShipping.title})</span>
+                            <span>${cart.selectedShipping.price.amount.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Taxes</span>
+                            <span>${cart.checkout.tax.amount.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between font-medium text-lg border-t pt-1">
+                            <span>Total</span>
+                            <span>
+                              ${(() => {
+                                const subtotal = cart.checkout.subtotal.amount;
+                                const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+                                const shipping = cart.selectedShipping.price.amount;
+                                const tax = cart.checkout.tax.amount;
+                                return (subtotal - discount + shipping + tax).toFixed(2);
+                              })()} USDC
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   {/* Continue to Payment Button */}
                   <button
@@ -702,56 +635,6 @@ Shop on /mintedmerch - pay on Base 🔵`;
                     </div>
                   )}
 
-                  {/* Discount Code Section */}
-                  <div className="space-y-3 border border-gray-200 rounded-lg p-3">
-                    <h3 className="font-medium text-gray-900">Discount Code</h3>
-                    
-                    {!appliedDiscount ? (
-                      <div className="space-y-2">
-                        <div className="flex space-x-2">
-                          <input
-                            type="text"
-                            value={discountCode}
-                            onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
-                            placeholder="Enter discount code"
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent"
-                            disabled={isValidatingDiscount}
-                          />
-                          <button
-                            onClick={handleApplyDiscount}
-                            disabled={!discountCode.trim() || isValidatingDiscount}
-                            className="px-4 py-2 bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-sm font-medium rounded-md transition-colors"
-                          >
-                            {isValidatingDiscount ? 'Validating...' : 'Apply'}
-                          </button>
-                        </div>
-                        
-                        {discountError && (
-                          <div className="text-red-600 text-xs">{discountError}</div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-sm font-medium text-green-800">
-                              15% discount applied!
-                            </div>
-                            <div className="text-xs text-green-600">
-                              Code: {appliedDiscount.code}
-                            </div>
-                          </div>
-                          <button
-                            onClick={handleRemoveDiscount}
-                            className="text-green-600 hover:text-green-800 text-sm"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
                   {/* Order Summary */}
                   <div className="space-y-2">
                     <h3 className="font-medium">Order Summary</h3>
@@ -769,13 +652,13 @@ Shop on /mintedmerch - pay on Base 🔵`;
                     <div className="border-t pt-2 space-y-1">
                       <div className="flex justify-between text-sm">
                         <span>Subtotal</span>
-                        <span>${cart.checkout ? cart.checkout.subtotal.amount.toFixed(2) : cartTotal.toFixed(2)}</span>
+                        <span>${cart.checkout ? cart.checkout.subtotal.amount.toFixed(2) : cartSubtotal.toFixed(2)}</span>
                       </div>
                       
                       {/* Discount Line Item */}
                       {appliedDiscount && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Discount (15%)</span>
+                          <span>Discount ({appliedDiscount.discountValue}%)</span>
                           <span>-${appliedDiscount.discountAmount.toFixed(2)}</span>
                         </div>
                       )}

@@ -12,13 +12,6 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    if (!fid) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'User FID is required' 
-      }, { status: 400 });
-    }
-
     if (!subtotal || subtotal <= 0) {
       return NextResponse.json({ 
         success: false, 
@@ -26,10 +19,11 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    console.log('Validating discount code:', { code, fid, subtotal });
+    console.log('Validating discount code:', { code, fid: fid || 'null', subtotal });
 
     // Validate the discount code
-    const validationResult = await validateDiscountCode(code, fid);
+    // Pass null FID if not authenticated - some discount codes might not require user auth
+    const validationResult = await validateDiscountCode(code, fid || null);
     
     if (!validationResult.success) {
       return NextResponse.json({
@@ -60,7 +54,8 @@ export async function POST(request) {
       discountType: validationResult.discountType,
       discountValue: validationResult.discountValue,
       discountAmount: discountResult.discountAmount,
-      subtotal
+      subtotal,
+      requiresAuth: validationResult.requiresAuth || false
     });
 
     return NextResponse.json({
@@ -71,7 +66,8 @@ export async function POST(request) {
       discountValue: validationResult.discountValue,
       discountAmount: discountResult.discountAmount,
       finalTotal: discountResult.finalTotal,
-      message: `${validationResult.discountValue}% discount applied!`
+      message: `${validationResult.discountValue}% discount applied!`,
+      requiresAuth: validationResult.requiresAuth || false
     });
 
   } catch (error) {
@@ -91,13 +87,14 @@ export async function GET(request) {
   const fid = searchParams.get('fid');
   const subtotal = parseFloat(searchParams.get('subtotal')) || 100;
   
-  if (!code || !fid) {
+  if (!code) {
     return NextResponse.json({
       message: 'Discount validation endpoint',
       usage: 'POST with { code, fid, subtotal } or GET with ?code=CODE&fid=FID&subtotal=AMOUNT',
+      note: 'FID is optional - some codes work without authentication',
       example: {
         code: 'WELCOME15-XXXXX',
-        fid: 12345,
+        fid: 12345, // optional
         subtotal: 100.00
       },
       timestamp: new Date().toISOString()
@@ -106,7 +103,8 @@ export async function GET(request) {
 
   // For GET requests, validate the provided parameters
   try {
-    const validationResult = await validateDiscountCode(code, parseInt(fid));
+    const parsedFid = fid ? parseInt(fid) : null;
+    const validationResult = await validateDiscountCode(code, parsedFid);
     
     if (!validationResult.success || !validationResult.isValid) {
       return NextResponse.json({
@@ -126,7 +124,8 @@ export async function GET(request) {
       discountAmount: discountResult.discountAmount,
       subtotal: subtotal,
       finalAmount: discountResult.finalTotal,
-      message: `${validationResult.discountValue}% discount applied!`
+      message: `${validationResult.discountValue}% discount applied!`,
+      requiresAuth: validationResult.requiresAuth || false
     });
 
   } catch (error) {

@@ -60,11 +60,7 @@ export function DiscountCodeSection({
 
     try {
       const userFid = getFid();
-      if (!userFid) {
-        throw new Error('User not authenticated');
-      }
-
-      console.log('🔍 Validating discount code:', code);
+      console.log('🔍 Validating discount code:', code, 'User FID:', userFid);
 
       const response = await fetch('/api/validate-discount', {
         method: 'POST',
@@ -73,7 +69,7 @@ export function DiscountCodeSection({
         },
         body: JSON.stringify({
           code: code.toUpperCase(),
-          fid: userFid,
+          fid: userFid || null, // Allow null FID - API will handle appropriately
           subtotal: subtotal
         })
       });
@@ -91,7 +87,8 @@ export function DiscountCodeSection({
         discountValue: result.discountValue,
         discountAmount: result.discountAmount,
         message: result.message,
-        source: codeToApply ? 'auto_applied' : 'user_entered'
+        source: codeToApply ? 'auto_applied' : 'user_entered',
+        requiresAuth: result.requiresAuth || false
       };
 
       setAppliedDiscount(discount);
@@ -138,6 +135,9 @@ export function DiscountCodeSection({
     setDiscountError(null);
   };
 
+  const userFid = getFid();
+  const isAuthenticated = !!userFid;
+
   return (
     <div className={`space-y-3 border border-gray-200 rounded-lg p-3 ${className}`}>
       <div className="flex items-center justify-between">
@@ -171,6 +171,13 @@ export function DiscountCodeSection({
           
           {discountError && (
             <div className="text-red-600 text-xs">{discountError}</div>
+          )}
+
+          {/* Show authentication status only if it's relevant */}
+          {!isAuthenticated && hasAutoPopulated && (
+            <div className="text-amber-600 text-xs">
+              ⚠️ For personalized discounts, connect via Farcaster
+            </div>
           )}
 
           {/* Helper text for auto-populated codes */}
