@@ -364,7 +364,7 @@ export function HomePage({ collection, products }) {
       if (!activeDiscount && hasNotifications) {
         console.log('✅ User has notifications enabled - loading database discounts');
         
-        const bestDiscountResult = await getBestAvailableDiscount(fid);
+        const bestDiscountResult = await getBestAvailableDiscount(fid, 'site_wide'); // Only site-wide discounts on homepage
         console.log('Best discount result:', bestDiscountResult);
 
         if (bestDiscountResult.success && bestDiscountResult.discountCode) {
@@ -389,7 +389,7 @@ export function HomePage({ collection, products }) {
       setUserDiscounts({
         isLoading: false,
         bestDiscount: activeDiscount,
-        availableDiscounts: hasNotifications ? (await getBestAvailableDiscount(fid)).alternativeCodes || [] : [],
+        availableDiscounts: hasNotifications ? (await getBestAvailableDiscount(fid, 'site_wide')).alternativeCodes || [] : [],
         eligibleTokenGatedDiscounts, // Store all eligible token-gated discounts
         hasWelcomeDiscount: welcomeDiscountResult.hasDiscount,
         hasNotifications, // Store notification status for UI decisions

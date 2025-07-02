@@ -8,12 +8,16 @@ export async function GET(request) {
     const includeUsed = searchParams.get('includeUsed') === 'true';
     const codeType = searchParams.get('type'); // Optional filter by code type
     const mode = searchParams.get('mode') || 'all'; // 'all', 'best', 'check'
+    const scope = searchParams.get('scope') || 'site_wide'; // 'site_wide', 'product', 'any'
+    const productIds = searchParams.get('productIds') ? JSON.parse(searchParams.get('productIds')) : [];
 
     console.log('=== USER DISCOUNT LOOKUP ===');
     console.log('FID:', fid);
     console.log('Include Used:', includeUsed);
     console.log('Code Type:', codeType);
     console.log('Mode:', mode);
+    console.log('Scope:', scope);
+    console.log('Product IDs:', productIds);
 
     // Validate FID
     if (!fid) {
@@ -34,11 +38,13 @@ export async function GET(request) {
     // Handle different modes
     if (mode === 'best') {
       // Get the best available discount code
-      const result = await getBestAvailableDiscount(userFid);
+      const result = await getBestAvailableDiscount(userFid, scope, productIds);
       
       return NextResponse.json({
         success: result.success,
         mode: 'best',
+        scope: scope,
+        productIds: productIds,
         discountCode: result.discountCode,
         alternativeCodes: result.alternativeCodes,
         error: result.error || null

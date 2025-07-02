@@ -54,7 +54,7 @@ export async function GET(request) {
 
     // Test 2: Get best available discount
     try {
-      const bestDiscountResult = await getBestAvailableDiscount(parseInt(testFid));
+      const bestDiscountResult = await getBestAvailableDiscount(parseInt(testFid), 'any'); // Debug: show all discounts
       
       testResults.tests.push({
         name: 'Get Best Available Discount',
@@ -127,7 +127,7 @@ export async function GET(request) {
 
     // Test 4: User Discount API Endpoint Test
     try {
-      const apiResponse = await fetch(`${request.url.split('/api/debug/user-discount-test')[0]}/api/user-discounts?fid=${testFid}&mode=best`, {
+      const apiResponse = await fetch(`${request.url.split('/api/debug/user-discount-test')[0]}/api/user-discounts?fid=${testFid}&mode=best&scope=any`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -247,7 +247,7 @@ export async function POST(request) {
 
       case 'test_cart_integration':
         // Test how discount would integrate with cart
-        const bestDiscount = await getBestAvailableDiscount(testFid);
+        const bestDiscount = await getBestAvailableDiscount(testFid, 'any'); // Debug: show all discounts
         testResult = {
           scenario: 'cart_integration',
           bestDiscount: bestDiscount,

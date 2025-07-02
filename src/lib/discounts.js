@@ -417,8 +417,11 @@ export async function getUserAvailableDiscounts(fid, includeUsed = false) {
 /**
  * Get the best available discount code for a user
  * Returns the highest value unused, non-expired code
+ * @param {number} fid - User's Farcaster ID
+ * @param {string} scope - Scope filter: 'site_wide', 'product', 'any' (default: 'site_wide')
+ * @param {Array} productIds - Product IDs for product-specific discounts (only used when scope='product')
  */
-export async function getBestAvailableDiscount(fid) {
+export async function getBestAvailableDiscount(fid, scope = 'site_wide', productIds = []) {
   try {
     const result = await getUserAvailableDiscounts(fid, false);
     
@@ -430,8 +433,41 @@ export async function getBestAvailableDiscount(fid) {
       };
     }
 
+    // Filter discounts by scope
+    let eligibleCodes = result.categorized.usable;
+    
+    if (scope === 'site_wide') {
+      // Only include site-wide discounts or discounts with no scope specified (legacy)
+      eligibleCodes = eligibleCodes.filter(code => 
+        !code.discount_scope || code.discount_scope === 'site_wide'
+      );
+      console.log(`🌐 Filtering for site-wide discounts only: ${eligibleCodes.length} eligible`);
+    } else if (scope === 'product') {
+      // Include site-wide discounts AND product-specific discounts that match the product IDs
+      eligibleCodes = eligibleCodes.filter(code => {
+        if (!code.discount_scope || code.discount_scope === 'site_wide') {
+          return true; // Site-wide discounts apply everywhere
+        }
+        if (code.discount_scope === 'product') {
+          const targetProducts = code.target_products || [];
+          return productIds.some(productId => targetProducts.includes(productId));
+        }
+        return false;
+      });
+      console.log(`🏷️ Filtering for product-specific discounts: ${eligibleCodes.length} eligible`);
+    }
+    // scope === 'any' returns all eligible codes without filtering
+
+    if (eligibleCodes.length === 0) {
+      return {
+        success: false,
+        error: `No usable discount codes available for scope: ${scope}`,
+        discountCode: null
+      };
+    }
+
     // Sort by discount value (percentage or fixed amount)
-    const sortedCodes = result.categorized.usable.sort((a, b) => {
+    const sortedCodes = eligibleCodes.sort((a, b) => {
       if (a.discount_type === 'percentage' && b.discount_type === 'percentage') {
         return b.discount_value - a.discount_value; // Higher percentage first
       } else if (a.discount_type === 'fixed' && b.discount_type === 'fixed') {
@@ -445,7 +481,7 @@ export async function getBestAvailableDiscount(fid) {
 
     const bestCode = sortedCodes[0];
     
-    console.log(`🎯 Best available discount for FID ${fid}:`, bestCode.code, `(${bestCode.discount_value}% off)`);
+    console.log(`🎯 Best available discount for FID ${fid} (scope: ${scope}):`, bestCode.code, `(${bestCode.discount_value}% off)`);
 
     return {
       success: true,
