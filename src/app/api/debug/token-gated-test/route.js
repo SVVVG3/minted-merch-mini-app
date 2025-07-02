@@ -391,25 +391,60 @@ async function createCustomDiscount(discountData, fid) {
  */
 async function createFrenTrunksDiscount() {
   try {
-    console.log('🏊 Creating Fren Trunks NFT discount...');
+    console.log('🏊 Creating Fren Trunks NFT discount using new products table...');
 
-    // Get the Fren Trunks product details
-    const { getProductByHandle } = await import('@/lib/shopify');
-    const frenTrunksProduct = await getProductByHandle('fren-trunks');
+    // First, ensure Fren Trunks is in our products table
+    console.log('📦 Syncing Fren Trunks product to products table...');
+    const syncResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mintedmerch.vercel.app'}/api/products/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        action: 'sync_single',
+        handle: 'fren-trunks'
+      })
+    });
+
+    const syncResult = await syncResponse.json();
     
-    if (!frenTrunksProduct) {
+    if (!syncResult.success) {
+      console.error('❌ Failed to sync Fren Trunks product:', syncResult.error);
       return {
         success: false,
-        error: 'Could not find Fren Trunks product'
+        error: `Failed to sync Fren Trunks product: ${syncResult.error}`
       };
     }
 
+    const frenTrunksProduct = syncResult.product;
+    console.log('✅ Fren Trunks synced to products table:', {
+      id: frenTrunksProduct.id,
+      handle: frenTrunksProduct.handle,
+      title: frenTrunksProduct.title,
+      shopify_id: frenTrunksProduct.shopify_id
+    });
+
+    // Check if discount already exists and delete it
+    const { data: existingDiscount } = await supabase
+      .from('discount_codes')
+      .select('id, code')
+      .eq('code', 'FRENWHALE50')
+      .single();
+
+    if (existingDiscount) {
+      console.log('🗑️ Deleting existing FRENWHALE50 discount...');
+      await supabase
+        .from('discount_codes')
+        .delete()
+        .eq('id', existingDiscount.id);
+    }
+
+    // Create discount using new products table approach
     const discountData = {
       code: 'FRENWHALE50',
       discount_type: 'percentage',
       discount_value: 50,
       discount_scope: 'product',
-      target_products: [frenTrunksProduct.id], // Target specific product
+      target_product_ids: [frenTrunksProduct.id], // NEW: Use Supabase products table ID
+      target_products: [frenTrunksProduct.shopify_id], // LEGACY: Keep for backward compatibility
       gating_type: 'nft_holding',
       contract_addresses: ['0x123b30E25973FeCd8354dd5f41Cc45A3065eF88C'], // The contract user specified
       required_balance: 1, // Need at least 1 NFT
@@ -425,7 +460,12 @@ async function createFrenTrunksDiscount() {
       expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString() // 60 days
     };
 
-    console.log('Creating discount with data:', discountData);
+    console.log('🆕 Creating discount with new products table data:', {
+      code: discountData.code,
+      target_product_ids: discountData.target_product_ids,
+      target_products: discountData.target_products,
+      discount_scope: discountData.discount_scope
+    });
 
     const { data, error } = await supabase
       .from('discount_codes')
@@ -434,7 +474,7 @@ async function createFrenTrunksDiscount() {
       .single();
 
     if (error) {
-      console.error('Error creating Fren Trunks discount:', error);
+      console.error('❌ Error creating Fren Trunks discount:', error);
       return {
         success: false,
         error: error.message,
@@ -450,15 +490,17 @@ async function createFrenTrunksDiscount() {
       message: `Created ${data.code}: 50% off Fren Trunks for NFT collection 0x123b30E25973FeCd8354dd5f41Cc45A3065eF88C holders`,
       details: {
         product_targeted: 'Fren Trunks',
-        product_id: frenTrunksProduct.id,
+        supabase_product_id: frenTrunksProduct.id,
+        shopify_product_id: frenTrunksProduct.shopify_id,
         contract_address: '0x123b30E25973FeCd8354dd5f41Cc45A3065eF88C',
         discount_value: '50%',
-        expires_in_days: 60
+        expires_in_days: 60,
+        uses_new_products_table: true
       }
     };
 
   } catch (error) {
-    console.error('Error in createFrenTrunksDiscount:', error);
+    console.error('❌ Error in createFrenTrunksDiscount:', error);
     return {
       success: false,
       error: error.message

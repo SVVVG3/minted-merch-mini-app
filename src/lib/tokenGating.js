@@ -2,6 +2,82 @@
 import { supabase } from './supabase';
 
 /**
+ * Convert Shopify product IDs to Supabase products table IDs
+ */
+async function convertShopifyIdsToSupabaseIds(shopifyIds) {
+  if (!shopifyIds || shopifyIds.length === 0) {
+    return [];
+  }
+  
+  if (!supabase) {
+    console.warn('⚠️ Supabase not available, cannot convert product IDs');
+    return [];
+  }
+  
+  try {
+    // Extract just the numeric part from GraphQL IDs if needed
+    const cleanIds = shopifyIds.map(id => {
+      if (typeof id === 'string' && id.startsWith('gid://shopify/Product/')) {
+        return id.split('/').pop();
+      }
+      return id.toString();
+    });
+    
+    console.log(`🔄 Converting Shopify IDs to Supabase IDs: ${JSON.stringify(cleanIds)}`);
+    
+    const { data: products, error } = await supabase
+      .from('products')
+      .select('id, shopify_id, shopify_graphql_id, handle, title')
+      .in('shopify_id', cleanIds);
+    
+    if (error) {
+      console.error('❌ Error fetching products for ID conversion:', error);
+      return [];
+    }
+    
+    const supabaseIds = (products || []).map(p => p.id);
+    console.log(`✅ Converted to Supabase IDs: ${JSON.stringify(supabaseIds)}`);
+    
+    return supabaseIds;
+  } catch (error) {
+    console.error('❌ Error in convertShopifyIdsToSupabaseIds:', error);
+    return [];
+  }
+}
+
+/**
+ * Get Supabase product ID by handle (for easy discount creation)
+ */
+export async function getProductIdByHandle(handle) {
+  if (!supabase) {
+    console.warn('⚠️ Supabase not available, cannot get product ID');
+    return null;
+  }
+  
+  try {
+    const { data: product, error } = await supabase
+      .from('products')
+      .select('id, handle, title')
+      .eq('handle', handle)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        console.log(`❌ Product with handle "${handle}" not found`);
+        return null;
+      }
+      throw error;
+    }
+    
+    console.log(`✅ Found product "${product.title}" with ID ${product.id} for handle "${handle}"`);
+    return product.id;
+  } catch (error) {
+    console.error(`❌ Error getting product ID for handle "${handle}":`, error);
+    return null;
+  }
+}
+
+/**
  * Check if a user is eligible for a token-gated discount
  * @param {Object} discount - Discount object from database
  * @param {number} fid - User's Farcaster ID
@@ -507,8 +583,10 @@ export async function getEligibleAutoApplyDiscounts(fid, userWalletAddresses = [
     const eligibleDiscounts = [];
     
     for (const discount of autoApplyDiscounts) {
-      // Check scope matching
-      if (!doesDiscountMatchScope(discount, productScope, productIds)) {
+      // Check scope matching (now async)
+      const scopeMatches = await doesDiscountMatchScope(discount, productScope, productIds);
+      if (!scopeMatches) {
+        console.log('❌ Scope mismatch for discount:', discount.code);
         continue;
       }
 
@@ -539,12 +617,13 @@ export async function getEligibleAutoApplyDiscounts(fid, userWalletAddresses = [
 /**
  * Check if a discount matches the current scope (product, collection, etc.)
  */
-function doesDiscountMatchScope(discount, productScope, productIds = []) {
+async function doesDiscountMatchScope(discount, productScope, productIds = []) {
   console.log(`🔍 Scope check for discount ${discount.code}:`);
   console.log(`  - Discount scope: ${discount.discount_scope}`);
   console.log(`  - Requested scope: ${productScope}`);
-  console.log(`  - Product IDs: ${JSON.stringify(productIds)}`);
-  console.log(`  - Target products: ${JSON.stringify(discount.target_products)}`);
+  console.log(`  - Product IDs (Shopify): ${JSON.stringify(productIds)}`);
+  console.log(`  - Target products (legacy): ${JSON.stringify(discount.target_products)}`);
+  console.log(`  - Target product IDs (new): ${JSON.stringify(discount.target_product_ids)}`);
   
   // Site-wide discounts always match
   if (discount.discount_scope === 'site_wide') {
@@ -564,10 +643,37 @@ function doesDiscountMatchScope(discount, productScope, productIds = []) {
       return false;
     }
     
-    const targetProducts = discount.target_products || [];
-    const matches = productIds.some(productId => targetProducts.includes(productId));
-    console.log(`  ${matches ? '✅' : '❌'} Product match result: ${matches}`);
-    return matches;
+    // Try new products table approach first
+    if (discount.target_product_ids && discount.target_product_ids.length > 0) {
+      console.log(`  🆕 Using new products table for matching`);
+      
+      try {
+        // Convert Shopify product IDs to Supabase product IDs
+        const supabaseProductIds = await convertShopifyIdsToSupabaseIds(productIds);
+        console.log(`  - Converted Shopify IDs to Supabase IDs: ${JSON.stringify(supabaseProductIds)}`);
+        
+        const matches = supabaseProductIds.some(productId => 
+          discount.target_product_ids.includes(productId)
+        );
+        
+        console.log(`  ${matches ? '✅' : '❌'} Product match result (new table): ${matches}`);
+        return matches;
+      } catch (error) {
+        console.error('  ❌ Error converting product IDs, falling back to legacy:', error);
+      }
+    }
+    
+    // Fall back to legacy target_products (Shopify IDs)
+    if (discount.target_products && discount.target_products.length > 0) {
+      console.log(`  🔄 Using legacy target_products for matching`);
+      const targetProducts = discount.target_products || [];
+      const matches = productIds.some(productId => targetProducts.includes(productId));
+      console.log(`  ${matches ? '✅' : '❌'} Product match result (legacy): ${matches}`);
+      return matches;
+    }
+    
+    console.log(`  ❌ No target products defined for product-specific discount`);
+    return false;
   }
 
   // Collection-specific discounts
