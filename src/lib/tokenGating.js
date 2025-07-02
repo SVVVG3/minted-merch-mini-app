@@ -1,6 +1,5 @@
 // Token-gating utility functions for discount eligibility
 import { supabase } from './supabase';
-import { isUserWalletAddress } from './walletUtils';
 
 /**
  * Check if a user is eligible for a token-gated discount
