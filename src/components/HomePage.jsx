@@ -8,8 +8,8 @@ import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
 import { getBestAvailableDiscount, hasDiscountOfType } from '@/lib/discounts';
-// import { getEligibleAutoApplyDiscounts } from '@/lib/tokenGating';
-// import { fetchUserWalletData } from '@/lib/walletUtils';
+import { getEligibleAutoApplyDiscounts } from '@/lib/tokenGating';
+import { fetchUserWalletData } from '@/lib/walletUtils';
 
 export function HomePage({ collection, products }) {
   const { itemCount, cartTotal } = useCart();
@@ -281,7 +281,7 @@ export function HomePage({ collection, products }) {
       // Determine which discount to prioritize
       let activeDiscount = null;
       let discountSource = null;
-      let eligibleTokenGatedDiscounts = []; // Temporarily empty - token-gating disabled
+      let eligibleTokenGatedDiscounts = []; // Will be populated by token-gating checks
 
       // Priority 1: Pending discount from URL (fresh notification click) - ALWAYS ALLOW
       if (pendingDiscount && pendingDiscount.discountCode) {
@@ -295,11 +295,50 @@ export function HomePage({ collection, products }) {
         discountSource = 'notification_click';
         console.log('🎯 Using discount from notification click:', pendingDiscount.discountCode);
       } 
-      // Priority 2: Check for token-gated auto-apply discounts - TEMPORARILY DISABLED
-      // TODO: Re-enable after fixing import issues
+      // Priority 2: Check for token-gated auto-apply discounts  
       else {
-        console.log('🔍 Token-gated discounts temporarily disabled for debugging...');
-        // Temporarily skip token-gating to fix app loading issues
+        console.log('🔍 Checking for token-gated auto-apply discounts...');
+        
+        try {
+          // Get user's wallet addresses for token-gating
+          const walletData = await fetchUserWalletData(fid);
+          const userWalletAddresses = walletData?.all_wallet_addresses || [];
+          
+          console.log('User wallet addresses for token-gating:', userWalletAddresses);
+          
+          if (userWalletAddresses.length > 0) {
+            // Check for eligible token-gated discounts
+            eligibleTokenGatedDiscounts = await getEligibleAutoApplyDiscounts(
+              fid, 
+              userWalletAddresses, 
+              'site_wide', // Default scope, could be made dynamic
+              [] // Product IDs - empty for site-wide
+            );
+            
+            console.log('Eligible token-gated discounts:', eligibleTokenGatedDiscounts);
+            
+            // Use the highest priority token-gated discount if available
+            if (eligibleTokenGatedDiscounts.length > 0) {
+              const topDiscount = eligibleTokenGatedDiscounts[0]; // Already sorted by priority
+              activeDiscount = {
+                code: topDiscount.code,
+                source: 'token_gated',
+                gating_type: topDiscount.gating_type,
+                priority_level: topDiscount.priority_level,
+                discount_description: topDiscount.discount_description,
+                displayText: formatDiscountText(topDiscount),
+                isUsable: true
+              };
+              discountSource = 'token_gated';
+              console.log('🎫 Using token-gated discount:', topDiscount.code, 'Type:', topDiscount.gating_type);
+            }
+          } else {
+            console.log('❌ No wallet addresses found for token-gating');
+          }
+        } catch (error) {
+          console.error('❌ Error checking token-gated discounts:', error);
+          // Don't fail the entire flow, just skip token-gating
+        }
       }
 
       // Priority 3: Best available discount from database - ONLY FOR USERS WITH NOTIFICATIONS
