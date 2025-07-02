@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { hasNotificationTokenInNeynar, sendWelcomeNotification } from '@/lib/neynar';
 import { createWelcomeDiscountCode } from '@/lib/discounts';
+import { fetchUserWalletData } from '@/lib/walletUtils';
 
 export async function POST(request) {
   try {
@@ -17,19 +18,46 @@ export async function POST(request) {
     const hasNotifications = await hasNotificationTokenInNeynar(fid);
     console.log('User has notifications enabled:', hasNotifications);
 
-    // Create or update user profile with notification status
+    // Fetch wallet data from Neynar
+    console.log('🔍 Fetching wallet data for user registration...');
+    const walletData = await fetchUserWalletData(fid);
+    if (walletData) {
+      console.log('✅ Wallet data fetched successfully:', {
+        custody_address: walletData.custody_address,
+        eth_count: walletData.verified_eth_addresses?.length || 0,
+        sol_count: walletData.verified_sol_addresses?.length || 0,
+        total_addresses: walletData.all_wallet_addresses?.length || 0
+      });
+    } else {
+      console.log('⚠️ Could not fetch wallet data for FID:', fid);
+    }
+
+    // Create or update user profile with notification status and wallet data
+    const profileData = {
+      fid,
+      username,
+      display_name: displayName,
+      bio: bio || null,
+      pfp_url: pfpUrl,
+      has_notifications: hasNotifications, // ✅ Store notification status
+      notification_status_updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // Add wallet data if available
+    if (walletData) {
+      profileData.custody_address = walletData.custody_address;
+      profileData.verified_eth_addresses = walletData.verified_eth_addresses;
+      profileData.verified_sol_addresses = walletData.verified_sol_addresses;
+      profileData.primary_eth_address = walletData.primary_eth_address;
+      profileData.primary_sol_address = walletData.primary_sol_address;
+      profileData.all_wallet_addresses = walletData.all_wallet_addresses;
+      profileData.wallet_data_updated_at = walletData.wallet_data_updated_at;
+    }
+
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .upsert({
-        fid,
-        username,
-        display_name: displayName,
-        bio: bio || null,
-        pfp_url: pfpUrl,
-        has_notifications: hasNotifications, // ✅ Store notification status
-        notification_status_updated_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }, {
+      .upsert(profileData, {
         onConflict: 'fid'
       })
       .select()
@@ -94,7 +122,9 @@ export async function POST(request) {
       profile,
       hasNotifications,
       welcomeNotificationSent,
-      discountCode: discountCode // Include discount code in response for debugging
+      discountCode: discountCode, // Include discount code in response for debugging
+      walletDataFetched: !!walletData, // Include wallet data status
+      walletAddressCount: walletData?.all_wallet_addresses?.length || 0
     });
 
   } catch (error) {
