@@ -13,7 +13,11 @@ export async function POST(request) {
 
     console.log('Registering user:', { fid, username, displayName });
 
-    // Create or update user profile
+    // Check if user has notifications enabled (check this FIRST)
+    const hasNotifications = await hasNotificationTokenInNeynar(fid);
+    console.log('User has notifications enabled:', hasNotifications);
+
+    // Create or update user profile with notification status
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .upsert({
@@ -22,6 +26,8 @@ export async function POST(request) {
         display_name: displayName,
         bio: bio || null,
         pfp_url: pfpUrl,
+        has_notifications: hasNotifications, // ✅ Store notification status
+        notification_status_updated_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }, {
         onConflict: 'fid'
@@ -51,12 +57,10 @@ export async function POST(request) {
       // Don't fail registration if discount code generation fails
     }
 
-    // Check if user has notifications enabled and hasn't received welcome notification
-    const hasNotifications = await hasNotificationTokenInNeynar(fid);
-    console.log('User has notifications enabled:', hasNotifications);
-
+    // Send welcome notification if user has notifications enabled and hasn't received it yet
+    let welcomeNotificationSent = false;
     if (hasNotifications && !profile.welcome_notification_sent) {
-      console.log('Sending welcome notification to new user with notifications enabled');
+      console.log('Sending welcome notification to user with notifications enabled');
       
       try {
         const notificationResult = await sendWelcomeNotification(fid);
@@ -76,6 +80,7 @@ export async function POST(request) {
             console.error('Error updating welcome notification status:', updateError);
           } else {
             console.log('Welcome notification marked as sent for FID:', fid);
+            welcomeNotificationSent = true;
           }
         }
       } catch (notificationError) {
@@ -88,7 +93,7 @@ export async function POST(request) {
       success: true, 
       profile,
       hasNotifications,
-      welcomeNotificationSent: hasNotifications && !profile.welcome_notification_sent,
+      welcomeNotificationSent,
       discountCode: discountCode // Include discount code in response for debugging
     });
 
