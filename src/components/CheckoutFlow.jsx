@@ -49,6 +49,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
   // Use cart total from context instead of calculating locally
   const hasItems = cart.items.length > 0;
+  const appliedDiscount = cart.appliedDiscount;
 
   // Auto-create order when payment succeeds
   useEffect(() => {

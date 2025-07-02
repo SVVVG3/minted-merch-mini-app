@@ -24,6 +24,14 @@ export function HomePage({ collection, products }) {
 
   // URL Parameter Detection - Detect notification clicks and discount codes
   useEffect(() => {
+    // Clear any old session flags on fresh page load to prevent stuck states
+    const keys = Object.keys(sessionStorage);
+    keys.forEach(key => {
+      if (key.startsWith('user_registered_') || key.startsWith('monitoring_')) {
+        sessionStorage.removeItem(key);
+      }
+    });
+    
     console.log('🔍 === URL PARAMETER DETECTION ===');
     
     // Extract URL parameters for notification detection
@@ -58,32 +66,45 @@ export function HomePage({ collection, products }) {
     }
   }, []); // Run once on component mount
 
-  // Register user profile and check for notifications when they visit the app
+  // Register user profile when Farcaster context is ready
   useEffect(() => {
+    if (!isInFarcaster || !isReady) return;
+    
+    const userFid = getFid();
+    if (!userFid) return;
+
+    // Prevent multiple registrations
+    const hasRegistered = sessionStorage.getItem(`user_registered_${userFid}`);
+    if (hasRegistered) {
+      console.log('User already registered in this session, loading discounts only');
+      loadUserDiscounts(userFid);
+      return;
+    }
+
     const registerUserProfile = async () => {
-      // Only register if we're in Farcaster and have user data
-      if (!isInFarcaster || !isReady) return;
-      
-      const userFid = getFid();
-      if (!userFid) return;
-      
       try {
         console.log('=== REGISTERING USER PROFILE ===');
         console.log('User FID:', userFid);
-        console.log('User Data:', user);
+        console.log('User Data:', {
+          fid: userFid,
+          username: getUsername(),
+          displayName: getDisplayName(),
+          pfpUrl: getPfpUrl()
+        });
         console.log('Full Farcaster Context:', context);
         
-        // Check if user has notification details (Mini App added with notifications)
-        const userHasNotifications = hasNotifications();
-        const notificationDetails = getNotificationDetails();
-        console.log('User has notifications enabled:', userHasNotifications);
+        // Check if user has notifications enabled
+        const hasNotifications = !!(context?.client?.notificationDetails || context?.notificationDetails);
+        const notificationDetails = context?.client?.notificationDetails || context?.notificationDetails;
+        
+        console.log('User has notifications enabled:', hasNotifications);
         console.log('Notification details:', notificationDetails);
         
         // Prepare user data for registration
         const userData = {
           username: getUsername() || `user_${userFid}`,
           displayName: getDisplayName() || null,
-          bio: user?.bio || null, // Try to get bio from user context
+          bio: null, // Bio not available in simplified version
           pfpUrl: getPfpUrl() || null
         };
 
@@ -111,6 +132,9 @@ export function HomePage({ collection, products }) {
           console.log('✅ User profile successfully registered!');
           console.log('📱 Has notifications enabled:', result.hasNotifications);
           
+          // Mark as registered to prevent multiple calls
+          sessionStorage.setItem(`user_registered_${userFid}`, 'true');
+          
           if (result.welcomeNotificationSent) {
             console.log('🎉 Welcome notification sent to new user!');
           } else if (result.hasNotifications) {
@@ -133,15 +157,21 @@ export function HomePage({ collection, products }) {
     // Small delay to ensure Farcaster context is fully loaded
     const timer = setTimeout(registerUserProfile, 1000);
     return () => clearTimeout(timer);
-  }, [isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user, context]);
+  }, [isInFarcaster, isReady]); // Removed unstable dependencies
 
-  // Real-time notification monitoring - check aggressively for newly enabled notifications
+  // Real-time notification monitoring - simplified version
   useEffect(() => {
     if (!isInFarcaster || !isReady) return;
     
     const userFid = getFid();
     if (!userFid) return;
 
+    // Check if already monitoring to prevent duplicates
+    const isAlreadyMonitoring = sessionStorage.getItem(`monitoring_${userFid}`);
+    if (isAlreadyMonitoring) return;
+
+    sessionStorage.setItem(`monitoring_${userFid}`, 'true');
+    
     let notificationCheckCount = 0;
     let isMonitoring = true;
     
@@ -162,7 +192,7 @@ export function HomePage({ collection, products }) {
             fid: userFid,
             username: getUsername() || `user_${userFid}`,
             displayName: getDisplayName() || null,
-            bio: user?.bio || null,
+            bio: null, // Don't rely on user object here
             pfpUrl: getPfpUrl() || null
           }),
         });
@@ -179,54 +209,45 @@ export function HomePage({ collection, products }) {
           return;
         }
         
-        // Adaptive timing: check more frequently at first, then slow down
-        let nextCheckDelay;
-        if (notificationCheckCount <= 6) {
-          nextCheckDelay = 3000; // First 18 seconds: check every 3 seconds
-        } else if (notificationCheckCount <= 12) {
-          nextCheckDelay = 5000; // Next 30 seconds: check every 5 seconds  
-        } else if (notificationCheckCount <= 20) {
-          nextCheckDelay = 10000; // Next 80 seconds: check every 10 seconds
-        } else {
-          console.log('📱 Stopped monitoring for notifications after 2+ minutes');
+        // Stop after fewer checks to reduce API calls
+        if (notificationCheckCount >= 5) {
+          console.log('📱 Stopped monitoring for notifications after 5 checks');
           isMonitoring = false;
           return;
         }
         
-        // Schedule next check
+        // Schedule next check (reduced frequency)
         if (isMonitoring) {
-          setTimeout(checkForNewNotifications, nextCheckDelay);
+          setTimeout(checkForNewNotifications, 10000); // Check every 10 seconds
         }
         
       } catch (error) {
         console.error('Error checking for new notifications:', error);
-        // Continue monitoring even if there's an error
-        if (isMonitoring && notificationCheckCount < 20) {
-          setTimeout(checkForNewNotifications, 5000);
-        }
+        isMonitoring = false; // Stop on error
       }
     };
     
-    // Start first check after 2 seconds
-    const initialTimer = setTimeout(checkForNewNotifications, 2000);
+    // Start first check after 5 seconds (longer delay)
+    const initialTimer = setTimeout(checkForNewNotifications, 5000);
     
-         // Also check when window regains focus (user might have switched to enable notifications)
-     const handleFocus = () => {
-       if (isMonitoring && notificationCheckCount < 20) {
-         console.log('🔍 Window focused - checking for notifications...');
-         checkForNewNotifications();
-       }
-     };
-     
-     window.addEventListener('focus', handleFocus);
-     
-     // Cleanup on unmount
-     return () => {
-       isMonitoring = false;
-       clearTimeout(initialTimer);
-       window.removeEventListener('focus', handleFocus);
-     };
-   }, [isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user]);
+    // Also check when window regains focus (user might have switched to enable notifications)
+    const handleFocus = () => {
+      if (isMonitoring && notificationCheckCount < 3) {
+        console.log('Window focused - checking for notifications...');
+        checkForNewNotifications();
+      }
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    // Cleanup on unmount
+    return () => {
+      isMonitoring = false;
+      clearTimeout(initialTimer);
+      window.removeEventListener('focus', handleFocus);
+      sessionStorage.removeItem(`monitoring_${userFid}`);
+    };
+  }, [isInFarcaster, isReady]); // Removed unstable dependencies
 
   // Load user's available discount codes
   const loadUserDiscounts = async (fid) => {
