@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { getBestAvailableDiscount } from './discounts';
 
 // Cart Context
 const CartContext = createContext();
@@ -209,12 +210,100 @@ export function CartProvider({ children }) {
     }
   }, [cart]);
 
+  // Helper function to re-evaluate discounts when cart changes
+  const reEvaluateDiscounts = async () => {
+    try {
+      // Get user FID from session storage
+      const userDiscountContext = sessionStorage.getItem('userDiscountContext');
+      if (!userDiscountContext) return;
+      
+      const { fid, hasNotifications } = JSON.parse(userDiscountContext);
+      if (!fid || !hasNotifications) return;
+      
+      // Get all unique Supabase product IDs from cart items
+      const productIds = [];
+      cart.items.forEach(item => {
+        if (item.product.supabaseId && !productIds.includes(item.product.supabaseId)) {
+          productIds.push(item.product.supabaseId);
+        }
+      });
+      
+      console.log('🔄 Re-evaluating discounts for cart items:', productIds);
+      
+      if (productIds.length === 0) {
+        // No Supabase IDs available, check site-wide only
+        const bestDiscount = await getBestAvailableDiscount(fid, 'site_wide');
+        if (bestDiscount.success && bestDiscount.discountCode) {
+          updateCartDiscount(bestDiscount.discountCode, 'site_wide');
+        }
+        return;
+      }
+      
+      // Check for product-specific discounts first
+      const productSpecificDiscount = await getBestAvailableDiscount(fid, 'product', productIds);
+      
+      if (productSpecificDiscount.success && productSpecificDiscount.discountCode) {
+        console.log('🎯 Found better product-specific discount:', productSpecificDiscount.discountCode.code);
+        updateCartDiscount(productSpecificDiscount.discountCode, 'product');
+        return;
+      }
+      
+      // Fall back to site-wide discounts
+      const siteWideDiscount = await getBestAvailableDiscount(fid, 'site_wide');
+      if (siteWideDiscount.success && siteWideDiscount.discountCode) {
+        console.log('🌐 Using site-wide discount:', siteWideDiscount.discountCode.code);
+        updateCartDiscount(siteWideDiscount.discountCode, 'site_wide');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error re-evaluating discounts:', error);
+    }
+  };
+  
+  // Helper function to update cart discount and session storage
+  const updateCartDiscount = (discountCode, scope) => {
+    const currentDiscount = cart.appliedDiscount;
+    
+    // Check if this is actually a better discount
+    if (currentDiscount) {
+      const currentValue = parseFloat(currentDiscount.discountValue || 0);
+      const newValue = parseFloat(discountCode.discount_value || 0);
+      
+      // Only update if new discount is significantly better
+      if (newValue <= currentValue) {
+        console.log('💡 Current discount is still better, keeping it');
+        return;
+      }
+    }
+    
+    const newDiscountData = {
+      code: discountCode.code,
+      source: scope === 'product' ? 'cart_product_specific' : 'cart_site_wide',
+      displayText: `${discountCode.discount_value}% off`,
+      discountType: discountCode.discount_type,
+      discountValue: discountCode.discount_value,
+      timestamp: new Date().toISOString(),
+      autoApplied: true
+    };
+    
+    // Update session storage
+    sessionStorage.setItem('activeDiscountCode', JSON.stringify(newDiscountData));
+    
+    // Dispatch custom event to notify other components
+    window.dispatchEvent(new CustomEvent('sessionStorageUpdate'));
+    
+    console.log('✅ Updated cart discount:', discountCode.code);
+  };
+
   // Cart actions
   const addItem = (product, variant, quantity = 1) => {
     dispatch({
       type: CART_ACTIONS.ADD_ITEM,
       payload: { product, variant, quantity }
     });
+    
+    // Re-evaluate discounts after adding item
+    setTimeout(() => reEvaluateDiscounts(), 100); // Small delay to ensure cart state is updated
   };
 
   const removeItem = (itemKey) => {

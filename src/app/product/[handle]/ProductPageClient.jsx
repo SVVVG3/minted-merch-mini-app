@@ -23,7 +23,8 @@ export function ProductPageClient({ handle }) {
 
   // Check for product-specific discounts when product loads and user is authenticated
   useEffect(() => {
-    if (product && farcasterUser?.fid && isInFarcaster) {
+    if (product && farcasterUser?.fid) {
+      console.log('🎁 Product and user loaded, checking for discounts...');
       checkProductSpecificDiscounts();
     }
   }, [product, farcasterUser]);

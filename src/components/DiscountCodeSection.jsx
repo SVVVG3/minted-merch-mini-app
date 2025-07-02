@@ -73,6 +73,45 @@ export function DiscountCodeSection({
     }
   }, [autoPopulate, hasAutoPopulated, subtotal]);
 
+  // Listen for sessionStorage changes (for cart discount re-evaluation)
+  useEffect(() => {
+    if (!autoPopulate) return;
+    
+    const handleStorageChange = () => {
+      try {
+        const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
+        if (activeDiscountData) {
+          const activeDiscount = JSON.parse(activeDiscountData);
+          
+          // Check if this is a new/better discount
+          if (activeDiscount.code !== discountCode && activeDiscount.autoApplied) {
+            console.log('🔄 New discount detected from cart re-evaluation:', activeDiscount.code);
+            
+            // Update the discount code and apply it
+            setDiscountCode(activeDiscount.code);
+            
+            if (subtotal > 0) {
+              handleApplyDiscount(activeDiscount.code);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error handling discount update:', error);
+      }
+    };
+
+    // Listen for storage events (from other tabs/components)
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also set up a custom event listener for same-tab updates
+    window.addEventListener('sessionStorageUpdate', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('sessionStorageUpdate', handleStorageChange);
+    };
+  }, [autoPopulate, discountCode, subtotal]);
+
   const handleApplyDiscount = async (codeToApply = null) => {
     const code = codeToApply || discountCode.trim();
     
