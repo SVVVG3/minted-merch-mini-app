@@ -14,18 +14,18 @@ export function ProductPageClient({ handle }) {
   const [productDiscount, setProductDiscount] = useState(null);
   const [discountLoading, setDiscountLoading] = useState(false);
   
-  const { farcasterUser, isInFarcaster } = useFarcaster();
+  const { user: farcasterUser, isInFarcaster, isReady } = useFarcaster();
 
 
   // Removed initial fetch - we wait for user context to load discounts properly
 
-  // Fetch product with discount data when user context changes
+  // Fetch product with discount data when user context is ready
   useEffect(() => {
-    if (farcasterUser !== null) { // farcasterUser is loaded (could be null or an object)
-      console.log('🔄 User context loaded, fetching product with discount data...');
+    if (isReady) { // Wait for Farcaster context to be fully loaded/checked
+      console.log('🔄 Farcaster context ready, fetching product with discount data...');
       fetchProduct();
     }
-  }, [farcasterUser]);
+  }, [isReady]);
 
   const fetchProduct = async () => {
     try {
