@@ -191,11 +191,11 @@ export function DiscountCodeSection({
 
           {/* Notification prompt for users without notifications */}
           {showNotificationPrompt && hasNotifications === false && !hasAutoPopulated && (
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-2 mt-2">
-              <div className="text-blue-800 text-xs font-medium mb-1">
+            <div className="bg-green-50 border border-green-200 rounded-md p-2 mt-2">
+              <div className="text-green-800 text-xs font-medium mb-1">
                 🔔 Enable notifications for automatic discounts!
               </div>
-              <div className="text-blue-600 text-xs">
+              <div className="text-green-600 text-xs">
                 Get 15% off your first/next order when you add the mini app and turn on notifications.
               </div>
             </div>

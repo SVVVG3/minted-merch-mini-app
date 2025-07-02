@@ -158,7 +158,7 @@ export function Cart({ isOpen, onClose }) {
                   rows={3}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Include NFT token #, OpenSea URLs, or any customization requests
+                  Include NFT token #, OpenSea URLs, or any customization requests. Scroll down to apply a discount!
                 </p>
               </div>
 
