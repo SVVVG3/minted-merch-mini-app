@@ -305,14 +305,14 @@ export function ProductDetail({
             
             {productDiscount && !discountLoading && (
               <div className={`mt-3 p-4 rounded-lg border-2 ${
-                productDiscount.product_specific 
+                productDiscount.scope === 'product' 
                   ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300' 
                   : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-300'
               }`}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      {productDiscount.product_specific ? (
+                      {productDiscount.scope === 'product' ? (
                         <div className="flex items-center gap-1">
                           <span className="text-lg">🎯</span>
                           <span className="font-semibold text-green-800">Special Product Discount!</span>
@@ -340,7 +340,15 @@ export function ProductDetail({
                     </div>
                     
                     <div className="text-lg font-bold text-gray-900 mb-1">
-                      {productDiscount.displayText} with code: <span className="font-mono bg-white px-2 py-1 rounded border">{productDiscount.code}</span>
+                      {productDiscount.isTokenGated ? (
+                        `${productDiscount.displayText} token-gated discount`
+                      ) : productDiscount.code?.startsWith('WELCOME') ? (
+                        `${productDiscount.displayText} discount automatically applied to your first order!`
+                      ) : (
+                        <>
+                          {productDiscount.displayText} with code: <span className="font-mono bg-white px-2 py-1 rounded border">{productDiscount.code}</span>
+                        </>
+                      )}
                     </div>
                     
                     {productDiscount.description && (
@@ -348,16 +356,16 @@ export function ProductDetail({
                     )}
                     
                     <div className="text-xs text-gray-500">
-                      {productDiscount.product_specific 
-                        ? `Exclusive to ${productDiscount.product_title || 'this product'}` 
+                      {productDiscount.scope === 'product' 
+                        ? `Product-specific discount` 
                         : 'Site-wide discount'}
-                      {productDiscount.source === 'token_gated_product' && ' • Verified via blockchain'}
+                      {productDiscount.isTokenGated && ' • Verified via blockchain'}
                     </div>
                   </div>
                   
                   {/* Discount Badge */}
                   <div className={`ml-3 px-3 py-1 rounded-full text-sm font-bold ${
-                    productDiscount.product_specific 
+                    productDiscount.scope === 'product' 
                       ? 'bg-green-600 text-white' 
                       : 'bg-blue-600 text-white'
                   }`}>
