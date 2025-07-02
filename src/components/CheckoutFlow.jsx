@@ -519,11 +519,11 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                     </div>
 
                     {/* Shipping Methods */}
-                    {cart.checkout?.availableShippingRates && (
+                    {cart.checkout?.shippingRates && (
                       <div>
                         <h4 className="font-medium text-sm mb-2">Select Shipping Method</h4>
                         <div className="space-y-2">
-                          {cart.checkout.availableShippingRates.map((rate, index) => (
+                          {cart.checkout.shippingRates.map((rate, index) => (
                             <label key={index} className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                               <div className="flex items-center">
                                 <input
