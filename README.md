@@ -26,10 +26,15 @@ A complete Farcaster Mini App for crypto merchandise with USDC payments, automat
 - **Delivery Tracking**: Real-time shipment status updates
 
 ### 💰 **Advanced Discount System**
+- **Token-Gated Discounts**: NFT/token-based eligibility with automatic verification
+- **Shared Discount Codes**: Multi-user codes with per-user usage limits
+- **Product-Specific Targeting**: Discounts for specific products or collections
+- **Priority-Based Selection**: Automatic best discount determination
 - **First Order Discounts**: 15% off welcome discounts for new users
 - **Unique Code Generation**: Cryptographically secure discount codes
-- **Usage Tracking**: Prevents duplicate usage and fraud
-- **Analytics**: Comprehensive discount usage statistics
+- **Comprehensive Usage Tracking**: Prevents duplicate usage and fraud prevention
+- **Real-time Validation**: Instant eligibility checking with blockchain verification
+- **Analytics Dashboard**: Detailed discount performance and usage statistics
 
 ### 📊 **Order Management**
 - **Dual Database System**: Shopify for fulfillment, Supabase for notifications
@@ -66,6 +71,294 @@ A complete Farcaster Mini App for crypto merchandise with USDC payments, automat
 - **Google Maps API**: Address autocomplete and validation
 - **Carrier APIs**: Real-time shipping rate calculation
 - **Webhook Infrastructure**: Event-driven architecture
+
+## 🎫 **Token-Gated Discount System**
+
+### **Overview**
+Our advanced discount system supports both traditional codes and sophisticated token-gated discounts that automatically verify user eligibility based on blockchain holdings, NFT ownership, or whitelist membership.
+
+### **Discount Types**
+
+#### **🔐 Token-Gated Discounts**
+Discounts that require users to hold specific NFTs, tokens, or meet blockchain-based criteria:
+- **NFT Holding**: Verify ownership of specific NFT collections
+- **Token Balance**: Require minimum token balances
+- **Whitelist-Based**: FID or wallet address whitelisting
+- **Combined Criteria**: Multiple requirements with flexible logic
+
+#### **👥 Shared Discount Codes**
+Multi-user codes with sophisticated usage tracking:
+- **Per-User Limits**: Each user can use the code once
+- **Total Usage Caps**: Global usage limits across all users  
+- **Usage Tracking**: Comprehensive audit trail per user
+- **Fraud Prevention**: IP tracking and abuse detection
+
+#### **👤 User-Specific Codes**
+Traditional codes tied to individual users:
+- **Welcome Discounts**: First-order incentives
+- **Referral Codes**: User-specific promotional codes
+- **One-Time Use**: Single-use validation
+
+### **Database Schema**
+
+#### **Core Tables**
+```sql
+-- Main discount codes table
+discount_codes (
+  id UUID PRIMARY KEY,
+  code TEXT UNIQUE,
+  discount_type TEXT, -- 'percentage' | 'fixed'
+  discount_value DECIMAL,
+  
+  -- Token-gating configuration
+  gating_type TEXT, -- 'none' | 'nft_holding' | 'token_balance' | 'whitelist_wallet' | 'whitelist_fid' | 'combined'
+  contract_addresses JSONB, -- Array of contract addresses to check
+  chain_ids JSONB, -- Supported blockchain networks
+  required_balance DECIMAL, -- Minimum token/NFT balance
+  whitelisted_wallets JSONB, -- Eligible wallet addresses
+  whitelisted_fids JSONB, -- Eligible Farcaster IDs
+  
+  -- Scope and targeting  
+  discount_scope TEXT, -- 'site_wide' | 'product' | 'collection'
+  target_products JSONB, -- Product IDs for product-specific discounts
+  target_collections JSONB, -- Collection IDs
+  
+  -- Usage limits
+  max_uses_total INTEGER, -- Total uses across all users
+  max_uses_per_user INTEGER DEFAULT 1, -- Uses per individual user
+  current_total_uses INTEGER DEFAULT 0, -- Current usage count
+  
+  -- Shared code support
+  is_shared_code BOOLEAN DEFAULT FALSE, -- Multi-user vs user-specific
+  fid INTEGER REFERENCES profiles(fid), -- Owner (NULL for shared codes)
+  
+  -- Priority and stacking
+  priority_level INTEGER DEFAULT 0, -- Higher priority wins conflicts
+  stackable_with_other_discounts BOOLEAN DEFAULT FALSE,
+  auto_apply BOOLEAN DEFAULT FALSE, -- Auto-apply if eligible
+  
+  -- Metadata
+  expires_at TIMESTAMP,
+  campaign_id TEXT, -- Group related discounts
+  discount_description TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Usage tracking for shared codes
+discount_code_usage (
+  id UUID PRIMARY KEY,
+  discount_code_id UUID REFERENCES discount_codes(id),
+  fid INTEGER REFERENCES profiles(fid),
+  order_id TEXT,
+  discount_amount DECIMAL,
+  original_subtotal DECIMAL,
+  used_at TIMESTAMP DEFAULT NOW(),
+  
+  UNIQUE(discount_code_id, fid) -- One use per user per code
+);
+```
+
+### **API Integration**
+
+#### **Enhanced Products API**
+Get products with discount information in a single call:
+```javascript
+// GET /api/shopify/products?handle=fren-trunks&fid=466111
+{
+  "id": "gid://shopify/Product/8297501589785",
+  "title": "Fren Trunks",
+  "price": "59.97",
+  "availableDiscounts": {
+    "best": {
+      "code": "FRENWHALE50",
+      "value": 50,
+      "scope": "product", 
+      "displayText": "50% off",
+      "isTokenGated": true,
+      "gatingType": "nft_holding",
+      "priorityLevel": 12
+    },
+    "alternatives": [
+      {
+        "code": "WELCOME15",
+        "value": 15,
+        "scope": "site_wide",
+        "displayText": "15% welcome discount"
+      }
+    ]
+  }
+}
+```
+
+#### **Discount Validation API**
+```javascript
+// POST /api/validate-discount
+{
+  "code": "FRENWHALE50",
+  "fid": 466111,
+  "subtotal": 59.97
+}
+
+// Response
+{
+  "success": true,
+  "isValid": true,
+  "code": "FRENWHALE50",
+  "discountType": "percentage",
+  "discountValue": 50,
+  "discountAmount": 29.99,
+  "isSharedCode": false,
+  "requiresAuth": true
+}
+```
+
+### **Configuration Examples**
+
+#### **NFT-Gated Discount**
+```sql
+INSERT INTO discount_codes (
+  code, discount_type, discount_value,
+  gating_type, contract_addresses, chain_ids, required_balance,
+  discount_scope, target_products,
+  priority_level, auto_apply, expires_at
+) VALUES (
+  'FRENWHALE50', 'percentage', 50,
+  'nft_holding', '["0x1234..."]', '[1, 8453]', 1,
+  'product', '[2]', -- Fren Trunks product ID
+  12, true, NOW() + INTERVAL '30 days'
+);
+```
+
+#### **Shared Promotional Code**
+```sql
+INSERT INTO discount_codes (
+  code, discount_type, discount_value,
+  is_shared_code, fid, max_uses_total, max_uses_per_user,
+  discount_scope, priority_level
+) VALUES (
+  'PROMO50', 'percentage', 50,
+  true, null, 100, 1, -- 100 total uses, 1 per user
+  'site_wide', 5
+);
+```
+
+#### **Whitelist-Based Discount**
+```sql
+INSERT INTO discount_codes (
+  code, discount_type, discount_value,
+  gating_type, whitelisted_fids,
+  discount_scope, auto_apply
+) VALUES (
+  'VIP20', 'percentage', 20,
+  'whitelist_fid', '[466111, 123456, 789012]',
+  'site_wide', true -- Auto-apply for VIP users
+);
+```
+
+### **Frontend Integration**
+
+#### **Automatic Discount Display**
+Product pages automatically show available discounts:
+```javascript
+// Product page automatically fetches and displays best discount
+useEffect(() => {
+  if (farcasterUser?.fid && isReady) {
+    fetch(`/api/shopify/products?handle=${handle}&fid=${farcasterUser.fid}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.availableDiscounts?.best) {
+          setDisplayedDiscount(data.availableDiscounts.best);
+        }
+      });
+  }
+}, [isReady, farcasterUser?.fid]);
+```
+
+#### **Cart Integration**
+Best discounts are automatically applied:
+```javascript
+// Cart automatically uses pre-calculated discounts from session storage
+const activeDiscount = sessionStorage.getItem('activeDiscountCode');
+if (activeDiscount) {
+  const discount = JSON.parse(activeDiscount);
+  // Apply discount automatically during checkout
+}
+```
+
+### **Usage Tracking & Analytics**
+
+#### **Per-User Usage Tracking**
+For shared codes, each user's usage is tracked individually:
+- **Prevents Reuse**: Unique constraint ensures one use per user
+- **Audit Trail**: Complete record of who used what when
+- **Fraud Detection**: IP and user agent tracking
+
+#### **Analytics Queries**
+```sql
+-- Most popular discount codes
+SELECT code, COUNT(*) as uses, SUM(discount_amount) as total_savings
+FROM discount_code_usage dcu
+JOIN discount_codes dc ON dcu.discount_code_id = dc.id
+GROUP BY code ORDER BY uses DESC;
+
+-- Token-gated discount performance
+SELECT code, discount_description, 
+       COUNT(*) as uses,
+       AVG(discount_amount) as avg_discount
+FROM discount_codes dc
+LEFT JOIN discount_code_usage dcu ON dc.id = dcu.discount_code_id  
+WHERE gating_type != 'none'
+GROUP BY code, discount_description;
+
+-- User discount usage patterns
+SELECT fid, COUNT(DISTINCT discount_code_id) as unique_codes_used,
+       SUM(discount_amount) as total_savings
+FROM discount_code_usage
+GROUP BY fid ORDER BY total_savings DESC;
+```
+
+### **Testing & Debug Endpoints**
+
+#### **Shared Discount Test Suite**
+```bash
+# Comprehensive test of shared discount functionality
+curl "https://your-app.vercel.app/api/debug/shared-discount-test"
+```
+
+#### **Token-Gated Eligibility Check**
+```bash
+# Test NFT/token eligibility for specific user
+curl "https://your-app.vercel.app/api/check-token-gated-eligibility" \
+  -X POST -H "Content-Type: application/json" \
+  -d '{"fid": 466111, "discountCode": "FRENWHALE50"}'
+```
+
+#### **Manual Testing Scenarios**
+1. **Token-Gated Flow**: User with NFT gets 50% discount
+2. **Shared Code Usage**: Multiple users use `PROMO50` once each
+3. **Priority Testing**: Best discount automatically selected
+4. **Usage Limits**: Code blocked after reaching max uses
+5. **Cross-User Validation**: User-specific codes blocked for wrong users
+
+### **Benefits**
+
+#### **For Users**
+- **Automatic Eligibility**: No need to hunt for codes
+- **Best Price Guarantee**: Always get the highest available discount
+- **Seamless Experience**: Discounts appear automatically on product pages
+- **Fair Usage**: Shared codes with per-user limits prevent abuse
+
+#### **For Merchants**
+- **Targeted Marketing**: NFT/token holder exclusive offers
+- **Fraud Prevention**: Comprehensive usage tracking and limits
+- **Flexible Campaigns**: Product-specific, collection-wide, or site-wide discounts
+- **Analytics**: Detailed insights into discount performance and user behavior
+
+#### **For Developers**
+- **Single API Call**: Product data + discount info in one request
+- **Flexible Configuration**: Support for any token-gating scenario
+- **Comprehensive Testing**: Debug endpoints for all scenarios
+- **Future-Proof**: Extensible schema for new gating types
 
 ## 📋 Prerequisites
 
@@ -114,11 +407,17 @@ CLOUDFLARE_KV_API_TOKEN=your-kv-token
 
 ### 3. Database Setup
 ```bash
-# Run the database migration
-npm run db:migrate
-
-# Or manually apply the schema
+# Apply the main database schema
 psql -h your-supabase-host -U postgres -d postgres -f database/schema.sql
+
+# Apply token-gated discount enhancements
+psql -h your-supabase-host -U postgres -d postgres -f database/migrations/add_token_gated_discounts.sql
+
+# Apply shared discount code usage tracking
+psql -h your-supabase-host -U postgres -d postgres -f database/migrations/add_discount_usage_tracking.sql
+
+# Or run all migrations at once
+npm run db:migrate
 ```
 
 ### 4. Webhook Configuration
@@ -236,7 +535,9 @@ const orderUrl = `${window.location.origin}/order/${cleanOrderNumber}?t=${timest
 ## 🧪 Testing
 
 ### Debug Endpoints
-- `/api/debug/discount-test` - Test discount system
+- `/api/debug/discount-test` - Test basic discount system
+- `/api/debug/shared-discount-test` - Test shared discount codes with per-user limits
+- `/api/debug/token-gated-test` - Test NFT/token-based discount eligibility
 - `/api/debug/order-items-test` - Test order processing
 - `/api/debug/test-order-archiving` - Test archiving logic
 - `/api/debug/neynar-test` - Test notifications
@@ -244,8 +545,22 @@ const orderUrl = `${window.location.origin}/order/${cleanOrderNumber}?t=${timest
 
 ### Manual Testing
 ```bash
-# Test discount creation
+# Test basic discount creation
 curl "https://your-app.vercel.app/api/debug/welcome-discount-test"
+
+# Test shared discount codes
+curl "https://your-app.vercel.app/api/debug/shared-discount-test"
+
+# Test token-gated discount eligibility
+curl "https://your-app.vercel.app/api/debug/token-gated-test"
+
+# Test discount validation
+curl -X POST "https://your-app.vercel.app/api/validate-discount" \
+  -H "Content-Type: application/json" \
+  -d '{"code": "FRENWHALE50", "fid": 466111, "subtotal": 59.97}'
+
+# Test enhanced products API with discounts
+curl "https://your-app.vercel.app/api/shopify/products?handle=fren-trunks&fid=466111"
 
 # Test order processing
 curl "https://your-app.vercel.app/api/debug/order-processing-test"
