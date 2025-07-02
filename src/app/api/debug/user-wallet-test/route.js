@@ -15,12 +15,15 @@ export async function GET(request) {
       }, { status: 500 });
     }
 
-    // Fetch user data from Neynar
-    const userResponse = await neynarClient.lookupUserByFid(parseInt(fid));
-    console.log('👤 Raw user data from Neynar:', JSON.stringify(userResponse, null, 2));
+    // Test user lookup with Neynar
+    console.log('Testing user lookup with Neynar...');
+    const userResponse = await neynarClient.fetchBulkUsers({
+      fids: [parseInt(fid)]
+    });
+    console.log('User data from Neynar:', JSON.stringify(userResponse, null, 2));
 
     // Extract wallet-related information
-    const userData = userResponse.user;
+    const userData = userResponse.users[0];
     const walletData = {
       fid: userData.fid,
       username: userData.username,
@@ -92,9 +95,12 @@ export async function POST(request) {
       }, { status: 500 });
     }
 
-    // Fetch user data
-    const userResponse = await neynarClient.lookupUserByFid(fid);
-    const userData = userResponse.user;
+    // Get user data from Neynar if available
+    console.log('Getting user data from Neynar...');
+    const userResponse = await neynarClient.fetchBulkUsers({
+      fids: [fid]
+    });
+    const userData = userResponse.users[0];
 
     // Extract just the wallet addresses for token-gating
     const walletAddresses = {
