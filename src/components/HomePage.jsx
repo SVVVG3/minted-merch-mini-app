@@ -8,8 +8,9 @@ import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
 import { getBestAvailableDiscount, hasDiscountOfType } from '@/lib/discounts';
-import { getEligibleAutoApplyDiscounts } from '@/lib/tokenGating';
-import { fetchUserWalletData } from '@/lib/walletUtils';
+// Token-gating functions moved to API routes to avoid client-side Node.js imports
+// import { getEligibleAutoApplyDiscounts } from '@/lib/tokenGating';
+// import { fetchUserWalletData } from '@/lib/walletUtils';
 
 export function HomePage({ collection, products }) {
   const { itemCount, cartTotal } = useCart();
@@ -295,45 +296,63 @@ export function HomePage({ collection, products }) {
         discountSource = 'notification_click';
         console.log('🎯 Using discount from notification click:', pendingDiscount.discountCode);
       } 
-      // Priority 2: Check for token-gated auto-apply discounts  
+      // Priority 2: Check for token-gated auto-apply discounts via API
       else {
         console.log('🔍 Checking for token-gated auto-apply discounts...');
         
         try {
-          // Get user's wallet addresses for token-gating
-          const walletData = await fetchUserWalletData(fid);
-          const userWalletAddresses = walletData?.all_wallet_addresses || [];
+          // Get user's wallet addresses for token-gating via API
+          const walletResponse = await fetch(`/api/user-wallet-data?fid=${fid}`);
+          const walletData = await walletResponse.json();
           
-          console.log('User wallet addresses for token-gating:', userWalletAddresses);
-          
-          if (userWalletAddresses.length > 0) {
-            // Check for eligible token-gated discounts
-            eligibleTokenGatedDiscounts = await getEligibleAutoApplyDiscounts(
-              fid, 
-              userWalletAddresses, 
-              'site_wide', // Default scope, could be made dynamic
-              [] // Product IDs - empty for site-wide
-            );
-            
-            console.log('Eligible token-gated discounts:', eligibleTokenGatedDiscounts);
-            
-            // Use the highest priority token-gated discount if available
-            if (eligibleTokenGatedDiscounts.length > 0) {
-              const topDiscount = eligibleTokenGatedDiscounts[0]; // Already sorted by priority
-              activeDiscount = {
-                code: topDiscount.code,
-                source: 'token_gated',
-                gating_type: topDiscount.gating_type,
-                priority_level: topDiscount.priority_level,
-                discount_description: topDiscount.discount_description,
-                displayText: formatDiscountText(topDiscount),
-                isUsable: true
-              };
-              discountSource = 'token_gated';
-              console.log('🎫 Using token-gated discount:', topDiscount.code, 'Type:', topDiscount.gating_type);
-            }
+          if (!walletData.success) {
+            console.log('❌ Could not fetch wallet data:', walletData.error);
           } else {
-            console.log('❌ No wallet addresses found for token-gating');
+            const userWalletAddresses = walletData.walletData?.all_wallet_addresses || [];
+            console.log('User wallet addresses for token-gating:', userWalletAddresses);
+            
+            if (userWalletAddresses.length > 0) {
+              // Check for eligible token-gated discounts via API
+              const eligibilityResponse = await fetch('/api/check-token-gated-eligibility', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  fid,
+                  walletAddresses: userWalletAddresses,
+                  scope: 'site_wide', // Default scope, could be made dynamic
+                  productIds: [] // Product IDs - empty for site-wide
+                })
+              });
+              
+              const eligibilityData = await eligibilityResponse.json();
+              
+              if (eligibilityData.success) {
+                eligibleTokenGatedDiscounts = eligibilityData.eligibleDiscounts || [];
+                console.log('Eligible token-gated discounts:', eligibleTokenGatedDiscounts);
+                
+                // Use the highest priority token-gated discount if available
+                if (eligibleTokenGatedDiscounts.length > 0) {
+                  const topDiscount = eligibleTokenGatedDiscounts[0]; // Already sorted by priority
+                  activeDiscount = {
+                    code: topDiscount.code,
+                    source: 'token_gated',
+                    gating_type: topDiscount.gating_type,
+                    priority_level: topDiscount.priority_level,
+                    discount_description: topDiscount.discount_description,
+                    displayText: formatDiscountText(topDiscount),
+                    isUsable: true
+                  };
+                  discountSource = 'token_gated';
+                  console.log('🎫 Using token-gated discount:', topDiscount.code, 'Type:', topDiscount.gating_type);
+                }
+              } else {
+                console.log('❌ Token-gating eligibility check failed:', eligibilityData.error);
+              }
+            } else {
+              console.log('❌ No wallet addresses found for token-gating');
+            }
           }
         } catch (error) {
           console.error('❌ Error checking token-gated discounts:', error);
