@@ -304,80 +304,104 @@ export function ProductDetail({
             )}
             
             {productDiscount && !discountLoading && (
-              <div className={`mt-3 p-4 rounded-lg border-2 ${
-                productDiscount.scope === 'product' 
-                  ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300' 
-                  : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-300'
+              <div className={`mt-4 p-4 rounded-lg border ${
+                productDiscount.code?.startsWith('WELCOME') 
+                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200' 
+                  : productDiscount.scope === 'product' 
+                    ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
+                    : 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200'
               }`}>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      {productDiscount.scope === 'product' ? (
-                        <div className="flex items-center gap-1">
-                          <span className="text-lg">🎯</span>
-                          <span className="font-semibold text-green-800">Special Product Discount!</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <span className="text-lg">🎟️</span>
-                          <span className="font-semibold text-blue-800">Discount Available</span>
-                        </div>
-                      )}
-                      
-                      {productDiscount.gating_type && (
-                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                          productDiscount.gating_type === 'nft_holding' ? 'bg-purple-100 text-purple-700' :
-                          productDiscount.gating_type === 'token_balance' ? 'bg-blue-100 text-blue-700' :
-                          productDiscount.gating_type === 'whitelist_fid' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {productDiscount.gating_type === 'nft_holding' ? 'NFT Holder' :
-                           productDiscount.gating_type === 'token_balance' ? 'Token Holder' :
-                           productDiscount.gating_type === 'whitelist_fid' ? 'VIP Member' :
-                           'Special Access'}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="text-lg font-bold text-gray-900 mb-1">
-                      {productDiscount.isTokenGated ? (
-                        `${productDiscount.displayText} token-gated discount`
-                      ) : productDiscount.code?.startsWith('WELCOME') ? (
-                        `${productDiscount.displayText} discount automatically applied to your first order!`
-                      ) : (
-                        <>
-                          {productDiscount.displayText} with code: <span className="font-mono bg-white px-2 py-1 rounded border">{productDiscount.code}</span>
-                        </>
-                      )}
-                    </div>
-                    
-                    {productDiscount.description && (
-                      <p className="text-sm text-gray-600 mb-2">{productDiscount.description}</p>
+                {/* Header Row */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    {productDiscount.code?.startsWith('WELCOME') ? (
+                      <>
+                        <span className="text-xl">🎉</span>
+                        <span className="font-semibold text-blue-800">Welcome Discount</span>
+                      </>
+                    ) : productDiscount.scope === 'product' ? (
+                      <>
+                        <span className="text-xl">🎯</span>
+                        <span className="font-semibold text-green-800">Special Product Discount</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-xl">🎟️</span>
+                        <span className="font-semibold text-orange-800">Site-wide Discount</span>
+                      </>
                     )}
-                    
-                    <div className="text-xs text-gray-500">
-                      {productDiscount.scope === 'product' 
-                        ? `Product-specific discount` 
-                        : 'Site-wide discount'}
-                      {productDiscount.isTokenGated && ' • Verified via blockchain'}
-                    </div>
                   </div>
                   
                   {/* Discount Badge */}
-                  <div className={`ml-3 px-3 py-1 rounded-full text-sm font-bold ${
-                    productDiscount.scope === 'product' 
-                      ? 'bg-green-600 text-white' 
-                      : 'bg-blue-600 text-white'
+                  <div className={`px-3 py-1 rounded-full text-sm font-bold ${
+                    productDiscount.code?.startsWith('WELCOME') 
+                      ? 'bg-blue-600 text-white' 
+                      : productDiscount.scope === 'product' 
+                        ? 'bg-green-600 text-white' 
+                        : 'bg-orange-600 text-white'
                   }`}>
                     {productDiscount.displayText}
                   </div>
                 </div>
-                
-                {productDiscount.isCurrentBest && (
-                  <div className="mt-2 text-xs text-gray-500 italic">
-                    💡 This discount will be applied automatically in your cart
+
+                {/* Discount Type Badge */}
+                {(productDiscount.gating_type && productDiscount.gating_type !== 'none') && (
+                  <div className="mb-3">
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                      productDiscount.gating_type === 'nft_holding' ? 'bg-purple-100 text-purple-700' :
+                      productDiscount.gating_type === 'token_balance' ? 'bg-blue-100 text-blue-700' :
+                      productDiscount.gating_type === 'whitelist_fid' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {productDiscount.gating_type === 'nft_holding' ? 'NFT Holder' :
+                       productDiscount.gating_type === 'token_balance' ? 'Token Holder' :
+                       productDiscount.gating_type === 'whitelist_fid' ? 'VIP Member' :
+                       'Special Access'}
+                    </span>
                   </div>
                 )}
+                
+                {/* Main Discount Message */}
+                <div className="text-base font-semibold text-gray-900 mb-2">
+                  {productDiscount.code?.startsWith('WELCOME') ? (
+                    `${productDiscount.displayText} welcome discount automatically applied to your first order!`
+                  ) : (productDiscount.gating_type && productDiscount.gating_type !== 'none') ? (
+                    `${productDiscount.displayText} token-gated discount`
+                  ) : (
+                    <>
+                      {productDiscount.displayText} with code: <span className="font-mono bg-white px-2 py-1 rounded border text-sm">{productDiscount.code}</span>
+                    </>
+                  )}
+                </div>
+                
+                {/* Description */}
+                {productDiscount.description && (
+                  <p className="text-sm text-gray-600 mb-3">{productDiscount.description}</p>
+                )}
+                
+                {/* Footer Info */}
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <div>
+                    {productDiscount.code?.startsWith('WELCOME') ? (
+                      'Thank you for enabling notifications!'
+                    ) : productDiscount.scope === 'product' ? (
+                      'Exclusive to this product'
+                    ) : (
+                      'Valid site-wide'
+                    )}
+                  </div>
+                  
+                  {(productDiscount.gating_type && productDiscount.gating_type !== 'none') && (
+                    <div className="text-purple-600">
+                      • Verified via blockchain
+                    </div>
+                  )}
+                </div>
+                
+                {/* Auto-apply notice */}
+                <div className="mt-3 p-2 bg-white/50 rounded text-xs text-gray-600 text-center">
+                  💡 This discount will be applied automatically in your cart
+                </div>
               </div>
             )}
             
