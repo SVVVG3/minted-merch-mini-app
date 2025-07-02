@@ -7,12 +7,11 @@ export async function POST(request) {
   try {
     console.log('🔄 Starting Shopify products sync...');
 
-    const { action = 'sync_all', force = false } = await request.json();
+    const { action = 'sync_all', force = false, handle } = await request.json();
 
     if (action === 'sync_all') {
       return await syncAllProducts(force);
     } else if (action === 'sync_single') {
-      const { handle } = await request.json();
       if (!handle) {
         return NextResponse.json({
           success: false,
