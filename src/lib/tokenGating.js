@@ -473,13 +473,21 @@ export async function getEligibleAutoApplyDiscounts(fid, userWalletAddresses = [
       return [];
     }
 
-    // Fetch auto-apply discounts that haven't expired
-    const { data: autoApplyDiscounts, error } = await supabase
+    // Build query to fetch auto-apply discounts that haven't expired
+    let query = supabase
       .from('discount_codes')
       .select('*')
       .eq('auto_apply', true)
       .eq('is_used', false)
-      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
+      
+    // If checking for site_wide scope, exclude product-specific discounts
+    if (productScope === 'site_wide') {
+      query = query.eq('discount_scope', 'site_wide');
+      console.log('🌐 Filtering for site-wide discounts only');
+    }
+    
+    const { data: autoApplyDiscounts, error } = await query
       .order('priority_level', { ascending: false }) // Higher priority first
       .order('discount_value', { ascending: false }); // Higher value first
 
@@ -532,33 +540,49 @@ export async function getEligibleAutoApplyDiscounts(fid, userWalletAddresses = [
  * Check if a discount matches the current scope (product, collection, etc.)
  */
 function doesDiscountMatchScope(discount, productScope, productIds = []) {
+  console.log(`🔍 Scope check for discount ${discount.code}:`);
+  console.log(`  - Discount scope: ${discount.discount_scope}`);
+  console.log(`  - Requested scope: ${productScope}`);
+  console.log(`  - Product IDs: ${JSON.stringify(productIds)}`);
+  console.log(`  - Target products: ${JSON.stringify(discount.target_products)}`);
+  
   // Site-wide discounts always match
   if (discount.discount_scope === 'site_wide') {
+    console.log(`  ✅ Site-wide discount matches`);
     return true;
   }
 
   // Product-specific discounts
   if (discount.discount_scope === 'product') {
-    if (productScope !== 'product' || productIds.length === 0) {
+    if (productScope !== 'product') {
+      console.log(`  ❌ Product-specific discount but scope is ${productScope}`);
+      return false;
+    }
+    
+    if (productIds.length === 0) {
+      console.log(`  ❌ Product-specific discount but no product IDs provided`);
       return false;
     }
     
     const targetProducts = discount.target_products || [];
-    return productIds.some(productId => targetProducts.includes(productId));
+    const matches = productIds.some(productId => targetProducts.includes(productId));
+    console.log(`  ${matches ? '✅' : '❌'} Product match result: ${matches}`);
+    return matches;
   }
 
   // Collection-specific discounts
   if (discount.discount_scope === 'collection') {
-    // Implementation depends on how you structure collections
+    console.log(`  ❌ Collection scope not implemented yet`);
     return false; // Placeholder
   }
 
   // Category-specific discounts  
   if (discount.discount_scope === 'category') {
-    // Implementation depends on how you structure categories
+    console.log(`  ❌ Category scope not implemented yet`);
     return false; // Placeholder
   }
 
+  console.log(`  ❌ Unknown scope: ${discount.discount_scope}`);
   return false;
 }
 
