@@ -11,7 +11,9 @@ export function ProductDetail({
   product, 
   handle,
   selectedVariant, 
-  onVariantChange
+  onVariantChange,
+  productDiscount,
+  discountLoading
 }) {
   const { addItem, isInCart, getItemQuantity, itemCount, cartTotal } = useCart();
   const { isInFarcaster } = useFarcaster();
@@ -290,6 +292,87 @@ export function ProductDetail({
             <p className="text-2xl font-bold text-gray-900 mt-2">
               ${parseFloat(price).toFixed(2)}
             </p>
+            
+            {/* Product-Specific Discount Display */}
+            {discountLoading && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span className="text-sm text-blue-700">Checking for special discounts...</span>
+                </div>
+              </div>
+            )}
+            
+            {productDiscount && !discountLoading && (
+              <div className={`mt-3 p-4 rounded-lg border-2 ${
+                productDiscount.product_specific 
+                  ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300' 
+                  : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-300'
+              }`}>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      {productDiscount.product_specific ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-lg">🎯</span>
+                          <span className="font-semibold text-green-800">Special Product Discount!</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <span className="text-lg">🎟️</span>
+                          <span className="font-semibold text-blue-800">Discount Available</span>
+                        </div>
+                      )}
+                      
+                      {productDiscount.gating_type && (
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                          productDiscount.gating_type === 'nft_holding' ? 'bg-purple-100 text-purple-700' :
+                          productDiscount.gating_type === 'token_balance' ? 'bg-blue-100 text-blue-700' :
+                          productDiscount.gating_type === 'whitelist_fid' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {productDiscount.gating_type === 'nft_holding' ? 'NFT Holder' :
+                           productDiscount.gating_type === 'token_balance' ? 'Token Holder' :
+                           productDiscount.gating_type === 'whitelist_fid' ? 'VIP Member' :
+                           'Special Access'}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="text-lg font-bold text-gray-900 mb-1">
+                      {productDiscount.displayText} with code: <span className="font-mono bg-white px-2 py-1 rounded border">{productDiscount.code}</span>
+                    </div>
+                    
+                    {productDiscount.description && (
+                      <p className="text-sm text-gray-600 mb-2">{productDiscount.description}</p>
+                    )}
+                    
+                    <div className="text-xs text-gray-500">
+                      {productDiscount.product_specific 
+                        ? `Exclusive to ${productDiscount.product_title || 'this product'}` 
+                        : 'Site-wide discount'}
+                      {productDiscount.source === 'token_gated_product' && ' • Verified via blockchain'}
+                    </div>
+                  </div>
+                  
+                  {/* Discount Badge */}
+                  <div className={`ml-3 px-3 py-1 rounded-full text-sm font-bold ${
+                    productDiscount.product_specific 
+                      ? 'bg-green-600 text-white' 
+                      : 'bg-blue-600 text-white'
+                  }`}>
+                    {productDiscount.displayText}
+                  </div>
+                </div>
+                
+                {productDiscount.isCurrentBest && (
+                  <div className="mt-2 text-xs text-gray-500 italic">
+                    💡 This discount will be applied automatically in your cart
+                  </div>
+                )}
+              </div>
+            )}
+            
             {itemInCart && (
               <p className="text-sm text-green-600 mt-1">
                 {cartQuantity} in cart
