@@ -40,14 +40,14 @@ export function ProductPageClient({ handle }) {
       }
       
       // Get Supabase product ID from our products table for discount targeting
-      const supabaseResponse = await fetch(`/api/products?handle=${handle}`);
+      const supabaseResponse = await fetch(`/api/products?action=get&handle=${handle}`);
       const supabaseData = await supabaseResponse.json();
       
       // Combine the data - use Shopify for display, Supabase ID for discounts
       const combinedProduct = {
         ...shopifyData,
-        supabaseId: supabaseData.success && supabaseData.products.length > 0 
-          ? supabaseData.products[0].id 
+        supabaseId: supabaseData.success && supabaseData.product 
+          ? supabaseData.product.id 
           : null
       };
       
