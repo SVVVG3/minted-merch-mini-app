@@ -395,26 +395,75 @@ async function createFrenTrunksDiscount() {
 
     // First, ensure Fren Trunks is in our products table
     console.log('📦 Syncing Fren Trunks product to products table...');
-    const syncResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mintedmerch.vercel.app'}/api/products/sync`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        action: 'sync_single',
-        handle: 'fren-trunks'
-      })
-    });
-
-    const syncResult = await syncResponse.json();
     
-    if (!syncResult.success) {
-      console.error('❌ Failed to sync Fren Trunks product:', syncResult.error);
+    // Sync directly using Shopify API instead of internal fetch
+    const { getProductByHandle } = await import('@/lib/shopify');
+    const shopifyProduct = await getProductByHandle('fren-trunks');
+    
+    if (!shopifyProduct) {
       return {
         success: false,
-        error: `Failed to sync Fren Trunks product: ${syncResult.error}`
+        error: 'Could not find Fren Trunks product in Shopify'
       };
     }
 
-    const frenTrunksProduct = syncResult.product;
+    // Check if product exists in our products table
+    const { data: existingProduct, error: checkError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('handle', 'fren-trunks')
+      .single();
+
+    let frenTrunksProduct;
+
+    if (checkError && checkError.code === 'PGRST116') {
+      // Product doesn't exist, create it
+      console.log('📦 Creating Fren Trunks in products table...');
+      
+      const productData = {
+        handle: shopifyProduct.handle,
+        shopify_id: shopifyProduct.id.split('/').pop(), // Extract numeric ID
+        shopify_graphql_id: shopifyProduct.id,
+        title: shopifyProduct.title,
+        description: shopifyProduct.description,
+        product_type: shopifyProduct.productType,
+        vendor: shopifyProduct.vendor,
+        status: shopifyProduct.status?.toLowerCase() || 'active',
+        tags: shopifyProduct.tags || [],
+        price_min: parseFloat(shopifyProduct.priceRange?.minVariantPrice?.amount || 0),
+        price_max: parseFloat(shopifyProduct.priceRange?.maxVariantPrice?.amount || 0),
+        variant_count: shopifyProduct.variants?.edges?.length || 0,
+        image_url: shopifyProduct.featuredImage?.url,
+        synced_at: new Date().toISOString()
+      };
+
+      const { data: newProduct, error: insertError } = await supabase
+        .from('products')
+        .insert(productData)
+        .select('*')
+        .single();
+
+      if (insertError) {
+        console.error('❌ Failed to create product in products table:', insertError);
+        return {
+          success: false,
+          error: `Failed to create product: ${insertError.message}`
+        };
+      }
+
+      frenTrunksProduct = newProduct;
+      console.log('✅ Created Fren Trunks in products table');
+    } else if (checkError) {
+      console.error('❌ Error checking for existing product:', checkError);
+      return {
+        success: false,
+        error: `Database error: ${checkError.message}`
+      };
+    } else {
+      // Product exists, use it
+      frenTrunksProduct = existingProduct;
+      console.log('✅ Found existing Fren Trunks in products table');
+    }
     console.log('✅ Fren Trunks synced to products table:', {
       id: frenTrunksProduct.id,
       handle: frenTrunksProduct.handle,
@@ -444,7 +493,7 @@ async function createFrenTrunksDiscount() {
       discount_value: 50,
       discount_scope: 'product',
       target_product_ids: [frenTrunksProduct.id], // NEW: Use Supabase products table ID
-      target_products: [frenTrunksProduct.shopify_id], // LEGACY: Keep for backward compatibility
+      target_products: [frenTrunksProduct.shopify_graphql_id], // LEGACY: Keep for backward compatibility
       gating_type: 'nft_holding',
       contract_addresses: ['0x123b30E25973FeCd8354dd5f41Cc45A3065eF88C'], // The contract user specified
       required_balance: 1, // Need at least 1 NFT
