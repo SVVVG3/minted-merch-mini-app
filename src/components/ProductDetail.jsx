@@ -306,7 +306,7 @@ export function ProductDetail({
             {productDiscount && !discountLoading && (
               <div className={`mt-4 p-4 rounded-lg border ${
                 productDiscount.code?.startsWith('WELCOME') 
-                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200' 
+                  ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
                   : productDiscount.scope === 'product' 
                     ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
                     : 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200'
@@ -317,7 +317,7 @@ export function ProductDetail({
                     {productDiscount.code?.startsWith('WELCOME') ? (
                       <>
                         <span className="text-xl">🎉</span>
-                        <span className="font-semibold text-blue-800">Welcome Discount</span>
+                        <span className="font-semibold text-green-800">Welcome Discount</span>
                       </>
                     ) : productDiscount.scope === 'product' ? (
                       <>
@@ -335,7 +335,7 @@ export function ProductDetail({
                   {/* Discount Badge */}
                   <div className={`px-3 py-1 rounded-full text-sm font-bold ${
                     productDiscount.code?.startsWith('WELCOME') 
-                      ? 'bg-blue-600 text-white' 
+                      ? 'bg-green-600 text-white' 
                       : productDiscount.scope === 'product' 
                         ? 'bg-green-600 text-white' 
                         : 'bg-orange-600 text-white'
@@ -362,9 +362,11 @@ export function ProductDetail({
                 )}
                 
                 {/* Main Discount Message */}
-                <div className="text-base font-semibold text-gray-900 mb-2">
+                <div className={`text-base font-semibold text-gray-900 mb-2 ${
+                  productDiscount.code?.startsWith('WELCOME') ? 'text-center' : ''
+                }`}>
                   {productDiscount.code?.startsWith('WELCOME') ? (
-                    `${productDiscount.displayText} welcome discount automatically applied to your first order!`
+                    `${productDiscount.displayText} welcome discount`
                   ) : (productDiscount.gating_type && productDiscount.gating_type !== 'none') ? (
                     `${productDiscount.displayText} token-gated discount`
                   ) : (
@@ -374,27 +376,35 @@ export function ProductDetail({
                   )}
                 </div>
                 
-                {/* Description */}
-                {productDiscount.description && (
+                {/* Description - Hide for token-gated discounts */}
+                {productDiscount.description && !productDiscount.code?.startsWith('WELCOME') && !(productDiscount.gating_type && productDiscount.gating_type !== 'none') && (
                   <p className="text-sm text-gray-600 mb-3">{productDiscount.description}</p>
                 )}
                 
                 {/* Footer Info */}
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <div>
-                    {productDiscount.code?.startsWith('WELCOME') ? (
-                      'Thank you for enabling notifications!'
-                    ) : productDiscount.scope === 'product' ? (
-                      'Exclusive to this product'
-                    ) : (
-                      'Valid site-wide'
-                    )}
-                  </div>
-                  
-                  {(productDiscount.gating_type && productDiscount.gating_type !== 'none') && (
-                    <div className="text-purple-600">
-                      • Verified via blockchain
-                    </div>
+                <div className={`text-xs text-gray-500 ${
+                  productDiscount.code?.startsWith('WELCOME') 
+                    ? 'text-center mb-3' 
+                    : 'flex items-center justify-between'
+                }`}>
+                  {productDiscount.code?.startsWith('WELCOME') ? (
+                    <div>Thank you for enabling notifications!</div>
+                  ) : (
+                    <>
+                      <div>
+                        {productDiscount.scope === 'product' ? (
+                          'Exclusive to this product'
+                        ) : (
+                          'Valid site-wide'
+                        )}
+                      </div>
+                      
+                      {(productDiscount.gating_type && productDiscount.gating_type !== 'none') && (
+                        <div className="text-purple-600">
+                          • Verified via blockchain
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
                 
