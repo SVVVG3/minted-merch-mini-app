@@ -67,7 +67,6 @@ async function syncAllProducts(force = false) {
                 description
                 productType
                 vendor
-                status
                 tags
                 priceRange {
                   minVariantPrice {
@@ -140,7 +139,7 @@ async function syncAllProducts(force = false) {
       description: node.description || null,
       product_type: node.productType || null,
       vendor: node.vendor || null,
-      status: node.status?.toLowerCase() || 'active',
+      status: 'active', // Default to active since status field not available in Storefront API
       tags: node.tags || [],
       price_min: parseFloat(node.priceRange?.minVariantPrice?.amount || 0),
       price_max: parseFloat(node.priceRange?.maxVariantPrice?.amount || 0),
@@ -227,7 +226,6 @@ async function syncSingleProduct(handle) {
           description
           productType
           vendor
-          status
           tags
           priceRange {
             minVariantPrice {
@@ -287,7 +285,7 @@ async function syncSingleProduct(handle) {
       description: product.description || null,
       product_type: product.productType || null,
       vendor: product.vendor || null,
-      status: product.status?.toLowerCase() || 'active',
+      status: 'active', // Default to active since status field not available in Storefront API
       tags: product.tags || [],
       price_min: parseFloat(product.priceRange?.minVariantPrice?.amount || 0),
       price_max: parseFloat(product.priceRange?.maxVariantPrice?.amount || 0),
