@@ -29,10 +29,15 @@ export function ProductPageClient({ handle }) {
 
   const fetchProduct = async () => {
     try {
+      // Debug: Log the Farcaster user context
+      console.log('🔍 Farcaster user context:', farcasterUser);
+      console.log('🔍 User FID available:', farcasterUser?.fid);
+      
       // Build API URL - include FID if user is available for discount checking
       const apiUrl = `/api/shopify/products?handle=${handle}${farcasterUser?.fid ? `&fid=${farcasterUser.fid}` : ''}`;
       
       console.log(`🛍️ Fetching product with discounts: ${handle}${farcasterUser?.fid ? ` (FID: ${farcasterUser.fid})` : ''}`);
+      console.log('🔍 API URL:', apiUrl);
       
       const response = await fetch(apiUrl);
       const productData = await response.json();
@@ -44,6 +49,7 @@ export function ProductPageClient({ handle }) {
       console.log('🎁 Product loaded:', productData.title);
       console.log('- Shopify ID:', productData.id);
       console.log('- Supabase ID:', productData.supabaseId);
+      console.log('🔍 Available discounts data:', productData.availableDiscounts);
       
       // Check if discounts were found
       if (productData.availableDiscounts?.best) {
