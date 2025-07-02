@@ -3,6 +3,24 @@
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 
+// Helper function to get token-gating display text
+const getTokenGatingDisplayText = (gatingType) => {
+  switch (gatingType) {
+    case 'nft_holding':
+      return 'NFT holder';
+    case 'token_balance':
+      return 'Token holder';
+    case 'whitelist_fid':
+      return 'VIP member';
+    case 'whitelist_wallet':
+      return 'Whitelisted wallet';
+    case 'combined':
+      return 'Exclusive eligibility';
+    default:
+      return 'Token-gated';
+  }
+};
+
 export function DiscountCodeSection({ 
   onDiscountApplied, 
   onDiscountRemoved, 
@@ -18,6 +36,7 @@ export function DiscountCodeSection({
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [discountError, setDiscountError] = useState(null);
   const [hasAutoPopulated, setHasAutoPopulated] = useState(false);
+  const [tokenGatingInfo, setTokenGatingInfo] = useState(null);
 
   // Auto-populate discount code from session storage
   useEffect(() => {
@@ -31,6 +50,16 @@ export function DiscountCodeSection({
           
           setDiscountCode(activeDiscount.code || '');
           setHasAutoPopulated(true);
+          
+          // Store token-gating information if available
+          if (activeDiscount.isTokenGated) {
+            setTokenGatingInfo({
+              isTokenGated: true,
+              gatingType: activeDiscount.gatingType,
+              description: activeDiscount.description,
+              priorityLevel: activeDiscount.priorityLevel
+            });
+          }
           
           // Optionally auto-apply the discount if we have subtotal
           if (subtotal > 0 && activeDiscount.code) {
@@ -116,6 +145,7 @@ export function DiscountCodeSection({
     setDiscountCode('');
     setDiscountError(null);
     setHasAutoPopulated(false);
+    setTokenGatingInfo(null);
 
     // Clear from session storage
     try {
@@ -146,7 +176,10 @@ export function DiscountCodeSection({
         <h3 className="font-medium text-gray-900">Discount Code</h3>
         {appliedDiscount && appliedDiscount.source === 'auto_applied' && (
           <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-            Auto-applied
+            {tokenGatingInfo?.isTokenGated 
+              ? `🎫 ${getTokenGatingDisplayText(tokenGatingInfo.gatingType)}` 
+              : 'Auto-applied'
+            }
           </span>
         )}
       </div>
@@ -185,7 +218,17 @@ export function DiscountCodeSection({
           {/* Helper text for auto-populated codes */}
           {autoPopulate && hasAutoPopulated && !appliedDiscount && (
             <div className="text-green-600 text-xs">
-              💡 We found a discount code for you! Click Apply to use it.
+              {tokenGatingInfo?.isTokenGated ? (
+                <div>
+                  🎫 <strong>{getTokenGatingDisplayText(tokenGatingInfo.gatingType)} discount found!</strong>
+                  {tokenGatingInfo.description && (
+                    <div className="text-gray-600 mt-1">{tokenGatingInfo.description}</div>
+                  )}
+                  <div className="mt-1">Click Apply to use it.</div>
+                </div>
+              ) : (
+                '💡 We found a discount code for you! Click Apply to use it.'
+              )}
             </div>
           )}
 

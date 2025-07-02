@@ -8,6 +8,8 @@ import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
 import { getBestAvailableDiscount, hasDiscountOfType } from '@/lib/discounts';
+import { getEligibleAutoApplyDiscounts } from '@/lib/tokenGating';
+import { fetchUserWalletData } from '@/lib/walletUtils';
 
 export function HomePage({ collection, products }) {
   const { itemCount, cartTotal } = useCart();
@@ -279,6 +281,7 @@ export function HomePage({ collection, products }) {
       // Determine which discount to prioritize
       let activeDiscount = null;
       let discountSource = null;
+      let eligibleTokenGatedDiscounts = [];
 
       // Priority 1: Pending discount from URL (fresh notification click) - ALWAYS ALLOW
       if (pendingDiscount && pendingDiscount.discountCode) {
@@ -292,8 +295,50 @@ export function HomePage({ collection, products }) {
         discountSource = 'notification_click';
         console.log('🎯 Using discount from notification click:', pendingDiscount.discountCode);
       } 
-      // Priority 2: Best available discount from database - ONLY FOR USERS WITH NOTIFICATIONS
-      else if (hasNotifications) {
+      // Priority 2: Check for token-gated auto-apply discounts - ALWAYS CHECK (regardless of notifications)
+      else {
+        console.log('🔍 Checking for token-gated auto-apply discounts...');
+        
+        try {
+          // Get user's wallet data for token-gating checks
+          const walletData = await fetchUserWalletData(fid);
+          const userWalletAddresses = walletData?.all_wallet_addresses || [];
+          
+          console.log(`User has ${userWalletAddresses.length} wallet addresses for token-gating`);
+
+          // Check for eligible token-gated discounts
+          eligibleTokenGatedDiscounts = await getEligibleAutoApplyDiscounts(
+            fid, 
+            userWalletAddresses, 
+            'site_wide', 
+            []
+          );
+
+          console.log(`Found ${eligibleTokenGatedDiscounts.length} eligible token-gated discounts`);
+
+          // Use highest priority token-gated discount if available
+          if (eligibleTokenGatedDiscounts.length > 0) {
+            const bestTokenDiscount = eligibleTokenGatedDiscounts[0]; // Already sorted by priority
+            activeDiscount = {
+              code: bestTokenDiscount.code,
+              source: 'token_gated',
+              displayText: formatDiscountText(bestTokenDiscount),
+              isUsable: true,
+              gating_type: bestTokenDiscount.gating_type,
+              priority_level: bestTokenDiscount.priority_level,
+              discount_description: bestTokenDiscount.discount_description
+            };
+            discountSource = 'token_gated';
+            console.log('🎫 Using token-gated discount:', bestTokenDiscount.code, `(${bestTokenDiscount.gating_type})`);
+          }
+        } catch (error) {
+          console.warn('Error checking token-gated discounts:', error);
+          // Continue to next priority level
+        }
+      }
+
+      // Priority 3: Best available discount from database - ONLY FOR USERS WITH NOTIFICATIONS
+      if (!activeDiscount && hasNotifications) {
         console.log('✅ User has notifications enabled - loading database discounts');
         
         const bestDiscountResult = await getBestAvailableDiscount(fid);
@@ -305,9 +350,9 @@ export function HomePage({ collection, products }) {
           console.log('🎯 Using best available discount from account:', activeDiscount.code);
         }
       }
-      // Priority 3: User doesn't have notifications - no auto-discount
-      else {
-        console.log('❌ User does not have notifications enabled - no auto-discount applied');
+      // Priority 4: User doesn't have notifications and no token-gated discounts - no auto-discount
+      else if (!activeDiscount) {
+        console.log('❌ User does not have notifications enabled and no token-gated discounts found');
         console.log('💡 Users can still manually enter discount codes in the cart');
       }
 
@@ -322,6 +367,7 @@ export function HomePage({ collection, products }) {
         isLoading: false,
         bestDiscount: activeDiscount,
         availableDiscounts: hasNotifications ? (await getBestAvailableDiscount(fid)).alternativeCodes || [] : [],
+        eligibleTokenGatedDiscounts, // Store all eligible token-gated discounts
         hasWelcomeDiscount: welcomeDiscountResult.hasDiscount,
         hasNotifications, // Store notification status for UI decisions
         discountSource,
@@ -344,7 +390,11 @@ export function HomePage({ collection, products }) {
           source: discountSource,
           displayText: activeDiscount.displayText || formatDiscountText(activeDiscount),
           timestamp: new Date().toISOString(),
-          requiresNotifications: discountSource === 'user_account' // Flag database discounts
+          requiresNotifications: discountSource === 'user_account', // Flag database discounts
+          isTokenGated: discountSource === 'token_gated', // Flag token-gated discounts
+          gatingType: activeDiscount.gating_type || null,
+          priorityLevel: activeDiscount.priority_level || 0,
+          description: activeDiscount.discount_description || null
         }));
       } else {
         // Clear any existing discount code if user doesn't qualify
