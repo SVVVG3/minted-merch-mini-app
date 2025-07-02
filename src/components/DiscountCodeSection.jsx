@@ -196,7 +196,7 @@ export function DiscountCodeSection({
                 🔔 Enable notifications for automatic discounts!
               </div>
               <div className="text-blue-600 text-xs">
-                Get exclusive discount codes delivered automatically. You can still enter codes manually below.
+                Get 15% off your first/next order when you add the mini app and turn on notifications.
               </div>
             </div>
           )}
