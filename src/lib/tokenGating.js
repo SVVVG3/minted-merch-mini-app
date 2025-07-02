@@ -127,7 +127,7 @@ async function checkBasicDiscountEligibility(discount, fid) {
   }
 
   // Check user-specific usage limits
-  if (discount.max_uses_per_user) {
+  if (discount.max_uses_per_user && supabase) {
     const { data: userUsage, error } = await supabase
       .from('discount_codes')
       .select('id')
@@ -468,6 +468,11 @@ export async function getEligibleAutoApplyDiscounts(fid, userWalletAddresses = [
   try {
     console.log('🎯 Getting eligible auto-apply discounts for FID:', fid);
 
+    if (!supabase) {
+      console.log('⚠️ Supabase not available, using mock data');
+      return [];
+    }
+
     // Fetch auto-apply discounts that haven't expired
     const { data: autoApplyDiscounts, error } = await supabase
       .from('discount_codes')
@@ -561,6 +566,11 @@ function doesDiscountMatchScope(discount, productScope, productIds = []) {
  * Create example token-gated discounts (for testing/admin)
  */
 export async function createExampleTokenGatedDiscounts() {
+  if (!supabase) {
+    console.log('⚠️ Supabase not available, cannot create example discounts');
+    return [];
+  }
+
   const examples = [
     {
       code: 'NOUNS20',

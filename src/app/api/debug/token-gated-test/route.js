@@ -28,6 +28,10 @@ export async function GET(request) {
         results.tests.setup = await setupExampleDiscounts();
         break;
         
+      case 'create_fren_discount':
+        results.tests.fren_discount = await createFrenTrunksDiscount();
+        break;
+        
       case 'test_eligibility':
         results.tests.eligibility = await testUserEligibility(testFid, discountCode);
         break;
@@ -375,6 +379,86 @@ async function createCustomDiscount(discountData, fid) {
       success: false,
       error: error.message
     }, { status: 500 });
+  }
+}
+
+/**
+ * Create Fren Trunks 50% discount for specific NFT collection
+ */
+async function createFrenTrunksDiscount() {
+  try {
+    console.log('🏊 Creating Fren Trunks NFT discount...');
+
+    // Get the Fren Trunks product details
+    const { getProductByHandle } = await import('@/lib/shopify');
+    const frenTrunksProduct = await getProductByHandle('fren-trunks');
+    
+    if (!frenTrunksProduct) {
+      return {
+        success: false,
+        error: 'Could not find Fren Trunks product'
+      };
+    }
+
+    const discountData = {
+      code: 'FRENWHALE50',
+      discount_type: 'percentage',
+      discount_value: 50,
+      discount_scope: 'product',
+      target_products: [frenTrunksProduct.id], // Target specific product
+      gating_type: 'nft_holding',
+      contract_addresses: ['0x123b30E25973FeCd8354dd5f41Cc45A3065eF88C'], // The contract user specified
+      required_balance: 1, // Need at least 1 NFT
+      chain_ids: [1], // Ethereum mainnet
+      auto_apply: true,
+      priority_level: 12, // High priority
+      max_uses_total: 1000, // Limit total uses
+      max_uses_per_user: 1, // One use per user
+      discount_description: '50% off Fren Trunks for NFT holders',
+      campaign_id: 'fren_nft_holders_2025',
+      code_type: 'promotional',
+      fid: 466111, // Created by you
+      expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString() // 60 days
+    };
+
+    console.log('Creating discount with data:', discountData);
+
+    const { data, error } = await supabase
+      .from('discount_codes')
+      .insert(discountData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating Fren Trunks discount:', error);
+      return {
+        success: false,
+        error: error.message,
+        details: error
+      };
+    }
+
+    console.log('✅ Created Fren Trunks discount:', data.code);
+
+    return {
+      success: true,
+      discount: data,
+      message: `Created ${data.code}: 50% off Fren Trunks for NFT collection 0x123b30E25973FeCd8354dd5f41Cc45A3065eF88C holders`,
+      details: {
+        product_targeted: 'Fren Trunks',
+        product_id: frenTrunksProduct.id,
+        contract_address: '0x123b30E25973FeCd8354dd5f41Cc45A3065eF88C',
+        discount_value: '50%',
+        expires_in_days: 60
+      }
+    };
+
+  } catch (error) {
+    console.error('Error in createFrenTrunksDiscount:', error);
+    return {
+      success: false,
+      error: error.message
+    };
   }
 }
 
