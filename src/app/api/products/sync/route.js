@@ -14,6 +14,8 @@ export async function POST(request) {
       }, { status: 500 });
     }
 
+
+
     console.log('🔄 Starting Shopify products sync...');
 
     const { action = 'sync_all', force = false, handle } = await request.json();
