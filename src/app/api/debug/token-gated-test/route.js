@@ -56,6 +56,10 @@ export async function GET(request) {
         results.tests.zapper = await testZapperIntegration(testFid);
         break;
         
+      case 'get_fren_product_id':
+        results.tests.fren_product_id = await getFrenTrunksProductId();
+        break;
+        
       default:
         results.error = `Unknown action: ${action}`;
     }
@@ -590,5 +594,51 @@ async function deleteTestDiscounts() {
       success: false,
       error: error.message
     }, { status: 500 });
+  }
+}
+
+// NEW: Get Fren Trunks product ID for debugging
+async function getFrenTrunksProductId() {
+  try {
+    const shopifyApiUrl = `https://${process.env.SHOPIFY_STORE_DOMAIN}/api/2024-07/graphql.json`;
+    
+    // Fetch Fren Trunks product data
+    const query = `
+      query getProductByHandle($handle: String!) {
+        productByHandle(handle: $handle) {
+          id
+          title
+          handle
+          legacyResourceId
+        }
+      }
+    `;
+    
+    const variables = { handle: 'fren-trunks' };
+    
+    const response = await fetch(shopifyApiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Storefront-Access-Token': process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN
+      },
+      body: JSON.stringify({ query, variables })
+    });
+    
+    const result = await response.json();
+    
+    return {
+      success: true,
+      product: result.data?.productByHandle,
+      graphql_id: result.data?.productByHandle?.id,
+      legacy_id: result.data?.productByHandle?.legacyResourceId,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    };
   }
 } 
