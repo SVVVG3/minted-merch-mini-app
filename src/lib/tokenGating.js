@@ -203,7 +203,7 @@ async function checkWalletWhitelist(discount, userWalletAddresses) {
 }
 
 /**
- * Check NFT holding eligibility
+ * Check NFT holding eligibility using Zapper API
  * @param {Object} discount - Discount configuration
  * @param {Array} userWalletAddresses - User's wallet addresses
  */
@@ -220,36 +220,48 @@ async function checkNftHolding(discount, userWalletAddresses) {
     };
   }
 
-  // For now, we'll implement a placeholder that simulates checking
-  // In production, you'd integrate with services like Alchemy, Moralis, or direct RPC calls
+  if (userWalletAddresses.length === 0) {
+    return {
+      eligible: false,
+      reason: 'No wallet addresses provided',
+      details: {}
+    };
+  }
+
   console.log('🔍 Checking NFT holdings for contracts:', contractAddresses);
   
   try {
-    // Placeholder for actual blockchain integration
-    // This would be replaced with real NFT balance checking
-    const mockNftCheck = await checkNftBalancePlaceholder(
+    // Import Zapper API function dynamically to avoid circular imports
+    const { checkNftHoldingsWithZapper } = await import('./zapperAPI.js');
+    
+    const zapperResult = await checkNftHoldingsWithZapper(
       userWalletAddresses, 
       contractAddresses, 
       chainIds,
       requiredBalance
     );
 
+    const eligible = zapperResult.hasRequiredNfts;
+    const totalFound = zapperResult.totalBalance;
+
     return {
-      eligible: mockNftCheck.totalBalance >= requiredBalance,
-      reason: mockNftCheck.totalBalance >= requiredBalance
-        ? `Found ${mockNftCheck.totalBalance} NFTs (required: ${requiredBalance})`
-        : `Found ${mockNftCheck.totalBalance} NFTs, need ${requiredBalance}`,
+      eligible,
+      reason: eligible
+        ? `Found ${totalFound} NFTs (required: ${requiredBalance})`
+        : `Found ${totalFound} NFTs, need ${requiredBalance}`,
       details: {
         required_balance: requiredBalance,
-        found_balance: mockNftCheck.totalBalance,
+        found_balance: totalFound,
         contracts_checked: contractAddresses,
-        chains_checked: chainIds
+        chains_checked: chainIds,
+        collection_details: zapperResult.collectionBalances || [],
+        zapper_result: zapperResult
       },
-      blockchainCalls: mockNftCheck.apiCalls
+      blockchainCalls: zapperResult.apiCalls || 1
     };
 
   } catch (error) {
-    console.error('Error checking NFT holdings:', error);
+    console.error('❌ Error checking NFT holdings:', error);
     return {
       eligible: false,
       reason: `NFT check failed: ${error.message}`,
@@ -260,7 +272,7 @@ async function checkNftHolding(discount, userWalletAddresses) {
 }
 
 /**
- * Check token balance eligibility
+ * Check token balance eligibility using Zapper API
  */
 async function checkTokenBalance(discount, userWalletAddresses) {
   const contractAddresses = discount.contract_addresses || [];
@@ -275,33 +287,48 @@ async function checkTokenBalance(discount, userWalletAddresses) {
     };
   }
 
+  if (userWalletAddresses.length === 0) {
+    return {
+      eligible: false,
+      reason: 'No wallet addresses provided',
+      details: {}
+    };
+  }
+
   console.log('🪙 Checking token balances for contracts:', contractAddresses);
   
   try {
-    // Placeholder for actual blockchain integration
-    const mockTokenCheck = await checkTokenBalancePlaceholder(
+    // Import Zapper API function dynamically to avoid circular imports
+    const { checkTokenHoldingsWithZapper } = await import('./zapperAPI.js');
+    
+    const zapperResult = await checkTokenHoldingsWithZapper(
       userWalletAddresses,
       contractAddresses,
       chainIds,
       requiredBalance
     );
 
+    const eligible = zapperResult.hasRequiredTokens;
+    const totalFound = zapperResult.totalBalance;
+
     return {
-      eligible: mockTokenCheck.totalBalance >= requiredBalance,
-      reason: mockTokenCheck.totalBalance >= requiredBalance
-        ? `Found ${mockTokenCheck.totalBalance} tokens (required: ${requiredBalance})`
-        : `Found ${mockTokenCheck.totalBalance} tokens, need ${requiredBalance}`,
+      eligible,
+      reason: eligible
+        ? `Found ${totalFound} tokens (required: ${requiredBalance})`
+        : `Found ${totalFound} tokens, need ${requiredBalance}`,
       details: {
         required_balance: requiredBalance,
-        found_balance: mockTokenCheck.totalBalance,
+        found_balance: totalFound,
         contracts_checked: contractAddresses,
-        chains_checked: chainIds
+        chains_checked: chainIds,
+        token_details: zapperResult.tokenBalances || [],
+        zapper_result: zapperResult
       },
-      blockchainCalls: mockTokenCheck.apiCalls
+      blockchainCalls: zapperResult.apiCalls || 1
     };
 
   } catch (error) {
-    console.error('Error checking token balances:', error);
+    console.error('❌ Error checking token balances:', error);
     return {
       eligible: false,
       reason: `Token balance check failed: ${error.message}`,

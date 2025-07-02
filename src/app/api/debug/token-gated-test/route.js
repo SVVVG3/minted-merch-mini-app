@@ -40,11 +40,16 @@ export async function GET(request) {
         results.tests.discounts = await listTokenGatedDiscounts();
         break;
         
+      case 'test_zapper':
+        results.tests.zapper = await testZapperIntegration(testFid);
+        break;
+        
       case 'full_test':
         results.tests.setup = await setupExampleDiscounts();
         results.tests.discounts = await listTokenGatedDiscounts();
         results.tests.eligibility = await testUserEligibility(testFid);
         results.tests.auto_apply = await testAutoApplyDiscounts(testFid);
+        results.tests.zapper = await testZapperIntegration(testFid);
         break;
         
       default:
@@ -174,6 +179,10 @@ async function testUserEligibility(fid, specificCode = null) {
       wallet_addresses: userWalletAddresses,
       tested_discounts: eligibilityResults.length,
       eligible_count: eligibilityResults.filter(r => r.eligible).length,
+      zapper_integration: {
+        api_key_configured: !!process.env.ZAPPER_API_KEY,
+        status: process.env.ZAPPER_API_KEY ? 'enabled' : 'using mock data'
+      },
       results: eligibilityResults
     };
 
@@ -366,6 +375,107 @@ async function createCustomDiscount(discountData, fid) {
       success: false,
       error: error.message
     }, { status: 500 });
+  }
+}
+
+/**
+ * Test Zapper API integration directly
+ */
+async function testZapperIntegration(fid) {
+  try {
+    console.log('🌐 Testing Zapper API integration for FID:', fid);
+
+    // Get user wallet data
+    const walletData = await fetchUserWalletData(fid);
+    const userWalletAddresses = walletData?.all_wallet_addresses || [];
+
+    if (userWalletAddresses.length === 0) {
+      return {
+        success: false,
+        error: 'No wallet addresses found for user',
+        fid,
+        zapper_status: process.env.ZAPPER_API_KEY ? 'enabled' : 'disabled'
+      };
+    }
+
+    const results = {
+      success: true,
+      fid,
+      wallet_addresses: userWalletAddresses,
+      zapper_api_key_configured: !!process.env.ZAPPER_API_KEY,
+      tests: {}
+    };
+
+    try {
+      // Import Zapper API functions
+      const { 
+        checkNftHoldingsWithZapper, 
+        checkTokenHoldingsWithZapper,
+        getPortfolioSummaryWithZapper 
+      } = await import('@/lib/zapperAPI.js');
+
+      // Test NFT holdings check with known collections
+      console.log('Testing NFT holdings...');
+      const nftTest = await checkNftHoldingsWithZapper(
+        userWalletAddresses, 
+        ['0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03'], // Nouns contract
+        [1], // Ethereum mainnet
+        1
+      );
+
+      results.tests.nft_holdings = {
+        success: true,
+        test_contract: '0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03', // Nouns
+        result: nftTest,
+        using_mock_data: !process.env.ZAPPER_API_KEY
+      };
+
+      // Test token holdings check 
+      console.log('Testing token holdings...');
+      const tokenTest = await checkTokenHoldingsWithZapper(
+        userWalletAddresses,
+        ['0xA0b86a33E6417ba04e3E0F0a09ce5CF46c39748A'], // Example token
+        [1],
+        1000
+      );
+
+      results.tests.token_holdings = {
+        success: true,
+        test_contract: '0xA0b86a33E6417ba04e3E0F0a09ce5CF46c39748A',
+        result: tokenTest,
+        using_mock_data: !process.env.ZAPPER_API_KEY
+      };
+
+      // Test portfolio summary
+      console.log('Testing portfolio summary...');
+      const portfolioTest = await getPortfolioSummaryWithZapper(
+        userWalletAddresses,
+        [1, 8453] // Ethereum + Base
+      );
+
+      results.tests.portfolio_summary = {
+        success: true,
+        result: portfolioTest,
+        using_mock_data: !process.env.ZAPPER_API_KEY
+      };
+
+    } catch (zapperError) {
+      console.error('Zapper API test error:', zapperError);
+      results.tests.error = {
+        message: zapperError.message,
+        stack: zapperError.stack
+      };
+    }
+
+    return results;
+
+  } catch (error) {
+    console.error('Error testing Zapper integration:', error);
+    return {
+      success: false,
+      error: error.message,
+      zapper_status: process.env.ZAPPER_API_KEY ? 'enabled' : 'disabled'
+    };
   }
 }
 
