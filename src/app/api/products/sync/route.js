@@ -1,10 +1,19 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-const SHOPIFY_API_URL = `https://${process.env.SHOPIFY_STORE_DOMAIN}/api/2024-07/graphql.json`;
+const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
+const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+const SHOPIFY_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/api/2024-07/graphql.json`;
 
 export async function POST(request) {
   try {
+    if (!SHOPIFY_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
+      return NextResponse.json({
+        success: false,
+        error: 'Missing Shopify environment variables (SHOPIFY_SITE_DOMAIN, SHOPIFY_ACCESS_TOKEN)'
+      }, { status: 500 });
+    }
+
     console.log('🔄 Starting Shopify products sync...');
 
     const { action = 'sync_all', force = false, handle } = await request.json();
@@ -100,7 +109,7 @@ async function syncAllProducts(force = false) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Shopify-Storefront-Access-Token': process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN
+          'X-Shopify-Storefront-Access-Token': SHOPIFY_ACCESS_TOKEN
         },
         body: JSON.stringify({ query, variables })
       });
@@ -250,7 +259,7 @@ async function syncSingleProduct(handle) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Shopify-Storefront-Access-Token': process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN
+        'X-Shopify-Storefront-Access-Token': SHOPIFY_ACCESS_TOKEN
       },
       body: JSON.stringify({ query, variables })
     });
