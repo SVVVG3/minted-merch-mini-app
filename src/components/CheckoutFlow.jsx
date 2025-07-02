@@ -568,7 +568,20 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Taxes</span>
-                            <span>${cart.checkout.tax.amount.toFixed(2)}</span>
+                            <span>
+                              ${(() => {
+                                if (cart.checkout) {
+                                  // Recalculate taxes based on discounted subtotal
+                                  const originalSubtotal = cart.checkout.subtotal.amount;
+                                  const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+                                  const discountedSubtotal = originalSubtotal - discount;
+                                  const taxRate = cart.checkout.tax.amount / originalSubtotal;
+                                  const adjustedTax = discountedSubtotal * taxRate;
+                                  return adjustedTax.toFixed(2);
+                                }
+                                return '0.00';
+                              })()}
+                            </span>
                           </div>
                           <div className="flex justify-between font-medium text-lg border-t pt-1">
                             <span>Total</span>
@@ -577,8 +590,11 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                                 const subtotal = cart.checkout.subtotal.amount;
                                 const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
                                 const shipping = cart.selectedShipping.price.amount;
-                                const tax = cart.checkout.tax.amount;
-                                return (subtotal - discount + shipping + tax).toFixed(2);
+                                // Recalculate taxes based on discounted subtotal
+                                const discountedSubtotal = subtotal - discount;
+                                const taxRate = cart.checkout.tax.amount / subtotal;
+                                const adjustedTax = discountedSubtotal * taxRate;
+                                return (discountedSubtotal + shipping + adjustedTax).toFixed(2);
                               })()} USDC
                             </span>
                           </div>
