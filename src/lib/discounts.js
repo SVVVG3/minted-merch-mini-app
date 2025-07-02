@@ -1,5 +1,7 @@
 import { supabase } from './supabase';
 
+
+
 /**
  * Generate a unique discount code for a user
  * Format: WELCOME15-{shortId}
@@ -444,13 +446,20 @@ export async function getBestAvailableDiscount(fid, scope = 'site_wide', product
       console.log(`🌐 Filtering for site-wide discounts only: ${eligibleCodes.length} eligible`);
     } else if (scope === 'product') {
       // Include site-wide discounts AND product-specific discounts that match the product IDs
+      // productIds should now be Supabase product IDs from our products table
       eligibleCodes = eligibleCodes.filter(code => {
         if (!code.discount_scope || code.discount_scope === 'site_wide') {
           return true; // Site-wide discounts apply everywhere
         }
         if (code.discount_scope === 'product') {
-          const targetProducts = code.target_products || [];
-          return productIds.some(productId => targetProducts.includes(productId));
+          // Check against target_product_ids (Supabase product IDs)
+          if (code.target_product_ids && code.target_product_ids.length > 0) {
+            const matches = productIds.some(productId => 
+              code.target_product_ids.includes(productId)
+            );
+            console.log(`🎯 Product match for ${code.code}: ${matches} (${JSON.stringify(productIds)} vs ${JSON.stringify(code.target_product_ids)})`);
+            return matches;
+          }
         }
         return false;
       });
@@ -466,8 +475,16 @@ export async function getBestAvailableDiscount(fid, scope = 'site_wide', product
       };
     }
 
-    // Sort by discount value (percentage or fixed amount)
+    // Sort by priority level first, then by discount value
     const sortedCodes = eligibleCodes.sort((a, b) => {
+      // Primary sort: Higher priority level first
+      const priorityA = a.priority_level || 0;
+      const priorityB = b.priority_level || 0;
+      if (priorityA !== priorityB) {
+        return priorityB - priorityA; // Higher priority first
+      }
+      
+      // Secondary sort: Higher discount value
       if (a.discount_type === 'percentage' && b.discount_type === 'percentage') {
         return b.discount_value - a.discount_value; // Higher percentage first
       } else if (a.discount_type === 'fixed' && b.discount_type === 'fixed') {

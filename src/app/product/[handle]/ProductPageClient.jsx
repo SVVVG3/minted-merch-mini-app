@@ -30,17 +30,34 @@ export function ProductPageClient({ handle }) {
 
   const fetchProduct = async () => {
     try {
-      const response = await fetch(`/api/shopify/products?handle=${handle}`);
-      const data = await response.json();
+      // Get product from Shopify for main product data
+      const shopifyResponse = await fetch(`/api/shopify/products?handle=${handle}`);
+      const shopifyData = await shopifyResponse.json();
       
-      if (!response.ok) {
+      if (!shopifyResponse.ok) {
         throw new Error('Failed to load product');
       }
       
-      setProduct(data);
+      // Get Supabase product ID from our products table for discount targeting
+      const supabaseResponse = await fetch(`/api/products?handle=${handle}`);
+      const supabaseData = await supabaseResponse.json();
       
-      if (data.variants?.edges?.length > 0) {
-        setSelectedVariant(data.variants.edges[0].node);
+      // Combine the data - use Shopify for display, Supabase ID for discounts
+      const combinedProduct = {
+        ...shopifyData,
+        supabaseId: supabaseData.success && supabaseData.products.length > 0 
+          ? supabaseData.products[0].id 
+          : null
+      };
+      
+      console.log(`🎁 Product loaded: ${combinedProduct.title}`);
+      console.log(`- Shopify ID: ${combinedProduct.id}`);
+      console.log(`- Supabase ID: ${combinedProduct.supabaseId}`);
+      
+      setProduct(combinedProduct);
+      
+      if (combinedProduct.variants?.edges?.length > 0) {
+        setSelectedVariant(combinedProduct.variants.edges[0].node);
       }
     } catch (error) {
       console.error('Error fetching product:', error);
@@ -80,7 +97,7 @@ export function ProductPageClient({ handle }) {
               fid: farcasterUser.fid,
               walletAddresses: userWalletAddresses,
               scope: 'product',
-              productIds: [product.id]
+              productIds: product.supabaseId ? [product.supabaseId] : []
             })
           });
           
@@ -119,7 +136,8 @@ export function ProductPageClient({ handle }) {
       }
       
       // 2. Check for database discounts specific to this product
-      const databaseResponse = await fetch(`/api/user-discounts?fid=${farcasterUser.fid}&mode=best&scope=product&productIds=${JSON.stringify([product.id])}`);
+      const productIds = product.supabaseId ? [product.supabaseId] : [];
+      const databaseResponse = await fetch(`/api/user-discounts?fid=${farcasterUser.fid}&mode=best&scope=product&productIds=${JSON.stringify(productIds)}`);
       const databaseData = await databaseResponse.json();
       
       if (databaseData.success && databaseData.discountCode) {
