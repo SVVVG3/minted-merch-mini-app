@@ -166,7 +166,13 @@ export async function createOrder(orderData) {
     // Mark discount code as used if provided
     if (orderData.discountCode) {
       try {
-        const markUsedResult = await markDiscountCodeAsUsed(orderData.discountCode, order.order_id);
+        const markUsedResult = await markDiscountCodeAsUsed(
+          orderData.discountCode, 
+          order.order_id,
+          orderData.fid,
+          orderData.discountAmount || 0,
+          orderData.amountSubtotal || 0
+        );
         if (markUsedResult.success) {
           console.log('✅ Discount code marked as used:', orderData.discountCode);
         } else {

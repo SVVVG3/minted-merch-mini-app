@@ -194,7 +194,13 @@ export async function POST(request) {
             // Mark discount code as used if one was applied
             if (appliedDiscount && appliedDiscount.code) {
               try {
-                const markUsedResult = await markDiscountCodeAsUsed(appliedDiscount.code, supabaseResult.order.order_id);
+                const markUsedResult = await markDiscountCodeAsUsed(
+                  appliedDiscount.code, 
+                  supabaseResult.order.order_id,
+                  fid,
+                  discountAmountValue,
+                  subtotalPrice
+                );
                 if (markUsedResult.success) {
                   console.log('✅ Discount code marked as used:', appliedDiscount.code);
                 } else {

@@ -106,6 +106,58 @@ export async function createWelcomeDiscountCode(fid) {
 }
 
 /**
+ * Check if a user has already used a specific discount code (for shared codes)
+ */
+async function hasUserUsedSharedCode(discountCodeId, fid) {
+  try {
+    const { data, error } = await supabase
+      .from('discount_code_usage')
+      .select('id')
+      .eq('discount_code_id', discountCodeId)
+      .eq('fid', fid)
+      .limit(1);
+
+    if (error) {
+      console.error('Error checking shared code usage:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { 
+      success: true, 
+      hasUsed: data && data.length > 0 
+    };
+  } catch (error) {
+    console.error('Error in hasUserUsedSharedCode:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get current usage count for a discount code
+ */
+async function getDiscountUsageCount(discountCodeId) {
+  try {
+    const { data, error } = await supabase
+      .from('discount_code_usage')
+      .select('id')
+      .eq('discount_code_id', discountCodeId);
+
+    if (error) {
+      console.error('Error getting usage count:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { 
+      success: true, 
+      count: data ? data.length : 0 
+    };
+  } catch (error) {
+    console.error('Error in getDiscountUsageCount:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Validate a discount code and return discount information
  */
 export async function validateDiscountCode(code, fid = null) {
@@ -139,16 +191,6 @@ export async function validateDiscountCode(code, fid = null) {
       return { success: false, error: fetchError.message, isValid: false };
     }
 
-    // Check if code has already been used
-    if (discountCode.is_used) {
-      return { 
-        success: false, 
-        error: 'This discount code has already been used',
-        isValid: false,
-        discountCode: discountCode
-      };
-    }
-
     // Check if code has expired
     if (discountCode.expires_at && new Date(discountCode.expires_at) < new Date()) {
       return { 
@@ -159,14 +201,65 @@ export async function validateDiscountCode(code, fid = null) {
       };
     }
 
-    // If FID is provided, check if it matches the code owner (for welcome codes)
-    if (fid && discountCode.code_type === 'welcome' && discountCode.fid !== fid) {
-      return { 
-        success: false, 
-        error: 'This discount code is not valid for your account',
-        isValid: false,
-        discountCode: discountCode
-      };
+    // Handle shared codes vs user-specific codes differently
+    if (discountCode.is_shared_code) {
+      console.log('🔄 Validating shared discount code:', discountCode.code);
+      
+      // Check total usage limits for shared codes
+      if (discountCode.max_uses_total) {
+        const usageResult = await getDiscountUsageCount(discountCode.id);
+        if (!usageResult.success) {
+          return { success: false, error: 'Failed to check usage limits', isValid: false };
+        }
+        
+        if (usageResult.count >= discountCode.max_uses_total) {
+          return { 
+            success: false, 
+            error: 'This discount code has reached its usage limit',
+            isValid: false,
+            discountCode: discountCode
+          };
+        }
+      }
+
+      // Check per-user usage for shared codes (if FID provided)
+      if (fid) {
+        const userUsageResult = await hasUserUsedSharedCode(discountCode.id, fid);
+        if (!userUsageResult.success) {
+          return { success: false, error: 'Failed to check user usage', isValid: false };
+        }
+        
+        if (userUsageResult.hasUsed) {
+          return { 
+            success: false, 
+            error: 'You have already used this discount code',
+            isValid: false,
+            discountCode: discountCode
+          };
+        }
+      }
+    } else {
+      console.log('👤 Validating user-specific discount code:', discountCode.code);
+      
+      // For user-specific codes, use the original logic
+      if (discountCode.is_used) {
+        return { 
+          success: false, 
+          error: 'This discount code has already been used',
+          isValid: false,
+          discountCode: discountCode
+        };
+      }
+
+      // If FID is provided, check if it matches the code owner (for welcome codes)
+      if (fid && discountCode.code_type === 'welcome' && discountCode.fid !== fid) {
+        return { 
+          success: false, 
+          error: 'This discount code is not valid for your account',
+          isValid: false,
+          discountCode: discountCode
+        };
+      }
     }
 
     console.log('✅ Discount code is valid:', discountCode);
@@ -177,7 +270,8 @@ export async function validateDiscountCode(code, fid = null) {
       discountCode: discountCode,
       discountType: discountCode.discount_type,
       discountValue: discountCode.discount_value,
-      minimumOrderAmount: discountCode.minimum_order_amount
+      minimumOrderAmount: discountCode.minimum_order_amount,
+      isSharedCode: discountCode.is_shared_code || false
     };
 
   } catch (error) {
@@ -231,30 +325,102 @@ export function calculateDiscountAmount(subtotal, discountCode) {
 }
 
 /**
- * Mark a discount code as used
+ * Record discount code usage for shared codes
  */
-export async function markDiscountCodeAsUsed(code, orderId) {
+async function recordSharedCodeUsage(discountCodeId, fid, orderId, discountAmount, originalSubtotal) {
   try {
-    console.log('Marking discount code as used:', code, 'for order:', orderId);
-
-    const { data: updatedCode, error: updateError } = await supabase
-      .from('discount_codes')
-      .update({
-        is_used: true,
-        used_at: new Date().toISOString(),
-        order_id: orderId
+    const { data: usageRecord, error: insertError } = await supabase
+      .from('discount_code_usage')
+      .insert({
+        discount_code_id: discountCodeId,
+        fid: fid,
+        order_id: orderId,
+        discount_amount: discountAmount,
+        original_subtotal: originalSubtotal,
+        used_at: new Date().toISOString()
       })
-      .eq('code', code.toUpperCase())
       .select()
       .single();
 
-    if (updateError) {
-      console.error('Error marking discount code as used:', updateError);
-      return { success: false, error: updateError.message };
+    if (insertError) {
+      console.error('Error recording shared code usage:', insertError);
+      return { success: false, error: insertError.message };
     }
 
-    console.log('✅ Discount code marked as used:', updatedCode);
-    return { success: true, discountCode: updatedCode };
+    console.log('✅ Shared code usage recorded:', usageRecord);
+    return { success: true, usageRecord };
+  } catch (error) {
+    console.error('Error in recordSharedCodeUsage:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Mark a discount code as used
+ * Handles both shared codes (via usage tracking) and user-specific codes (via is_used flag)
+ */
+export async function markDiscountCodeAsUsed(code, orderId, fid = null, discountAmount = 0, originalSubtotal = 0) {
+  try {
+    console.log('Marking discount code as used:', code, 'for order:', orderId, 'FID:', fid);
+
+    // First, get the discount code to check if it's shared
+    const { data: discountCode, error: fetchError } = await supabase
+      .from('discount_codes')
+      .select('*')
+      .eq('code', code.toUpperCase())
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching discount code:', fetchError);
+      return { success: false, error: fetchError.message };
+    }
+
+    if (discountCode.is_shared_code) {
+      console.log('🔄 Recording usage for shared code:', code);
+      
+      if (!fid) {
+        return { success: false, error: 'FID is required for shared code usage tracking' };
+      }
+
+      // For shared codes, record usage in the tracking table
+      const usageResult = await recordSharedCodeUsage(
+        discountCode.id, 
+        fid, 
+        orderId, 
+        discountAmount, 
+        originalSubtotal
+      );
+
+      if (!usageResult.success) {
+        return { success: false, error: usageResult.error };
+      }
+
+      console.log('✅ Shared discount code usage recorded:', discountCode);
+      return { success: true, discountCode, usageRecord: usageResult.usageRecord };
+
+    } else {
+      console.log('👤 Marking user-specific code as used:', code);
+      
+      // For user-specific codes, use the original logic
+      const { data: updatedCode, error: updateError } = await supabase
+        .from('discount_codes')
+        .update({
+          is_used: true,
+          used_at: new Date().toISOString(),
+          order_id: orderId
+        })
+        .eq('code', code.toUpperCase())
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error marking discount code as used:', updateError);
+        return { success: false, error: updateError.message };
+      }
+
+      console.log('✅ User-specific discount code marked as used:', updatedCode);
+      return { success: true, discountCode: updatedCode };
+    }
 
   } catch (error) {
     console.error('Error in markDiscountCodeAsUsed:', error);
