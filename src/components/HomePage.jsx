@@ -249,7 +249,7 @@ export function HomePage({ collection, products }) {
     };
   }, [isInFarcaster, isReady]); // Removed unstable dependencies
 
-  // Load user's available discount codes
+  // Load user's available discount codes (only for users with notifications enabled)
   const loadUserDiscounts = async (fid) => {
     try {
       console.log('🔍 === LOADING USER DISCOUNT CODES ===');
@@ -257,23 +257,30 @@ export function HomePage({ collection, products }) {
       
       setUserDiscounts(prev => ({ ...prev, isLoading: true, error: null }));
 
-      // First, check for pending discount from URL parameters
+      // First, check for pending discount from URL parameters (always allow these - they came from notifications)
       const pendingDiscount = getPendingDiscountCode();
       console.log('Pending discount from URL:', pendingDiscount);
 
-      // Load user's best available discount code
-      const bestDiscountResult = await getBestAvailableDiscount(fid);
-      console.log('Best discount result:', bestDiscountResult);
-
-      // Load welcome discount status
-      const welcomeDiscountResult = await hasDiscountOfType(fid, 'welcome');
-      console.log('Welcome discount status:', welcomeDiscountResult);
+      // Check if user has notifications enabled (required for database discount auto-population)
+      let hasNotifications = false;
+      try {
+        const response = await fetch('/api/debug/notification-status-sync?' + new URLSearchParams({
+          fid: fid.toString()
+        }));
+        const statusData = await response.json();
+        hasNotifications = statusData.currentNeynarStatus || statusData.profile?.has_notifications || false;
+        console.log('User notification status:', hasNotifications);
+      } catch (error) {
+        console.warn('Could not check notification status:', error);
+        // Default to false if we can't check
+        hasNotifications = false;
+      }
 
       // Determine which discount to prioritize
       let activeDiscount = null;
       let discountSource = null;
 
-      // Priority 1: Pending discount from URL (fresh notification click)
+      // Priority 1: Pending discount from URL (fresh notification click) - ALWAYS ALLOW
       if (pendingDiscount && pendingDiscount.discountCode) {
         activeDiscount = {
           code: pendingDiscount.discountCode,
@@ -285,25 +292,48 @@ export function HomePage({ collection, products }) {
         discountSource = 'notification_click';
         console.log('🎯 Using discount from notification click:', pendingDiscount.discountCode);
       } 
-      // Priority 2: Best available discount from database
-      else if (bestDiscountResult.success && bestDiscountResult.discountCode) {
-        activeDiscount = bestDiscountResult.discountCode;
-        discountSource = 'user_account';
-        console.log('🎯 Using best available discount from account:', activeDiscount.code);
+      // Priority 2: Best available discount from database - ONLY FOR USERS WITH NOTIFICATIONS
+      else if (hasNotifications) {
+        console.log('✅ User has notifications enabled - loading database discounts');
+        
+        const bestDiscountResult = await getBestAvailableDiscount(fid);
+        console.log('Best discount result:', bestDiscountResult);
+
+        if (bestDiscountResult.success && bestDiscountResult.discountCode) {
+          activeDiscount = bestDiscountResult.discountCode;
+          discountSource = 'user_account';
+          console.log('🎯 Using best available discount from account:', activeDiscount.code);
+        }
       }
-      // Priority 3: No available discounts
+      // Priority 3: User doesn't have notifications - no auto-discount
       else {
-        console.log('❌ No available discount codes found');
+        console.log('❌ User does not have notifications enabled - no auto-discount applied');
+        console.log('💡 Users can still manually enter discount codes in the cart');
+      }
+
+      // Load welcome discount status (for display purposes)
+      let welcomeDiscountResult = { hasDiscount: false };
+      if (hasNotifications) {
+        welcomeDiscountResult = await hasDiscountOfType(fid, 'welcome');
+        console.log('Welcome discount status:', welcomeDiscountResult);
       }
 
       setUserDiscounts({
         isLoading: false,
         bestDiscount: activeDiscount,
-        availableDiscounts: bestDiscountResult.alternativeCodes || [],
+        availableDiscounts: hasNotifications ? (await getBestAvailableDiscount(fid)).alternativeCodes || [] : [],
         hasWelcomeDiscount: welcomeDiscountResult.hasDiscount,
+        hasNotifications, // Store notification status for UI decisions
         discountSource,
         error: null
       });
+
+      // Store notification status in session storage for other components (like Cart)
+      sessionStorage.setItem('userDiscountContext', JSON.stringify({
+        hasNotifications,
+        lastChecked: new Date().toISOString(),
+        fid
+      }));
 
       // If we have an active discount, make it available for cart integration
       if (activeDiscount) {
@@ -313,8 +343,13 @@ export function HomePage({ collection, products }) {
           code: activeDiscount.code,
           source: discountSource,
           displayText: activeDiscount.displayText || formatDiscountText(activeDiscount),
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          requiresNotifications: discountSource === 'user_account' // Flag database discounts
         }));
+      } else {
+        // Clear any existing discount code if user doesn't qualify
+        sessionStorage.removeItem('activeDiscountCode');
+        console.log('🔄 Cleared existing discount code - user not eligible for auto-discount');
       }
 
     } catch (error) {
@@ -323,6 +358,7 @@ export function HomePage({ collection, products }) {
         isLoading: false,
         bestDiscount: null,
         availableDiscounts: [],
+        hasNotifications: false,
         error: error.message
       });
     }

@@ -22,6 +22,32 @@ export function Cart({ isOpen, onClose }) {
   const [localNotes, setLocalNotes] = useState(cart.notes || '');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   
+  // Check notification status from session storage (set by HomePage)
+  const getNotificationStatus = () => {
+    try {
+      const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
+      if (activeDiscountData) {
+        const activeDiscount = JSON.parse(activeDiscountData);
+        // If they have a discount from notification click, they must have notifications
+        if (activeDiscount.source === 'notification_click') {
+          return true;
+        }
+      }
+      
+      // Check if user discount data indicates notification status
+      const userDiscountContext = sessionStorage.getItem('userDiscountContext');
+      if (userDiscountContext) {
+        const discountContext = JSON.parse(userDiscountContext);
+        return discountContext.hasNotifications;
+      }
+      
+      return null; // Unknown status
+    } catch (error) {
+      console.error('Error checking notification status:', error);
+      return null;
+    }
+  };
+  
   if (!isOpen) return null;
 
   const handleQuantityChange = (itemKey, newQuantity) => {
@@ -143,6 +169,8 @@ export function Cart({ isOpen, onClose }) {
                   onDiscountRemoved={handleDiscountRemoved}
                   subtotal={cartSubtotal}
                   autoPopulate={true}
+                  hasNotifications={getNotificationStatus()}
+                  showNotificationPrompt={true}
                 />
               </div>
             </div>

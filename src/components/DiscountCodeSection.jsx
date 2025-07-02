@@ -8,7 +8,9 @@ export function DiscountCodeSection({
   onDiscountRemoved, 
   subtotal = 0,
   autoPopulate = false,
-  className = ""
+  className = "",
+  hasNotifications = null,
+  showNotificationPrompt = false
 }) {
   const { getFid } = useFarcaster();
   const [discountCode, setDiscountCode] = useState('');
@@ -184,6 +186,25 @@ export function DiscountCodeSection({
           {autoPopulate && hasAutoPopulated && !appliedDiscount && (
             <div className="text-green-600 text-xs">
               💡 We found a discount code for you! Click Apply to use it.
+            </div>
+          )}
+
+          {/* Notification prompt for users without notifications */}
+          {showNotificationPrompt && hasNotifications === false && !hasAutoPopulated && (
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-2 mt-2">
+              <div className="text-blue-800 text-xs font-medium mb-1">
+                🔔 Enable notifications for automatic discounts!
+              </div>
+              <div className="text-blue-600 text-xs">
+                Get exclusive discount codes delivered automatically. You can still enter codes manually below.
+              </div>
+            </div>
+          )}
+
+          {/* Show that auto-discounts are available for notification users */}
+          {hasNotifications === true && !hasAutoPopulated && !appliedDiscount && (
+            <div className="text-gray-600 text-xs">
+              ✅ Auto-discounts enabled - we'll apply any available codes for you
             </div>
           )}
         </div>
