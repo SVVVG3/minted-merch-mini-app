@@ -54,28 +54,28 @@ export function ProductPageClient({ handle }) {
       // Check if discounts were found
       if (productData.availableDiscounts?.best) {
         const bestDiscount = productData.availableDiscounts.best;
-        console.log(`🎯 Best discount found: ${bestDiscount.code} (${bestDiscount.displayText}, scope: ${bestDiscount.scope})`);
+        console.log(`🎯 Best discount found: ${bestDiscount.code} (${bestDiscount.displayText}, scope: ${bestDiscount.discount_scope || bestDiscount.scope})`);
         
         // Set product discount for display
         setProductDiscount({
           code: bestDiscount.code,
           displayText: bestDiscount.displayText,
           description: bestDiscount.description,
-          scope: bestDiscount.scope,
+          scope: bestDiscount.discount_scope || bestDiscount.scope,
           gating_type: bestDiscount.gating_type,
           isTokenGated: bestDiscount.isTokenGated,
-          discountType: bestDiscount.type,
-          discountValue: bestDiscount.value,
-          source: bestDiscount.scope === 'product' ? 'product_specific_api' : 'site_wide_api'
+          discountType: bestDiscount.discount_type || bestDiscount.type,
+          discountValue: bestDiscount.discount_value || bestDiscount.value,
+          source: (bestDiscount.discount_scope || bestDiscount.scope) === 'product' ? 'product_specific_api' : 'site_wide_api'
         });
         
         // Update session storage with the best discount for cart usage
         sessionStorage.setItem('activeDiscountCode', JSON.stringify({
           code: bestDiscount.code,
-          source: bestDiscount.scope === 'product' ? 'product_specific_api' : 'site_wide_api',
+          source: (bestDiscount.discount_scope || bestDiscount.scope) === 'product' ? 'product_specific_api' : 'site_wide_api',
           displayText: bestDiscount.displayText,
-          discountType: bestDiscount.type,
-          discountValue: bestDiscount.value,
+          discountType: bestDiscount.discount_type || bestDiscount.type,
+          discountValue: bestDiscount.discount_value || bestDiscount.value,
           timestamp: new Date().toISOString(),
           isTokenGated: bestDiscount.isTokenGated,
           gatingType: bestDiscount.gating_type,

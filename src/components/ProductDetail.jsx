@@ -289,9 +289,49 @@ export function ProductDetail({
         <div className="p-4 space-y-6">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">{product.title}</h2>
-            <p className="text-2xl font-bold text-gray-900 mt-2">
-              ${parseFloat(price).toFixed(2)}
-            </p>
+            
+            {/* Price Display with Discount Calculation */}
+            {(() => {
+              const originalPrice = parseFloat(price);
+              let discountedPrice = originalPrice;
+              let savings = 0;
+              
+              // Calculate discounted price if discount is available
+              if (productDiscount && productDiscount.discountValue) {
+                if (productDiscount.discountType === 'percentage') {
+                  savings = originalPrice * (productDiscount.discountValue / 100);
+                  discountedPrice = originalPrice - savings;
+                } else if (productDiscount.discountType === 'fixed') {
+                  savings = Math.min(productDiscount.discountValue, originalPrice);
+                  discountedPrice = originalPrice - savings;
+                }
+                discountedPrice = Math.max(discountedPrice, 0); // Ensure non-negative
+              }
+              
+              return (
+                <div className="mt-2">
+                  {productDiscount && savings > 0 ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-3">
+                        <p className="text-lg text-gray-500 line-through">
+                          ${originalPrice.toFixed(2)}
+                        </p>
+                        <p className="text-2xl font-bold text-green-600">
+                          {discountedPrice === 0 ? 'FREE' : `$${discountedPrice.toFixed(2)}`}
+                        </p>
+                      </div>
+                      <p className="text-sm text-green-600 font-medium">
+                        You save ${savings.toFixed(2)} ({productDiscount.discountValue}% off)
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-2xl font-bold text-gray-900">
+                      ${originalPrice.toFixed(2)}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
             
             {/* Product-Specific Discount Display */}
             {discountLoading && (
@@ -445,9 +485,30 @@ export function ProductDetail({
           disabled={!selectedVariant?.availableForSale}
           className="w-full bg-[#3eb489] text-white py-3 px-4 rounded-lg font-medium hover:bg-[#359970] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
-          {selectedVariant?.availableForSale 
-            ? `Add to Cart - $${parseFloat(price).toFixed(2)}` 
-            : 'Out of Stock'}
+          {selectedVariant?.availableForSale ? (() => {
+            const originalPrice = parseFloat(price);
+            let discountedPrice = originalPrice;
+            
+            // Calculate discounted price if discount is available
+            if (productDiscount && productDiscount.discountValue) {
+              if (productDiscount.discountType === 'percentage') {
+                const savings = originalPrice * (productDiscount.discountValue / 100);
+                discountedPrice = originalPrice - savings;
+              } else if (productDiscount.discountType === 'fixed') {
+                const savings = Math.min(productDiscount.discountValue, originalPrice);
+                discountedPrice = originalPrice - savings;
+              }
+              discountedPrice = Math.max(discountedPrice, 0); // Ensure non-negative
+            }
+            
+            if (productDiscount && discountedPrice < originalPrice) {
+              return discountedPrice === 0 
+                ? 'Add to Cart - FREE' 
+                : `Add to Cart - $${discountedPrice.toFixed(2)}`;
+            } else {
+              return `Add to Cart - $${originalPrice.toFixed(2)}`;
+            }
+          })() : 'Out of Stock'}
         </button>
       </div>
       
