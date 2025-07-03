@@ -52,18 +52,79 @@ export async function GET(request) {
         // Check for site-wide discounts
         const siteWideDiscountResult = await getBestAvailableDiscount(userFid, 'site_wide');
         
-        // Determine the best discount
+        // 🚨 ALSO CHECK FOR TOKEN-GATED DISCOUNTS
+        let tokenGatedDiscount = null;
+        try {
+          // Get user's wallet addresses for token-gating
+          const walletResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/user-wallet-data?fid=${userFid}`);
+          const walletData = await walletResponse.json();
+          
+          if (walletData.success && walletData.walletData?.all_wallet_addresses?.length > 0) {
+            const userWalletAddresses = walletData.walletData.all_wallet_addresses;
+            console.log(`🔍 Checking token-gated discounts for ${userWalletAddresses.length} wallet addresses`);
+            
+            // Check for all token-gated discounts (product-specific and site-wide)
+            const tokenGatingResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/check-token-gated-eligibility`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                fid: userFid,
+                walletAddresses: userWalletAddresses,
+                scope: 'all', // Check all token-gated discounts
+                productIds: [supabaseId]
+              })
+            });
+            
+            const tokenGatingResult = await tokenGatingResponse.json();
+            
+            if (tokenGatingResult.success && tokenGatingResult.eligibleDiscounts?.length > 0) {
+              // Find the best token-gated discount (prioritize product-specific, then site-wide)
+              const productSpecificTokenDiscount = tokenGatingResult.eligibleDiscounts.find(d => 
+                d.target_product_ids && d.target_product_ids.includes(supabaseId)
+              );
+              
+              const siteWideTokenDiscount = tokenGatingResult.eligibleDiscounts.find(d => 
+                d.discount_scope === 'site_wide'
+              );
+              
+              // Prioritize product-specific token-gated discounts
+              const selectedTokenDiscount = productSpecificTokenDiscount || siteWideTokenDiscount;
+              
+              if (selectedTokenDiscount) {
+                tokenGatedDiscount = {
+                  code: selectedTokenDiscount.code,
+                  discount_value: selectedTokenDiscount.discount_value,
+                  discount_type: selectedTokenDiscount.discount_type,
+                  discount_description: selectedTokenDiscount.discount_description,
+                  gating_type: selectedTokenDiscount.gating_type,
+                  priority_level: selectedTokenDiscount.priority_level
+                };
+                console.log(`🎯 Found token-gated discount: ${tokenGatedDiscount.code} (${tokenGatedDiscount.discount_value}% off, ${selectedTokenDiscount.discount_scope})`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error checking token-gated discounts:', error);
+        }
+        
+        // Determine the best discount (prioritize token-gated, then product-specific, then site-wide)
         let bestDiscount = null;
         let scope = null;
         
-        if (productDiscountResult.success && productDiscountResult.discountCode) {
+        if (tokenGatedDiscount) {
+          bestDiscount = tokenGatedDiscount;
+          scope = 'product';
+          console.log(`🎯 Best discount: ${bestDiscount.code} (token-gated product-specific, ${bestDiscount.discount_value}% off)`);
+        } else if (productDiscountResult.success && productDiscountResult.discountCode) {
           bestDiscount = productDiscountResult.discountCode;
           scope = 'product';
-          console.log(`🎯 Best discount: ${bestDiscount.code} (product-specific, ${bestDiscount.discount_value}%)`);
+          console.log(`🎯 Best discount: ${bestDiscount.code} (product-specific, ${bestDiscount.discount_value}% off)`);
         } else if (siteWideDiscountResult.success && siteWideDiscountResult.discountCode) {
           bestDiscount = siteWideDiscountResult.discountCode;
           scope = 'site_wide';
-          console.log(`🌐 Best discount: ${bestDiscount.code} (site-wide, ${bestDiscount.discount_value}%)`);
+          console.log(`🌐 Best discount: ${bestDiscount.code} (site-wide, ${bestDiscount.discount_value}% off)`);
         }
         
         availableDiscounts = {
