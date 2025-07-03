@@ -654,10 +654,10 @@ async function doesDiscountMatchScope(discount, productScope, productIds = []) {
   console.log(`  - Target products (legacy): ${JSON.stringify(discount.target_products)}`);
   console.log(`  - Target product IDs (new): ${JSON.stringify(discount.target_product_ids)}`);
   
-  // If requesting all scopes, any discount matches
+  // If requesting all scopes, we still need to check product matching for product-specific discounts
   if (productScope === 'all') {
-    console.log(`  ✅ All scopes requested - discount matches`);
-    return true;
+    console.log(`  🔍 All scopes requested - still need to check product matching for product-specific discounts`);
+    // Don't return true immediately - continue with the scope checks below
   }
   
   // Site-wide discounts always match
@@ -668,7 +668,7 @@ async function doesDiscountMatchScope(discount, productScope, productIds = []) {
 
   // Product-specific discounts
   if (discount.discount_scope === 'product') {
-    if (productScope !== 'product') {
+    if (productScope !== 'product' && productScope !== 'all') {
       console.log(`  ❌ Product-specific discount but scope is ${productScope}`);
       return false;
     }
