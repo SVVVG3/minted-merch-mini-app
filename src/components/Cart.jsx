@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/lib/CartContext';
 import { CheckoutFlow } from './CheckoutFlow';
 import { DiscountCodeSection } from './DiscountCodeSection';
+import { useFarcaster } from '@/lib/useFarcaster';
 import Link from 'next/link';
 
 export function Cart({ isOpen, onClose }) {
@@ -19,8 +20,131 @@ export function Cart({ isOpen, onClose }) {
     applyDiscount,
     removeDiscount
   } = useCart();
+  const { getFid } = useFarcaster();
   const [localNotes, setLocalNotes] = useState(cart.notes || '');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isEvaluatingDiscounts, setIsEvaluatingDiscounts] = useState(false);
+  
+  // Cart-aware discount evaluation - runs when cart opens and has items
+  useEffect(() => {
+    if (isOpen && cart.items.length > 0) {
+      evaluateBestCartDiscount();
+    }
+  }, [isOpen, cart.items.length]); // Re-run when cart opens or item count changes
+  
+  const evaluateBestCartDiscount = async () => {
+    try {
+      setIsEvaluatingDiscounts(true);
+      const userFid = getFid();
+      
+      if (!userFid) {
+        console.log('🔍 No FID available for cart discount evaluation');
+        return;
+      }
+
+      console.log('🛒 Evaluating best discount for current cart contents...');
+      
+      // Get all unique product handles in cart
+      const productHandles = [...new Set(cart.items.map(item => item.product?.handle).filter(Boolean))];
+      console.log('🔍 Products in cart:', productHandles);
+      
+      if (productHandles.length === 0) {
+        console.log('❌ No valid product handles found in cart');
+        return;
+      }
+
+      // Check each product for the best available discount
+      let bestDiscountFound = null;
+      let bestDiscountValue = 0;
+      
+      for (const handle of productHandles) {
+        try {
+          console.log(`🔍 Checking discounts for product: ${handle}`);
+          
+          const response = await fetch(`/api/shopify/products?handle=${handle}&fid=${userFid}`);
+          const productData = await response.json();
+          
+          if (productData.availableDiscounts?.best) {
+            const discount = productData.availableDiscounts.best;
+            const discountValue = discount.discount_value || discount.value || 0;
+            
+            console.log(`💰 Found discount for ${handle}: ${discount.code} (${discountValue}% off)`);
+            
+            // Prioritize: product-specific token-gated > site-wide token-gated > product-specific > site-wide
+            if (!bestDiscountFound || shouldPreferDiscount(discount, bestDiscountFound)) {
+              bestDiscountFound = discount;
+              bestDiscountValue = discountValue;
+              console.log(`🎯 New best discount: ${discount.code} (${discountValue}% off)`);
+            }
+          }
+        } catch (error) {
+          console.error(`❌ Error checking discount for ${handle}:`, error);
+        }
+      }
+      
+      // Compare with currently applied discount
+      const currentDiscount = cart.appliedDiscount;
+      
+      if (bestDiscountFound) {
+        const currentDiscountValue = currentDiscount?.discountValue || 0;
+        
+        if (!currentDiscount || shouldPreferDiscount(bestDiscountFound, {
+          discount_value: currentDiscountValue,
+          discount_scope: 'site_wide', // Assume current is site-wide if unknown
+          isTokenGated: false
+        })) {
+          console.log(`🔄 Upgrading discount from ${currentDiscount?.code || 'none'} to ${bestDiscountFound.code}`);
+          
+          // Update session storage with better discount
+          sessionStorage.setItem('activeDiscountCode', JSON.stringify({
+            code: bestDiscountFound.code,
+            source: (bestDiscountFound.discount_scope || bestDiscountFound.scope) === 'product' ? 'product_specific_api' : 'site_wide_api',
+            displayText: bestDiscountFound.displayText,
+            discountType: bestDiscountFound.discount_type || bestDiscountFound.type,
+            discountValue: bestDiscountFound.discount_value || bestDiscountFound.value,
+            timestamp: new Date().toISOString(),
+            isTokenGated: bestDiscountFound.isTokenGated,
+            gatingType: bestDiscountFound.gating_type,
+            description: bestDiscountFound.description,
+            autoApplied: true // Flag this as auto-applied from cart evaluation
+          }));
+          
+          // Trigger a custom event to notify DiscountCodeSection
+          window.dispatchEvent(new Event('sessionStorageUpdate'));
+        } else {
+          console.log(`✅ Current discount ${currentDiscount.code} is already the best available`);
+        }
+      } else {
+        console.log('❌ No better discount found for current cart contents');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error evaluating cart discounts:', error);
+    } finally {
+      setIsEvaluatingDiscounts(false);
+    }
+  };
+  
+  // Helper function to determine if one discount should be preferred over another
+  const shouldPreferDiscount = (newDiscount, currentDiscount) => {
+    const newValue = newDiscount.discount_value || newDiscount.value || 0;
+    const currentValue = currentDiscount.discount_value || currentDiscount.value || 0;
+    const newScope = newDiscount.discount_scope || newDiscount.scope;
+    const currentScope = currentDiscount.discount_scope || currentDiscount.scope;
+    const newIsTokenGated = newDiscount.isTokenGated || false;
+    const currentIsTokenGated = currentDiscount.isTokenGated || false;
+    
+    // Token-gated discounts have highest priority
+    if (newIsTokenGated && !currentIsTokenGated) return true;
+    if (!newIsTokenGated && currentIsTokenGated) return false;
+    
+    // Among same gating type, product-specific beats site-wide
+    if (newScope === 'product' && currentScope === 'site_wide') return true;
+    if (newScope === 'site_wide' && currentScope === 'product') return false;
+    
+    // Among same scope and gating, higher value wins
+    return newValue > currentValue;
+  };
   
   // Check notification status from session storage (set by HomePage)
   const getNotificationStatus = () => {
@@ -135,6 +259,18 @@ export function Cart({ isOpen, onClose }) {
             </div>
           ) : (
             <div className="p-4 space-y-4">
+              {/* Discount Evaluation Loading */}
+              {isEvaluatingDiscounts && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+                    <div className="text-sm text-blue-800">
+                      🔍 Finding the best discount for your cart...
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {cart.items.map((item) => (
                 <CartItem
                   key={item.key}
