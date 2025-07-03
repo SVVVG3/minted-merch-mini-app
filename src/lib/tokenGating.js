@@ -683,9 +683,18 @@ async function doesDiscountMatchScope(discount, productScope, productIds = []) {
       console.log(`  🆕 Using new products table for matching`);
       
       try {
-        // Convert Shopify product IDs to Supabase product IDs
-        const supabaseProductIds = await convertShopifyIdsToSupabaseIds(productIds);
-        console.log(`  - Converted Shopify IDs to Supabase IDs: ${JSON.stringify(supabaseProductIds)}`);
+        // Check if productIds are already Supabase IDs (numbers) or Shopify IDs (strings with gid://)
+        let supabaseProductIds = [];
+        
+        if (productIds.length > 0 && typeof productIds[0] === 'number') {
+          // These are already Supabase product IDs
+          supabaseProductIds = productIds;
+          console.log(`  - Product IDs are already Supabase IDs: ${JSON.stringify(supabaseProductIds)}`);
+        } else {
+          // These are Shopify product IDs, convert them
+          supabaseProductIds = await convertShopifyIdsToSupabaseIds(productIds);
+          console.log(`  - Converted Shopify IDs to Supabase IDs: ${JSON.stringify(supabaseProductIds)}`);
+        }
         
         const matches = supabaseProductIds.some(productId => 
           discount.target_product_ids.includes(productId)
