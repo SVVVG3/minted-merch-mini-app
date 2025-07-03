@@ -698,13 +698,33 @@ async function doesDiscountMatchScope(discount, productScope, productIds = []) {
       }
     }
     
-    // Fall back to legacy target_products (Shopify IDs)
+    // Fall back to legacy target_products (handles)
     if (discount.target_products && discount.target_products.length > 0) {
       console.log(`  🔄 Using legacy target_products for matching`);
-      const targetProducts = discount.target_products || [];
-      const matches = productIds.some(productId => targetProducts.includes(productId));
-      console.log(`  ${matches ? '✅' : '❌'} Product match result (legacy): ${matches}`);
-      return matches;
+      
+      try {
+        // Convert Supabase product IDs to handles for legacy comparison
+        const { data: products, error } = await supabase
+          .from('products')
+          .select('id, handle')
+          .in('id', productIds);
+        
+        if (error) throw error;
+        
+        const productHandles = (products || []).map(p => p.handle);
+        console.log(`  - Current product handles: ${JSON.stringify(productHandles)}`);
+        console.log(`  - Target product handles: ${JSON.stringify(discount.target_products)}`);
+        
+        const matches = productHandles.some(handle => 
+          discount.target_products.includes(handle)
+        );
+        
+        console.log(`  ${matches ? '✅' : '❌'} Product match result (legacy): ${matches}`);
+        return matches;
+      } catch (error) {
+        console.error('  ❌ Error converting Supabase IDs to handles for legacy comparison:', error);
+        return false;
+      }
     }
     
     console.log(`  ❌ No target products defined for product-specific discount`);
