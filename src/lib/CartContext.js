@@ -309,6 +309,10 @@ export function CartProvider({ children }) {
           // For now, we'll identify Tiny Hyper Tee specifically since that's the main case
           let qualifyingSubtotal = 0;
           
+          // CRITICAL FIX: Track discount across ALL variants of same product
+          let discountAppliedCount = 0; // Track how many items have gotten the discount
+          const maxDiscountableItems = 1; // Only 1 item total gets the discount
+          
           cart.items.forEach(item => {
             const productHandle = item.product?.handle;
             const productTitle = item.product?.title || item.title;
@@ -316,11 +320,19 @@ export function CartProvider({ children }) {
             // Check if this product qualifies for the SNAPSHOT-TINY-HYPER-FREE discount
             if (code === 'SNAPSHOT-TINY-HYPER-FREE') {
               if (productHandle === 'tiny-hyper-tee' || productTitle?.includes('Tiny Hyper Tee')) {
-                // CRITICAL FIX: Only apply discount to ONE item, not all quantities
-                const discountableQuantity = Math.min(1, item.quantity); // Max 1 item gets the discount
-                const discountableAmount = item.price * discountableQuantity;
-                qualifyingSubtotal += discountableAmount;
-                console.log(`💰 Product qualifies for discount: ${productTitle} (${discountableQuantity} of ${item.quantity} items = $${discountableAmount.toFixed(2)})`);
+                // Only apply discount if we haven't reached the limit across all variants
+                if (discountAppliedCount < maxDiscountableItems) {
+                  const remainingDiscountableItems = maxDiscountableItems - discountAppliedCount;
+                  const discountableQuantity = Math.min(remainingDiscountableItems, item.quantity);
+                  const discountableAmount = item.price * discountableQuantity;
+                  
+                  qualifyingSubtotal += discountableAmount;
+                  discountAppliedCount += discountableQuantity;
+                  
+                  console.log(`💰 Product qualifies for discount: ${productTitle} (${discountableQuantity} of ${item.quantity} items = $${discountableAmount.toFixed(2)}) [Total discounted so far: ${discountAppliedCount}]`);
+                } else {
+                  console.log(`⏭️ Product qualifies but discount limit reached: ${productTitle} (0 of ${item.quantity} items discounted)`);
+                }
               } else {
                 console.log(`❌ Product does NOT qualify for discount: ${productTitle}`);
               }
