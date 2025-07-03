@@ -316,8 +316,11 @@ export function CartProvider({ children }) {
             // Check if this product qualifies for the SNAPSHOT-TINY-HYPER-FREE discount
             if (code === 'SNAPSHOT-TINY-HYPER-FREE') {
               if (productHandle === 'tiny-hyper-tee' || productTitle?.includes('Tiny Hyper Tee')) {
-                qualifyingSubtotal += (item.price * item.quantity);
-                console.log(`💰 Product qualifies for discount: ${productTitle} ($${(item.price * item.quantity).toFixed(2)})`);
+                // CRITICAL FIX: Only apply discount to ONE item, not all quantities
+                const discountableQuantity = Math.min(1, item.quantity); // Max 1 item gets the discount
+                const discountableAmount = item.price * discountableQuantity;
+                qualifyingSubtotal += discountableAmount;
+                console.log(`💰 Product qualifies for discount: ${productTitle} (${discountableQuantity} of ${item.quantity} items = $${discountableAmount.toFixed(2)})`);
               } else {
                 console.log(`❌ Product does NOT qualify for discount: ${productTitle}`);
               }

@@ -28,6 +28,7 @@ export function Cart({ isOpen, onClose }) {
   // Cart-aware discount evaluation - runs when cart opens and has items
   useEffect(() => {
     if (isOpen && cart.items.length > 0) {
+      console.log('🔄 Cart changed - re-evaluating discounts...', cart.items.map(i => i.product?.title || i.title));
       evaluateBestCartDiscount();
     } else if (isOpen && cart.items.length === 0) {
       // Clear any applied discount when cart is empty
@@ -37,7 +38,7 @@ export function Cart({ isOpen, onClose }) {
         sessionStorage.removeItem('activeDiscountCode');
       }
     }
-  }, [isOpen, cart.items]); // Re-run when cart opens or ANY item changes (not just count)
+  }, [isOpen, JSON.stringify(cart.items), cart.appliedDiscount?.code]); // Deep dependency check on cart contents
   
   const evaluateBestCartDiscount = async () => {
     try {
@@ -54,6 +55,29 @@ export function Cart({ isOpen, onClose }) {
       // Get all unique product handles in cart
       const productHandles = [...new Set(cart.items.map(item => item.product?.handle).filter(Boolean))];
       console.log('🔍 Products in cart:', productHandles);
+      
+      // Check if current applied discount is still valid for current cart
+      const appliedDiscount = cart.appliedDiscount;
+      if (appliedDiscount) {
+        const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
+        if (activeDiscountData) {
+          const activeDiscount = JSON.parse(activeDiscountData);
+          
+          // If current discount is product-specific, check if those products are still in cart
+          if (activeDiscount.source === 'product_specific_api' && activeDiscount.code === 'SNAPSHOT-TINY-HYPER-FREE') {
+            const hasTinyHyperTee = productHandles.includes('tiny-hyper-tee') || 
+                                   cart.items.some(item => (item.product?.title || item.title)?.includes('Tiny Hyper Tee'));
+            
+            if (!hasTinyHyperTee) {
+              console.log('🗑️ SNAPSHOT-TINY-HYPER-FREE discount no longer valid - Tiny Hyper Tee removed from cart');
+              removeDiscount();
+              sessionStorage.removeItem('activeDiscountCode');
+              window.dispatchEvent(new Event('sessionStorageUpdate'));
+              // Continue to find new best discount for remaining items
+            }
+          }
+        }
+      }
       
       if (productHandles.length === 0) {
         console.log('❌ No valid product handles found in cart');
