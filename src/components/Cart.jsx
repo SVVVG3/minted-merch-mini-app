@@ -29,8 +29,15 @@ export function Cart({ isOpen, onClose }) {
   useEffect(() => {
     if (isOpen && cart.items.length > 0) {
       evaluateBestCartDiscount();
+    } else if (isOpen && cart.items.length === 0) {
+      // Clear any applied discount when cart is empty
+      if (cart.appliedDiscount) {
+        console.log('🗑️ Cart is empty - clearing applied discount');
+        removeDiscount();
+        sessionStorage.removeItem('activeDiscountCode');
+      }
     }
-  }, [isOpen, cart.items.length]); // Re-run when cart opens or item count changes
+  }, [isOpen, cart.items]); // Re-run when cart opens or ANY item changes (not just count)
   
   const evaluateBestCartDiscount = async () => {
     try {
@@ -115,7 +122,28 @@ export function Cart({ isOpen, onClose }) {
           console.log(`✅ Current discount ${currentDiscount.code} is already the best available`);
         }
       } else {
-        console.log('❌ No better discount found for current cart contents');
+        // No discount found for current cart - check if current discount is still valid
+        if (currentDiscount) {
+          console.log('🔍 No discount found for current cart - checking if current discount is still valid...');
+          
+          // Check if current discount was product-specific and those products are no longer in cart
+          const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
+          if (activeDiscountData) {
+            const activeDiscount = JSON.parse(activeDiscountData);
+            
+            if (activeDiscount.source === 'product_specific_api') {
+              // Product-specific discount but no products qualify anymore
+              console.log('🗑️ Product-specific discount no longer valid for current cart - removing');
+              removeDiscount();
+              sessionStorage.removeItem('activeDiscountCode');
+              window.dispatchEvent(new Event('sessionStorageUpdate'));
+            } else {
+              console.log('✅ Current site-wide discount is still valid');
+            }
+          }
+        } else {
+          console.log('❌ No discount found and none currently applied');
+        }
       }
       
     } catch (error) {
