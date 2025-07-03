@@ -184,6 +184,8 @@ export async function GET(request) {
           tokenGated: tokenGatedDiscount,
           alternatives: discounts.filter(d => d !== bestDiscount)
         };
+      } else {
+        console.log(`❌ Missing required parameters for discount checking: fid=${fid}, supabaseId=${supabaseId}`);
       }
     } catch (discountError) {
       console.error('❌ Error checking discounts:', discountError);
