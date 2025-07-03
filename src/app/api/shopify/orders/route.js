@@ -145,73 +145,74 @@ export async function POST(request) {
       console.log('Order created successfully:', result.order.name);
       
       // Create order in Supabase database for notifications and tracking
-      if (fid) {
-        try {
-          const supabaseOrderData = {
-            fid: fid,
-            orderId: result.order.name, // Use Shopify order name as our order ID
-            sessionId: null, // No session for direct orders
-            status: 'paid', // Payment is verified at this point
-            currency: 'USDC',
-            amountTotal: totalPrice,
-            amountSubtotal: subtotalAfterDiscount, // Use discounted subtotal
-            amountTax: totalTax,
-            amountShipping: shippingPrice,
-            discountCode: appliedDiscount?.code || null, // Track discount code
-            discountAmount: discountAmountValue, // Track discount amount
-            discountPercentage: appliedDiscount?.discountValue || null, // Track discount percentage
-            customerEmail: customer?.email || shippingAddress.email || '',
-            customerName: shippingAddress.firstName ? 
-              `${shippingAddress.firstName} ${shippingAddress.lastName || ''}`.trim() : 
-              (customer?.email || shippingAddress.email || ''),
-            shippingAddress: shippingAddress,
-            shippingMethod: selectedShipping.title || 'Standard',
-            lineItems: lineItems.map(item => {
-              // Extract product image URL from the cart item
-              const productImageUrl = cartItems.find(cartItem => 
-                cartItem.variant?.id === item.variantId
-              )?.product?.image?.url || null;
-              
-              return {
-                id: item.variantId,
-                title: item.productTitle,
-                quantity: item.quantity,
-                price: item.price,
-                variant: item.title !== 'Default' ? item.title : null,
-                imageUrl: productImageUrl // Store the product image URL!
-              };
-            }),
-            paymentMethod: 'USDC',
-            paymentStatus: 'completed',
-            paymentIntentId: transactionHash
-          };
+      // CRITICAL FIX: Always create Supabase record, FID is optional
+      try {
+        const supabaseOrderData = {
+          fid: fid || null, // FID can be null
+          orderId: result.order.name, // Use Shopify order name as our order ID
+          sessionId: null, // No session for direct orders
+          status: 'paid', // Payment is verified at this point
+          currency: 'USDC',
+          amountTotal: totalPrice,
+          amountSubtotal: subtotalAfterDiscount, // Use discounted subtotal
+          amountTax: totalTax,
+          amountShipping: shippingPrice,
+          discountCode: appliedDiscount?.code || null, // Track discount code
+          discountAmount: discountAmountValue, // Track discount amount
+          discountPercentage: appliedDiscount?.discountValue || null, // Track discount percentage
+          customerEmail: customer?.email || shippingAddress.email || '',
+          customerName: shippingAddress.firstName ? 
+            `${shippingAddress.firstName} ${shippingAddress.lastName || ''}`.trim() : 
+            (customer?.email || shippingAddress.email || ''),
+          shippingAddress: shippingAddress,
+          shippingMethod: selectedShipping.title || 'Standard',
+          lineItems: lineItems.map(item => {
+            // Extract product image URL from the cart item
+            const productImageUrl = cartItems.find(cartItem => 
+              cartItem.variant?.id === item.variantId
+            )?.product?.image?.url || null;
+            
+            return {
+              id: item.variantId,
+              title: item.productTitle,
+              quantity: item.quantity,
+              price: item.price,
+              variant: item.title !== 'Default' ? item.title : null,
+              imageUrl: productImageUrl // Store the product image URL!
+            };
+          }),
+          paymentMethod: 'USDC',
+          paymentStatus: 'completed',
+          paymentIntentId: transactionHash
+        };
 
-          const supabaseResult = await createSupabaseOrder(supabaseOrderData);
+        const supabaseResult = await createSupabaseOrder(supabaseOrderData);
+        
+        if (supabaseResult.success) {
+          console.log('✅ Order created in Supabase:', supabaseResult.order.order_id);
           
-          if (supabaseResult.success) {
-            console.log('✅ Order created in Supabase:', supabaseResult.order.order_id);
-            
-            // Mark discount code as used if one was applied
-            if (appliedDiscount && appliedDiscount.code) {
-              try {
-                const markUsedResult = await markDiscountCodeAsUsed(
-                  appliedDiscount.code, 
-                  supabaseResult.order.order_id,
-                  fid,
-                  discountAmountValue,
-                  subtotalPrice
-                );
-                if (markUsedResult.success) {
-                  console.log('✅ Discount code marked as used:', appliedDiscount.code);
-                } else {
-                  console.error('❌ Failed to mark discount code as used:', markUsedResult.error);
-                }
-              } catch (discountError) {
-                console.error('❌ Error marking discount code as used:', discountError);
+          // Mark discount code as used if one was applied
+          if (appliedDiscount && appliedDiscount.code) {
+            try {
+              const markUsedResult = await markDiscountCodeAsUsed(
+                appliedDiscount.code, 
+                supabaseResult.order.order_id,
+                fid || null, // FID can be null for discount tracking
+                discountAmountValue,
+                subtotalPrice
+              );
+              if (markUsedResult.success) {
+                console.log('✅ Discount code marked as used:', appliedDiscount.code);
+              } else {
+                console.error('❌ Failed to mark discount code as used:', markUsedResult.error);
               }
+            } catch (discountError) {
+              console.error('❌ Error marking discount code as used:', discountError);
             }
-            
-            // Send order confirmation notification
+          }
+          
+          // Send order confirmation notification (only if FID provided)
+          if (fid) {
             try {
               await sendOrderConfirmationNotificationAndMark(supabaseResult.order);
               console.log('✅ Order confirmation notification sent');
@@ -219,13 +220,13 @@ export async function POST(request) {
               console.error('❌ Failed to send order confirmation notification:', notificationError);
             }
           } else {
-            console.error('❌ Failed to create order in Supabase:', supabaseResult.error);
+            console.log('ℹ️ No FID provided, skipping notification (order still saved to Supabase)');
           }
-        } catch (error) {
-          console.error('❌ Error creating Supabase order:', error);
+        } else {
+          console.error('❌ Failed to create order in Supabase:', supabaseResult.error);
         }
-      } else {
-        console.log('⚠️ No FID provided, skipping Supabase order creation and notifications');
+      } catch (error) {
+        console.error('❌ Error creating Supabase order:', error);
       }
       
       return NextResponse.json({

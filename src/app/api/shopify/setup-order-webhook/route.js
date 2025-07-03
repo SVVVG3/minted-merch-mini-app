@@ -14,12 +14,22 @@ export async function POST() {
     // Create multiple order-related webhooks
     const webhooks = [
       {
+        topic: 'orders/create',
+        address: 'https://mintedmerch.vercel.app/api/shopify/order-webhook',
+        format: 'json'
+      },
+      {
         topic: 'orders/updated',
         address: 'https://mintedmerch.vercel.app/api/shopify/order-webhook',
         format: 'json'
       },
       {
         topic: 'orders/cancelled',
+        address: 'https://mintedmerch.vercel.app/api/shopify/order-webhook',
+        format: 'json'
+      },
+      {
+        topic: 'orders/paid',
         address: 'https://mintedmerch.vercel.app/api/shopify/order-webhook',
         format: 'json'
       }
@@ -113,6 +123,7 @@ export async function GET() {
     }
 
     const orderWebhooks = result.webhooks.filter(w => 
+      w.topic === 'orders/create' ||
       w.topic === 'orders/updated' || 
       w.topic === 'orders/cancelled' ||
       w.topic === 'orders/paid'

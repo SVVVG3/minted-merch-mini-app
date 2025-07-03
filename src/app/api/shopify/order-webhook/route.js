@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { archiveOrder, cancelOrder, getOrder } from '@/lib/orders';
+import { archiveOrder, cancelOrder, getOrder, createOrder as createSupabaseOrder } from '@/lib/orders';
 import crypto from 'crypto';
 
 // Verify Shopify webhook signature
@@ -49,6 +49,9 @@ export async function POST(request) {
 
     // Handle different order events
     switch (topic) {
+      case 'orders/create':
+        await handleOrderCreate(orderData);
+        break;
       case 'orders/updated':
         await handleOrderUpdated(orderData);
         break;
@@ -183,5 +186,83 @@ async function handleOrderPaid(order) {
 
   } catch (error) {
     console.error('❌ Error handling order paid:', error);
+  }
+}
+
+async function handleOrderCreate(order) {
+  try {
+    console.log('🆕 Processing order creation from webhook...');
+
+    const orderName = order.name;
+
+    if (!orderName) {
+      console.error('❌ No order name found in order create data');
+      return;
+    }
+
+    // Check if this order already exists in our Supabase database
+    const existingOrderResult = await getOrder(orderName);
+    
+    if (existingOrderResult.success) {
+      console.log(`ℹ️ Order ${orderName} already exists in Supabase database - likely created via direct API`);
+      return;
+    }
+
+    console.log(`📦 Order ${orderName} not found in database, creating from webhook data...`);
+
+    // Extract order data and create in Supabase
+    const supabaseOrderData = {
+      fid: null, // Webhook orders typically don't have FID
+      orderId: orderName,
+      sessionId: null,
+      status: order.financial_status === 'paid' ? 'paid' : 'pending',
+      currency: order.currency || 'USD',
+      amountTotal: parseFloat(order.total_price || 0),
+      amountSubtotal: parseFloat(order.subtotal_price || 0),
+      amountTax: parseFloat(order.total_tax || 0),
+      amountShipping: parseFloat(order.total_shipping_price_set?.shop_money?.amount || 0),
+      discountCode: order.discount_codes?.length > 0 ? order.discount_codes[0].code : null,
+      discountAmount: order.discount_codes?.length > 0 ? parseFloat(order.discount_codes[0].amount || 0) : null,
+      discountPercentage: null, // Not available in webhook data
+      customerEmail: order.customer?.email || order.email || '',
+      customerName: order.customer ? 
+        `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() :
+        (order.billing_address ? 
+          `${order.billing_address.first_name || ''} ${order.billing_address.last_name || ''}`.trim() : ''),
+      shippingAddress: order.shipping_address ? {
+        firstName: order.shipping_address.first_name || '',
+        lastName: order.shipping_address.last_name || '',
+        address1: order.shipping_address.address1 || '',
+        address2: order.shipping_address.address2 || '',
+        city: order.shipping_address.city || '',
+        province: order.shipping_address.province || '',
+        zip: order.shipping_address.zip || '',
+        country: order.shipping_address.country || '',
+        phone: order.shipping_address.phone || ''
+      } : null,
+      shippingMethod: order.shipping_lines?.length > 0 ? order.shipping_lines[0].title : 'Standard',
+      lineItems: (order.line_items || []).map(item => ({
+        id: item.variant_id,
+        title: item.title,
+        quantity: item.quantity,
+        price: parseFloat(item.price),
+        variant: item.variant_title !== 'Default Title' ? item.variant_title : null,
+        imageUrl: null // Not available in webhook data
+      })),
+      paymentMethod: 'Unknown', // Not available in webhook data
+      paymentStatus: order.financial_status === 'paid' ? 'completed' : 'pending',
+      paymentIntentId: order.id.toString() // Use Shopify order ID as fallback
+    };
+
+    const supabaseResult = await createSupabaseOrder(supabaseOrderData);
+    
+    if (supabaseResult.success) {
+      console.log(`✅ Order ${orderName} created in Supabase from webhook`);
+    } else {
+      console.error(`❌ Failed to create order ${orderName} from webhook:`, supabaseResult.error);
+    }
+
+  } catch (error) {
+    console.error('❌ Error handling order create:', error);
   }
 } 
