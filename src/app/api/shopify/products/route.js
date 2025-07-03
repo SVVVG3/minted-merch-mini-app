@@ -86,7 +86,7 @@ export async function GET(request) {
               },
               body: JSON.stringify({
                 fid: userFid,
-                wallet_addresses: userWalletAddresses,
+                walletAddresses: userWalletAddresses,
                 product_id: supabaseId,
                 scope: 'all'
               })
