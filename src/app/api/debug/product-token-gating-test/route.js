@@ -14,7 +14,7 @@ export async function GET(request) {
 
     // Use proper base URL for server-side requests
     const baseUrl = process.env.NODE_ENV === 'production' 
-      ? `https://${process.env.VERCEL_URL || 'mintedmerch.vercel.app'}` 
+      ? 'https://mintedmerch.vercel.app' 
       : 'http://localhost:3000';
 
     const results = {
