@@ -56,7 +56,12 @@ export async function GET(request) {
         let tokenGatedDiscount = null;
         try {
           // Get user's wallet addresses for token-gating
-          const walletResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/user-wallet-data?fid=${userFid}`);
+          // Use proper base URL for server-side requests
+          const baseUrl = process.env.NODE_ENV === 'production' 
+            ? `https://${process.env.VERCEL_URL || 'mintedmerch.vercel.app'}` 
+            : 'http://localhost:3000';
+          
+          const walletResponse = await fetch(`${baseUrl}/api/user-wallet-data?fid=${userFid}`);
           const walletData = await walletResponse.json();
           
           if (walletData.success && walletData.walletData?.all_wallet_addresses?.length > 0) {
@@ -64,7 +69,7 @@ export async function GET(request) {
             console.log(`🔍 Checking token-gated discounts for ${userWalletAddresses.length} wallet addresses`);
             
             // Check for all token-gated discounts (product-specific and site-wide)
-            const tokenGatingResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/check-token-gated-eligibility`, {
+            const tokenGatingResponse = await fetch(`${baseUrl}/api/check-token-gated-eligibility`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

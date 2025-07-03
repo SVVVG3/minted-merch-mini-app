@@ -12,15 +12,21 @@ export async function GET(request) {
     console.log('Supabase Product ID:', supabaseId);
     console.log('Wallet Address:', walletAddress);
 
+    // Use proper base URL for server-side requests
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? `https://${process.env.VERCEL_URL || 'mintedmerch.vercel.app'}` 
+      : 'http://localhost:3000';
+
     const results = {
-      baseUrl: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
+      baseUrl: baseUrl,
       env: process.env.NODE_ENV,
+      vercelUrl: process.env.VERCEL_URL,
       testSteps: []
     };
 
     // Step 1: Test wallet data fetch
     try {
-      const walletUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/user-wallet-data?fid=${fid}`;
+      const walletUrl = `${baseUrl}/api/user-wallet-data?fid=${fid}`;
       console.log('🔍 Testing wallet data fetch:', walletUrl);
       
       const walletResponse = await fetch(walletUrl);
@@ -36,7 +42,7 @@ export async function GET(request) {
 
       // Step 2: Test token-gating eligibility
       if (walletData.success && walletData.walletData?.all_wallet_addresses?.length > 0) {
-        const tokenGatingUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/check-token-gated-eligibility`;
+        const tokenGatingUrl = `${baseUrl}/api/check-token-gated-eligibility`;
         console.log('🔍 Testing token-gating eligibility:', tokenGatingUrl);
         
         const tokenGatingResponse = await fetch(tokenGatingUrl, {
