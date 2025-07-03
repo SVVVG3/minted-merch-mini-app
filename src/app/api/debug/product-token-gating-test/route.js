@@ -55,7 +55,7 @@ export async function GET(request) {
                body: JSON.stringify({
                  fid: userFid,
                  walletAddresses: userWalletAddresses,
-                 product_id: supabaseId,
+                 productIds: [supabaseId],
                  scope: 'all'
                })
              });
