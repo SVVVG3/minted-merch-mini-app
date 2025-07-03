@@ -1,105 +1,144 @@
 import { NextResponse } from 'next/server';
 
 export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const handle = searchParams.get('handle') || 'tiny-hyper-tee';
+  const fid = searchParams.get('fid') || '466111';
+  
+  const logs = [];
+  const log = (message) => {
+    console.log(message);
+    logs.push(message);
+  };
+  
   try {
-    const { searchParams } = new URL(request.url);
-    const fid = searchParams.get('fid') || '466111';
-    const supabaseId = searchParams.get('supabaseId') || '31'; // Tiny Hyper Tee
-    const walletAddress = searchParams.get('wallet') || '0x380d89b06a1a596a2c4f788daaabc2dcc6493888';
-
-    console.log('🧪 Testing product token-gating logic');
-    console.log('FID:', fid);
-    console.log('Supabase Product ID:', supabaseId);
-    console.log('Wallet Address:', walletAddress);
-
-    // Use proper base URL for server-side requests
-    const baseUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://mintedmerch.vercel.app' 
-      : 'http://localhost:3000';
-
-    const results = {
-      baseUrl: baseUrl,
-      env: process.env.NODE_ENV,
-      vercelUrl: process.env.VERCEL_URL,
-      testSteps: []
-    };
-
-    // Step 1: Test wallet data fetch
-    try {
-      const walletUrl = `${baseUrl}/api/user-wallet-data?fid=${fid}`;
-      console.log('🔍 Testing wallet data fetch:', walletUrl);
+    log(`🛍️ DEBUG: Testing product token-gating for handle: ${handle}, FID: ${fid}`);
+    
+    // Get Supabase product ID
+    const supabaseId = 31; // We know this is the Tiny Hyper Tee ID
+    log(`✅ Supabase product ID: ${supabaseId}`);
+    
+    if (fid && supabaseId) {
+      const userFid = parseInt(fid);
+      log(`🎁 Checking discounts for product ID ${supabaseId}, user FID ${userFid}`);
       
-      const walletResponse = await fetch(walletUrl);
-      const walletData = await walletResponse.json();
-      
-      results.testSteps.push({
-        step: 'wallet_data_fetch',
-        success: walletData.success,
-        url: walletUrl,
-        data: walletData,
-        addresses: walletData.walletData?.all_wallet_addresses || []
-      });
-
-      // Step 2: Test token-gating eligibility
-      if (walletData.success && walletData.walletData?.all_wallet_addresses?.length > 0) {
-        const tokenGatingUrl = `${baseUrl}/api/check-token-gated-eligibility`;
-        console.log('🔍 Testing token-gating eligibility:', tokenGatingUrl);
+      // 🚨 CHECK FOR TOKEN-GATED DISCOUNTS
+      let tokenGatedDiscount = null;
+      try {
+        log(`🚨 STARTING TOKEN-GATED CHECK for FID ${userFid}, Product ID ${supabaseId}`);
         
-        const tokenGatingResponse = await fetch(tokenGatingUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fid: parseInt(fid),
-            walletAddresses: walletData.walletData.all_wallet_addresses,
-            scope: 'all',
-            productIds: [parseInt(supabaseId)]
-          })
-        });
+        // Get user's wallet addresses for token-gating
+        const baseUrl = 'https://mintedmerch.vercel.app';
+        log(`🔍 Using base URL for token-gated checking: ${baseUrl}`);
         
-        const tokenGatingResult = await tokenGatingResponse.json();
+        const walletResponse = await fetch(`${baseUrl}/api/user-wallet-data?fid=${userFid}`);
         
-        results.testSteps.push({
-          step: 'token_gating_eligibility',
-          success: tokenGatingResult.success,
-          url: tokenGatingUrl,
-          data: tokenGatingResult,
-          eligibleDiscounts: tokenGatingResult.eligibleDiscounts || []
-        });
-
-        // Step 3: Test product-specific filtering
-        if (tokenGatingResult.success && tokenGatingResult.eligibleDiscounts?.length > 0) {
-          const productSpecificTokenDiscount = tokenGatingResult.eligibleDiscounts.find(d => 
-            d.target_product_ids && d.target_product_ids.includes(parseInt(supabaseId))
-          );
+        if (!walletResponse.ok) {
+          log(`❌ Wallet API failed with status: ${walletResponse.status}`);
+          const errorText = await walletResponse.text();
+          log(`❌ Wallet API error: ${errorText}`);
+        } else {
+          const walletData = await walletResponse.json();
+          log(`📱 Wallet API response: { success: ${walletData.success}, hasWallets: ${walletData.walletData?.all_wallet_addresses?.length > 0} }`);
           
-          const siteWideTokenDiscount = tokenGatingResult.eligibleDiscounts.find(d => 
-            d.discount_scope === 'site_wide'
-          );
-          
-          results.testSteps.push({
-            step: 'discount_filtering',
-            success: true,
-            productSpecificFound: !!productSpecificTokenDiscount,
-            siteWideFound: !!siteWideTokenDiscount,
-            productSpecificDiscount: productSpecificTokenDiscount,
-            siteWideDiscount: siteWideTokenDiscount,
-            selectedDiscount: productSpecificTokenDiscount || siteWideTokenDiscount
-          });
+          if (walletData.success && walletData.walletData?.all_wallet_addresses?.length > 0) {
+            const userWalletAddresses = walletData.walletData.all_wallet_addresses;
+            log(`🔍 Checking token-gated discounts for ${userWalletAddresses.length} wallet addresses`);
+            log(`🔍 Wallet addresses: ${userWalletAddresses.slice(0, 3).join(', ')}...`);
+            
+            // Check for all token-gated discounts (both product-specific and site-wide)
+            const tokenGatedResponse = await fetch(`${baseUrl}/api/check-token-gated-eligibility?fid=${userFid}&scope=all`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                wallet_addresses: userWalletAddresses,
+                product_id: supabaseId
+              })
+            });
+            
+            if (!tokenGatedResponse.ok) {
+              log(`❌ Token-gated API failed with status: ${tokenGatedResponse.status}`);
+              const errorText = await tokenGatedResponse.text();
+              log(`❌ Token-gated API error: ${errorText}`);
+            } else {
+              const tokenGatedData = await tokenGatedResponse.json();
+              log(`🎫 Token-gated API response: { success: ${tokenGatedData.success}, discountCount: ${tokenGatedData.eligible_discounts?.length || 0} }`);
+              
+              if (tokenGatedData.success && tokenGatedData.eligible_discounts?.length > 0) {
+                log(`🎯 Found ${tokenGatedData.eligible_discounts.length} eligible token-gated discounts: ${tokenGatedData.eligible_discounts.map(d => d.code).join(', ')}`);
+                
+                // Show details of each discount
+                tokenGatedData.eligible_discounts.forEach(discount => {
+                  log(`  - ${discount.code}: ${discount.value}% off, scope: ${discount.scope}, priority: ${discount.priority_level}`);
+                });
+                
+                // Separate product-specific and site-wide token-gated discounts
+                const productSpecificTokenDiscounts = tokenGatedData.eligible_discounts.filter(d => d.scope === 'product');
+                const siteWideTokenDiscounts = tokenGatedData.eligible_discounts.filter(d => d.scope === 'site_wide');
+                
+                log(`🔍 Product-specific token discounts: ${productSpecificTokenDiscounts.map(d => d.code).join(', ')}`);
+                log(`🔍 Site-wide token discounts: ${siteWideTokenDiscounts.map(d => d.code).join(', ')}`);
+                
+                // Prioritize: product-specific token > site-wide token > regular product > regular site-wide
+                if (productSpecificTokenDiscounts.length > 0) {
+                  tokenGatedDiscount = productSpecificTokenDiscounts.reduce((best, current) => {
+                    if (current.value > best.value) return current;
+                    if (current.value === best.value && current.priority_level > best.priority_level) return current;
+                    return best;
+                  });
+                  log(`🎯 Best product-specific token-gated discount: ${tokenGatedDiscount.code} (${tokenGatedDiscount.value}% off)`);
+                } else if (siteWideTokenDiscounts.length > 0) {
+                  tokenGatedDiscount = siteWideTokenDiscounts.reduce((best, current) => {
+                    if (current.value > best.value) return current;
+                    if (current.value === best.value && current.priority_level > best.priority_level) return current;
+                    return best;
+                  });
+                  log(`🎯 Best site-wide token-gated discount: ${tokenGatedDiscount.code} (${tokenGatedDiscount.value}% off)`);
+                }
+                
+                // Mark the token-gated discount
+                if (tokenGatedDiscount) {
+                  tokenGatedDiscount.isTokenGated = true;
+                  tokenGatedDiscount.displayText = `${tokenGatedDiscount.value}% off`;
+                  log(`✅ Selected token-gated discount: ${tokenGatedDiscount.code} (${tokenGatedDiscount.displayText})`);
+                }
+              } else {
+                log(`❌ No eligible token-gated discounts found for wallet addresses`);
+              }
+            }
+          } else {
+            log(`❌ User has no wallet addresses for token-gating`);
+          }
         }
+      } catch (error) {
+        log(`❌ Error checking token-gated discounts: ${error.message}`);
+        log(`❌ Stack trace: ${error.stack}`);
       }
-    } catch (error) {
-      results.testSteps.push({
-        step: 'error',
-        error: error.message,
-        stack: error.stack
+      
+      return Response.json({
+        success: true,
+        handle,
+        fid,
+        supabaseId,
+        tokenGatedDiscount,
+        logs
+      });
+    } else {
+      log(`❌ Missing required parameters: fid=${fid}, supabaseId=${supabaseId}`);
+      return Response.json({
+        success: false,
+        error: 'Missing required parameters',
+        logs
       });
     }
-
-    return NextResponse.json(results);
   } catch (error) {
-    console.error('❌ Error in product token-gating test:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    log(`❌ Debug endpoint error: ${error.message}`);
+    return Response.json({
+      success: false,
+      error: error.message,
+      logs
+    });
   }
 } 
