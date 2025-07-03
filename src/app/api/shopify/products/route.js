@@ -150,8 +150,8 @@ export async function GET(request) {
         // Now determine the best discount with proper prioritization
         const discounts = [
           tokenGatedDiscount,
-          productDiscountResult?.discount,
-          siteWideDiscountResult?.discount
+          productDiscountResult?.discountCode,
+          siteWideDiscountResult?.discountCode
         ].filter(Boolean);
         
         console.log(`🎯 Available discounts for prioritization: ${discounts.map(d => `${d.code} (${d.discount_value || d.value}% off, ${d.discount_scope || d.scope}, tokenGated: ${d.isTokenGated || false})`).join(', ')}`);
@@ -189,8 +189,8 @@ export async function GET(request) {
         // Set available discounts in response
         availableDiscounts = {
           best: bestDiscount,
-          productSpecific: productDiscountResult?.discount,
-          siteWide: siteWideDiscountResult?.discount,
+          productSpecific: productDiscountResult?.discountCode,
+          siteWide: siteWideDiscountResult?.discountCode,
           tokenGated: tokenGatedDiscount,
           alternatives: discounts.filter(d => d !== bestDiscount)
         };
