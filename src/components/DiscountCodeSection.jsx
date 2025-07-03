@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { useCart } from '@/lib/CartContext';
 
 // Helper function to get token-gating display text
 const getTokenGatingDisplayText = (gatingType) => {
@@ -31,6 +32,7 @@ export function DiscountCodeSection({
   showNotificationPrompt = false
 }) {
   const { getFid } = useFarcaster();
+  const { cartSubtotal, cartTotal } = useCart();
   const [discountCode, setDiscountCode] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState(null);
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
@@ -206,6 +208,18 @@ export function DiscountCodeSection({
     setDiscountError(null);
   };
 
+  // Helper function to calculate actual discount amount (product-aware)
+  const calculateActualDiscountAmount = () => {
+    if (!appliedDiscount) return 0;
+    
+    // The actual discount amount is the difference between subtotal and total (from cart context)
+    const actualDiscountAmount = cartSubtotal - cartTotal;
+    
+    console.log(`📊 Discount Display: subtotal=$${cartSubtotal.toFixed(2)}, total=$${cartTotal.toFixed(2)}, actual discount=$${actualDiscountAmount.toFixed(2)}`);
+    
+    return actualDiscountAmount;
+  };
+
   const userFid = getFid();
   const isAuthenticated = !!userFid;
 
@@ -302,7 +316,7 @@ export function DiscountCodeSection({
               </div>
               {appliedDiscount.discountAmount && (
                 <div className="text-xs text-green-600">
-                  Savings: ${appliedDiscount.discountAmount.toFixed(2)}
+                  Savings: ${calculateActualDiscountAmount().toFixed(2)}
                 </div>
               )}
             </div>
