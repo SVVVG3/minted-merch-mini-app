@@ -20,12 +20,60 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const [orderDetails, setOrderDetails] = useState(null);
   const buyNowProcessed = useRef(false);
 
+  // Helper function to calculate product-aware discount amount
+  const calculateProductAwareDiscountAmount = () => {
+    if (!appliedDiscount) return 0;
+    
+    const { code, discountType, discountValue } = appliedDiscount;
+    const currentSubtotal = cart.checkout ? cart.checkout.subtotal.amount : cartSubtotal;
+    
+    // Check if this is a product-specific discount from session storage
+    try {
+      const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
+      if (activeDiscountData) {
+        const activeDiscount = JSON.parse(activeDiscountData);
+        
+        // For product-specific discounts, only apply to qualifying products
+        if (activeDiscount.source === 'product_specific_api' && activeDiscount.code === code) {
+          let qualifyingSubtotal = 0;
+          
+          cart.items.forEach(item => {
+            const productHandle = item.product?.handle;
+            const productTitle = item.product?.title || item.title;
+            
+            // Check if this product qualifies for the SNAPSHOT-TINY-HYPER-FREE discount
+            if (code === 'SNAPSHOT-TINY-HYPER-FREE') {
+              if (productHandle === 'tiny-hyper-tee' || productTitle?.includes('Tiny Hyper Tee')) {
+                qualifyingSubtotal += (item.price * item.quantity);
+              }
+            } else {
+              // For other product-specific discounts, fall back to original behavior
+              qualifyingSubtotal = currentSubtotal;
+            }
+          });
+          
+          // Calculate discount only on qualifying products
+          if (discountType === 'percentage') {
+            return (qualifyingSubtotal * discountValue) / 100;
+          } else if (discountType === 'fixed') {
+            return Math.min(discountValue, qualifyingSubtotal);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error calculating product-aware discount:', error);
+    }
+    
+    // Fallback to original calculation
+    return appliedDiscount.discountAmount || 0;
+  };
+
   // Helper function to calculate adjusted tax based on discount
   const calculateAdjustedTax = () => {
     if (!cart.checkout) return 0;
     
     const originalSubtotal = cart.checkout.subtotal.amount;
-    const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+    const discount = calculateProductAwareDiscountAmount();
     const discountedSubtotal = originalSubtotal - discount;
     
     // If discounted subtotal is 0 or negative, no tax should be applied
@@ -172,7 +220,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
     // Calculate final total including selected shipping and discount (from CartContext)
     const selectedShippingCost = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
-    const discountAmount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+    const discountAmount = calculateProductAwareDiscountAmount();
     const originalSubtotal = cart.checkout.subtotal.amount;
     const subtotalWithDiscount = originalSubtotal - discountAmount;
     const adjustedTax = calculateAdjustedTax();
@@ -234,7 +282,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         
         // Calculate final total with discount
         const finalOrderTotal = appliedDiscount 
-          ? cart.checkout.subtotal.amount - appliedDiscount.discountAmount + calculateAdjustedTax() + (cart.selectedShipping ? cart.selectedShipping.price.amount : 0)
+          ? cart.checkout.subtotal.amount - calculateProductAwareDiscountAmount() + calculateAdjustedTax() + (cart.selectedShipping ? cart.selectedShipping.price.amount : 0)
           : cart.checkout.subtotal.amount + calculateAdjustedTax() + (cart.selectedShipping ? cart.selectedShipping.price.amount : 0);
         
         // Create order details object
@@ -445,7 +493,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                       {appliedDiscount && (
                         <div className="flex justify-between text-sm text-green-600">
                           <span>Discount ({appliedDiscount.discountValue}%)</span>
-                          <span>-${appliedDiscount.discountAmount.toFixed(2)}</span>
+                          <span>-${calculateProductAwareDiscountAmount().toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between font-medium">
@@ -573,7 +621,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                           {appliedDiscount && (
                             <div className="flex justify-between text-sm text-green-600">
                               <span>Discount ({appliedDiscount.discountValue}%)</span>
-                              <span>-${appliedDiscount.discountAmount.toFixed(2)}</span>
+                              <span>-${calculateProductAwareDiscountAmount().toFixed(2)}</span>
                             </div>
                           )}
                           <div className="flex justify-between text-sm">
@@ -675,7 +723,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                       {appliedDiscount && (
                         <div className="flex justify-between text-sm text-green-600">
                           <span>Discount ({appliedDiscount.discountValue}%)</span>
-                          <span>-${appliedDiscount.discountAmount.toFixed(2)}</span>
+                          <span>-${calculateProductAwareDiscountAmount().toFixed(2)}</span>
                         </div>
                       )}
                       
@@ -780,7 +828,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                 <div className="space-y-2">
                   {(() => {
                     const subtotal = cart.checkout ? cart.checkout.subtotal.amount : cartTotal;
-                    const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+                    const discount = calculateProductAwareDiscountAmount();
                     const shipping = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
                     const tax = calculateAdjustedTax();
                     const finalTotal = subtotal - discount + shipping + tax;
@@ -798,7 +846,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                     onClick={handlePayment}
                     disabled={!cart.checkout || !cart.selectedShipping || !hasSufficientBalance((() => {
                       const subtotal = cart.checkout ? cart.checkout.subtotal.amount : cartTotal;
-                      const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+                      const discount = calculateProductAwareDiscountAmount();
                       const shipping = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
                       const tax = calculateAdjustedTax();
                       return subtotal - discount + shipping + tax;
@@ -807,7 +855,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                   >
                     {isPending ? 'Processing...' : `Pay ${(() => {
                       const subtotal = cart.checkout ? cart.checkout.subtotal.amount : cartTotal;
-                      const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+                      const discount = calculateProductAwareDiscountAmount();
                       const shipping = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
                       const tax = calculateAdjustedTax();
                       return (subtotal - discount + shipping + tax).toFixed(2);

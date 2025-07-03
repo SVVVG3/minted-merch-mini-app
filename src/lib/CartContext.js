@@ -291,9 +291,71 @@ export function CartProvider({ children }) {
     return total + (item.price * item.quantity);
   }, 0);
 
+  // Helper function to calculate product-aware discount amount
+  const calculateProductAwareDiscount = () => {
+    if (!cart.appliedDiscount) return 0;
+    
+    const { code, discountType, discountValue, source } = cart.appliedDiscount;
+    
+    // Check if this is a product-specific discount from session storage
+    try {
+      const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
+      if (activeDiscountData) {
+        const activeDiscount = JSON.parse(activeDiscountData);
+        
+        // For product-specific discounts, only apply to qualifying products
+        if (activeDiscount.source === 'product_specific_api' && activeDiscount.code === code) {
+          // Find products that match the discount - look for products with handles that match the discount
+          // For now, we'll identify Tiny Hyper Tee specifically since that's the main case
+          let qualifyingSubtotal = 0;
+          
+          cart.items.forEach(item => {
+            const productHandle = item.product?.handle;
+            const productTitle = item.product?.title || item.title;
+            
+            // Check if this product qualifies for the SNAPSHOT-TINY-HYPER-FREE discount
+            if (code === 'SNAPSHOT-TINY-HYPER-FREE') {
+              if (productHandle === 'tiny-hyper-tee' || productTitle?.includes('Tiny Hyper Tee')) {
+                qualifyingSubtotal += (item.price * item.quantity);
+                console.log(`💰 Product qualifies for discount: ${productTitle} ($${(item.price * item.quantity).toFixed(2)})`);
+              } else {
+                console.log(`❌ Product does NOT qualify for discount: ${productTitle}`);
+              }
+            } else {
+              // For other product-specific discounts, we'd need to implement similar logic
+              // For now, fall back to the original behavior
+              qualifyingSubtotal = cartSubtotal;
+            }
+          });
+          
+          console.log(`🎯 Qualifying subtotal for ${code}: $${qualifyingSubtotal.toFixed(2)} (vs cart total: $${cartSubtotal.toFixed(2)})`);
+          
+          // Calculate discount only on qualifying products
+          if (discountType === 'percentage') {
+            return (qualifyingSubtotal * discountValue) / 100;
+          } else if (discountType === 'fixed') {
+            return Math.min(discountValue, qualifyingSubtotal);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error calculating product-aware discount:', error);
+    }
+    
+    // Fallback to original calculation for non-product-specific discounts
+    if (discountType === 'percentage') {
+      return (cartSubtotal * discountValue) / 100;
+    } else if (discountType === 'fixed') {
+      return Math.min(discountValue, cartSubtotal);
+    }
+    
+    return cart.appliedDiscount.discountAmount || 0;
+  };
+
   const cartTotal = (() => {
-    if (cart.appliedDiscount && cart.appliedDiscount.discountAmount) {
-      return Math.max(0, cartSubtotal - cart.appliedDiscount.discountAmount);
+    if (cart.appliedDiscount) {
+      const productAwareDiscountAmount = calculateProductAwareDiscount();
+      return Math.max(0, cartSubtotal - productAwareDiscountAmount);
     }
     return cartSubtotal;
   })();
