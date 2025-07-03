@@ -312,7 +312,7 @@ export function HomePage({ collection, products }) {
             console.log('User wallet addresses for token-gating:', userWalletAddresses);
             
             if (userWalletAddresses.length > 0) {
-              // Check for eligible token-gated discounts via API
+              // Check for eligible token-gated discounts via API (all scopes)
               const eligibilityResponse = await fetch('/api/check-token-gated-eligibility', {
                 method: 'POST',
                 headers: {
@@ -321,8 +321,8 @@ export function HomePage({ collection, products }) {
                 body: JSON.stringify({
                   fid,
                   walletAddresses: userWalletAddresses,
-                  scope: 'site_wide', // Default scope, could be made dynamic
-                  productIds: [] // Product IDs - empty for site-wide
+                  scope: 'all', // Check all discount scopes, not just site-wide
+                  productIds: [] // Empty for now, could be populated for specific products
                 })
               });
               

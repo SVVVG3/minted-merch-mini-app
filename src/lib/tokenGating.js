@@ -204,22 +204,45 @@ async function checkBasicDiscountEligibility(discount, fid) {
 
   // Check user-specific usage limits
   if (discount.max_uses_per_user && supabase) {
-    const { data: userUsage, error } = await supabase
-      .from('discount_codes')
-      .select('id')
-      .eq('fid', fid)
-      .eq('code', discount.code)
-      .eq('is_used', true);
+    let userUsageCount = 0;
+    
+    if (discount.is_shared_code) {
+      // For shared codes, check usage in discount_code_usage table
+      const { data: sharedUsage, error } = await supabase
+        .from('discount_code_usage')
+        .select('id')
+        .eq('discount_code_id', discount.id)
+        .eq('fid', fid);
 
-    if (error) {
-      console.error('Error checking user discount usage:', error);
-    } else if (userUsage && userUsage.length >= discount.max_uses_per_user) {
+      if (error) {
+        console.error('Error checking shared discount usage:', error);
+      } else {
+        userUsageCount = sharedUsage ? sharedUsage.length : 0;
+      }
+    } else {
+      // For user-specific codes, check usage in discount_codes table
+      const { data: userUsage, error } = await supabase
+        .from('discount_codes')
+        .select('id')
+        .eq('fid', fid)
+        .eq('code', discount.code)
+        .eq('is_used', true);
+
+      if (error) {
+        console.error('Error checking user discount usage:', error);
+      } else {
+        userUsageCount = userUsage ? userUsage.length : 0;
+      }
+    }
+
+    if (userUsageCount >= discount.max_uses_per_user) {
       return {
         eligible: false,
         reason: 'User has reached maximum uses for this discount',
         details: { 
           max_uses_per_user: discount.max_uses_per_user,
-          user_uses: userUsage.length
+          user_uses: userUsageCount,
+          is_shared_code: discount.is_shared_code
         }
       };
     }
@@ -557,10 +580,16 @@ export async function getEligibleAutoApplyDiscounts(fid, userWalletAddresses = [
       .eq('is_used', false)
       .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
       
-    // If checking for site_wide scope, exclude product-specific discounts
+    // Filter by scope if specified
     if (productScope === 'site_wide') {
       query = query.eq('discount_scope', 'site_wide');
       console.log('🌐 Filtering for site-wide discounts only');
+    } else if (productScope === 'product') {
+      query = query.eq('discount_scope', 'product');
+      console.log('🎯 Filtering for product-specific discounts only');
+    } else if (productScope === 'all') {
+      console.log('🔍 Checking all discount scopes (site-wide + product-specific)');
+      // No additional filter - get all auto-apply discounts regardless of scope
     }
     
     const { data: autoApplyDiscounts, error } = await query
@@ -624,6 +653,12 @@ async function doesDiscountMatchScope(discount, productScope, productIds = []) {
   console.log(`  - Product IDs (Shopify): ${JSON.stringify(productIds)}`);
   console.log(`  - Target products (legacy): ${JSON.stringify(discount.target_products)}`);
   console.log(`  - Target product IDs (new): ${JSON.stringify(discount.target_product_ids)}`);
+  
+  // If requesting all scopes, any discount matches
+  if (productScope === 'all') {
+    console.log(`  ✅ All scopes requested - discount matches`);
+    return true;
+  }
   
   // Site-wide discounts always match
   if (discount.discount_scope === 'site_wide') {
