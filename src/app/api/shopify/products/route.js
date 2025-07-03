@@ -78,17 +78,19 @@ export async function GET(request) {
               const userWalletAddresses = walletData.walletData.all_wallet_addresses;
               console.log(`🔍 Checking token-gated discounts for ${userWalletAddresses.length} wallet addresses`);
               
-              // Check for all token-gated discounts (both product-specific and site-wide)
-              const tokenGatedResponse = await fetch(`${baseUrl}/api/check-token-gated-eligibility?fid=${userFid}&scope=all`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  wallet_addresses: userWalletAddresses,
-                  product_id: supabaseId
-                })
-              });
+                          // Check for all token-gated discounts (both product-specific and site-wide)
+            const tokenGatedResponse = await fetch(`${baseUrl}/api/check-token-gated-eligibility`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                fid: userFid,
+                wallet_addresses: userWalletAddresses,
+                product_id: supabaseId,
+                scope: 'all'
+              })
+            });
               
               if (!tokenGatedResponse.ok) {
                 console.error(`❌ Token-gated API failed with status: ${tokenGatedResponse.status}`);
