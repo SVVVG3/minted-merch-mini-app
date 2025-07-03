@@ -20,6 +20,22 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const [orderDetails, setOrderDetails] = useState(null);
   const buyNowProcessed = useRef(false);
 
+  // Helper function to calculate adjusted tax based on discount
+  const calculateAdjustedTax = () => {
+    if (!cart.checkout) return 0;
+    
+    const originalSubtotal = cart.checkout.subtotal.amount;
+    const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+    const discountedSubtotal = originalSubtotal - discount;
+    
+    // If discounted subtotal is 0 or negative, no tax should be applied
+    if (discountedSubtotal <= 0) return 0;
+    
+    const taxRate = cart.checkout.tax.amount / originalSubtotal;
+    const adjustedTax = discountedSubtotal * taxRate;
+    return adjustedTax;
+  };
+
   // Handle Buy Now functionality by adding item to cart
   useEffect(() => {
     if (checkoutData && checkoutData.product && checkoutData.variant && !buyNowProcessed.current) {
@@ -159,9 +175,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     const discountAmount = appliedDiscount ? appliedDiscount.discountAmount : 0;
     const originalSubtotal = cart.checkout.subtotal.amount;
     const subtotalWithDiscount = originalSubtotal - discountAmount;
-    // Recalculate taxes based on discounted subtotal
-    const taxRate = cart.checkout.tax.amount / originalSubtotal;
-    const adjustedTax = subtotalWithDiscount * taxRate;
+    const adjustedTax = calculateAdjustedTax();
     const finalTotal = subtotalWithDiscount + adjustedTax + selectedShippingCost;
 
     // Execute the payment
@@ -220,8 +234,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         
         // Calculate final total with discount
         const finalOrderTotal = appliedDiscount 
-          ? cart.checkout.subtotal.amount - appliedDiscount.discountAmount + cart.checkout.tax.amount + (cart.selectedShipping ? cart.selectedShipping.price.amount : 0)
-          : cart.checkout.subtotal.amount + cart.checkout.tax.amount + (cart.selectedShipping ? cart.selectedShipping.price.amount : 0);
+          ? cart.checkout.subtotal.amount - appliedDiscount.discountAmount + calculateAdjustedTax() + (cart.selectedShipping ? cart.selectedShipping.price.amount : 0)
+          : cart.checkout.subtotal.amount + calculateAdjustedTax() + (cart.selectedShipping ? cart.selectedShipping.price.amount : 0);
         
         // Create order details object
         const orderDetailsData = {
@@ -513,7 +527,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                       {cart.checkout && (
                         <div className="flex justify-between text-sm">
                           <span>Taxes</span>
-                          <span>${cart.checkout.tax.amount.toFixed(2)}</span>
+                          <span>${calculateAdjustedTax().toFixed(2)}</span>
                         </div>
                       )}
                     </div>
@@ -568,20 +582,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Taxes</span>
-                            <span>
-                              ${(() => {
-                                if (cart.checkout) {
-                                  // Recalculate taxes based on discounted subtotal
-                                  const originalSubtotal = cart.checkout.subtotal.amount;
-                                  const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
-                                  const discountedSubtotal = originalSubtotal - discount;
-                                  const taxRate = cart.checkout.tax.amount / originalSubtotal;
-                                  const adjustedTax = discountedSubtotal * taxRate;
-                                  return adjustedTax.toFixed(2);
-                                }
-                                return '0.00';
-                              })()}
-                            </span>
+                            <span>${calculateAdjustedTax().toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between font-medium text-lg border-t pt-1">
                             <span>Total</span>
@@ -590,10 +591,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                                 const subtotal = cart.checkout.subtotal.amount;
                                 const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
                                 const shipping = cart.selectedShipping.price.amount;
-                                // Recalculate taxes based on discounted subtotal
                                 const discountedSubtotal = subtotal - discount;
-                                const taxRate = cart.checkout.tax.amount / subtotal;
-                                const adjustedTax = discountedSubtotal * taxRate;
+                                const adjustedTax = calculateAdjustedTax();
                                 return (discountedSubtotal + shipping + adjustedTax).toFixed(2);
                               })()} USDC
                             </span>
@@ -695,20 +694,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                       
                       <div className="flex justify-between text-sm">
                         <span>Taxes</span>
-                        <span>
-                          ${(() => {
-                            if (cart.checkout) {
-                              // Recalculate taxes based on discounted subtotal
-                              const originalSubtotal = cart.checkout.subtotal.amount;
-                              const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
-                              const discountedSubtotal = originalSubtotal - discount;
-                              const taxRate = cart.checkout.tax.amount / originalSubtotal;
-                              const adjustedTax = discountedSubtotal * taxRate;
-                              return adjustedTax.toFixed(2);
-                            }
-                            return '0.00';
-                          })()}
-                        </span>
+                        <span>${calculateAdjustedTax().toFixed(2)}</span>
                       </div>
                       
                       <div className="border-t pt-1 flex justify-between font-medium">
@@ -719,10 +705,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                               const subtotal = cart.checkout.subtotal.amount;
                               const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
                               const shipping = cart.selectedShipping.price.amount;
-                              // Recalculate taxes based on discounted subtotal
                               const discountedSubtotal = subtotal - discount;
-                              const taxRate = cart.checkout.tax.amount / subtotal;
-                              const adjustedTax = discountedSubtotal * taxRate;
+                              const adjustedTax = calculateAdjustedTax();
                               return (discountedSubtotal + shipping + adjustedTax).toFixed(2);
                             }
                             return cartTotal.toFixed(2);
@@ -798,7 +782,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                     const subtotal = cart.checkout ? cart.checkout.subtotal.amount : cartTotal;
                     const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
                     const shipping = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
-                    const tax = cart.checkout ? cart.checkout.tax.amount : 0;
+                    const tax = calculateAdjustedTax();
                     const finalTotal = subtotal - discount + shipping + tax;
                     
                     return !hasSufficientBalance(finalTotal) && (
@@ -816,7 +800,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                       const subtotal = cart.checkout ? cart.checkout.subtotal.amount : cartTotal;
                       const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
                       const shipping = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
-                      const tax = cart.checkout ? cart.checkout.tax.amount : 0;
+                      const tax = calculateAdjustedTax();
                       return subtotal - discount + shipping + tax;
                     })()) || isPending}
                     className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
@@ -825,7 +809,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                       const subtotal = cart.checkout ? cart.checkout.subtotal.amount : cartTotal;
                       const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
                       const shipping = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
-                      const tax = cart.checkout ? cart.checkout.tax.amount : 0;
+                      const tax = calculateAdjustedTax();
                       return (subtotal - discount + shipping + tax).toFixed(2);
                     })()} USDC`}
                   </button>
