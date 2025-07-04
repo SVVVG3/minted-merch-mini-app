@@ -24,12 +24,17 @@ export async function POST(request) {
       discountAmount // Discount amount
     } = body;
 
+    // Convert FID to integer to ensure proper database type matching
+    const fidInt = fid ? parseInt(fid, 10) : null;
+    
     // Enhanced debug logging
     console.log(`📦 [${requestId}] Order creation request received:`, {
       hasFid: !!fid,
       fid: fid,
       fidType: typeof fid,
       fidValue: fid,
+      fidInt: fidInt,
+      fidIntType: typeof fidInt,
       fidIsNull: fid === null,
       fidIsUndefined: fid === undefined,
       hasCartItems: !!cartItems,
@@ -46,10 +51,12 @@ export async function POST(request) {
     });
 
     // CRITICAL: Check if FID is missing - warn but allow order creation as fallback
-    if (!fid) {
-      console.warn(`⚠️ [${requestId}] WARNING: Missing FID in Farcaster mini app - allowing as fallback!`, {
+    if (!fidInt) {
+      console.warn(`⚠️ [${requestId}] WARNING: Missing or invalid FID in Farcaster mini app - allowing as fallback!`, {
         fidReceived: fid,
         fidType: typeof fid,
+        fidInt: fidInt,
+        fidIntType: typeof fidInt,
         bodyKeys: Object.keys(body),
         bodyFid: body.fid,
         bodyFidType: typeof body.fid,
@@ -311,7 +318,7 @@ export async function POST(request) {
       
       try {
         // Create order in our database (skip if FID is null)
-        if (!fid) {
+        if (!fidInt) {
           console.warn(`⚠️ [${requestId}] Skipping Supabase order creation due to missing FID - Shopify order ${shopifyOrder.name} created successfully`);
           supabaseOrder = { 
             success: false, 
@@ -323,7 +330,7 @@ export async function POST(request) {
         }
         
         const supabaseOrderData = {
-          fid: fid,
+          fid: fidInt,
           orderId: shopifyOrder.name,
           sessionId: null,
           status: 'paid',
@@ -424,7 +431,7 @@ export async function POST(request) {
           const markUsedResult = await markDiscountCodeAsUsed(
             appliedDiscount.code, 
             supabaseOrder.order_id,
-            fid,
+            fidInt,
             discountAmount || 0,
             subtotalPrice
           );
@@ -441,14 +448,14 @@ export async function POST(request) {
       }
       
       // Send order confirmation notification (only if FID provided and Supabase order created)
-      if (fid && supabaseOrder?.success !== false) {
+      if (fidInt && supabaseOrder?.success !== false) {
         try {
           await sendOrderConfirmationNotificationAndMark(supabaseOrder);
           console.log('✅ Order confirmation notification sent');
         } catch (notificationError) {
           console.error('❌ Failed to send order confirmation notification:', notificationError);
         }
-      } else if (!fid) {
+      } else if (!fidInt) {
         console.log('ℹ️ No FID provided, skipping notification');
       } else if (supabaseOrder?.manual_fix_needed) {
         console.log('ℹ️ Supabase order creation skipped, notification will be handled after manual fix');
