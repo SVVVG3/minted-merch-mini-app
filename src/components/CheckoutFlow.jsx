@@ -70,18 +70,38 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
   // Helper function to calculate adjusted tax based on discount
   const calculateAdjustedTax = () => {
-    if (!cart.checkout) return 0;
+    if (!cart.checkout || !cart.checkout.tax) return 0;
     
     const originalSubtotal = cart.checkout.subtotal.amount;
+    const originalTax = cart.checkout.tax.amount;
+    
+    // If no original tax, return 0
+    if (originalTax <= 0 || originalSubtotal <= 0) return 0;
+    
     const discount = calculateProductAwareDiscountAmount();
     const discountedSubtotal = originalSubtotal - discount;
     
     // If discounted subtotal is 0 or negative, no tax should be applied
     if (discountedSubtotal <= 0) return 0;
     
-    const taxRate = cart.checkout.tax.amount / originalSubtotal;
-    const adjustedTax = discountedSubtotal * taxRate;
+    const taxRate = originalTax / originalSubtotal;
+    const adjustedTax = Math.max(0, discountedSubtotal * taxRate);
+    
     return adjustedTax;
+  };
+
+  // Helper function to calculate final total safely (never negative)
+  const calculateFinalTotal = () => {
+    if (!cart.checkout || !cart.selectedShipping) return cartTotal;
+    
+    const subtotal = cart.checkout.subtotal.amount;
+    const discount = calculateProductAwareDiscountAmount();
+    const shipping = cart.selectedShipping.price.amount;
+    const tax = calculateAdjustedTax();
+    
+    // Calculate total but ensure it never goes negative
+    const finalTotal = Math.max(0, subtotal - discount + shipping + tax);
+    return finalTotal;
   };
 
   // Handle Buy Now functionality by adding item to cart
@@ -218,13 +238,9 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       throw new Error('Checkout calculation not available');
     }
 
-    // Calculate final total including selected shipping and discount (from CartContext)
-    const selectedShippingCost = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
+    // Calculate final total using the safe helper function
+    const finalTotal = calculateFinalTotal();
     const discountAmount = calculateProductAwareDiscountAmount();
-    const originalSubtotal = cart.checkout.subtotal.amount;
-    const subtotalWithDiscount = originalSubtotal - discountAmount;
-    const adjustedTax = calculateAdjustedTax();
-    const finalTotal = subtotalWithDiscount + adjustedTax + selectedShippingCost;
 
     // Execute the payment
     await executePayment(finalTotal, {
@@ -748,17 +764,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                       <div className="border-t pt-1 flex justify-between font-medium">
                         <span>Total</span>
                         <span>
-                          ${(() => {
-                            if (cart.checkout && cart.selectedShipping) {
-                              const subtotal = cart.checkout.subtotal.amount;
-                              const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
-                              const shipping = cart.selectedShipping.price.amount;
-                              const discountedSubtotal = subtotal - discount;
-                              const adjustedTax = calculateAdjustedTax();
-                              return (discountedSubtotal + shipping + adjustedTax).toFixed(2);
-                            }
-                            return cartTotal.toFixed(2);
-                          })()} USDC
+                          ${calculateFinalTotal().toFixed(2)} USDC
                         </span>
                       </div>
                     </div>
@@ -827,11 +833,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
               {checkoutStep === 'payment' && paymentStatus === 'idle' && isConnected && (
                 <div className="space-y-2">
                   {(() => {
-                    const subtotal = cart.checkout ? cart.checkout.subtotal.amount : cartTotal;
-                    const discount = calculateProductAwareDiscountAmount();
-                    const shipping = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
-                    const tax = calculateAdjustedTax();
-                    const finalTotal = subtotal - discount + shipping + tax;
+                    const finalTotal = calculateFinalTotal();
                     
                     return !hasSufficientBalance(finalTotal) && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -844,22 +846,10 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                   
                   <button
                     onClick={handlePayment}
-                    disabled={!cart.checkout || !cart.selectedShipping || !hasSufficientBalance((() => {
-                      const subtotal = cart.checkout ? cart.checkout.subtotal.amount : cartTotal;
-                      const discount = calculateProductAwareDiscountAmount();
-                      const shipping = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
-                      const tax = calculateAdjustedTax();
-                      return subtotal - discount + shipping + tax;
-                    })()) || isPending}
+                    disabled={!cart.checkout || !cart.selectedShipping || !hasSufficientBalance(calculateFinalTotal()) || isPending}
                     className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
                   >
-                    {isPending ? 'Processing...' : `Pay ${(() => {
-                      const subtotal = cart.checkout ? cart.checkout.subtotal.amount : cartTotal;
-                      const discount = calculateProductAwareDiscountAmount();
-                      const shipping = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
-                      const tax = calculateAdjustedTax();
-                      return (subtotal - discount + shipping + tax).toFixed(2);
-                    })()} USDC`}
+                    {isPending ? 'Processing...' : `Pay ${calculateFinalTotal().toFixed(2)} USDC`}
                   </button>
                 </div>
               )}
