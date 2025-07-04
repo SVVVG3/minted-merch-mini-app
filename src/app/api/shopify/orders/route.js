@@ -325,7 +325,7 @@ export async function POST(request) {
           fid: fid,
           orderId: shopifyOrder.name,
           sessionId: null,
-          status: 'confirmed',
+          status: 'paid',
           currency: 'USDC',
           amountTotal: parseFloat(shopifyOrder.totalPrice),
           amountSubtotal: parseFloat(shopifyOrder.totalPrice) - parseFloat(selectedShipping.price.amount) - parseFloat(checkout.tax.amount),
