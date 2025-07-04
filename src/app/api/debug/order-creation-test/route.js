@@ -15,17 +15,16 @@ export async function POST(request) {
     const testOrderData = body.orderData || {
       cartItems: [
         {
-          variant: { id: "gid://shopify/ProductVariant/test123" },
+          variant: { 
+            id: "gid://shopify/ProductVariant/48690470551846", // Use real variant ID
+            price: { amount: "29.99", currencyCode: "USD" }
+          },
           quantity: 1,
           price: 29.99,
           product: {
-            title: "Test Product",
-            handle: "test-product",
-            image: { url: "https://example.com/test.jpg" }
-          },
-          variant: {
-            title: "Default Title",
-            id: "gid://shopify/ProductVariant/test123"
+            title: "Hooded Sweatshirt",
+            handle: "hooded-sweatshirt",
+            image: { url: "https://cdn.shopify.com/s/files/1/0646/2402/8566/files/hoodie.png" }
           }
         }
       ],
@@ -40,6 +39,7 @@ export async function POST(request) {
         phone: "555-1234",
         email: "test@example.com"
       },
+      billingAddress: null,
       customer: {
         email: "test@example.com",
         phone: "555-1234"
@@ -54,7 +54,7 @@ export async function POST(request) {
         price: { amount: 4.75 },
         code: "standard"
       },
-      transactionHash: "0x1234567890abcdef1234567890abcdef12345678",
+      transactionHash: `0x${Date.now().toString(16)}test${Math.random().toString(36).substr(2, 9)}`,
       notes: "Test order from debug endpoint",
       fid: 12345, // Test FID
       appliedDiscount: null,
@@ -71,8 +71,15 @@ export async function POST(request) {
       timestamp: new Date().toISOString()
     });
 
+    // Determine the base URL for API calls
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://mintedmerch.vercel.app');
+
+    console.log('🧪 DEBUG: Using base URL:', baseUrl);
+
     // Call the order creation API directly
-    const orderResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/shopify/orders`, {
+    const orderResponse = await fetch(`${baseUrl}/api/shopify/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -94,7 +101,7 @@ export async function POST(request) {
     let shopifyOrderCheck = null;
     if (orderResult.success && orderResult.order?.name) {
       try {
-        const shopifyResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/shopify/orders?orderId=${orderResult.order.name}`);
+        const shopifyResponse = await fetch(`${baseUrl}/api/shopify/orders?orderId=${orderResult.order.name}`);
         shopifyOrderCheck = await shopifyResponse.json();
       } catch (error) {
         console.error('Error checking Shopify order:', error);
