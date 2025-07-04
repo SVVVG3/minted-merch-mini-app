@@ -22,8 +22,9 @@ export async function POST(request) {
       discountAmount // Discount amount
     } = body;
 
-    // Debug logging
-    console.log('📦 Order creation request received:', {
+    // Enhanced debug logging
+    const requestId = `order-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`📦 [${requestId}] Order creation request received:`, {
       hasFid: !!fid,
       fid: fid,
       fidType: typeof fid,
@@ -36,7 +37,48 @@ export async function POST(request) {
       hasDiscount: !!appliedDiscount,
       discountCode: appliedDiscount?.code,
       discountAmount: discountAmount,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      requestId: requestId
+    });
+
+    // Log detailed cart items structure
+    console.log(`📦 [${requestId}] Cart items detail:`, cartItems?.map(item => ({
+      hasVariant: !!item.variant,
+      variantId: item.variant?.id,
+      hasProduct: !!item.product,
+      productTitle: item.product?.title,
+      quantity: item.quantity,
+      hasPrice: !!(item.price || item.variant?.price?.amount),
+      price: item.price || item.variant?.price?.amount
+    })));
+
+    // Log shipping and checkout data structure
+    console.log(`📦 [${requestId}] Order structure validation:`, {
+      shippingAddress: {
+        hasFirstName: !!shippingAddress?.firstName,
+        hasLastName: !!shippingAddress?.lastName,
+        hasAddress1: !!shippingAddress?.address1,
+        hasCity: !!shippingAddress?.city,
+        hasProvince: !!shippingAddress?.province,
+        hasZip: !!shippingAddress?.zip,
+        hasCountry: !!shippingAddress?.country,
+        hasEmail: !!shippingAddress?.email
+      },
+      checkout: {
+        hasSubtotal: !!checkout?.subtotal,
+        subtotalAmount: checkout?.subtotal?.amount,
+        hasTax: !!checkout?.tax,
+        taxAmount: checkout?.tax?.amount
+      },
+      selectedShipping: {
+        hasTitle: !!selectedShipping?.title,
+        hasPrice: !!selectedShipping?.price,
+        shippingAmount: selectedShipping?.price?.amount
+      },
+      customer: {
+        hasEmail: !!customer?.email,
+        email: customer?.email
+      }
     });
 
     // Validate required fields
@@ -127,26 +169,74 @@ export async function POST(request) {
       }] : []
     };
 
-    console.log('Creating Shopify order with data:', {
+    console.log(`📦 [${requestId}] Creating Shopify order with data:`, {
       lineItems: lineItems.length,
+      lineItemsDetails: lineItems.map(item => ({
+        variantId: item.variantId,
+        name: item.name,
+        title: item.title,
+        price: item.price,
+        quantity: item.quantity
+      })),
       totalPrice,
+      subtotalAfterDiscount,
+      totalTax,
+      shippingPrice,
       transactionHash,
       shippingAddress: {
+        firstName: shippingAddress.firstName,
+        lastName: shippingAddress.lastName,
         city: shippingAddress.city,
         province: shippingAddress.province,
         country: shippingAddress.country,
         address1: shippingAddress.address1
-      }
+      },
+      customer: {
+        email: customer?.email || shippingAddress.email || ''
+      },
+      hasDiscount: !!appliedDiscount,
+      discountCodes: orderData.discountCodes
     });
 
-    // Create order in Shopify
-    const result = await createShopifyOrder(orderData);
+    console.log(`📦 [${requestId}] Attempting Shopify order creation...`);
+    
+    // Create order in Shopify with enhanced error handling
+    let result;
+    try {
+      result = await createShopifyOrder(orderData);
+      console.log(`📦 [${requestId}] Shopify API response:`, {
+        success: result.success,
+        hasOrder: !!result.order,
+        orderName: result.order?.name,
+        orderId: result.order?.id,
+        hasError: !!result.error
+      });
+    } catch (shopifyError) {
+      console.error(`❌ [${requestId}] Shopify order creation threw exception:`, {
+        error: shopifyError.message,
+        stack: shopifyError.stack,
+        orderData: {
+          lineItemsCount: orderData.lineItems?.length,
+          totalPrice: orderData.totalPrice,
+          hasShippingAddress: !!orderData.shippingAddress,
+          hasCustomer: !!orderData.customer
+        }
+      });
+      
+      return NextResponse.json({
+        error: 'Shopify order creation failed',
+        details: shopifyError.message,
+        requestId: requestId,
+        step: 'shopify_creation'
+      }, { status: 500 });
+    }
 
     if (result.success) {
-      console.log('Order created successfully:', result.order.name);
+      console.log(`✅ [${requestId}] Shopify order created successfully:`, result.order.name);
       
       // Create order in Supabase database for notifications and tracking
       // CRITICAL FIX: Always create Supabase record, FID is optional
+      console.log(`📦 [${requestId}] Starting Supabase order creation...`);
       try {
         const supabaseOrderData = {
           fid: fid || null, // FID can be null
@@ -187,10 +277,29 @@ export async function POST(request) {
           paymentIntentId: transactionHash
         };
 
+        console.log(`📦 [${requestId}] Supabase order data prepared:`, {
+          fid: supabaseOrderData.fid,
+          orderId: supabaseOrderData.orderId,
+          status: supabaseOrderData.status,
+          amountTotal: supabaseOrderData.amountTotal,
+          amountSubtotal: supabaseOrderData.amountSubtotal,
+          customerEmail: supabaseOrderData.customerEmail,
+          hasShippingAddress: !!supabaseOrderData.shippingAddress,
+          lineItemsCount: supabaseOrderData.lineItems?.length,
+          hasDiscount: !!supabaseOrderData.discountCode
+        });
+
         const supabaseResult = await createSupabaseOrder(supabaseOrderData);
         
+        console.log(`📦 [${requestId}] Supabase creation result:`, {
+          success: supabaseResult.success,
+          hasOrder: !!supabaseResult.order,
+          orderId: supabaseResult.order?.order_id,
+          error: supabaseResult.error
+        });
+        
         if (supabaseResult.success) {
-          console.log('✅ Order created in Supabase:', supabaseResult.order.order_id);
+          console.log(`✅ [${requestId}] Order created in Supabase:`, supabaseResult.order.order_id);
           
           // Mark discount code as used if one was applied
           if (appliedDiscount && appliedDiscount.code) {
@@ -224,35 +333,74 @@ export async function POST(request) {
             console.log('ℹ️ No FID provided, skipping notification (order still saved to Supabase)');
           }
         } else {
-          console.error('❌ Failed to create order in Supabase:', supabaseResult.error);
+          console.error(`❌ [${requestId}] Failed to create order in Supabase:`, {
+            error: supabaseResult.error,
+            orderData: {
+              orderId: supabaseOrderData.orderId,
+              customerEmail: supabaseOrderData.customerEmail,
+              amountTotal: supabaseOrderData.amountTotal
+            }
+          });
         }
       } catch (error) {
-        console.error('❌ Error creating Supabase order:', error);
+        console.error(`❌ [${requestId}] Error creating Supabase order:`, {
+          error: error.message,
+          stack: error.stack,
+          orderData: {
+            orderId: result.order.name,
+            step: 'supabase_creation'
+          }
+        });
       }
+      
+      console.log(`✅ [${requestId}] Order creation completed successfully`);
       
       return NextResponse.json({
         success: true,
         order: result.order,
-        message: 'Order created successfully'
+        message: 'Order created successfully',
+        requestId: requestId
       });
     } else {
-      console.error('Order creation failed:', result.error);
-      return NextResponse.json(
-        { error: 'Failed to create order in Shopify' },
-        { status: 500 }
-      );
+      console.error(`❌ [${requestId}] Shopify order creation failed:`, {
+        error: result.error,
+        orderData: {
+          lineItemsCount: orderData.lineItems?.length,
+          totalPrice: orderData.totalPrice,
+          transactionHash: orderData.transactionHash
+        }
+      });
+      
+      return NextResponse.json({
+        error: 'Failed to create order in Shopify',
+        details: result.error,
+        requestId: requestId,
+        step: 'shopify_creation'
+      }, { status: 500 });
     }
 
   } catch (error) {
-    console.error('Order creation API error:', error);
+    const requestId = `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    console.error(`❌ [${requestId}] Order creation API top-level error:`, {
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString(),
+      requestBody: {
+        hasCartItems: !!body?.cartItems,
+        cartItemsLength: body?.cartItems?.length,
+        hasShippingAddress: !!body?.shippingAddress,
+        hasTransactionHash: !!body?.transactionHash,
+        customerEmail: body?.customer?.email
+      }
+    });
     
-    return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        details: error.message 
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      error: 'Internal server error',
+      details: error.message,
+      requestId: requestId,
+      timestamp: new Date().toISOString(),
+      step: 'top_level_error'
+    }, { status: 500 });
   }
 }
 
