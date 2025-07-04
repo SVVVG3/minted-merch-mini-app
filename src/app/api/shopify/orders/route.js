@@ -110,6 +110,16 @@ export async function POST(request) {
       );
     }
 
+    // Format line items for Shopify
+    const lineItems = cartItems.map(item => ({
+      variantId: item.variant.id,
+      quantity: item.quantity,
+      // Handle both data structures: item.variant.price.amount or item.price
+      price: item.variant.price?.amount ? parseFloat(item.variant.price.amount) : parseFloat(item.price),
+      // Keep product info for internal use, but don't pass to Shopify API
+      productTitle: item.product.title
+    }));
+
     // Calculate totals with discount - FIXED to prevent negative subtotals
     const subtotalPrice = parseFloat(checkout.subtotal.amount);
     const discountAmountValue = discountAmount ? parseFloat(discountAmount) : 0;
@@ -133,26 +143,6 @@ export async function POST(request) {
       shippingPrice: shippingPrice,
       finalTotal: totalPrice,
       isFullDiscount: subtotalAfterDiscount === 0
-    });
-
-    // Format line items for Shopify with discount applied to line item prices
-    const lineItems = cartItems.map(item => {
-      const originalPrice = item.variant.price?.amount ? parseFloat(item.variant.price.amount) : parseFloat(item.price);
-      
-      // Apply discount proportionally to line item price
-      let discountedPrice = originalPrice;
-      if (discountAmountValue > 0) {
-        const discountPercentage = discountAmountValue / subtotalPrice;
-        discountedPrice = Math.max(0, originalPrice * (1 - discountPercentage));
-      }
-      
-      return {
-        variantId: item.variant.id,
-        quantity: item.quantity,
-        price: discountedPrice, // Use discounted price
-        originalPrice: originalPrice, // Keep for logging
-        productTitle: item.product.title
-      };
     });
 
     // Format shipping lines
@@ -186,7 +176,12 @@ export async function POST(request) {
       totalTax: adjustedTax, // Use tax adjusted for discount
       shippingLines,
       transactionHash,
-      notes: notes || ''
+      notes: notes || '',
+      discountCodes: appliedDiscount ? [{
+        code: appliedDiscount.code,
+        amount: discountAmountValue,
+        type: appliedDiscount.discountType
+      }] : []
     };
 
     console.log(`📦 [${requestId}] Creating Shopify order with data:`, {
@@ -195,8 +190,7 @@ export async function POST(request) {
         variantId: item.variantId,
         name: item.productTitle,
         title: item.productTitle,
-        originalPrice: item.originalPrice,
-        discountedPrice: item.price,
+        price: item.price,
         quantity: item.quantity
       })),
       totalPrice,
@@ -215,7 +209,8 @@ export async function POST(request) {
       customer: {
         email: customer?.email || shippingAddress.email || ''
       },
-      hasDiscount: !!appliedDiscount
+      hasDiscount: !!appliedDiscount,
+      discountCodes: orderData.discountCodes
     });
 
     console.log(`📦 [${requestId}] Attempting Shopify order creation...`);
