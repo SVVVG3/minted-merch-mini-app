@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { mcp_supabase_execute_sql } from '@/lib/mcp-tools'; // If available, or use direct supabase
 
 export async function GET(request) {
   try {
