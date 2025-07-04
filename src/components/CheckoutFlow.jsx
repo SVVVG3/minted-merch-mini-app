@@ -10,7 +10,7 @@ import { ShippingForm } from './ShippingForm';
 
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
-  const { getFid, isInFarcaster } = useFarcaster();
+  const { getFid, isInFarcaster, user, context } = useFarcaster();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(checkoutData ? true : false);
   const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', 'payment', or 'success'
   const [shippingData, setShippingData] = useState(cart.shipping || null);
@@ -266,6 +266,31 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       // Create order in Shopify after successful payment
       console.log('Creating Shopify order after successful payment...');
       
+      // Debug FID before order creation
+      const userFid = getFid();
+      console.log('🔍 FID Debug at order creation:', {
+        fid: userFid,
+        fidType: typeof userFid,
+        fidIsNull: userFid === null,
+        fidIsUndefined: userFid === undefined,
+        isInFarcaster: isInFarcaster,
+        hasUser: !!user,
+        user: user,
+        context: context
+      });
+      
+      // CRITICAL: Validate FID before order creation
+      if (!userFid) {
+        console.error('❌ CRITICAL: No FID available for order creation!', {
+          fid: userFid,
+          isInFarcaster: isInFarcaster,
+          hasUser: !!user,
+          user: user
+        });
+        alert('Unable to create order: User not properly authenticated with Farcaster. Please refresh and try again.');
+        return;
+      }
+      
       const orderData = {
         cartItems: cart.items,
         shippingAddress: shippingData,
@@ -278,7 +303,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         selectedShipping: cart.selectedShipping,
         transactionHash: transactionHash,
         notes: cart.notes || '',
-        fid: getFid(), // Add user's Farcaster ID for notifications
+        fid: userFid, // Add user's Farcaster ID for notifications
         appliedDiscount: appliedDiscount, // Include discount information from CartContext
         discountAmount: appliedDiscount ? appliedDiscount.discountAmount : 0
       };

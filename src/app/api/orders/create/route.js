@@ -9,6 +9,14 @@ export async function POST(request) {
 
     // Validate required fields
     if (!orderData.fid || !orderData.orderId || !orderData.amountTotal || !orderData.lineItems) {
+      console.error('Missing required fields in order data:', {
+        hasFid: !!orderData.fid,
+        hasOrderId: !!orderData.orderId,
+        hasAmountTotal: !!orderData.amountTotal,
+        hasLineItems: !!orderData.lineItems,
+        fid: orderData.fid,
+        fidType: typeof orderData.fid
+      });
       return NextResponse.json({
         success: false,
         error: 'Missing required fields: fid, orderId, amountTotal, lineItems'

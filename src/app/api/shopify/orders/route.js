@@ -29,6 +29,9 @@ export async function POST(request) {
       hasFid: !!fid,
       fid: fid,
       fidType: typeof fid,
+      fidValue: fid,
+      fidIsNull: fid === null,
+      fidIsUndefined: fid === undefined,
       hasCartItems: !!cartItems,
       cartItemsLength: cartItems?.length,
       hasShippingAddress: !!shippingAddress,
@@ -41,6 +44,30 @@ export async function POST(request) {
       timestamp: new Date().toISOString(),
       requestId: requestId
     });
+
+    // CRITICAL: Check if FID is missing - this should not happen in a Farcaster mini app
+    if (!fid) {
+      console.error(`❌ [${requestId}] CRITICAL: Missing FID in Farcaster mini app!`, {
+        fidReceived: fid,
+        fidType: typeof fid,
+        bodyKeys: Object.keys(body),
+        bodyFid: body.fid,
+        bodyFidType: typeof body.fid
+      });
+      return NextResponse.json(
+        { 
+          error: 'Missing Farcaster ID - this should not happen in a Farcaster mini app', 
+          requestId: requestId,
+          step: 'validation',
+          debug: {
+            fid: fid,
+            fidType: typeof fid,
+            bodyFid: body.fid
+          }
+        },
+        { status: 400 }
+      );
+    }
 
     // Log detailed cart items structure
     console.log(`📦 [${requestId}] Cart items detail:`, cartItems?.map(item => ({
