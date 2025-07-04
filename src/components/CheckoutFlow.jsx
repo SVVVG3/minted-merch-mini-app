@@ -414,32 +414,54 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
   // Share order success function
   const handleShareOrder = async () => {
-    if (!orderDetails || !isInFarcaster) return;
+    if (!orderDetails) return;
 
+    if (!isInFarcaster) {
+      // Fallback for non-Farcaster environments
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `Order ${orderDetails.name} Confirmed - Minted Merch`,
+            text: `🎉 Just placed my order #${orderDetails.name} on Minted Merch! Order for $${orderDetails.total.amount} confirmed ✅ Shop on /mintedmerch - pay on Base 🔵`,
+            url: `${window.location.origin}/order/${orderDetails.name}`,
+          });
+        } catch (err) {
+          console.log('Error sharing:', err);
+        }
+      } else {
+        // Copy link to clipboard
+        try {
+          await navigator.clipboard.writeText(`${window.location.origin}/order/${orderDetails.name}`);
+          alert('Order link copied to clipboard!');
+        } catch (err) {
+          console.log('Error copying to clipboard:', err);
+        }
+      }
+      return;
+    }
+
+    // Farcaster sharing using SDK composeCast action
     try {
       const orderUrl = `${window.location.origin}/order/${orderDetails.name}`;
+      const shareText = `🎉 Just placed my order #${orderDetails.name} on Minted Merch!\n\nOrder for $${orderDetails.total.amount} confirmed ✅\n\nShop on /mintedmerch - pay on Base 🔵`;
       
-      // Create a share intent for Farcaster
-      const shareText = `Just placed my order #${orderDetails.name} on Minted Merch! 🛍️\n\n${orderUrl}`;
+      // Use the Farcaster SDK composeCast action
+      const { sdk } = await import('../lib/frame');
+      const result = await sdk.actions.composeCast({
+        text: shareText,
+        embeds: [orderUrl],
+      });
       
-      // Try to use the Farcaster sharing API if available
-      if (window.parent && window.parent.postMessage) {
-        window.parent.postMessage({
-          type: 'createCast',
-          data: {
-            cast: {
-              text: shareText,
-              embeds: [orderUrl]
-            }
-          }
-        }, '*');
-      } else {
-        // Fallback: copy to clipboard
-        await navigator.clipboard.writeText(shareText);
-        alert('Order details copied to clipboard!');
-      }
+      console.log('Order cast composed:', result);
     } catch (error) {
       console.error('Error sharing order:', error);
+      // Fallback to copying link
+      try {
+        await navigator.clipboard.writeText(`${window.location.origin}/order/${orderDetails.name}`);
+        alert('Order link copied to clipboard!');
+      } catch (err) {
+        console.log('Error copying to clipboard:', err);
+      }
     }
   };
 
