@@ -10,15 +10,15 @@ export async function POST(request) {
       fid: body.fid || 12345, // Test FID
       orderId: `TEST-${Date.now()}`,
       sessionId: null,
-      status: 'confirmed',
+      status: 'paid',
       currency: 'USDC',
-      amountTotal: 4.75, // Just shipping
-      amountSubtotal: 0, // 100% discount
-      amountTax: 0, // No tax on 100% discount
+      amountTotal: body.discountCode ? 4.75 : 34.72, // Just shipping if discount, full price if not
+      amountSubtotal: body.discountCode ? 0 : 29.97, // 100% discount or full price
+      amountTax: body.discountCode ? 0 : 0, // No tax for now
       amountShipping: 4.75,
-      discountCode: body.discountCode || 'SNAPSHOT-TINY-HYPER-8518-07072e524f8bd3c4',
-      discountAmount: 29.97,
-      discountPercentage: 100,
+      discountCode: body.discountCode || null,
+      discountAmount: body.discountCode ? 29.97 : 0,
+      discountPercentage: body.discountCode ? 100 : null,
       customerEmail: 'test@example.com',
       customerName: 'Test User',
       shippingAddress: {
