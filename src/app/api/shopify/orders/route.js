@@ -5,6 +5,8 @@ import { markDiscountCodeAsUsed } from '@/lib/discounts';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
+  const requestId = `order-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
   try {
     const body = await request.json();
     
@@ -23,7 +25,6 @@ export async function POST(request) {
     } = body;
 
     // Enhanced debug logging
-    const requestId = `order-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     console.log(`📦 [${requestId}] Order creation request received:`, {
       hasFid: !!fid,
       fid: fid,
@@ -83,203 +84,251 @@ export async function POST(request) {
 
     // Validate required fields
     if (!cartItems || cartItems.length === 0) {
+      console.error(`❌ [${requestId}] Validation failed: No cart items`);
       return NextResponse.json(
-        { error: 'Cart items are required' },
+        { 
+          error: 'Cart items are required', 
+          requestId: requestId,
+          step: 'validation'
+        },
         { status: 400 }
       );
     }
 
     if (!shippingAddress) {
+      console.error(`❌ [${requestId}] Validation failed: No shipping address`);
       return NextResponse.json(
-        { error: 'Shipping address is required' },
+        { 
+          error: 'Shipping address is required', 
+          requestId: requestId,
+          step: 'validation'
+        },
         { status: 400 }
       );
     }
 
     if (!transactionHash) {
+      console.error(`❌ [${requestId}] Validation failed: No transaction hash`);
       return NextResponse.json(
-        { error: 'Transaction hash is required' },
+        { 
+          error: 'Transaction hash is required', 
+          requestId: requestId,
+          step: 'validation'
+        },
         { status: 400 }
       );
     }
 
     if (!checkout || !checkout.subtotal || !checkout.tax || !selectedShipping) {
+      console.error(`❌ [${requestId}] Validation failed: Incomplete checkout data`, {
+        hasCheckout: !!checkout,
+        hasSubtotal: !!checkout?.subtotal,
+        hasTax: !!checkout?.tax,
+        hasSelectedShipping: !!selectedShipping
+      });
       return NextResponse.json(
-        { error: 'Complete checkout data is required' },
+        { 
+          error: 'Complete checkout data is required', 
+          requestId: requestId,
+          step: 'validation'
+        },
         { status: 400 }
       );
     }
 
-    // Format line items for Shopify
-    const lineItems = cartItems.map(item => ({
-      variantId: item.variant.id,
-      quantity: item.quantity,
-      // Handle both data structures: item.variant.price.amount or item.price
-      price: item.variant.price?.amount ? parseFloat(item.variant.price.amount) : parseFloat(item.price),
-      // Keep product info for internal use, but don't pass to Shopify API
-      productTitle: item.product.title
-    }));
-
-    // Calculate totals with discount - FIXED to prevent negative subtotals
-    const subtotalPrice = parseFloat(checkout.subtotal.amount);
-    const discountAmountValue = discountAmount ? parseFloat(discountAmount) : 0;
+    // RETRY LOGIC: Wrap Shopify order creation with retries
+    let shopifyOrder = null;
+    let shopifyAttempts = 0;
+    const maxShopifyRetries = 3;
     
-    // CRITICAL FIX: Ensure subtotal never goes negative
-    const subtotalAfterDiscount = Math.max(0, subtotalPrice - discountAmountValue);
-    
-    // CRITICAL FIX: Adjust tax based on discounted subtotal for 100% discounts
-    const originalTax = parseFloat(checkout.tax.amount);
-    const adjustedTax = subtotalAfterDiscount > 0 ? originalTax : 0;
-    
-    const shippingPrice = parseFloat(selectedShipping.price.amount);
-    const totalPrice = subtotalAfterDiscount + adjustedTax + shippingPrice;
-
-    console.log(`💰 [${requestId}] Discount calculation:`, {
-      originalSubtotal: subtotalPrice,
-      discountAmount: discountAmountValue,
-      subtotalAfterDiscount: subtotalAfterDiscount,
-      originalTax: originalTax,
-      adjustedTax: adjustedTax,
-      shippingPrice: shippingPrice,
-      finalTotal: totalPrice,
-      isFullDiscount: subtotalAfterDiscount === 0
-    });
-
-    // Format shipping lines
-    const shippingLines = {
-      title: selectedShipping.title,
-      price: shippingPrice,
-      code: selectedShipping.code || selectedShipping.title
-    };
-
-    // Prepare order data for Shopify Admin API
-    const orderData = {
-      lineItems,
-      shippingAddress: {
-        firstName: shippingAddress.firstName,
-        lastName: shippingAddress.lastName,
-        address1: shippingAddress.address1,
-        address2: shippingAddress.address2 || '',
-        city: shippingAddress.city,
-        province: shippingAddress.province, // Use province directly
-        zip: shippingAddress.zip,
-        country: shippingAddress.country,
-        phone: shippingAddress.phone || ''
-      },
-      billingAddress: billingAddress || null,
-      customer: {
-        email: customer?.email || shippingAddress.email || '',
-        phone: customer?.phone || shippingAddress.phone || ''
-      },
-      totalPrice,
-      subtotalPrice: subtotalAfterDiscount, // Use discounted subtotal
-      totalTax: adjustedTax, // Use tax adjusted for discount
-      shippingLines,
-      transactionHash,
-      notes: notes || '',
-      discountCodes: appliedDiscount ? [{
-        code: appliedDiscount.code,
-        amount: discountAmountValue,
-        type: appliedDiscount.discountType
-      }] : []
-    };
-
-    console.log(`📦 [${requestId}] Creating Shopify order with data:`, {
-      lineItems: lineItems.length,
-      lineItemsDetails: lineItems.map(item => ({
-        variantId: item.variantId,
-        name: item.productTitle,
-        title: item.productTitle,
-        price: item.price,
-        quantity: item.quantity
-      })),
-      totalPrice,
-      subtotalAfterDiscount,
-      adjustedTax,
-      shippingPrice,
-      transactionHash,
-      shippingAddress: {
-        firstName: shippingAddress.firstName,
-        lastName: shippingAddress.lastName,
-        city: shippingAddress.city,
-        province: shippingAddress.province,
-        country: shippingAddress.country,
-        address1: shippingAddress.address1
-      },
-      customer: {
-        email: customer?.email || shippingAddress.email || ''
-      },
-      hasDiscount: !!appliedDiscount,
-      discountCodes: orderData.discountCodes
-    });
-
-    console.log(`📦 [${requestId}] Attempting Shopify order creation...`);
-    
-    // Create order in Shopify with enhanced error handling
-    let result;
-    try {
-      result = await createShopifyOrder(orderData);
-      console.log(`📦 [${requestId}] Shopify API response:`, {
-        success: result.success,
-        hasOrder: !!result.order,
-        orderName: result.order?.name,
-        orderId: result.order?.id,
-        hasError: !!result.error
-      });
-    } catch (shopifyError) {
-      console.error(`❌ [${requestId}] Shopify order creation threw exception:`, {
-        error: shopifyError.message,
-        stack: shopifyError.stack,
-        orderData: {
-          lineItemsCount: orderData.lineItems?.length,
-          totalPrice: orderData.totalPrice,
-          hasShippingAddress: !!orderData.shippingAddress,
-          hasCustomer: !!orderData.customer
-        }
-      });
+    while (!shopifyOrder && shopifyAttempts < maxShopifyRetries) {
+      shopifyAttempts++;
+      console.log(`🔄 [${requestId}] Shopify order creation attempt ${shopifyAttempts}/${maxShopifyRetries}`);
       
-      return NextResponse.json({
-        error: 'Shopify order creation failed',
-        details: shopifyError.message,
-        requestId: requestId,
-        step: 'shopify_creation'
-      }, { status: 500 });
+      try {
+        // Format line items for Shopify
+        const lineItems = cartItems.map(item => ({
+          variantId: item.variant.id,
+          quantity: item.quantity,
+          // Handle both data structures: item.variant.price.amount or item.price
+          price: item.variant.price?.amount ? parseFloat(item.variant.price.amount) : parseFloat(item.price),
+          // Keep product info for internal use, but don't pass to Shopify API
+          productTitle: item.product.title
+        }));
+
+        // Calculate totals with discount - FIXED to prevent negative subtotals
+        const subtotalPrice = parseFloat(checkout.subtotal.amount);
+        const discountAmountValue = discountAmount ? parseFloat(discountAmount) : 0;
+        
+        // CRITICAL FIX: Ensure subtotal never goes negative
+        const subtotalAfterDiscount = Math.max(0, subtotalPrice - discountAmountValue);
+        
+        // CRITICAL FIX: Adjust tax based on discounted subtotal for 100% discounts
+        const originalTax = parseFloat(checkout.tax.amount);
+        const adjustedTax = subtotalAfterDiscount > 0 ? originalTax : 0;
+        
+        const shippingPrice = parseFloat(selectedShipping.price.amount);
+        const totalPrice = subtotalAfterDiscount + adjustedTax + shippingPrice;
+
+        console.log(`💰 [${requestId}] Discount calculation (attempt ${shopifyAttempts}):`, {
+          originalSubtotal: subtotalPrice,
+          discountAmount: discountAmountValue,
+          subtotalAfterDiscount: subtotalAfterDiscount,
+          originalTax: originalTax,
+          adjustedTax: adjustedTax,
+          shippingPrice: shippingPrice,
+          finalTotal: totalPrice,
+          isFullDiscount: subtotalAfterDiscount === 0
+        });
+
+        // Format shipping lines
+        const shippingLines = {
+          title: selectedShipping.title,
+          price: shippingPrice,
+          code: selectedShipping.code || selectedShipping.title
+        };
+
+        // Prepare order data for Shopify Admin API
+        const orderData = {
+          lineItems,
+          shippingAddress: {
+            firstName: shippingAddress.firstName,
+            lastName: shippingAddress.lastName,
+            address1: shippingAddress.address1,
+            address2: shippingAddress.address2 || '',
+            city: shippingAddress.city,
+            province: shippingAddress.province, // Use province directly
+            zip: shippingAddress.zip,
+            country: shippingAddress.country,
+            phone: shippingAddress.phone || ''
+          },
+          billingAddress: billingAddress || null,
+          customer: {
+            email: customer?.email || shippingAddress.email || '',
+            phone: customer?.phone || shippingAddress.phone || ''
+          },
+          totalPrice,
+          subtotalPrice: subtotalAfterDiscount, // Use discounted subtotal
+          totalTax: adjustedTax, // Use tax adjusted for discount
+          shippingLines,
+          transactionHash,
+          notes: notes || '',
+          discountCodes: appliedDiscount ? [{
+            code: appliedDiscount.code,
+            amount: discountAmountValue,
+            type: appliedDiscount.discountType
+          }] : []
+        };
+
+        console.log(`📦 [${requestId}] Creating Shopify order (attempt ${shopifyAttempts}) with data:`, {
+          lineItems: lineItems.length,
+          lineItemsDetails: lineItems.map(item => ({
+            variantId: item.variantId,
+            name: item.productTitle,
+            title: item.productTitle,
+            price: item.price,
+            quantity: item.quantity
+          })),
+          totalPrice,
+          subtotalAfterDiscount,
+          adjustedTax,
+          shippingPrice,
+          transactionHash,
+          hasDiscountCodes: orderData.discountCodes.length > 0,
+          discountCodes: orderData.discountCodes
+        });
+
+        // Create order in Shopify with timeout protection
+        const shopifyPromise = createShopifyOrder(orderData);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Shopify API timeout after 30 seconds')), 30000)
+        );
+        
+        const result = await Promise.race([shopifyPromise, timeoutPromise]);
+        
+        if (result.success) {
+          shopifyOrder = result.order;
+          console.log(`✅ [${requestId}] Shopify order created successfully on attempt ${shopifyAttempts}:`, shopifyOrder.name);
+          break;
+        } else {
+          throw new Error(result.error || 'Unknown Shopify error');
+        }
+        
+      } catch (shopifyError) {
+        console.error(`❌ [${requestId}] Shopify order creation failed on attempt ${shopifyAttempts}:`, {
+          error: shopifyError.message,
+          stack: shopifyError.stack,
+          attempt: shopifyAttempts,
+          maxRetries: maxShopifyRetries
+        });
+        
+        if (shopifyAttempts >= maxShopifyRetries) {
+          console.error(`❌ [${requestId}] All Shopify attempts exhausted. Final error:`, shopifyError.message);
+          return NextResponse.json(
+            { 
+              error: 'Shopify order creation failed', 
+              details: shopifyError.message,
+              requestId: requestId,
+              step: 'shopify_creation',
+              attempts: shopifyAttempts
+            },
+            { status: 500 }
+          );
+        }
+        
+        // Wait before retry (exponential backoff)
+        const delay = Math.pow(2, shopifyAttempts - 1) * 1000; // 1s, 2s, 4s
+        console.log(`⏳ [${requestId}] Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
 
-    if (result.success) {
-      console.log(`✅ [${requestId}] Shopify order created successfully:`, result.order.name);
+    // RETRY LOGIC: Wrap Supabase order creation with retries
+    let supabaseOrder = null;
+    let supabaseAttempts = 0;
+    const maxSupabaseRetries = 3;
+    
+    while (!supabaseOrder && supabaseAttempts < maxSupabaseRetries) {
+      supabaseAttempts++;
+      console.log(`🔄 [${requestId}] Supabase order creation attempt ${supabaseAttempts}/${maxSupabaseRetries}`);
       
-      // Create order in Supabase database for notifications and tracking
-      // CRITICAL FIX: Always create Supabase record, FID is optional
-      console.log(`📦 [${requestId}] Starting Supabase order creation...`);
       try {
+        // Create order in our database
         const supabaseOrderData = {
-          fid: fid || null, // FID can be null
-          orderId: result.order.name, // Use Shopify order name as our order ID
-          sessionId: null, // No session for direct orders
-          status: 'paid', // Payment is verified at this point
+          fid: fid,
+          orderId: shopifyOrder.name,
+          sessionId: null,
+          status: 'confirmed',
           currency: 'USDC',
-          amountTotal: totalPrice,
-          amountSubtotal: subtotalAfterDiscount, // Use discounted subtotal
-          amountTax: adjustedTax, // Use tax adjusted for discount
-          amountShipping: shippingPrice,
-          discountCode: appliedDiscount?.code || null, // Track discount code
-          discountAmount: discountAmountValue, // Track discount amount
-          discountPercentage: appliedDiscount?.discountValue || null, // Track discount percentage
-          customerEmail: customer?.email || shippingAddress.email || shippingAddress.firstName ? `${shippingAddress.firstName.toLowerCase()}@placeholder.com` : 'noemail@placeholder.com',
-          customerName: shippingAddress.firstName ? 
-            `${shippingAddress.firstName} ${shippingAddress.lastName || ''}`.trim() : 
-            (customer?.email || shippingAddress.email || ''),
+          amountTotal: parseFloat(shopifyOrder.totalPrice),
+          amountSubtotal: parseFloat(shopifyOrder.totalPrice) - parseFloat(selectedShipping.price.amount) - parseFloat(checkout.tax.amount),
+          amountTax: parseFloat(checkout.tax.amount),
+          amountShipping: parseFloat(selectedShipping.price.amount),
+          discountCode: appliedDiscount?.code || null,
+          discountAmount: discountAmount || 0,
+          discountPercentage: appliedDiscount?.discountValue || null,
+          customerEmail: customer?.email || shippingAddress.email || '',
+          customerName: `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim(),
           shippingAddress: shippingAddress,
-          shippingMethod: selectedShipping.title || 'Standard',
-          lineItems: lineItems.map(item => {
-            // Extract product image URL from the cart item
-            const productImageUrl = cartItems.find(cartItem => 
-              cartItem.variant?.id === item.variantId
-            )?.product?.image?.url || null;
-            
+          shippingMethod: selectedShipping.title,
+          shippingCost: parseFloat(selectedShipping.price.amount),
+          lineItems: cartItems.map(item => {
+            // Try to get product image from various sources
+            let productImageUrl = null;
+            try {
+              if (item.product?.image?.url) {
+                productImageUrl = item.product.image.url;
+              } else if (item.variant?.image?.url) {
+                productImageUrl = item.variant.image.url;
+              } else if (item.product?.images?.edges?.[0]?.node?.url) {
+                productImageUrl = item.product.images.edges[0].node.url;
+              }
+            } catch (imageError) {
+              console.warn(`⚠️ [${requestId}] Could not extract image URL:`, imageError);
+            }
+
             return {
-              id: item.variantId,
+              id: item.variant.id,
               title: item.productTitle,
               quantity: item.quantity,
               price: item.price,
@@ -292,103 +341,114 @@ export async function POST(request) {
           paymentIntentId: transactionHash
         };
 
-        console.log(`📦 [${requestId}] Supabase order data prepared:`, {
-          fid: supabaseOrderData.fid,
+        console.log(`💾 [${requestId}] Creating Supabase order (attempt ${supabaseAttempts}):`, {
           orderId: supabaseOrderData.orderId,
-          status: supabaseOrderData.status,
-          amountTotal: supabaseOrderData.amountTotal,
-          amountSubtotal: supabaseOrderData.amountSubtotal,
+          fid: supabaseOrderData.fid,
           customerEmail: supabaseOrderData.customerEmail,
-          hasShippingAddress: !!supabaseOrderData.shippingAddress,
-          lineItemsCount: supabaseOrderData.lineItems?.length,
-          hasDiscount: !!supabaseOrderData.discountCode
+          amountTotal: supabaseOrderData.amountTotal,
+          hasDiscount: !!supabaseOrderData.discountCode,
+          discountCode: supabaseOrderData.discountCode
         });
 
-        const supabaseResult = await createSupabaseOrder(supabaseOrderData);
+        // Create Supabase order with timeout protection
+        const supabasePromise = createSupabaseOrder(supabaseOrderData);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Supabase timeout after 15 seconds')), 15000)
+        );
         
-        console.log(`📦 [${requestId}] Supabase creation result:`, {
-          success: supabaseResult.success,
-          hasOrder: !!supabaseResult.order,
-          orderId: supabaseResult.order?.order_id,
-          error: supabaseResult.error
-        });
+        const supabaseResult = await Promise.race([supabasePromise, timeoutPromise]);
         
         if (supabaseResult.success) {
-          console.log(`✅ [${requestId}] Order created in Supabase:`, supabaseResult.order.order_id);
-          
-          // Mark discount code as used if one was applied
-          if (appliedDiscount && appliedDiscount.code) {
-            try {
-              const markUsedResult = await markDiscountCodeAsUsed(
-                appliedDiscount.code, 
-                supabaseResult.order.order_id,
-                fid || null, // FID can be null for discount tracking
-                discountAmountValue,
-                subtotalPrice
-              );
-              if (markUsedResult.success) {
-                console.log('✅ Discount code marked as used:', appliedDiscount.code);
-              } else {
-                console.error('❌ Failed to mark discount code as used:', markUsedResult.error);
-              }
-            } catch (discountError) {
-              console.error('❌ Error marking discount code as used:', discountError);
-            }
-          }
-          
-          // Send order confirmation notification (only if FID provided)
-          if (fid) {
-            try {
-              await sendOrderConfirmationNotificationAndMark(supabaseResult.order);
-              console.log('✅ Order confirmation notification sent');
-            } catch (notificationError) {
-              console.error('❌ Failed to send order confirmation notification:', notificationError);
-            }
-          } else {
-            console.log('ℹ️ No FID provided, skipping notification (order still saved to Supabase)');
-          }
+          supabaseOrder = supabaseResult;
+          console.log(`✅ [${requestId}] Supabase order created successfully on attempt ${supabaseAttempts}`);
+          break;
         } else {
-          console.error(`❌ [${requestId}] Failed to create order in Supabase:`, {
-            error: supabaseResult.error,
-            orderData: {
-              orderId: supabaseOrderData.orderId,
-              customerEmail: supabaseOrderData.customerEmail,
-              amountTotal: supabaseOrderData.amountTotal
-            }
-          });
+          throw new Error(supabaseResult.error || 'Unknown Supabase error');
         }
-      } catch (error) {
-        console.error(`❌ [${requestId}] Error creating Supabase order:`, {
-          error: error.message,
-          stack: error.stack,
-          orderData: {
-            orderId: result.order.name,
-            step: 'supabase_creation'
-          }
+        
+      } catch (supabaseError) {
+        console.error(`❌ [${requestId}] Supabase order creation failed on attempt ${supabaseAttempts}:`, {
+          error: supabaseError.message,
+          stack: supabaseError.stack,
+          attempt: supabaseAttempts,
+          maxRetries: maxSupabaseRetries
         });
+        
+        if (supabaseAttempts >= maxSupabaseRetries) {
+          console.error(`❌ [${requestId}] All Supabase attempts exhausted. Continuing without database order.`);
+          // Don't fail the entire request - Shopify order succeeded
+          break;
+        }
+        
+        // Wait before retry
+        const delay = Math.pow(2, supabaseAttempts - 1) * 1000;
+        console.log(`⏳ [${requestId}] Waiting ${delay}ms before Supabase retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    if (shopifyOrder && supabaseOrder) {
+      console.log(`✅ [${requestId}] Order created in both Shopify and Supabase`);
+      
+      // Mark discount code as used if one was applied
+      if (appliedDiscount && appliedDiscount.code) {
+        try {
+          const markUsedResult = await markDiscountCodeAsUsed(
+            appliedDiscount.code, 
+            supabaseOrder.order_id,
+            fid,
+            discountAmount || 0,
+            subtotalPrice
+          );
+          if (markUsedResult.success) {
+            console.log('✅ Discount code marked as used:', appliedDiscount.code);
+          } else {
+            console.error('❌ Failed to mark discount code as used:', markUsedResult.error);
+          }
+        } catch (discountError) {
+          console.error('❌ Error marking discount code as used:', discountError);
+        }
       }
       
-      console.log(`✅ [${requestId}] Order creation completed successfully`);
+      // Send order confirmation notification (only if FID provided)
+      if (fid) {
+        try {
+          await sendOrderConfirmationNotificationAndMark(supabaseOrder);
+          console.log('✅ Order confirmation notification sent');
+        } catch (notificationError) {
+          console.error('❌ Failed to send order confirmation notification:', notificationError);
+        }
+      } else {
+        console.log('ℹ️ No FID provided, skipping notification (order still saved to Supabase)');
+      }
       
       return NextResponse.json({
         success: true,
-        order: result.order,
+        order: shopifyOrder,
         message: 'Order created successfully',
         requestId: requestId
       });
+    } else if (shopifyOrder) {
+      console.error(`❌ [${requestId}] Supabase order creation failed:`, {
+        error: 'Supabase order creation failed',
+        requestId: requestId,
+        step: 'supabase_creation'
+      });
+      
+      return NextResponse.json({
+        error: 'Failed to create order in Supabase',
+        requestId: requestId,
+        step: 'supabase_creation'
+      }, { status: 500 });
     } else {
       console.error(`❌ [${requestId}] Shopify order creation failed:`, {
-        error: result.error,
-        orderData: {
-          lineItemsCount: orderData.lineItems?.length,
-          totalPrice: orderData.totalPrice,
-          transactionHash: orderData.transactionHash
-        }
+        error: 'Shopify order creation failed',
+        requestId: requestId,
+        step: 'shopify_creation'
       });
       
       return NextResponse.json({
         error: 'Failed to create order in Shopify',
-        details: result.error,
         requestId: requestId,
         step: 'shopify_creation'
       }, { status: 500 });
