@@ -45,28 +45,18 @@ export async function POST(request) {
       requestId: requestId
     });
 
-    // CRITICAL: Check if FID is missing - this should not happen in a Farcaster mini app
+    // CRITICAL: Check if FID is missing - warn but allow order creation as fallback
     if (!fid) {
-      console.error(`❌ [${requestId}] CRITICAL: Missing FID in Farcaster mini app!`, {
+      console.warn(`⚠️ [${requestId}] WARNING: Missing FID in Farcaster mini app - allowing as fallback!`, {
         fidReceived: fid,
         fidType: typeof fid,
         bodyKeys: Object.keys(body),
         bodyFid: body.fid,
-        bodyFidType: typeof body.fid
+        bodyFidType: typeof body.fid,
+        note: 'Order will be created in Shopify but may fail in Supabase - can be manually fixed'
       });
-      return NextResponse.json(
-        { 
-          error: 'Missing Farcaster ID - this should not happen in a Farcaster mini app', 
-          requestId: requestId,
-          step: 'validation',
-          debug: {
-            fid: fid,
-            fidType: typeof fid,
-            bodyFid: body.fid
-          }
-        },
-        { status: 400 }
-      );
+      // Don't return error - allow order creation to proceed
+      // This ensures at least Shopify order gets created for payment recovery
     }
 
     // Log detailed cart items structure
@@ -320,7 +310,18 @@ export async function POST(request) {
       console.log(`🔄 [${requestId}] Supabase order creation attempt ${supabaseAttempts}/${maxSupabaseRetries}`);
       
       try {
-        // Create order in our database
+        // Create order in our database (skip if FID is null)
+        if (!fid) {
+          console.warn(`⚠️ [${requestId}] Skipping Supabase order creation due to missing FID - Shopify order ${shopifyOrder.name} created successfully`);
+          supabaseOrder = { 
+            success: false, 
+            error: 'FID missing - Supabase creation skipped',
+            order_id: shopifyOrder.name,
+            manual_fix_needed: true
+          };
+          break; // Exit the retry loop
+        }
+        
         const supabaseOrderData = {
           fid: fid,
           orderId: shopifyOrder.name,
@@ -414,11 +415,11 @@ export async function POST(request) {
       }
     }
 
-    if (shopifyOrder && supabaseOrder) {
-      console.log(`✅ [${requestId}] Order created in both Shopify and Supabase`);
+    if (shopifyOrder && (supabaseOrder || supabaseOrder?.manual_fix_needed)) {
+      console.log(`✅ [${requestId}] Order created in Shopify${supabaseOrder?.manual_fix_needed ? ' (Supabase skipped - manual fix needed)' : ' and Supabase'}`);
       
-      // Mark discount code as used if one was applied
-      if (appliedDiscount && appliedDiscount.code) {
+      // Mark discount code as used if one was applied (only if Supabase order was created)
+      if (appliedDiscount && appliedDiscount.code && supabaseOrder?.success !== false) {
         try {
           const markUsedResult = await markDiscountCodeAsUsed(
             appliedDiscount.code, 
@@ -435,25 +436,37 @@ export async function POST(request) {
         } catch (discountError) {
           console.error('❌ Error marking discount code as used:', discountError);
         }
+      } else if (appliedDiscount && appliedDiscount.code && supabaseOrder?.manual_fix_needed) {
+        console.warn('⚠️ Discount code usage tracking skipped due to missing Supabase order - manual fix needed');
       }
       
-      // Send order confirmation notification (only if FID provided)
-      if (fid) {
+      // Send order confirmation notification (only if FID provided and Supabase order created)
+      if (fid && supabaseOrder?.success !== false) {
         try {
           await sendOrderConfirmationNotificationAndMark(supabaseOrder);
           console.log('✅ Order confirmation notification sent');
         } catch (notificationError) {
           console.error('❌ Failed to send order confirmation notification:', notificationError);
         }
-      } else {
-        console.log('ℹ️ No FID provided, skipping notification (order still saved to Supabase)');
+      } else if (!fid) {
+        console.log('ℹ️ No FID provided, skipping notification');
+      } else if (supabaseOrder?.manual_fix_needed) {
+        console.log('ℹ️ Supabase order creation skipped, notification will be handled after manual fix');
       }
       
       return NextResponse.json({
         success: true,
         order: shopifyOrder,
-        message: 'Order created successfully',
-        requestId: requestId
+        message: supabaseOrder?.manual_fix_needed 
+          ? 'Order created in Shopify - Supabase entry needs manual fix due to missing FID'
+          : 'Order created successfully',
+        requestId: requestId,
+        ...(supabaseOrder?.manual_fix_needed && {
+          warning: 'Missing FID - Supabase order creation skipped',
+          manual_fix_needed: true,
+          shopify_order: shopifyOrder.name,
+          transaction_hash: transactionHash
+        })
       });
     } else if (shopifyOrder) {
       console.error(`❌ [${requestId}] Supabase order creation failed:`, {

@@ -266,29 +266,95 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       // Create order in Shopify after successful payment
       console.log('Creating Shopify order after successful payment...');
       
-      // Debug FID before order creation
-      const userFid = getFid();
-      console.log('🔍 FID Debug at order creation:', {
+      // Enhanced FID resolution with multiple fallback methods
+      let userFid = getFid();
+      
+      // Fallback 1: Try to get FID from stored Farcaster user
+      if (!userFid && user?.fid) {
+        userFid = user.fid;
+        console.log('🔄 FID recovered from user object:', userFid);
+      }
+      
+      // Fallback 2: Try to get FID from Farcaster context
+      if (!userFid && context?.user?.fid) {
+        userFid = context.user.fid;
+        console.log('🔄 FID recovered from context:', userFid);
+      }
+      
+      // Fallback 3: Try to get FID from window.userFid (frame initialization)
+      if (!userFid && typeof window !== 'undefined' && window.userFid) {
+        userFid = window.userFid;
+        console.log('🔄 FID recovered from window.userFid:', userFid);
+      }
+      
+      // Fallback 4: Try to get FID from localStorage persistence
+      if (!userFid && typeof window !== 'undefined') {
+        const storedFid = localStorage.getItem('farcaster_fid');
+        if (storedFid && !isNaN(parseInt(storedFid))) {
+          userFid = parseInt(storedFid);
+          console.log('🔄 FID recovered from localStorage:', userFid);
+        }
+      }
+      
+      console.log('🔍 Enhanced FID Debug at order creation:', {
         fid: userFid,
         fidType: typeof userFid,
         fidIsNull: userFid === null,
         fidIsUndefined: userFid === undefined,
+        getFidResult: getFid(),
+        userFid: user?.fid,
+        contextFid: context?.user?.fid,
+        windowFid: typeof window !== 'undefined' ? window.userFid : 'N/A',
+        storedFid: typeof window !== 'undefined' ? localStorage.getItem('farcaster_fid') : 'N/A',
         isInFarcaster: isInFarcaster,
         hasUser: !!user,
-        user: user,
-        context: context
+        hasContext: !!context
       });
       
-      // CRITICAL: Validate FID before order creation
+      // Store FID in localStorage for future sessions (if we have one)
+      if (userFid && typeof window !== 'undefined') {
+        localStorage.setItem('farcaster_fid', userFid.toString());
+      }
+      
+      // CRITICAL: Validate FID before order creation with better error handling
       if (!userFid) {
-        console.error('❌ CRITICAL: No FID available for order creation!', {
+        console.error('❌ CRITICAL: No FID available for order creation after all fallbacks!', {
           fid: userFid,
           isInFarcaster: isInFarcaster,
           hasUser: !!user,
-          user: user
+          hasContext: !!context,
+          user: user,
+          context: context,
+          allFallbacks: {
+            getFid: getFid(),
+            userFid: user?.fid,
+            contextFid: context?.user?.fid,
+            windowFid: typeof window !== 'undefined' ? window.userFid : null,
+            storedFid: typeof window !== 'undefined' ? localStorage.getItem('farcaster_fid') : null
+          }
         });
-        alert('Unable to create order: User not properly authenticated with Farcaster. Please refresh and try again.');
-        return;
+        
+        // More user-friendly error with debugging info
+        const errorMessage = `Unable to create order: User authentication lost during checkout.
+        
+Debug Info:
+- In Farcaster: ${isInFarcaster}
+- Has User: ${!!user}
+- Has Context: ${!!context}
+
+Please try:
+1. Refresh the page
+2. Re-open the mini app
+3. Contact support if issue persists
+
+Transaction Hash: ${transactionHash}`;
+        
+        alert(errorMessage);
+        
+        // Don't return immediately - try to create order anyway with FID as null
+        // This will at least create the Shopify order and we can manually fix the Supabase entry
+        console.log('⚠️ Attempting order creation without FID as fallback...');
+        userFid = null;
       }
       
       const orderData = {
@@ -303,7 +369,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         selectedShipping: cart.selectedShipping,
         transactionHash: transactionHash,
         notes: cart.notes || '',
-        fid: userFid, // Add user's Farcaster ID for notifications
+        fid: userFid, // Add user's Farcaster ID for notifications (may be null)
         appliedDiscount: appliedDiscount, // Include discount information from CartContext
         discountAmount: appliedDiscount ? appliedDiscount.discountAmount : 0
       };

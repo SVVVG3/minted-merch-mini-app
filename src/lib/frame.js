@@ -20,6 +20,12 @@ export async function initializeFrame() {
       window.userFid = context.user.fid;
       window.farcasterUser = context.user;
       
+      // Store FID in localStorage for persistence across sessions
+      if (context.user.fid) {
+        localStorage.setItem('farcaster_fid', context.user.fid.toString());
+        console.log('📦 FID stored in localStorage for persistence:', context.user.fid);
+      }
+      
       // Call ready to hide splash screen
       await sdk.actions.ready();
     } else {
