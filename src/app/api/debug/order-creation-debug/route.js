@@ -212,16 +212,15 @@ function prepareShopifyOrderData(orderData) {
       variantId: item.variant.id,
       quantity: item.quantity,
       price: price,
-      name: item.product.title,
-      title: item.variant?.title || 'Default',
+      // Keep product info for internal use, but don't pass to Shopify API
       productTitle: item.product.title
     };
   });
 
-  // Calculate totals with discount
+  // Calculate totals with discount - FIXED to prevent negative subtotals
   const subtotalPrice = parseFloat(checkout.subtotal.amount);
   const discountAmountValue = discountAmount ? parseFloat(discountAmount) : 0;
-  const subtotalAfterDiscount = subtotalPrice - discountAmountValue;
+  const subtotalAfterDiscount = Math.max(0, subtotalPrice - discountAmountValue);
   const totalTax = parseFloat(checkout.tax.amount);
   const shippingPrice = parseFloat(selectedShipping.price.amount);
   const totalPrice = subtotalAfterDiscount + totalTax + shippingPrice;
@@ -234,7 +233,7 @@ function prepareShopifyOrderData(orderData) {
       address1: shippingAddress.address1,
       address2: shippingAddress.address2 || '',
       city: shippingAddress.city,
-      state: shippingAddress.province,
+      province: shippingAddress.province, // Fix: use province instead of state
       zip: shippingAddress.zip,
       country: shippingAddress.country,
       phone: shippingAddress.phone || ''
