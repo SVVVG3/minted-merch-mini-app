@@ -72,7 +72,8 @@ export async function POST(request) {
     const lineItems = cartItems.map(item => ({
       variantId: item.variant.id,
       quantity: item.quantity,
-      price: parseFloat(item.variant.price.amount),
+      // Handle both data structures: item.variant.price.amount or item.price
+      price: item.variant.price?.amount ? parseFloat(item.variant.price.amount) : parseFloat(item.price),
       // Add required name and title fields
       name: item.product.title,
       title: item.variant?.title || 'Default',
