@@ -105,11 +105,11 @@ export async function POST(request) {
         .or('verified_eth_addresses.cs.["0xcfc2e0ff3aea9bc5b18bc2e587485d5c97954b7b10224cac9ef4b5a0a643bc92"]')
         .single();
       
-      // For now, use a placeholder FID - can be updated when user is identified
-      const fid = existingProfile?.fid || null;
-      
-      const orderData = {
-        fid: fid,
+             // Use the identified FID for Francisco Manno
+       const fid = existingProfile?.fid || 464805;
+       
+       const orderData = {
+         fid: fid,
         order_id: '#1208',
         session_id: null,
         status: 'paid', // Even though Shopify shows "partially paid", the discount worked
