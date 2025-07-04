@@ -466,6 +466,7 @@ export function ProductDetail({
             variants={product.variants?.edges}
             selectedVariant={selectedVariant}
             onVariantChange={onVariantChange}
+            productDiscount={productDiscount}
           />
 
           {product.description && (
