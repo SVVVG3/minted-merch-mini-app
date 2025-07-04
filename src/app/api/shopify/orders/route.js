@@ -116,9 +116,7 @@ export async function POST(request) {
       quantity: item.quantity,
       // Handle both data structures: item.variant.price.amount or item.price
       price: item.variant.price?.amount ? parseFloat(item.variant.price.amount) : parseFloat(item.price),
-      // Add required name and title fields
-      name: item.product.title,
-      title: item.variant?.title || 'Default',
+      // Keep product info for internal use, but don't pass to Shopify API
       productTitle: item.product.title
     }));
 
@@ -190,8 +188,8 @@ export async function POST(request) {
       lineItems: lineItems.length,
       lineItemsDetails: lineItems.map(item => ({
         variantId: item.variantId,
-        name: item.name,
-        title: item.title,
+        name: item.productTitle,
+        title: item.productTitle,
         price: item.price,
         quantity: item.quantity
       })),
@@ -285,7 +283,7 @@ export async function POST(request) {
               title: item.productTitle,
               quantity: item.quantity,
               price: item.price,
-              variant: item.title !== 'Default' ? item.title : null,
+              variant: item.productTitle !== 'Default' ? item.productTitle : null,
               imageUrl: productImageUrl // Store the product image URL!
             };
           }),

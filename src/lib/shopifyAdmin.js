@@ -129,8 +129,6 @@ export async function createShopifyOrder(orderData) {
       lineItems: lineItems.map(item => ({
         variantId: item.variantId,
         quantity: item.quantity,
-        name: item.name || item.productTitle || 'Product',
-        title: item.title || 'Default',
         priceSet: {
           shopMoney: {
             amount: item.price.toString(),
