@@ -416,22 +416,26 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const handleShareOrder = async () => {
     if (!orderDetails) return;
 
+    // Add small delay to ensure order is fully processed in database
+    // This prevents sharing before metadata is ready
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     if (!isInFarcaster) {
       // Fallback for non-Farcaster environments
       if (navigator.share) {
         try {
           await navigator.share({
             title: `Order ${orderDetails.name} Confirmed - Minted Merch`,
-            text: `🎉 Just placed my order #${orderDetails.name} on Minted Merch! Order for $${orderDetails.total.amount} confirmed ✅ Shop on /mintedmerch - pay on Base 🔵`,
-            url: `${window.location.origin}/order/${orderDetails.name}`,
+            text: `🎉 Just placed my order ${orderDetails.name.startsWith('#') ? orderDetails.name : '#' + orderDetails.name} on Minted Merch! Order for $${orderDetails.total.amount} confirmed ✅ Shop on /mintedmerch - pay on Base 🔵`,
+            url: `${window.location.origin}/order/${orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name}`,
           });
         } catch (err) {
           console.log('Error sharing:', err);
         }
       } else {
-        // Copy link to clipboard
+        // Copy link to clipboard with cache-busting parameter
         try {
-          await navigator.clipboard.writeText(`${window.location.origin}/order/${orderDetails.name}`);
+          await navigator.clipboard.writeText(`${window.location.origin}/order/${orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name}?t=${Date.now()}`);
           alert('Order link copied to clipboard!');
         } catch (err) {
           console.log('Error copying to clipboard:', err);
@@ -442,8 +446,10 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
     // Farcaster sharing using SDK composeCast action
     try {
-      const orderUrl = `${window.location.origin}/order/${orderDetails.name}`;
-      const shareText = `🎉 Just placed my order #${orderDetails.name} on Minted Merch!\n\nOrder for $${orderDetails.total.amount} confirmed ✅\n\nShop on /mintedmerch - pay on Base 🔵`;
+              // Add cache-busting parameter to ensure fresh metadata
+        const orderNumber = orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name;
+        const orderUrl = `${window.location.origin}/order/${orderNumber}?t=${Date.now()}`;
+        const shareText = `🎉 Just placed my order ${orderDetails.name.startsWith('#') ? orderDetails.name : '#' + orderDetails.name} on Minted Merch!\n\nOrder for $${orderDetails.total.amount} confirmed ✅\n\nShop on /mintedmerch - pay on Base 🔵`;
       
       // Use the Farcaster SDK composeCast action
       const { sdk } = await import('../lib/frame');
@@ -455,9 +461,9 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       console.log('Order cast composed:', result);
     } catch (error) {
       console.error('Error sharing order:', error);
-      // Fallback to copying link
+      // Fallback to copying link with cache-busting parameter
       try {
-        await navigator.clipboard.writeText(`${window.location.origin}/order/${orderDetails.name}`);
+        await navigator.clipboard.writeText(`${window.location.origin}/order/${orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name}?t=${Date.now()}`);
         alert('Order link copied to clipboard!');
       } catch (err) {
         console.log('Error copying to clipboard:', err);
