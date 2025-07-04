@@ -328,8 +328,8 @@ export async function POST(request) {
           status: 'paid',
           currency: 'USDC',
           amountTotal: parseFloat(shopifyOrder.totalPrice),
-          amountSubtotal: parseFloat(shopifyOrder.totalPrice) - parseFloat(selectedShipping.price.amount) - parseFloat(checkout.tax.amount),
-          amountTax: parseFloat(checkout.tax.amount),
+          amountSubtotal: subtotalAfterDiscount, // Use the already calculated discounted subtotal
+          amountTax: adjustedTax, // Use the already calculated adjusted tax
           amountShipping: parseFloat(selectedShipping.price.amount),
           discountCode: appliedDiscount?.code || null,
           discountAmount: discountAmount || 0,
