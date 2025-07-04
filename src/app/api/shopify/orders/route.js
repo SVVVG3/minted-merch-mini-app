@@ -122,13 +122,30 @@ export async function POST(request) {
       productTitle: item.product.title
     }));
 
-    // Calculate totals with discount
+    // Calculate totals with discount - FIXED to prevent negative subtotals
     const subtotalPrice = parseFloat(checkout.subtotal.amount);
     const discountAmountValue = discountAmount ? parseFloat(discountAmount) : 0;
-    const subtotalAfterDiscount = subtotalPrice - discountAmountValue;
-    const totalTax = parseFloat(checkout.tax.amount);
+    
+    // CRITICAL FIX: Ensure subtotal never goes negative
+    const subtotalAfterDiscount = Math.max(0, subtotalPrice - discountAmountValue);
+    
+    // CRITICAL FIX: Adjust tax based on discounted subtotal for 100% discounts
+    const originalTax = parseFloat(checkout.tax.amount);
+    const adjustedTax = subtotalAfterDiscount > 0 ? originalTax : 0;
+    
     const shippingPrice = parseFloat(selectedShipping.price.amount);
-    const totalPrice = subtotalAfterDiscount + totalTax + shippingPrice;
+    const totalPrice = subtotalAfterDiscount + adjustedTax + shippingPrice;
+
+    console.log(`💰 [${requestId}] Discount calculation:`, {
+      originalSubtotal: subtotalPrice,
+      discountAmount: discountAmountValue,
+      subtotalAfterDiscount: subtotalAfterDiscount,
+      originalTax: originalTax,
+      adjustedTax: adjustedTax,
+      shippingPrice: shippingPrice,
+      finalTotal: totalPrice,
+      isFullDiscount: subtotalAfterDiscount === 0
+    });
 
     // Format shipping lines
     const shippingLines = {
@@ -158,7 +175,7 @@ export async function POST(request) {
       },
       totalPrice,
       subtotalPrice: subtotalAfterDiscount, // Use discounted subtotal
-      totalTax,
+      totalTax: adjustedTax, // Use tax adjusted for discount
       shippingLines,
       transactionHash,
       notes: notes || '',
@@ -180,7 +197,7 @@ export async function POST(request) {
       })),
       totalPrice,
       subtotalAfterDiscount,
-      totalTax,
+      adjustedTax,
       shippingPrice,
       transactionHash,
       shippingAddress: {
@@ -246,12 +263,12 @@ export async function POST(request) {
           currency: 'USDC',
           amountTotal: totalPrice,
           amountSubtotal: subtotalAfterDiscount, // Use discounted subtotal
-          amountTax: totalTax,
+          amountTax: adjustedTax, // Use tax adjusted for discount
           amountShipping: shippingPrice,
           discountCode: appliedDiscount?.code || null, // Track discount code
           discountAmount: discountAmountValue, // Track discount amount
           discountPercentage: appliedDiscount?.discountValue || null, // Track discount percentage
-          customerEmail: customer?.email || shippingAddress.email || '',
+          customerEmail: customer?.email || shippingAddress.email || shippingAddress.firstName ? `${shippingAddress.firstName.toLowerCase()}@placeholder.com` : 'noemail@placeholder.com',
           customerName: shippingAddress.firstName ? 
             `${shippingAddress.firstName} ${shippingAddress.lastName || ''}`.trim() : 
             (customer?.email || shippingAddress.email || ''),
