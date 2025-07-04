@@ -163,7 +163,7 @@ export async function POST(request) {
         address1: shippingAddress.address1,
         address2: shippingAddress.address2 || '',
         city: shippingAddress.city,
-        state: shippingAddress.province, // Map province field to state for Shopify
+        province: shippingAddress.province, // Use province directly
         zip: shippingAddress.zip,
         country: shippingAddress.country,
         phone: shippingAddress.phone || ''

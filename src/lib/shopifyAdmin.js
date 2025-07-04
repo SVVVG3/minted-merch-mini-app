@@ -144,7 +144,7 @@ export async function createShopifyOrder(orderData) {
         address1: shippingAddress.address1,
         address2: shippingAddress.address2 || '',
         city: shippingAddress.city,
-        province: shippingAddress.state,
+        province: shippingAddress.province,
         zip: shippingAddress.zip,
         country: shippingAddress.country,
         phone: shippingAddress.phone || ''
@@ -155,7 +155,7 @@ export async function createShopifyOrder(orderData) {
         address1: billingAddress.address1,
         address2: billingAddress.address2 || '',
         city: billingAddress.city,
-        province: billingAddress.state,
+        province: billingAddress.province,
         zip: billingAddress.zip,
         country: billingAddress.country,
         phone: billingAddress.phone || ''
@@ -165,7 +165,7 @@ export async function createShopifyOrder(orderData) {
         address1: shippingAddress.address1,
         address2: shippingAddress.address2 || '',
         city: shippingAddress.city,
-        province: shippingAddress.state,
+        province: shippingAddress.province,
         zip: shippingAddress.zip,
         country: shippingAddress.country,
         phone: shippingAddress.phone || ''
