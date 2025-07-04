@@ -74,18 +74,45 @@ export async function validateDiscountForOrder(discountCode, fid, subtotal) {
  */
 export async function createOrder(orderData) {
   try {
-    console.log('Creating order in database:', orderData);
+    console.log('🔍 Creating order in database with detailed data:', {
+      fid: orderData.fid,
+      orderId: orderData.orderId,
+      amountTotal: orderData.amountTotal,
+      amountSubtotal: orderData.amountSubtotal,
+      discountCode: orderData.discountCode,
+      hasLineItems: !!orderData.lineItems,
+      lineItemsLength: orderData.lineItems?.length,
+      lineItemsStructure: orderData.lineItems?.map(item => ({
+        hasId: !!item.id,
+        hasTitle: !!item.title,
+        hasPrice: !!item.price,
+        hasQuantity: !!item.quantity,
+        id: item.id,
+        title: item.title,
+        price: item.price,
+        quantity: item.quantity
+      })),
+      fullOrderData: orderData
+    });
 
     // Validate discount code if provided (final validation before order creation)
     if (orderData.discountCode) {
+      console.log('🔍 Validating discount code for order:', {
+        discountCode: orderData.discountCode,
+        fid: orderData.fid,
+        amountSubtotal: orderData.amountSubtotal
+      });
+      
       const discountValidation = await validateDiscountForOrder(
         orderData.discountCode, 
         orderData.fid, 
         orderData.amountSubtotal
       );
 
+      console.log('🔍 Discount validation result:', discountValidation);
+
       if (!discountValidation.success || !discountValidation.isValid) {
-        console.error('Discount validation failed during order creation:', discountValidation.error);
+        console.error('❌ Discount validation failed during order creation:', discountValidation.error);
         return { 
           success: false, 
           error: discountValidation.error || 'Invalid discount code',
@@ -95,36 +122,56 @@ export async function createOrder(orderData) {
     }
 
     // Create the order
+    console.log('🔍 Attempting to insert order into database...');
+    
+    const insertData = {
+      fid: orderData.fid,
+      order_id: orderData.orderId,
+      session_id: orderData.sessionId,
+      status: orderData.status || 'pending',
+      currency: orderData.currency || 'USDC',
+      amount_total: orderData.amountTotal,
+      amount_subtotal: orderData.amountSubtotal,
+      amount_tax: orderData.amountTax,
+      amount_shipping: orderData.amountShipping,
+      discount_code: orderData.discountCode || null,
+      discount_amount: orderData.discountAmount || 0,
+      discount_percentage: orderData.discountPercentage || null,
+      customer_email: orderData.customerEmail,
+      customer_name: orderData.customerName,
+      shipping_address: orderData.shippingAddress,
+      shipping_method: orderData.shippingMethod,
+      shipping_cost: orderData.shippingCost,
+      line_items: orderData.lineItems,
+      payment_method: orderData.paymentMethod,
+      payment_status: orderData.paymentStatus,
+      payment_intent_id: orderData.paymentIntentId
+    };
+    
+    console.log('🔍 Insert data prepared:', {
+      fid: insertData.fid,
+      order_id: insertData.order_id,
+      status: insertData.status,
+      amount_total: insertData.amount_total,
+      discount_code: insertData.discount_code,
+      hasLineItems: !!insertData.line_items,
+      lineItemsLength: insertData.line_items?.length
+    });
+    
     const { data: order, error } = await supabase
       .from('orders')
-      .insert({
-        fid: orderData.fid,
-        order_id: orderData.orderId,
-        session_id: orderData.sessionId,
-        status: orderData.status || 'pending',
-        currency: orderData.currency || 'USDC',
-        amount_total: orderData.amountTotal,
-        amount_subtotal: orderData.amountSubtotal,
-        amount_tax: orderData.amountTax,
-        amount_shipping: orderData.amountShipping,
-        discount_code: orderData.discountCode || null,
-        discount_amount: orderData.discountAmount || 0,
-        discount_percentage: orderData.discountPercentage || null,
-        customer_email: orderData.customerEmail,
-        customer_name: orderData.customerName,
-        shipping_address: orderData.shippingAddress,
-        shipping_method: orderData.shippingMethod,
-        shipping_cost: orderData.shippingCost,
-        line_items: orderData.lineItems,
-        payment_method: orderData.paymentMethod,
-        payment_status: orderData.paymentStatus,
-        payment_intent_id: orderData.paymentIntentId
-      })
+      .insert(insertData)
       .select()
       .single();
 
     if (error) {
-      console.error('Error creating order:', error);
+      console.error('❌ Database insertion error:', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        insertData: insertData
+      });
       return { success: false, error: error.message };
     }
 
