@@ -160,6 +160,41 @@ export async function POST(request) {
       );
     }
 
+    // Calculate totals with discount OUTSIDE retry loops - shared by both Shopify and Supabase
+    const subtotalPrice = parseFloat(checkout.subtotal.amount);
+    const discountAmountValue = discountAmount ? parseFloat(discountAmount) : 0;
+    
+    // CRITICAL FIX: Ensure subtotal never goes negative
+    const subtotalAfterDiscount = Math.max(0, subtotalPrice - discountAmountValue);
+    
+    // CRITICAL FIX: Adjust tax based on discounted subtotal for 100% discounts
+    const originalTax = parseFloat(checkout.tax.amount);
+    const adjustedTax = subtotalAfterDiscount > 0 ? originalTax : 0;
+    
+    const shippingPrice = parseFloat(selectedShipping.price.amount);
+    const totalPrice = subtotalAfterDiscount + adjustedTax + shippingPrice;
+
+    console.log(`💰 [${requestId}] Discount calculation (shared):`, {
+      originalSubtotal: subtotalPrice,
+      discountAmount: discountAmountValue,
+      subtotalAfterDiscount: subtotalAfterDiscount,
+      originalTax: originalTax,
+      adjustedTax: adjustedTax,
+      shippingPrice: shippingPrice,
+      finalTotal: totalPrice,
+      isFullDiscount: subtotalAfterDiscount === 0
+    });
+
+    // Format line items for Shopify (shared data)
+    const lineItems = cartItems.map(item => ({
+      variantId: item.variant.id,
+      quantity: item.quantity,
+      // Handle both data structures: item.variant.price.amount or item.price
+      price: item.variant.price?.amount ? parseFloat(item.variant.price.amount) : parseFloat(item.price),
+      // Keep product info for internal use, but don't pass to Shopify API
+      productTitle: item.product.title
+    }));
+
     // RETRY LOGIC: Wrap Shopify order creation with retries
     let shopifyOrder = null;
     let shopifyAttempts = 0;
@@ -170,41 +205,6 @@ export async function POST(request) {
       console.log(`🔄 [${requestId}] Shopify order creation attempt ${shopifyAttempts}/${maxShopifyRetries}`);
       
       try {
-        // Format line items for Shopify
-        const lineItems = cartItems.map(item => ({
-          variantId: item.variant.id,
-          quantity: item.quantity,
-          // Handle both data structures: item.variant.price.amount or item.price
-          price: item.variant.price?.amount ? parseFloat(item.variant.price.amount) : parseFloat(item.price),
-          // Keep product info for internal use, but don't pass to Shopify API
-          productTitle: item.product.title
-        }));
-
-        // Calculate totals with discount - FIXED to prevent negative subtotals
-        const subtotalPrice = parseFloat(checkout.subtotal.amount);
-        const discountAmountValue = discountAmount ? parseFloat(discountAmount) : 0;
-        
-        // CRITICAL FIX: Ensure subtotal never goes negative
-        const subtotalAfterDiscount = Math.max(0, subtotalPrice - discountAmountValue);
-        
-        // CRITICAL FIX: Adjust tax based on discounted subtotal for 100% discounts
-        const originalTax = parseFloat(checkout.tax.amount);
-        const adjustedTax = subtotalAfterDiscount > 0 ? originalTax : 0;
-        
-        const shippingPrice = parseFloat(selectedShipping.price.amount);
-        const totalPrice = subtotalAfterDiscount + adjustedTax + shippingPrice;
-
-        console.log(`💰 [${requestId}] Discount calculation (attempt ${shopifyAttempts}):`, {
-          originalSubtotal: subtotalPrice,
-          discountAmount: discountAmountValue,
-          subtotalAfterDiscount: subtotalAfterDiscount,
-          originalTax: originalTax,
-          adjustedTax: adjustedTax,
-          shippingPrice: shippingPrice,
-          finalTotal: totalPrice,
-          isFullDiscount: subtotalAfterDiscount === 0
-        });
-
         // Format shipping lines
         const shippingLines = {
           title: selectedShipping.title,
