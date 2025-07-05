@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { hasNotificationTokenInNeynar, sendWelcomeNotification } from '@/lib/neynar';
 import { createWelcomeDiscountCode } from '@/lib/discounts';
 import { fetchUserWalletData } from '@/lib/walletUtils';
+import { checkBankrClubMembership } from '@/lib/bankrAPI';
 
 export async function POST(request) {
   try {
@@ -32,6 +33,41 @@ export async function POST(request) {
       console.log('⚠️ Could not fetch wallet data for FID:', fid);
     }
 
+    // Check Bankr Club membership
+    console.log('🏦 Checking Bankr Club membership for user...');
+    let bankrMembershipData = {
+      bankr_club_member: false,
+      x_username: null,
+      bankr_membership_updated_at: new Date().toISOString()
+    };
+
+    try {
+      const bankrResult = await checkBankrClubMembership(username);
+      console.log('Bankr Club membership result:', {
+        success: bankrResult.success,
+        found: bankrResult.found,
+        isMember: bankrResult.isMember
+      });
+
+      if (bankrResult.success) {
+        bankrMembershipData.bankr_club_member = bankrResult.isMember;
+        
+        // Note: We don't have X username from Farcaster data, so we'll leave it null for now
+        // In the future, we could potentially ask users to provide their X username
+        
+        console.log('✅ Bankr Club membership status updated:', {
+          username: username,
+          isMember: bankrResult.isMember,
+          found: bankrResult.found
+        });
+      } else {
+        console.log('⚠️ Could not check Bankr Club membership:', bankrResult.error);
+      }
+    } catch (bankrError) {
+      console.error('Error checking Bankr Club membership:', bankrError);
+      // Don't fail registration if Bankr check fails
+    }
+
     // Create or update user profile with notification status and wallet data
     const profileData = {
       fid,
@@ -41,7 +77,11 @@ export async function POST(request) {
       pfp_url: pfpUrl,
       has_notifications: hasNotifications, // ✅ Store notification status
       notification_status_updated_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      // Add Bankr Club membership data
+      bankr_club_member: bankrMembershipData.bankr_club_member,
+      x_username: bankrMembershipData.x_username,
+      bankr_membership_updated_at: bankrMembershipData.bankr_membership_updated_at
     };
 
     // Add wallet data if available
@@ -124,7 +164,11 @@ export async function POST(request) {
       welcomeNotificationSent,
       discountCode: discountCode, // Include discount code in response for debugging
       walletDataFetched: !!walletData, // Include wallet data status
-      walletAddressCount: walletData?.all_wallet_addresses?.length || 0
+      walletAddressCount: walletData?.all_wallet_addresses?.length || 0,
+      // Add Bankr Club membership info for debugging
+      bankrClubMember: bankrMembershipData.bankr_club_member,
+      bankrMembershipChecked: true,
+      bankrMembershipUpdatedAt: bankrMembershipData.bankr_membership_updated_at
     });
 
   } catch (error) {
