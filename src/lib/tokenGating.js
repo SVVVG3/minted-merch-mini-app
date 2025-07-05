@@ -138,6 +138,10 @@ export async function checkTokenGatedEligibility(discount, fid, userWalletAddres
         blockchainCallsCount = result.blockchainCalls || 0;
         break;
         
+      case 'bankr_club':
+        result = await checkBankrClubGating(discount, fid);
+        break;
+        
       default:
         result = {
           eligible: false,
@@ -490,6 +494,96 @@ async function checkCombinedGating(discount, fid, userWalletAddresses) {
 }
 
 /**
+ * Check Bankr Club membership eligibility
+ */
+async function checkBankrClubGating(discount, fid) {
+  try {
+    console.log('🏛️ Checking Bankr Club membership eligibility for FID:', fid);
+    
+    if (!supabase) {
+      console.warn('⚠️ Supabase not available for Bankr Club check');
+      return {
+        eligible: false,
+        reason: 'Cannot verify Bankr Club membership - database unavailable',
+        details: { error: 'Supabase not available' }
+      };
+    }
+
+    if (!fid) {
+      return {
+        eligible: false,
+        reason: 'FID required for Bankr Club membership check',
+        details: { fid: null }
+      };
+    }
+
+    // Fetch user profile to check Bankr Club membership status
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('bankr_club_member, x_username, bankr_membership_updated_at')
+      .eq('fid', fid)
+      .single();
+
+    if (error) {
+      console.error('❌ Error fetching profile for Bankr Club check:', error);
+      return {
+        eligible: false,
+        reason: 'Failed to check Bankr Club membership status',
+        details: { error: error.message, fid }
+      };
+    }
+
+    if (!profile) {
+      return {
+        eligible: false,
+        reason: 'User profile not found for Bankr Club check',
+        details: { fid }
+      };
+    }
+
+    const isBankrClubMember = profile.bankr_club_member === true;
+    const membershipUpdatedAt = profile.bankr_membership_updated_at;
+    const xUsername = profile.x_username;
+
+    // Check if membership data is recent (within last 7 days)
+    const isRecentCheck = membershipUpdatedAt && 
+      (new Date() - new Date(membershipUpdatedAt)) < (7 * 24 * 60 * 60 * 1000);
+
+    console.log('🏛️ Bankr Club membership check result:', {
+      fid,
+      isBankrClubMember,
+      isRecentCheck,
+      membershipUpdatedAt,
+      xUsername
+    });
+
+    return {
+      eligible: isBankrClubMember,
+      reason: isBankrClubMember 
+        ? 'User is a verified Bankr Club member'
+        : 'User is not a Bankr Club member',
+      details: {
+        fid,
+        bankr_club_member: isBankrClubMember,
+        x_username: xUsername,
+        membership_updated_at: membershipUpdatedAt,
+        is_recent_check: isRecentCheck,
+        check_age_days: membershipUpdatedAt ? 
+          Math.floor((new Date() - new Date(membershipUpdatedAt)) / (24 * 60 * 60 * 1000)) : null
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ Error in checkBankrClubGating:', error);
+    return {
+      eligible: false,
+      reason: `Bankr Club check failed: ${error.message}`,
+      details: { error: error.message, fid }
+    };
+  }
+}
+
+/**
  * Placeholder function for NFT balance checking
  * In production, integrate with Alchemy, Moralis, or direct blockchain calls
  */
@@ -808,6 +902,18 @@ export async function createExampleTokenGatedDiscounts() {
       max_uses_total: 100,
       discount_description: 'VIP 50% discount for special users',
       campaign_id: 'vip_users_2025',
+      code_type: 'promotional'
+    },
+    {
+      code: 'BANKRCLUB15',
+      discount_type: 'percentage',
+      discount_value: 15,
+      discount_scope: 'site_wide',
+      gating_type: 'bankr_club',
+      auto_apply: true,
+      priority_level: 12,
+      discount_description: '15% off for Bankr Club members',
+      campaign_id: 'bankr_club_members_2025',
       code_type: 'promotional'
     }
   ];
