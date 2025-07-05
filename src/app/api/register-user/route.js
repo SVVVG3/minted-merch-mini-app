@@ -27,42 +27,74 @@ export async function POST(request) {
         custody_address: walletData.custody_address,
         eth_count: walletData.verified_eth_addresses?.length || 0,
         sol_count: walletData.verified_sol_addresses?.length || 0,
-        total_addresses: walletData.all_wallet_addresses?.length || 0
+        total_addresses: walletData.all_wallet_addresses?.length || 0,
+        x_username: walletData.x_username,
+        verified_accounts_count: walletData.verified_accounts?.length || 0
       });
     } else {
       console.log('⚠️ Could not fetch wallet data for FID:', fid);
     }
 
-    // Check Bankr Club membership
+    // Check Bankr Club membership for BOTH Farcaster and X usernames
     console.log('🏦 Checking Bankr Club membership for user...');
     let bankrMembershipData = {
       bankr_club_member: false,
-      x_username: null,
+      x_username: walletData?.x_username || null,
       bankr_membership_updated_at: new Date().toISOString()
     };
 
     try {
-      const bankrResult = await checkBankrClubMembership(username);
-      console.log('Bankr Club membership result:', {
-        success: bankrResult.success,
-        found: bankrResult.found,
-        isMember: bankrResult.isMember
+      // Enhanced Bankr Club membership checking for BOTH platforms
+      let isBankrMember = false;
+      let membershipSource = null;
+      
+      // 1. Check Farcaster username first (existing flow)
+      console.log('🔮 Checking Bankr Club via Farcaster username:', username);
+      const farcasterBankrResult = await checkBankrClubMembership(username);
+      console.log('Farcaster Bankr result:', {
+        success: farcasterBankrResult.success,
+        found: farcasterBankrResult.found,
+        isMember: farcasterBankrResult.isMember
       });
 
-      if (bankrResult.success) {
-        bankrMembershipData.bankr_club_member = bankrResult.isMember;
-        
-        // Note: We don't have X username from Farcaster data, so we'll leave it null for now
-        // In the future, we could potentially ask users to provide their X username
-        
-        console.log('✅ Bankr Club membership status updated:', {
-          username: username,
-          isMember: bankrResult.isMember,
-          found: bankrResult.found
-        });
-      } else {
-        console.log('⚠️ Could not check Bankr Club membership:', bankrResult.error);
+      if (farcasterBankrResult.success && farcasterBankrResult.isMember) {
+        isBankrMember = true;
+        membershipSource = 'farcaster';
+        console.log('✅ User is Bankr Club member via Farcaster username');
       }
+
+      // 2. If no membership via Farcaster AND we have X username, check X as well
+      if (!isBankrMember && walletData?.x_username) {
+        console.log('🐦 Checking Bankr Club via X username:', walletData.x_username);
+        
+        // Import the X lookup function from bankrAPI
+        const { lookupUserByXUsername } = await import('@/lib/bankrAPI');
+        const xBankrResult = await lookupUserByXUsername(walletData.x_username);
+        
+        console.log('X Bankr result:', {
+          success: xBankrResult.success,
+          found: xBankrResult.found,
+          isMember: xBankrResult.isBankrClubMember
+        });
+
+        if (xBankrResult.success && xBankrResult.isBankrClubMember) {
+          isBankrMember = true;
+          membershipSource = 'x';
+          console.log('✅ User is Bankr Club member via X username');
+        }
+      }
+
+      // Update membership data with final result
+      bankrMembershipData.bankr_club_member = isBankrMember;
+      
+      console.log('🎯 Final Bankr Club membership status:', {
+        username: username,
+        x_username: walletData?.x_username,
+        isMember: isBankrMember,
+        source: membershipSource || 'not_found',
+        checked_platforms: membershipSource ? [membershipSource] : ['farcaster', walletData?.x_username ? 'x' : null].filter(Boolean)
+      });
+        
     } catch (bankrError) {
       console.error('Error checking Bankr Club membership:', bankrError);
       // Don't fail registration if Bankr check fails
@@ -93,6 +125,11 @@ export async function POST(request) {
       profileData.primary_sol_address = walletData.primary_sol_address;
       profileData.all_wallet_addresses = walletData.all_wallet_addresses;
       profileData.wallet_data_updated_at = walletData.wallet_data_updated_at;
+      // UPDATED: Store X username from wallet data (overrides the earlier assignment)
+      if (walletData.x_username) {
+        profileData.x_username = walletData.x_username;
+        console.log('📝 Storing X username from Neynar verified accounts:', walletData.x_username);
+      }
     }
 
     const { data: profile, error: profileError } = await supabase
@@ -165,10 +202,17 @@ export async function POST(request) {
       discountCode: discountCode, // Include discount code in response for debugging
       walletDataFetched: !!walletData, // Include wallet data status
       walletAddressCount: walletData?.all_wallet_addresses?.length || 0,
-      // Add Bankr Club membership info for debugging
+      // Enhanced Bankr Club membership info for debugging
       bankrClubMember: bankrMembershipData.bankr_club_member,
       bankrMembershipChecked: true,
-      bankrMembershipUpdatedAt: bankrMembershipData.bankr_membership_updated_at
+      bankrMembershipUpdatedAt: bankrMembershipData.bankr_membership_updated_at,
+      // ADDED: More detailed X username and verification info
+      xUsername: walletData?.x_username || null,
+      verifiedAccountsCount: walletData?.verified_accounts?.length || 0,
+      bankrCheckedPlatforms: {
+        farcaster: true,
+        x: !!(walletData?.x_username), // Only checked if X username was available
+      }
     });
 
   } catch (error) {

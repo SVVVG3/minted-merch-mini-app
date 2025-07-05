@@ -19,6 +19,9 @@ export function extractWalletDataFromNeynar(neynarUser) {
     const verifications = neynarUser.verifications || [];
     const verifiedAddresses = neynarUser.verified_addresses || {};
     
+    // ADDED: Extract verified social accounts (X/Twitter usernames)
+    const verifiedAccounts = neynarUser.verified_accounts || [];
+    
     // Get verified addresses arrays
     const verifiedEthAddresses = verifiedAddresses.eth_addresses || [];
     const verifiedSolAddresses = verifiedAddresses.sol_addresses || [];
@@ -26,6 +29,14 @@ export function extractWalletDataFromNeynar(neynarUser) {
     // Get primary addresses
     const primaryEthAddress = verifiedAddresses.primary?.eth_address || null;
     const primarySolAddress = verifiedAddresses.primary?.sol_address || null;
+    
+    // ADDED: Extract X/Twitter username if present
+    let xUsername = null;
+    const xAccount = verifiedAccounts.find(account => account.platform === 'x');
+    if (xAccount && xAccount.username) {
+      xUsername = xAccount.username;
+      console.log('🐦 Found verified X username:', xUsername);
+    }
     
     // Combine all addresses (custody + verified) and normalize to lowercase
     const allWalletAddresses = [];
@@ -63,6 +74,9 @@ export function extractWalletDataFromNeynar(neynarUser) {
       primary_eth_address: primaryEthAddress,
       primary_sol_address: primarySolAddress,
       all_wallet_addresses: allWalletAddresses,
+      // ADDED: Include X username and verified accounts data
+      x_username: xUsername,
+      verified_accounts: verifiedAccounts,
       wallet_data_updated_at: new Date().toISOString()
     };
 
@@ -72,7 +86,9 @@ export function extractWalletDataFromNeynar(neynarUser) {
       verified_sol_count: verifiedSolAddresses.length,
       total_addresses: allWalletAddresses.length,
       primary_eth: primaryEthAddress,
-      primary_sol: primarySolAddress
+      primary_sol: primarySolAddress,
+      x_username: xUsername, // ADDED
+      verified_accounts_count: verifiedAccounts.length // ADDED
     });
 
     return walletData;
