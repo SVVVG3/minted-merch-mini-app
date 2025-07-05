@@ -113,7 +113,10 @@ export async function POST(request) {
       // Add Bankr Club membership data
       bankr_club_member: bankrMembershipData.bankr_club_member,
       x_username: bankrMembershipData.x_username,
-      bankr_membership_updated_at: bankrMembershipData.bankr_membership_updated_at
+      bankr_membership_updated_at: bankrMembershipData.bankr_membership_updated_at,
+      // Add email field (will be populated later from order data via triggers)
+      email: null, // Will be updated automatically when user places orders
+      email_updated_at: null
     };
 
     // Add wallet data if available
@@ -212,7 +215,11 @@ export async function POST(request) {
       bankrCheckedPlatforms: {
         farcaster: true,
         x: !!(walletData?.x_username), // Only checked if X username was available
-      }
+      },
+      // ADDED: Email field info for debugging
+      email: profile?.email || null,
+      emailUpdatedAt: profile?.email_updated_at || null,
+      emailWillBeUpdatedFromOrders: true
     });
 
   } catch (error) {
