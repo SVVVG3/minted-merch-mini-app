@@ -430,7 +430,7 @@ export async function POST(request) {
         try {
           const markUsedResult = await markDiscountCodeAsUsed(
             appliedDiscount.code, 
-            supabaseOrder.order_id,
+            supabaseOrder.order.order_id,
             fidInt,
             discountAmount || 0,
             subtotalPrice
@@ -450,7 +450,7 @@ export async function POST(request) {
       // Send order confirmation notification (only if FID provided and Supabase order created)
       if (fidInt && supabaseOrder?.success !== false) {
         try {
-          await sendOrderConfirmationNotificationAndMark(supabaseOrder);
+          await sendOrderConfirmationNotificationAndMark(supabaseOrder.order);
           console.log('✅ Order confirmation notification sent');
         } catch (notificationError) {
           console.error('❌ Failed to send order confirmation notification:', notificationError);
