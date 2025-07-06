@@ -408,7 +408,8 @@ export function ProductDetail({
                   {productDiscount.code?.startsWith('WELCOME') ? (
                     `${productDiscount.displayText} welcome discount`
                   ) : (productDiscount.gating_type && productDiscount.gating_type !== 'none') ? (
-                    `${productDiscount.displayText} token-gated discount`
+                    // Use the specific discount_description for token-gated discounts
+                    productDiscount.discount_description || `${productDiscount.displayText} token-gated discount`
                   ) : (
                     <>
                       {productDiscount.displayText} with code: <span className="font-mono bg-white px-2 py-1 rounded border text-sm">{productDiscount.code}</span>
@@ -416,9 +417,20 @@ export function ProductDetail({
                   )}
                 </div>
                 
-                {/* Description - Hide for token-gated discounts */}
+                {/* Description - Show for all discounts when available */}
                 {productDiscount.description && !productDiscount.code?.startsWith('WELCOME') && !(productDiscount.gating_type && productDiscount.gating_type !== 'none') && (
                   <p className="text-sm text-gray-600 mb-3">{productDiscount.description}</p>
+                )}
+                
+                {/* Show additional details for token-gated discounts */}
+                {(productDiscount.gating_type && productDiscount.gating_type !== 'none') && productDiscount.gating_type !== 'bankr_club' && (
+                  <p className="text-sm text-gray-600 mb-3">
+                    {productDiscount.gating_type === 'nft_holding' ? 'For NFT holders' :
+                     productDiscount.gating_type === 'token_balance' ? 'For token holders' :
+                     productDiscount.gating_type === 'whitelist_fid' ? 'For VIP members' :
+                     productDiscount.gating_type === 'whitelist_wallet' ? 'For whitelisted wallets' :
+                     'Special eligibility required'}
+                  </p>
                 )}
                 
                 {/* Footer Info */}
