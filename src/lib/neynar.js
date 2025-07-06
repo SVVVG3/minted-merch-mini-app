@@ -217,7 +217,7 @@ export async function sendNotificationToUsers(targetFids, notification) {
       target_fids: targetFids,
       notification: {
         ...notification,
-        uuid: notification.uuid || `notification-${Date.now()}`
+        uuid: notification.uuid || generateUUID()
       }
     };
 
@@ -372,7 +372,7 @@ export async function sendOrderConfirmationNotification(userFid, orderDetails) {
       title: "📦 Minted Merch Order Confirmed!",
       body: `Your order ${orderDetails.orderId} confirmed. Total: ${orderDetails.amount} ${orderDetails.currency}. We'll notify you when it ships!`,
       target_url: `https://mintedmerch.vercel.app`,
-      uuid: `order-confirmation-${orderDetails.orderId.replace('#', '')}-${Date.now()}`
+      uuid: generateUUID()
     };
 
     console.log('Sending notification via Neynar:', notification);
