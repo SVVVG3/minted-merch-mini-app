@@ -237,6 +237,7 @@ export async function POST(request) {
           shippingLines,
           transactionHash,
           notes: notes || '',
+          userFid: fidInt, // Add FID to include in order notes
           discountCodes: appliedDiscount ? [{
             code: appliedDiscount.code,
             amount: discountAmountValue,

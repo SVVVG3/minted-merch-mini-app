@@ -61,7 +61,8 @@ export async function createShopifyOrder(orderData) {
     totalTax,
     shippingLines,
     transactionHash,
-    notes = ''
+    notes = '',
+    userFid
   } = orderData;
 
   const mutation = `
@@ -170,7 +171,7 @@ export async function createShopifyOrder(orderData) {
       },
       email: customer.email || '',
       phone: customer.phone || shippingAddress.phone || '',
-      note: notes ? `${notes}\n\nPaid with USDC on Base Network\nTransaction Hash: ${transactionHash}` : `Paid with USDC on Base Network\nTransaction Hash: ${transactionHash}`,
+      note: notes ? `${notes}\n\nPaid with USDC on Base Network\nTransaction Hash: ${transactionHash}${userFid ? `\nFarcaster FID: ${userFid}` : ''}` : `Paid with USDC on Base Network\nTransaction Hash: ${transactionHash}${userFid ? `\nFarcaster FID: ${userFid}` : ''}`,
       shippingLines: shippingLines ? [{
         title: shippingLines.title,
         priceSet: {
