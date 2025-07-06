@@ -305,45 +305,69 @@ export function CartProvider({ children }) {
         
         // For product-specific discounts, only apply to qualifying products
         if (activeDiscount.source === 'product_specific_api' && activeDiscount.code === code) {
-          // Find products that match the discount - look for products with handles that match the discount
-          // For now, we'll identify Tiny Hyper Tee specifically since that's the main case
-          let qualifyingSubtotal = 0;
+          console.log(`🎯 Processing product-specific discount: ${code}`);
           
-          // CRITICAL FIX: Track discount across ALL variants of same product
-          let discountAppliedCount = 0; // Track how many items have gotten the discount
-          const maxDiscountableItems = 1; // Only 1 item total gets the discount
+          // Get the target products from the active discount data
+          const targetProducts = activeDiscount.target_products || [];
+          console.log(`🎯 Target products for ${code}:`, targetProducts);
+          
+          let qualifyingSubtotal = 0;
+          let discountAppliedCount = 0;
+          
+          // For 100% discounts, limit to 1 item per discount to prevent abuse
+          const isFullDiscount = discountValue >= 100;
+          const maxDiscountableItems = isFullDiscount ? 1 : 999; // No limit for partial discounts
           
           cart.items.forEach(item => {
             const productHandle = item.product?.handle;
             const productTitle = item.product?.title || item.title;
             
-            // Check if this product qualifies for the SNAPSHOT-TINY-HYPER-FREE discount
-            if (code === 'SNAPSHOT-TINY-HYPER-FREE') {
-              if (productHandle === 'tiny-hyper-tee' || productTitle?.includes('Tiny Hyper Tee')) {
-                // Only apply discount if we haven't reached the limit across all variants
-                if (discountAppliedCount < maxDiscountableItems) {
-                  const remainingDiscountableItems = maxDiscountableItems - discountAppliedCount;
-                  const discountableQuantity = Math.min(remainingDiscountableItems, item.quantity);
-                  const discountableAmount = item.price * discountableQuantity;
-                  
-                  qualifyingSubtotal += discountableAmount;
-                  discountAppliedCount += discountableQuantity;
-                  
-                  console.log(`💰 Product qualifies for discount: ${productTitle} (${discountableQuantity} of ${item.quantity} items = $${discountableAmount.toFixed(2)}) [Total discounted so far: ${discountAppliedCount}]`);
-                } else {
-                  console.log(`⏭️ Product qualifies but discount limit reached: ${productTitle} (0 of ${item.quantity} items discounted)`);
-                }
+            console.log(`🔍 Checking item: ${productTitle} (handle: ${productHandle})`);
+            
+            // Check if this product qualifies for the discount
+            let qualifies = false;
+            
+            if (targetProducts.length > 0) {
+              // Check against target_products array (handles or IDs)
+              qualifies = targetProducts.some(target => {
+                // Check handle match
+                if (productHandle && productHandle === target) return true;
+                // Check title match (partial)
+                if (productTitle && productTitle.toLowerCase().includes(target.toLowerCase())) return true;
+                // Check exact title match
+                if (productTitle && productTitle === target) return true;
+                return false;
+              });
+            } else {
+              // Fallback: check specific discount codes
+              if (code === 'SNAPSHOT-TINY-HYPER-FREE') {
+                qualifies = productHandle === 'tiny-hyper-tee' || productTitle?.includes('Tiny Hyper Tee');
+              } else if (code.includes('BANKR')) {
+                qualifies = productHandle === 'bankr-cap' || productHandle === 'bankr-hoodie' || 
+                           productTitle?.includes('Bankr');
+              }
+            }
+            
+            if (qualifies) {
+              // Only apply discount if we haven't reached the limit
+              if (discountAppliedCount < maxDiscountableItems) {
+                const remainingDiscountableItems = maxDiscountableItems - discountAppliedCount;
+                const discountableQuantity = Math.min(remainingDiscountableItems, item.quantity);
+                const discountableAmount = item.price * discountableQuantity;
+                
+                qualifyingSubtotal += discountableAmount;
+                discountAppliedCount += discountableQuantity;
+                
+                console.log(`✅ Product qualifies: ${productTitle} (${discountableQuantity} of ${item.quantity} items = $${discountableAmount.toFixed(2)}) [Total discounted: ${discountAppliedCount}]`);
               } else {
-                console.log(`❌ Product does NOT qualify for discount: ${productTitle}`);
+                console.log(`⏭️ Product qualifies but discount limit reached: ${productTitle} (0 of ${item.quantity} items discounted)`);
               }
             } else {
-              // For other product-specific discounts, we'd need to implement similar logic
-              // For now, fall back to the original behavior
-              qualifyingSubtotal = cartSubtotal;
+              console.log(`❌ Product does NOT qualify: ${productTitle}`);
             }
           });
           
-          console.log(`🎯 Qualifying subtotal for ${code}: $${qualifyingSubtotal.toFixed(2)} (vs cart total: $${cartSubtotal.toFixed(2)})`);
+          console.log(`💰 Qualifying subtotal for ${code}: $${qualifyingSubtotal.toFixed(2)} (vs cart total: $${cartSubtotal.toFixed(2)})`);
           
           // Calculate discount only on qualifying products
           if (discountType === 'percentage') {
@@ -357,7 +381,8 @@ export function CartProvider({ children }) {
       console.error('Error calculating product-aware discount:', error);
     }
     
-    // Fallback to original calculation for non-product-specific discounts
+    // Fallback for site-wide discounts or when product-specific logic fails
+    console.log(`🌐 Applying site-wide discount calculation for ${code}`);
     if (discountType === 'percentage') {
       return (cartSubtotal * discountValue) / 100;
     } else if (discountType === 'fixed') {

@@ -364,70 +364,53 @@ export async function sendOrderConfirmationNotification(userFid, orderDetails) {
     return { success: false, error: 'Neynar not configured' };
   }
 
-  // Check if user has active notification token via Neynar API
-  try {
-    const tokenCheck = await checkUserNotificationStatus(userFid);
-    if (!tokenCheck.hasNotifications) {
-      console.log('User does not have active notification token, skipping order confirmation');
-      return { 
-        success: false, 
-        error: 'User has not enabled notifications',
-        status: 'token_not_found'
-      };
-    }
-  } catch (error) {
-    console.error('Error checking notification token:', error);
-    return { success: false, error: 'Failed to check notification permissions' };
-  }
-
   try {
     console.log('Sending order confirmation notification to user FID:', userFid);
+    console.log('Order details:', orderDetails);
     
     const notification = {
       title: "📦 Minted Merch Order Confirmed!",
       body: `Your order ${orderDetails.orderId} confirmed. Total: ${orderDetails.amount} ${orderDetails.currency}. We'll notify you when it ships!`,
       target_url: `https://mintedmerch.vercel.app`,
-      uuid: generateUUID()
+      uuid: `order-confirmation-${orderDetails.orderId}-${Date.now()}`
     };
 
-    const requestBody = {
-      target_fids: [userFid],
+    console.log('Sending notification via Neynar:', notification);
+
+    const response = await neynarClient.publishFrameNotifications({
+      targetFids: [userFid],
       notification: notification
-    };
-
-    const response = await fetch(`${NEYNAR_BASE_URL}/v2/farcaster/frame/notifications/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': NEYNAR_API_KEY
-      },
-      body: JSON.stringify(requestBody)
     });
 
-    const responseData = await response.json();
-    console.log('Order confirmation notification response:', responseData);
-
-    if (!response.ok) {
-      console.error('Order confirmation notification failed:', response.status, responseData);
-      return {
-        success: false,
-        error: `Neynar API error: ${response.status}`,
-        details: responseData
-      };
-    }
-
-    const deliveries = responseData.notification_deliveries || [];
-    const userDelivery = deliveries.find(d => d.fid === userFid);
-
-    return {
-      success: userDelivery?.status === 'success',
-      delivery: userDelivery,
-      notificationId: notification.uuid
+    console.log('Order confirmation notification sent successfully:', response);
+    return { 
+      success: true, 
+      data: response,
+      notificationId: notification.uuid,
+      delivery: 'sent_via_neynar_managed'
     };
 
   } catch (error) {
-    console.error('Error sending order confirmation notification:', error);
-    return { success: false, error: error.message };
+    console.error('❌ Error sending order confirmation notification:', error);
+    console.error('Full error details:', error.response?.data || error);
+    
+    // If the error indicates user has not enabled notifications, that's expected behavior
+    if (error.message && (error.message.includes('notification') || error.message.includes('token'))) {
+      console.log('User notifications not enabled - this is normal, Neynar will handle appropriately');
+      return { 
+        success: true, 
+        skipped: true, 
+        reason: 'User has not enabled notifications',
+        delivery: 'handled_by_neynar'
+      };
+    }
+    
+    return { 
+      success: false, 
+      error: error.message, 
+      details: error.response?.data,
+      delivery: 'failed'
+    };
   }
 }
 
