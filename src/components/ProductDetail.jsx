@@ -383,23 +383,6 @@ export function ProductDetail({
                     {productDiscount.displayText}
                   </div>
                 </div>
-
-                {/* Discount Type Badge */}
-                {(productDiscount.gating_type && productDiscount.gating_type !== 'none') && (
-                  <div className="mb-3">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                      productDiscount.gating_type === 'nft_holding' ? 'bg-purple-100 text-purple-700' :
-                      productDiscount.gating_type === 'token_balance' ? 'bg-blue-100 text-blue-700' :
-                      productDiscount.gating_type === 'whitelist_fid' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {productDiscount.gating_type === 'nft_holding' ? 'NFT Holder' :
-                       productDiscount.gating_type === 'token_balance' ? 'Token Holder' :
-                       productDiscount.gating_type === 'whitelist_fid' ? 'VIP Member' :
-                       'Special Access'}
-                    </span>
-                  </div>
-                )}
                 
                 {/* Main Discount Message */}
                 <div className={`text-base font-semibold text-gray-900 mb-2 ${
@@ -420,17 +403,6 @@ export function ProductDetail({
                 {/* Description - Show for all discounts when available */}
                 {productDiscount.description && !productDiscount.code?.startsWith('WELCOME') && !(productDiscount.gating_type && productDiscount.gating_type !== 'none') && (
                   <p className="text-sm text-gray-600 mb-3">{productDiscount.description}</p>
-                )}
-                
-                {/* Show additional details for token-gated discounts */}
-                {(productDiscount.gating_type && productDiscount.gating_type !== 'none') && productDiscount.gating_type !== 'bankr_club' && (
-                  <p className="text-sm text-gray-600 mb-3">
-                    {productDiscount.gating_type === 'nft_holding' ? 'For NFT holders' :
-                     productDiscount.gating_type === 'token_balance' ? 'For token holders' :
-                     productDiscount.gating_type === 'whitelist_fid' ? 'For VIP members' :
-                     productDiscount.gating_type === 'whitelist_wallet' ? 'For whitelisted wallets' :
-                     'Special eligibility required'}
-                  </p>
                 )}
                 
                 {/* Footer Info */}
@@ -460,9 +432,9 @@ export function ProductDetail({
                   )}
                 </div>
                 
-                {/* Auto-apply notice */}
+                {/* Auto-apply notice - Shortened text */}
                 <div className="mt-3 p-2 bg-white/50 rounded text-xs text-gray-600 text-center">
-                  💡 This discount will be applied automatically in your cart
+                  💡 Discount will be applied automatically in your cart
                 </div>
               </div>
             )}
