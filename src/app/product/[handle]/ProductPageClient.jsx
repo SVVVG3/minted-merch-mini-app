@@ -61,6 +61,7 @@ export function ProductPageClient({ handle }) {
           code: bestDiscount.code,
           displayText: bestDiscount.displayText,
           description: bestDiscount.description,
+          discount_description: bestDiscount.discount_description,
           scope: bestDiscount.discount_scope || bestDiscount.scope,
           gating_type: bestDiscount.gating_type,
           isTokenGated: bestDiscount.isTokenGated,
@@ -79,7 +80,8 @@ export function ProductPageClient({ handle }) {
           timestamp: new Date().toISOString(),
           isTokenGated: bestDiscount.isTokenGated,
           gatingType: bestDiscount.gating_type,
-          description: bestDiscount.description
+          description: bestDiscount.description,
+          discount_description: bestDiscount.discount_description
         }));
         
       } else if (farcasterUser?.fid) {
