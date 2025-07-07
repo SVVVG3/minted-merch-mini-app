@@ -413,7 +413,15 @@ export function Cart({ isOpen, onClose }) {
               {/* Total */}
               <div className="flex justify-between items-center text-lg font-semibold border-t pt-2">
                 <span>Total:</span>
-                <span>${cartTotal.toFixed(2)} USD</span>
+                <span>
+                  {(() => {
+                    // Apply minimum charge logic for free shipping + 100% discount
+                    if (cartTotal === 0 && cart.appliedDiscount?.freeShipping && cart.appliedDiscount?.discountValue >= 100) {
+                      return <span className="text-green-600">$0.01 <span className="text-xs">(min processing fee)</span></span>;
+                    }
+                    return `$${cartTotal.toFixed(2)} USD`;
+                  })()}
+                </span>
               </div>
             </div>
 

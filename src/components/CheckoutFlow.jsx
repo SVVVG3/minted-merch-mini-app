@@ -106,7 +106,14 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     }
     
     // Calculate total but ensure it never goes negative
-    const finalTotal = Math.max(0, subtotal - discount + shipping + tax);
+    let finalTotal = Math.max(0, subtotal - discount + shipping + tax);
+    
+    // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
+    if (finalTotal === 0 && appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100) {
+      finalTotal = 0.01;
+      console.log('💰 Applied minimum charge of $0.01 for free giveaway order processing');
+    }
+    
     return finalTotal;
   };
 
@@ -422,9 +429,15 @@ Transaction Hash: ${transactionHash}`;
           shippingCost = 0;
         }
         
-        const finalOrderTotal = appliedDiscount 
+        let finalOrderTotal = appliedDiscount 
           ? cart.checkout.subtotal.amount - calculateProductAwareDiscountAmount() + calculateAdjustedTax() + shippingCost
           : cart.checkout.subtotal.amount + calculateAdjustedTax() + shippingCost;
+        
+        // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
+        if (finalOrderTotal === 0 && appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100) {
+          finalOrderTotal = 0.01;
+          console.log('💰 Applied minimum charge of $0.01 for free giveaway order processing');
+        }
         
         // Create order details object
         const orderDetailsData = {
@@ -606,7 +619,7 @@ Transaction Hash: ${transactionHash}`;
           const isFreeWithShipping = appliedDiscount?.discountValue >= 100 && appliedDiscount?.freeShipping;
           
           if (isFreeWithShipping) {
-            return 'Checkout (FREE with Free Shipping!)';
+            return 'Checkout (FREE + $0.01 processing fee)';
           } else if (appliedDiscount?.freeShipping) {
             return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
           } else if (appliedDiscount) {
@@ -693,7 +706,11 @@ Transaction Hash: ${transactionHash}`;
                         <span>Total</span>
                         <span>
                           {appliedDiscount && appliedDiscount.discountValue >= 100 ? (
-                            <span className="text-green-600">FREE</span>
+                            appliedDiscount.freeShipping ? (
+                              <span className="text-green-600">$0.01 <span className="text-xs">(min processing fee)</span></span>
+                            ) : (
+                              <span className="text-green-600">FREE</span>
+                            )
                           ) : (
                             `$${cartTotal.toFixed(2)}`
                           )}
@@ -772,7 +789,7 @@ Transaction Hash: ${transactionHash}`;
                       {appliedDiscount && (
                         <div className="flex justify-between text-sm text-green-600">
                           <span>Discount ({appliedDiscount.discountValue}%)</span>
-                          <span>-${appliedDiscount.discountAmount.toFixed(2)}</span>
+                          <span>-${calculateProductAwareDiscountAmount().toFixed(2)}</span>
                         </div>
                       )}
                       {cart.checkout && (
@@ -852,7 +869,7 @@ Transaction Hash: ${transactionHash}`;
                             <span>
                               ${(() => {
                                 const subtotal = cart.checkout.subtotal.amount;
-                                const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
+                                const discount = calculateProductAwareDiscountAmount();
                                 let shipping = cart.selectedShipping.price.amount;
                                 
                                 // Override shipping to 0 if discount includes free shipping
@@ -862,7 +879,14 @@ Transaction Hash: ${transactionHash}`;
                                 
                                 const discountedSubtotal = subtotal - discount;
                                 const adjustedTax = calculateAdjustedTax();
-                                return (discountedSubtotal + shipping + adjustedTax).toFixed(2);
+                                let finalTotal = Math.max(0, discountedSubtotal + shipping + adjustedTax);
+                                
+                                // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
+                                if (finalTotal === 0 && appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100) {
+                                  finalTotal = 0.01;
+                                }
+                                
+                                return finalTotal.toFixed(2);
                               })()} USDC
                             </span>
                           </div>
