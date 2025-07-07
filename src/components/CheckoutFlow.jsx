@@ -96,8 +96,14 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     
     const subtotal = cart.checkout.subtotal.amount;
     const discount = calculateProductAwareDiscountAmount();
-    const shipping = cart.selectedShipping.price.amount;
+    let shipping = cart.selectedShipping.price.amount;
     const tax = calculateAdjustedTax();
+    
+    // Override shipping to 0 if discount includes free shipping
+    if (appliedDiscount?.freeShipping) {
+      shipping = 0;
+      console.log('🚚 Free shipping applied - shipping cost set to $0');
+    }
     
     // Calculate total but ensure it never goes negative
     const finalTotal = Math.max(0, subtotal - discount + shipping + tax);
@@ -186,6 +192,27 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       
       if (!checkoutData.total || !checkoutData.subtotal) {
         throw new Error('Invalid checkout data: missing required fields');
+      }
+      
+      // Check if applied discount includes free shipping
+      if (appliedDiscount && appliedDiscount.freeShipping) {
+        console.log('🚚 Free shipping discount detected, adding free shipping option');
+        
+        // Add free shipping option to the beginning of shipping rates
+        const freeShippingOption = {
+          handle: 'discount-free-shipping',
+          title: 'FREE Shipping (Discount Applied)',
+          price: { amount: 0, currencyCode: 'USD' },
+          description: 'Free shipping provided by discount code'
+        };
+        
+        // Add free shipping as first option and remove duplicates
+        checkoutData.shippingRates = [
+          freeShippingOption,
+          ...checkoutData.shippingRates.filter(rate => rate.price.amount > 0)
+        ];
+        
+        console.log('🚚 Updated shipping rates with free shipping:', checkoutData.shippingRates);
       }
       
       // Save checkout data to cart context
@@ -387,10 +414,17 @@ Transaction Hash: ${transactionHash}`;
       if (result.success) {
         console.log('Order created successfully:', result.order.name);
         
-        // Calculate final total with discount
+        // Calculate final total with discount and free shipping
+        let shippingCost = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
+        
+        // Override shipping to 0 if discount includes free shipping
+        if (appliedDiscount?.freeShipping) {
+          shippingCost = 0;
+        }
+        
         const finalOrderTotal = appliedDiscount 
-          ? cart.checkout.subtotal.amount - calculateProductAwareDiscountAmount() + calculateAdjustedTax() + (cart.selectedShipping ? cart.selectedShipping.price.amount : 0)
-          : cart.checkout.subtotal.amount + calculateAdjustedTax() + (cart.selectedShipping ? cart.selectedShipping.price.amount : 0);
+          ? cart.checkout.subtotal.amount - calculateProductAwareDiscountAmount() + calculateAdjustedTax() + shippingCost
+          : cart.checkout.subtotal.amount + calculateAdjustedTax() + shippingCost;
         
         // Create order details object
         const orderDetailsData = {
@@ -545,6 +579,18 @@ Transaction Hash: ${transactionHash}`;
     updateSelectedShipping(shippingMethod);
   };
 
+  // Auto-select free shipping when discount includes it
+  useEffect(() => {
+    if (cart.checkout?.shippingRates && appliedDiscount?.freeShipping && !cart.selectedShipping) {
+      // Find the free shipping option
+      const freeShippingOption = cart.checkout.shippingRates.find(rate => rate.price.amount === 0);
+      if (freeShippingOption) {
+        console.log('🚚 Auto-selecting free shipping option:', freeShippingOption);
+        updateSelectedShipping(freeShippingOption);
+      }
+    }
+  }, [cart.checkout?.shippingRates, appliedDiscount?.freeShipping, cart.selectedShipping]);
+
   // Don't render if no items in cart
   if (!hasItems) return null;
 
@@ -556,11 +602,19 @@ Transaction Hash: ${transactionHash}`;
         disabled={!hasItems || !isConnected}
         className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
       >
-        {!isConnected ? 'Connect Wallet to Pay' : (
-          appliedDiscount 
-            ? `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`
-            : `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`
-        )}
+        {!isConnected ? 'Connect Wallet to Pay' : (() => {
+          const isFreeWithShipping = appliedDiscount?.discountValue >= 100 && appliedDiscount?.freeShipping;
+          
+          if (isFreeWithShipping) {
+            return 'Checkout (FREE with Free Shipping!)';
+          } else if (appliedDiscount?.freeShipping) {
+            return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
+          } else if (appliedDiscount) {
+            return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
+          } else {
+            return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
+          }
+        })()}
       </button>
 
       {/* Checkout Modal */}
@@ -637,11 +691,21 @@ Transaction Hash: ${transactionHash}`;
                       )}
                       <div className="flex justify-between font-medium">
                         <span>Total</span>
-                        <span>${cartTotal.toFixed(2)}</span>
+                        <span>
+                          {appliedDiscount && appliedDiscount.discountValue >= 100 ? (
+                            <span className="text-green-600">FREE</span>
+                          ) : (
+                            `$${cartTotal.toFixed(2)}`
+                          )}
+                        </span>
                       </div>
                     </div>
                     <div className="text-sm text-gray-600">
-                      Shipping and taxes will be calculated in the next step
+                      {appliedDiscount?.freeShipping ? (
+                        <span className="text-green-600 font-medium">Free shipping included! Taxes will be calculated in the next step</span>
+                      ) : (
+                        'Shipping and taxes will be calculated in the next step'
+                      )}
                     </div>
                   </div>
                   
@@ -772,7 +836,7 @@ Transaction Hash: ${transactionHash}`;
                           <div className="flex justify-between text-sm">
                             <span>Shipping ({cart.selectedShipping.title})</span>
                             <span>
-                              {cart.selectedShipping.price.amount === 0 ? (
+                              {cart.selectedShipping.price.amount === 0 || appliedDiscount?.freeShipping ? (
                                 <span className="text-green-600 font-medium">FREE</span>
                               ) : (
                                 `$${cart.selectedShipping.price.amount.toFixed(2)}`
@@ -789,7 +853,13 @@ Transaction Hash: ${transactionHash}`;
                               ${(() => {
                                 const subtotal = cart.checkout.subtotal.amount;
                                 const discount = appliedDiscount ? appliedDiscount.discountAmount : 0;
-                                const shipping = cart.selectedShipping.price.amount;
+                                let shipping = cart.selectedShipping.price.amount;
+                                
+                                // Override shipping to 0 if discount includes free shipping
+                                if (appliedDiscount?.freeShipping) {
+                                  shipping = 0;
+                                }
+                                
                                 const discountedSubtotal = subtotal - discount;
                                 const adjustedTax = calculateAdjustedTax();
                                 return (discountedSubtotal + shipping + adjustedTax).toFixed(2);
@@ -883,7 +953,7 @@ Transaction Hash: ${transactionHash}`;
                         <div className="flex justify-between text-sm">
                           <span>Shipping ({cart.selectedShipping.title})</span>
                           <span>
-                            {cart.selectedShipping.price.amount === 0 ? (
+                            {cart.selectedShipping.price.amount === 0 || appliedDiscount?.freeShipping ? (
                               <span className="text-green-600 font-medium">FREE</span>
                             ) : (
                               `$${cart.selectedShipping.price.amount.toFixed(2)}`
