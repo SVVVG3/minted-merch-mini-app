@@ -173,6 +173,9 @@ export async function POST(request) {
     
     const shippingPrice = parseFloat(selectedShipping.price.amount);
     const totalPrice = subtotalAfterDiscount + adjustedTax + shippingPrice;
+    
+    // Apply minimum charge for payment processing (consistent with frontend logic)
+    const finalTotalPrice = totalPrice <= 0.01 ? 0.01 : totalPrice;
 
     console.log(`💰 [${requestId}] Discount calculation (shared):`, {
       originalSubtotal: subtotalPrice,
@@ -182,7 +185,9 @@ export async function POST(request) {
       adjustedTax: adjustedTax,
       shippingPrice: shippingPrice,
       finalTotal: totalPrice,
-      isFullDiscount: subtotalAfterDiscount === 0
+      finalTotalWithMinCharge: finalTotalPrice,
+      isFullDiscount: subtotalAfterDiscount === 0,
+      minChargeApplied: totalPrice <= 0.01
     });
 
     // Format line items for Shopify (shared data)
@@ -231,7 +236,7 @@ export async function POST(request) {
             email: customer?.email || shippingAddress.email || '',
             phone: customer?.phone || shippingAddress.phone || ''
           },
-          totalPrice,
+          totalPrice: finalTotalPrice,
           subtotalPrice: subtotalAfterDiscount, // Use discounted subtotal
           totalTax: adjustedTax, // Use tax adjusted for discount
           shippingLines,
@@ -254,7 +259,8 @@ export async function POST(request) {
             price: item.price,
             quantity: item.quantity
           })),
-          totalPrice,
+          totalPrice: finalTotalPrice,
+          originalTotalPrice: totalPrice,
           subtotalAfterDiscount,
           adjustedTax,
           shippingPrice,
@@ -336,7 +342,7 @@ export async function POST(request) {
           sessionId: null,
           status: 'paid',
           currency: 'USDC',
-          amountTotal: parseFloat(shopifyOrder.totalPrice),
+          amountTotal: finalTotalPrice,
           amountSubtotal: subtotalAfterDiscount, // Use the already calculated discounted subtotal
           amountTax: adjustedTax, // Use the already calculated adjusted tax
           amountShipping: parseFloat(selectedShipping.price.amount),
@@ -434,7 +440,7 @@ export async function POST(request) {
             supabaseOrder.order.order_id,
             fidInt,
             discountAmount || 0,
-            subtotalPrice
+            subtotalPrice // Use original subtotal for discount calculation
           );
           if (markUsedResult.success) {
             console.log('✅ Discount code marked as used:', appliedDiscount.code);
