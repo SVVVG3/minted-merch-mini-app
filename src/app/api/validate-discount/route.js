@@ -66,7 +66,10 @@ export async function POST(request) {
       discountValue: validationResult.discountValue,
       discountAmount: discountResult.discountAmount,
       finalTotal: discountResult.finalTotal,
-      message: `${validationResult.discountValue}% discount applied!`,
+      freeShipping: validationResult.freeShipping || false,
+      message: validationResult.freeShipping 
+        ? `${validationResult.discountValue}% discount + FREE shipping applied!`
+        : `${validationResult.discountValue}% discount applied!`,
       requiresAuth: validationResult.requiresAuth || false
     });
 
@@ -124,7 +127,10 @@ export async function GET(request) {
       discountAmount: discountResult.discountAmount,
       subtotal: subtotal,
       finalAmount: discountResult.finalTotal,
-      message: `${validationResult.discountValue}% discount applied!`,
+      freeShipping: validationResult.freeShipping || false,
+      message: validationResult.freeShipping 
+        ? `${validationResult.discountValue}% discount + FREE shipping applied!`
+        : `${validationResult.discountValue}% discount applied!`,
       requiresAuth: validationResult.requiresAuth || false
     });
 

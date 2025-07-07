@@ -271,7 +271,8 @@ export async function validateDiscountCode(code, fid = null) {
       discountType: discountCode.discount_type,
       discountValue: discountCode.discount_value,
       minimumOrderAmount: discountCode.minimum_order_amount,
-      isSharedCode: discountCode.is_shared_code || false
+      isSharedCode: discountCode.is_shared_code || false,
+      freeShipping: discountCode.free_shipping || false
     };
 
   } catch (error) {
@@ -283,44 +284,55 @@ export async function validateDiscountCode(code, fid = null) {
 /**
  * Calculate discount amount for an order
  */
-export function calculateDiscountAmount(subtotal, discountCode) {
+export function calculateDiscountAmount(subtotal, discountCode, shippingAmount = 0) {
   try {
     if (!discountCode || !discountCode.isValid) {
-      return { discountAmount: 0, finalTotal: subtotal };
+      return { discountAmount: 0, finalTotal: subtotal, shippingDiscount: 0 };
     }
 
-    const { discountType, discountValue, minimumOrderAmount } = discountCode;
+    const { discountType, discountValue, minimumOrderAmount, freeShipping } = discountCode;
 
     // Check minimum order amount
     if (minimumOrderAmount && subtotal < minimumOrderAmount) {
       return { 
         discountAmount: 0, 
         finalTotal: subtotal,
+        shippingDiscount: 0,
         error: `Minimum order amount of $${minimumOrderAmount} required for this discount`
       };
     }
 
     let discountAmount = 0;
+    let shippingDiscount = 0;
 
+    // Calculate product discount
     if (discountType === 'percentage') {
       discountAmount = (subtotal * discountValue) / 100;
     } else if (discountType === 'fixed') {
       discountAmount = Math.min(discountValue, subtotal); // Don't exceed subtotal
     }
 
+    // Calculate shipping discount
+    if (freeShipping && shippingAmount > 0) {
+      shippingDiscount = shippingAmount;
+    }
+
     // Round to 2 decimal places
     discountAmount = Math.round(discountAmount * 100) / 100;
+    shippingDiscount = Math.round(shippingDiscount * 100) / 100;
     const finalTotal = Math.max(0, subtotal - discountAmount);
 
     return {
       discountAmount: discountAmount,
+      shippingDiscount: shippingDiscount,
       finalTotal: finalTotal,
-      discountPercentage: discountType === 'percentage' ? discountValue : null
+      discountPercentage: discountType === 'percentage' ? discountValue : null,
+      freeShipping: freeShipping || false
     };
 
   } catch (error) {
     console.error('Error calculating discount amount:', error);
-    return { discountAmount: 0, finalTotal: subtotal, error: error.message };
+    return { discountAmount: 0, finalTotal: subtotal, shippingDiscount: 0, error: error.message };
   }
 }
 

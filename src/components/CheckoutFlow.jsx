@@ -742,7 +742,13 @@ Transaction Hash: ${transactionHash}`;
                                   )}
                                 </div>
                               </div>
-                              <div className="font-medium">${rate.price.amount.toFixed(2)}</div>
+                              <div className="font-medium">
+                                {rate.price.amount === 0 ? (
+                                  <span className="text-green-600 font-bold">FREE</span>
+                                ) : (
+                                  `$${rate.price.amount.toFixed(2)}`
+                                )}
+                              </div>
                             </label>
                           ))}
                         </div>
@@ -765,7 +771,13 @@ Transaction Hash: ${transactionHash}`;
                           )}
                           <div className="flex justify-between text-sm">
                             <span>Shipping ({cart.selectedShipping.title})</span>
-                            <span>${cart.selectedShipping.price.amount.toFixed(2)}</span>
+                            <span>
+                              {cart.selectedShipping.price.amount === 0 ? (
+                                <span className="text-green-600 font-medium">FREE</span>
+                              ) : (
+                                `$${cart.selectedShipping.price.amount.toFixed(2)}`
+                              )}
+                            </span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Taxes</span>
@@ -870,7 +882,13 @@ Transaction Hash: ${transactionHash}`;
                       {cart.selectedShipping ? (
                         <div className="flex justify-between text-sm">
                           <span>Shipping ({cart.selectedShipping.title})</span>
-                          <span>${cart.selectedShipping.price.amount.toFixed(2)}</span>
+                          <span>
+                            {cart.selectedShipping.price.amount === 0 ? (
+                              <span className="text-green-600 font-medium">FREE</span>
+                            ) : (
+                              `$${cart.selectedShipping.price.amount.toFixed(2)}`
+                            )}
+                          </span>
                         </div>
                       ) : (
                         <div className="flex justify-between text-sm text-gray-600">

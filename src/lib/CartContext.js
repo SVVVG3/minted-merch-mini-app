@@ -280,6 +280,42 @@ export function CartProvider({ children }) {
       type: CART_ACTIONS.APPLY_DISCOUNT,
       payload: { discount }
     });
+    
+    // If discount includes free shipping, update shipping rates to include free option
+    if (discount.freeShipping && cart.checkout?.shippingRates) {
+      const freeShippingRate = cart.checkout.shippingRates.find(rate => rate.price.amount === 0);
+      if (!freeShippingRate) {
+        // Create a free shipping rate
+        const discountFreeShipping = {
+          handle: 'discount-free-shipping',
+          title: 'FREE Shipping (Discount Applied)',
+          price: { amount: 0, currencyCode: 'USD' },
+          description: 'Free shipping provided by discount code'
+        };
+        
+        // Add the free shipping rate to available rates and select it
+        dispatch({
+          type: CART_ACTIONS.UPDATE_CHECKOUT,
+          payload: { 
+            checkout: {
+              ...cart.checkout,
+              shippingRates: [discountFreeShipping, ...(cart.checkout?.shippingRates || [])]
+            }
+          }
+        });
+        
+        dispatch({
+          type: CART_ACTIONS.UPDATE_SELECTED_SHIPPING,
+          payload: { selectedShipping: discountFreeShipping }
+        });
+      } else {
+        // Select existing free shipping rate
+        dispatch({
+          type: CART_ACTIONS.UPDATE_SELECTED_SHIPPING,
+          payload: { selectedShipping: freeShippingRate }
+        });
+      }
+    }
   };
 
   const removeDiscount = () => {

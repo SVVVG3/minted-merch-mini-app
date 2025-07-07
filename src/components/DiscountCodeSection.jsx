@@ -158,6 +158,7 @@ export function DiscountCodeSection({
         discountType: result.discountType,
         discountValue: result.discountValue,
         discountAmount: result.discountAmount,
+        freeShipping: result.freeShipping || false,
         message: result.message,
         source: codeToApply ? 'auto_applied' : 'user_entered',
         requiresAuth: result.requiresAuth || false
@@ -310,6 +311,11 @@ export function DiscountCodeSection({
             <div>
               <div className="text-sm font-medium text-green-800">
                 {appliedDiscount.discountValue}% discount applied!
+                {appliedDiscount.freeShipping && (
+                  <span className="ml-2 bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold">
+                    + FREE SHIPPING
+                  </span>
+                )}
               </div>
               <div className="text-xs text-green-600">
                 Code: {appliedDiscount.code}
@@ -317,6 +323,9 @@ export function DiscountCodeSection({
               {appliedDiscount.discountAmount && (
                 <div className="text-xs text-green-600">
                   Savings: ${calculateActualDiscountAmount().toFixed(2)}
+                  {appliedDiscount.freeShipping && (
+                    <span className="ml-1">+ Free shipping</span>
+                  )}
                 </div>
               )}
             </div>
