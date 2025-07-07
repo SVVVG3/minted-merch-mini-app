@@ -318,7 +318,15 @@ export function DiscountCodeSection({
                 )}
               </div>
               <div className="text-xs text-green-600">
-                Code: {appliedDiscount.code}
+                {appliedDiscount.source === 'auto_applied' ? (
+                  tokenGatingInfo?.isTokenGated ? (
+                    `🎫 ${getTokenGatingDisplayText(tokenGatingInfo.gatingType)} discount`
+                  ) : (
+                    'Auto-applied discount'
+                  )
+                ) : (
+                  `Code: ${appliedDiscount.code}`
+                )}
               </div>
               {appliedDiscount.discountAmount && (
                 <div className="text-xs text-green-600">
