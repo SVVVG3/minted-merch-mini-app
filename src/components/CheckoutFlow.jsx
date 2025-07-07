@@ -41,9 +41,13 @@ export function CheckoutFlow({ checkoutData, onBack }) {
             const productHandle = item.product?.handle;
             const productTitle = item.product?.title || item.title;
             
-            // Check if this product qualifies for the SNAPSHOT-TINY-HYPER-FREE discount
+            // Check if this product qualifies for specific discount codes
             if (code === 'SNAPSHOT-TINY-HYPER-FREE') {
               if (productHandle === 'tiny-hyper-tee' || productTitle?.includes('Tiny Hyper Tee')) {
+                qualifyingSubtotal += (item.price * item.quantity);
+              }
+            } else if (code === 'DICKBUTT-FREE') {
+              if (productHandle === 'dickbutt-cap' || productTitle?.includes('Dickbutt Cap')) {
                 qualifyingSubtotal += (item.price * item.quantity);
               }
             } else {
@@ -109,7 +113,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     let finalTotal = Math.max(0, subtotal - discount + shipping + tax);
     
     // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
-    if (finalTotal === 0 && appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100) {
+    // Use <= 0.01 to handle floating point precision issues
+    if (finalTotal <= 0.01 && appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100) {
       finalTotal = 0.01;
       console.log('💰 Applied minimum charge of $0.01 for free giveaway order processing');
     }
@@ -434,7 +439,8 @@ Transaction Hash: ${transactionHash}`;
           : cart.checkout.subtotal.amount + calculateAdjustedTax() + shippingCost;
         
         // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
-        if (finalOrderTotal === 0 && appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100) {
+        // Use <= 0.01 to handle floating point precision issues
+        if (finalOrderTotal <= 0.01 && appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100) {
           finalOrderTotal = 0.01;
           console.log('💰 Applied minimum charge of $0.01 for free giveaway order processing');
         }
@@ -882,7 +888,8 @@ Transaction Hash: ${transactionHash}`;
                                 let finalTotal = Math.max(0, discountedSubtotal + shipping + adjustedTax);
                                 
                                 // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
-                                if (finalTotal === 0 && appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100) {
+                                // Use <= 0.01 to handle floating point precision issues
+                                if (finalTotal <= 0.01 && appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100) {
                                   finalTotal = 0.01;
                                 }
                                 

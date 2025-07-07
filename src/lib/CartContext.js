@@ -378,6 +378,8 @@ export function CartProvider({ children }) {
               // Fallback: check specific discount codes
               if (code === 'SNAPSHOT-TINY-HYPER-FREE') {
                 qualifies = productHandle === 'tiny-hyper-tee' || productTitle?.includes('Tiny Hyper Tee');
+              } else if (code === 'DICKBUTT-FREE') {
+                qualifies = productHandle === 'dickbutt-cap' || productTitle?.includes('Dickbutt Cap');
               } else if (code.includes('BANKR')) {
                 qualifies = productHandle === 'bankr-cap' || productHandle === 'bankr-hoodie' || 
                            productTitle?.includes('Bankr');

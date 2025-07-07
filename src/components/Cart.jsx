@@ -416,7 +416,8 @@ export function Cart({ isOpen, onClose }) {
                 <span>
                   {(() => {
                     // Apply minimum charge logic for free shipping + 100% discount
-                    if (cartTotal === 0 && cart.appliedDiscount?.freeShipping && cart.appliedDiscount?.discountValue >= 100) {
+                    // Use <= 0.01 to handle floating point precision issues
+                    if (cartTotal <= 0.01 && cart.appliedDiscount?.freeShipping && cart.appliedDiscount?.discountValue >= 100) {
                       return <span className="text-green-600">$0.01 <span className="text-xs">(min processing fee)</span></span>;
                     }
                     return `$${cartTotal.toFixed(2)} USD`;
