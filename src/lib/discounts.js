@@ -327,12 +327,13 @@ export function calculateDiscountAmount(subtotal, discountCode) {
 /**
  * Record discount code usage for shared codes
  */
-async function recordSharedCodeUsage(discountCodeId, fid, orderId, discountAmount, originalSubtotal) {
+async function recordSharedCodeUsage(discountCode, fid, orderId, discountAmount, originalSubtotal) {
   try {
     const { data: usageRecord, error: insertError } = await supabase
       .from('discount_code_usage')
       .insert({
-        discount_code_id: discountCodeId,
+        discount_code_id: discountCode.id,
+        discount_code_name: discountCode.code,
         fid: fid,
         order_id: orderId,
         discount_amount: discountAmount,
@@ -348,6 +349,7 @@ async function recordSharedCodeUsage(discountCodeId, fid, orderId, discountAmoun
     }
 
     console.log('✅ Shared code usage recorded:', usageRecord);
+    console.log(`📊 Usage counter will be automatically updated by database trigger`);
     return { success: true, usageRecord };
   } catch (error) {
     console.error('Error in recordSharedCodeUsage:', error);
@@ -384,7 +386,7 @@ export async function markDiscountCodeAsUsed(code, orderId, fid = null, discount
 
       // For shared codes, record usage in the tracking table
       const usageResult = await recordSharedCodeUsage(
-        discountCode.id, 
+        discountCode,
         fid, 
         orderId, 
         discountAmount, 
@@ -395,7 +397,8 @@ export async function markDiscountCodeAsUsed(code, orderId, fid = null, discount
         return { success: false, error: usageResult.error };
       }
 
-      console.log('✅ Shared discount code usage recorded:', discountCode);
+      console.log('✅ Shared discount code usage recorded:', discountCode.code);
+      console.log('📊 current_total_uses counter automatically updated by database trigger');
       return { success: true, discountCode, usageRecord: usageResult.usageRecord };
 
     } else {
