@@ -1,7 +1,7 @@
--- Test Free Shipping Discount Code
--- This creates a sample discount code for testing the free shipping functionality
+-- Dickbutt Cap Free Giveaway Discount Code
+-- 100% free Dickbutt cap with free shipping
 
--- Create a test discount code with 20% off + free shipping
+-- Create a product-specific discount code for Dickbutt cap giveaway
 INSERT INTO discount_codes (
   code,
   discount_type,
@@ -20,43 +20,45 @@ INSERT INTO discount_codes (
   max_uses_per_user,
   current_total_uses,
   
-  -- Scope
+  -- Scope and targeting
   discount_scope,
+  target_products,
   
   -- Metadata
   discount_description,
   internal_notes,
   priority_level,
   
-  -- No expiration for testing
+  -- No expiration for giveaway
   expires_at
 ) VALUES (
-  'FREESHIP20',  -- Code
-  'percentage',   -- Type
-  20.00,         -- 20% discount
-  'promotional', -- Category
+  'DICKBUTT-FREE',  -- Code
+  'percentage',      -- Type
+  100.00,           -- 100% discount (completely free)
+  'promotional',    -- Category
   
   -- Enable free shipping
-  TRUE,          -- free_shipping
+  TRUE,             -- free_shipping
   
-  -- Shared code setup
-  TRUE,          -- is_shared_code
-  NULL,          -- fid (shared codes have no owner)
+  -- Shared code setup for giveaway
+  TRUE,             -- is_shared_code
+  NULL,             -- fid (shared codes have no owner)
   
-  -- Usage limits
-  50,            -- max_uses_total (50 total uses)
-  1,             -- max_uses_per_user (once per user)
-  0,             -- current_total_uses (starting count)
+  -- Usage limits for giveaway
+  5,                -- max_uses_total (5 free caps)
+  1,                -- max_uses_per_user (once per user)
+  0,                -- current_total_uses (starting count)
   
-  -- Apply site-wide
-  'site_wide',   -- discount_scope
+  -- Product-specific targeting
+  'product',        -- discount_scope
+  '["dickbutt-cap"]'::jsonb,  -- target_products (only for Dickbutt cap)
   
   -- Documentation
-  '20% discount with free shipping for giveaways and promotions',
-  'Test discount code for free shipping functionality',
-  5,             -- medium priority
+  '100% free Dickbutt cap with free shipping - limited giveaway',
+  'Product-specific free giveaway for Dickbutt cap with free shipping',
+  10,               -- high priority
   
-  -- No expiration (for testing)
+  -- No expiration (for giveaway)
   NULL
 );
 
@@ -70,10 +72,11 @@ SELECT
   max_uses_total,
   max_uses_per_user,
   discount_scope,
+  target_products,
   discount_description,
   created_at
 FROM discount_codes 
-WHERE code = 'FREESHIP20';
+WHERE code = 'DICKBUTT-FREE';
 
 -- Test query to show all discounts with free shipping
 SELECT 
@@ -82,6 +85,7 @@ SELECT
   discount_type,
   free_shipping,
   discount_scope,
+  target_products,
   discount_description
 FROM discount_codes 
 WHERE free_shipping = TRUE

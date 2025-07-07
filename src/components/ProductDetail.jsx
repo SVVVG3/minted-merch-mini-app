@@ -394,9 +394,12 @@ export function ProductDetail({
                     // Use the specific discount_description for token-gated discounts
                     productDiscount.discount_description || `${productDiscount.displayText} token-gated discount`
                   ) : (
-                    <>
-                      {productDiscount.displayText} with code: <span className="font-mono bg-white px-2 py-1 rounded border text-sm">{productDiscount.code}</span>
-                    </>
+                    // Use discount_description from database if available, otherwise fall back to hardcoded text
+                    productDiscount.discount_description || (
+                      <>
+                        {productDiscount.displayText} with code: <span className="font-mono bg-white px-2 py-1 rounded border text-sm">{productDiscount.code}</span>
+                      </>
+                    )
                   )}
                 </div>
                 
