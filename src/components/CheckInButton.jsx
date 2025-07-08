@@ -71,19 +71,19 @@ export function CheckInButton() {
 
   return (
     <>
-      {/* Check-in Button */}
+      {/* Check-in Button - Inline square button */}
       <button
         onClick={handleOpenModal}
-        className={`fixed top-4 right-20 p-3 rounded-full shadow-lg z-30 transition-all ${
+        className={`flex items-center justify-center w-10 h-10 rounded-lg transition-colors ${
           canCheckIn 
-            ? 'bg-green-600 hover:bg-green-700 transform hover:scale-105' 
-            : 'bg-blue-600 hover:bg-blue-700'
-        } text-white`}
+            ? 'bg-[#3eb489] hover:bg-[#359970] text-white' 
+            : 'bg-[#3eb489] hover:bg-[#359970] text-white'
+        }`}
         title={canCheckIn ? "Daily Check-in Available!" : "View Points & Streak"}
       >
         <div className="relative">
           {/* Check-in Icon */}
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path 
               strokeLinecap="round" 
               strokeLinejoin="round" 
@@ -94,29 +94,10 @@ export function CheckInButton() {
           
           {/* New Check-in Available Indicator */}
           {canCheckIn && (
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full animate-pulse"></div>
+            <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 border border-white rounded-full animate-pulse"></div>
           )}
         </div>
       </button>
-
-      {/* Points Preview (only show if user has points or streak) */}
-      {(totalPoints > 0 || streak > 0) && !isLoading && (
-        <div className="fixed top-16 right-20 bg-white border border-gray-200 rounded-lg shadow-lg p-2 z-30 min-w-[100px]">
-          <div className="text-xs text-center space-y-1">
-            <div className="text-blue-600 font-semibold">
-              {totalPoints} pts
-            </div>
-            {streak > 0 && (
-              <div className="text-green-600 font-semibold flex items-center justify-center gap-1">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-                {streak}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Check-in Modal */}
       <CheckInModal

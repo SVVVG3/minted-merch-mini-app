@@ -235,7 +235,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           
           {/* Pointer */}
           <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1">
-            <div className="w-0 h-0 border-l-4 border-r-4 border-b-8 border-l-transparent border-r-transparent border-b-gray-800"></div>
+            <div className="w-0 h-0 border-l-4 border-r-4 border-t-8 border-l-transparent border-r-transparent border-t-gray-800"></div>
           </div>
         </div>
       </div>

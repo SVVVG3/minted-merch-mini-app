@@ -465,6 +465,9 @@ export function HomePage({ collection, products }) {
           </div>
           
           <div className="flex items-center space-x-2">
+            {/* Check-in Button - Only show in Farcaster */}
+            {isInFarcaster && <CheckInButton />}
+            
             {/* Order History Button - Only show in Farcaster */}
             {isInFarcaster && (
               <button
@@ -509,9 +512,6 @@ export function HomePage({ collection, products }) {
       <main>
         <ProductGrid products={products} />
       </main>
-      
-      {/* Check-in Button - Only shows in Farcaster */}
-      <CheckInButton />
       
       {/* Cart Sidebar */}
       <Cart isOpen={isCartOpen} onClose={closeCart} />
