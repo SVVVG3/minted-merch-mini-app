@@ -2,6 +2,11 @@
 // Handles check-ins, point awards, streaks, and leaderboard operations
 
 import { supabase } from './supabase.js';
+import { 
+  getCurrentCheckInDay, 
+  canCheckInTodayPST, 
+  calculateStreakPST 
+} from './timezone.js';
 
 /**
  * Get user's current leaderboard data
@@ -60,7 +65,7 @@ export async function initializeUserLeaderboard(userFid) {
 }
 
 /**
- * Check if user can check in today
+ * Check if user can check in today (PST timezone with 8 AM reset)
  * @param {number} userFid - Farcaster ID of the user
  * @returns {boolean} True if user can check in today, false otherwise
  */
@@ -78,11 +83,8 @@ export async function canCheckInToday(userFid) {
       return true;
     }
 
-    // Check if last check-in was before today
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-    const lastCheckin = userData.last_checkin_date;
-
-    return lastCheckin !== today;
+    // Use PST timezone logic with 8 AM reset
+    return canCheckInTodayPST(userData.last_checkin_date);
   } catch (error) {
     console.error('Error in canCheckInToday:', error);
     return false;
@@ -90,32 +92,14 @@ export async function canCheckInToday(userFid) {
 }
 
 /**
- * Calculate streak for check-in
+ * Calculate streak for check-in (PST timezone with 8 AM reset)
  * @param {string|null} lastCheckinDate - Last check-in date (YYYY-MM-DD format)
  * @param {number} currentStreak - Current streak count
  * @returns {number} New streak count
  */
 function calculateNewStreak(lastCheckinDate, currentStreak) {
-  if (!lastCheckinDate) {
-    // First check-in ever
-    return 1;
-  }
-
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  
-  const lastCheckin = new Date(lastCheckinDate);
-  const yesterdayString = yesterday.toISOString().split('T')[0];
-  const lastCheckinString = lastCheckin.toISOString().split('T')[0];
-
-  if (lastCheckinString === yesterdayString) {
-    // Consecutive day, increment streak
-    return currentStreak + 1;
-  } else {
-    // Streak broken, start new streak
-    return 1;
-  }
+  // Use PST timezone logic with 8 AM reset
+  return calculateStreakPST(lastCheckinDate, currentStreak);
 }
 
 /**
@@ -202,13 +186,13 @@ export async function performDailyCheckin(userFid) {
     // Apply streak bonus
     const finalPoints = applyStreakBonus(basePoints, newStreak);
 
-    // Update user leaderboard
-    const today = new Date().toISOString().split('T')[0];
+    // Update user leaderboard with PST check-in day
+    const checkInDay = getCurrentCheckInDay();
     const { data: updatedData, error } = await supabase
       .from('user_leaderboard')
       .update({
         total_points: userData.total_points + finalPoints,
-        last_checkin_date: today,
+        last_checkin_date: checkInDay,
         checkin_streak: newStreak
       })
       .eq('user_fid', userFid)
