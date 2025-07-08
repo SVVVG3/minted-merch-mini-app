@@ -96,20 +96,9 @@ export function CheckInButton() {
         <div className="relative flex items-center gap-1">
           {canCheckIn ? (
             <>
-              {/* Gift Box Icon with Ribbon - Clear Present Design */}
+              {/* Dice Icon - Represents Luck/Chance for Spin Wheel */}
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                {/* Gift box body */}
-                <rect x="4" y="8" width="16" height="12" rx="1" />
-                {/* Vertical ribbon */}
-                <rect x="11" y="8" width="2" height="12" />
-                {/* Horizontal ribbon */}
-                <rect x="4" y="13" width="16" height="2" />
-                {/* Bow - left loop */}
-                <path d="M8 8c0-2 2-4 4-4s4 2 4 4" stroke="currentColor" strokeWidth="1" fill="none"/>
-                {/* Bow - right loop */}
-                <path d="M8 8c0-2 2-2 4-2s4 0 4 2" stroke="currentColor" strokeWidth="1" fill="none"/>
-                {/* Bow center knot */}
-                <circle cx="12" cy="8" r="1"/>
+                <path d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5zm7 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM8 8.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm11 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM8 15.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm11 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
               </svg>
               
               {/* New Check-in Available Indicator */}
