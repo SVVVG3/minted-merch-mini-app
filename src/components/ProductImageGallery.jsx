@@ -30,6 +30,7 @@ export function ProductImageGallery({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [userSelectedImage, setUserSelectedImage] = useState(false); // Track if user manually selected an image
 
   // Process images from Shopify format and ensure stable array
   const processedImages = images.map(edge => edge.node);
@@ -54,18 +55,25 @@ export function ProductImageGallery({
     currentImageIndex,
     totalImages: allImages.length,
     currentImageUrl: currentImage?.url,
+    userSelectedImage,
+    selectedVariantUrl: selectedVariant?.image?.url,
     allImageUrls: allImages.map(img => img.url)
   });
   
-  // Update current image when variant changes
+  // Update current image when variant changes (only if user hasn't manually selected an image)
   useEffect(() => {
-    if (selectedVariant?.image) {
+    if (selectedVariant?.image && !userSelectedImage) {
       const variantImageIndex = allImages.findIndex(img => img.url === selectedVariant.image.url);
       if (variantImageIndex !== -1) {
         setCurrentImageIndex(variantImageIndex);
       }
     }
-  }, [selectedVariant?.image, allImages]);
+  }, [selectedVariant?.image, allImages, userSelectedImage]);
+
+  // Reset user selection flag when variant changes (allow variant switching to work)
+  useEffect(() => {
+    setUserSelectedImage(false);
+  }, [selectedVariant?.id]);
 
   // Notify parent when image changes
   useEffect(() => {
@@ -75,23 +83,26 @@ export function ProductImageGallery({
   }, [currentImage, currentImageIndex, onImageChange]);
 
   // Navigation functions
-  const goToImage = useCallback((index) => {
-    console.log('goToImage called with index:', index, 'total images:', allImages.length);
+  const goToImage = useCallback((index, isUserTriggered = false) => {
+    console.log('goToImage called with index:', index, 'total images:', allImages.length, 'user triggered:', isUserTriggered);
     if (index >= 0 && index < allImages.length) {
       setIsLoading(true); // Reset loading state for new image
       setCurrentImageIndex(index);
+      if (isUserTriggered) {
+        setUserSelectedImage(true); // Mark that user manually selected an image
+      }
       console.log('Updated currentImageIndex to:', index);
     }
   }, [allImages.length]);
 
-  const goToPrevious = useCallback(() => {
+  const goToPrevious = useCallback((isUserTriggered = true) => {
     const prevIndex = currentImageIndex > 0 ? currentImageIndex - 1 : allImages.length - 1;
-    goToImage(prevIndex);
+    goToImage(prevIndex, isUserTriggered);
   }, [currentImageIndex, allImages.length, goToImage]);
 
-  const goToNext = useCallback(() => {
+  const goToNext = useCallback((isUserTriggered = true) => {
     const nextIndex = currentImageIndex < allImages.length - 1 ? currentImageIndex + 1 : 0;
-    goToImage(nextIndex);
+    goToImage(nextIndex, isUserTriggered);
   }, [currentImageIndex, allImages.length, goToImage]);
 
   // Keyboard navigation
@@ -215,7 +226,7 @@ export function ProductImageGallery({
               key={`${image.url}-${index}`}
               onClick={() => {
                 console.log('Thumbnail clicked, index:', index, 'currentImageIndex:', currentImageIndex);
-                goToImage(index);
+                goToImage(index, true); // Pass true to indicate user-triggered
               }}
               className={`flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-all duration-200 ${
                 index === currentImageIndex 
