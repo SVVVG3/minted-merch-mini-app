@@ -308,21 +308,35 @@ export async function addPurchasePoints(userFid, orderTotal, orderId) {
 /**
  * Get leaderboard data
  * @param {number} limit - Number of top users to return (default: 10)
- * @param {string} timeframe - 'all', 'monthly', 'weekly' (default: 'all')
+ * @param {string} category - 'points', 'streaks', 'purchases' (default: 'points')
  * @returns {array} Array of leaderboard entries
  */
-export async function getLeaderboard(limit = 10, timeframe = 'all') {
+export async function getLeaderboard(limit = 10, category = 'points') {
   try {
     let query = supabase
       .from('user_leaderboard')
       .select('user_fid, total_points, checkin_streak, last_checkin_date, created_at')
-      .order('total_points', { ascending: false })
       .limit(limit);
 
-    // For MVP, we only support 'all' timeframe
-    // TODO: Add monthly/weekly filtering when we have point transactions table
-    if (timeframe !== 'all') {
-      console.warn(`Timeframe '${timeframe}' not yet implemented, using 'all'`);
+    // Sort based on category
+    switch (category) {
+      case 'points':
+        query = query.order('total_points', { ascending: false });
+        break;
+      case 'streaks':
+        query = query
+          .order('checkin_streak', { ascending: false })
+          .order('total_points', { ascending: false }); // Secondary sort by points
+        break;
+      case 'purchases':
+        // For purchases, we'll estimate based on large point amounts
+        // Purchase points are typically 200% of order value (larger amounts)
+        // We'll sort by total points but could enhance this with transaction data later
+        query = query.order('total_points', { ascending: false });
+        break;
+      default:
+        console.warn(`Category '${category}' not recognized, using 'points'`);
+        query = query.order('total_points', { ascending: false });
     }
 
     const { data, error } = await query;
@@ -332,7 +346,14 @@ export async function getLeaderboard(limit = 10, timeframe = 'all') {
       return [];
     }
 
-    return data || [];
+    // Add category-specific display information
+    const enhancedData = (data || []).map((user, index) => ({
+      ...user,
+      rank: index + 1,
+      category: category
+    }));
+
+    return enhancedData;
   } catch (error) {
     console.error('Error in getLeaderboard:', error);
     return [];

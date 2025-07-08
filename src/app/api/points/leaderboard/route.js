@@ -5,7 +5,7 @@ export async function GET(request) {
   try {
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get('limit')) || 10;
-    const timeframe = url.searchParams.get('timeframe') || 'all';
+    const category = url.searchParams.get('category') || 'points';
     const userFid = url.searchParams.get('userFid');
 
     // Validate limit
@@ -16,17 +16,17 @@ export async function GET(request) {
       }, { status: 400 });
     }
 
-    // Validate timeframe
-    const validTimeframes = ['all', 'monthly', 'weekly'];
-    if (!validTimeframes.includes(timeframe)) {
+    // Validate category
+    const validCategories = ['points', 'streaks', 'purchases'];
+    if (!validCategories.includes(category)) {
       return Response.json({
         success: false,
-        error: 'Invalid timeframe. Must be: all, monthly, or weekly'
+        error: 'Invalid category. Must be: points, streaks, or purchases'
       }, { status: 400 });
     }
 
     // Get leaderboard data
-    const leaderboard = await getLeaderboard(limit, timeframe);
+    const leaderboard = await getLeaderboard(limit, category);
 
     // Get user position if userFid provided
     let userPosition = null;
@@ -42,7 +42,7 @@ export async function GET(request) {
       data: {
         leaderboard: leaderboard,
         userPosition: userPosition,
-        timeframe: timeframe,
+        category: category,
         limit: limit
       }
     }, { status: 200 });

@@ -84,18 +84,14 @@ export function CheckInButton() {
         <div className="relative flex items-center gap-1">
           {canCheckIn ? (
             <>
-              {/* Raffle Wheel Icon */}
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" fill="currentColor"/>
-                <path d="M12 2 L14 10 L12 12 L10 10 Z" fill="white"/>
-                <path d="M22 12 L14 14 L12 12 L14 10 Z" fill="white"/>
-                <path d="M12 22 L10 14 L12 12 L14 14 Z" fill="white"/>
-                <path d="M2 12 L10 10 L12 12 L10 14 Z" fill="white"/>
-                <path d="M18.36 5.64 L13.41 10.59 L12 12 L13.41 13.41 Z" fill="white"/>
-                <path d="M18.36 18.36 L13.41 13.41 L12 12 L10.59 13.41 Z" fill="white"/>
-                <path d="M5.64 18.36 L10.59 13.41 L12 12 L10.59 10.59 Z" fill="white"/>
-                <path d="M5.64 5.64 L10.59 10.59 L12 12 L13.41 10.59 Z" fill="white"/>
-                <circle cx="12" cy="12" r="2" fill="white"/>
+              {/* Wheel Spin Icon - Clean Fortune Wheel */}
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1" fill="none" />
+                <line x1="10" y1="2" x2="10" y2="18" stroke="currentColor" strokeWidth="1" />
+                <line x1="2" y1="10" x2="18" y2="10" stroke="currentColor" strokeWidth="1" />
+                <line x1="4.93" y1="4.93" x2="15.07" y2="15.07" stroke="currentColor" strokeWidth="1" />
+                <line x1="15.07" y1="4.93" x2="4.93" y2="15.07" stroke="currentColor" strokeWidth="1" />
+                <circle cx="10" cy="10" r="1.5" fill="currentColor" />
               </svg>
               
               {/* New Check-in Available Indicator */}

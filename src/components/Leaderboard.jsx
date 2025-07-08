@@ -9,7 +9,7 @@ export function Leaderboard({ isVisible = true }) {
   const [userPosition, setUserPosition] = useState(null);
   const [userProfiles, setUserProfiles] = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  const [timeframe, setTimeframe] = useState('all');
+  const [category, setCategory] = useState('points');
   const [error, setError] = useState(null);
 
   const currentUserFid = isInFarcaster && isReady ? getFid() : null;
@@ -19,7 +19,7 @@ export function Leaderboard({ isVisible = true }) {
     if (isVisible) {
       loadLeaderboard();
     }
-  }, [timeframe, isVisible]);
+  }, [category, isVisible]);
 
   const loadLeaderboard = async () => {
     try {
@@ -29,7 +29,7 @@ export function Leaderboard({ isVisible = true }) {
       // Build query parameters
       const params = new URLSearchParams({
         limit: '50', // Show top 50 users
-        timeframe: timeframe
+        category: category
       });
 
       // Add current user FID if available for position lookup
@@ -83,12 +83,12 @@ export function Leaderboard({ isVisible = true }) {
     }
   };
 
-  const formatTimeframe = (tf) => {
-    switch (tf) {
-      case 'all': return 'All Time';
-      case 'monthly': return 'This Month';
-      case 'weekly': return 'This Week';
-      default: return 'All Time';
+  const formatCategory = (cat) => {
+    switch (cat) {
+      case 'points': return 'Points';
+      case 'streaks': return 'Streaks';
+      case 'purchases': return 'Purchases';
+      default: return 'Points';
     }
   };
 
@@ -144,19 +144,19 @@ export function Leaderboard({ isVisible = true }) {
       <div className="border-b border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">🏆 Leaderboard</h2>
         
-        {/* Timeframe Filters */}
+        {/* Category Filters */}
         <div className="flex gap-2">
-          {['all', 'monthly', 'weekly'].map((tf) => (
+          {['points', 'streaks', 'purchases'].map((cat) => (
             <button
-              key={tf}
-              onClick={() => setTimeframe(tf)}
+              key={cat}
+              onClick={() => setCategory(cat)}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                timeframe === tf
+                category === cat
                   ? 'bg-[#3eb489] text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {formatTimeframe(tf)}
+              {formatCategory(cat)}
             </button>
           ))}
         </div>
@@ -235,8 +235,16 @@ export function Leaderboard({ isVisible = true }) {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-blue-600">{userPosition.total_points}</div>
-                    <div className="text-sm text-gray-500">points</div>
+                    <div className="font-bold text-blue-600">
+                      {category === 'points' && userPosition.total_points}
+                      {category === 'streaks' && userPosition.checkin_streak}
+                      {category === 'purchases' && userPosition.total_points}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {category === 'points' && 'points'}
+                      {category === 'streaks' && (userPosition.checkin_streak === 1 ? 'day' : 'days')}
+                      {category === 'purchases' && 'points'}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -297,12 +305,18 @@ export function Leaderboard({ isVisible = true }) {
                     </div>
                   </div>
                   
-                  {/* Points */}
+                  {/* Category-specific Display */}
                   <div className="text-right">
                     <div className={`font-bold ${isCurrentUser ? 'text-green-600' : 'text-gray-800'}`}>
-                      {user.total_points.toLocaleString()}
+                      {category === 'points' && user.total_points.toLocaleString()}
+                      {category === 'streaks' && user.checkin_streak}
+                      {category === 'purchases' && user.total_points.toLocaleString()}
                     </div>
-                    <div className="text-sm text-gray-500">points</div>
+                    <div className="text-sm text-gray-500">
+                      {category === 'points' && 'points'}
+                      {category === 'streaks' && (user.checkin_streak === 1 ? 'day' : 'days')}
+                      {category === 'purchases' && 'points'}
+                    </div>
                   </div>
                 </div>
               );
@@ -313,7 +327,7 @@ export function Leaderboard({ isVisible = true }) {
         {/* Footer Info */}
         {leaderboardData.length > 0 && (
           <div className="text-center mt-6 text-sm text-gray-500">
-            Showing top {leaderboardData.length} players • {formatTimeframe(timeframe)}
+            Showing top {leaderboardData.length} players • Ranked by {formatCategory(category)}
           </div>
         )}
       </div>
