@@ -5,6 +5,7 @@ import { ProductGrid } from './ProductGrid';
 import { Cart } from './Cart';
 import { OrderHistory } from './OrderHistory';
 import { CheckInButton } from './CheckInButton';
+import { LeaderboardButton } from './LeaderboardButton';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
@@ -467,6 +468,9 @@ export function HomePage({ collection, products }) {
           <div className="flex items-center space-x-2">
             {/* Check-in Button - Only show in Farcaster */}
             {isInFarcaster && <CheckInButton />}
+            
+            {/* Leaderboard Button - Only show in Farcaster */}
+            {isInFarcaster && <LeaderboardButton />}
             
             {/* Order History Button - Only show in Farcaster */}
             {isInFarcaster && (
