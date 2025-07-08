@@ -230,6 +230,40 @@ export async function createOrder(orderData) {
       }
     }
 
+    // Add purchase points for the user (automatic points system)
+    if (orderData.fid && orderData.amountTotal && orderData.status === 'paid') {
+      try {
+        const { addPurchasePoints } = await import('./points.js');
+        const pointsResult = await addPurchasePoints(
+          orderData.fid,
+          parseFloat(orderData.amountTotal),
+          order.order_id
+        );
+        
+        if (pointsResult.success) {
+          console.log('✅ Purchase points added automatically:', {
+            orderId: order.order_id,
+            userFid: orderData.fid,
+            amountTotal: orderData.amountTotal,
+            pointsEarned: pointsResult.pointsEarned,
+            totalPoints: pointsResult.totalPoints
+          });
+        } else {
+          console.error('❌ Failed to add purchase points:', pointsResult.error);
+        }
+      } catch (pointsError) {
+        console.error('❌ Error adding purchase points:', pointsError);
+        // Don't fail the order creation, just log the error
+      }
+    } else {
+      console.log('ℹ️ Skipping automatic purchase points:', {
+        hasFid: !!orderData.fid,
+        hasAmountTotal: !!orderData.amountTotal,
+        status: orderData.status,
+        reason: 'Missing FID, amount, or order not paid'
+      });
+    }
+
     return { success: true, order };
 
   } catch (error) {
@@ -278,6 +312,33 @@ export async function updateOrderStatus(orderId, newStatus, additionalData = {})
       await sendOrderConfirmationNotificationAndMark(order);
     } else if (newStatus === 'shipped' && !order.shipping_notification_sent) {
       await sendShippingNotificationAndMark(order);
+    }
+
+    // Add purchase points when order transitions to 'paid' status
+    if (newStatus === 'paid' && order.fid && order.amount_total) {
+      try {
+        const { addPurchasePoints } = await import('./points.js');
+        const pointsResult = await addPurchasePoints(
+          order.fid,
+          parseFloat(order.amount_total),
+          order.order_id
+        );
+        
+        if (pointsResult.success) {
+          console.log('✅ Purchase points added on status update to paid:', {
+            orderId: order.order_id,
+            userFid: order.fid,
+            amountTotal: order.amount_total,
+            pointsEarned: pointsResult.pointsEarned,
+            totalPoints: pointsResult.totalPoints
+          });
+        } else {
+          console.error('❌ Failed to add purchase points on status update:', pointsResult.error);
+        }
+      } catch (pointsError) {
+        console.error('❌ Error adding purchase points on status update:', pointsError);
+        // Don't fail the status update, just log the error
+      }
     }
 
     return { success: true, order };

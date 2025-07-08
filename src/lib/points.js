@@ -240,8 +240,8 @@ export async function performDailyCheckin(userFid) {
  */
 export async function addPurchasePoints(userFid, orderTotal, orderId) {
   try {
-    // Calculate points: 200% of order total (minimum 10 points)
-    const points = Math.max(Math.floor(orderTotal * 2.0), 10);
+    // Calculate points: 500% of order total (minimum 10 points)
+    const points = Math.max(Math.floor(orderTotal * 5.0), 10);
 
     // Get or create user data
     let userData = await getUserLeaderboardData(userFid);
@@ -476,8 +476,8 @@ export async function syncPurchaseTracking(userFid = null) {
     for (const [fid, stats] of Object.entries(userOrderStats)) {
       const userFidNum = parseInt(fid);
       
-      // Calculate points from purchases (200% of total spent)
-      const pointsFromPurchases = Math.floor(stats.totalSpent * 2.0);
+      // Calculate points from purchases (500% of total spent)
+      const pointsFromPurchases = Math.floor(stats.totalSpent * 5.0);
 
       // Check if user exists in leaderboard, if not create them
       const { data: existingUser } = await supabase
