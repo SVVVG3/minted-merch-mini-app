@@ -487,15 +487,8 @@ export function HomePage({ collection, products }) {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900">
-              {collection?.title || 'All Products'}
-            </h1>
-            <p className="text-[11px] text-gray-500 mt-0.5">Pay with USDC on Base</p>
-          </div>
-          
-          <div className="flex items-center space-x-2 ml-2">
+        <div className="px-4 py-3 flex items-center justify-end">
+          <div className="flex items-center space-x-2">
             {/* Check-in Button - Only show in Farcaster */}
             {isInFarcaster && <CheckInButton />}
             
