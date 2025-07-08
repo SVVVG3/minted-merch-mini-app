@@ -100,7 +100,7 @@ export function CheckInButton() {
               <img 
                 src="/SpinIcon.png" 
                 alt="Spin Wheel" 
-                className="w-4 h-4" 
+                className="w-8 h-8" 
               />
               
               {/* New Check-in Available Indicator */}
