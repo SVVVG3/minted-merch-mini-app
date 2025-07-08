@@ -462,7 +462,7 @@ export function HomePage({ collection, products }) {
             <h1 className="text-lg font-semibold text-gray-900">
               {collection?.title || 'All Products'}
             </h1>
-            <p className="text-xs text-gray-500 mt-0.5">Pay with USDC on Base</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">Pay with USDC on Base</p>
           </div>
           
           <div className="flex items-center space-x-2 ml-2">
