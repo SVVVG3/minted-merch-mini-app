@@ -49,7 +49,8 @@ export async function initializeUserLeaderboard(userFid) {
         last_checkin_date: null,
         total_orders: 0,
         total_spent: 0.00,
-        points_from_purchases: 0
+        points_from_purchases: 0,
+        points_from_checkins: 0
       })
       .select()
       .single();
@@ -195,6 +196,7 @@ export async function performDailyCheckin(userFid) {
       .from('user_leaderboard')
       .update({
         total_points: userData.total_points + finalPoints,
+        points_from_checkins: (userData.points_from_checkins || 0) + finalPoints,
         last_checkin_date: checkInDay,
         checkin_streak: newStreak
       })
@@ -208,6 +210,28 @@ export async function performDailyCheckin(userFid) {
         success: false,
         error: 'Failed to update leaderboard'
       };
+    }
+
+    // Log the point transaction
+    try {
+      await logPointTransaction({
+        userFid: userFid,
+        transactionType: 'daily_checkin',
+        pointsEarned: finalPoints,
+        pointsBefore: userData.total_points,
+        pointsAfter: updatedData.total_points,
+        description: `Daily check-in (streak: ${newStreak})`,
+        referenceId: `checkin-${userFid}-${checkInDay}`,
+        metadata: {
+          basePoints: basePoints,
+          streakBonus: finalPoints - basePoints,
+          streak: newStreak,
+          checkInDay: checkInDay
+        }
+      });
+    } catch (logError) {
+      console.error('Error logging check-in transaction:', logError);
+      // Don't fail the check-in, just log the error
     }
 
     console.log(`Check-in successful for user ${userFid}: +${finalPoints} points (streak: ${newStreak})`);
@@ -290,6 +314,27 @@ export async function addPurchasePoints(userFid, orderTotal, orderId) {
       // Don't fail the entire operation, just log the error
     }
 
+    // Log the point transaction
+    try {
+      await logPointTransaction({
+        userFid: userFid,
+        transactionType: 'purchase',
+        pointsEarned: points,
+        pointsBefore: userData.total_points,
+        pointsAfter: updatedData.total_points,
+        description: `Purchase order (500% of $${orderTotal.toFixed(2)})`,
+        referenceId: orderId,
+        metadata: {
+          orderTotal: orderTotal,
+          orderId: orderId,
+          pointsMultiplier: 5.0
+        }
+      });
+    } catch (logError) {
+      console.error('Error logging purchase transaction:', logError);
+      // Don't fail the purchase points, just log the error
+    }
+
     console.log(`Purchase points added for user ${userFid}: +${points} points, order count: ${updatedData.total_orders}, total spent: $${updatedData.total_spent} (order: ${orderId})`);
 
     return {
@@ -322,7 +367,7 @@ export async function getLeaderboard(limit = 10, category = 'points') {
   try {
     let query = supabase
       .from('user_leaderboard')
-      .select('user_fid, total_points, checkin_streak, last_checkin_date, total_orders, total_spent, points_from_purchases, created_at')
+      .select('user_fid, total_points, checkin_streak, last_checkin_date, total_orders, total_spent, points_from_purchases, points_from_checkins, created_at')
       .limit(limit);
 
     // Sort based on category
@@ -544,5 +589,162 @@ export async function syncPurchaseTracking(userFid = null) {
   } catch (error) {
     console.error('Error in syncPurchaseTracking:', error);
     return { success: false, error: 'Unexpected error during sync' };
+  }
+}
+
+/**
+ * Log a point transaction to the point_transactions table
+ * @param {Object} transactionData - Transaction details
+ * @param {number} transactionData.userFid - User's Farcaster ID
+ * @param {string} transactionData.transactionType - Type: 'daily_checkin', 'purchase', 'bonus', 'adjustment'
+ * @param {number} transactionData.pointsEarned - Points earned in this transaction
+ * @param {number} transactionData.pointsBefore - Points before transaction
+ * @param {number} transactionData.pointsAfter - Points after transaction
+ * @param {string} transactionData.description - Human-readable description
+ * @param {string} transactionData.referenceId - Reference ID (order ID, session ID, etc.)
+ * @param {Object} transactionData.metadata - Additional metadata as JSON
+ * @returns {Promise<Object>} Result of logging operation
+ */
+export async function logPointTransaction({
+  userFid,
+  transactionType,
+  pointsEarned,
+  pointsBefore,
+  pointsAfter,
+  description,
+  referenceId,
+  metadata = {}
+}) {
+  try {
+    const { data, error } = await supabase
+      .from('point_transactions')
+      .insert({
+        user_fid: userFid,
+        transaction_type: transactionType,
+        points_earned: pointsEarned,
+        points_before: pointsBefore,
+        points_after: pointsAfter,
+        description: description,
+        reference_id: referenceId,
+        metadata: metadata
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error logging point transaction:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`Point transaction logged: ${userFid} earned ${pointsEarned} points (${transactionType})`);
+    return { success: true, transaction: data };
+
+  } catch (error) {
+    console.error('Error in logPointTransaction:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get point transaction history for a user
+ * @param {number} userFid - User's Farcaster ID
+ * @param {number} limit - Maximum number of transactions to return (default: 50)
+ * @param {string} transactionType - Filter by transaction type (optional)
+ * @returns {Promise<Array>} Array of point transactions
+ */
+export async function getUserPointTransactions(userFid, limit = 50, transactionType = null) {
+  try {
+    let query = supabase
+      .from('point_transactions')
+      .select('*')
+      .eq('user_fid', userFid)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (transactionType) {
+      query = query.eq('transaction_type', transactionType);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching user point transactions:', error);
+      return [];
+    }
+
+    return data || [];
+
+  } catch (error) {
+    console.error('Error in getUserPointTransactions:', error);
+    return [];
+  }
+}
+
+/**
+ * Get point transaction statistics for a user
+ * @param {number} userFid - User's Farcaster ID
+ * @returns {Promise<Object>} Transaction statistics
+ */
+export async function getUserPointTransactionStats(userFid) {
+  try {
+    const { data, error } = await supabase
+      .from('point_transactions')
+      .select('transaction_type, points_earned')
+      .eq('user_fid', userFid);
+
+    if (error) {
+      console.error('Error fetching transaction stats:', error);
+      return { 
+        totalTransactions: 0,
+        totalCheckinPoints: 0,
+        totalPurchasePoints: 0,
+        totalBonusPoints: 0,
+        checkinTransactions: 0,
+        purchaseTransactions: 0,
+        bonusTransactions: 0
+      };
+    }
+
+    const stats = {
+      totalTransactions: data.length,
+      totalCheckinPoints: 0,
+      totalPurchasePoints: 0,
+      totalBonusPoints: 0,
+      checkinTransactions: 0,
+      purchaseTransactions: 0,
+      bonusTransactions: 0
+    };
+
+    data.forEach(transaction => {
+      switch (transaction.transaction_type) {
+        case 'daily_checkin':
+          stats.totalCheckinPoints += transaction.points_earned;
+          stats.checkinTransactions++;
+          break;
+        case 'purchase':
+          stats.totalPurchasePoints += transaction.points_earned;
+          stats.purchaseTransactions++;
+          break;
+        case 'bonus':
+        case 'adjustment':
+          stats.totalBonusPoints += transaction.points_earned;
+          stats.bonusTransactions++;
+          break;
+      }
+    });
+
+    return stats;
+
+  } catch (error) {
+    console.error('Error in getUserPointTransactionStats:', error);
+    return { 
+      totalTransactions: 0,
+      totalCheckinPoints: 0,
+      totalPurchasePoints: 0,
+      totalBonusPoints: 0,
+      checkinTransactions: 0,
+      purchaseTransactions: 0,
+      bonusTransactions: 0
+    };
   }
 } 
