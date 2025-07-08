@@ -487,7 +487,16 @@ export function HomePage({ collection, products }) {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-3 flex items-center justify-end">
+        <div className="px-4 py-3 flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center">
+            <img 
+              src="/MintedMerchHeaderLogo.png" 
+              alt="Minted Merch" 
+              className="h-8"
+            />
+          </div>
+          
           <div className="flex items-center space-x-2">
             {/* Check-in Button - Only show in Farcaster */}
             {isInFarcaster && <CheckInButton />}
