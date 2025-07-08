@@ -17,11 +17,11 @@ export async function GET(request) {
     }
 
     // Validate category
-    const validCategories = ['points', 'streaks', 'purchases'];
+    const validCategories = ['points', 'streaks', 'purchases', 'spending'];
     if (!validCategories.includes(category)) {
       return Response.json({
         success: false,
-        error: 'Invalid category. Must be: points, streaks, or purchases'
+        error: 'Invalid category. Must be: points, streaks, purchases, or spending'
       }, { status: 400 });
     }
 
