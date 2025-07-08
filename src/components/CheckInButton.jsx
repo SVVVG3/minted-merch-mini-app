@@ -108,16 +108,16 @@ export function CheckInButton() {
                 <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
               </svg>
               
-              {/* Streak Count */}
-              {streak > 0 && (
-                <div className="flex items-center gap-0.5">
-                  <span className="text-xs font-semibold">{streak}</span>
-                  {/* Lightning Bolt Icon */}
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M7 2v11h3v9l7-12h-4l4-8z"/>
-                  </svg>
-                </div>
-              )}
+                             {/* Streak Count */}
+               {streak > 0 && (
+                 <div className="flex items-center gap-0.5">
+                   <span className="text-xs font-semibold">{streak}</span>
+                   {/* Lightning Bolt Icon */}
+                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+                     <path d="M5.52.359A.5.5 0 0 1 6 0h4a.5.5 0 0 1 .474.658L8.694 6H12.5a.5.5 0 0 1 .395.807l-7 9a.5.5 0 0 1-.873-.454L6.823 9.5H3.5a.5.5 0 0 1-.48-.641l2.5-8.5z"/>
+                   </svg>
+                 </div>
+               )}
             </>
           )}
         </div>
