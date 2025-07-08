@@ -7,6 +7,7 @@ export function Leaderboard({ isVisible = true }) {
   const { isInFarcaster, isReady, getFid } = useFarcaster();
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [userPosition, setUserPosition] = useState(null);
+  const [userProfiles, setUserProfiles] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('all');
   const [error, setError] = useState(null);
@@ -40,8 +41,37 @@ export function Leaderboard({ isVisible = true }) {
       const result = await response.json();
 
       if (result.success) {
-        setLeaderboardData(result.data.leaderboard || []);
-        setUserPosition(result.data.userPosition || null);
+        const leaderboard = result.data.leaderboard || [];
+        const userPos = result.data.userPosition || null;
+        
+        setLeaderboardData(leaderboard);
+        setUserPosition(userPos);
+
+        // Fetch user profiles for the leaderboard
+        const allFids = [...new Set([
+          ...leaderboard.map(user => user.user_fid),
+          ...(userPos && userPos.position > 50 ? [userPos.user_fid] : [])
+        ])];
+
+        if (allFids.length > 0) {
+          try {
+            const profilesResponse = await fetch('/api/user-profiles', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fids: allFids })
+            });
+            
+            const profilesResult = await profilesResponse.json();
+            
+            if (profilesResult.success) {
+              setUserProfiles(profilesResult.users || {});
+            } else {
+              console.log('Could not fetch user profiles:', profilesResult.error);
+            }
+          } catch (profileError) {
+            console.error('Error fetching user profiles:', profileError);
+          }
+        }
       } else {
         setError(result.error || 'Failed to load leaderboard');
       }
@@ -91,8 +121,19 @@ export function Leaderboard({ isVisible = true }) {
   };
 
   const getUserDisplayName = (user) => {
-    // Use display name if available, fallback to username, then FID
+    // First try to get from Neynar profile data
+    const profile = userProfiles[user.user_fid];
+    if (profile) {
+      return profile.display_name || profile.username || `User ${user.user_fid}`;
+    }
+    
+    // Fallback to data from leaderboard API
     return user.display_name || user.username || `User ${user.user_fid}`;
+  };
+
+  const getUserAvatar = (user) => {
+    const profile = userProfiles[user.user_fid];
+    return profile?.avatar_url || null;
   };
 
   if (!isVisible) return null;
@@ -159,6 +200,26 @@ export function Leaderboard({ isVisible = true }) {
                     <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 rounded-full font-semibold text-sm">
                       #{userPosition.position}
                     </div>
+                    
+                    {/* User Avatar */}
+                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                      {getUserAvatar(userPosition) ? (
+                        <img 
+                          src={getUserAvatar(userPosition)} 
+                          alt="Your avatar"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-600 text-xs font-medium">
+                          You
+                        </div>
+                      )}
+                    </div>
+                    
                     <div>
                       <div className="font-medium text-gray-800">You</div>
                       <div className="text-sm text-gray-500">
@@ -198,6 +259,25 @@ export function Leaderboard({ isVisible = true }) {
                   <div className="flex items-center gap-4">
                     {/* Rank Badge */}
                     {getRankBadge(position)}
+                    
+                    {/* User Avatar */}
+                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                      {getUserAvatar(user) ? (
+                        <img 
+                          src={getUserAvatar(user)} 
+                          alt={getUserDisplayName(user)}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-600 text-sm font-medium">
+                          {getUserDisplayName(user).charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
                     
                     {/* User Info */}
                     <div>

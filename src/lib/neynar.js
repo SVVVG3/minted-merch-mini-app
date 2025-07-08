@@ -163,6 +163,61 @@ export async function sendWelcomeNotificationWithNeynar(targetFid) {
 }
 
 /**
+ * Fetch user profiles in bulk from Neynar
+ * @param {Array} fids - Array of Farcaster IDs to fetch
+ * @returns {Object} Success status and user data
+ */
+export async function fetchBulkUserProfiles(fids) {
+  if (!isNeynarAvailable()) {
+    console.log('Neynar not available, cannot fetch user profiles');
+    return { success: false, error: 'Neynar not configured' };
+  }
+
+  if (!fids || !Array.isArray(fids) || fids.length === 0) {
+    return { success: false, error: 'No FIDs provided' };
+  }
+
+  try {
+    console.log('🔍 Fetching bulk user profiles for FIDs:', fids);
+    
+    const userResponse = await neynarClient.fetchBulkUsers({
+      fids: fids.map(fid => parseInt(fid))
+    });
+
+    if (!userResponse.users || userResponse.users.length === 0) {
+      console.log('No users found for provided FIDs');
+      return { success: false, error: 'No users found' };
+    }
+
+    // Create a map of FID to user data for easy lookup
+    const userMap = {};
+    userResponse.users.forEach(user => {
+      userMap[user.fid] = {
+        fid: user.fid,
+        username: user.username,
+        display_name: user.display_name,
+        avatar_url: user.pfp_url,
+        bio: user.profile?.bio?.text || '',
+        follower_count: user.follower_count,
+        following_count: user.following_count,
+        verified: user.verified || false
+      };
+    });
+
+    console.log(`✅ Successfully fetched ${userResponse.users.length} user profiles`);
+    return { 
+      success: true, 
+      users: userMap,
+      count: userResponse.users.length 
+    };
+
+  } catch (error) {
+    console.error('Error fetching bulk user profiles:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Check if a user has notification tokens available via Neynar
  */
 export async function checkUserNotificationStatus(targetFid) {

@@ -39,10 +39,11 @@ export function LeaderboardModal({ isOpen, onClose }) {
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      style={{ width: '100vw', height: '100vh' }}
     >
       <div
         ref={modalRef}
-        className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative"
         tabIndex={-1}
         role="dialog"
         aria-labelledby="leaderboard-title"

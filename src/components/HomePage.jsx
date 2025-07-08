@@ -465,7 +465,7 @@ export function HomePage({ collection, products }) {
             <p className="text-xs text-gray-500 mt-0.5">Pay with USDC on Base</p>
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 ml-4">
             {/* Check-in Button - Only show in Farcaster */}
             {isInFarcaster && <CheckInButton />}
             
