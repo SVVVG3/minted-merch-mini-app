@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { ProductGrid } from './ProductGrid';
 import { Cart } from './Cart';
 import { OrderHistory } from './OrderHistory';
+import { CheckInButton } from './CheckInButton';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
@@ -508,6 +509,9 @@ export function HomePage({ collection, products }) {
       <main>
         <ProductGrid products={products} />
       </main>
+      
+      {/* Check-in Button - Only shows in Farcaster */}
+      <CheckInButton />
       
       {/* Cart Sidebar */}
       <Cart isOpen={isCartOpen} onClose={closeCart} />
