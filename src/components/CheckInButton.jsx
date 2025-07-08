@@ -96,10 +96,10 @@ export function CheckInButton() {
         <div className="relative flex items-center gap-1">
           {canCheckIn ? (
             <>
-              {/* Custom Spin Icon */}
+              {/* Custom Rewards Icon */}
               <img 
-                src="/SpinIcon.png" 
-                alt="Spin Wheel" 
+                src="/RewardsIcon.png" 
+                alt="Daily Rewards" 
                 className="w-8 h-8" 
               />
               
