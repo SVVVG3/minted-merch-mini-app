@@ -291,7 +291,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
             disabled={!canSpin || isSpinning}
             className={`px-8 py-3 rounded-lg font-medium transition-all ${
               canSpin && !isSpinning
-                ? 'bg-green-600 hover:bg-green-700 text-white transform hover:scale-105'
+                ? 'bg-[#3eb489] hover:bg-[#359970] text-white transform hover:scale-105'
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
           >
