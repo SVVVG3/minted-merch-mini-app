@@ -96,10 +96,12 @@ export function CheckInButton() {
         <div className="relative flex items-center gap-1">
           {canCheckIn ? (
             <>
-              {/* Dice Icon - Represents Luck/Chance for Spin Wheel */}
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5zm7 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM8 8.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm11 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM8 15.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm11 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
-              </svg>
+              {/* Custom Spin Icon */}
+              <img 
+                src="/SpinIcon.png" 
+                alt="Spin Wheel" 
+                className="w-4 h-4" 
+              />
               
               {/* New Check-in Available Indicator */}
               <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse ml-1"></div>
