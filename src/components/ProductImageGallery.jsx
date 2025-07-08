@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 /**
  * ProductImageGallery - Main gallery component for displaying product images
@@ -31,20 +31,31 @@ export function ProductImageGallery({
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Process images from Shopify format
+  // Process images from Shopify format and ensure stable array
   const processedImages = images.map(edge => edge.node);
   
   // Add variant image if it exists and isn't already in the list
-  const allImages = [...processedImages];
-  if (selectedVariant?.image) {
-    const variantImageExists = allImages.some(img => img.url === selectedVariant.image.url);
-    if (!variantImageExists) {
-      allImages.unshift(selectedVariant.image); // Add variant image at the beginning
+  const allImages = React.useMemo(() => {
+    const imageList = [...processedImages];
+    if (selectedVariant?.image) {
+      const variantImageExists = imageList.some(img => img.url === selectedVariant.image.url);
+      if (!variantImageExists) {
+        imageList.unshift(selectedVariant.image); // Add variant image at the beginning
+      }
     }
-  }
+    return imageList;
+  }, [processedImages, selectedVariant?.image]);
   
   // Current active image
   const currentImage = allImages[currentImageIndex] || null;
+  
+  // Debug logging
+  console.log('Gallery state:', {
+    currentImageIndex,
+    totalImages: allImages.length,
+    currentImageUrl: currentImage?.url,
+    allImageUrls: allImages.map(img => img.url)
+  });
   
   // Update current image when variant changes
   useEffect(() => {
@@ -65,8 +76,11 @@ export function ProductImageGallery({
 
   // Navigation functions
   const goToImage = useCallback((index) => {
+    console.log('goToImage called with index:', index, 'total images:', allImages.length);
     if (index >= 0 && index < allImages.length) {
+      setIsLoading(true); // Reset loading state for new image
       setCurrentImageIndex(index);
+      console.log('Updated currentImageIndex to:', index);
     }
   }, [allImages.length]);
 
@@ -178,6 +192,7 @@ export function ProductImageGallery({
         {/* Main Image */}
         {currentImage && (
           <img
+            key={currentImage.url} // Force re-render when URL changes
             src={currentImage.url}
             alt={currentImage.altText || productTitle}
             className="w-full h-full object-contain transition-opacity duration-300"
@@ -188,50 +203,8 @@ export function ProductImageGallery({
           />
         )}
 
-        {/* Navigation Arrows - Only show if multiple images */}
-        {allImages.length > 1 && (
-          <>
-            {/* Previous Arrow */}
-            <button
-              onClick={goToPrevious}
-              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-all duration-200 backdrop-blur-sm"
-              aria-label="Previous image"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-
-            {/* Next Arrow */}
-            <button
-              onClick={goToNext}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-all duration-200 backdrop-blur-sm"
-              aria-label="Next image"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </>
-        )}
-
-        {/* Image Counter */}
-        {allImages.length > 1 && (
-          <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
-            {currentImageIndex + 1} / {allImages.length}
-          </div>
-        )}
-
-        {/* Zoom Icon */}
-        <button
-          onClick={() => setIsFullScreen(true)}
-          className="absolute bottom-2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-all duration-200 backdrop-blur-sm"
-          aria-label="View in full screen"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-          </svg>
-        </button>
+        {/* Navigation Arrows - Hidden for cleaner look */}
+        {/* Removed overlay buttons as requested */}
       </div>
 
       {/* Thumbnail Navigation - Only show if multiple images */}
@@ -240,7 +213,10 @@ export function ProductImageGallery({
           {allImages.map((image, index) => (
             <button
               key={`${image.url}-${index}`}
-              onClick={() => goToImage(index)}
+              onClick={() => {
+                console.log('Thumbnail clicked, index:', index, 'currentImageIndex:', currentImageIndex);
+                goToImage(index);
+              }}
               className={`flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-all duration-200 ${
                 index === currentImageIndex 
                   ? 'border-[#3eb489] ring-2 ring-[#3eb489]/30' 
