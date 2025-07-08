@@ -479,15 +479,42 @@ export async function syncPurchaseTracking(userFid = null) {
       // Calculate points from purchases (200% of total spent)
       const pointsFromPurchases = Math.floor(stats.totalSpent * 2.0);
 
-      // Update user_leaderboard
-      const { error: leaderboardError } = await supabase
+      // Check if user exists in leaderboard, if not create them
+      const { data: existingUser } = await supabase
         .from('user_leaderboard')
-        .update({
-          total_orders: stats.totalOrders,
-          total_spent: stats.totalSpent,
-          points_from_purchases: pointsFromPurchases
-        })
-        .eq('user_fid', userFidNum);
+        .select('user_fid, total_points')
+        .eq('user_fid', userFidNum)
+        .single();
+
+      let leaderboardError = null;
+
+      if (!existingUser) {
+        // Create new leaderboard entry for users who have orders but haven't checked in
+        const { error } = await supabase
+          .from('user_leaderboard')
+          .insert({
+            user_fid: userFidNum,
+            total_points: pointsFromPurchases, // Start with purchase points
+            checkin_streak: 0,
+            last_checkin_date: null,
+            total_orders: stats.totalOrders,
+            total_spent: stats.totalSpent,
+            points_from_purchases: pointsFromPurchases
+          });
+        leaderboardError = error;
+      } else {
+        // Update existing leaderboard entry
+        const { error } = await supabase
+          .from('user_leaderboard')
+          .update({
+            total_orders: stats.totalOrders,
+            total_spent: stats.totalSpent,
+            points_from_purchases: pointsFromPurchases,
+            total_points: existingUser.total_points + pointsFromPurchases // Add purchase points to existing points
+          })
+          .eq('user_fid', userFidNum);
+        leaderboardError = error;
+      }
 
       // Update profiles  
       const { error: profileError } = await supabase
