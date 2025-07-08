@@ -46,7 +46,10 @@ export async function initializeUserLeaderboard(userFid) {
         user_fid: userFid,
         total_points: 0,
         checkin_streak: 0,
-        last_checkin_date: null
+        last_checkin_date: null,
+        total_orders: 0,
+        total_spent: 0.00,
+        points_from_purchases: 0
       })
       .select()
       .single();
@@ -229,7 +232,7 @@ export async function performDailyCheckin(userFid) {
 }
 
 /**
- * Add points to user from purchase
+ * Add points to user from purchase and update purchase tracking
  * @param {number} userFid - Farcaster ID of the user
  * @param {number} orderTotal - Order total in dollars
  * @param {string} orderId - Order ID for reference
@@ -252,11 +255,14 @@ export async function addPurchasePoints(userFid, orderTotal, orderId) {
       }
     }
 
-    // Update user points
+    // Update user leaderboard with purchase tracking
     const { data: updatedData, error } = await supabase
       .from('user_leaderboard')
       .update({
-        total_points: userData.total_points + points
+        total_points: userData.total_points + points,
+        total_orders: userData.total_orders + 1,
+        total_spent: userData.total_spent + orderTotal,
+        points_from_purchases: userData.points_from_purchases + points
       })
       .eq('user_fid', userFid)
       .select()
@@ -270,14 +276,31 @@ export async function addPurchasePoints(userFid, orderTotal, orderId) {
       };
     }
 
-    console.log(`Purchase points added for user ${userFid}: +${points} points (order: ${orderId})`);
+    // Also update profiles table for purchase tracking
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        total_orders: supabase.raw('total_orders + 1'),
+        total_spent: supabase.raw(`total_spent + ${orderTotal}`)
+      })
+      .eq('fid', userFid);
+
+    if (profileError) {
+      console.error('Error updating profiles purchase tracking:', profileError);
+      // Don't fail the entire operation, just log the error
+    }
+
+    console.log(`Purchase points added for user ${userFid}: +${points} points, order count: ${updatedData.total_orders}, total spent: $${updatedData.total_spent} (order: ${orderId})`);
 
     return {
       success: true,
       pointsEarned: points,
       orderTotal: orderTotal,
       orderId: orderId,
-      totalPoints: updatedData.total_points
+      totalPoints: updatedData.total_points,
+      totalOrders: updatedData.total_orders,
+      totalSpent: updatedData.total_spent,
+      pointsFromPurchases: updatedData.points_from_purchases
     };
 
   } catch (error) {
@@ -292,14 +315,14 @@ export async function addPurchasePoints(userFid, orderTotal, orderId) {
 /**
  * Get leaderboard data
  * @param {number} limit - Number of top users to return (default: 10)
- * @param {string} category - 'points', 'streaks', 'purchases' (default: 'points')
+ * @param {string} category - 'points', 'streaks', 'purchases', 'spending' (default: 'points')
  * @returns {array} Array of leaderboard entries
  */
 export async function getLeaderboard(limit = 10, category = 'points') {
   try {
     let query = supabase
       .from('user_leaderboard')
-      .select('user_fid, total_points, checkin_streak, last_checkin_date, created_at')
+      .select('user_fid, total_points, checkin_streak, last_checkin_date, total_orders, total_spent, points_from_purchases, created_at')
       .limit(limit);
 
     // Sort based on category
@@ -313,10 +336,16 @@ export async function getLeaderboard(limit = 10, category = 'points') {
           .order('total_points', { ascending: false }); // Secondary sort by points
         break;
       case 'purchases':
-        // For purchases, we'll estimate based on large point amounts
-        // Purchase points are typically 200% of order value (larger amounts)
-        // We'll sort by total points but could enhance this with transaction data later
-        query = query.order('total_points', { ascending: false });
+        // Sort by number of orders, then by total spent
+        query = query
+          .order('total_orders', { ascending: false })
+          .order('total_spent', { ascending: false });
+        break;
+      case 'spending':
+        // Sort by total amount spent
+        query = query
+          .order('total_spent', { ascending: false })
+          .order('total_orders', { ascending: false }); // Secondary sort by order count
         break;
       default:
         console.warn(`Category '${category}' not recognized, using 'points'`);
@@ -357,7 +386,10 @@ export async function getUserLeaderboardPosition(userFid) {
       return {
         position: null,
         totalPoints: 0,
-        streak: 0
+        streak: 0,
+        totalOrders: 0,
+        totalSpent: 0,
+        pointsFromPurchases: 0
       };
     }
 
@@ -372,7 +404,10 @@ export async function getUserLeaderboardPosition(userFid) {
       return {
         position: null,
         totalPoints: userData.total_points,
-        streak: userData.checkin_streak
+        streak: userData.checkin_streak,
+        totalOrders: userData.total_orders || 0,
+        totalSpent: userData.total_spent || 0,
+        pointsFromPurchases: userData.points_from_purchases || 0
       };
     }
 
@@ -380,7 +415,10 @@ export async function getUserLeaderboardPosition(userFid) {
       position: count + 1, // Position is count + 1 (1st place, 2nd place, etc.)
       totalPoints: userData.total_points,
       streak: userData.checkin_streak,
-      lastCheckin: userData.last_checkin_date
+      lastCheckin: userData.last_checkin_date,
+      totalOrders: userData.total_orders || 0,
+      totalSpent: userData.total_spent || 0,
+      pointsFromPurchases: userData.points_from_purchases || 0
     };
 
   } catch (error) {
@@ -388,7 +426,96 @@ export async function getUserLeaderboardPosition(userFid) {
     return {
       position: null,
       totalPoints: 0,
-      streak: 0
+      streak: 0,
+      totalOrders: 0,
+      totalSpent: 0,
+      pointsFromPurchases: 0
     };
+  }
+}
+
+/**
+ * Sync existing order data to populate purchase tracking columns
+ * This function should be run once to populate the new columns with existing data
+ * @param {number} userFid - Farcaster ID of the user (optional - if not provided, syncs all users)
+ * @returns {object} Result of sync operation
+ */
+export async function syncPurchaseTracking(userFid = null) {
+  try {
+    let query = supabase
+      .from('orders')
+      .select('fid, amount_total')
+      .eq('status', 'paid'); // Only count paid orders
+
+    if (userFid) {
+      query = query.eq('fid', userFid);
+    }
+
+    const { data: orders, error: ordersError } = await query;
+
+    if (ordersError) {
+      console.error('Error fetching orders for sync:', ordersError);
+      return { success: false, error: 'Failed to fetch orders' };
+    }
+
+    // Group orders by user
+    const userOrderStats = {};
+    orders.forEach(order => {
+      const fid = order.fid;
+      if (!userOrderStats[fid]) {
+        userOrderStats[fid] = { totalOrders: 0, totalSpent: 0 };
+      }
+      userOrderStats[fid].totalOrders++;
+      userOrderStats[fid].totalSpent += parseFloat(order.amount_total);
+    });
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Update each user's stats
+    for (const [fid, stats] of Object.entries(userOrderStats)) {
+      const userFidNum = parseInt(fid);
+      
+      // Calculate points from purchases (200% of total spent)
+      const pointsFromPurchases = Math.floor(stats.totalSpent * 2.0);
+
+      // Update user_leaderboard
+      const { error: leaderboardError } = await supabase
+        .from('user_leaderboard')
+        .update({
+          total_orders: stats.totalOrders,
+          total_spent: stats.totalSpent,
+          points_from_purchases: pointsFromPurchases
+        })
+        .eq('user_fid', userFidNum);
+
+      // Update profiles  
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          total_orders: stats.totalOrders,
+          total_spent: stats.totalSpent
+        })
+        .eq('fid', userFidNum);
+
+      if (leaderboardError || profileError) {
+        console.error(`Error updating user ${fid}:`, leaderboardError || profileError);
+        errorCount++;
+      } else {
+        console.log(`Synced user ${fid}: ${stats.totalOrders} orders, $${stats.totalSpent} spent, ${pointsFromPurchases} points`);
+        successCount++;
+      }
+    }
+
+    return {
+      success: true,
+      usersProcessed: Object.keys(userOrderStats).length,
+      successCount,
+      errorCount
+    };
+
+  } catch (error) {
+    console.error('Error in syncPurchaseTracking:', error);
+    return { success: false, error: 'Unexpected error during sync' };
   }
 } 
