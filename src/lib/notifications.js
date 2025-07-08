@@ -79,20 +79,20 @@ export async function createCheckInReminderMessage(userFid) {
     const totalPoints = userData?.total_points || 0;
 
     // Create personalized message based on streak
-    let message = "🎯 Daily Check-in Time! Spin the wheel to earn points!";
+    let message = "Spin the wheel to earn points and be entered into raffles for FREE merch!";
     
     if (currentStreak >= 7) {
-      message = `🔥 ${currentStreak}-day streak! Don't break it - check in now to earn bonus points!`;
+      message = `🔥 ${currentStreak}-day streak! Don't break it - spin now for bonus points!`;
     } else if (currentStreak >= 3) {
-      message = `⚡ ${currentStreak}-day streak! Keep it going - daily check-in available!`;
+      message = `⚡ ${currentStreak}-day streak! Keep it going - spin for bonus points!`;
     } else if (currentStreak >= 1) {
-      message = `🎯 Day ${currentStreak + 1} awaits! Check in now to continue your streak!`;
+      message = `🎯 Day ${currentStreak + 1} awaits! Spin now to continue your streak!`;
     } else if (totalPoints > 0) {
-      message = `🎲 Daily spin available! Add to your ${totalPoints} points collection!`;
+      message = `🎲 Daily spin available! Add to your ${totalPoints} points & keep moving up the leaderboard!`;
     }
 
     return {
-      title: "🎪 Minted Merch Daily Check-in",
+      title: "🎯 Daily Check-in Time",
       body: message,
       targetUrl: "https://mintedmerch.vercel.app?from=checkin_reminder&t=" + Date.now()
     };
@@ -100,8 +100,8 @@ export async function createCheckInReminderMessage(userFid) {
   } catch (error) {
     console.error('Error creating check-in reminder message:', error);
     return {
-      title: "🎪 Minted Merch Daily Check-in",
-      body: "🎯 Daily Check-in Time! Spin the wheel to earn points!",
+      title: "🎯 Daily Check-in Time",
+      body: "Spin the wheel to earn points and be entered into raffles for FREE merch!",
       targetUrl: "https://mintedmerch.vercel.app?from=checkin_reminder&t=" + Date.now()
     };
   }
