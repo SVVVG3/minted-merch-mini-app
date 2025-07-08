@@ -493,7 +493,7 @@ export function HomePage({ collection, products }) {
             <img 
               src="/MintedMerchHeaderLogo.png" 
               alt="Minted Merch" 
-              className="h-8"
+              className="h-16"
             />
           </div>
           
