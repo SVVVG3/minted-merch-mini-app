@@ -139,8 +139,16 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-lg max-w-md mx-auto">
       {/* Header */}
       <div className="text-center mb-6">
+        {/* Logo */}
+        <div className="mb-4">
+          <img 
+            src="/MintedMerchSpinnerLogo.png" 
+            alt="Minted Merch" 
+            className="h-16 mx-auto"
+          />
+        </div>
         <h2 className="text-2xl font-bold text-gray-800 mb-2">Daily Check-in</h2>
-        <p className="text-gray-600">Spin the wheel to earn points!</p>
+        <p className="text-gray-600">Spin the wheel to earn points & be entered into raffles for FREE merch!</p>
         
         {userStatus && (
           <div className="mt-3 text-sm text-gray-500">
@@ -283,7 +291,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
             disabled={!canSpin || isSpinning}
             className={`px-8 py-3 rounded-lg font-medium transition-all ${
               canSpin && !isSpinning
-                ? 'bg-blue-600 hover:bg-blue-700 text-white transform hover:scale-105'
+                ? 'bg-green-600 hover:bg-green-700 text-white transform hover:scale-105'
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
           >
