@@ -2,11 +2,23 @@
 
 import { useState } from 'react';
 import { LeaderboardModal } from './LeaderboardModal';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 export function LeaderboardButton() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleOpenModal = () => {
+  const handleOpenModal = async () => {
+    // Add haptic feedback for leaderboard selection
+    try {
+      const capabilities = await sdk.getCapabilities();
+      if (capabilities.includes('haptics.selectionChanged')) {
+        await sdk.haptics.selectionChanged();
+      }
+    } catch (error) {
+      // Haptics not available, continue without feedback
+      console.log('Haptics not available:', error);
+    }
+    
     setIsModalOpen(true);
   };
 

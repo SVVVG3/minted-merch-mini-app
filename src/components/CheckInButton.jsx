@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { CheckInModal } from './CheckInModal';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 export function CheckInButton() {
   const { isInFarcaster, isReady, getFid } = useFarcaster();
@@ -42,7 +43,18 @@ export function CheckInButton() {
     }
   };
 
-  const handleOpenModal = () => {
+  const handleOpenModal = async () => {
+    // Add haptic feedback for check-in action
+    try {
+      const capabilities = await sdk.getCapabilities();
+      if (capabilities.includes('haptics.impactOccurred')) {
+        await sdk.haptics.impactOccurred('medium');
+      }
+    } catch (error) {
+      // Haptics not available, continue without feedback
+      console.log('Haptics not available:', error);
+    }
+    
     setIsModalOpen(true);
   };
 
@@ -84,9 +96,20 @@ export function CheckInButton() {
         <div className="relative flex items-center gap-1">
           {canCheckIn ? (
             <>
-              {/* Gift Icon - Represents Daily Rewards */}
+              {/* Gift Box Icon with Ribbon - Clear Present Design */}
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 0 0-5.5-1.65l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z"/>
+                {/* Gift box body */}
+                <rect x="4" y="8" width="16" height="12" rx="1" />
+                {/* Vertical ribbon */}
+                <rect x="11" y="8" width="2" height="12" />
+                {/* Horizontal ribbon */}
+                <rect x="4" y="13" width="16" height="2" />
+                {/* Bow - left loop */}
+                <path d="M8 8c0-2 2-4 4-4s4 2 4 4" stroke="currentColor" strokeWidth="1" fill="none"/>
+                {/* Bow - right loop */}
+                <path d="M8 8c0-2 2-2 4-2s4 0 4 2" stroke="currentColor" strokeWidth="1" fill="none"/>
+                {/* Bow center knot */}
+                <circle cx="12" cy="8" r="1"/>
               </svg>
               
               {/* New Check-in Available Indicator */}

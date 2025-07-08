@@ -7,6 +7,7 @@ import { ProductImageGallery } from './ProductImageGallery';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { Cart } from './Cart';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 export function ProductDetail({ 
   product, 
@@ -32,7 +33,21 @@ export function ProductDetail({
     }
   };
 
-  const openCart = () => setIsCartOpen(true);
+  const openCart = async () => {
+    // Add haptic feedback for cart action
+    try {
+      const capabilities = await sdk.getCapabilities();
+      if (capabilities.includes('haptics.impactOccurred')) {
+        await sdk.haptics.impactOccurred('light');
+      }
+    } catch (error) {
+      // Haptics not available, continue without feedback
+      console.log('Haptics not available:', error);
+    }
+    
+    setIsCartOpen(true);
+  };
+  
   const closeCart = () => setIsCartOpen(false);
 
   // Share product function

@@ -10,6 +10,7 @@ import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
 import { getBestAvailableDiscount, hasDiscountOfType } from '@/lib/discounts';
+import { sdk } from '@farcaster/miniapp-sdk';
 // Token-gating functions moved to API routes to avoid client-side Node.js imports
 // import { getEligibleAutoApplyDiscounts } from '@/lib/tokenGating';
 // import { fetchUserWalletData } from '@/lib/walletUtils';
@@ -449,9 +450,38 @@ export function HomePage({ collection, products }) {
     return 'Discount available';
   };
 
-  const openCart = () => setIsCartOpen(true);
+  const openCart = async () => {
+    // Add haptic feedback for cart action
+    try {
+      const capabilities = await sdk.getCapabilities();
+      if (capabilities.includes('haptics.impactOccurred')) {
+        await sdk.haptics.impactOccurred('light');
+      }
+    } catch (error) {
+      // Haptics not available, continue without feedback
+      console.log('Haptics not available:', error);
+    }
+    
+    setIsCartOpen(true);
+  };
+  
   const closeCart = () => setIsCartOpen(false);
-  const openOrderHistory = () => setIsOrderHistoryOpen(true);
+  
+  const openOrderHistory = async () => {
+    // Add haptic feedback for order history selection
+    try {
+      const capabilities = await sdk.getCapabilities();
+      if (capabilities.includes('haptics.selectionChanged')) {
+        await sdk.haptics.selectionChanged();
+      }
+    } catch (error) {
+      // Haptics not available, continue without feedback
+      console.log('Haptics not available:', error);
+    }
+    
+    setIsOrderHistoryOpen(true);
+  };
+  
   const closeOrderHistory = () => setIsOrderHistoryOpen(false);
 
   return (
