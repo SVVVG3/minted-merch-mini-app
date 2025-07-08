@@ -445,7 +445,7 @@ export async function syncPurchaseTracking(userFid = null) {
     let query = supabase
       .from('orders')
       .select('fid, amount_total')
-      .eq('status', 'paid'); // Only count paid orders
+      .in('status', ['paid', 'shipped']); // Count both paid and shipped orders
 
     if (userFid) {
       query = query.eq('fid', userFid);
