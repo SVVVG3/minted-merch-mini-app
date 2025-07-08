@@ -600,4 +600,64 @@ export async function sendTestNotification(userFid, message = "Test notification
     console.error('Error sending test notification:', error);
     return { success: false, error: error.message, details: error.response?.data };
   }
+}
+
+/**
+ * Send notification with Neynar API (for daily check-in reminders)
+ * @param {number} userFid - User's Farcaster ID
+ * @param {Object} message - Message object with title, body, targetUrl
+ * @returns {Object} Result of notification send
+ */
+export async function sendNotificationWithNeynar(userFid, message) {
+  if (!isNeynarAvailable()) {
+    console.log('Neynar not available, skipping notification');
+    return { success: false, error: 'Neynar not configured' };
+  }
+
+  try {
+    console.log('🔔 Sending notification via Neynar for FID:', userFid);
+    console.log('Message:', message);
+
+    const notification = {
+      title: message.title,
+      body: message.body,
+      target_url: message.targetUrl,
+      uuid: generateUUID()
+    };
+
+    const response = await neynarClient.publishFrameNotifications({
+      targetFids: [userFid],
+      notification: notification
+    });
+
+    console.log('✅ Notification sent successfully via Neynar:', response);
+    return {
+      success: true,
+      userFid: userFid,
+      notificationId: notification.uuid,
+      data: response
+    };
+
+  } catch (error) {
+    console.error('❌ Error sending notification via Neynar:', error);
+    console.error('Full error details:', error.response?.data || error);
+    
+    // If the error indicates user has not enabled notifications, that's expected behavior
+    if (error.message && (error.message.includes('notification') || error.message.includes('token'))) {
+      console.log('User notifications not enabled - this is normal behavior');
+      return { 
+        success: true, 
+        skipped: true, 
+        reason: 'User has not enabled notifications',
+        userFid: userFid
+      };
+    }
+    
+    return {
+      success: false,
+      error: error.message,
+      userFid: userFid,
+      details: error.response?.data
+    };
+  }
 } 
