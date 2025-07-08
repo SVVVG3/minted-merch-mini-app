@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { VariantSelector } from './VariantSelector';
+import { ProductImageGallery } from './ProductImageGallery';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { Cart } from './Cart';
@@ -19,8 +20,6 @@ export function ProductDetail({
   const { isInFarcaster } = useFarcaster();
   const [isCartOpen, setIsCartOpen] = useState(false);
   
-  // Use variant image if available, otherwise fall back to first product image
-  const mainImage = selectedVariant?.image || product.images?.edges?.[0]?.node;
   const price = selectedVariant?.price?.amount || product.priceRange?.minVariantPrice?.amount || '0';
   
   // Check if this specific variant is in cart
@@ -276,15 +275,12 @@ export function ProductDetail({
       </header>
 
       <main className="pb-32">
-        {mainImage && (
-          <div className="aspect-square bg-white">
-            <img
-              src={mainImage.url}
-              alt={mainImage.altText || product.title}
-              className="w-full h-full object-contain"
-            />
-          </div>
-        )}
+        <ProductImageGallery 
+          images={product.images?.edges || []}
+          selectedVariant={selectedVariant}
+          productTitle={product.title}
+          className="mb-4"
+        />
 
         <div className="p-4 space-y-6">
           <div>
