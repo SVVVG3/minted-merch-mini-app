@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { getTimeUntilReset } from '@/lib/timezone';
 
 export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const { isInFarcaster, isReady, getFid } = useFarcaster();
@@ -15,6 +16,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const [showConfetti, setShowConfetti] = useState(false);
   const [wheelGlow, setWheelGlow] = useState(false);
   const [screenShake, setScreenShake] = useState(false);
+  const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
 
   // Define wheel segments with enhanced visual styling
   const wheelSegments = [
@@ -35,6 +37,26 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
 
     loadUserStatus(userFid);
   }, [isInFarcaster, isReady]);
+
+  // Countdown timer effect for next spin availability
+  useEffect(() => {
+    const updateCountdown = () => {
+      const timeUntilReset = getTimeUntilReset();
+      setCountdown({
+        hours: timeUntilReset.hours,
+        minutes: timeUntilReset.minutes,
+        seconds: timeUntilReset.seconds
+      });
+    };
+
+    // Update immediately
+    updateCountdown();
+
+    // Then update every second
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const loadUserStatus = async (userFid) => {
     try {
@@ -421,8 +443,6 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
               <div className="relative">
                 {/* Main arrow pointer */}
                 <div className="w-0 h-0 border-l-[12px] border-r-[12px] border-t-[20px] border-l-transparent border-r-transparent border-t-gray-800 drop-shadow-lg"></div>
-                {/* Small decorative circle at the base */}
-                <div className="absolute top-[16px] left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rounded-full border border-white"></div>
               </div>
             </div>
           </div>
@@ -471,8 +491,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                   <div className="bg-blue-100 rounded-lg p-3 mb-4">
                     <div className="text-sm font-medium text-blue-800">
                       {spinResult.newStreak === 1 ? 
-                        "🌟 Great start! Come back in 24 hours for your next reward!" :
-                        `⚡ Amazing! Come back tomorrow to reach ${spinResult.newStreak + 1} days!`
+                        "🌟 Great start! Return at 8 AM PST for your next reward!" :
+                        `⚡ Amazing! Come back at 8 AM PST to reach ${spinResult.newStreak + 1} days!`
                       }
                     </div>
                   </div>
@@ -538,10 +558,31 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                 )}
               </button>
               
-              {/* Encouragement for return users */}
+              {/* Live countdown for return users */}
               {!canSpin && (
-                <div className="text-xs text-gray-500 text-center">
-                  Come back in 24 hours for your next spin! 
+                <div className="text-center">
+                  <div className="text-xs text-gray-500 mb-2">
+                    Next spin available in:
+                  </div>
+                  <div className="bg-gradient-to-r from-blue-100 to-green-100 border border-blue-200 rounded-lg p-3">
+                    <div className="flex justify-center items-center gap-1 text-sm font-mono font-semibold text-gray-800">
+                      <div className="bg-white rounded px-2 py-1 min-w-[2.5rem] text-center">
+                        {countdown.hours.toString().padStart(2, '0')}
+                      </div>
+                      <span className="text-gray-500">h</span>
+                      <div className="bg-white rounded px-2 py-1 min-w-[2.5rem] text-center">
+                        {countdown.minutes.toString().padStart(2, '0')}
+                      </div>
+                      <span className="text-gray-500">m</span>
+                      <div className="bg-white rounded px-2 py-1 min-w-[2.5rem] text-center">
+                        {countdown.seconds.toString().padStart(2, '0')}
+                      </div>
+                      <span className="text-gray-500">s</span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      until 8 AM PST
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
