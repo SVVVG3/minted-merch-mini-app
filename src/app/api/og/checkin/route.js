@@ -135,7 +135,7 @@ export async function GET(request) {
                   color: '#3eb489',
                 }}
               >
-                💎 {totalPoints} Total Points
+                💎 57 Total Points
               </div>
             </div>
           </div>
