@@ -2,28 +2,6 @@ import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'nodejs';
 
-async function fetchImageAsDataUrl(imageUrl) {
-  try {
-    console.log('Fetching image from URL:', imageUrl);
-    const response = await fetch(imageUrl);
-    console.log('Image fetch response status:', response.status, response.statusText);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-    }
-    
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    
-    console.log('Image fetched successfully, content-type:', contentType, 'size:', buffer.length);
-    return `data:${contentType};base64,${buffer.toString('base64')}`;
-  } catch (error) {
-    console.error('Error fetching image from', imageUrl, ':', error);
-    return null;
-  }
-}
-
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -32,31 +10,11 @@ export async function GET(request) {
     const totalPoints = parseInt(searchParams.get('total') || '100');
     const basePoints = parseInt(searchParams.get('base') || '30');
     const streakBonus = parseInt(searchParams.get('bonus') || '0');
-    const bustCache = searchParams.get('t'); // Cache busting parameter
+    const bustCache = searchParams.get('t');
     
     console.log('=== OG Check-in Image Generation ===');
     console.log('Params:', { pointsEarned, streak, totalPoints, basePoints, streakBonus, bustCache });
     
-    // Fetch logo image
-    const logoUrl = 'https://mintedmerch.vercel.app/logo.png';
-    let logoImageSrc = null;
-    try {
-      console.log('Fetching logo from:', logoUrl);
-      logoImageSrc = await fetchImageAsDataUrl(logoUrl);
-      console.log('Logo fetch result:', logoImageSrc ? '✅ Success' : '❌ Failed');
-    } catch (error) {
-      console.error('❌ Error fetching logo:', error);
-    }
-
-    // Get streak emoji based on streak count
-    const getStreakEmoji = (streak) => {
-      if (streak >= 30) return "👑";
-      if (streak >= 14) return "🔥";
-      if (streak >= 7) return "⚡";
-      if (streak >= 3) return "🌟";
-      return "💫";
-    };
-
     // Get rarity color based on points
     const getRarityColor = (points) => {
       if (points >= 91) return '#8b5cf6'; // Purple - Epic
@@ -67,230 +25,56 @@ export async function GET(request) {
       return '#ef4444'; // Red - Common
     };
 
-    const streakEmoji = getStreakEmoji(streak);
     const rarityColor = getRarityColor(basePoints);
+    
+    console.log('Generating ImageResponse...');
     
     return new ImageResponse(
       (
         <div
           style={{
-            width: '100%',
-            height: '100%',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
+            width: '100%',
+            height: '100%',
             backgroundColor: '#000000',
             color: 'white',
-            fontFamily: 'Arial, sans-serif',
-            padding: '60px',
-            position: 'relative',
+            fontFamily: 'Arial',
           }}
         >
-          {/* Background Gradient */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              backgroundColor: '#1a1a1a',
-            }}
-          />
-
-          {/* Main Content Container */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '40px',
-              width: '100%',
-              height: '100%',
-              position: 'relative',
-              zIndex: 1,
-            }}
-          >
-            {/* Header */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '20px',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '48px',
-                  fontWeight: 'bold',
-                  color: '#22c55e',
-                }}
-              >
-                Daily Check-in Complete! 🎯
-              </div>
+          <div style={{ fontSize: 60, fontWeight: 'bold', color: '#22c55e', marginBottom: 40 }}>
+            Daily Check-in! 🎯
+          </div>
+          
+          <div style={{ fontSize: 120, fontWeight: 'bold', color: rarityColor, marginBottom: 20 }}>
+            +{pointsEarned}
+          </div>
+          
+          <div style={{ fontSize: 40, color: 'white', marginBottom: 40 }}>
+            Points Earned! 🎉
+          </div>
+          
+          <div style={{ display: 'flex', gap: 60 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#22c55e', padding: 30, borderRadius: 20, color: '#000000' }}>
+              <div style={{ fontSize: 40 }}>💫</div>
+              <div style={{ fontSize: 30, fontWeight: 'bold' }}>{streak} Day{streak !== 1 ? 's' : ''}</div>
+              <div style={{ fontSize: 16 }}>Streak</div>
             </div>
-
-            {/* Main Points Display */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '30px',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                padding: '60px',
-                borderRadius: '24px',
-                border: `3px solid ${rarityColor}`,
-              }}
-            >
-              {/* Main Points */}
-              <div
-                style={{
-                  fontSize: '120px',
-                  fontWeight: 'bold',
-                  color: rarityColor,
-                  lineHeight: 1,
-                }}
-              >
-                +{pointsEarned}
-              </div>
-              
-              {/* Points Label */}
-              <div
-                style={{
-                  fontSize: '36px',
-                  fontWeight: 'bold',
-                  color: '#ffffff',
-                  marginTop: '-20px',
-                }}
-              >
-                Points Earned! 🎉
-              </div>
-
-              {/* Points Breakdown */}
-              {streakBonus > 0 && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '20px',
-                    backgroundColor: '#ffc107',
-                    padding: '20px 40px',
-                    borderRadius: '16px',
-                    color: '#000000',
-                  }}
-                >
-                  <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
-                    🎯 Base: {basePoints} + 🔥 Streak Bonus: {streakBonus}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Stats Row */}
-            <div
-              style={{
-                display: 'flex',
-                gap: '60px',
-                alignItems: 'center',
-              }}
-            >
-              {/* Streak */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '10px',
-                  backgroundColor: '#22c55e',
-                  padding: '30px',
-                  borderRadius: '20px',
-                  color: '#000000',
-                }}
-              >
-                <div style={{ fontSize: '48px' }}>{streakEmoji}</div>
-                <div style={{ fontSize: '36px', fontWeight: 'bold' }}>
-                  {streak} Day{streak !== 1 ? 's' : ''}
-                </div>
-                <div style={{ fontSize: '18px', color: '#333333' }}>
-                  Streak
-                </div>
-              </div>
-
-              {/* Total Points */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '10px',
-                  backgroundColor: '#3b82f6',
-                  padding: '30px',
-                  borderRadius: '20px',
-                  color: '#ffffff',
-                }}
-              >
-                <div style={{ fontSize: '48px' }}>💎</div>
-                <div style={{ fontSize: '36px', fontWeight: 'bold' }}>
-                  {totalPoints}
-                </div>
-                <div style={{ fontSize: '18px', color: '#cccccc' }}>
-                  Total Points
-                </div>
-              </div>
-            </div>
-
-            {/* Call to Action */}
-            <div
-              style={{
-                fontSize: '24px',
-                color: '#a3a3a3',
-                textAlign: 'center',
-              }}
-            >
-              Keep your streak going! Return tomorrow for more rewards 🌟
+            
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#3b82f6', padding: 30, borderRadius: 20, color: 'white' }}>
+              <div style={{ fontSize: 40 }}>💎</div>
+              <div style={{ fontSize: 30, fontWeight: 'bold' }}>{totalPoints}</div>
+              <div style={{ fontSize: 16 }}>Total Points</div>
             </div>
           </div>
-
-          {/* Logo */}
-          {logoImageSrc && (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '30px',
-                right: '30px',
-                width: '160px',
-                height: '160px',
-                borderRadius: '12px',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px solid rgba(255, 255, 255, 0.2)',
-              }}
-            >
-              <img
-                src={logoImageSrc}
-                alt="Minted Merch"
-                style={{
-                  width: '120px',
-                  height: '120px',
-                  objectFit: 'contain',
-                }}
-              />
-            </div>
-          )}
-
-          {/* Minted Merch Branding */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '30px',
-              left: '30px',
-              fontSize: '28px',
-              fontWeight: 'bold',
-              color: '#22c55e',
-            }}
-          >
+          
+          <div style={{ fontSize: 20, color: '#a3a3a3', marginTop: 40 }}>
+            Keep your streak going! 🌟
+          </div>
+          
+          <div style={{ position: 'absolute', bottom: 30, left: 30, fontSize: 28, fontWeight: 'bold', color: '#22c55e' }}>
             Minted Merch
           </div>
         </div>
@@ -302,9 +86,10 @@ export async function GET(request) {
     );
     
   } catch (error) {
-    console.error('OG Check-in Error:', error);
+    console.error('❌ OG Check-in Error:', error);
+    console.error('Error stack:', error.stack);
     
-    // Return fallback image
+    // Return very simple fallback
     return new ImageResponse(
       (
         <div
@@ -317,13 +102,12 @@ export async function GET(request) {
             justifyContent: 'center',
             backgroundColor: '#000000',
             color: 'white',
-            fontFamily: 'Arial, sans-serif',
+            fontFamily: 'Arial',
           }}
         >
-          <div style={{ fontSize: 100, color: '#3eb489' }}>🎯</div>
+          <div style={{ fontSize: 100 }}>🎯</div>
           <div style={{ fontSize: 48, marginTop: 20 }}>Daily Check-in!</div>
-          <div style={{ fontSize: 36, color: '#3eb489', marginTop: 20 }}>Minted Merch</div>
-          <div style={{ fontSize: 24, color: '#888', marginTop: 20 }}>Keep your streak going!</div>
+          <div style={{ fontSize: 36, color: '#22c55e', marginTop: 20 }}>Minted Merch</div>
         </div>
       ),
       {
