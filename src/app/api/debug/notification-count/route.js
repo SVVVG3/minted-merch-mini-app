@@ -1,21 +1,32 @@
 import { createClient } from '@supabase/supabase-js';
-import { neynarAxios } from '@/lib/neynar';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
+const NEYNAR_BASE_URL = 'https://api.neynar.com';
+
 export async function POST(request) {
   try {
-    // Get all tokens from Neynar to count enabled ones
-    const neynarResponse = await neynarAxios.get('/farcaster/frame/notifications/tokens', {
-      params: {
-        url: 'https://api.farcaster.xyz/v1/frame-notifications'
+    if (!NEYNAR_API_KEY) {
+      throw new Error('NEYNAR_API_KEY not found');
+    }
+
+    // Get all tokens from Neynar directly
+    const neynarResponse = await fetch(`${NEYNAR_BASE_URL}/v2/farcaster/frame/notifications/tokens?url=https://api.farcaster.xyz/v1/frame-notifications`, {
+      headers: {
+        'x-api-key': NEYNAR_API_KEY
       }
     });
 
-    const enabledTokens = neynarResponse.data.tokens.filter(token => token.status === 'enabled');
+    if (!neynarResponse.ok) {
+      throw new Error(`Neynar API error: ${neynarResponse.status}`);
+    }
+
+    const neynarData = await neynarResponse.json();
+    const enabledTokens = neynarData.tokens.filter(token => token.status === 'enabled');
     const neynarCount = enabledTokens.length;
 
     // Get count from our database
