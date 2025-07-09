@@ -69,12 +69,13 @@ export async function generateMetadata({ searchParams }) {
     return {
       title: `Daily Check-in Complete! +${points} Points Earned 🎯`,
       description: `💫 ${streak} day streak • 💎 ${totalPoints} total points • Keep your streak going on Minted Merch!`,
+      metadataBase: new URL(baseUrl),
       other: {
         'fc:frame': JSON.stringify(frame),
       },
       openGraph: {
-        title,
-        description,
+        title: `Daily Check-in Complete! +${points} Points Earned 🎯`,
+        description: `💫 ${streak} day streak • 💎 ${totalPoints} total points • Keep your streak going on Minted Merch!`,
         siteName: 'Minted Merch Shop',
         images: [
           {
@@ -88,8 +89,8 @@ export async function generateMetadata({ searchParams }) {
       },
       twitter: {
         card: 'summary_large_image',
-        title,
-        description,
+        title: `Daily Check-in Complete! +${points} Points Earned 🎯`,
+        description: `💫 ${streak} day streak • 💎 ${totalPoints} total points • Keep your streak going on Minted Merch!`,
         images: [dynamicImageUrl],
       },
     };
@@ -120,14 +121,14 @@ export async function generateMetadata({ searchParams }) {
     },
     openGraph: {
       title: 'Minted Merch Shop - Crypto Merch with USDC on Base',
-      description: 'Shop premium crypto merchandise and pay instantly with USDC on Base blockchain. Apparel, accessories, and more designed after your favorite coins and communities.',
+      description: 'Shop exclusive crypto merch and pay with USDC on Base. Token-gated discounts for NFT holders.',
       siteName: 'Minted Merch Shop',
       images: [
         {
           url: `${baseUrl}/api/og/home`,
           width: 1200,
           height: 800,
-          alt: 'Minted Merch Shop - Crypto Merchandise',
+          alt: 'Minted Merch Shop',
         },
       ],
       type: 'website',
@@ -135,7 +136,7 @@ export async function generateMetadata({ searchParams }) {
     twitter: {
       card: 'summary_large_image',
       title: 'Minted Merch Shop - Crypto Merch with USDC on Base',
-      description: 'Shop premium crypto merchandise and pay instantly with USDC on Base blockchain. Apparel, accessories, and more designed after your favorite coins and communities.',
+      description: 'Shop exclusive crypto merch and pay with USDC on Base. Token-gated discounts for NFT holders.',
       images: [`${baseUrl}/api/og/home`],
     },
   };
