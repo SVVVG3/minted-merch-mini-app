@@ -5,7 +5,7 @@ import { useCart } from '@/lib/CartContext';
 import { useUSDCPayment } from '@/lib/useUSDCPayment';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { calculateCheckout } from '@/lib/shopify';
-import { saveOrderToHistory } from '@/lib/orderHistory';
+
 import { ShippingForm } from './ShippingForm';
 
 export function CheckoutFlow({ checkoutData, onBack }) {
@@ -469,12 +469,7 @@ Transaction Hash: ${transactionHash}`;
           appliedDiscount: appliedDiscount
         };
         
-        // Save order to history
-        const userFid = getFid();
-        if (userFid) {
-          saveOrderToHistory(userFid, orderDetailsData);
-          console.log('Order saved to history for user:', userFid);
-        }
+        // Order is automatically saved to database via the order creation API
         
         // Show order confirmation
         setOrderDetails(orderDetailsData);

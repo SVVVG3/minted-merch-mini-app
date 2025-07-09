@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 
 export function OrderHistory({ isOpen, onClose }) {
@@ -10,19 +10,19 @@ export function OrderHistory({ isOpen, onClose }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (isOpen && getFid()) {
-      loadOrderHistory();
-    }
-  }, [isOpen, getFid]);
+  // Get the FID value once to avoid infinite loops
+  const userFid = getFid();
 
-  const loadOrderHistory = async () => {
+  const loadOrderHistory = useCallback(async () => {
+    if (!userFid) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     
     try {
-      const userFid = getFid();
-      
       // Fetch orders from database API
       const response = await fetch(`/api/user-orders?fid=${userFid}&limit=50`);
       const data = await response.json();
@@ -46,7 +46,15 @@ export function OrderHistory({ isOpen, onClose }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userFid]);
+
+  useEffect(() => {
+    if (isOpen && userFid) {
+      loadOrderHistory();
+    }
+  }, [isOpen, userFid, loadOrderHistory]);
+
+
 
   const handleClearHistory = () => {
     // Note: For database-based orders, we don't allow clearing history
