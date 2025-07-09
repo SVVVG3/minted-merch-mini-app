@@ -381,8 +381,9 @@ export async function getLeaderboard(limit = 10, category = 'points') {
           .order('total_points', { ascending: false }); // Secondary sort by points
         break;
       case 'purchases':
-        // Sort by points from purchases, then by number of orders
+        // Filter to only show users who have made purchases, then sort by points from purchases
         query = query
+          .gt('total_orders', 0)
           .order('points_from_purchases', { ascending: false })
           .order('total_orders', { ascending: false });
         break;

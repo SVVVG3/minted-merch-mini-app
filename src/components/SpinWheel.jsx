@@ -416,11 +416,13 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
               </defs>
             </svg>
             
-            {/* Enhanced Pointer */}
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2">
+            {/* Enhanced Pointer - Traditional Spinner Style */}
+            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10">
               <div className="relative">
-                <div className="w-0 h-0 border-l-6 border-r-6 border-t-10 border-l-transparent border-r-transparent border-t-gray-800 drop-shadow-md"></div>
-                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-yellow-400 rounded-full -mt-1 border-2 border-white"></div>
+                {/* Main arrow pointer */}
+                <div className="w-0 h-0 border-l-[12px] border-r-[12px] border-t-[20px] border-l-transparent border-r-transparent border-t-gray-800 drop-shadow-lg"></div>
+                {/* Small decorative circle at the base */}
+                <div className="absolute top-[16px] left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rounded-full border border-white"></div>
               </div>
             </div>
           </div>
