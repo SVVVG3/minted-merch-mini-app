@@ -490,7 +490,7 @@ export function HomePage({ collection, products }) {
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="px-2 py-3 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center pr-4">
+          <div className="flex items-center pr-2">
             <img 
               src="/MintedMerchHeaderLogo.png" 
               alt="Minted Merch" 
@@ -498,7 +498,7 @@ export function HomePage({ collection, products }) {
             />
           </div>
           
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
             {/* Check-in Button - Only show in Farcaster */}
             {isInFarcaster && <CheckInButton />}
             
