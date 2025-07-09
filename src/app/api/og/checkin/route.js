@@ -2,28 +2,6 @@ import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'nodejs';
 
-async function fetchImageAsDataUrl(imageUrl) {
-  try {
-    console.log('Fetching image from URL:', imageUrl);
-    const response = await fetch(imageUrl);
-    console.log('Image fetch response status:', response.status, response.statusText);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-    }
-    
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    
-    console.log('Image fetched successfully, content-type:', contentType, 'size:', buffer.length);
-    return `data:${contentType};base64,${buffer.toString('base64')}`;
-  } catch (error) {
-    console.error('Error fetching image from', imageUrl, ':', error);
-    return null;
-  }
-}
-
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -63,7 +41,7 @@ export async function GET(request) {
               height: '100%',
             }}
           >
-            {/* Logo Section - Left Box */}
+            {/* Product Image Section - Larger */}
             <div
               style={{
                 width: '450px',
@@ -78,22 +56,46 @@ export async function GET(request) {
                 flexShrink: 0,
               }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textAlign: 'center',
-                  padding: '20px',
-                }}
-              >
-                <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>🎯</div>
-                <div style={{ fontSize: '32px', color: '#3eb489' }}>Check-in Complete!</div>
-              </div>
+              {productImageSrc ? (
+                <img
+                  src={productImageSrc}
+                  alt={products}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    padding: '20px',
+                  }}
+                >
+                  {productImageFailed ? (
+                    <>
+                      <div style={{ fontSize: '80px', marginBottom: '20px', color: '#ff6b6b' }}>❌</div>
+                      <div style={{ fontSize: '24px', color: '#ff6b6b', marginBottom: '10px' }}>Image Failed</div>
+                      <div style={{ fontSize: '16px', color: '#888' }}>
+                        {'No URL'}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>🎯</div>
+                      <div style={{ fontSize: '32px', color: '#3eb489' }}>Check-in Complete!</div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             
-            {/* Check-in Info Section - Right */}
+            {/* Order Info Section - Larger */}
             <div
               style={{
                 display: 'flex',
