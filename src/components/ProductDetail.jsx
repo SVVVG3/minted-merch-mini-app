@@ -7,7 +7,6 @@ import { ProductImageGallery } from './ProductImageGallery';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { Cart } from './Cart';
-import { InfoButton } from './InfoButton';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 export function ProductDetail({ 
@@ -261,9 +260,6 @@ export function ProductDetail({
                 <path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.445H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/>
               </svg>
             </button>
-
-            {/* Info Button */}
-            <InfoButton />
 
             {/* Cart Button */}
             <button

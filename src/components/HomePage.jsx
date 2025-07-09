@@ -488,9 +488,9 @@ export function HomePage({ collection, products }) {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-3 flex items-center justify-between">
+        <div className="px-2 py-3 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center">
+          <div className="flex items-center pr-4">
             <img 
               src="/MintedMerchHeaderLogo.png" 
               alt="Minted Merch" 
@@ -498,9 +498,12 @@ export function HomePage({ collection, products }) {
             />
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             {/* Check-in Button - Only show in Farcaster */}
             {isInFarcaster && <CheckInButton />}
+            
+            {/* Info Button - Show for everyone, positioned between check-in and leaderboard */}
+            <InfoButton />
             
             {/* Leaderboard Button - Only show in Farcaster */}
             {isInFarcaster && <LeaderboardButton />}
@@ -517,9 +520,6 @@ export function HomePage({ collection, products }) {
                 </svg>
               </button>
             )}
-
-            {/* Info Button - Show for everyone */}
-            <InfoButton />
             
             {/* Cart Button */}
             <button

@@ -10,11 +10,16 @@ export function InfoModal({ isOpen, onClose }) {
   const handleFarcasterProfileClick = async (e) => {
     e.preventDefault();
     try {
-      // Try to minimize the app and open Farcaster profile
-      await sdk.actions.openURL('https://farcaster.xyz/svvvg3.eth');
+      // Use the proper Farcaster URL scheme to open profile in Farcaster app
+      await sdk.actions.openURL('farcaster://profiles/svvvg3.eth');
     } catch (error) {
-      // Fallback: open in new tab if SDK action fails
-      window.open('https://farcaster.xyz/svvvg3.eth', '_blank');
+      // Fallback: try web URL
+      try {
+        await sdk.actions.openURL('https://warpcast.com/svvvg3.eth');
+      } catch (fallbackError) {
+        // Final fallback: open in new tab
+        window.open('https://warpcast.com/svvvg3.eth', '_blank');
+      }
     }
   };
 
@@ -100,16 +105,16 @@ export function InfoModal({ isOpen, onClose }) {
             <div className="space-y-2 text-sm text-gray-700">
               <p>1. <strong>Daily Check-in:</strong> Spin the wheel to start earning points</p>
               <p>2. <strong>Enable Notifications:</strong> Get reminders and updates</p>
-              <p>3. <strong>Browse Products:</strong> Find crypto merch you love</p>
-              <p>4. <strong>Connect Wallet:</strong> Pay with USDC for seamless checkout</p>
-              <p>5. <strong>Share Everything:</strong> Show off your purchases and streaks</p>
+              <p>3. <strong>Browse Products:</strong> Find merch designed after your favorite coins, NFTs, and communities</p>
+              <p>4. <strong>Pay with USDC on Base</strong> for seamless checkout</p>
+              <p>5. <strong>Share your purchases and streaks</strong> on Farcaster</p>
             </div>
           </div>
 
           {/* Daily Check-in */}
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-[#3eb489] rounded-lg flex items-center justify-center">
                 <img src="/RewardsIcon.png" alt="Daily Rewards" className="w-6 h-6" />
               </div>
               <div>
@@ -260,7 +265,7 @@ export function InfoModal({ isOpen, onClose }) {
           {/* Support */}
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
             <p className="text-sm text-gray-600">
-              <strong>Need Help?</strong> Send <button onClick={handleFarcasterProfileClick} className="text-[#8A63D2] hover:underline">@svvvg3.eth</button> on Farcaster!
+              <strong>Need Help?</strong> Message <button onClick={handleFarcasterProfileClick} className="text-[#8A63D2] hover:underline">@svvvg3.eth</button> on Farcaster!
             </p>
           </div>
         </div>
