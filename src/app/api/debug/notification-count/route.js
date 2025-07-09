@@ -1,10 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
 const NEYNAR_BASE_URL = 'https://api.neynar.com';
 
@@ -13,6 +8,12 @@ export async function POST(request) {
     if (!NEYNAR_API_KEY) {
       throw new Error('NEYNAR_API_KEY not found');
     }
+
+    // Initialize Supabase client inside the function
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
 
     // Get all tokens from Neynar directly
     const neynarResponse = await fetch(`${NEYNAR_BASE_URL}/v2/farcaster/frame/notifications/tokens?url=https://api.farcaster.xyz/v1/frame-notifications`, {
