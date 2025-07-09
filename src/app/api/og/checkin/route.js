@@ -10,7 +10,7 @@ export async function GET(request) {
     (
       <div
         style={{
-          fontSize: 128,
+          fontSize: 50,
           background: 'black',
           width: '100%',
           height: '100%',
@@ -20,9 +20,19 @@ export async function GET(request) {
           alignItems: 'center',
           justifyContent: 'center',
           color: 'white',
+          fontFamily: 'Arial',
+          lineHeight: 1.5,
         }}
       >
-        Points: {pointsEarned}
+        🎯 Daily Check-in Complete! 🎯
+        
+        +{pointsEarned} Points Earned
+        
+        💫 {streak} Day Streak
+        
+        💎 {totalPoints} Total Points
+        
+        Minted Merch
       </div>
     ),
     {
