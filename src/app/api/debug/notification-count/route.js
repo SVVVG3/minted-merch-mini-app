@@ -1,12 +1,8 @@
 import { supabase } from '@/lib/supabase';
-import { neynarClient, isNeynarAvailable } from '@/lib/neynar';
+import { fetchNotificationTokensFromNeynar } from '@/lib/neynar';
 
 export async function POST(request) {
   try {
-    if (!isNeynarAvailable()) {
-      throw new Error('Neynar client not available');
-    }
-
     if (!supabase) {
       throw new Error('Supabase not available');
     }
@@ -24,13 +20,14 @@ export async function POST(request) {
     const allFids = allProfiles.map(p => p.fid);
     console.log(`Checking notification status for ${allFids.length} users`);
 
-    // Get notification tokens from Neynar for all our users
-    const neynarResponse = await neynarClient.fetchNotificationTokens({
-      fids: allFids.join(','),
-      limit: 1000 // Increase limit to get all tokens
-    });
+    // Get notification tokens from Neynar for all our users using existing function
+    const neynarResult = await fetchNotificationTokensFromNeynar(allFids);
+    
+    if (!neynarResult.success) {
+      throw new Error(`Neynar error: ${neynarResult.error}`);
+    }
 
-    const neynarTokens = neynarResponse.notification_tokens || [];
+    const neynarTokens = neynarResult.tokens || [];
     const enabledTokens = neynarTokens.filter(token => token.status === 'enabled');
     
     // Create a set of FIDs that have enabled notifications in Neynar
