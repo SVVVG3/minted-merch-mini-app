@@ -244,8 +244,8 @@ export function InfoModal({ isOpen, onClose }) {
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5-5-5h5v-5a3 3 0 00-3-3H8a3 3 0 00-3 3v5h5l-5 5-5-5h5V12a5 5 0 015-5h4a5 5 0 015 5v5z" />
+                <svg className="w-6 h-6 text-orange-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C10.896 2 10 2.896 10 4V4.586C7.837 5.838 6.279 8.14 6.279 10.818V16L4 18V19H20V18L17.721 16V10.818C17.721 8.14 16.163 5.838 14 4.586V4C14 2.896 13.104 2 12 2ZM10 20C10 21.1 10.9 22 12 22C13.1 22 14 21.1 14 20H10Z"/>
                 </svg>
               </div>
               <div>
@@ -255,10 +255,10 @@ export function InfoModal({ isOpen, onClose }) {
             </div>
             <div className="ml-13 space-y-2 text-sm text-gray-700">
               <p>• Daily check-in reminders at 8 AM PST</p>
-              <p>• Order status updates and shipping notifications</p>
-              <p>• Welcome messages for new users</p>
-              <p>• Special announcements and limited-time offers</p>
-              <p>• Enable notifications when adding the Mini App to get perks</p>
+              <p>• Order confirmations and shipping notifications</p>
+              <p>• Welcome discount for new users</p>
+              <p>• New product releases and limited-time offers</p>
+              <p>• Enable notifications when adding the Mini App to access these perks</p>
             </div>
           </div>
 
