@@ -28,6 +28,56 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     { min: 91, max: 100, color: '#8b5cf6', gradient: 'from-purple-400 to-purple-600', label: '91-100', rarity: 'epic' }
   ];
 
+  // Share check-in result function
+  const handleShareCheckIn = async () => {
+    if (!isInFarcaster || !spinResult) return;
+
+    // Add haptic feedback for share action
+    await triggerHaptic('medium');
+
+    try {
+      // Create dynamic OG image URL with check-in data
+      const baseUrl = window.location.origin;
+      const imageParams = new URLSearchParams({
+        points: spinResult.pointsEarned.toString(),
+        streak: spinResult.newStreak.toString(),
+        total: spinResult.totalPoints.toString(),
+        base: spinResult.basePoints.toString(),
+        bonus: spinResult.streakBonus.toString(),
+        t: Date.now().toString() // Cache busting
+      });
+      
+      const shareUrl = `${baseUrl}?checkin=${Date.now()}`;
+      const ogImageUrl = `${baseUrl}/api/og/checkin?${imageParams.toString()}`;
+      
+      // Create share text
+      const streakEmoji = spinResult.newStreak >= 30 ? "👑" : 
+                        spinResult.newStreak >= 14 ? "🔥" : 
+                        spinResult.newStreak >= 7 ? "⚡" : 
+                        spinResult.newStreak >= 3 ? "🌟" : "💫";
+      
+      const shareText = `🎯 Daily check-in complete!\n\n+${spinResult.pointsEarned} points earned! ${spinResult.streakBonus > 0 ? `(${spinResult.basePoints} base + ${spinResult.streakBonus} streak bonus)` : ''}\n\n${streakEmoji} ${spinResult.newStreak} day streak • 💎 ${spinResult.totalPoints} total points\n\nKeep your streak going on /mintedmerch! 🎰`;
+
+      // Use the Farcaster SDK composeCast action
+      const { sdk } = await import('../lib/frame');
+      const result = await sdk.actions.composeCast({
+        text: shareText,
+        embeds: [shareUrl],
+      });
+      
+      console.log('Check-in cast composed:', result);
+    } catch (error) {
+      console.error('Error sharing check-in:', error);
+      // Fallback to copying link
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        alert('Check-in result copied to clipboard!');
+      } catch (err) {
+        console.log('Error copying to clipboard:', err);
+      }
+    }
+  };
+
   // Load user's check-in status
   useEffect(() => {
     if (!isInFarcaster || !isReady) return;
@@ -481,11 +531,25 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
             </div>
           ) : spinResult ? (
             <div className="space-y-4 w-full">
-                             {/* Enhanced Result Display */}
-               <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 sm:p-6 transform animate-pulse">
+              {/* Share Button - First in results section */}
+              <button
+                onClick={handleShareCheckIn}
+                className="w-full bg-[#8A63D2] hover:bg-[#7C5BC7] text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+              >
+                {/* Official Farcaster Logo */}
+                <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
+                  <path d="M257.778 155.556H742.222V844.445H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.445H257.778V155.556Z"/>
+                  <path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.445H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/>
+                  <path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.445H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/>
+                </svg>
+                <span>Share My Daily Spin</span>
+              </button>
+
+              {/* Enhanced Result Display */}
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 sm:p-6 transform animate-pulse">
                 <div className="text-center">
-                                     {/* Big celebration for the points */}
-                   <div className="text-4xl sm:text-5xl font-black bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-3 animate-bounce">
+                  {/* Big celebration for the points */}
+                  <div className="text-4xl sm:text-5xl font-black bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-3 animate-bounce">
                     +{spinResult.pointsEarned} Points! 🎉
                   </div>
                   
