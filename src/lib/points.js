@@ -381,10 +381,10 @@ export async function getLeaderboard(limit = 10, category = 'points') {
           .order('total_points', { ascending: false }); // Secondary sort by points
         break;
       case 'purchases':
-        // Sort by number of orders, then by total spent
+        // Sort by points from purchases, then by number of orders
         query = query
-          .order('total_orders', { ascending: false })
-          .order('total_spent', { ascending: false });
+          .order('points_from_purchases', { ascending: false })
+          .order('total_orders', { ascending: false });
         break;
       case 'spending':
         // Sort by total amount spent

@@ -193,11 +193,11 @@ export function Leaderboard({ isVisible = true }) {
           <div className="space-y-3">
             {/* Current User Position (if not in top list) */}
             {userPosition && userPosition.position > 50 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <div className="text-sm text-blue-600 font-medium mb-2">Your Position</div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <div className="text-sm text-green-600 font-medium mb-2">Your Position</div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 rounded-full font-semibold text-sm">
+                    <div className="flex items-center justify-center w-8 h-8 bg-green-100 text-green-700 rounded-full font-semibold text-sm">
                       #{userPosition.position}
                     </div>
                     
@@ -223,22 +223,24 @@ export function Leaderboard({ isVisible = true }) {
                     <div>
                       <div className="font-medium text-gray-800">You</div>
                       <div className="text-sm text-gray-500">
-                        {userPosition.checkin_streak > 0 && (
+                        {category === 'purchases' ? (
+                          <span>{userPosition.totalOrders || 0} orders</span>
+                        ) : userPosition.checkin_streak > 0 ? (
                           <span className="flex items-center gap-1">
                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
                               <path d="M5.52.359A.5.5 0 0 1 6 0h4a.5.5 0 0 1 .474.658L8.694 6H12.5a.5.5 0 0 1 .395.807l-7 9a.5.5 0 0 1-.873-.454L6.823 9.5H3.5a.5.5 0 0 1-.48-.641l2.5-8.5z"/>
                             </svg>
                             {userPosition.checkin_streak}
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-blue-600">
+                    <div className="font-bold text-green-600">
                       {category === 'points' && userPosition.total_points}
                       {category === 'streaks' && userPosition.checkin_streak}
-                      {category === 'purchases' && userPosition.total_points}
+                      {category === 'purchases' && userPosition.pointsFromPurchases}
                     </div>
                     <div className="text-sm text-gray-500">
                       {category === 'points' && 'points'}
@@ -293,14 +295,16 @@ export function Leaderboard({ isVisible = true }) {
                         {isCurrentUser ? 'You' : getUserDisplayName(user)}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {user.checkin_streak > 0 && (
+                        {category === 'purchases' ? (
+                          <span>{user.total_orders || 0} orders</span>
+                        ) : user.checkin_streak > 0 ? (
                           <span className="flex items-center gap-1">
                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
                               <path d="M5.52.359A.5.5 0 0 1 6 0h4a.5.5 0 0 1 .474.658L8.694 6H12.5a.5.5 0 0 1 .395.807l-7 9a.5.5 0 0 1-.873-.454L6.823 9.5H3.5a.5.5 0 0 1-.48-.641l2.5-8.5z"/>
                             </svg>
                             {user.checkin_streak} day streak
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -310,7 +314,7 @@ export function Leaderboard({ isVisible = true }) {
                     <div className={`font-bold ${isCurrentUser ? 'text-green-600' : 'text-gray-800'}`}>
                       {category === 'points' && user.total_points.toLocaleString()}
                       {category === 'streaks' && user.checkin_streak}
-                      {category === 'purchases' && user.total_points.toLocaleString()}
+                      {category === 'purchases' && (user.points_from_purchases || 0).toLocaleString()}
                     </div>
                     <div className="text-sm text-gray-500">
                       {category === 'points' && 'points'}
