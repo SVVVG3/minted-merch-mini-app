@@ -21,7 +21,7 @@ export async function GET(request) {
           color: 'white',
         }}
       >
-        Static Check-in Test!
+        Points: {pointsEarned}
       </div>
     ),
     {
