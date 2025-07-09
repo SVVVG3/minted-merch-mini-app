@@ -34,6 +34,11 @@ export async function GET(request) {
       console.error('Error fetching logo:', error);
     }
     
+    // Create static strings for JSX to avoid interpolation issues
+    const pointsText = `Earned ${points} points! 🎉`;
+    const streakText = `${streak} day streak 🔥`;
+    const totalText = `💎 ${totalPoints} Total Points`;
+    
     return new ImageResponse(
       (
         <div
@@ -122,7 +127,7 @@ export async function GET(request) {
                   lineHeight: '1.3',
                 }}
               >
-                Earned 82 points! 🎉
+                {pointsText}
               </div>
               
               <div
@@ -132,7 +137,7 @@ export async function GET(request) {
                   marginBottom: '20px',
                 }}
               >
-                1 day streak 🔥
+                {streakText}
               </div>
               
               <div
@@ -141,7 +146,7 @@ export async function GET(request) {
                   color: '#888',
                 }}
               >
-                💎 82 Total Points
+                {totalText}
               </div>
             </div>
           </div>
