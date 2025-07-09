@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
-import { getUserOrderHistory, clearUserOrderHistory, getOrderHistoryStats } from '@/lib/orderHistory';
 
 export function OrderHistory({ isOpen, onClose }) {
   const { getFid } = useFarcaster();
   const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState({ totalOrders: 0, totalSpent: 0, lastOrderDate: null });
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (isOpen && getFid()) {
@@ -16,29 +16,42 @@ export function OrderHistory({ isOpen, onClose }) {
     }
   }, [isOpen, getFid]);
 
-  const loadOrderHistory = () => {
+  const loadOrderHistory = async () => {
     setIsLoading(true);
+    setError(null);
+    
     try {
       const userFid = getFid();
-      const orderHistory = getUserOrderHistory(userFid);
-      const orderStats = getOrderHistoryStats(userFid);
       
-      setOrders(orderHistory);
-      setStats(orderStats);
+      // Fetch orders from database API
+      const response = await fetch(`/api/user-orders?fid=${userFid}&limit=50`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch orders');
+      }
+      
+      if (data.success) {
+        setOrders(data.orders || []);
+        setStats(data.stats || { totalOrders: 0, totalSpent: 0, lastOrderDate: null });
+      } else {
+        throw new Error(data.error || 'Invalid response from server');
+      }
+      
     } catch (error) {
       console.error('Error loading order history:', error);
+      setError(error.message);
+      setOrders([]);
+      setStats({ totalOrders: 0, totalSpent: 0, lastOrderDate: null });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleClearHistory = () => {
-    if (window.confirm('Are you sure you want to clear your order history? This cannot be undone.')) {
-      const userFid = getFid();
-      clearUserOrderHistory(userFid);
-      setOrders([]);
-      setStats({ totalOrders: 0, totalSpent: 0, lastOrderDate: null });
-    }
+    // Note: For database-based orders, we don't allow clearing history
+    // This could be modified to archive orders instead if needed
+    alert('Order history is now stored securely and cannot be cleared. This ensures your purchase records are always available across all your devices.');
   };
 
   const formatDate = (dateString) => {
@@ -94,6 +107,22 @@ export function OrderHistory({ isOpen, onClose }) {
               <div className="animate-spin w-8 h-8 border-2 border-[#3eb489] border-t-transparent rounded-full mx-auto mb-4"></div>
               <p className="text-gray-600">Loading order history...</p>
             </div>
+          ) : error ? (
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading orders</h3>
+              <p className="text-gray-600 text-sm mb-4">{error}</p>
+              <button 
+                onClick={loadOrderHistory}
+                className="text-[#3eb489] hover:text-[#2d8659] text-sm font-medium"
+              >
+                Try again
+              </button>
+            </div>
           ) : orders.length === 0 ? (
             <div className="p-8 text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -107,17 +136,21 @@ export function OrderHistory({ isOpen, onClose }) {
           ) : (
             <div className="p-4 space-y-3">
               {orders.map((order, index) => (
-                <div key={order.name || index} className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
+                <div key={order.orderId || order.name || index} className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <div className="font-medium text-sm">Order {order.name}</div>
+                      <div className="font-medium text-sm">Order #{order.orderId || order.name}</div>
                       <div className="text-xs text-gray-600">{formatDate(order.timestamp)}</div>
                     </div>
                     <div className="text-right">
                       <div className="font-medium text-sm">${order.total?.amount} {order.total?.currencyCode}</div>
                       <div className={`text-xs px-2 py-1 rounded-full inline-block ${
                         order.status === 'Confirmed' || order.status === 'confirmed' 
-                          ? 'bg-green-100 text-green-800' 
+                          ? 'bg-green-100 text-green-800'
+                          : order.status === 'Shipped' || order.status === 'shipped'
+                          ? 'bg-blue-100 text-blue-800'
+                          : order.status === 'Delivered' || order.status === 'delivered'
+                          ? 'bg-purple-100 text-purple-800'
                           : 'bg-yellow-100 text-yellow-800'
                       }`}>
                         {order.status || 'Confirmed'}
@@ -153,6 +186,13 @@ export function OrderHistory({ isOpen, onClose }) {
                   {order.transactionHash && (
                     <div className="text-xs text-gray-500 mt-1 truncate">
                       Tx: {order.transactionHash.slice(0, 10)}...{order.transactionHash.slice(-8)}
+                    </div>
+                  )}
+
+                  {/* Discount info (if applicable) */}
+                  {order.discountCode && (
+                    <div className="text-xs text-green-600 mt-1">
+                      Discount: {order.discountCode} (-${order.discountAmount?.toFixed(2) || '0.00'})
                     </div>
                   )}
                 </div>
