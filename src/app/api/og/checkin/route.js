@@ -1,6 +1,11 @@
 import { ImageResponse } from 'next/og';
 
 export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const pointsEarned = parseInt(searchParams.get('points') || '30');
+  const streak = parseInt(searchParams.get('streak') || '1');
+  const totalPoints = parseInt(searchParams.get('total') || '100');
+
   return new ImageResponse(
     (
       <div
@@ -16,7 +21,7 @@ export async function GET(request) {
           color: 'white',
         }}
       >
-        Hello World with Request!
+        Static Check-in Test!
       </div>
     ),
     {
