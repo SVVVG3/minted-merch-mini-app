@@ -122,7 +122,7 @@ export async function GET(request) {
                   lineHeight: '1.3',
                 }}
               >
-                Earned {points} points! 🎉
+                Earned 82 points! 🎉
               </div>
               
               <div
@@ -132,7 +132,7 @@ export async function GET(request) {
                   marginBottom: '20px',
                 }}
               >
-                {streak} day streak 🔥
+                1 day streak 🔥
               </div>
               
               <div
@@ -141,7 +141,7 @@ export async function GET(request) {
                   color: '#888',
                 }}
               >
-                💎 {totalPoints} Total Points
+                💎 82 Total Points
               </div>
             </div>
           </div>
