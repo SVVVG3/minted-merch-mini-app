@@ -246,7 +246,7 @@ export function InfoModal({ isOpen, onClose }) {
           {/* Support */}
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
             <p className="text-sm text-gray-600">
-              <strong>Need Help?</strong> Message <a href="farcaster://profiles/svvvg3.eth" className="text-[#8A63D2] hover:underline">@svvvg3.eth</a> on Farcaster!
+              <strong>Need Help?</strong> Message <a href="https://farcaster.xyz/svvvg3.eth" target="_blank" rel="noopener noreferrer" className="text-[#8A63D2] hover:underline">@svvvg3.eth</a> on Farcaster!
             </p>
           </div>
         </div>
