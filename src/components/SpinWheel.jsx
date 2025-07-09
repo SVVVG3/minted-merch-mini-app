@@ -38,7 +38,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     try {
       // Create dynamic OG image URL with check-in data
       const baseUrl = window.location.origin;
-      const imageParams = new URLSearchParams({
+      const shareParams = new URLSearchParams({
+        checkin: 'true',
         points: spinResult.pointsEarned.toString(),
         streak: spinResult.newStreak.toString(),
         total: spinResult.totalPoints.toString(),
@@ -47,8 +48,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         t: Date.now().toString() // Cache busting
       });
       
-      const shareUrl = `${baseUrl}?checkin=${Date.now()}`;
-      const ogImageUrl = `${baseUrl}/api/og/checkin?${imageParams.toString()}`;
+      const shareUrl = `${baseUrl}?${shareParams.toString()}`;
       
       // Create share text
       const streakEmoji = spinResult.newStreak >= 30 ? "👑" : 

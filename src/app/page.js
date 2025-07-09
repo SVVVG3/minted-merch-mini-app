@@ -1,11 +1,102 @@
 import { getCollectionByHandle, getCollections } from '@/lib/shopify';
 import { HomePage } from '@/components/HomePage';
 
-export async function generateMetadata() {
+export async function generateMetadata({ searchParams }) {
   // Fix URL construction to avoid double slashes
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app').replace(/\/$/, '');
   
-  // Create frame embed for home page - use version "next" for Mini App embeds
+  // Check if this is a check-in share URL
+  const isCheckinShare = searchParams?.checkin === 'true';
+  
+  if (isCheckinShare) {
+    // Extract check-in data from URL parameters
+    const points = parseInt(searchParams.points || '30');
+    const streak = parseInt(searchParams.streak || '1');
+    const totalPoints = parseInt(searchParams.total || '100');
+    const basePoints = parseInt(searchParams.base || '30');
+    const streakBonus = parseInt(searchParams.bonus || '0');
+    const cacheBust = searchParams.t;
+    
+    console.log('=== Check-in Share Metadata Generation ===');
+    console.log('Check-in data:', { points, streak, totalPoints, basePoints, streakBonus });
+    
+    // Create dynamic OG image URL with check-in data
+    const imageParams = new URLSearchParams({
+      points: points.toString(),
+      streak: streak.toString(),
+      total: totalPoints.toString(),
+      base: basePoints.toString(),
+      bonus: streakBonus.toString()
+    });
+    
+    // Add cache-busting parameter if provided
+    if (cacheBust) {
+      imageParams.set('t', cacheBust);
+    }
+    
+    const dynamicImageUrl = `${baseUrl}/api/og/checkin?${imageParams.toString()}`;
+    console.log('📸 Dynamic check-in OG image URL:', dynamicImageUrl);
+    
+    // Get streak emoji for dynamic content
+    const getStreakEmoji = (streak) => {
+      if (streak >= 30) return "👑";
+      if (streak >= 14) return "🔥";
+      if (streak >= 7) return "⚡";
+      if (streak >= 3) return "🌟";
+      return "💫";
+    };
+    
+    const streakEmoji = getStreakEmoji(streak);
+    const title = `Daily Check-in Complete! +${points} Points Earned 🎯`;
+    const description = `${streakEmoji} ${streak} day streak • 💎 ${totalPoints} total points${streakBonus > 0 ? ` (${basePoints} base + ${streakBonus} streak bonus)` : ''} • Keep your streak going on Minted Merch!`;
+    
+    // Create frame embed with dynamic check-in image
+    const frame = {
+      version: "next",
+      imageUrl: dynamicImageUrl,
+      button: {
+        title: "Start Your Streak! 🎯",
+        action: {
+          type: "launch_frame",
+          url: baseUrl,
+          name: "Minted Merch Shop",
+          splashImageUrl: `${baseUrl}/splash.png`,
+          splashBackgroundColor: "#000000"
+        }
+      }
+    };
+
+    return {
+      title,
+      description,
+      metadataBase: new URL(baseUrl),
+      other: {
+        'fc:frame': JSON.stringify(frame),
+      },
+      openGraph: {
+        title,
+        description,
+        siteName: 'Minted Merch Shop',
+        images: [
+          {
+            url: dynamicImageUrl,
+            width: 1200,
+            height: 800,
+            alt: `Daily Check-in Complete! +${points} Points`,
+          },
+        ],
+        type: 'website',
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title,
+        description,
+        images: [dynamicImageUrl],
+      },
+    };
+  }
+  
+  // Default home page metadata
   const frame = {
     version: "next",
     imageUrl: `${baseUrl}/api/og/home`,
