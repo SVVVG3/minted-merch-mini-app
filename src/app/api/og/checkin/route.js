@@ -10,18 +10,19 @@ export async function GET(request) {
     (
       <div
         style={{
-          fontSize: 128,
+          fontSize: 40,
           background: 'black',
           width: '100%',
           height: '100%',
           display: 'flex',
-          textAlign: 'center',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           color: 'white',
         }}
       >
-        Points: {pointsEarned}
+        <div style={{ fontSize: 80, color: '#3eb489' }}>Check-in Complete!</div>
+        <div style={{ fontSize: 60, color: '#f97316' }}>+{pointsEarned} Points</div>
       </div>
     ),
     {
