@@ -1,75 +1,102 @@
 import { supabase } from '@/lib/supabase';
-
-const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
-const NEYNAR_BASE_URL = 'https://api.neynar.com';
+import { neynarClient, isNeynarAvailable } from '@/lib/neynar';
 
 export async function POST(request) {
   try {
-    if (!NEYNAR_API_KEY) {
-      throw new Error('NEYNAR_API_KEY not found');
+    if (!isNeynarAvailable()) {
+      throw new Error('Neynar client not available');
     }
 
     if (!supabase) {
       throw new Error('Supabase not available');
     }
 
-    // Get all tokens from Neynar directly
-    const neynarResponse = await fetch(`${NEYNAR_BASE_URL}/v2/farcaster/frame/notifications/tokens?url=https://api.farcaster.xyz/v1/frame-notifications`, {
-      headers: {
-        'x-api-key': NEYNAR_API_KEY
-      }
+    // Get all user FIDs from our database to check with Neynar
+    const { data: allProfiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('fid, username, has_notifications')
+      .order('created_at', { ascending: false });
+
+    if (profilesError) {
+      throw new Error(`Database error: ${profilesError.message}`);
+    }
+
+    const allFids = allProfiles.map(p => p.fid);
+    console.log(`Checking notification status for ${allFids.length} users`);
+
+    // Get notification tokens from Neynar for all our users
+    const neynarResponse = await neynarClient.fetchNotificationTokens({
+      fids: allFids.join(','),
+      limit: 1000 // Increase limit to get all tokens
     });
 
-    if (!neynarResponse.ok) {
-      throw new Error(`Neynar API error: ${neynarResponse.status}`);
-    }
-
-    const neynarData = await neynarResponse.json();
-    const enabledTokens = neynarData.tokens.filter(token => token.status === 'enabled');
-    const neynarCount = enabledTokens.length;
-
-    // Get count from our database (profiles table)
-    const { data: dbProfiles, error } = await supabase
-      .from('profiles')
-      .select('fid, username, has_notifications')
-      .eq('has_notifications', true);
-
-    if (error) {
-      throw new Error(`Database error: ${error.message}`);
-    }
-
-    const databaseCount = dbProfiles?.length || 0;
+    const neynarTokens = neynarResponse.notification_tokens || [];
+    const enabledTokens = neynarTokens.filter(token => token.status === 'enabled');
+    
+    // Create a set of FIDs that have enabled notifications in Neynar
+    const neynarEnabledFids = new Set(enabledTokens.map(token => token.fid));
+    
+    // Count users in our database who have notifications marked as true
+    const dbEnabledProfiles = allProfiles.filter(p => p.has_notifications === true);
+    const databaseCount = dbEnabledProfiles.length;
+    const neynarCount = neynarEnabledFids.size;
     const discrepancy = neynarCount - databaseCount;
 
-    // Get sample of users with mismatched status (first 10)
-    const { data: allProfiles, error: allError } = await supabase
-      .from('profiles')
-      .select('fid, username, has_notifications')
-      .limit(100);
+    // Find mismatches
+    const dbEnabledFids = new Set(dbEnabledProfiles.map(p => p.fid));
+    const missingInDb = Array.from(neynarEnabledFids).filter(fid => !dbEnabledFids.has(fid));
+    const missingInNeynar = Array.from(dbEnabledFids).filter(fid => !neynarEnabledFids.has(fid));
 
-    if (allError) {
-      console.warn('Could not fetch all profiles for mismatch analysis:', allError);
-    }
+    // Get username info for missing users
+    const missingInDbWithUsernames = missingInDb.map(fid => {
+      const profile = allProfiles.find(p => p.fid === fid);
+      const token = enabledTokens.find(t => t.fid === fid);
+      return {
+        fid,
+        username: profile?.username || token?.username || 'unknown',
+        dbStatus: profile?.has_notifications || false
+      };
+    });
+
+    const missingInNeynarWithUsernames = missingInNeynar.map(fid => {
+      const profile = allProfiles.find(p => p.fid === fid);
+      return {
+        fid,
+        username: profile?.username || 'unknown',
+        dbStatus: profile?.has_notifications
+      };
+    });
 
     return Response.json({
       success: true,
       neynarCount,
       databaseCount,
       discrepancy,
-      summary: {
+      analysis: {
         message: discrepancy > 0 
           ? `${discrepancy} users have notifications enabled in Neynar but not in our database`
           : discrepancy < 0
           ? `${Math.abs(discrepancy)} users have notifications in our database but not in Neynar`
           : 'Database and Neynar are in sync',
-        neynarUsers: enabledTokens.slice(0, 10).map(token => ({
+        totalUsersChecked: allFids.length,
+        neynarTokensFound: neynarTokens.length,
+        enabledTokensInNeynar: enabledTokens.length
+      },
+      mismatches: {
+        usersEnabledInNeynarButNotInDb: missingInDbWithUsernames.slice(0, 15),
+        usersEnabledInDbButNotInNeynar: missingInNeynarWithUsernames.slice(0, 15),
+        totalMissingInDb: missingInDb.length,
+        totalMissingInNeynar: missingInNeynar.length
+      },
+      samples: {
+        neynarEnabledUsers: enabledTokens.slice(0, 10).map(token => ({
           fid: token.fid,
           username: token.username
         })),
-        databaseUsers: dbProfiles?.slice(0, 10).map(profile => ({
+        databaseEnabledUsers: dbEnabledProfiles.slice(0, 10).map(profile => ({
           fid: profile.fid,
           username: profile.username
-        })) || []
+        }))
       }
     });
 
