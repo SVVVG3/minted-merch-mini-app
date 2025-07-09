@@ -9,6 +9,11 @@ export async function GET(request) {
     const streak = parseInt(searchParams.get('streak') || '1');
     const totalPoints = parseInt(searchParams.get('total') || '100');
     
+    // Use simple variables like the order route
+    const products = `+${pointsEarned} Points • ${streak} Day Streak`;
+    const productImageFailed = false;
+    const productImageSrc = null;
+    
     return new ImageResponse(
       (
         <div
@@ -25,6 +30,7 @@ export async function GET(request) {
             position: 'relative',
           }}
         >
+          {/* Centered Content Container - Larger Scale */}
           <div
             style={{
               display: 'flex',
@@ -35,6 +41,7 @@ export async function GET(request) {
               height: '100%',
             }}
           >
+            {/* Product Image Section - Larger */}
             <div
               style={{
                 width: '450px',
@@ -49,21 +56,46 @@ export async function GET(request) {
                 flexShrink: 0,
               }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textAlign: 'center',
-                  padding: '20px',
-                }}
-              >
-                <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>🎯</div>
-                <div style={{ fontSize: '32px', color: '#3eb489' }}>Check-in Complete!</div>
-              </div>
+              {productImageSrc ? (
+                <img
+                  src={productImageSrc}
+                  alt={products}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    padding: '20px',
+                  }}
+                >
+                  {productImageFailed ? (
+                    <>
+                      <div style={{ fontSize: '80px', marginBottom: '20px', color: '#ff6b6b' }}>❌</div>
+                      <div style={{ fontSize: '24px', color: '#ff6b6b', marginBottom: '10px' }}>Image Failed</div>
+                      <div style={{ fontSize: '16px', color: '#888' }}>
+                        {'No URL'}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>🎯</div>
+                      <div style={{ fontSize: '32px', color: '#3eb489' }}>Check-in Complete!</div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             
+            {/* Order Info Section - Larger */}
             <div
               style={{
                 display: 'flex',
@@ -94,7 +126,7 @@ export async function GET(request) {
                   color: 'white',
                 }}
               >
-                +{pointsEarned} Points • {streak} Day Streak
+                {products}
               </div>
               
               <div
@@ -116,6 +148,7 @@ export async function GET(request) {
     );
     
   } catch (error) {
+    // Return fallback image
     return new ImageResponse(
       (
         <div
