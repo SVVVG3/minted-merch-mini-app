@@ -6,22 +6,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 export function InfoModal({ isOpen, onClose }) {
   const modalRef = useRef(null);
 
-  // Handle Farcaster profile link click
-  const handleFarcasterProfileClick = async (e) => {
-    e.preventDefault();
-    try {
-      // Use the proper Farcaster URL scheme to open profile in Farcaster app
-      await sdk.actions.openURL('farcaster://profiles/svvvg3.eth');
-    } catch (error) {
-      // Fallback: try web URL
-      try {
-        await sdk.actions.openURL('https://warpcast.com/svvvg3.eth');
-      } catch (fallbackError) {
-        // Final fallback: open in new tab
-        window.open('https://warpcast.com/svvvg3.eth', '_blank');
-      }
-    }
-  };
+
 
   // Focus management
   useEffect(() => {
@@ -123,11 +108,11 @@ export function InfoModal({ isOpen, onClose }) {
               </div>
             </div>
             <div className="ml-13 space-y-2 text-sm text-gray-700">
-              <p>• Spin the wheel once per day (resets at 8 AM PST)</p>
+              <p>• Wheel resets at 8 AM PST every day</p>
               <p>• Earn 25-100 points randomly per spin</p>
               <p>• Build streaks for bonus points (longer streaks = bigger bonuses)</p>
-              <p>• Share your daily results on Farcaster with beautiful OG images</p>
-              <p>• Get entered into raffles for FREE merch with every check-in</p>
+              <p>• Purchase merch to earn even more points</p>
+              <p>• Get entered into raffles for FREE merch (scheduled at random)</p>
             </div>
           </div>
 
@@ -147,7 +132,7 @@ export function InfoModal({ isOpen, onClose }) {
             <div className="ml-13 space-y-2 text-sm text-gray-700">
               <p>• View rankings by total points, streak length, or purchases</p>
               <p>• See your position among all users</p>
-              <p>• Top users get special recognition with crown, medals, etc.</p>
+              <p>• Top users get entered into random raffles for FREE merch</p>
               <p>• Track your progress over time</p>
             </div>
           </div>
@@ -169,7 +154,6 @@ export function InfoModal({ isOpen, onClose }) {
               <p>• View all your past orders and their status</p>
               <p>• Track shipping updates and delivery</p>
               <p>• See your total spending and order count</p>
-              <p>• Quickly reorder your favorite items</p>
             </div>
           </div>
 
@@ -187,11 +171,9 @@ export function InfoModal({ isOpen, onClose }) {
               </div>
             </div>
             <div className="ml-13 space-y-2 text-sm text-gray-700">
-              <p>• Browse crypto-themed apparel and accessories</p>
-              <p>• Pay securely with USDC on Base blockchain</p>
-              <p>• Connect your wallet for seamless checkout</p>
-              <p>• Share your purchases on Farcaster with dynamic OG images</p>
-              <p>• Automatic order fulfillment through Shopify integration</p>
+              <p>• Browse apparel, accessories, & more designed after your favorite coins, communities, and NFTs</p>
+              <p>• Pay securely with USDC on Base</p>
+              <p>• Share your purchases on Farcaster</p>
             </div>
           </div>
 
@@ -211,10 +193,9 @@ export function InfoModal({ isOpen, onClose }) {
               </div>
             </div>
             <div className="ml-13 space-y-2 text-sm text-gray-700">
-              <p>• Share daily check-in results with beautiful OG images</p>
-              <p>• Show off your purchases and order confirmations</p>
-              <p>• Post about products to earn social engagement</p>
-              <p>• Beautiful dynamic images generated for every share</p>
+              <p>• Share daily check-in results</p>
+              <p>• Show off your purchases</p>
+              <p>• Cast about new products to earn social engagement</p>
             </div>
           </div>
 
@@ -232,7 +213,7 @@ export function InfoModal({ isOpen, onClose }) {
               </div>
             </div>
             <div className="ml-13 space-y-2 text-sm text-gray-700">
-              <p>• Automatic discounts for holding specific NFTs or tokens</p>
+              <p>• Automatic discounts for holding specific NFTs & tokens</p>
               <p>• Welcome discounts for new users who enable notifications</p>
               <p>• Special offers for Bankr Club members</p>
               <p>• Free shipping rewards and exclusive promo codes</p>
@@ -265,7 +246,7 @@ export function InfoModal({ isOpen, onClose }) {
           {/* Support */}
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
             <p className="text-sm text-gray-600">
-              <strong>Need Help?</strong> Message <button onClick={handleFarcasterProfileClick} className="text-[#8A63D2] hover:underline">@svvvg3.eth</button> on Farcaster!
+              <strong>Need Help?</strong> Message <a href="farcaster://profiles/svvvg3.eth" className="text-[#8A63D2] hover:underline">@svvvg3.eth</a> on Farcaster!
             </p>
           </div>
         </div>
