@@ -6,7 +6,26 @@ import { sdk } from '@farcaster/miniapp-sdk';
 export function InfoModal({ isOpen, onClose }) {
   const modalRef = useRef(null);
 
+  // Handle Farcaster profile link click
+  const handleFarcasterProfileClick = async (e) => {
+    e.preventDefault();
+    try {
+      // Use the proper viewProfile action to show the profile in Farcaster
+      await sdk.actions.viewProfile({ 
+        fid: 466111 // svvvg3.eth's FID
+      });
+    } catch (error) {
+      console.error('Error navigating to profile:', error);
+      // Fallback: use openUrl with the web URL
+      try {
+        await sdk.actions.openUrl('https://farcaster.xyz/svvvg3.eth');
+      } catch (urlError) {
+        console.error('Error opening URL:', urlError);
+      }
+    }
+  };
 
+ 
 
   // Focus management
   useEffect(() => {
@@ -246,7 +265,7 @@ export function InfoModal({ isOpen, onClose }) {
           {/* Support */}
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
             <p className="text-sm text-gray-600">
-              <strong>Need Help?</strong> Message <a href="https://farcaster.xyz/svvvg3.eth" target="_blank" rel="noopener noreferrer" className="text-[#8A63D2] hover:underline">@svvvg3.eth</a> on Farcaster!
+              <strong>Need Help?</strong> Message <button onClick={handleFarcasterProfileClick} className="text-[#8A63D2] hover:underline">@svvvg3.eth</button> on Farcaster!
             </p>
           </div>
         </div>
