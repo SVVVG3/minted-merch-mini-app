@@ -165,11 +165,32 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           // Calculate target rotation to land on the correct segment
           const segmentIndex = wheelSegments.indexOf(targetSegment);
           const segmentAngle = 360 / wheelSegments.length;
-          const targetAngle = segmentIndex * segmentAngle + (segmentAngle / 2);
+          
+          // Find the center angle of the target segment
+          const segmentCenterAngle = segmentIndex * segmentAngle + (segmentAngle / 2);
+          
+          // The pointer is at the top (12 o'clock = 270 degrees in standard rotation)
+          // To align segment center with pointer, we need to rotate wheel by: (270 - segmentCenterAngle)
+          // This ensures the segment center ends up at the pointer position
+          const pointerAngle = 270; // Top position
+          const rotationNeeded = pointerAngle - segmentCenterAngle;
           
           // Add multiple full rotations for effect (4-6 full spins)
           const fullSpins = Math.floor(Math.random() * 3) + 4;
-          const finalRotation = rotation + (fullSpins * 360) + (360 - targetAngle);
+          const totalSpins = fullSpins * 360;
+          
+          // Final rotation: current position + full spins + alignment rotation
+          const finalRotation = rotation + totalSpins + rotationNeeded;
+          
+          // Debug logging to verify alignment
+          console.log(`🎯 Spinner Debug:`, {
+            basePoints,
+            targetSegment: targetSegment.label,
+            segmentIndex,
+            segmentCenterAngle: segmentCenterAngle.toFixed(1),
+            rotationNeeded: rotationNeeded.toFixed(1),
+            finalRotation: finalRotation.toFixed(1)
+          });
           
           setRotation(finalRotation);
           
