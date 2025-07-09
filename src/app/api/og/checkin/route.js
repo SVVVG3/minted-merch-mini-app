@@ -4,15 +4,10 @@ export const runtime = 'edge';
 
 export async function GET(request) {
   try {
-    console.log('=== OG Check-in Image Generation ===');
-    console.log('Request URL:', request.url);
-    
     const { searchParams } = new URL(request.url);
     const pointsEarned = parseInt(searchParams.get('points') || '30');
     const streak = parseInt(searchParams.get('streak') || '1');
     const totalPoints = parseInt(searchParams.get('total') || '100');
-    
-    console.log('Parsed params:', { pointsEarned, streak, totalPoints });
     
     return new ImageResponse(
       (
@@ -112,9 +107,6 @@ export async function GET(request) {
     );
     
   } catch (error) {
-    console.error('❌ OG Check-in Error:', error);
-    console.error('Error stack:', error.stack);
-    
     return new ImageResponse(
       (
         <div
