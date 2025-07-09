@@ -1,9 +1,22 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 export function InfoModal({ isOpen, onClose }) {
   const modalRef = useRef(null);
+
+  // Handle Farcaster profile link click
+  const handleFarcasterProfileClick = async (e) => {
+    e.preventDefault();
+    try {
+      // Try to minimize the app and open Farcaster profile
+      await sdk.actions.openURL('https://farcaster.xyz/svvvg3.eth');
+    } catch (error) {
+      // Fallback: open in new tab if SDK action fails
+      window.open('https://farcaster.xyz/svvvg3.eth', '_blank');
+    }
+  };
 
   // Focus management
   useEffect(() => {
@@ -78,6 +91,21 @@ export function InfoModal({ isOpen, onClose }) {
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {/* Getting Started - Moved to top */}
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 border border-green-200">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              <span>🚀</span>
+              Getting Started
+            </h3>
+            <div className="space-y-2 text-sm text-gray-700">
+              <p>1. <strong>Daily Check-in:</strong> Spin the wheel to start earning points</p>
+              <p>2. <strong>Enable Notifications:</strong> Get reminders and updates</p>
+              <p>3. <strong>Browse Products:</strong> Find crypto merch you love</p>
+              <p>4. <strong>Connect Wallet:</strong> Pay with USDC for seamless checkout</p>
+              <p>5. <strong>Share Everything:</strong> Show off your purchases and streaks</p>
+            </div>
+          </div>
+
           {/* Daily Check-in */}
           <div className="space-y-3">
             <div className="flex items-center gap-3">
@@ -101,8 +129,8 @@ export function InfoModal({ isOpen, onClose }) {
           {/* Leaderboard */}
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-yellow-600" fill="currentColor" viewBox="0 0 16 16">
+              <div className="w-10 h-10 bg-[#3eb489] rounded-lg flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 16 16">
                   <path d="M2.5.5A.5.5 0 0 1 3 0h10a.5.5 0 0 1 .5.5c0 .538-.012 1.05-.034 1.536a3 3 0 1 1-1.133 5.89c-.79 1.865-1.878 2.777-2.833 3.011v2.173l1.425.356c.194.048.377.135.537.255L13.3 15.1a.5.5 0 0 1-.3.9H3a.5.5 0 0 1-.3-.9l1.838-1.379c.16-.12.343-.207.537-.255L6.5 13.11v-2.173c-.955-.234-2.043-1.146-2.833-3.012a3 3 0 1 1-1.132-5.89A33.076 33.076 0 0 1 2.5.5zm.099 2.54a2 2 0 0 0 .72 3.935c-.333-1.05-.588-2.346-.72-3.935zm10.083 3.935a2 2 0 0 0 .72-3.935c-.133 1.59-.388 2.885-.72 3.935z"/>
                 </svg>
               </div>
@@ -122,8 +150,8 @@ export function InfoModal({ isOpen, onClose }) {
           {/* Order History */}
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                 </svg>
               </div>
@@ -143,9 +171,9 @@ export function InfoModal({ isOpen, onClose }) {
           {/* Shopping & Payments */}
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5-5M7 13l-2.5 5M17 13v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6" />
+              <div className="w-10 h-10 bg-[#3eb489] rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 12H6L5 9z" />
                 </svg>
               </div>
               <div>
@@ -159,6 +187,29 @@ export function InfoModal({ isOpen, onClose }) {
               <p>• Connect your wallet for seamless checkout</p>
               <p>• Share your purchases on Farcaster with dynamic OG images</p>
               <p>• Automatic order fulfillment through Shopify integration</p>
+            </div>
+          </div>
+
+          {/* Share Button */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#8A63D2] rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" viewBox="0 0 1000 1000" fill="currentColor">
+                  <path d="M257.778 155.556H742.222V844.445H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.445H257.778V155.556Z"/>
+                  <path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.445H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/>
+                  <path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.445H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">Share on Farcaster 📡</h3>
+                <p className="text-sm text-gray-600">Share your achievements and purchases</p>
+              </div>
+            </div>
+            <div className="ml-13 space-y-2 text-sm text-gray-700">
+              <p>• Share daily check-in results with beautiful OG images</p>
+              <p>• Show off your purchases and order confirmations</p>
+              <p>• Post about products to earn social engagement</p>
+              <p>• Beautiful dynamic images generated for every share</p>
             </div>
           </div>
 
@@ -206,25 +257,10 @@ export function InfoModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          {/* Getting Started */}
-          <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 border border-green-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-              <span>🚀</span>
-              Getting Started
-            </h3>
-            <div className="space-y-2 text-sm text-gray-700">
-              <p>1. <strong>Daily Check-in:</strong> Spin the wheel to start earning points</p>
-              <p>2. <strong>Enable Notifications:</strong> Get reminders and updates</p>
-              <p>3. <strong>Browse Products:</strong> Find crypto merch you love</p>
-              <p>4. <strong>Connect Wallet:</strong> Pay with USDC for seamless checkout</p>
-              <p>5. <strong>Share Everything:</strong> Show off your purchases and streaks</p>
-            </div>
-          </div>
-
           {/* Support */}
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
             <p className="text-sm text-gray-600">
-              <strong>Need Help?</strong> Find us on Farcaster <span className="text-[#8A63D2]">@mintedmerch</span> or message <span className="text-[#8A63D2]">@madyak</span>
+              <strong>Need Help?</strong> Send <button onClick={handleFarcasterProfileClick} className="text-[#8A63D2] hover:underline">@svvvg3.eth</button> on Farcaster!
             </p>
           </div>
         </div>
