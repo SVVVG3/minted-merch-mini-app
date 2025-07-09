@@ -52,7 +52,7 @@ export async function generateMetadata({ searchParams }) {
     
     // Create frame embed with dynamic check-in image
     const frame = {
-      version: "next",
+      version: "1",
       imageUrl: dynamicImageUrl,
       button: {
         title: "Start Your Streak! 🎯",
@@ -66,11 +66,28 @@ export async function generateMetadata({ searchParams }) {
       }
     };
 
+    // Create miniapp embed (same structure but with launch_miniapp action type)
+    const miniapp = {
+      version: "1",
+      imageUrl: dynamicImageUrl,
+      button: {
+        title: "Start Your Streak! 🎯",
+        action: {
+          type: "launch_miniapp",
+          url: baseUrl,
+          name: "Minted Merch Shop",
+          splashImageUrl: `${baseUrl}/splash.png`,
+          splashBackgroundColor: "#000000"
+        }
+      }
+    };
+
     return {
       title,
       description,
       metadataBase: new URL(baseUrl),
       other: {
+        'fc:miniapp': JSON.stringify(miniapp),
         'fc:frame': JSON.stringify(frame),
       },
       openGraph: {
@@ -98,7 +115,7 @@ export async function generateMetadata({ searchParams }) {
   
   // Default home page metadata
   const frame = {
-    version: "next",
+    version: "1",
     imageUrl: `${baseUrl}/api/og/home`,
     button: {
       title: "Shop Now 📦",
@@ -112,11 +129,28 @@ export async function generateMetadata({ searchParams }) {
     }
   };
 
+  // Create miniapp embed for default page
+  const miniapp = {
+    version: "1",
+    imageUrl: `${baseUrl}/api/og/home`,
+    button: {
+      title: "Shop Now 📦",
+      action: {
+        type: "launch_miniapp",
+        url: baseUrl,
+        name: "Minted Merch Shop",
+        splashImageUrl: `${baseUrl}/splash.png`,
+        splashBackgroundColor: "#000000"
+      }
+    }
+  };
+
   return {
     title: 'Minted Merch Shop - Crypto Merch with USDC on Base',
     description: 'Shop premium crypto merchandise and pay instantly with USDC on Base blockchain. Apparel, accessories, and more designed after your favorite coins and communities.',
     metadataBase: new URL(baseUrl),
     other: {
+      'fc:miniapp': JSON.stringify(miniapp),
       'fc:frame': JSON.stringify(frame),
     },
     openGraph: {
