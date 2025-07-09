@@ -91,7 +91,7 @@ export async function GET(request) {
             style={{
               position: 'absolute',
               inset: 0,
-              background: `linear-gradient(135deg, ${rarityColor}20, #1a1a1a)`,
+              backgroundColor: '#1a1a1a',
             }}
           />
 
@@ -122,9 +122,7 @@ export async function GET(request) {
                 style={{
                   fontSize: '48px',
                   fontWeight: 'bold',
-                  background: 'linear-gradient(45deg, #3eb489, #22c55e)',
-                  backgroundClip: 'text',
-                  color: 'transparent',
+                  color: '#22c55e',
                 }}
               >
                 Daily Check-in Complete! 🎯
@@ -142,16 +140,14 @@ export async function GET(request) {
                 padding: '60px',
                 borderRadius: '24px',
                 border: `3px solid ${rarityColor}`,
-                backdropFilter: 'blur(10px)',
               }}
             >
               {/* Main Points */}
               <div
                 style={{
                   fontSize: '120px',
-                  fontWeight: 'black',
+                  fontWeight: 'bold',
                   color: rarityColor,
-                  textShadow: '0 4px 20px rgba(0,0,0,0.5)',
                   lineHeight: 1,
                 }}
               >
@@ -177,13 +173,13 @@ export async function GET(request) {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '20px',
-                    backgroundColor: 'rgba(255, 193, 7, 0.2)',
+                    backgroundColor: '#ffc107',
                     padding: '20px 40px',
                     borderRadius: '16px',
-                    border: '2px solid #ffc107',
+                    color: '#000000',
                   }}
                 >
-                  <div style={{ fontSize: '24px', color: '#ffc107', fontWeight: 'bold' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
                     🎯 Base: {basePoints} + 🔥 Streak Bonus: {streakBonus}
                   </div>
                 </div>
@@ -205,17 +201,17 @@ export async function GET(request) {
                   flexDirection: 'column',
                   alignItems: 'center',
                   gap: '10px',
-                  backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                  backgroundColor: '#22c55e',
                   padding: '30px',
                   borderRadius: '20px',
-                  border: '2px solid #22c55e',
+                  color: '#000000',
                 }}
               >
                 <div style={{ fontSize: '48px' }}>{streakEmoji}</div>
-                <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#22c55e' }}>
+                <div style={{ fontSize: '36px', fontWeight: 'bold' }}>
                   {streak} Day{streak !== 1 ? 's' : ''}
                 </div>
-                <div style={{ fontSize: '18px', color: '#a3a3a3' }}>
+                <div style={{ fontSize: '18px', color: '#333333' }}>
                   Streak
                 </div>
               </div>
@@ -227,17 +223,17 @@ export async function GET(request) {
                   flexDirection: 'column',
                   alignItems: 'center',
                   gap: '10px',
-                  backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                  backgroundColor: '#3b82f6',
                   padding: '30px',
                   borderRadius: '20px',
-                  border: '2px solid #3b82f6',
+                  color: '#ffffff',
                 }}
               >
                 <div style={{ fontSize: '48px' }}>💎</div>
-                <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#3b82f6' }}>
+                <div style={{ fontSize: '36px', fontWeight: 'bold' }}>
                   {totalPoints}
                 </div>
-                <div style={{ fontSize: '18px', color: '#a3a3a3' }}>
+                <div style={{ fontSize: '18px', color: '#cccccc' }}>
                   Total Points
                 </div>
               </div>
@@ -292,9 +288,7 @@ export async function GET(request) {
               left: '30px',
               fontSize: '28px',
               fontWeight: 'bold',
-              background: 'linear-gradient(45deg, #3eb489, #22c55e)',
-              backgroundClip: 'text',
-              color: 'transparent',
+              color: '#22c55e',
             }}
           >
             Minted Merch
