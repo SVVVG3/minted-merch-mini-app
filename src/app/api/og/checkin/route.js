@@ -25,7 +25,6 @@ export async function GET(request) {
             position: 'relative',
           }}
         >
-          {/* Centered Content Container */}
           <div
             style={{
               display: 'flex',
@@ -36,7 +35,6 @@ export async function GET(request) {
               height: '100%',
             }}
           >
-            {/* Left Section - Spinner Icon */}
             <div
               style={{
                 width: '450px',
@@ -51,10 +49,21 @@ export async function GET(request) {
                 flexShrink: 0,
               }}
             >
-              <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>🎯</div>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  padding: '20px',
+                }}
+              >
+                <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>🎯</div>
+                <div style={{ fontSize: '32px', color: '#3eb489' }}>Check-in Complete!</div>
+              </div>
             </div>
             
-            {/* Right Section - Check-in Info */}
             <div
               style={{
                 display: 'flex',
@@ -74,7 +83,7 @@ export async function GET(request) {
                   color: '#3eb489',
                 }}
               >
-                Check-in Complete!
+                Daily Check-in!
               </div>
               
               <div
@@ -85,7 +94,7 @@ export async function GET(request) {
                   color: 'white',
                 }}
               >
-                +{pointsEarned} Points • {streak} Day Streak • {totalPoints} Total
+                +{pointsEarned} Points • {streak} Day Streak
               </div>
               
               <div
@@ -114,14 +123,18 @@ export async function GET(request) {
             width: '100%',
             height: '100%',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#ff0000',
+            backgroundColor: '#000000',
             color: 'white',
-            fontSize: '32px',
+            fontFamily: 'Arial, sans-serif',
           }}
         >
-          Error: {error.message}
+          <div style={{ fontSize: 100, color: '#3eb489' }}>🎯</div>
+          <div style={{ fontSize: 48, marginTop: 20 }}>Check-in Complete!</div>
+          <div style={{ fontSize: 36, color: '#3eb489', marginTop: 20 }}>Minted Merch</div>
+          <div style={{ fontSize: 24, color: '#888', marginTop: 20 }}>Error loading details</div>
         </div>
       ),
       {
