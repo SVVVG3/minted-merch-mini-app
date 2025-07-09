@@ -26,16 +26,83 @@ export async function GET(request) {
             backgroundColor: '#000000',
             color: 'white',
             fontFamily: 'Arial, sans-serif',
-            fontSize: '40px',
-            textAlign: 'center',
-            flexDirection: 'column',
+            padding: '60px',
+            position: 'relative',
           }}
         >
-          <div style={{ marginBottom: '20px', color: '#3eb489' }}>🎯 Daily Check-in Complete! 🎯</div>
-          <div style={{ marginBottom: '20px' }}>+{pointsEarned} Points Earned</div>
-          <div style={{ marginBottom: '20px' }}>💫 {streak} Day Streak</div>
-          <div style={{ marginBottom: '20px' }}>💎 {totalPoints} Total Points</div>
-          <div style={{ fontSize: '24px', color: '#3eb489' }}>Minted Merch</div>
+          {/* Centered Content Container */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '80px',
+              width: '100%',
+              height: '100%',
+            }}
+          >
+            {/* Left Section - Spinner Icon */}
+            <div
+              style={{
+                width: '450px',
+                height: '450px',
+                borderRadius: '24px',
+                backgroundColor: '#2a2a2a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '3px solid #3eb489',
+                overflow: 'hidden',
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>🎯</div>
+            </div>
+            
+            {/* Right Section - Check-in Info */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'flex-start',
+                maxWidth: '500px',
+                flex: 1,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '56px',
+                  fontWeight: 'bold',
+                  marginBottom: '30px',
+                  lineHeight: '1.1',
+                  color: '#3eb489',
+                }}
+              >
+                Check-in Complete!
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '28px',
+                  marginBottom: '40px',
+                  lineHeight: '1.3',
+                  color: 'white',
+                }}
+              >
+                +{pointsEarned} Points • {streak} Day Streak • {totalPoints} Total
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '20px',
+                  color: '#3eb489',
+                }}
+              >
+                Minted Merch 🎯
+              </div>
+            </div>
+          </div>
         </div>
       ),
       {
