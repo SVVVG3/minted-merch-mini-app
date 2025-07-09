@@ -15,7 +15,7 @@ export async function getUsersNeedingCheckInReminders() {
     const { data: profilesData, error: profilesError } = await supabase
       .from('profiles')
       .select('fid')
-      .eq('notification_status', 'enabled');
+      .eq('has_notifications', true);
 
     if (profilesError) {
       console.error('Error fetching users with notifications:', profilesError);
