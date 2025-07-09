@@ -9,23 +9,6 @@ export async function GET(request) {
     const streak = parseInt(searchParams.get('streak') || '1');
     const totalPoints = parseInt(searchParams.get('total') || '100');
     
-    console.log('Check-in OG params:', { pointsEarned, streak, totalPoints });
-    
-    // Color based on points earned (rarity system)
-    let pointsColor = '#ef4444'; // red (25-35)
-    if (pointsEarned >= 91) pointsColor = '#8b5cf6'; // purple (91-100)
-    else if (pointsEarned >= 81) pointsColor = '#3b82f6'; // blue (81-90)
-    else if (pointsEarned >= 66) pointsColor = '#22c55e'; // green (66-80)
-    else if (pointsEarned >= 51) pointsColor = '#eab308'; // yellow (51-65)
-    else if (pointsEarned >= 36) pointsColor = '#f97316'; // orange (36-50)
-    
-    // Streak emoji based on achievement
-    let streakEmoji = '💫'; // 1-2 days
-    if (streak >= 30) streakEmoji = '👑'; // 30+ days
-    else if (streak >= 14) streakEmoji = '🔥'; // 14+ days  
-    else if (streak >= 7) streakEmoji = '⚡'; // 7+ days
-    else if (streak >= 3) streakEmoji = '🌟'; // 3+ days
-    
     return new ImageResponse(
       (
         <div
@@ -77,7 +60,7 @@ export async function GET(request) {
             <div style={{
               fontSize: 80,
               fontWeight: 'bold',
-              color: pointsColor,
+              color: '#f97316',
               marginBottom: 20,
             }}>
               +{pointsEarned} Points
@@ -89,7 +72,7 @@ export async function GET(request) {
               marginBottom: 30,
               fontSize: 36,
             }}>
-              <span style={{ marginRight: 20 }}>{streakEmoji}</span>
+              <span style={{ marginRight: 20 }}>💫</span>
               <span style={{ color: '#22c55e', fontWeight: 'bold' }}>
                 {streak} Day Streak
               </span>
