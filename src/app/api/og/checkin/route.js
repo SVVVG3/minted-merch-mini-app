@@ -36,17 +36,6 @@ export async function GET(request) {
     const productImageFailed = false;
     const productImageSrc = null;
     
-    // Fetch logo image with better error handling
-    const logoUrl = 'https://mintedmerch.vercel.app/logo.png';
-    let logoImageSrc = null;
-    try {
-      console.log('Fetching logo from:', logoUrl);
-      logoImageSrc = await fetchImageAsDataUrl(logoUrl);
-      console.log('Logo fetch result:', logoImageSrc ? '✅ Success' : '❌ Failed');
-    } catch (error) {
-      console.error('❌ Error fetching logo:', error);
-    }
-    
     return new ImageResponse(
       (
         <div
@@ -89,31 +78,19 @@ export async function GET(request) {
                 flexShrink: 0,
               }}
             >
-              {logoImageSrc ? (
-                <img
-                  src={logoImageSrc}
-                  alt="Minted Merch"
-                  style={{
-                    width: '300px',
-                    height: '300px',
-                    objectFit: 'contain',
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    textAlign: 'center',
-                    padding: '20px',
-                  }}
-                >
-                  <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>🎯</div>
-                  <div style={{ fontSize: '32px', color: '#3eb489' }}>Check-in Complete!</div>
-                </div>
-              )}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  padding: '20px',
+                }}
+              >
+                <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>🎯</div>
+                <div style={{ fontSize: '32px', color: '#3eb489' }}>Check-in Complete!</div>
+              </div>
             </div>
             
             {/* Check-in Info Section - Right */}
