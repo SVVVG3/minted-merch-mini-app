@@ -2,17 +2,37 @@ import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'nodejs';
 
+async function fetchImageAsDataUrl(imageUrl) {
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) throw new Error('Failed to fetch image');
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    
+    return `data:${contentType};base64,${buffer.toString('base64')}`;
+  } catch (error) {
+    console.error('Error fetching image:', error);
+    return null;
+  }
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const pointsEarned = parseInt(searchParams.get('points') || '30');
-    const streak = parseInt(searchParams.get('streak') || '1');
-    const totalPoints = parseInt(searchParams.get('total') || '100');
+    const points = searchParams.get('points') || '50';
+    const streak = searchParams.get('streak') || '1';
+    const totalPoints = searchParams.get('total') || '50';
     
-    // Use simple variables like the order route
-    const products = `+${pointsEarned} Points • ${streak} Day Streak`;
-    const productImageFailed = false;
-    const productImageSrc = null;
+    // Fetch logo image
+    const logoUrl = 'https://mintedmerch.vercel.app/logo.png';
+    let logoImageSrc = null;
+    try {
+      logoImageSrc = await fetchImageAsDataUrl(logoUrl);
+    } catch (error) {
+      console.error('Error fetching logo:', error);
+    }
     
     return new ImageResponse(
       (
@@ -41,7 +61,7 @@ export async function GET(request) {
               height: '100%',
             }}
           >
-            {/* Product Image Section - Larger */}
+            {/* Logo Section - Larger */}
             <div
               style={{
                 width: '450px',
@@ -56,46 +76,22 @@ export async function GET(request) {
                 flexShrink: 0,
               }}
             >
-              {productImageSrc ? (
+              {logoImageSrc ? (
                 <img
-                  src={productImageSrc}
-                  alt={products}
+                  src={logoImageSrc}
+                  alt="Minted Merch"
                   style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
+                    width: '300px',
+                    height: '300px',
+                    objectFit: 'contain',
                   }}
                 />
               ) : (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    textAlign: 'center',
-                    padding: '20px',
-                  }}
-                >
-                  {productImageFailed ? (
-                    <>
-                      <div style={{ fontSize: '80px', marginBottom: '20px', color: '#ff6b6b' }}>❌</div>
-                      <div style={{ fontSize: '24px', color: '#ff6b6b', marginBottom: '10px' }}>Image Failed</div>
-                      <div style={{ fontSize: '16px', color: '#888' }}>
-                        {'No URL'}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>🎯</div>
-                      <div style={{ fontSize: '32px', color: '#3eb489' }}>Check-in Complete!</div>
-                    </>
-                  )}
-                </div>
+                <div style={{ fontSize: '120px', color: '#3eb489' }}>🎯</div>
               )}
             </div>
             
-            {/* Order Info Section - Larger */}
+            {/* Check-in Info Section - Larger */}
             <div
               style={{
                 display: 'flex',
@@ -108,34 +104,44 @@ export async function GET(request) {
             >
               <div
                 style={{
-                  fontSize: '56px',
+                  fontSize: '72px',
                   fontWeight: 'bold',
                   marginBottom: '30px',
                   lineHeight: '1.1',
                   color: '#3eb489',
                 }}
               >
-                Daily Check-in!
+                Daily Check-in
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '36px',
+                  color: 'white',
+                  marginBottom: '25px',
+                  lineHeight: '1.3',
+                }}
+              >
+                Earned {points} points! 🎉
               </div>
               
               <div
                 style={{
                   fontSize: '28px',
-                  marginBottom: '40px',
-                  lineHeight: '1.3',
-                  color: 'white',
+                  color: '#3eb489',
+                  marginBottom: '20px',
                 }}
               >
-                {products}
+                {streak} day streak 🔥
               </div>
               
               <div
                 style={{
-                  fontSize: '20px',
-                  color: '#3eb489',
+                  fontSize: '24px',
+                  color: '#888',
                 }}
               >
-                💎 57 Total Points
+                💎 {totalPoints} Total Points
               </div>
             </div>
           </div>
@@ -148,6 +154,8 @@ export async function GET(request) {
     );
     
   } catch (error) {
+    console.error('OG Error:', error);
+    
     // Return fallback image
     return new ImageResponse(
       (
@@ -165,9 +173,9 @@ export async function GET(request) {
           }}
         >
           <div style={{ fontSize: 100, color: '#3eb489' }}>🎯</div>
-          <div style={{ fontSize: 48, marginTop: 20 }}>Check-in Complete!</div>
-          <div style={{ fontSize: 36, color: '#3eb489', marginTop: 20 }}>Minted Merch</div>
-          <div style={{ fontSize: 24, color: '#888', marginTop: 20 }}>Error loading details</div>
+          <div style={{ fontSize: 48, marginTop: 20, color: '#3eb489' }}>Daily Check-in</div>
+          <div style={{ fontSize: 32, color: 'white', marginTop: 20 }}>Minted Merch Rewards</div>
+          <div style={{ fontSize: 24, color: '#888', marginTop: 20 }}>Keep your streak going!</div>
         </div>
       ),
       {
