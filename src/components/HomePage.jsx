@@ -6,6 +6,7 @@ import { Cart } from './Cart';
 import { OrderHistory } from './OrderHistory';
 import { CheckInButton } from './CheckInButton';
 import { LeaderboardButton } from './LeaderboardButton';
+import { InfoButton } from './InfoButton';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
@@ -516,6 +517,9 @@ export function HomePage({ collection, products }) {
                 </svg>
               </button>
             )}
+
+            {/* Info Button - Show for everyone */}
+            <InfoButton />
             
             {/* Cart Button */}
             <button
