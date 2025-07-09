@@ -64,15 +64,15 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Overlay Background */}
       <div 
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
         onClick={handleOverlayClick}
       />
       
-      {/* Modal Content */}
-      <div className="relative z-10 w-full max-w-md mx-4">
+      {/* Modal Content Container with proper sizing */}
+      <div className="relative z-10 w-full max-w-md max-h-[90vh] flex flex-col">
         {/* Close Button */}
         <button
           onClick={handleClose}
@@ -84,11 +84,14 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
           </svg>
         </button>
         
-        {/* Spin Wheel Component */}
-        <SpinWheel
-          isVisible={isVisible}
-          onSpinComplete={handleSpinComplete}
-        />
+        {/* Scrollable Content Container */}
+        <div className="overflow-y-auto overscroll-contain">
+          {/* Spin Wheel Component */}
+          <SpinWheel
+            isVisible={isVisible}
+            onSpinComplete={handleSpinComplete}
+          />
+        </div>
       </div>
     </div>
   );

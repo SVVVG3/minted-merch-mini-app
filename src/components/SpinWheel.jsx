@@ -235,9 +235,9 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         </div>
       )}
 
-      <div className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-50 via-white to-green-50 rounded-xl shadow-xl max-w-md mx-auto border border-gray-100">
+             <div className="flex flex-col items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-blue-50 via-white to-green-50 rounded-xl shadow-xl w-full border border-gray-100">
         {/* Header */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-4 sm:mb-6">
           {/* Logo with glow effect */}
           <div className="mb-4 relative">
             <img 
@@ -300,14 +300,14 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         </div>
 
         {/* Enhanced Spin Wheel */}
-        <div className="relative mb-6">
+        <div className="relative mb-4 sm:mb-6">
           {/* Glow effect during spin */}
           {wheelGlow && (
             <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 rounded-full blur-xl opacity-30 scale-110 animate-pulse"></div>
           )}
           
           {/* Wheel Container */}
-          <div className={`relative w-64 h-64 transition-all duration-500 ${wheelGlow ? 'scale-105' : ''}`}>
+          <div className={`relative w-56 h-56 sm:w-64 sm:h-64 transition-all duration-500 ${wheelGlow ? 'scale-105' : ''}`}>
             {/* Wheel SVG with enhanced styling */}
             <svg 
               className="w-full h-full drop-shadow-lg" 
@@ -438,11 +438,11 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
             </div>
           ) : spinResult ? (
             <div className="space-y-4 w-full">
-              {/* Enhanced Result Display */}
-              <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-6 transform animate-pulse">
+                             {/* Enhanced Result Display */}
+               <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 sm:p-6 transform animate-pulse">
                 <div className="text-center">
-                  {/* Big celebration for the points */}
-                  <div className="text-5xl font-black bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-3 animate-bounce">
+                                     {/* Big celebration for the points */}
+                   <div className="text-4xl sm:text-5xl font-black bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-3 animate-bounce">
                     +{spinResult.pointsEarned} Points! 🎉
                   </div>
                   
