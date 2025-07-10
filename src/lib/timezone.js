@@ -151,14 +151,14 @@ export function formatPSTTime(date = getCurrentPSTTime()) {
 
 /**
  * Check if it's currently notification time (8 AM PST/PDT)
- * @returns {boolean} True if it's within 8:00-8:05 AM PST/PDT
+ * @returns {boolean} True if it's within 8:00-8:15 AM PST/PDT
  */
 export function isNotificationTime() {
   const pstTime = getCurrentPSTTime();
   const hour = pstTime.getHours();
   const minute = pstTime.getMinutes();
   
-  // Return true if it's between 8:00 AM and 8:05 AM PST/PDT
-  // This gives a 5-minute window for cron job execution
-  return hour === 8 && minute >= 0 && minute <= 5;
+  // Return true if it's between 8:00 AM and 8:15 AM PST/PDT
+  // This gives a 15-minute window for cron job execution reliability
+  return hour === 8 && minute >= 0 && minute <= 15;
 } 

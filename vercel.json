@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/notifications/daily-checkin",
-      "schedule": "0 15 * * *"
+      "schedule": "0 16 * * *"
     },
     {
       "path": "/api/auto-sync/weekly-full-sync",
