@@ -264,7 +264,7 @@ export function ProductDetail({
             {/* Cart Button */}
             <button
               onClick={openCart}
-              className="flex items-center gap-2 bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-2 rounded-lg transition-colors"
+              className="flex items-center justify-center w-10 h-10 bg-[#3eb489] hover:bg-[#359970] text-white rounded-lg transition-colors"
               title="Open Cart"
             >
               <div className="relative">
@@ -279,11 +279,6 @@ export function ProductDetail({
                   </div>
                 )}
               </div>
-              {itemCount > 0 && (
-                <span className="text-sm font-medium whitespace-nowrap">
-                  ${cartTotal.toFixed(2)}
-                </span>
-              )}
             </button>
           </div>
         </div>

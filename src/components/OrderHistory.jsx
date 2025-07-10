@@ -147,7 +147,7 @@ export function OrderHistory({ isOpen, onClose }) {
                 <div key={order.orderId || order.name || index} className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <div className="font-medium text-sm">Order #{order.orderId || order.name}</div>
+                      <div className="font-medium text-sm">Order {order.orderId || order.name}</div>
                       <div className="text-xs text-gray-600">{formatDate(order.timestamp)}</div>
                     </div>
                     <div className="text-right">
@@ -176,15 +176,18 @@ export function OrderHistory({ isOpen, onClose }) {
                       {order.lineItems.length <= 3 ? (
                         <span className="ml-1">
                           ({order.lineItems.map(item => {
-                            const itemName = item.title || item.name || 'Unknown Item';
-                            // Only show variant title if it's not "Default Title"
-                            const variant = item.variantTitle && item.variantTitle !== 'Default Title' ? ` (${item.variantTitle})` : '';
+                            const itemName = item.title || item.name || item.productTitle || 'Unknown Item';
+                            // Only show variant title if it's not "Default Title" and exists
+                            const variant = (item.variantTitle || item.variant) && 
+                                          (item.variantTitle || item.variant) !== 'Default Title' && 
+                                          (item.variantTitle || item.variant) !== 'Default' ? 
+                                          ` (${item.variantTitle || item.variant})` : '';
                             return `${itemName}${variant}`;
                           }).join(', ')})
                         </span>
                       ) : (
                         <span className="ml-1">
-                          ({order.lineItems[0].title || 'Unknown Item'} and {order.lineItems.length - 1} more)
+                          ({order.lineItems[0].title || order.lineItems[0].name || order.lineItems[0].productTitle || 'Unknown Item'} and {order.lineItems.length - 1} more)
                         </span>
                       )}
                     </div>
@@ -192,8 +195,23 @@ export function OrderHistory({ isOpen, onClose }) {
 
                   {/* Transaction Hash (if available) */}
                   {order.transactionHash && (
-                    <div className="text-xs text-gray-500 mt-1 truncate">
-                      Tx: {order.transactionHash.slice(0, 10)}...{order.transactionHash.slice(-8)}
+                    <div className="text-xs text-gray-500 mt-1">
+                      <span>Tx: </span>
+                      <a 
+                        href={`https://basescan.org/tx/${order.transactionHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // For mobile apps, try to open in external browser
+                          if (window.open) {
+                            window.open(`https://basescan.org/tx/${order.transactionHash}`, '_blank');
+                          }
+                        }}
+                      >
+                        {order.transactionHash.slice(0, 10)}...{order.transactionHash.slice(-8)}
+                      </a>
                     </div>
                   )}
 
