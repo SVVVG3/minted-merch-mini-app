@@ -143,16 +143,17 @@ export function OrderHistory({ isOpen, onClose }) {
                 <div key={order.orderId || order.name || index} className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <a 
-                        href={`/order/${order.orderId || order.name}`}
+                      <button
                         className="font-medium text-sm text-blue-600 hover:text-blue-800 underline cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
-                          window.location.href = `/order/${order.orderId || order.name}`;
+                          // Remove # from order number for URL
+                          const orderNumber = (order.orderId || order.name).replace('#', '');
+                          window.location.href = `/order/${orderNumber}`;
                         }}
                       >
                         Order {order.orderId || order.name}
-                      </a>
+                      </button>
                       <div className="text-xs text-gray-600">{formatDate(order.timestamp)}</div>
                     </div>
                     <div className="text-right">
@@ -228,14 +229,35 @@ export function OrderHistory({ isOpen, onClose }) {
                         className="text-blue-600 hover:text-blue-800 underline"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // For Farcaster mini apps, open external link in system browser
+                          // For Farcaster mini apps, try multiple methods to open external link
                           const url = `https://basescan.org/tx/${order.transactionHash}`;
+                          
+                          // Method 1: Try using top-level window
+                          if (window.top && window.top !== window) {
+                            try {
+                              window.top.location.href = url;
+                              return;
+                            } catch (e) {
+                              // Blocked by cross-origin policy, try next method
+                            }
+                          }
+                          
+                          // Method 2: Try parent window
                           if (window.parent && window.parent !== window) {
-                            // In iframe - try to open in parent
-                            window.parent.open(url, '_blank');
-                          } else {
-                            // Direct navigation to external site
-                            window.open(url, '_system') || window.open(url, '_blank');
+                            try {
+                              window.parent.open(url, '_blank');
+                              return;
+                            } catch (e) {
+                              // Try next method
+                            }
+                          }
+                          
+                          // Method 3: Direct navigation (will exit mini app)
+                          try {
+                            window.location.href = url;
+                          } catch (e) {
+                            // Method 4: Fallback to window.open
+                            window.open(url, '_blank');
                           }
                         }}
                       >

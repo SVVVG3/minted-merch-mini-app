@@ -383,10 +383,10 @@ export async function POST(request) {
 
             return {
               id: item.variant.id,
-              title: item.productTitle,
+              title: item.product.title, // FIXED: Use item.product.title not item.productTitle
               quantity: item.quantity,
-              price: item.price,
-              variant: item.productTitle !== 'Default' ? item.productTitle : null,
+              price: item.variant.price?.amount ? parseFloat(item.variant.price.amount) : parseFloat(item.price),
+              variant: item.variant?.title !== 'Default Title' ? item.variant?.title : null, // FIXED: Use variant title
               imageUrl: productImageUrl // Store the product image URL!
             };
           }),
