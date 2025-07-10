@@ -95,30 +95,14 @@ export async function createOrder(orderData) {
       fullOrderData: orderData
     });
 
-    // Validate discount code if provided (final validation before order creation)
+    // Skip discount validation during order creation - discount was already validated during checkout
     if (orderData.discountCode) {
-      console.log('🔍 Validating discount code for order:', {
+      console.log('💡 Discount code present in order:', {
         discountCode: orderData.discountCode,
         fid: orderData.fid,
-        amountSubtotal: orderData.amountSubtotal
+        amountSubtotal: orderData.amountSubtotal,
+        note: 'Skipping re-validation - discount already validated during checkout'
       });
-      
-      const discountValidation = await validateDiscountForOrder(
-        orderData.discountCode, 
-        orderData.fid, 
-        orderData.amountSubtotal
-      );
-
-      console.log('🔍 Discount validation result:', discountValidation);
-
-      if (!discountValidation.success || !discountValidation.isValid) {
-        console.error('❌ Discount validation failed during order creation:', discountValidation.error);
-        return { 
-          success: false, 
-          error: discountValidation.error || 'Invalid discount code',
-          errorType: 'DISCOUNT_VALIDATION_FAILED'
-        };
-      }
     }
 
     // Create the order
