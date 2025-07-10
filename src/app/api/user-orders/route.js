@@ -10,54 +10,78 @@ function extractVariantId(graphqlId) {
   return graphqlId;
 }
 
-// Helper function to get product details from Shopify variant ID
+// Helper function to get product details from Shopify Storefront API
 async function getProductFromVariantId(variantId) {
   try {
     const cleanVariantId = extractVariantId(variantId);
+    const variantGraphqlId = `gid://shopify/ProductVariant/${cleanVariantId}`;
+    
+    // Use Shopify Storefront API instead of Admin API
+    const storefrontQuery = `
+      query getVariant($id: ID!) {
+        node(id: $id) {
+          ... on ProductVariant {
+            title
+            product {
+              title
+            }
+          }
+        }
+      }
+    `;
     
     const response = await fetch(
-      `https://${process.env.SHOPIFY_SITE_DOMAIN}.myshopify.com/admin/api/2023-10/variants/${cleanVariantId}.json`,
+      `https://${process.env.SHOPIFY_SITE_DOMAIN}.myshopify.com/api/2023-10/graphql.json`,
       {
+        method: 'POST',
         headers: {
-          'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
           'Content-Type': 'application/json',
+          'X-Shopify-Storefront-Access-Token': process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN,
         },
+        body: JSON.stringify({
+          query: storefrontQuery,
+          variables: { id: variantGraphqlId }
+        })
       }
     );
 
     if (!response.ok) {
-      console.log(`❌ Failed to fetch variant ${cleanVariantId}:`, response.status);
+      console.log(`❌ Failed to fetch variant ${cleanVariantId} from Storefront API:`, response.status);
       return null;
     }
 
-    const variantData = await response.json();
+    const data = await response.json();
     
-    if (variantData.variant && variantData.variant.product_id) {
-      // Now get the product details
-      const productResponse = await fetch(
-        `https://${process.env.SHOPIFY_SITE_DOMAIN}.myshopify.com/admin/api/2023-10/products/${variantData.variant.product_id}.json`,
-        {
-          headers: {
-            'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (productResponse.ok) {
-        const productData = await productResponse.json();
-        return {
-          productTitle: productData.product.title,
-          variantTitle: variantData.variant.title,
-          productId: variantData.variant.product_id,
-          variantId: cleanVariantId
-        };
-      }
+    if (data.errors) {
+      console.log(`❌ GraphQL errors for variant ${cleanVariantId}:`, data.errors);
+      return null;
+    }
+    
+    if (data.data?.node?.product) {
+      return {
+        productTitle: data.data.node.product.title,
+        variantTitle: data.data.node.title,
+        variantId: cleanVariantId
+      };
     }
     
     return null;
   } catch (error) {
     console.log(`❌ Error fetching product for variant ${variantId}:`, error.message);
+    return null;
+  }
+}
+
+// Fallback: Check our products table for known products
+async function getProductFromDatabase(variantId) {
+  try {
+    const cleanVariantId = extractVariantId(variantId);
+    
+    // This is a basic fallback - in a real scenario you'd have a variants table
+    // For now, let's just return null and let the Storefront API handle it
+    return null;
+  } catch (error) {
+    console.log(`❌ Error checking database for variant ${variantId}:`, error.message);
     return null;
   }
 }
@@ -74,24 +98,37 @@ async function enrichLineItemsWithProductTitles(lineItems) {
     lineItems.map(async (item) => {
       // Skip if title already exists and looks good
       if (item.title && !item.title.startsWith('Product') && item.title !== 'Item') {
+        console.log(`✅ Item already has good title: ${item.title}`);
         return item;
       }
 
-      // Try to get product title from Shopify variant ID
+      // First try Storefront API
       const productInfo = await getProductFromVariantId(item.id);
       
       if (productInfo) {
-        console.log(`✅ Found product: ${productInfo.productTitle} for variant ${extractVariantId(item.id)}`);
+        console.log(`✅ Found product via Storefront API: ${productInfo.productTitle} for variant ${extractVariantId(item.id)}`);
         return {
           ...item,
           title: productInfo.productTitle,
           variant: productInfo.variantTitle,
-          productId: productInfo.productId,
           variantId: productInfo.variantId
         };
       }
 
-      // Fallback: Create a meaningful name from variant ID
+      // Fallback to database check
+      const dbProduct = await getProductFromDatabase(item.id);
+      
+      if (dbProduct) {
+        console.log(`✅ Found product in database: ${dbProduct.productTitle} for variant ${extractVariantId(item.id)}`);
+        return {
+          ...item,
+          title: dbProduct.productTitle,
+          variant: dbProduct.variantTitle,
+          variantId: dbProduct.variantId
+        };
+      }
+
+      // Final fallback: Create a meaningful name from variant ID
       const variantId = extractVariantId(item.id);
       const fallbackTitle = `Product #${variantId}`;
       
