@@ -17,10 +17,10 @@ export async function GET(request) {
     }
     
     console.log('📡 Fetching notification tokens from Neynar...');
-    const response = await fetch(`https://api.neynar.com/v2/farcaster/app/notification-tokens`, {
+    const response = await fetch(`https://api.neynar.com/v2/farcaster/frame/notification_tokens/`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${neynarApiKey}`,
+        'x-api-key': neynarApiKey,
         'Content-Type': 'application/json'
       }
     });
@@ -31,9 +31,9 @@ export async function GET(request) {
     }
     
     const neynarData = await response.json();
-    console.log(`📊 Found ${neynarData.tokens?.length || 0} notification tokens from Neynar`);
+    console.log(`📊 Found ${neynarData.notification_tokens?.length || 0} notification tokens from Neynar`);
     
-    if (!neynarData.tokens || neynarData.tokens.length === 0) {
+    if (!neynarData.notification_tokens || neynarData.notification_tokens.length === 0) {
       return NextResponse.json({
         success: true,
         message: 'No notification tokens found in Neynar',
@@ -41,11 +41,12 @@ export async function GET(request) {
       });
     }
     
-    // Get FIDs from the tokens
-    const neynarFids = neynarData.tokens.map(token => token.fid).filter(Boolean);
+    // Get FIDs from the enabled tokens only
+    const enabledTokens = neynarData.notification_tokens.filter(token => token.status === 'enabled');
+    const neynarFids = enabledTokens.map(token => token.fid).filter(Boolean);
     const uniqueNeynarFids = [...new Set(neynarFids)];
     
-    console.log(`👥 Found ${uniqueNeynarFids.length} unique FIDs with notifications enabled in Neynar`);
+    console.log(`👥 Found ${enabledTokens.length} enabled tokens (${uniqueNeynarFids.length} unique FIDs) with notifications enabled in Neynar`);
     
     // Check which FIDs are already in our database
     const { data: existingProfiles, error: fetchError } = await supabase
