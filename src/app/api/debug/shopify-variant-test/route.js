@@ -15,14 +15,14 @@ export async function GET(request) {
 
     console.log('🔍 Testing Shopify API connection...');
     console.log('🔍 Environment check:');
-    console.log('- SHOPIFY_STORE_DOMAIN:', process.env.SHOPIFY_STORE_DOMAIN ? '✅ Set' : '❌ Missing');
+    console.log('- SHOPIFY_SITE_DOMAIN:', process.env.SHOPIFY_SITE_DOMAIN ? '✅ Set' : '❌ Missing');
     console.log('- SHOPIFY_ACCESS_TOKEN:', process.env.SHOPIFY_ACCESS_TOKEN ? '✅ Set' : '❌ Missing');
 
     const cleanVariantId = extractVariantId(variantId);
     console.log('🔍 Testing variant ID:', cleanVariantId);
     
     const response = await fetch(
-      `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2023-10/variants/${cleanVariantId}.json`,
+      `https://${process.env.SHOPIFY_SITE_DOMAIN}.myshopify.com/admin/api/2023-10/variants/${cleanVariantId}.json`,
       {
         headers: {
           'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
@@ -43,7 +43,7 @@ export async function GET(request) {
         details: errorText,
         variantId: cleanVariantId,
         environment: {
-          shopifyDomain: process.env.SHOPIFY_STORE_DOMAIN ? 'Set' : 'Missing',
+          shopifyDomain: process.env.SHOPIFY_SITE_DOMAIN ? 'Set' : 'Missing',
           shopifyToken: process.env.SHOPIFY_ACCESS_TOKEN ? 'Set' : 'Missing'
         }
       });
@@ -55,7 +55,7 @@ export async function GET(request) {
     if (variantData.variant && variantData.variant.product_id) {
       // Now get the product details
       const productResponse = await fetch(
-        `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2023-10/products/${variantData.variant.product_id}.json`,
+        `https://${process.env.SHOPIFY_SITE_DOMAIN}.myshopify.com/admin/api/2023-10/products/${variantData.variant.product_id}.json`,
         {
           headers: {
             'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
@@ -83,7 +83,7 @@ export async function GET(request) {
             handle: productData.product.handle
           },
           environment: {
-            shopifyDomain: process.env.SHOPIFY_STORE_DOMAIN ? 'Set' : 'Missing',
+            shopifyDomain: process.env.SHOPIFY_SITE_DOMAIN ? 'Set' : 'Missing',
             shopifyToken: process.env.SHOPIFY_ACCESS_TOKEN ? 'Set' : 'Missing'
           }
         });
@@ -97,7 +97,7 @@ export async function GET(request) {
           details: productErrorText,
           variantData,
           environment: {
-            shopifyDomain: process.env.SHOPIFY_STORE_DOMAIN ? 'Set' : 'Missing',
+            shopifyDomain: process.env.SHOPIFY_SITE_DOMAIN ? 'Set' : 'Missing',
             shopifyToken: process.env.SHOPIFY_ACCESS_TOKEN ? 'Set' : 'Missing'
           }
         });
@@ -109,7 +109,7 @@ export async function GET(request) {
       error: 'No product_id found in variant data',
       variantData,
       environment: {
-        shopifyDomain: process.env.SHOPIFY_STORE_DOMAIN ? 'Set' : 'Missing',
+        shopifyDomain: process.env.SHOPIFY_SITE_DOMAIN ? 'Set' : 'Missing',
         shopifyToken: process.env.SHOPIFY_ACCESS_TOKEN ? 'Set' : 'Missing'
       }
     });
@@ -122,7 +122,7 @@ export async function GET(request) {
       error: 'Internal server error',
       details: error.message,
       environment: {
-        shopifyDomain: process.env.SHOPIFY_STORE_DOMAIN ? 'Set' : 'Missing',
+        shopifyDomain: process.env.SHOPIFY_SITE_DOMAIN ? 'Set' : 'Missing',
         shopifyToken: process.env.SHOPIFY_ACCESS_TOKEN ? 'Set' : 'Missing'
       }
     });

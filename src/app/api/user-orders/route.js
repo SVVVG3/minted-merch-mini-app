@@ -16,7 +16,7 @@ async function getProductFromVariantId(variantId) {
     const cleanVariantId = extractVariantId(variantId);
     
     const response = await fetch(
-      `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2023-10/variants/${cleanVariantId}.json`,
+      `https://${process.env.SHOPIFY_SITE_DOMAIN}.myshopify.com/admin/api/2023-10/variants/${cleanVariantId}.json`,
       {
         headers: {
           'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
@@ -35,7 +35,7 @@ async function getProductFromVariantId(variantId) {
     if (variantData.variant && variantData.variant.product_id) {
       // Now get the product details
       const productResponse = await fetch(
-        `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2023-10/products/${variantData.variant.product_id}.json`,
+        `https://${process.env.SHOPIFY_SITE_DOMAIN}.myshopify.com/admin/api/2023-10/products/${variantData.variant.product_id}.json`,
         {
           headers: {
             'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
