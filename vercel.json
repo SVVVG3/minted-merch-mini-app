@@ -2,15 +2,15 @@
   "crons": [
     {
       "path": "/api/auto-sync/notification-status",
-      "schedule": "0 14 * * *"
+      "schedule": "0 13 * * *"
     },
     {
       "path": "/api/notifications/daily-checkin",
-      "schedule": "0 16 * * *"
+      "schedule": "0 15 * * *"
     },
     {
       "path": "/api/auto-sync/weekly-full-sync",
-      "schedule": "0 13 * * 0"
+      "schedule": "0 12 * * 0"
     }
   ]
 } 
