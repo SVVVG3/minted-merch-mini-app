@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getUserOrders } from '@/lib/orders';
 import { supabase } from '@/lib/supabase';
+import { enrichLineItemsWithProductTitles } from '@/lib/shopifyProductHelper';
 
 export async function GET(request) {
   try {
@@ -40,8 +41,27 @@ export async function GET(request) {
       lastOrderDate: orders.length > 0 ? orders[0].created_at : null
     };
 
+    // Enrich line items with product titles for older orders that might be missing them
+    const ordersWithEnrichedLineItems = await Promise.all(
+      orders.map(async (order) => {
+        if (order.line_items && order.line_items.length > 0) {
+          try {
+            const enrichedLineItems = await enrichLineItemsWithProductTitles(order.line_items);
+            return {
+              ...order,
+              line_items: enrichedLineItems
+            };
+          } catch (error) {
+            console.error('Error enriching line items for order', order.order_id, ':', error);
+            return order; // Return original order if enrichment fails
+          }
+        }
+        return order;
+      })
+    );
+
     // Transform orders to match frontend expectations
-    const transformedOrders = orders.map(order => ({
+    const transformedOrders = ordersWithEnrichedLineItems.map(order => ({
       // Order identification
       orderId: order.order_id,
       name: order.order_id, // Using order_id as the name for consistency

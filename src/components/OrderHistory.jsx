@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { TransactionViewer } from './TransactionViewer';
 
 export function OrderHistory({ isOpen, onClose }) {
   const { getFid } = useFarcaster();
@@ -9,6 +10,7 @@ export function OrderHistory({ isOpen, onClose }) {
   const [stats, setStats] = useState({ totalOrders: 0, totalSpent: 0, lastOrderDate: null });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
 
   // Get the FID value once to avoid infinite loops
   const userFid = getFid();
@@ -70,6 +72,16 @@ export function OrderHistory({ isOpen, onClose }) {
   };
 
   if (!isOpen) return null;
+
+  // Show transaction viewer if transaction is selected
+  if (selectedTransaction) {
+    return (
+      <TransactionViewer 
+        transactionHash={selectedTransaction} 
+        onBack={() => setSelectedTransaction(null)}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -182,13 +194,23 @@ export function OrderHistory({ isOpen, onClose }) {
                       {order.lineItems.length <= 3 ? (
                         <span className="ml-1">
                           ({order.lineItems.map((item, idx) => {
-                            // Try multiple possible field names for the product title
-                            const itemName = item.title || 
-                                           item.name || 
-                                           item.product_title || 
-                                           item.productTitle || 
-                                           item.product?.title ||
-                                           `Item ${idx + 1}`;
+                            // Enhanced title extraction with better fallback logic
+                            let itemName = item.title || 
+                                         item.name || 
+                                         item.product_title || 
+                                         item.productTitle || 
+                                         item.product?.title;
+                            
+                            // If still no title, try to extract from variant ID (fallback)
+                            if (!itemName) {
+                              if (item.id && item.id.includes('ProductVariant')) {
+                                // Extract numeric ID and use as fallback
+                                const numericId = item.id.split('/').pop();
+                                itemName = `Product (${numericId})`;
+                              } else {
+                                itemName = `Item ${idx + 1}`;
+                              }
+                            }
                             
                             // Handle variant display - try multiple field names
                             const variantName = item.variantTitle || 
@@ -208,12 +230,22 @@ export function OrderHistory({ isOpen, onClose }) {
                         <span className="ml-1">
                           ({(() => {
                             const firstItem = order.lineItems[0];
-                            const itemName = firstItem.title || 
-                                           firstItem.name || 
-                                           firstItem.product_title || 
-                                           firstItem.productTitle || 
-                                           firstItem.product?.title ||
-                                           'Item 1';
+                            let itemName = firstItem.title || 
+                                         firstItem.name || 
+                                         firstItem.product_title || 
+                                         firstItem.productTitle || 
+                                         firstItem.product?.title;
+                            
+                            // Enhanced fallback for first item
+                            if (!itemName) {
+                              if (firstItem.id && firstItem.id.includes('ProductVariant')) {
+                                const numericId = firstItem.id.split('/').pop();
+                                itemName = `Product (${numericId})`;
+                              } else {
+                                itemName = 'Item 1';
+                              }
+                            }
+                            
                             return itemName;
                           })()} and {order.lineItems.length - 1} more)
                         </span>
@@ -229,36 +261,7 @@ export function OrderHistory({ isOpen, onClose }) {
                         className="text-blue-600 hover:text-blue-800 underline"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // For Farcaster mini apps, try multiple methods to open external link
-                          const url = `https://basescan.org/tx/${order.transactionHash}`;
-                          
-                          // Method 1: Try using top-level window
-                          if (window.top && window.top !== window) {
-                            try {
-                              window.top.location.href = url;
-                              return;
-                            } catch (e) {
-                              // Blocked by cross-origin policy, try next method
-                            }
-                          }
-                          
-                          // Method 2: Try parent window
-                          if (window.parent && window.parent !== window) {
-                            try {
-                              window.parent.open(url, '_blank');
-                              return;
-                            } catch (e) {
-                              // Try next method
-                            }
-                          }
-                          
-                          // Method 3: Direct navigation (will exit mini app)
-                          try {
-                            window.location.href = url;
-                          } catch (e) {
-                            // Method 4: Fallback to window.open
-                            window.open(url, '_blank');
-                          }
+                          setSelectedTransaction(order.transactionHash);
                         }}
                       >
                         {order.transactionHash.slice(0, 10)}...{order.transactionHash.slice(-8)}
