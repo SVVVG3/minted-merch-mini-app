@@ -167,9 +167,19 @@ export async function POST(request) {
     // CRITICAL FIX: Ensure subtotal never goes negative
     const subtotalAfterDiscount = Math.max(0, subtotalPrice - discountAmountValue);
     
-    // CRITICAL FIX: Adjust tax based on discounted subtotal for 100% discounts
+    // CRITICAL FIX: Calculate proportional tax based on discounted subtotal
     const originalTax = parseFloat(checkout.tax.amount);
-    const adjustedTax = subtotalAfterDiscount > 0 ? originalTax : 0;
+    let adjustedTax = 0;
+    
+    if (subtotalAfterDiscount > 0 && originalTax > 0) {
+      // Calculate tax rate from original amounts
+      const taxRate = originalTax / subtotalPrice;
+      // Apply tax rate to discounted subtotal
+      adjustedTax = subtotalAfterDiscount * taxRate;
+    }
+    
+    // Round to 2 decimal places for currency precision
+    adjustedTax = Math.round(adjustedTax * 100) / 100;
     
     const shippingPrice = parseFloat(selectedShipping.price.amount);
     const totalPrice = subtotalAfterDiscount + adjustedTax + shippingPrice;
@@ -182,7 +192,9 @@ export async function POST(request) {
       discountAmount: discountAmountValue,
       subtotalAfterDiscount: subtotalAfterDiscount,
       originalTax: originalTax,
+      taxRate: originalTax > 0 ? ((originalTax / subtotalPrice) * 100).toFixed(4) + '%' : '0%',
       adjustedTax: adjustedTax,
+      taxAdjustment: originalTax - adjustedTax,
       shippingPrice: shippingPrice,
       finalTotal: totalPrice,
       finalTotalWithMinCharge: finalTotalPrice,
