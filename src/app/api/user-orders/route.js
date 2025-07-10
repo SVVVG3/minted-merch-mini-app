@@ -1,7 +1,110 @@
 import { NextResponse } from 'next/server';
 import { getUserOrders } from '@/lib/orders';
 import { supabase } from '@/lib/supabase';
-import { enrichLineItemsWithProductTitles } from '@/lib/shopifyProductHelper';
+
+// Helper function to extract variant ID from Shopify GraphQL ID
+function extractVariantId(graphqlId) {
+  if (typeof graphqlId === 'string' && graphqlId.includes('ProductVariant/')) {
+    return graphqlId.split('ProductVariant/')[1];
+  }
+  return graphqlId;
+}
+
+// Helper function to get product details from Shopify variant ID
+async function getProductFromVariantId(variantId) {
+  try {
+    const cleanVariantId = extractVariantId(variantId);
+    
+    const response = await fetch(
+      `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2023-10/variants/${cleanVariantId}.json`,
+      {
+        headers: {
+          'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.log(`❌ Failed to fetch variant ${cleanVariantId}:`, response.status);
+      return null;
+    }
+
+    const variantData = await response.json();
+    
+    if (variantData.variant && variantData.variant.product_id) {
+      // Now get the product details
+      const productResponse = await fetch(
+        `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2023-10/products/${variantData.variant.product_id}.json`,
+        {
+          headers: {
+            'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (productResponse.ok) {
+        const productData = await productResponse.json();
+        return {
+          productTitle: productData.product.title,
+          variantTitle: variantData.variant.title,
+          productId: variantData.variant.product_id,
+          variantId: cleanVariantId
+        };
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.log(`❌ Error fetching product for variant ${variantId}:`, error.message);
+    return null;
+  }
+}
+
+// Enhanced function to enrich line items with actual product titles
+async function enrichLineItemsWithProductTitles(lineItems) {
+  if (!lineItems || !Array.isArray(lineItems)) {
+    return lineItems;
+  }
+
+  console.log(`🔍 Enriching ${lineItems.length} line items with product titles`);
+  
+  const enrichedItems = await Promise.all(
+    lineItems.map(async (item) => {
+      // Skip if title already exists and looks good
+      if (item.title && !item.title.startsWith('Product') && item.title !== 'Item') {
+        return item;
+      }
+
+      // Try to get product title from Shopify variant ID
+      const productInfo = await getProductFromVariantId(item.id);
+      
+      if (productInfo) {
+        console.log(`✅ Found product: ${productInfo.productTitle} for variant ${extractVariantId(item.id)}`);
+        return {
+          ...item,
+          title: productInfo.productTitle,
+          variant: productInfo.variantTitle,
+          productId: productInfo.productId,
+          variantId: productInfo.variantId
+        };
+      }
+
+      // Fallback: Create a meaningful name from variant ID
+      const variantId = extractVariantId(item.id);
+      const fallbackTitle = `Product #${variantId}`;
+      
+      console.log(`⚠️ Using fallback title: ${fallbackTitle} for variant ${variantId}`);
+      return {
+        ...item,
+        title: fallbackTitle
+      };
+    })
+  );
+
+  return enrichedItems;
+}
 
 export async function GET(request) {
   try {
@@ -20,143 +123,81 @@ export async function GET(request) {
     console.log('🔍 Fetching orders for FID:', fid, 'limit:', limit, 'includeArchived:', includeArchived);
 
     // Get orders from database
-    const result = await getUserOrders(parseInt(fid), limit, includeArchived);
+    let query = supabase
+      .from('orders')
+      .select('*')
+      .eq('fid', fid)
+      .order('created_at', { ascending: false })
+      .limit(limit);
 
-    if (!result.success) {
-      console.error('❌ Error fetching user orders:', result.error);
+    // Only include non-archived orders unless specifically requested
+    if (!includeArchived) {
+      query = query.is('archived_at', null);
+    }
+
+    const { data: orders, error } = await query;
+
+    if (error) {
+      console.error('❌ Database error:', error);
       return NextResponse.json(
-        { error: result.error },
+        { error: 'Failed to fetch orders from database' },
         { status: 500 }
       );
     }
 
-    const orders = result.orders || [];
+    if (!orders || orders.length === 0) {
+      console.log('📝 No orders found for FID:', fid);
+      return NextResponse.json({
+        orders: [],
+        totalOrders: 0,
+        totalSpent: 0,
+        lastOrderDate: null
+      });
+    }
 
-    // Calculate statistics
-    const stats = {
-      totalOrders: orders.length,
-      totalSpent: orders.reduce((sum, order) => {
-        return sum + (parseFloat(order.amount_total) || 0);
-      }, 0),
-      lastOrderDate: orders.length > 0 ? orders[0].created_at : null
-    };
+    console.log(`📦 Found ${orders.length} orders, enriching with product titles...`);
 
-    // Enrich line items with product titles for older orders that might be missing them
-    const ordersWithEnrichedLineItems = await Promise.all(
+    // Enrich orders with proper product titles
+    const enrichedOrders = await Promise.all(
       orders.map(async (order) => {
-        if (order.line_items && order.line_items.length > 0) {
-          console.log(`🔍 DEBUG: Order ${order.order_id} original line items:`, JSON.stringify(order.line_items, null, 2));
-          
-          try {
-            const enrichedLineItems = await enrichLineItemsWithProductTitles(order.line_items);
-            console.log(`✨ DEBUG: Order ${order.order_id} enriched line items:`, JSON.stringify(enrichedLineItems, null, 2));
-            
-            return {
-              ...order,
-              line_items: enrichedLineItems
-            };
-          } catch (error) {
-            console.error('Error enriching line items for order', order.order_id, ':', error);
-            return order; // Return original order if enrichment fails
-          }
+        if (order.line_items && Array.isArray(order.line_items)) {
+          const enrichedLineItems = await enrichLineItemsWithProductTitles(order.line_items);
+          return {
+            ...order,
+            lineItems: enrichedLineItems
+          };
         }
-        return order;
+        return {
+          ...order,
+          lineItems: order.line_items || []
+        };
       })
     );
 
-    // Transform orders to match frontend expectations
-    const transformedOrders = ordersWithEnrichedLineItems.map(order => {
-      const transformed = {
-        // Order identification
-        orderId: order.order_id,
-        name: order.order_id, // Using order_id as the name for consistency
-        
-        // Status and timing
-        status: capitalizeStatus(order.status),
-        timestamp: order.created_at,
-        
-        // Financial details
-        total: {
-          amount: parseFloat(order.amount_total || 0).toFixed(2),
-          currencyCode: order.currency || 'USDC'
-        },
-        subtotal: parseFloat(order.amount_subtotal || 0),
-        tax: parseFloat(order.amount_tax || 0),
-        shipping: parseFloat(order.amount_shipping || 0),
-        
-        // Discount information
-        discountCode: order.discount_code,
-        discountAmount: parseFloat(order.discount_amount || 0),
-        discountPercentage: order.discount_percentage,
-        
-        // Customer information
-        customerEmail: order.customer_email,
-        customerName: order.customer_name,
-        
-        // Shipping details
-        shippingAddress: order.shipping_address,
-        shippingMethod: order.shipping_method,
-        
-        // Line items
-        lineItems: order.line_items || [],
-        
-        // Payment details
-        paymentMethod: order.payment_method,
-        paymentStatus: order.payment_status,
-        transactionHash: order.payment_intent_id, // This contains the transaction hash
-        
-        // Additional metadata
-        sessionId: order.session_id,
-        createdAt: order.created_at,
-        updatedAt: order.updated_at,
-        shippedAt: order.shipped_at,
-        deliveredAt: order.delivered_at,
-        
-        // Flags
-        isArchived: !!order.archived_at,
-        confirmationSent: order.order_confirmation_sent,
-        shippingNotificationSent: order.shipping_notification_sent
-      };
-      
-      console.log(`📋 DEBUG: Order ${order.order_id} final transformed lineItems:`, JSON.stringify(transformed.lineItems, null, 2));
-      return transformed;
-    });
+    // Calculate statistics
+    const totalOrders = enrichedOrders.length;
+    const totalSpent = enrichedOrders.reduce((sum, order) => {
+      return sum + (parseFloat(order.amount_total) || 0);
+    }, 0);
+    
+    const lastOrderDate = enrichedOrders.length > 0 
+      ? enrichedOrders[0].created_at 
+      : null;
 
-    console.log('✅ Fetched', transformedOrders.length, 'orders for FID:', fid);
-    console.log('📊 Stats:', stats);
+    console.log(`✅ Successfully enriched ${enrichedOrders.length} orders with product titles`);
 
     return NextResponse.json({
-      success: true,
-      orders: transformedOrders,
-      stats,
-      fid: parseInt(fid),
-      count: transformedOrders.length
+      orders: enrichedOrders,
+      totalOrders,
+      totalSpent,
+      lastOrderDate
     });
 
   } catch (error) {
-    console.error('❌ Error in user orders API:', error);
+    console.error('❌ API Error in user-orders:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to fetch user orders',
-        details: error.message 
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
-}
-
-// Helper function to capitalize status for display
-function capitalizeStatus(status) {
-  if (!status) return 'Unknown';
-  
-  const statusMap = {
-    'pending': 'Pending',
-    'paid': 'Confirmed',
-    'shipped': 'Shipped',
-    'delivered': 'Delivered',
-    'cancelled': 'Cancelled',
-    'refunded': 'Refunded'
-  };
-  
-  return statusMap[status.toLowerCase()] || status.charAt(0).toUpperCase() + status.slice(1);
 } 
