@@ -36,6 +36,24 @@ export function TransactionViewer({ transactionHash, onBack }) {
 
   const baseScanUrl = `https://basescan.org/tx/${transactionHash}`;
 
+  const handleOpenTransaction = async () => {
+    try {
+      await sdk.actions.openUrl(baseScanUrl);
+    } catch (error) {
+      console.error('Failed to open URL with SDK:', error);
+      // Fallback to traditional methods if SDK fails
+      try {
+        if (window.top && window.top !== window) {
+          window.top.location.href = baseScanUrl;
+        } else {
+          window.location.href = baseScanUrl;
+        }
+      } catch (e) {
+        window.open(baseScanUrl, '_blank');
+      }
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col">
       {/* Header with manual back button as fallback */}
@@ -62,7 +80,7 @@ export function TransactionViewer({ transactionHash, onBack }) {
         </div>
       </div>
 
-      {/* External link with fallback */}
+      {/* External link using proper SDK method */}
       <div className="flex-1 p-4">
         <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -77,18 +95,7 @@ export function TransactionViewer({ transactionHash, onBack }) {
           </p>
           
           <button
-            onClick={() => {
-              // Try multiple methods to open external link
-              try {
-                if (window.top && window.top !== window) {
-                  window.top.location.href = baseScanUrl;
-                } else {
-                  window.location.href = baseScanUrl;
-                }
-              } catch (e) {
-                window.open(baseScanUrl, '_blank');
-              }
-            }}
+            onClick={handleOpenTransaction}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
           >
             Open BaseScan
