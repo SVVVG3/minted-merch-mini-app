@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
-import { TransactionViewer } from './TransactionViewer';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 export function OrderHistory({ isOpen, onClose }) {
   const { getFid } = useFarcaster();
@@ -10,7 +10,6 @@ export function OrderHistory({ isOpen, onClose }) {
   const [stats, setStats] = useState({ totalOrders: 0, totalSpent: 0, lastOrderDate: null });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedTransaction, setSelectedTransaction] = useState(null);
 
   // Get the FID value once to avoid infinite loops
   const userFid = getFid();
@@ -56,9 +55,25 @@ export function OrderHistory({ isOpen, onClose }) {
     }
   }, [isOpen, userFid, loadOrderHistory]);
 
-
-
-
+  const handleTransactionClick = async (transactionHash) => {
+    const baseScanUrl = `https://basescan.org/tx/${transactionHash}`;
+    
+    try {
+      await sdk.actions.openUrl(baseScanUrl);
+    } catch (error) {
+      console.error('Failed to open BaseScan with SDK:', error);
+      // Fallback to traditional methods if SDK fails
+      try {
+        if (window.top && window.top !== window) {
+          window.top.location.href = baseScanUrl;
+        } else {
+          window.location.href = baseScanUrl;
+        }
+      } catch (e) {
+        window.open(baseScanUrl, '_blank');
+      }
+    }
+  };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -72,16 +87,6 @@ export function OrderHistory({ isOpen, onClose }) {
   };
 
   if (!isOpen) return null;
-
-  // Show transaction viewer if transaction is selected
-  if (selectedTransaction) {
-    return (
-      <TransactionViewer 
-        transactionHash={selectedTransaction} 
-        onBack={() => setSelectedTransaction(null)}
-      />
-    );
-  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -201,14 +206,28 @@ export function OrderHistory({ isOpen, onClose }) {
                                          item.productTitle || 
                                          item.product?.title;
                             
-                            // If still no title, try to extract from variant ID (fallback)
-                            if (!itemName) {
-                              if (item.id && item.id.includes('ProductVariant')) {
-                                // Extract numeric ID and use as fallback
-                                const numericId = item.id.split('/').pop();
-                                itemName = `Product (${numericId})`;
+                            // If still no proper title, try to extract from variant ID or other fields
+                            if (!itemName || itemName === 'Product' || itemName.match(/^(Product|Item)\s*\d*$/)) {
+                              // Try to extract from Shopify variant ID
+                              if (item.id && typeof item.id === 'string') {
+                                if (item.id.includes('ProductVariant')) {
+                                  // Extract numeric ID and create a more meaningful name
+                                  const numericId = item.id.split('/').pop();
+                                  itemName = `Product #${numericId.slice(-4)}`; // Use last 4 digits
+                                } else if (item.id.includes('gid://shopify')) {
+                                  // Handle Shopify GIDs
+                                  const parts = item.id.split('/');
+                                  const numericId = parts[parts.length - 1];
+                                  itemName = `Product #${numericId.slice(-4)}`;
+                                } else {
+                                  // Use a portion of the ID if it's not a Shopify GID
+                                  const shortId = item.id.length > 8 ? item.id.slice(-6) : item.id;
+                                  itemName = `Product #${shortId}`;
+                                }
                               } else {
-                                itemName = `Item ${idx + 1}`;
+                                // Final fallback with order number reference
+                                const orderNum = (order.orderId || order.name || '').replace('#', '');
+                                itemName = `Item ${idx + 1} (Order ${orderNum})`;
                               }
                             }
                             
@@ -223,6 +242,7 @@ export function OrderHistory({ isOpen, onClose }) {
                                           variantName !== 'Default' && 
                                           variantName !== null ? 
                                           ` (${variantName})` : '';
+                            
                             return `${itemName}${variant}`;
                           }).join(', ')})
                         </span>
@@ -236,13 +256,20 @@ export function OrderHistory({ isOpen, onClose }) {
                                          firstItem.productTitle || 
                                          firstItem.product?.title;
                             
-                            // Enhanced fallback for first item
-                            if (!itemName) {
-                              if (firstItem.id && firstItem.id.includes('ProductVariant')) {
-                                const numericId = firstItem.id.split('/').pop();
-                                itemName = `Product (${numericId})`;
+                            // Enhanced fallback for first item using same logic
+                            if (!itemName || itemName === 'Product' || itemName.match(/^(Product|Item)\s*\d*$/)) {
+                              if (firstItem.id && typeof firstItem.id === 'string') {
+                                if (firstItem.id.includes('ProductVariant') || firstItem.id.includes('gid://shopify')) {
+                                  const parts = firstItem.id.split('/');
+                                  const numericId = parts[parts.length - 1];
+                                  itemName = `Product #${numericId.slice(-4)}`;
+                                } else {
+                                  const shortId = firstItem.id.length > 8 ? firstItem.id.slice(-6) : firstItem.id;
+                                  itemName = `Product #${shortId}`;
+                                }
                               } else {
-                                itemName = 'Item 1';
+                                const orderNum = (order.orderId || order.name || '').replace('#', '');
+                                itemName = `Item 1 (Order ${orderNum})`;
                               }
                             }
                             
@@ -261,7 +288,7 @@ export function OrderHistory({ isOpen, onClose }) {
                         className="text-blue-600 hover:text-blue-800 underline"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedTransaction(order.transactionHash);
+                          handleTransactionClick(order.transactionHash);
                         }}
                       >
                         {order.transactionHash.slice(0, 10)}...{order.transactionHash.slice(-8)}

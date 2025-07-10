@@ -45,8 +45,12 @@ export async function GET(request) {
     const ordersWithEnrichedLineItems = await Promise.all(
       orders.map(async (order) => {
         if (order.line_items && order.line_items.length > 0) {
+          console.log(`🔍 DEBUG: Order ${order.order_id} original line items:`, JSON.stringify(order.line_items, null, 2));
+          
           try {
             const enrichedLineItems = await enrichLineItemsWithProductTitles(order.line_items);
+            console.log(`✨ DEBUG: Order ${order.order_id} enriched line items:`, JSON.stringify(enrichedLineItems, null, 2));
+            
             return {
               ...order,
               line_items: enrichedLineItems
@@ -61,57 +65,62 @@ export async function GET(request) {
     );
 
     // Transform orders to match frontend expectations
-    const transformedOrders = ordersWithEnrichedLineItems.map(order => ({
-      // Order identification
-      orderId: order.order_id,
-      name: order.order_id, // Using order_id as the name for consistency
+    const transformedOrders = ordersWithEnrichedLineItems.map(order => {
+      const transformed = {
+        // Order identification
+        orderId: order.order_id,
+        name: order.order_id, // Using order_id as the name for consistency
+        
+        // Status and timing
+        status: capitalizeStatus(order.status),
+        timestamp: order.created_at,
+        
+        // Financial details
+        total: {
+          amount: parseFloat(order.amount_total || 0).toFixed(2),
+          currencyCode: order.currency || 'USDC'
+        },
+        subtotal: parseFloat(order.amount_subtotal || 0),
+        tax: parseFloat(order.amount_tax || 0),
+        shipping: parseFloat(order.amount_shipping || 0),
+        
+        // Discount information
+        discountCode: order.discount_code,
+        discountAmount: parseFloat(order.discount_amount || 0),
+        discountPercentage: order.discount_percentage,
+        
+        // Customer information
+        customerEmail: order.customer_email,
+        customerName: order.customer_name,
+        
+        // Shipping details
+        shippingAddress: order.shipping_address,
+        shippingMethod: order.shipping_method,
+        
+        // Line items
+        lineItems: order.line_items || [],
+        
+        // Payment details
+        paymentMethod: order.payment_method,
+        paymentStatus: order.payment_status,
+        transactionHash: order.payment_intent_id, // This contains the transaction hash
+        
+        // Additional metadata
+        sessionId: order.session_id,
+        createdAt: order.created_at,
+        updatedAt: order.updated_at,
+        shippedAt: order.shipped_at,
+        deliveredAt: order.delivered_at,
+        
+        // Flags
+        isArchived: !!order.archived_at,
+        confirmationSent: order.order_confirmation_sent,
+        shippingNotificationSent: order.shipping_notification_sent
+      };
       
-      // Status and timing
-      status: capitalizeStatus(order.status),
-      timestamp: order.created_at,
-      
-      // Financial details
-      total: {
-        amount: parseFloat(order.amount_total || 0).toFixed(2),
-        currencyCode: order.currency || 'USDC'
-      },
-      subtotal: parseFloat(order.amount_subtotal || 0),
-      tax: parseFloat(order.amount_tax || 0),
-      shipping: parseFloat(order.amount_shipping || 0),
-      
-      // Discount information
-      discountCode: order.discount_code,
-      discountAmount: parseFloat(order.discount_amount || 0),
-      discountPercentage: order.discount_percentage,
-      
-      // Customer information
-      customerEmail: order.customer_email,
-      customerName: order.customer_name,
-      
-      // Shipping details
-      shippingAddress: order.shipping_address,
-      shippingMethod: order.shipping_method,
-      
-      // Line items
-      lineItems: order.line_items || [],
-      
-      // Payment details
-      paymentMethod: order.payment_method,
-      paymentStatus: order.payment_status,
-      transactionHash: order.payment_intent_id, // This contains the transaction hash
-      
-      // Additional metadata
-      sessionId: order.session_id,
-      createdAt: order.created_at,
-      updatedAt: order.updated_at,
-      shippedAt: order.shipped_at,
-      deliveredAt: order.delivered_at,
-      
-      // Flags
-      isArchived: !!order.archived_at,
-      confirmationSent: order.order_confirmation_sent,
-      shippingNotificationSent: order.shipping_notification_sent
-    }));
+      console.log(`📋 DEBUG: Order ${order.order_id} final transformed lineItems:`, JSON.stringify(transformed.lineItems, null, 2));
+      return transformed;
+    });
 
     console.log('✅ Fetched', transformedOrders.length, 'orders for FID:', fid);
     console.log('📊 Stats:', stats);
