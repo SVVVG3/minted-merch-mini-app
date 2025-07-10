@@ -91,11 +91,13 @@ async function enrichLineItemsWithProductTitles(lineItems) {
   
   const enrichedItems = await Promise.all(
     lineItems.map(async (item) => {
-      // Skip if title already exists and looks good
-      if (item.title && !item.title.startsWith('Product') && item.title !== 'Item') {
+      // Skip if title already exists and looks good (not starting with "Product #" or "Item")
+      if (item.title && !item.title.startsWith('Product #') && item.title !== 'Item' && !item.title.startsWith('Product')) {
         console.log(`✅ Item already has good title: ${item.title}`);
         return item;
       }
+
+      console.log(`🔍 Enriching item with current title: ${item.title}`);
 
       // First try Storefront API
       const productInfo = await getProductFromVariantId(item.id);

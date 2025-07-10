@@ -265,19 +265,19 @@ export function OrderSuccessClient({ orderNumber }) {
                   <span className="text-gray-600">Payment:</span>
                   <span className="font-medium text-green-600">Confirmed on Base 🔵</span>
                 </div>
-                {orderData.transaction_hash && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Transaction:</span>
-                    <a
-                      href={getTransactionLink(orderData.transaction_hash)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono text-blue-600 hover:text-blue-800 underline text-sm"
-                    >
-                      {formatTransactionHash(orderData.transaction_hash)}
-                    </a>
-                  </div>
-                )}
+                                 {(orderData.transaction_hash || orderData.payment_intent_id) && (
+                   <div className="flex justify-between items-center">
+                     <span className="text-gray-600">Transaction:</span>
+                     <a
+                       href={getTransactionLink(orderData.transaction_hash || orderData.payment_intent_id)}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="font-mono text-blue-600 hover:text-blue-800 underline text-sm"
+                     >
+                       {formatTransactionHash(orderData.transaction_hash || orderData.payment_intent_id)}
+                     </a>
+                   </div>
+                 )}
                 {orderData.discount_code && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Discount:</span>
