@@ -56,11 +56,7 @@ export function OrderHistory({ isOpen, onClose }) {
 
 
 
-  const handleClearHistory = () => {
-    // Note: For database-based orders, we don't allow clearing history
-    // This could be modified to archive orders instead if needed
-    alert('Order history is now stored securely and cannot be cleared. This ensures your purchase records are always available across all your devices.');
-  };
+
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -147,7 +143,16 @@ export function OrderHistory({ isOpen, onClose }) {
                 <div key={order.orderId || order.name || index} className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <div className="font-medium text-sm">Order {order.orderId || order.name}</div>
+                      <a 
+                        href={`/order/${order.orderId || order.name}`}
+                        className="font-medium text-sm text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = `/order/${order.orderId || order.name}`;
+                        }}
+                      >
+                        Order {order.orderId || order.name}
+                      </a>
                       <div className="text-xs text-gray-600">{formatDate(order.timestamp)}</div>
                     </div>
                     <div className="text-right">
@@ -175,19 +180,41 @@ export function OrderHistory({ isOpen, onClose }) {
                       }
                       {order.lineItems.length <= 3 ? (
                         <span className="ml-1">
-                          ({order.lineItems.map(item => {
-                            const itemName = item.title || item.name || item.productTitle || 'Unknown Item';
-                            // Only show variant title if it's not "Default Title" and exists
-                            const variant = (item.variantTitle || item.variant) && 
-                                          (item.variantTitle || item.variant) !== 'Default Title' && 
-                                          (item.variantTitle || item.variant) !== 'Default' ? 
-                                          ` (${item.variantTitle || item.variant})` : '';
+                          ({order.lineItems.map((item, idx) => {
+                            // Try multiple possible field names for the product title
+                            const itemName = item.title || 
+                                           item.name || 
+                                           item.product_title || 
+                                           item.productTitle || 
+                                           item.product?.title ||
+                                           `Item ${idx + 1}`;
+                            
+                            // Handle variant display - try multiple field names
+                            const variantName = item.variantTitle || 
+                                              item.variant_title || 
+                                              item.variant || 
+                                              item.variant_name;
+                            
+                            const variant = variantName && 
+                                          variantName !== 'Default Title' && 
+                                          variantName !== 'Default' && 
+                                          variantName !== null ? 
+                                          ` (${variantName})` : '';
                             return `${itemName}${variant}`;
                           }).join(', ')})
                         </span>
                       ) : (
                         <span className="ml-1">
-                          ({order.lineItems[0].title || order.lineItems[0].name || order.lineItems[0].productTitle || 'Unknown Item'} and {order.lineItems.length - 1} more)
+                          ({(() => {
+                            const firstItem = order.lineItems[0];
+                            const itemName = firstItem.title || 
+                                           firstItem.name || 
+                                           firstItem.product_title || 
+                                           firstItem.productTitle || 
+                                           firstItem.product?.title ||
+                                           'Item 1';
+                            return itemName;
+                          })()} and {order.lineItems.length - 1} more)
                         </span>
                       )}
                     </div>
@@ -197,21 +224,23 @@ export function OrderHistory({ isOpen, onClose }) {
                   {order.transactionHash && (
                     <div className="text-xs text-gray-500 mt-1">
                       <span>Tx: </span>
-                      <a 
-                        href={`https://basescan.org/tx/${order.transactionHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
                         className="text-blue-600 hover:text-blue-800 underline"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // For mobile apps, try to open in external browser
-                          if (window.open) {
-                            window.open(`https://basescan.org/tx/${order.transactionHash}`, '_blank');
+                          // For Farcaster mini apps, open external link in system browser
+                          const url = `https://basescan.org/tx/${order.transactionHash}`;
+                          if (window.parent && window.parent !== window) {
+                            // In iframe - try to open in parent
+                            window.parent.open(url, '_blank');
+                          } else {
+                            // Direct navigation to external site
+                            window.open(url, '_system') || window.open(url, '_blank');
                           }
                         }}
                       >
                         {order.transactionHash.slice(0, 10)}...{order.transactionHash.slice(-8)}
-                      </a>
+                      </button>
                     </div>
                   )}
 
@@ -227,17 +256,7 @@ export function OrderHistory({ isOpen, onClose }) {
           )}
         </div>
 
-        {/* Footer */}
-        {!isLoading && orders.length > 0 && (
-          <div className="p-4 border-t bg-gray-50">
-            <button
-              onClick={handleClearHistory}
-              className="w-full text-sm text-red-600 hover:text-red-700 py-2"
-            >
-              Clear Order History
-            </button>
-          </div>
-        )}
+
       </div>
     </div>
   );
