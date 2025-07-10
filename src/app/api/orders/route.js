@@ -40,7 +40,7 @@ async function getProductFromVariantId(variantId) {
     `;
 
     const response = await fetch(
-      `https://${process.env.SHOPIFY_STORE_DOMAIN}/api/2023-10/graphql.json`,
+      `https://${process.env.SHOPIFY_SITE_DOMAIN}.myshopify.com/api/2023-10/graphql.json`,
       {
         method: 'POST',
         headers: {

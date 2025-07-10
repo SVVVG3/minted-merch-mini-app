@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 export function OrderSuccessClient({ orderNumber }) {
   const { isInFarcaster } = useFarcaster();
@@ -74,6 +75,32 @@ export function OrderSuccessClient({ orderNumber }) {
   const getTransactionLink = (hash) => {
     if (!hash) return null;
     return `https://basescan.org/tx/${hash}`;
+  };
+
+  // Helper function to handle transaction link opening (same as OrderHistory)
+  const handleOpenTransaction = async (transactionHash) => {
+    if (!transactionHash) return;
+    
+    try {
+      const baseScanUrl = `https://basescan.org/tx/${transactionHash}`;
+      console.log('🔗 Opening transaction:', baseScanUrl);
+      
+      // Use the proper Farcaster SDK method to open in external browser
+      await sdk.actions.openUrl(baseScanUrl);
+    } catch (error) {
+      console.log('SDK openUrl failed, trying fallback methods:', error);
+      
+      // Fallback methods
+      try {
+        if (window.open) {
+          window.open(baseScanUrl, '_blank', 'noopener,noreferrer');
+        } else {
+          window.location.href = baseScanUrl;
+        }
+      } catch (fallbackError) {
+        console.error('All methods failed to open transaction link:', fallbackError);
+      }
+    }
   };
 
   // Share order function
@@ -268,14 +295,15 @@ export function OrderSuccessClient({ orderNumber }) {
                                  {(orderData.transaction_hash || orderData.payment_intent_id) && (
                    <div className="flex justify-between items-center">
                      <span className="text-gray-600">Transaction:</span>
-                     <a
-                       href={getTransactionLink(orderData.transaction_hash || orderData.payment_intent_id)}
-                       target="_blank"
-                       rel="noopener noreferrer"
+                     <button
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         handleOpenTransaction(orderData.transaction_hash || orderData.payment_intent_id);
+                       }}
                        className="font-mono text-blue-600 hover:text-blue-800 underline text-sm"
                      >
                        {formatTransactionHash(orderData.transaction_hash || orderData.payment_intent_id)}
-                     </a>
+                     </button>
                    </div>
                  )}
                 {orderData.discount_code && (
