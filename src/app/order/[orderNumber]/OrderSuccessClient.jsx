@@ -1,11 +1,80 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useFarcaster } from '@/lib/useFarcaster';
 
-export function OrderSuccessClient({ orderNumber, total, products }) {
+export function OrderSuccessClient({ orderNumber }) {
   const { isInFarcaster } = useFarcaster();
+  const [orderData, setOrderData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch order details on component mount
+  useEffect(() => {
+    fetchOrderDetails();
+  }, [orderNumber]);
+
+  const fetchOrderDetails = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Try different order number formats
+      let searchOrderNumber = orderNumber;
+      
+      // First try with # prefix if not present
+      if (!orderNumber.startsWith('#')) {
+        searchOrderNumber = `#${orderNumber}`;
+      }
+      
+      console.log('Fetching order details for:', searchOrderNumber);
+      
+      const response = await fetch(`/api/orders?orderNumber=${encodeURIComponent(searchOrderNumber)}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch order: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.order) {
+        setOrderData(data.order);
+        console.log('Order data loaded:', data.order);
+      } else {
+        // Try without # prefix
+        const responseWithoutHash = await fetch(`/api/orders?orderNumber=${encodeURIComponent(orderNumber)}`);
+        
+        if (responseWithoutHash.ok) {
+          const dataWithoutHash = await responseWithoutHash.json();
+          if (dataWithoutHash.success && dataWithoutHash.order) {
+            setOrderData(dataWithoutHash.order);
+            console.log('Order data loaded (without #):', dataWithoutHash.order);
+          } else {
+            throw new Error('Order not found');
+          }
+        } else {
+          throw new Error('Order not found');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching order details:', error);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Format the transaction hash for display and link
+  const formatTransactionHash = (hash) => {
+    if (!hash) return null;
+    return `${hash.slice(0, 10)}...${hash.slice(-8)}`;
+  };
+
+  const getTransactionLink = (hash) => {
+    if (!hash) return null;
+    return `https://basescan.org/tx/${hash}`;
+  };
 
   // Share order function
   const handleShareOrder = async () => {
@@ -13,9 +82,10 @@ export function OrderSuccessClient({ orderNumber, total, products }) {
       // Fallback for non-Farcaster environments
       if (navigator.share) {
         try {
+          const mainProduct = orderData?.line_items?.[0]?.title || 'item';
           await navigator.share({
             title: `Order ${orderNumber} Confirmed - Minted Merch`,
-            text: `🎉 Just bought ${products || 'crypto merch'} with USDC! Order ${orderNumber}${total ? ` for $${total}` : ''} confirmed ✅ Shop on /mintedmerch - pay on Base 🔵`,
+            text: `🎉 Just bought ${mainProduct} with USDC! Order ${orderNumber} for $${orderData?.amount_total || '0.00'} confirmed ✅ Shop on /mintedmerch - pay on Base 🔵`,
             url: window.location.href,
           });
         } catch (err) {
@@ -35,7 +105,8 @@ export function OrderSuccessClient({ orderNumber, total, products }) {
 
     // Farcaster sharing using SDK composeCast action
     try {
-      const shareText = `🎉 Just bought ${products || 'crypto merch'} with USDC!\n\nOrder ${orderNumber}${total ? ` for $${total}` : ''} confirmed ✅\n\nShop on /mintedmerch - pay on Base 🔵`;
+      const mainProduct = orderData?.line_items?.[0]?.title || 'item';
+      const shareText = `🎉 Just bought ${mainProduct} with USDC!\n\nOrder ${orderNumber} for $${orderData?.amount_total || '0.00'} confirmed ✅\n\nShop on /mintedmerch - pay on Base 🔵`;
       
       // Use this order page URL for sharing (which has dynamic OG images)
       const orderUrl = window.location.href;
@@ -93,41 +164,132 @@ export function OrderSuccessClient({ orderNumber, total, products }) {
       </header>
 
       <main className="p-4 space-y-6">
-        {/* Success Message */}
-        <div className="bg-green-50 border border-green-200 p-6 rounded-lg text-center">
-          <svg className="w-16 h-16 mx-auto text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Thank you for your order!</h2>
-          <p className="text-gray-600 mb-4">Your order has been successfully placed and payment confirmed.</p>
-          <div className="bg-white p-4 rounded border border-green-200">
-            <p className="text-sm text-gray-600">Order Number</p>
-            <p className="text-lg font-mono font-medium text-gray-900">{orderNumber}</p>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489]"></div>
           </div>
-        </div>
+        )}
 
-        {/* Order Details */}
-        <div className="bg-white p-4 rounded-lg shadow-sm">
-          <h3 className="font-medium text-gray-900 mb-3">Order Details</h3>
-          <div className="space-y-2 text-sm">
-            {products && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Items:</span>
-                <span className="font-medium">{products}</span>
-              </div>
-            )}
-            {total && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Total:</span>
-                <span className="font-medium">${total} USDC</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-gray-600">Payment:</span>
-              <span className="font-medium text-green-600">Confirmed on Base 🔵</span>
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-red-800 font-medium">Error loading order details</span>
             </div>
+            <p className="text-red-600 text-sm mt-1">{error}</p>
           </div>
-        </div>
+        )}
+
+        {/* Order Success Content */}
+        {orderData && (
+          <>
+            {/* Success Message */}
+            <div className="bg-green-50 border border-green-200 p-6 rounded-lg text-center">
+              <svg className="w-16 h-16 mx-auto text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Thank you for your order!</h2>
+              <p className="text-gray-600 mb-4">Your order has been successfully placed and payment confirmed.</p>
+              <div className="bg-white p-4 rounded border border-green-200">
+                <p className="text-sm text-gray-600">Order Number</p>
+                <p className="text-lg font-mono font-medium text-gray-900">{orderData.order_id}</p>
+              </div>
+            </div>
+
+            {/* Order Products */}
+            {orderData.line_items && orderData.line_items.length > 0 && (
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <h3 className="font-medium text-gray-900 mb-3">Items Ordered</h3>
+                <div className="space-y-3">
+                  {orderData.line_items.map((item, index) => (
+                    <div key={index} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
+                      {/* Product Image */}
+                      <div className="w-16 h-16 bg-gray-200 rounded-md overflow-hidden flex-shrink-0">
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt={item.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Product Info */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium text-gray-900 line-clamp-2">
+                          {item.title}
+                        </h4>
+                        {item.variant_title && item.variant_title !== 'Default Title' && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            {item.variant_title}
+                          </p>
+                        )}
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-sm text-gray-600">
+                            Qty: {item.quantity}
+                          </span>
+                          <span className="text-sm font-medium text-gray-900">
+                            ${(parseFloat(item.price) * item.quantity).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Order Summary */}
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+              <h3 className="font-medium text-gray-900 mb-3">Order Summary</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Items:</span>
+                  <span className="font-medium">{orderData.line_items?.length || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total:</span>
+                  <span className="font-medium">${parseFloat(orderData.amount_total || 0).toFixed(2)} USDC</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Payment:</span>
+                  <span className="font-medium text-green-600">Confirmed on Base 🔵</span>
+                </div>
+                {orderData.transaction_hash && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Transaction:</span>
+                    <a
+                      href={getTransactionLink(orderData.transaction_hash)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-blue-600 hover:text-blue-800 underline text-sm"
+                    >
+                      {formatTransactionHash(orderData.transaction_hash)}
+                    </a>
+                  </div>
+                )}
+                {orderData.discount_code && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Discount:</span>
+                    <span className="font-medium text-green-600">
+                      {orderData.discount_code} (-${parseFloat(orderData.discount_amount || 0).toFixed(2)})
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Action Buttons */}
         <div className="space-y-3">
