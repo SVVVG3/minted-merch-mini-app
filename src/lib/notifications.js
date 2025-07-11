@@ -258,16 +258,16 @@ export async function createEveningCheckInReminderMessage(userFid) {
     const totalPoints = userData?.total_points || 0;
 
     // Create more urgent evening message based on streak
-    let message = "⏰ Last chance today! Spin the wheel before midnight to earn points!";
+    let message = "⏰ Last chance today! Spin the wheel before 8 AM PST to earn points!";
     
     if (currentStreak >= 7) {
-      message = `🔥 Don't lose your ${currentStreak}-day streak! Only a few hours left to check in!`;
+      message = `🔥 Don't lose your ${currentStreak}-day streak! Check in before 8 AM PST tomorrow!`;
     } else if (currentStreak >= 3) {
-      message = `⚡ Keep your ${currentStreak}-day streak alive! Check in before midnight PST!`;
+      message = `⚡ Keep your ${currentStreak}-day streak alive! Check in before 8 AM PST tomorrow!`;
     } else if (currentStreak >= 1) {
-      message = `🎯 Don't break your streak! Only hours left to check in for day ${currentStreak + 1}!`;
+      message = `🎯 Don't break your streak! Check in before 8 AM PST tomorrow for day ${currentStreak + 1}!`;
     } else if (totalPoints > 0) {
-      message = `🎲 Final reminder! Add to your ${totalPoints} points before the day ends!`;
+      message = `🎲 Final reminder! Add to your ${totalPoints} points before 8 AM PST tomorrow!`;
     }
 
     return {
@@ -280,7 +280,7 @@ export async function createEveningCheckInReminderMessage(userFid) {
     console.error('Error creating evening check-in reminder message:', error);
     return {
       title: "🌅 Daily Check-in Ending Soon",
-      body: "⏰ Last chance today! Spin the wheel before midnight to earn points!",
+      body: "⏰ Last chance today! Spin the wheel before 8 AM PST to earn points!",
       targetUrl: "https://mintedmerch.vercel.app?from=evening_checkin_reminder&t=" + Date.now()
     };
   }
