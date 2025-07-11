@@ -26,7 +26,7 @@ export function OrderHistory({ isOpen, onClose }) {
     try {
       console.log('📡 Loading order history for FID:', userFid);
       
-      const response = await fetch(`/api/user-orders?fid=${userFid}&limit=50`);
+      const response = await fetch(`/api/user-orders?fid=${userFid}&limit=50&includeArchived=true`);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
