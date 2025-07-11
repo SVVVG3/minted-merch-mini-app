@@ -161,4 +161,18 @@ export function isNotificationTime() {
   // Return true if it's between 8:00 AM and 8:15 AM PST/PDT
   // This gives a 15-minute window for cron job execution reliability
   return hour === 8 && minute >= 0 && minute <= 15;
+}
+
+/**
+ * Check if it's currently evening notification time (8 PM PST/PDT)
+ * @returns {boolean} True if it's within 8:00-8:15 PM PST/PDT
+ */
+export function isEveningNotificationTime() {
+  const pstTime = getCurrentPSTTime();
+  const hour = pstTime.getHours();
+  const minute = pstTime.getMinutes();
+  
+  // Return true if it's between 8:00 PM and 8:15 PM PST/PDT
+  // This gives a 15-minute window for cron job execution reliability
+  return hour === 20 && minute >= 0 && minute <= 15;
 } 
