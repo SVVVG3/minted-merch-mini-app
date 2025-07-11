@@ -151,28 +151,26 @@ export function formatPSTTime(date = getCurrentPSTTime()) {
 
 /**
  * Check if it's currently notification time (8 AM PST/PDT)
- * @returns {boolean} True if it's within 8:00-8:30 AM PST/PDT
+ * @returns {boolean} True if it's within 8:00-9:00 AM PST/PDT
  */
 export function isNotificationTime() {
   const pstTime = getCurrentPSTTime();
   const hour = pstTime.getHours();
-  const minute = pstTime.getMinutes();
   
-  // Return true if it's between 8:00 AM and 8:30 AM PST/PDT
-  // This gives a 30-minute window for cron job execution reliability and timezone edge cases
-  return hour === 8 && minute >= 0 && minute <= 30;
+  // Return true if it's between 8:00 AM and 9:00 AM PST/PDT (full hour)
+  // This gives a 1-hour window for cron job execution reliability and daylight saving time transitions
+  return hour === 8;
 }
 
 /**
  * Check if it's currently evening notification time (8 PM PST/PDT)
- * @returns {boolean} True if it's within 8:00-8:30 PM PST/PDT
+ * @returns {boolean} True if it's within 8:00-9:00 PM PST/PDT
  */
 export function isEveningNotificationTime() {
   const pstTime = getCurrentPSTTime();
   const hour = pstTime.getHours();
-  const minute = pstTime.getMinutes();
   
-  // Return true if it's between 8:00 PM and 8:30 PM PST/PDT
-  // This gives a 30-minute window for cron job execution reliability and timezone edge cases
-  return hour === 20 && minute >= 0 && minute <= 30;
+  // Return true if it's between 8:00 PM and 9:00 PM PST/PDT (full hour)
+  // This gives a 1-hour window for cron job execution reliability and daylight saving time transitions
+  return hour === 20;
 } 
