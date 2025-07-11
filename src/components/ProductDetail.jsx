@@ -27,8 +27,19 @@ export function ProductDetail({
   const itemInCart = isInCart(product.id, selectedVariant?.id);
   const cartQuantity = getItemQuantity(product.id, selectedVariant?.id);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (selectedVariant && selectedVariant.availableForSale) {
+      // Add haptic feedback for add to cart action
+      try {
+        const capabilities = await sdk.getCapabilities();
+        if (capabilities.includes('haptics.impactOccurred')) {
+          await sdk.haptics.impactOccurred('medium');
+        }
+      } catch (error) {
+        // Haptics not available, continue without feedback
+        console.log('Haptics not available:', error);
+      }
+      
       addItem(product, selectedVariant, 1);
     }
   };

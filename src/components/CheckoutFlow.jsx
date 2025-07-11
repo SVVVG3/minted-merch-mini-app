@@ -5,6 +5,7 @@ import { useCart } from '@/lib/CartContext';
 import { useUSDCPayment } from '@/lib/useUSDCPayment';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { calculateCheckout } from '@/lib/shopify';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 import { ShippingForm } from './ShippingForm';
 
@@ -165,6 +166,17 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     if (!hasItems) return;
     
     try {
+      // Add haptic feedback for checkout action
+      try {
+        const capabilities = await sdk.getCapabilities();
+        if (capabilities.includes('haptics.impactOccurred')) {
+          await sdk.haptics.impactOccurred('medium');
+        }
+      } catch (error) {
+        // Haptics not available, continue without feedback
+        console.log('Haptics not available:', error);
+      }
+      
       setIsCheckoutOpen(true);
       setCheckoutStep('shipping'); // Start with shipping step
       
