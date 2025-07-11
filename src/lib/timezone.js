@@ -6,38 +6,18 @@
  * @returns {Date} Current date/time in PST timezone
  */
 export function getCurrentPSTTime() {
-  // Use Intl.DateTimeFormat to get the correct PST/PDT time
+  // Simple approach: use the browser's built-in timezone support
   const now = new Date();
   
-  // Get the time components in Pacific timezone
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Los_Angeles',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
+  // Get Pacific time by getting the time components directly
+  const pacificTimeString = now.toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles"
   });
   
-  const parts = formatter.formatToParts(now);
-  const partsObj = parts.reduce((acc, part) => {
-    acc[part.type] = part.value;
-    return acc;
-  }, {});
+  // Parse the string back to a Date object
+  const pacificTime = new Date(pacificTimeString);
   
-  // Create a proper Date object in PST/PDT
-  const pstTime = new Date(
-    parseInt(partsObj.year),
-    parseInt(partsObj.month) - 1, // Month is 0-indexed
-    parseInt(partsObj.day),
-    parseInt(partsObj.hour),
-    parseInt(partsObj.minute),
-    parseInt(partsObj.second)
-  );
-  
-  return pstTime;
+  return pacificTime;
 }
 
 /**
@@ -177,12 +157,18 @@ export function formatPSTTime(date = getCurrentPSTTime()) {
  * @returns {boolean} True if it's within 8:00-9:00 AM PST/PDT
  */
 export function isNotificationTime() {
-  const pstTime = getCurrentPSTTime();
-  const hour = pstTime.getHours();
+  const now = new Date();
+  
+  // Get the current hour in Pacific timezone directly
+  const pacificHour = parseInt(now.toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
+    hour: "2-digit",
+    hour12: false
+  }));
   
   // Return true if it's between 8:00 AM and 9:00 AM PST/PDT (full hour)
   // This gives a 1-hour window for cron job execution reliability and daylight saving time transitions
-  return hour === 8;
+  return pacificHour === 8;
 }
 
 /**
@@ -190,10 +176,16 @@ export function isNotificationTime() {
  * @returns {boolean} True if it's within 8:00-9:00 PM PST/PDT
  */
 export function isEveningNotificationTime() {
-  const pstTime = getCurrentPSTTime();
-  const hour = pstTime.getHours();
+  const now = new Date();
+  
+  // Get the current hour in Pacific timezone directly
+  const pacificHour = parseInt(now.toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
+    hour: "2-digit",
+    hour12: false
+  }));
   
   // Return true if it's between 8:00 PM and 9:00 PM PST/PDT (full hour)
   // This gives a 1-hour window for cron job execution reliability and daylight saving time transitions
-  return hour === 20;
+  return pacificHour === 20;
 } 
