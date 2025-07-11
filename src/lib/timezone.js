@@ -6,14 +6,37 @@
  * @returns {Date} Current date/time in PST timezone
  */
 export function getCurrentPSTTime() {
-  // PST is UTC-8, PDT is UTC-7
-  // JavaScript automatically handles DST transitions
+  // Use Intl.DateTimeFormat to get the correct PST/PDT time
   const now = new Date();
-  const pstOffset = -8 * 60; // PST is UTC-8 (in minutes)
-  const pdtOffset = -7 * 60; // PDT is UTC-7 (in minutes)
   
-  // Create a date in PST/PDT timezone
-  const pstTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
+  // Get the time components in Pacific timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  
+  const parts = formatter.formatToParts(now);
+  const partsObj = parts.reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+  
+  // Create a proper Date object in PST/PDT
+  const pstTime = new Date(
+    parseInt(partsObj.year),
+    parseInt(partsObj.month) - 1, // Month is 0-indexed
+    parseInt(partsObj.day),
+    parseInt(partsObj.hour),
+    parseInt(partsObj.minute),
+    parseInt(partsObj.second)
+  );
+  
   return pstTime;
 }
 
