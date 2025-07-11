@@ -240,24 +240,6 @@ export function DiscountCodeSection({
       
       {!appliedDiscount ? (
         <div className="space-y-2">
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={discountCode}
-              onChange={handleDiscountCodeChange}
-              placeholder="Enter discount code"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent"
-              disabled={isValidatingDiscount}
-            />
-            <button
-              onClick={() => handleApplyDiscount()}
-              disabled={!discountCode.trim() || isValidatingDiscount}
-              className="px-4 py-2 bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-sm font-medium rounded-md transition-colors"
-            >
-              {isValidatingDiscount ? 'Validating...' : 'Apply'}
-            </button>
-          </div>
-          
           {discountError && (
             <div className="text-red-600 text-xs">{discountError}</div>
           )}
