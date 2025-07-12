@@ -7,10 +7,6 @@
     {
       "path": "/api/notifications/evening-checkin",
       "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/debug/cron-test",
-      "schedule": "*/5 * * * *"
     }
   ]
 } 
