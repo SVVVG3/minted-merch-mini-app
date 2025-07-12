@@ -16,7 +16,6 @@ export async function createShopifyGiftCard(amount, note = null, expiresAt = nul
             currencyCode
           }
           createdAt
-          expiresAt
           enabled
           note
         }
@@ -61,7 +60,6 @@ export async function validateGiftCard(code) {
           currencyCode
         }
         enabled
-        expiresAt
         createdAt
         note
       }
@@ -87,8 +85,7 @@ export async function getGiftCardBalance(code) {
   return {
     balance: parseFloat(giftCard.balance.amount),
     currency: giftCard.balance.currencyCode,
-    enabled: giftCard.enabled,
-    expiresAt: giftCard.expiresAt
+    enabled: giftCard.enabled
   };
 }
 
@@ -98,9 +95,8 @@ export function isGiftCardUsable(giftCard) {
   
   const hasBalance = parseFloat(giftCard.balance?.amount || 0) > 0;
   const isEnabled = giftCard.enabled === true;
-  const isNotExpired = !giftCard.expiresAt || new Date(giftCard.expiresAt) > new Date();
   
-  return hasBalance && isEnabled && isNotExpired;
+  return hasBalance && isEnabled;
 }
 
 // Sync gift card with database
@@ -122,7 +118,6 @@ export async function syncGiftCardToDatabase(shopifyGiftCard, createdByFid = nul
     created_by_fid: createdByFid,
     recipient_email: recipientEmail,
     note: shopifyGiftCard.note,
-    expires_at: shopifyGiftCard.expiresAt,
     synced_at: new Date().toISOString()
   };
   
@@ -246,7 +241,6 @@ export async function syncAllGiftCards(limit = 50) {
               currencyCode
             }
             enabled
-            expiresAt
             createdAt
             note
           }
