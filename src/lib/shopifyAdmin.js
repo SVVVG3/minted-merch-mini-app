@@ -10,7 +10,7 @@ if (!SHOPIFY_DOMAIN || !SHOPIFY_ADMIN_ACCESS_TOKEN) {
 
 const SHOPIFY_ADMIN_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/admin/api/2024-10/graphql.json`;
 
-async function shopifyAdminFetch(query, variables = {}) {
+export async function shopifyAdminFetch(query, variables = {}) {
   if (!SHOPIFY_DOMAIN || !SHOPIFY_ADMIN_ACCESS_TOKEN) {
     throw new Error('Missing Shopify Admin environment variables. Please check SHOPIFY_SITE_DOMAIN and SHOPIFY_ADMIN_ACCESS_TOKEN.');
   }
