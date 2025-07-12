@@ -8,6 +8,7 @@ import { calculateCheckout } from '@/lib/shopify';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 import { ShippingForm } from './ShippingForm';
+import GiftCardSection, { GiftCardBalance } from './GiftCardSection';
 
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
@@ -19,7 +20,14 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const [isCalculatingCheckout, setIsCalculatingCheckout] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
   const [orderDetails, setOrderDetails] = useState(null);
+  const [appliedGiftCard, setAppliedGiftCard] = useState(null);
   const buyNowProcessed = useRef(false);
+
+  // Handle gift card application
+  const handleGiftCardApplied = (giftCard) => {
+    console.log('🎁 Gift card applied to checkout:', giftCard);
+    setAppliedGiftCard(giftCard);
+  };
 
   // Helper function to calculate product-aware discount amount
   const calculateProductAwareDiscountAmount = () => {
@@ -110,12 +118,22 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       console.log('🚚 Free shipping applied - shipping cost set to $0');
     }
     
-    // Calculate total but ensure it never goes negative
-    let finalTotal = Math.max(0, subtotal - discount + shipping + tax);
+    // Calculate total before gift card
+    let totalBeforeGiftCard = Math.max(0, subtotal - discount + shipping + tax);
+    
+    // Apply gift card discount
+    let giftCardDiscount = 0;
+    if (appliedGiftCard?.discount) {
+      giftCardDiscount = appliedGiftCard.discount.discountAmount;
+      console.log('🎁 Gift card discount applied:', giftCardDiscount);
+    }
+    
+    // Calculate final total with gift card
+    let finalTotal = Math.max(0, totalBeforeGiftCard - giftCardDiscount);
     
     // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
     // Use <= 0.01 to handle floating point precision issues
-    if (finalTotal <= 0.01 && appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100) {
+    if (finalTotal <= 0.01 && (appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100 || appliedGiftCard?.discount?.discountAmount > 0)) {
       finalTotal = 0.01;
       console.log('💰 Applied minimum charge of $0.01 for free giveaway order processing');
     }
@@ -422,7 +440,9 @@ Transaction Hash: ${transactionHash}`;
         notes: cart.notes || '',
         fid: userFid, // Add user's Farcaster ID for notifications (may be null)
         appliedDiscount: appliedDiscount, // Include discount information from CartContext
-        discountAmount: appliedDiscount ? appliedDiscount.discountAmount : 0
+        discountAmount: appliedDiscount ? appliedDiscount.discountAmount : 0,
+        appliedGiftCard: appliedGiftCard, // Include gift card information
+        giftCardAmount: appliedGiftCard?.discount?.discountAmount || 0
       };
 
       const response = await fetch('/api/shopify/orders', {
@@ -438,7 +458,7 @@ Transaction Hash: ${transactionHash}`;
       if (result.success) {
         console.log('Order created successfully:', result.order.name);
         
-        // Calculate final total with discount and free shipping
+        // Calculate final total with discount, gift card, and free shipping
         let shippingCost = cart.selectedShipping ? cart.selectedShipping.price.amount : 0;
         
         // Override shipping to 0 if discount includes free shipping
@@ -446,13 +466,27 @@ Transaction Hash: ${transactionHash}`;
           shippingCost = 0;
         }
         
-        let finalOrderTotal = appliedDiscount 
-          ? cart.checkout.subtotal.amount - calculateProductAwareDiscountAmount() + calculateAdjustedTax() + shippingCost
-          : cart.checkout.subtotal.amount + calculateAdjustedTax() + shippingCost;
+        let finalOrderTotal = cart.checkout.subtotal.amount;
+        
+        // Apply regular discount
+        if (appliedDiscount) {
+          finalOrderTotal -= calculateProductAwareDiscountAmount();
+        }
+        
+        // Apply gift card discount
+        if (appliedGiftCard?.discount?.discountAmount) {
+          finalOrderTotal -= appliedGiftCard.discount.discountAmount;
+        }
+        
+        // Add taxes and shipping
+        finalOrderTotal += calculateAdjustedTax() + shippingCost;
+        
+        // Ensure total doesn't go negative
+        finalOrderTotal = Math.max(0, finalOrderTotal);
         
         // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
         // Use <= 0.01 to handle floating point precision issues
-        if (finalOrderTotal <= 0.01 && appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100) {
+        if (finalOrderTotal <= 0.01 && (appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100 || appliedGiftCard?.discount?.discountAmount > 0)) {
           finalOrderTotal = 0.01;
           console.log('💰 Applied minimum charge of $0.01 for free giveaway order processing');
         }
@@ -478,7 +512,8 @@ Transaction Hash: ${transactionHash}`;
           })),
           shippingAddress: shippingData,
           selectedShipping: cart.selectedShipping,
-          appliedDiscount: appliedDiscount
+          appliedDiscount: appliedDiscount,
+          appliedGiftCard: appliedGiftCard
         };
         
         // Order is automatically saved to database via the order creation API
@@ -715,11 +750,18 @@ Transaction Hash: ${transactionHash}`;
                           <span>-${calculateProductAwareDiscountAmount().toFixed(2)}</span>
                         </div>
                       )}
+                      {appliedGiftCard && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Gift Card ({appliedGiftCard.code})</span>
+                          <span>-${appliedGiftCard.discount.discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between font-medium">
                         <span>Total</span>
                         <span>
-                          {appliedDiscount && appliedDiscount.discountValue >= 100 ? (
-                            appliedDiscount.freeShipping ? (
+                          {(appliedDiscount && appliedDiscount.discountValue >= 100) || 
+                           (appliedGiftCard && appliedGiftCard.discount.discountAmount >= cartTotal) ? (
+                            (appliedDiscount?.freeShipping || appliedGiftCard) ? (
                               <span className="text-green-600">$0.01 <span className="text-xs">(min processing fee)</span></span>
                             ) : (
                               <span className="text-green-600">FREE</span>
@@ -738,6 +780,13 @@ Transaction Hash: ${transactionHash}`;
                       )}
                     </div>
                   </div>
+                  
+                  {/* Gift Card Section */}
+                  <GiftCardSection 
+                    onGiftCardApplied={handleGiftCardApplied}
+                    cartTotal={cartTotal}
+                    className="border-t pt-4"
+                  />
                   
                   {/* Checkout Error */}
                   {checkoutError && (
@@ -805,6 +854,12 @@ Transaction Hash: ${transactionHash}`;
                           <span>-${calculateProductAwareDiscountAmount().toFixed(2)}</span>
                         </div>
                       )}
+                      {appliedGiftCard && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Gift Card ({appliedGiftCard.code})</span>
+                          <span>-${appliedGiftCard.discount.discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
                       {cart.checkout && (
                         <div className="flex justify-between text-sm">
                           <span>Taxes</span>
@@ -863,6 +918,12 @@ Transaction Hash: ${transactionHash}`;
                               <span>-${calculateProductAwareDiscountAmount().toFixed(2)}</span>
                             </div>
                           )}
+                          {appliedGiftCard && (
+                            <div className="flex justify-between text-sm text-green-600">
+                              <span>Gift Card ({appliedGiftCard.code})</span>
+                              <span>-${appliedGiftCard.discount.discountAmount.toFixed(2)}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between text-sm">
                             <span>Shipping ({cart.selectedShipping.title})</span>
                             <span>
@@ -883,6 +944,7 @@ Transaction Hash: ${transactionHash}`;
                               ${(() => {
                                 const subtotal = cart.checkout.subtotal.amount;
                                 const discount = calculateProductAwareDiscountAmount();
+                                const giftCardDiscount = appliedGiftCard?.discount?.discountAmount || 0;
                                 let shipping = cart.selectedShipping.price.amount;
                                 
                                 // Override shipping to 0 if discount includes free shipping
@@ -890,13 +952,13 @@ Transaction Hash: ${transactionHash}`;
                                   shipping = 0;
                                 }
                                 
-                                const discountedSubtotal = subtotal - discount;
+                                const discountedSubtotal = subtotal - discount - giftCardDiscount;
                                 const adjustedTax = calculateAdjustedTax();
                                 let finalTotal = Math.max(0, discountedSubtotal + shipping + adjustedTax);
                                 
                                 // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
                                 // Use <= 0.01 to handle floating point precision issues
-                                if (finalTotal <= 0.01 && appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100) {
+                                if (finalTotal <= 0.01 && (appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100 || giftCardDiscount > 0)) {
                                   finalTotal = 0.01;
                                 }
                                 
@@ -983,6 +1045,14 @@ Transaction Hash: ${transactionHash}`;
                         <div className="flex justify-between text-sm text-green-600">
                           <span>Discount ({appliedDiscount.discountValue}%)</span>
                           <span>-${calculateProductAwareDiscountAmount().toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      {/* Gift Card Line Item */}
+                      {appliedGiftCard && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Gift Card ({appliedGiftCard.code})</span>
+                          <span>-${appliedGiftCard.discount.discountAmount.toFixed(2)}</span>
                         </div>
                       )}
                       
