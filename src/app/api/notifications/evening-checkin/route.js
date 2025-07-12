@@ -92,6 +92,74 @@ export async function GET(request) {
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
 
+    // Check for CRON_SECRET authorization (Vercel cron jobs use GET requests)
+    const authHeader = request.headers.get('authorization');
+    const forceRun = request.headers.get('X-Force-Run') === 'true';
+    const githubActions = request.headers.get('X-GitHub-Actions') === 'true';
+    
+    // If this is a cron job request (has auth header), execute notifications
+    if (authHeader && !forceRun && !githubActions) {
+      if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        console.log('❌ Unauthorized evening cron job GET request - invalid CRON_SECRET');
+        return Response.json({
+          success: false,
+          error: 'Unauthorized - Invalid CRON_SECRET'
+        }, { status: 401 });
+      }
+      
+      console.log('✅ CRON_SECRET authorization verified for evening GET request');
+      console.log('🌅 Evening check-in reminder API called via GET (Vercel cron job)');
+      console.log('📅 Current PST time:', formatPSTTime());
+      
+      // Log cron job execution for debugging
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app'}/api/debug/cron-health-check?job=evening-checkin`, {
+          method: 'POST'
+        });
+      } catch (logError) {
+        console.log('Failed to log cron execution:', logError.message);
+      }
+      
+      if (!shouldSendEveningNotifications()) {
+        const currentTime = formatPSTTime();
+        console.log('⏰ Not evening notification time, skipping. Current time:', currentTime);
+        
+        return Response.json({
+          success: true,
+          message: 'Not evening notification time (8 PM PST)',
+          currentTime: currentTime,
+          skipped: true
+        }, { status: 200 });
+      }
+
+      // Send evening check-in reminders
+      const result = await sendEveningCheckInReminders();
+
+      if (result.success) {
+        console.log('✅ Evening check-in reminders completed successfully via GET');
+        
+        return Response.json({
+          success: true,
+          message: 'Evening check-in reminders sent successfully',
+          stats: {
+            totalUsers: result.totalUsers,
+            successCount: result.successCount,
+            failureCount: result.failureCount
+          },
+          timestamp: formatPSTTime()
+        }, { status: 200 });
+      } else {
+        console.error('❌ Evening check-in reminders failed:', result.error);
+        
+        return Response.json({
+          success: false,
+          error: result.error,
+          message: 'Failed to send evening check-in reminders'
+        }, { status: 500 });
+      }
+    }
+
+    // Handle status requests
     if (action === 'status') {
       // Return current status and next notification time
       const currentTime = formatPSTTime();
@@ -111,7 +179,8 @@ export async function GET(request) {
       message: 'Evening check-in reminder API',
       usage: {
         POST: 'Send evening check-in reminders (8 PM PST)',
-        'GET?action=status': 'Check current evening notification status'
+        'GET?action=status': 'Check current evening notification status',
+        'GET (with CRON_SECRET)': 'Execute notifications via Vercel cron job'
       },
       currentTime: formatPSTTime(),
       note: 'This is the second daily reminder, sent 12 hours after the morning reminder'
