@@ -29,12 +29,8 @@ export async function createShopifyGiftCard(amount, note = null, expiresAt = nul
   
   const variables = {
     input: {
-      initialValue: {
-        amount: amount.toString(),
-        currencyCode: 'USD'
-      },
-      note: note,
-      expiresAt: expiresAt
+      initialValue: amount.toString(),
+      note: note
     }
   };
   
