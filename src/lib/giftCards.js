@@ -42,30 +42,30 @@ export async function createShopifyGiftCard(amount, note = null, expiresAt = nul
   return result.data.giftCardCreate;
 }
 
-// Validate gift card by code
+// Validate gift card by code - using database lookup since GraphQL query is not available
 export async function validateGiftCard(code) {
   console.log('🔍 Validating gift card:', code);
   
-  const query = `
-    query giftCardByCode($code: String!) {
-      giftCardByCode(code: $code) {
-        id
-        maskedCode
-        balance {
-          amount
-          currencyCode
-        }
-        enabled
-        createdAt
-        note
-      }
-    }
-  `;
+  // First check if we have this gift card in our database
+  const dbGiftCard = await getGiftCardFromDatabase(code);
   
-  const result = await shopifyAdminFetch(query, { code });
-  console.log('Gift card validation result:', result);
+  if (!dbGiftCard) {
+    console.log('Gift card not found in database');
+    return null;
+  }
   
-  return result.data.giftCardByCode;
+  // Return a mock Shopify-style object with the data we have
+  return {
+    id: dbGiftCard.shopify_id,
+    maskedCode: dbGiftCard.code,
+    balance: {
+      amount: dbGiftCard.current_balance.toString(),
+      currencyCode: dbGiftCard.currency_code
+    },
+    enabled: dbGiftCard.status === 'active',
+    createdAt: dbGiftCard.created_at,
+    note: dbGiftCard.note
+  };
 }
 
 // Get gift card balance
