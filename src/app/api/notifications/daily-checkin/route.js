@@ -8,6 +8,15 @@ export async function POST(request) {
   try {
     console.log('🚀 Daily check-in reminder API called');
     console.log('📅 Current PST time:', formatPSTTime());
+    
+    // Log cron job execution for debugging
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app'}/api/debug/cron-health-check?job=daily-checkin`, {
+        method: 'POST'
+      });
+    } catch (logError) {
+      console.log('Failed to log cron execution:', logError.message);
+    }
 
     // Optional: Check if it's actually 8 AM PST (can be disabled for testing)
     const forceRun = request.headers.get('X-Force-Run') === 'true';
