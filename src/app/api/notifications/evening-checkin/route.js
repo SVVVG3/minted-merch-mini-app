@@ -4,6 +4,9 @@
 import { sendEveningCheckInReminders, shouldSendEveningNotifications } from '../../../../lib/notifications.js';
 import { formatPSTTime } from '../../../../lib/timezone.js';
 
+// Force dynamic rendering to prevent caching issues with cron jobs
+export const dynamic = 'force-dynamic';
+
 export async function POST(request) {
   try {
     console.log('🌅 Evening check-in reminder API called');
