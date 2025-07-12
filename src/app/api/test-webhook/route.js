@@ -1,15 +1,20 @@
 import { NextResponse } from 'next/server';
+import { setUserContext } from '@/lib/auth';
 
 export async function POST(request) {
   try {
     const { userFid, eventType = 'app.added', enableNotifications = true } = await request.json();
     
     if (!userFid) {
-      return NextResponse.json({
-        success: false,
-        error: 'userFid is required'
+      return NextResponse.json({ 
+        error: 'userFid is required' 
       }, { status: 400 });
     }
+
+    console.log('Testing webhook with:', { userFid, eventType, enableNotifications });
+
+    // 🔒 SECURITY: Set user context for RLS policies
+    await setUserContext(userFid);
 
     // Simulate a webhook event
     const mockWebhookEvent = {

@@ -84,6 +84,9 @@ export async function GET(request) {
       // Single user update
       console.log('🔄 GET request to update wallet data for FID:', targetFid);
       
+      // 🔒 SECURITY: Set user context for RLS policies
+      await setUserContext(targetFid);
+      
       const walletData = await fetchUserWalletData(parseInt(targetFid));
       if (!walletData) {
         return NextResponse.json({ 

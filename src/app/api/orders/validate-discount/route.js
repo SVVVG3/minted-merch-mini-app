@@ -116,6 +116,9 @@ export async function GET(request) {
 
   // For GET requests, validate the provided parameters
   try {
+    // 🔒 SECURITY: Set user context for RLS policies
+    await setUserContext(fid);
+
     // Check for conflicts first
     const conflictCheck = await checkDiscountUsageConflict(discountCode, orderId);
     

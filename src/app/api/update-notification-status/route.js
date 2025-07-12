@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../lib/supabase.js';
+import { setUserContext } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import { formatPSTTime } from '../../../lib/timezone.js';
 
 export async function POST(request) {
@@ -15,6 +16,9 @@ export async function POST(request) {
       }, { status: 400 });
     }
     
+    // 🔒 SECURITY: Set user context for RLS policies
+    await setUserContext(fid);
+
     // Update the user's notification status in the database
     const { data, error } = await supabase
       .from('profiles')
@@ -94,6 +98,9 @@ export async function GET(request) {
         error: 'FID parameter is required'
       }, { status: 400 });
     }
+
+    // 🔒 SECURITY: Set user context for RLS policies
+    await setUserContext(fid);
     
     // Get current notification status
     const { data, error } = await supabase

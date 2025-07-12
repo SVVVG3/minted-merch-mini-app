@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { setUserContext } from '@/lib/auth';
 import { getProductByHandle } from '@/lib/shopify';
 import { getBestAvailableDiscount } from '@/lib/discounts';
 import { supabase } from '@/lib/supabase';
@@ -8,12 +9,18 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const handle = searchParams.get('handle');
     const fid = searchParams.get('fid'); // Optional: For discount checking
+    const includeDiscounts = searchParams.get('includeDiscounts') === 'true';
 
     if (!handle) {
       return NextResponse.json({ error: 'Product handle is required' }, { status: 400 });
     }
 
     console.log(`🛍️ Fetching product: ${handle}${fid ? ` for user FID: ${fid}` : ''}`);
+
+    // 🔒 SECURITY: Set user context for RLS policies if FID provided
+    if (fid) {
+      await setUserContext(fid);
+    }
 
     // Get product from Shopify
     const shopifyProduct = await getProductByHandle(handle);
