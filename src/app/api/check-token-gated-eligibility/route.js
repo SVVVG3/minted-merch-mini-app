@@ -2,6 +2,7 @@
 // This avoids importing Node.js packages in the browser
 
 import { NextResponse } from 'next/server';
+import { setUserContext } from '@/lib/auth';
 import { getEligibleAutoApplyDiscounts } from '@/lib/tokenGating';
 
 export async function POST(request) {
@@ -26,6 +27,9 @@ export async function POST(request) {
     console.log('🎫 Checking token-gated eligibility for FID:', fid);
     console.log('Wallet addresses:', walletAddresses);
     console.log('Scope:', scope, 'Product IDs:', productIds);
+
+    // 🔒 SECURITY: Set user context for RLS policies
+    await setUserContext(fid);
 
     // Check for eligible token-gated discounts using server-side function
     const eligibleDiscounts = await getEligibleAutoApplyDiscounts(

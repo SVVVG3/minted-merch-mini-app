@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { setUserContext } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { fetchUserWalletData } from '@/lib/walletUtils';
 
@@ -11,6 +12,9 @@ export async function POST(request) {
     }
 
     console.log('🔄 Updating wallet data for FID:', fid);
+
+    // 🔒 SECURITY: Set user context for RLS policies
+    await setUserContext(fid);
 
     // Fetch fresh wallet data from Neynar
     const walletData = await fetchUserWalletData(fid);

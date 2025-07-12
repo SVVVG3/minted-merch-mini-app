@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { setUserContext } from '@/lib/auth';
 import { validateDiscountForOrder, checkDiscountUsageConflict } from '@/lib/orders';
 
 export async function POST(request) {
@@ -18,6 +19,9 @@ export async function POST(request) {
         error: 'User FID is required' 
       }, { status: 400 });
     }
+
+    // 🔒 SECURITY: Set user context for RLS policies
+    await setUserContext(fid);
 
     if (!subtotal || subtotal <= 0) {
       return NextResponse.json({ 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { setUserContext } from '@/lib/auth';
 import { validateDiscountCode, calculateDiscountAmount } from '@/lib/discounts';
 
 export async function POST(request) {
@@ -20,6 +21,11 @@ export async function POST(request) {
     }
 
     console.log('Validating discount code:', { code, fid: fid || 'null', subtotal });
+
+    // 🔒 SECURITY: Set user context for RLS policies  
+    if (fid) {
+      await setUserContext(fid);
+    }
 
     // Validate the discount code
     // Pass null FID if not authenticated - some discount codes might not require user auth
@@ -65,11 +71,7 @@ export async function POST(request) {
       discountType: validationResult.discountType,
       discountValue: validationResult.discountValue,
       discountAmount: discountResult.discountAmount,
-      finalTotal: discountResult.finalTotal,
-      freeShipping: validationResult.freeShipping || false,
-      message: validationResult.freeShipping 
-        ? `${validationResult.discountValue}% discount + FREE shipping applied!`
-        : `${validationResult.discountValue}% discount applied!`,
+      subtotal,
       requiresAuth: validationResult.requiresAuth || false
     });
 
@@ -107,6 +109,12 @@ export async function GET(request) {
   // For GET requests, validate the provided parameters
   try {
     const parsedFid = fid ? parseInt(fid) : null;
+    
+    // 🔒 SECURITY: Set user context for RLS policies  
+    if (parsedFid) {
+      await setUserContext(parsedFid);
+    }
+
     const validationResult = await validateDiscountCode(code, parsedFid);
     
     if (!validationResult.success || !validationResult.isValid) {
@@ -126,11 +134,6 @@ export async function GET(request) {
       discountValue: validationResult.discountValue,
       discountAmount: discountResult.discountAmount,
       subtotal: subtotal,
-      finalAmount: discountResult.finalTotal,
-      freeShipping: validationResult.freeShipping || false,
-      message: validationResult.freeShipping 
-        ? `${validationResult.discountValue}% discount + FREE shipping applied!`
-        : `${validationResult.discountValue}% discount applied!`,
       requiresAuth: validationResult.requiresAuth || false
     });
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createOrder } from '@/lib/orders';
+import { setUserContext } from '@/lib/auth';
 
 export async function POST(request) {
   try {
@@ -22,6 +23,9 @@ export async function POST(request) {
         error: 'Missing required fields: fid, orderId, amountTotal, lineItems'
       }, { status: 400 });
     }
+
+    // 🔒 SECURITY: Set user context for RLS policies
+    await setUserContext(orderData.fid);
 
     // Create order in database
     const result = await createOrder(orderData);

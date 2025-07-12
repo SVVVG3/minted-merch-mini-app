@@ -159,11 +159,16 @@ export async function GET(request) {
 
     console.log('🔍 Fetching orders for FID:', fid, 'limit:', limit, 'includeArchived:', includeArchived);
 
-    // Get orders from database
+    // 🔒 SECURITY: Set user context for RLS policies
+    await supabase.rpc('set_config', {
+      parameter: 'app.user_fid', 
+      value: fid.toString()
+    });
+
+    // Get orders from database - now uses RLS policies based on the set context
     let query = supabase
       .from('orders')
       .select('*')
-      .eq('fid', fid)
       .order('created_at', { ascending: false })
       .limit(limit);
 

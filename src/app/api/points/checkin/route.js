@@ -1,30 +1,30 @@
 // API endpoint for daily check-ins
 import { performDailyCheckin, canCheckInToday, getUserLeaderboardData } from '../../../../lib/points.js';
+import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request) {
   try {
-    const body = await request.json();
-    const { userFid } = body;
+    const { userFid, timezone } = await request.json();
 
-    // Validate required fields
+    // Validate required parameters
     if (!userFid) {
-      return Response.json({
-        success: false,
-        error: 'userFid is required'
+      return NextResponse.json({ 
+        success: false, 
+        error: 'User FID is required' 
       }, { status: 400 });
     }
 
-    // Validate userFid is a number
-    const fid = parseInt(userFid);
-    if (isNaN(fid) || fid <= 0) {
-      return Response.json({
-        success: false,
-        error: 'Invalid userFid'
-      }, { status: 400 });
-    }
+    console.log(`🎯 Daily check-in attempt for FID: ${userFid}, timezone: ${timezone || 'not provided'}`);
 
-    // Perform check-in
-    const result = await performDailyCheckin(fid);
+    // 🔒 SECURITY: Set user context for RLS policies
+    await supabase.rpc('set_config', {
+      parameter: 'app.user_fid', 
+      value: userFid.toString()
+    });
+
+    // Perform daily check-in
+    const result = await performDailyCheckin(userFid);
 
     if (!result.success) {
       const statusCode = result.alreadyCheckedIn ? 409 : 500;

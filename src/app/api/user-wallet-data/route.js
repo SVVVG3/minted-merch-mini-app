@@ -8,15 +8,19 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const fid = searchParams.get('fid');
+    const includeTokenBalance = searchParams.get('includeTokenBalance') === 'true';
+
+    console.log('Getting wallet data for FID:', fid, 'includeTokenBalance:', includeTokenBalance);
 
     if (!fid) {
-      return NextResponse.json({
-        success: false,
-        error: 'FID parameter is required'
-      }, { status: 400 });
+      return NextResponse.json({ error: 'FID is required' }, { status: 400 });
     }
 
-    console.log('🔍 Fetching wallet data for FID:', fid);
+    // 🔒 SECURITY: Set user context for RLS policies
+    await supabase.rpc('set_config', {
+      parameter: 'app.user_fid', 
+      value: fid.toString()
+    });
 
     // Fetch wallet data using server-side function
     const walletData = await fetchUserWalletData(parseInt(fid));

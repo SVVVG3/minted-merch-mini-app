@@ -4,6 +4,9 @@ import { hasNotificationTokenInNeynar, sendWelcomeNotification } from '@/lib/ney
 import { createWelcomeDiscountCode } from '@/lib/discounts';
 import { fetchUserWalletData } from '@/lib/walletUtils';
 import { checkBankrClubMembership } from '@/lib/bankrAPI';
+import { setUserContext } from '@/lib/auth';
+import { createUserProfile } from '@/lib/supabase';
+import { fetchUserProfile } from '@/lib/neynar';
 
 export async function POST(request) {
   try {
@@ -14,6 +17,9 @@ export async function POST(request) {
     }
 
     console.log('Registering user:', { fid, username, displayName });
+
+    // 🔒 SECURITY: Set user context for RLS policies
+    await setUserContext(fid);
 
     // Check if user has notifications enabled (check this FIRST)
     const hasNotifications = await hasNotificationTokenInNeynar(fid);

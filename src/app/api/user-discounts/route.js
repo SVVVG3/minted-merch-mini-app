@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getUserAvailableDiscounts, getBestAvailableDiscount, hasDiscountOfType } from '@/lib/discounts';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request) {
   try {
@@ -34,6 +35,12 @@ export async function GET(request) {
         error: 'FID must be a valid number'
       }, { status: 400 });
     }
+
+    // 🔒 SECURITY: Set user context for RLS policies
+    await supabase.rpc('set_config', {
+      parameter: 'app.user_fid', 
+      value: fid.toString()
+    });
 
     // Handle different modes
     if (mode === 'best') {
@@ -143,6 +150,12 @@ export async function POST(request) {
 
     console.log('Creating new discount code:', { fid, codeType, discountValue, discountType });
 
+    // 🔒 SECURITY: Set user context for RLS policies
+    await supabase.rpc('set_config', {
+      parameter: 'app.user_fid', 
+      value: fid.toString()
+    });
+
     // For now, we'll use the existing createWelcomeDiscountCode function
     // In the future, this could be expanded to create other types of codes
     if (codeType === 'welcome') {
@@ -185,6 +198,14 @@ export async function DELETE(request) {
         success: false,
         error: 'Either FID or code parameter is required'
       }, { status: 400 });
+    }
+
+    // 🔒 SECURITY: Set user context for RLS policies if FID provided
+    if (fid) {
+      await supabase.rpc('set_config', {
+        parameter: 'app.user_fid', 
+        value: fid.toString()
+      });
     }
 
     // This would be used for admin operations or user account cleanup
