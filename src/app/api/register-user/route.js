@@ -100,6 +100,13 @@ export async function POST(request) {
       // Don't fail registration if Bankr check fails
     }
 
+    // Get existing profile to preserve farcaster_event source if it exists
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('notification_status_source')
+      .eq('fid', fid)
+      .single();
+
     // Create or update user profile with notification status and wallet data
     const profileData = {
       fid,
@@ -109,6 +116,7 @@ export async function POST(request) {
       pfp_url: pfpUrl,
       has_notifications: hasNotifications, // ✅ Store notification status
       notification_status_updated_at: new Date().toISOString(),
+      notification_status_source: existingProfile?.notification_status_source === 'farcaster_event' ? 'farcaster_event' : 'neynar_sync',
       updated_at: new Date().toISOString(),
       // Add Bankr Club membership data
       bankr_club_member: bankrMembershipData.bankr_club_member,

@@ -45,7 +45,7 @@ export async function POST(request) {
       // Get batch of users
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('fid, username, has_notifications, notification_status_updated_at')
+        .select('fid, username, has_notifications, notification_status_updated_at, notification_status_source')
         .order('created_at', { ascending: false })
         .range(offset, offset + batchSize - 1);
 
@@ -68,12 +68,13 @@ export async function POST(request) {
           const hasNotifications = await hasNotificationTokenInNeynar(profile.fid);
           const statusChanged = profile.has_notifications !== hasNotifications;
 
-          // Update database
+          // Update database - preserve farcaster_event source
           const { error: updateError } = await supabase
             .from('profiles')
             .update({
               has_notifications: hasNotifications,
-              notification_status_updated_at: new Date().toISOString()
+              notification_status_updated_at: new Date().toISOString(),
+              notification_status_source: profile.notification_status_source === 'farcaster_event' ? 'farcaster_event' : 'full_sync'
             })
             .eq('fid', profile.fid);
 

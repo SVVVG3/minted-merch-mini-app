@@ -34,7 +34,7 @@ export async function POST(request) {
       
       const { data: allUsers, error } = await supabase
         .from('profiles')
-        .select('fid, username, has_notifications, notification_status_updated_at')
+        .select('fid, username, has_notifications, notification_status_updated_at, notification_status_source')
         .eq('has_notifications', true)
         .order('created_at', { ascending: false })
         .limit(maxUsers);
@@ -52,7 +52,7 @@ export async function POST(request) {
       // Get users with stale notification status or no status at all
       const { data: staleUsers, error: staleError } = await supabase
         .from('profiles')
-        .select('fid, username, has_notifications, notification_status_updated_at')
+        .select('fid, username, has_notifications, notification_status_updated_at, notification_status_source')
         .eq('has_notifications', true)
         .or(`notification_status_updated_at.is.null,notification_status_updated_at.lt.${staleCutoff.toISOString()}`)
         .order('notification_status_updated_at', { ascending: true, nullsFirst: true })
@@ -63,7 +63,7 @@ export async function POST(request) {
       // Also get some recently updated users for validation
       const { data: recentUsers, error: recentError } = await supabase
         .from('profiles')
-        .select('fid, username, has_notifications, notification_status_updated_at')
+        .select('fid, username, has_notifications, notification_status_updated_at, notification_status_source')
         .eq('has_notifications', true)
         .not('notification_status_updated_at', 'is', null)
         .gte('notification_status_updated_at', staleCutoff.toISOString())
@@ -136,7 +136,9 @@ export async function POST(request) {
                 .from('profiles')
                 .update({
                   has_notifications: currentStatus,
-                  notification_status_updated_at: new Date().toISOString()
+                  notification_status_updated_at: new Date().toISOString(),
+                  // Only update source to cron_sync if it wasn't originally from a Farcaster event
+                  notification_status_source: user.notification_status_source === 'farcaster_event' ? 'farcaster_event' : 'cron_sync'
                 })
                 .eq('fid', user.fid);
 
@@ -151,14 +153,17 @@ export async function POST(request) {
             }
             
           } else {
-            // No change - just update the timestamp
+            // No change - just update the timestamp, preserving original source
             results.unchanged++;
             
             if (!dryRun) {
               await supabase
                 .from('profiles')
                 .update({
-                  notification_status_updated_at: new Date().toISOString()
+                  notification_status_updated_at: new Date().toISOString(),
+                  // Preserve the original source, only set to cron_sync if it was unknown
+                  notification_status_source: user.notification_status_source === 'farcaster_event' ? 'farcaster_event' : 
+                                             user.notification_status_source === 'miniapp_removed' ? 'miniapp_removed' : 'cron_sync'
                 })
                 .eq('fid', user.fid);
             }
