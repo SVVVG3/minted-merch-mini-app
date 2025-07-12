@@ -12,6 +12,23 @@ export async function POST(request) {
     console.log('🚀 Daily check-in reminder API called');
     console.log('📅 Current PST time:', formatPSTTime());
     
+    // Check for CRON_SECRET authorization (required by Vercel cron jobs)
+    const authHeader = request.headers.get('authorization');
+    const forceRun = request.headers.get('X-Force-Run') === 'true';
+    const githubActions = request.headers.get('X-GitHub-Actions') === 'true';
+    
+    // Skip auth check for manual testing or GitHub Actions
+    if (!forceRun && !githubActions) {
+      if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        console.log('❌ Unauthorized cron job request - missing or invalid CRON_SECRET');
+        return Response.json({
+          success: false,
+          error: 'Unauthorized - Invalid CRON_SECRET'
+        }, { status: 401 });
+      }
+      console.log('✅ CRON_SECRET authorization verified');
+    }
+    
     // Log cron job execution for debugging
     try {
       await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app'}/api/debug/cron-health-check?job=daily-checkin`, {
@@ -20,9 +37,6 @@ export async function POST(request) {
     } catch (logError) {
       console.log('Failed to log cron execution:', logError.message);
     }
-
-    // Optional: Check if it's actually 8 AM PST (can be disabled for testing)
-    const forceRun = request.headers.get('X-Force-Run') === 'true';
     
     if (!forceRun && !shouldSendDailyNotifications()) {
       const currentTime = formatPSTTime();

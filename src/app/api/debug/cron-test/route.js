@@ -10,6 +10,22 @@ export async function POST(request) {
     
     console.log('🧪 TEST CRON JOB EXECUTED:', timestamp);
     
+    // Check for CRON_SECRET authorization (required by Vercel cron jobs)
+    const authHeader = request.headers.get('authorization');
+    const forceRun = request.headers.get('X-Force-Run') === 'true';
+    
+    // Skip auth check for manual testing
+    if (!forceRun) {
+      if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        console.log('❌ Unauthorized test cron job request - missing or invalid CRON_SECRET');
+        return NextResponse.json({
+          success: false,
+          error: 'Unauthorized - Invalid CRON_SECRET'
+        }, { status: 401 });
+      }
+      console.log('✅ Test cron CRON_SECRET authorization verified');
+    }
+    
     // Log cron job execution for debugging
     try {
       await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app'}/api/debug/cron-health-check?job=test-cron`, {
