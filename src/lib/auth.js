@@ -27,8 +27,9 @@ export async function setUserContext(fid) {
 export async function setSystemContext() {
   console.log(`🔧 Setting system admin context for multi-user operations`);
   
+  // Use a special numeric FID for system operations (999999999)
   await supabase.rpc('set_config', {
     parameter: 'app.user_fid', 
-    value: 'system_admin'
+    value: '999999999'
   });
 } 
