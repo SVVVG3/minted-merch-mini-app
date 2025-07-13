@@ -72,40 +72,53 @@ export async function GET(request) {
           
           console.log(`🔍 Using base URL for token-gated checking: ${baseUrl}`);
           
-          const walletResponse = await fetch(`${baseUrl}/api/user-wallet-data?fid=${userFid}`);
+          // 🔧 CRITICAL FIX: Always check token-gated discounts, even without wallets
+          // Some discounts (like Bankr Club) are FID-based and don't require wallets
+          let userWalletAddresses = [];
           
-          if (!walletResponse.ok) {
-            console.error(`❌ Wallet API failed with status: ${walletResponse.status}`);
-            console.error(`❌ Wallet API error: ${await walletResponse.text()}`);
-          } else {
-            const walletData = await walletResponse.json();
-            console.log(`📱 Wallet API response: { success: ${walletData.success}, hasWallets: ${walletData.walletData?.all_wallet_addresses?.length > 0} }`);
-            
-            if (walletData.success && walletData.walletData?.all_wallet_addresses?.length > 0) {
-              const userWalletAddresses = walletData.walletData.all_wallet_addresses;
-              console.log(`🔍 Checking token-gated discounts for ${userWalletAddresses.length} wallet addresses`);
+          try {
+            const walletResponse = await fetch(`${baseUrl}/api/user-wallet-data?fid=${userFid}`);
+            if (walletResponse.ok) {
+              const walletData = await walletResponse.json();
+              console.log(`📱 Wallet API response: { success: ${walletData.success}, hasWallets: ${walletData.walletData?.all_wallet_addresses?.length > 0} }`);
               
-                          // Check for all token-gated discounts (both product-specific and site-wide)
-            const tokenGatedResponse = await fetch(`${baseUrl}/api/check-token-gated-eligibility`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                fid: userFid,
-                walletAddresses: userWalletAddresses,
-                productIds: [supabaseId],
-                scope: 'all'
-              })
-            });
-              
-              if (!tokenGatedResponse.ok) {
-                console.error(`❌ Token-gated API failed with status: ${tokenGatedResponse.status}`);
-                console.error(`❌ Token-gated API error: ${await tokenGatedResponse.text()}`);
+              if (walletData.success && walletData.walletData?.all_wallet_addresses?.length > 0) {
+                userWalletAddresses = walletData.walletData.all_wallet_addresses;
+                console.log(`🔍 Found ${userWalletAddresses.length} wallet addresses`);
               } else {
-                const tokenGatedData = await tokenGatedResponse.json();
-                            console.log(`🎫 Token-gated API response: { success: ${tokenGatedData.success}, discountCount: ${tokenGatedData.eligibleDiscounts?.length || 0} }`);
-            
+                console.log(`📱 No wallet addresses found, but will still check FID-based discounts`);
+              }
+            } else {
+              console.log(`⚠️ Wallet API failed, but will still check FID-based discounts`);
+            }
+          } catch (walletError) {
+            console.log(`⚠️ Wallet API error: ${walletError.message}, but will still check FID-based discounts`);
+          }
+          
+          // Always check token-gated discounts (FID-based discounts work without wallets)
+          console.log(`🔍 Checking token-gated discounts for FID ${userFid} with ${userWalletAddresses.length} wallet addresses`);
+          
+          // Check for all token-gated discounts (both product-specific and site-wide)
+          const tokenGatedResponse = await fetch(`${baseUrl}/api/check-token-gated-eligibility`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              fid: userFid,
+              walletAddresses: userWalletAddresses,
+              productIds: [supabaseId],
+              scope: 'all'
+            })
+          });
+              
+          if (!tokenGatedResponse.ok) {
+            console.error(`❌ Token-gated API failed with status: ${tokenGatedResponse.status}`);
+            console.error(`❌ Token-gated API error: ${await tokenGatedResponse.text()}`);
+          } else {
+            const tokenGatedData = await tokenGatedResponse.json();
+            console.log(`🎫 Token-gated API response: { success: ${tokenGatedData.success}, discountCount: ${tokenGatedData.eligibleDiscounts?.length || 0} }`);
+        
             if (tokenGatedData.success && tokenGatedData.eligibleDiscounts?.length > 0) {
               console.log(`🎯 Found ${tokenGatedData.eligibleDiscounts.length} eligible token-gated discounts: ${tokenGatedData.eligibleDiscounts.map(d => d.code).join(', ')}`);
               
@@ -113,40 +126,36 @@ export async function GET(request) {
               const productSpecificTokenDiscounts = tokenGatedData.eligibleDiscounts.filter(d => d.discount_scope === 'product');
               const siteWideTokenDiscounts = tokenGatedData.eligibleDiscounts.filter(d => d.discount_scope === 'site_wide');
                   
-                  console.log(`🔍 Product-specific token discounts: ${productSpecificTokenDiscounts.map(d => d.code).join(', ')}`);
-                  console.log(`🔍 Site-wide token discounts: ${siteWideTokenDiscounts.map(d => d.code).join(', ')}`);
-                  
-                  // Prioritize: product-specific token > site-wide token > regular product > regular site-wide
-                  if (productSpecificTokenDiscounts.length > 0) {
-                    // Find the best product-specific token-gated discount
-                    tokenGatedDiscount = productSpecificTokenDiscounts.reduce((best, current) => {
-                      if (current.discount_value > best.discount_value) return current;
-                      if (current.discount_value === best.discount_value && current.priority_level > best.priority_level) return current;
-                      return best;
-                    });
-                    console.log(`🎯 Best product-specific token-gated discount: ${tokenGatedDiscount.code} (${tokenGatedDiscount.discount_value}% off)`);
-                  } else if (siteWideTokenDiscounts.length > 0) {
-                    // Find the best site-wide token-gated discount
-                    tokenGatedDiscount = siteWideTokenDiscounts.reduce((best, current) => {
-                      if (current.discount_value > best.discount_value) return current;
-                      if (current.discount_value === best.discount_value && current.priority_level > best.priority_level) return current;
-                      return best;
-                    });
-                    console.log(`🎯 Best site-wide token-gated discount: ${tokenGatedDiscount.code} (${tokenGatedDiscount.discount_value}% off)`);
-                  }
-                  
-                  // Mark the token-gated discount
-                  if (tokenGatedDiscount) {
-                    tokenGatedDiscount.isTokenGated = true;
-                    tokenGatedDiscount.displayText = `${tokenGatedDiscount.discount_value}% off`;
-                    console.log(`✅ Selected token-gated discount: ${tokenGatedDiscount.code} (${tokenGatedDiscount.displayText})`);
-                  }
-                } else {
-                  console.log(`❌ No eligible token-gated discounts found for wallet addresses`);
-                }
+              console.log(`🔍 Product-specific token discounts: ${productSpecificTokenDiscounts.map(d => d.code).join(', ')}`);
+              console.log(`🔍 Site-wide token discounts: ${siteWideTokenDiscounts.map(d => d.code).join(', ')}`);
+              
+              // Prioritize: product-specific token > site-wide token > regular product > regular site-wide
+              if (productSpecificTokenDiscounts.length > 0) {
+                // Find the best product-specific token-gated discount
+                tokenGatedDiscount = productSpecificTokenDiscounts.reduce((best, current) => {
+                  if (current.discount_value > best.discount_value) return current;
+                  if (current.discount_value === best.discount_value && current.priority_level > best.priority_level) return current;
+                  return best;
+                });
+                console.log(`🎯 Best product-specific token-gated discount: ${tokenGatedDiscount.code} (${tokenGatedDiscount.discount_value}% off)`);
+              } else if (siteWideTokenDiscounts.length > 0) {
+                // Find the best site-wide token-gated discount
+                tokenGatedDiscount = siteWideTokenDiscounts.reduce((best, current) => {
+                  if (current.discount_value > best.discount_value) return current;
+                  if (current.discount_value === best.discount_value && current.priority_level > best.priority_level) return current;
+                  return best;
+                });
+                console.log(`🎯 Best site-wide token-gated discount: ${tokenGatedDiscount.code} (${tokenGatedDiscount.discount_value}% off)`);
+              }
+              
+              // Mark the token-gated discount
+              if (tokenGatedDiscount) {
+                tokenGatedDiscount.isTokenGated = true;
+                tokenGatedDiscount.displayText = `${tokenGatedDiscount.discount_value}% off`;
+                console.log(`✅ Selected token-gated discount: ${tokenGatedDiscount.code} (${tokenGatedDiscount.displayText})`);
               }
             } else {
-              console.log(`❌ User has no wallet addresses for token-gating`);
+              console.log(`❌ No eligible token-gated discounts found`);
             }
           }
         } catch (error) {
