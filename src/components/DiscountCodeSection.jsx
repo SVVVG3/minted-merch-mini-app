@@ -32,7 +32,7 @@ export function DiscountCodeSection({
   showNotificationPrompt = false
 }) {
   const { getFid } = useFarcaster();
-  const { cartSubtotal, cartTotal } = useCart();
+  const { cartSubtotal, cartTotal, items: cartItems } = useCart();
   const [discountCode, setDiscountCode] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState(null);
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
@@ -132,7 +132,9 @@ export function DiscountCodeSection({
 
     try {
       const userFid = getFid();
-      console.log('🔍 Validating discount code:', code, 'User FID:', userFid);
+      console.log('🔍 Validating code:', code, 'User FID:', userFid);
+
+      // Cart items are already available from the cart context at component level
 
       const response = await fetch('/api/validate-discount', {
         method: 'POST',
@@ -142,14 +144,22 @@ export function DiscountCodeSection({
         body: JSON.stringify({
           code: code.toUpperCase(),
           fid: userFid || null, // Allow null FID - API will handle appropriately
-          subtotal: subtotal
+          subtotal: subtotal,
+          cartItems: cartItems || [] // Pass cart items for gift card validation
         })
       });
 
       const result = await response.json();
 
       if (!result.success) {
-        throw new Error(result.error || 'Invalid discount code');
+        throw new Error(result.error || 'Invalid code');
+      }
+
+      // Check if this is a gift card
+      if (result.isGiftCard) {
+        console.log('🎁 Gift card detected:', result);
+        setDiscountError('Gift cards are not supported in this checkout flow. Please use the regular checkout.');
+        return;
       }
 
       // Apply the discount
@@ -175,7 +185,7 @@ export function DiscountCodeSection({
       console.log('✅ Discount applied successfully:', discount);
 
     } catch (error) {
-      console.error('❌ Error applying discount:', error);
+      console.error('❌ Error applying code:', error);
       setDiscountError(error.message);
     } finally {
       setIsValidatingDiscount(false);

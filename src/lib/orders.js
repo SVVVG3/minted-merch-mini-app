@@ -5,13 +5,26 @@ import { markDiscountCodeAsUsed, validateDiscountCode } from './discounts';
 /**
  * Validate discount code before order creation
  */
-export async function validateDiscountForOrder(discountCode, fid, subtotal) {
+export async function validateDiscountForOrder(discountCode, fid, subtotal, cartItems = []) {
   try {
     if (!discountCode) {
       return { success: true, isValid: false }; // No discount code provided
     }
 
-    console.log('Validating discount code for order creation:', { discountCode, fid, subtotal });
+    console.log('Validating discount code for order creation:', { discountCode, fid, subtotal, hasCartItems: !!cartItems });
+
+    // Import cart gift card check
+    const { cartContainsGiftCards } = await import('./discounts');
+    
+    // Check if cart contains gift cards - if so, block discount application
+    if (cartItems && cartContainsGiftCards(cartItems)) {
+      console.log('🚫 Order contains gift cards, blocking discount application');
+      return {
+        success: false,
+        error: 'Discount codes cannot be applied to orders containing gift cards',
+        isValid: false
+      };
+    }
 
     // Validate the discount code
     const validationResult = await validateDiscountCode(discountCode, fid);

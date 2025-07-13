@@ -4,7 +4,7 @@ import { validateDiscountForOrder, checkDiscountUsageConflict } from '@/lib/orde
 
 export async function POST(request) {
   try {
-    const { discountCode, fid, subtotal, orderId } = await request.json();
+    const { discountCode, fid, subtotal, orderId, cartItems } = await request.json();
 
     if (!discountCode) {
       return NextResponse.json({ 
@@ -30,7 +30,7 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    console.log('Validating discount code for order processing:', { discountCode, fid, subtotal, orderId });
+    console.log('Validating discount code for order processing:', { discountCode, fid, subtotal, orderId, hasCartItems: !!cartItems });
 
     // Check for usage conflicts with other orders
     const conflictCheck = await checkDiscountUsageConflict(discountCode, orderId);
@@ -52,8 +52,8 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Validate the discount code for order creation
-    const validationResult = await validateDiscountForOrder(discountCode, fid, subtotal);
+    // Validate the discount code for order creation (now with cart items)
+    const validationResult = await validateDiscountForOrder(discountCode, fid, subtotal, cartItems);
     
     if (!validationResult.success) {
       return NextResponse.json({
@@ -103,12 +103,13 @@ export async function GET(request) {
   if (!discountCode || !fid) {
     return NextResponse.json({
       message: 'Order discount validation endpoint',
-      usage: 'POST with { discountCode, fid, subtotal, orderId } or GET with ?code=CODE&fid=FID&subtotal=AMOUNT&orderId=ORDER',
+      usage: 'POST with { discountCode, fid, subtotal, orderId, cartItems } or GET with ?code=CODE&fid=FID&subtotal=AMOUNT&orderId=ORDER',
       example: {
         discountCode: 'WELCOME15-XXXXX',
         fid: 12345,
         subtotal: 100.00,
-        orderId: 'ORDER_123'
+        orderId: 'ORDER_123',
+        cartItems: [{ product: { title: 'T-Shirt' } }]
       },
       timestamp: new Date().toISOString()
     });
@@ -130,7 +131,7 @@ export async function GET(request) {
       });
     }
 
-    const validationResult = await validateDiscountForOrder(discountCode, parseInt(fid), subtotal);
+    const validationResult = await validateDiscountForOrder(discountCode, parseInt(fid), subtotal, []);
     
     if (!validationResult.success || !validationResult.isValid) {
       return NextResponse.json({

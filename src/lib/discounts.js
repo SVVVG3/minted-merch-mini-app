@@ -1,6 +1,117 @@
 import { supabase } from './supabase';
-import { setUserContext } from './auth';
+import { setUserContext, setSystemContext } from './auth';
 
+/**
+ * Check if a code looks like a gift card code (vs discount code)
+ * Gift card codes typically follow different patterns than discount codes
+ */
+export function isGiftCardCode(code) {
+  if (!code || typeof code !== 'string') return false;
+  
+  const upperCode = code.toUpperCase();
+  
+  // Common gift card patterns:
+  // - Shopify gift cards are often numeric or alphanumeric without dashes
+  // - Usually longer than discount codes
+  // - Don't contain patterns like "WELCOME", "BANKR", etc.
+  
+  // Check if it looks like a discount code first
+  const discountPatterns = [
+    /^WELCOME\d+-/,           // WELCOME15-XXXXX
+    /^BANKR/,                 // BANKRCLUB-MERCH-20
+    /^DICKBUTT/,              // DICKBUTT20
+    /^SNAPSHOT-/,             // SNAPSHOT-TINY-HYPER-FREE
+    /^PROMO-/,                // PROMO-XXXXX
+    /^SAVE\d+/,               // SAVE20, SAVE15, etc.
+    /^[A-Z]+\d+-[A-Z0-9]+$/,  // General pattern: CODE15-XXXXX
+  ];
+  
+  // If it matches discount patterns, it's likely a discount code
+  if (discountPatterns.some(pattern => pattern.test(upperCode))) {
+    return false;
+  }
+  
+  // Gift card patterns:
+  // - All numeric (e.g., "1234567890123456")
+  // - Mix of letters and numbers without dashes (e.g., "ABCD1234EFGH5678")
+  // - Length typically 8-20 characters
+  const giftCardPatterns = [
+    /^\d{8,20}$/,                    // All numeric, 8-20 digits
+    /^[A-Z0-9]{8,20}$/,              // Alphanumeric, 8-20 chars, no dashes
+    /^[A-Z]{4}\d{4}[A-Z]{4}\d{4}$/,  // Pattern like ABCD1234EFGH5678
+    /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/,  // XXXX-XXXX-XXXX-XXXX
+  ];
+  
+  return giftCardPatterns.some(pattern => pattern.test(upperCode));
+}
+
+/**
+ * Check if cart contains gift cards
+ */
+export function cartContainsGiftCards(cartItems) {
+  if (!cartItems || !Array.isArray(cartItems)) return false;
+  
+  return cartItems.some(item => {
+    const productTitle = item.product?.title || item.title || '';
+    const productHandle = item.product?.handle || '';
+    
+    // Check if product is a gift card
+    return (
+      productTitle.toLowerCase().includes('gift card') ||
+      productHandle.includes('gift-card') ||
+      productTitle.toLowerCase().includes('gift') ||
+      productHandle.includes('gift')
+    );
+  });
+}
+
+/**
+ * Validate a gift card code with Shopify
+ */
+export async function validateGiftCardCode(code, customerEmail = null) {
+  try {
+    console.log('🎁 Validating gift card code with Shopify:', code);
+    
+    // Call Shopify API to validate gift card
+    const response = await fetch('/api/shopify/validate-gift-card', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        code: code.toUpperCase(),
+        customerEmail
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || 'Gift card code is invalid',
+        isValid: false
+      };
+    }
+    
+    return {
+      success: true,
+      isValid: true,
+      isGiftCard: true,
+      balance: result.balance,
+      code: code.toUpperCase(),
+      message: result.message
+    };
+    
+  } catch (error) {
+    console.error('Error validating gift card:', error);
+    return {
+      success: false,
+      error: 'Failed to validate gift card code',
+      isValid: false
+    };
+  }
+}
 
 /**
  * Generate a unique discount code for a user
