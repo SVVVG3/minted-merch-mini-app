@@ -297,6 +297,17 @@ export async function validateDiscountCode(code, fid = null) {
       };
     }
 
+    // Check if this is a gift card code first
+    if (isGiftCardCode(code)) {
+      console.log('🎁 Code detected as gift card, redirecting to gift card validation');
+      return {
+        success: false,
+        error: 'This appears to be a gift card code, not a discount code',
+        isValid: false,
+        isGiftCard: true
+      };
+    }
+
     // 🔒 Set user context for RLS policies
     if (fid) {
       await setUserContext(fid);
