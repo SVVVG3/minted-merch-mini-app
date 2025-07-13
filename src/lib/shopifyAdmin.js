@@ -314,27 +314,7 @@ export async function createShopifyOrder(orderData) {
         
         // Add gift card transactions if present
         if (orderData.giftCards && Array.isArray(orderData.giftCards) && orderData.giftCards.length > 0) {
-          console.log('🔍 Processing gift cards for transactions:', {
-            giftCardsCount: orderData.giftCards.length,
-            giftCardsData: orderData.giftCards.map(gc => ({
-              hasCode: !!gc.code,
-              code: gc.code,
-              hasAmountUsed: !!gc.amountUsed,
-              amountUsed: gc.amountUsed,
-              balanceAfter: gc.balanceAfter
-            }))
-          });
-          
           orderData.giftCards.forEach(giftCard => {
-            console.log('🎁 Processing individual gift card:', {
-              hasCode: !!giftCard.code,
-              code: giftCard.code,
-              hasAmountUsed: !!giftCard.amountUsed,
-              amountUsed: giftCard.amountUsed,
-              amountUsedParsed: parseFloat(giftCard.amountUsed || 0),
-              willProcessTransaction: !!(giftCard.code && parseFloat(giftCard.amountUsed || 0) > 0)
-            });
-            
             if (giftCard.code && parseFloat(giftCard.amountUsed || 0) > 0) {
               const giftCardAmount = parseFloat(giftCard.amountUsed);
               totalGiftCardAmount += giftCardAmount;
@@ -415,26 +395,9 @@ export async function createShopifyOrder(orderData) {
     
     // Consume gift cards after successful order creation
     if (orderData.giftCards && Array.isArray(orderData.giftCards) && orderData.giftCards.length > 0) {
-      console.log('🎁 Processing gift card consumption for order:', order.name, {
-        giftCardsCount: orderData.giftCards.length,
-        giftCardsData: orderData.giftCards.map(gc => ({
-          hasCode: !!gc.code,
-          code: gc.code,
-          hasAmountUsed: !!gc.amountUsed,
-          amountUsed: gc.amountUsed
-        }))
-      });
+      console.log('🎁 Processing gift card consumption for order:', order.name);
       
       for (const giftCard of orderData.giftCards) {
-        console.log('🔍 Checking gift card for consumption:', {
-          hasCode: !!giftCard.code,
-          code: giftCard.code,
-          hasAmountUsed: !!giftCard.amountUsed,
-          amountUsed: giftCard.amountUsed,
-          amountUsedParsed: parseFloat(giftCard.amountUsed || 0),
-          willConsume: !!(giftCard.code && parseFloat(giftCard.amountUsed || 0) > 0)
-        });
-        
         if (giftCard.code && parseFloat(giftCard.amountUsed || 0) > 0) {
           try {
             const debitResult = await debitGiftCard(giftCard.code, parseFloat(giftCard.amountUsed));

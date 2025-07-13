@@ -32,8 +32,7 @@ export async function POST(request) {
         error: validationResult.error,
         giftCard: validationResult.giftCard ? {
           id: validationResult.giftCard.id,
-          code: code.trim(), // Return actual code for consumption
-          maskedCode: validationResult.giftCard.maskedCode, // Keep masked for display
+          code: validationResult.giftCard.maskedCode,
           balance: parseFloat(validationResult.giftCard.balance.amount),
           currency: validationResult.giftCard.balance.currencyCode,
           enabled: validationResult.giftCard.enabled,
@@ -49,8 +48,7 @@ export async function POST(request) {
       message: 'Gift card is valid and can be used',
       giftCard: {
         id: validationResult.giftCard.id,
-        code: code.trim(), // Return actual code for consumption
-        maskedCode: validationResult.giftCard.maskedCode, // Keep masked for display
+        code: validationResult.giftCard.maskedCode,
         balance: parseFloat(validationResult.giftCard.balance.amount),
         currency: validationResult.giftCard.balance.currencyCode,
         enabled: validationResult.giftCard.enabled,
@@ -116,8 +114,7 @@ export async function GET(request) {
       error: validationResult.error,
       giftCard: validationResult.giftCard ? {
         id: validationResult.giftCard.id,
-        code: code, // Return actual code for consumption
-        maskedCode: validationResult.giftCard.maskedCode, // Keep masked for display
+        code: validationResult.giftCard.maskedCode,
         balance: parseFloat(validationResult.giftCard.balance.amount),
         currency: validationResult.giftCard.balance.currencyCode,
         enabled: validationResult.giftCard.enabled,
