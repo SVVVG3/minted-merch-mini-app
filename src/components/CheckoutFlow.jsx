@@ -99,7 +99,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     return appliedDiscount.discountAmount || 0;
   };
 
-  // Helper function to calculate adjusted tax based on discount
+  // Helper function to calculate tax - taxes should be calculated on discounted subtotal (after discount codes, before gift cards)
   const calculateAdjustedTax = () => {
     if (!cart.checkout || !cart.checkout.tax) return 0;
     
@@ -109,6 +109,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     // If no original tax, return 0
     if (originalTax <= 0 || originalSubtotal <= 0) return 0;
     
+    // Calculate tax on discounted subtotal (after discount codes, before gift cards)
     const discount = calculateProductAwareDiscountAmount();
     const discountedSubtotal = originalSubtotal - discount;
     
@@ -922,7 +923,7 @@ Transaction Hash: ${transactionHash}`;
                       )}
                       {appliedGiftCard && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Gift Card ({appliedGiftCard.code})</span>
+                          <span>Gift Card (${appliedGiftCard.discount.discountAmount.toFixed(2)})</span>
                           <span>-${appliedGiftCard.discount.discountAmount.toFixed(2)}</span>
                         </div>
                       )}
@@ -1029,7 +1030,7 @@ Transaction Hash: ${transactionHash}`;
                       )}
                       {appliedGiftCard && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Gift Card ({appliedGiftCard.code})</span>
+                          <span>Gift Card (${appliedGiftCard.discount.discountAmount.toFixed(2)})</span>
                           <span>-${appliedGiftCard.discount.discountAmount.toFixed(2)}</span>
                         </div>
                       )}
@@ -1093,7 +1094,7 @@ Transaction Hash: ${transactionHash}`;
                           )}
                           {appliedGiftCard && (
                             <div className="flex justify-between text-sm text-green-600">
-                              <span>Gift Card ({appliedGiftCard.code})</span>
+                              <span>Gift Card (${appliedGiftCard.discount.discountAmount.toFixed(2)})</span>
                               <span>-${appliedGiftCard.discount.discountAmount.toFixed(2)}</span>
                             </div>
                           )}
@@ -1236,7 +1237,7 @@ Transaction Hash: ${transactionHash}`;
                       {/* Gift Card Line Item */}
                       {appliedGiftCard && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Gift Card ({appliedGiftCard.code})</span>
+                          <span>Gift Card (${appliedGiftCard.discount.discountAmount.toFixed(2)})</span>
                           <span>-${appliedGiftCard.discount.discountAmount.toFixed(2)}</span>
                         </div>
                       )}
