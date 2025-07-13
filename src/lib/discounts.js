@@ -178,19 +178,21 @@ export async function createWelcomeDiscountCode(fid) {
     console.log('Creating welcome discount code for FID:', fid);
 
     // Check if user already has a welcome discount code
-    const { data: existingCode, error: checkError } = await supabaseAdmin
+    const { data: existingCodes, error: checkError } = await supabaseAdmin
       .from('discount_codes')
       .select('*')
       .eq('fid', fid)
       .eq('code_type', 'welcome')
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+    if (checkError) {
       console.error('Error checking existing discount code:', checkError);
       return { success: false, error: checkError.message };
     }
 
-    if (existingCode) {
+    if (existingCodes && existingCodes.length > 0) {
+      const existingCode = existingCodes[0];
       console.log('User already has a welcome discount code:', existingCode.code);
       return { 
         success: true, 
