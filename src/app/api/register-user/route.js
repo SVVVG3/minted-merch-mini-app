@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { hasNotificationTokenInNeynar, sendWelcomeNotification } from '@/lib/neynar';
 import { createWelcomeDiscountCode } from '@/lib/discounts';
 import { fetchUserWalletData } from '@/lib/walletUtils';
 import { checkBankrClubMembership } from '@/lib/bankrAPI';
-import { setUserContext } from '@/lib/auth';
 import { createUserProfile } from '@/lib/supabase';
 import { fetchUserProfile } from '@/lib/neynar';
 
@@ -17,9 +16,6 @@ export async function POST(request) {
     }
 
     console.log('Registering user:', { fid, username, displayName });
-
-    // 🔒 SECURITY: Set user context for RLS policies
-    await setUserContext(fid);
 
     // Check if user has notifications enabled (check this FIRST)
     const hasNotifications = await hasNotificationTokenInNeynar(fid);
@@ -107,7 +103,7 @@ export async function POST(request) {
     }
 
     // Get existing profile to preserve farcaster_event source if it exists
-    const { data: existingProfile } = await supabase
+    const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
       .select('notification_status_source')
       .eq('fid', fid)
@@ -149,7 +145,7 @@ export async function POST(request) {
       }
     }
 
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .upsert(profileData, {
         onConflict: 'fid'
@@ -190,7 +186,7 @@ export async function POST(request) {
 
         if (notificationResult.success) {
           // Mark welcome notification as sent
-          const { error: updateError } = await supabase
+          const { error: updateError } = await supabaseAdmin
             .from('profiles')
             .update({
               welcome_notification_sent: true,
