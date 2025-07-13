@@ -23,6 +23,24 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const [appliedGiftCard, setAppliedGiftCard] = useState(null);
   const buyNowProcessed = useRef(false);
 
+  // Helper function to detect if cart contains only digital products
+  const isDigitalOnlyCart = () => {
+    return cart.items.every(item => {
+      const productTitle = item.product?.title || item.title || '';
+      const productHandle = item.product?.handle || '';
+      
+      // Check if product is a gift card or other digital product
+      return (
+        productTitle.toLowerCase().includes('gift card') ||
+        productHandle.includes('gift-card') ||
+        productTitle.toLowerCase().includes('digital') ||
+        productTitle.toLowerCase().includes('virtual') ||
+        productHandle.includes('digital') ||
+        productHandle.includes('virtual')
+      );
+    });
+  };
+
   // Handle gift card application
   const handleGiftCardApplied = (giftCard) => {
     console.log('🎁 Gift card applied to checkout:', giftCard);
@@ -211,6 +229,31 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const handleContinueToShippingMethod = async () => {
     if (!isShippingValid || !shippingData) return;
     
+    // Check if cart contains only digital products
+    const digitalOnly = isDigitalOnlyCart();
+    
+    if (digitalOnly) {
+      console.log('🎁 Digital-only cart detected, skipping shipping calculation and going to payment');
+      
+      // Save shipping data (billing address) to cart context
+      updateShipping(shippingData);
+      
+      // Create a mock checkout for digital products (no shipping, no tax for now)
+      const mockCheckout = {
+        subtotal: { amount: cartSubtotal, currencyCode: 'USD' },
+        total: { amount: cartTotal, currencyCode: 'USD' },
+        tax: { amount: 0, currencyCode: 'USD' },
+        shippingRates: [],
+        isDigitalOnly: true
+      };
+      
+      updateCheckout(mockCheckout);
+      
+      // Skip directly to payment for digital products
+      setCheckoutStep('payment');
+      return;
+    }
+    
     setIsCalculatingCheckout(true);
     setCheckoutError(null);
     
@@ -290,7 +333,9 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   };
 
   const handleBackToShippingMethod = () => {
-    setCheckoutStep('shipping-method');
+    // For digital products, go back to shipping (billing) step
+    // For physical products, go back to shipping method selection
+    setCheckoutStep(isDigitalOnlyCart() ? 'shipping' : 'shipping-method');
     setCheckoutError(null);
   };
 
@@ -688,17 +733,21 @@ Transaction Hash: ${transactionHash}`;
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold">
-                    {checkoutStep === 'shipping' && 'Shipping Information'}
+                    {checkoutStep === 'shipping' && (isDigitalOnlyCart() ? 'Billing Information' : 'Shipping Information')}
                     {checkoutStep === 'shipping-method' && 'Select Shipping Method'}
                     {checkoutStep === 'payment' && 'Complete Payment'}
                     {checkoutStep === 'success' && 'Order Confirmed!'}
                   </h2>
                   <div className="flex items-center space-x-1 mt-1">
                     <div className={`w-2 h-2 rounded-full ${checkoutStep === 'shipping' ? 'bg-[#3eb489]' : 'bg-gray-300'}`}></div>
-                    <span className="text-xs text-gray-500">Address</span>
-                    <div className="w-3 h-px bg-gray-300"></div>
-                    <div className={`w-2 h-2 rounded-full ${checkoutStep === 'shipping-method' ? 'bg-[#3eb489]' : 'bg-gray-300'}`}></div>
-                    <span className="text-xs text-gray-500">Shipping</span>
+                    <span className="text-xs text-gray-500">{isDigitalOnlyCart() ? 'Billing' : 'Address'}</span>
+                    {!isDigitalOnlyCart() && (
+                      <>
+                        <div className="w-3 h-px bg-gray-300"></div>
+                        <div className={`w-2 h-2 rounded-full ${checkoutStep === 'shipping-method' ? 'bg-[#3eb489]' : 'bg-gray-300'}`}></div>
+                        <span className="text-xs text-gray-500">Shipping</span>
+                      </>
+                    )}
                     <div className="w-3 h-px bg-gray-300"></div>
                     <div className={`w-2 h-2 rounded-full ${checkoutStep === 'payment' ? 'bg-[#3eb489]' : 'bg-gray-300'}`}></div>
                     <span className="text-xs text-gray-500">Payment</span>
@@ -773,7 +822,9 @@ Transaction Hash: ${transactionHash}`;
                       </div>
                     </div>
                     <div className="text-sm text-gray-600">
-                      {appliedDiscount?.freeShipping ? (
+                      {isDigitalOnlyCart() ? (
+                        <span className="text-blue-600 font-medium">🎁 Digital products - no shipping required!</span>
+                      ) : appliedDiscount?.freeShipping ? (
                         <span className="text-green-600 font-medium">Free shipping included! Taxes will be calculated in the next step</span>
                       ) : (
                         'Shipping and taxes will be calculated in the next step'
@@ -802,7 +853,8 @@ Transaction Hash: ${transactionHash}`;
                     disabled={!isShippingValid || isCalculatingCheckout}
                     className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
                   >
-                    {isCalculatingCheckout ? 'Calculating shipping & taxes...' : 'Continue to Shipping Options'}
+                    {isCalculatingCheckout ? 'Calculating shipping & taxes...' : 
+                     isDigitalOnlyCart() ? 'Continue to Payment' : 'Continue to Shipping Options'}
                   </button>
                 </>
               )}
@@ -993,7 +1045,7 @@ Transaction Hash: ${transactionHash}`;
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
-                    Back to Shipping Method
+                    {isDigitalOnlyCart() ? 'Back to Billing Information' : 'Back to Shipping Method'}
                   </button>
 
                   {/* Shipping Summary */}

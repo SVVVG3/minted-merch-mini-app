@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { setSystemContext } from '@/lib/auth';
 
 const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
@@ -7,6 +8,9 @@ const SHOPIFY_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/api/2024-07/gra
 
 export async function POST(request) {
   try {
+    // 🔧 Set system context to bypass RLS policies for product sync
+    await setSystemContext();
+    
     if (!SHOPIFY_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
       return NextResponse.json({
         success: false,
