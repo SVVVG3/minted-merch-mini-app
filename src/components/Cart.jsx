@@ -50,11 +50,41 @@ export function Cart({ isOpen, onClose }) {
         return;
       }
 
-      console.log('🛒 Evaluating best discount for current cart contents...');
+      // Helper function to check if item is a gift card
+      const isGiftCardItem = (item) => {
+        const productTitle = item.product?.title || item.title || '';
+        const productHandle = item.product?.handle || '';
+        
+        return (
+          productTitle.toLowerCase().includes('gift card') ||
+          productHandle.includes('gift-card')
+        );
+      };
+
+      // Filter cart to get only non-gift-card items for discount evaluation
+      const discountEligibleItems = cart.items.filter(item => !isGiftCardItem(item));
+      const hasGiftCards = cart.items.some(item => isGiftCardItem(item));
+
+      if (discountEligibleItems.length === 0) {
+        console.log('🎁 Cart contains only gift cards - skipping discount evaluation');
+        // Clear any existing auto-applied discount if cart now contains only gift cards
+        if (cart.appliedDiscount) {
+          console.log('🗑️ Removing existing discount - cart contains only gift cards');
+          removeDiscount();
+          sessionStorage.removeItem('activeDiscountCode');
+        }
+        return;
+      }
+
+      if (hasGiftCards) {
+        console.log('🎁 Cart contains mixed items - evaluating discounts for non-gift-card items only');
+      } else {
+        console.log('🛒 Evaluating best discount for current cart contents...');
+      }
       
-      // Get all unique product handles in cart
-      const productHandles = [...new Set(cart.items.map(item => item.product?.handle).filter(Boolean))];
-      console.log('🔍 Products in cart:', productHandles);
+      // Get all unique product handles for discount-eligible items only
+      const productHandles = [...new Set(discountEligibleItems.map(item => item.product?.handle).filter(Boolean))];
+      console.log('🔍 Discount-eligible products in cart:', productHandles);
       
       // Check if current applied discount is still valid for current cart
       const appliedDiscount = cart.appliedDiscount;
