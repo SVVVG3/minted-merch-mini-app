@@ -46,13 +46,47 @@ export async function POST(request) {
       });
     }
 
-    // This is a discount code - check if cart contains gift cards
-    if (cartItems && cartContainsGiftCards(cartItems)) {
-      console.log('🚫 Cart contains gift cards, blocking discount application');
-      return NextResponse.json({
-        success: false,
-        error: 'Discount codes cannot be applied to gift cards'
-      }, { status: 400 });
+    // This is a discount code - check if cart contains only gift cards
+    if (cartItems && cartItems.length > 0) {
+      // Helper function to check if item is a gift card
+      const isGiftCardItem = (item) => {
+        const productTitle = item.product?.title || item.title || '';
+        const productHandle = item.product?.handle || '';
+        
+        return (
+          productTitle.toLowerCase().includes('gift card') ||
+          productHandle.includes('gift-card')
+        );
+      };
+
+      // Filter cart to get only non-gift-card items
+      const discountEligibleItems = cartItems.filter(item => !isGiftCardItem(item));
+      const hasGiftCards = cartItems.some(item => isGiftCardItem(item));
+
+      if (discountEligibleItems.length === 0) {
+        console.log('🚫 Cart contains only gift cards, blocking discount application');
+        return NextResponse.json({
+          success: false,
+          error: 'Discount codes cannot be applied to gift cards'
+        }, { status: 400 });
+      }
+
+      if (hasGiftCards) {
+        console.log('🎁 Cart contains mixed items - validating discount for eligible items only');
+        
+        // Calculate subtotal for discount-eligible items only
+        const discountEligibleSubtotal = discountEligibleItems.reduce((total, item) => {
+          const price = parseFloat(item.price || 0);
+          const quantity = parseInt(item.quantity || 1);
+          return total + (price * quantity);
+        }, 0);
+
+        // Update subtotal to only include eligible items
+        if (discountEligibleSubtotal > 0 && discountEligibleSubtotal < subtotal) {
+          console.log(`📊 Adjusting subtotal from $${subtotal} to $${discountEligibleSubtotal} (eligible items only)`);
+          subtotal = discountEligibleSubtotal;
+        }
+      }
     }
 
     // 🔒 SECURITY: Set user context for RLS policies  

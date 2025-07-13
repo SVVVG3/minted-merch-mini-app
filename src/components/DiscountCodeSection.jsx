@@ -196,14 +196,7 @@ export function DiscountCodeSection({
       return;
     }
     
-    // Calculate subtotal for discount-eligible items only
-    const discountEligibleSubtotal = discountEligibleItems.reduce((total, item) => {
-      const price = parseFloat(item.price || 0);
-      const quantity = parseInt(item.quantity || 1);
-      return total + (price * quantity);
-    }, 0);
-
-    if (discountEligibleSubtotal <= 0) {
+    if (subtotal <= 0) {
       setDiscountError('Please add eligible items to cart first');
       return;
     }
