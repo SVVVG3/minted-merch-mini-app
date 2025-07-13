@@ -279,11 +279,11 @@ export async function createShopifyOrder(orderData) {
         
         // Add gift card information if present
         if (orderData.giftCards && Array.isArray(orderData.giftCards) && orderData.giftCards.length > 0) {
-          const usedGiftCards = orderData.giftCards.filter(gc => gc.code && parseFloat(gc.amountUsed || 0) > 0);
+          const usedGiftCards = orderData.giftCards.filter(gc => parseFloat(gc.amountUsed || 0) > 0);
           if (usedGiftCards.length > 0) {
             orderNotes += '\n\n--- GIFT CARDS USED ---';
             usedGiftCards.forEach(gc => {
-              orderNotes += `\nGift Card: ${gc.code} - Amount Used: $${parseFloat(gc.amountUsed).toFixed(2)}`;
+              orderNotes += `\nGift Card Used - Amount: $${parseFloat(gc.amountUsed).toFixed(2)}`;
               if (gc.balanceAfter !== undefined) {
                 orderNotes += ` (Balance After: $${parseFloat(gc.balanceAfter).toFixed(2)})`;
               }
@@ -315,11 +315,11 @@ export async function createShopifyOrder(orderData) {
         // Add gift card transactions if present
         if (orderData.giftCards && Array.isArray(orderData.giftCards) && orderData.giftCards.length > 0) {
           orderData.giftCards.forEach(giftCard => {
-            if (giftCard.code && parseFloat(giftCard.amountUsed || 0) > 0) {
+            if (parseFloat(giftCard.amountUsed || 0) > 0) {
               const giftCardAmount = parseFloat(giftCard.amountUsed);
               totalGiftCardAmount += giftCardAmount;
               
-              // Add gift card transaction
+              // Add gift card transaction with generic gateway name when code is missing
               transactions.push({
                 kind: 'SALE',
                 status: 'SUCCESS',
@@ -329,7 +329,7 @@ export async function createShopifyOrder(orderData) {
                     currencyCode: 'USD'
                   }
                 },
-                gateway: `Gift Card (${giftCard.code})`
+                gateway: giftCard.code ? `Gift Card (${giftCard.code})` : 'Gift Card Payment'
               });
             }
           });
