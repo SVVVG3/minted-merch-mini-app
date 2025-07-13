@@ -342,8 +342,8 @@ async function checkNftHolding(discount, userWalletAddresses) {
       requiredBalance
     );
 
-    const eligible = zapperResult.hasRequiredNfts;
-    const totalFound = zapperResult.totalBalance;
+    const eligible = zapperResult.eligible;
+    const totalFound = zapperResult.totalNfts;
 
     return {
       eligible,
@@ -355,10 +355,10 @@ async function checkNftHolding(discount, userWalletAddresses) {
         found_balance: totalFound,
         contracts_checked: contractAddresses,
         chains_checked: chainIds,
-        collection_details: zapperResult.collectionBalances || [],
+        collection_details: zapperResult.collectionDetails || [],
         zapper_result: zapperResult
       },
-      blockchainCalls: zapperResult.apiCalls || 1
+      blockchainCalls: 1
     };
 
   } catch (error) {
