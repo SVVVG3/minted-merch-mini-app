@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { setSystemContext } from './auth';
+import { setUserContext } from './auth';
 
 
 /**
@@ -172,8 +172,10 @@ export async function validateDiscountCode(code, fid = null) {
       };
     }
 
-    // 🔧 SYSTEM ACCESS: Set system context to access all discount codes
-    await setSystemContext();
+    // 🔒 Set user context for RLS policies
+    if (fid) {
+      await setUserContext(fid);
+    }
 
     // Get discount code from database
     const { data: discountCode, error: fetchError } = await supabase
@@ -514,16 +516,16 @@ export async function getUserAvailableDiscounts(fid, includeUsed = false) {
   try {
     console.log('Getting available discount codes for FID:', fid, 'includeUsed:', includeUsed);
 
-    if (!fid || typeof fid !== 'number') {
-      return { 
+        if (!fid || typeof fid !== 'number') {
+      return {
         success: false, 
         error: 'Valid FID is required',
         discountCodes: []
       };
     }
 
-    // 🔧 SYSTEM ACCESS: Set system context to access all discount codes
-    await setSystemContext();
+    // 🔒 Set user context for RLS policies
+    await setUserContext(fid);
 
     // Build query conditions - get user's codes AND global/shared codes
     let query = supabase

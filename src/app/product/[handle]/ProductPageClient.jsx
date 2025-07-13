@@ -16,45 +16,62 @@ export function ProductPageClient({ handle }) {
   
   const { user: farcasterUser, isInFarcaster, isReady } = useFarcaster();
 
-
-  // Removed initial fetch - we wait for user context to load discounts properly
-
-  // Fetch product with discount data when user context is ready
+  // Fetch product immediately on mount (without discounts)
   useEffect(() => {
-    if (isReady) { // Wait for Farcaster context to be fully loaded/checked
-      console.log('🔄 Farcaster context ready, fetching product with discount data...');
-      fetchProduct();
-    }
-  }, [isReady]);
+    fetchProductBasic();
+  }, []);
 
-  const fetchProduct = async () => {
+  // Check for discounts when Farcaster context is ready
+  useEffect(() => {
+    if (isReady && product) {
+      console.log('🔄 Farcaster context ready, checking for discounts...');
+      checkForDiscounts();
+    }
+  }, [isReady, product]);
+
+  const fetchProductBasic = async () => {
     try {
-      // Debug: Log the Farcaster user context
-      console.log('🔍 Farcaster user context:', farcasterUser);
-      console.log('🔍 User FID available:', farcasterUser?.fid);
+      console.log(`🛍️ Fetching basic product data: ${handle}`);
       
-      // Build API URL - include FID if user is available for discount checking
-      const apiUrl = `/api/shopify/products?handle=${handle}${farcasterUser?.fid ? `&fid=${farcasterUser.fid}` : ''}`;
-      
-      console.log(`🛍️ Fetching product with discounts: ${handle}${farcasterUser?.fid ? ` (FID: ${farcasterUser.fid})` : ''}`);
-      console.log('🔍 API URL:', apiUrl);
-      
-      const response = await fetch(apiUrl);
+      // Fetch product without FID (no discount checking)
+      const response = await fetch(`/api/shopify/products?handle=${handle}`);
       const productData = await response.json();
       
       if (!response.ok) {
         throw new Error(productData.error || 'Failed to load product');
       }
       
-      console.log('🎁 Product loaded:', productData.title);
-      console.log('- Shopify ID:', productData.id);
-      console.log('- Supabase ID:', productData.supabaseId);
-      console.log('🔍 Available discounts data:', productData.availableDiscounts);
+      console.log('🎁 Basic product loaded:', productData.title);
+      setProduct(productData);
       
-      // Check if discounts were found
-      if (productData.availableDiscounts?.best) {
-        const bestDiscount = productData.availableDiscounts.best;
-        console.log(`🎯 Best discount found: ${bestDiscount.code} (${bestDiscount.displayText}, scope: ${bestDiscount.discount_scope || bestDiscount.scope})`);
+      if (productData.variants?.edges?.length > 0) {
+        setSelectedVariant(productData.variants.edges[0].node);
+      }
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      setError('Failed to load product. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkForDiscounts = async () => {
+    if (!farcasterUser?.fid || !product?.supabaseId) {
+      console.log('❌ Cannot check discounts: missing FID or Supabase product ID');
+      return;
+    }
+
+    try {
+      setDiscountLoading(true);
+      console.log(`🎁 Checking discounts for product: ${product.title} (FID: ${farcasterUser.fid})`);
+      
+      // Fetch product again with FID for discount checking
+      const response = await fetch(`/api/shopify/products?handle=${handle}&fid=${farcasterUser.fid}`);
+      const productWithDiscounts = await response.json();
+      
+      if (response.ok && productWithDiscounts.availableDiscounts?.best) {
+        const bestDiscount = productWithDiscounts.availableDiscounts.best;
+        console.log(`🎯 Best discount found: ${bestDiscount.code} (${bestDiscount.displayText})`);
         
         // Set product discount for display
         setProductDiscount({
@@ -83,27 +100,15 @@ export function ProductPageClient({ handle }) {
           description: bestDiscount.description,
           discount_description: bestDiscount.discount_description
         }));
-        
-      } else if (farcasterUser?.fid) {
+      } else {
         console.log('❌ No discounts found for this product/user combination');
       }
-      
-      setProduct(productData);
-      
-      if (productData.variants?.edges?.length > 0) {
-        setSelectedVariant(productData.variants.edges[0].node);
-      }
     } catch (error) {
-      console.error('Error fetching product:', error);
-      setError('Failed to load product. Please try again.');
+      console.error('Error checking discounts:', error);
     } finally {
-      setLoading(false);
+      setDiscountLoading(false);
     }
   };
-
-  // No longer needed - discount checking is now handled by the enhanced API
-
-
 
   if (loading) {
     return (
@@ -129,16 +134,14 @@ export function ProductPageClient({ handle }) {
     );
   }
 
-
-
-      return (
-      <ProductDetail
-        product={product}
-        handle={handle}
-        selectedVariant={selectedVariant}
-        onVariantChange={setSelectedVariant}
-        productDiscount={productDiscount}
-        discountLoading={discountLoading}
-      />
-    );
+  return (
+    <ProductDetail
+      product={product}
+      handle={handle}
+      selectedVariant={selectedVariant}
+      onVariantChange={setSelectedVariant}
+      productDiscount={productDiscount}
+      discountLoading={discountLoading}
+    />
+  );
 } 
