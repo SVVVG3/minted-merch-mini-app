@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getUserOrders } from '@/lib/orders';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // Helper function to extract variant ID from Shopify GraphQL ID
 function extractVariantId(graphqlId) {
@@ -159,16 +159,11 @@ export async function GET(request) {
 
     console.log('🔍 Fetching orders for FID:', fid, 'limit:', limit, 'includeArchived:', includeArchived);
 
-    // 🔒 SECURITY: Set user context for RLS policies
-    await supabase.rpc('set_config', {
-      parameter: 'app.user_fid', 
-      value: fid.toString()
-    });
-
-    // Get orders from database - now uses RLS policies based on the set context
-    let query = supabase
+    // Get orders from database using admin client
+    let query = supabaseAdmin
       .from('orders')
       .select('*')
+      .eq('fid', fid)
       .order('created_at', { ascending: false })
       .limit(limit);
 

@@ -39,7 +39,7 @@ export async function validateDiscountForOrder(discountCode, fid, subtotal, cart
     }
 
     // Double-check that the code hasn't been used (race condition protection)
-    const { data: discountCodeData, error: fetchError } = await supabase
+    const { data: discountCodeData, error: fetchError } = await supabaseAdmin
       .from('discount_codes')
       .select('is_used, used_at, order_id')
       .eq('code', discountCode.toUpperCase())
@@ -248,7 +248,7 @@ export async function createOrder(orderData) {
           if (giftCard.code && giftCard.amountUsed > 0) {
             // First, try to get the gift card ID from our database
             let giftCardId = null;
-            const { data: giftCardData, error: giftCardError } = await supabase
+            const { data: giftCardData, error: giftCardError } = await supabaseAdmin
               .from('gift_cards')
               .select('id')
               .eq('code', giftCard.code.toUpperCase())
@@ -259,7 +259,7 @@ export async function createOrder(orderData) {
             }
             
             // Record gift card usage
-            const { error: usageError } = await supabase
+            const { error: usageError } = await supabaseAdmin
               .from('gift_card_usage')
               .insert({
                 gift_card_id: giftCardId, // May be null if gift card not in our database
@@ -541,7 +541,7 @@ export async function cancelOrder(orderId, cancelReason = 'cancelled_in_shopify'
   try {
     console.log(`Cancelling order ${orderId} with reason: ${cancelReason}`);
 
-    const { data: order, error } = await supabase
+    const { data: order, error } = await supabaseAdmin
       .from('orders')
       .update({
         status: 'cancelled',
@@ -606,7 +606,7 @@ export async function archiveOrder(orderId, archiveReason = 'archived_in_shopify
  */
 export async function getUserOrders(fid, limit = 50, includeArchived = false) {
   try {
-    let query = supabase
+    let query = supabaseAdmin
       .from('orders')
       .select('*')
       .eq('fid', fid)
@@ -664,7 +664,7 @@ export async function getOrder(orderId) {
 export async function getOrdersNeedingNotifications() {
   try {
     // Get paid orders that haven't had confirmation sent
-    const { data: confirmationNeeded, error: confirmError } = await supabase
+    const { data: confirmationNeeded, error: confirmError } = await supabaseAdmin
       .from('orders')
       .select('*')
       .eq('status', 'paid')
@@ -675,7 +675,7 @@ export async function getOrdersNeedingNotifications() {
     }
 
     // Get shipped orders that haven't had shipping notification sent
-    const { data: shippingNeeded, error: shippingError } = await supabase
+    const { data: shippingNeeded, error: shippingError } = await supabaseAdmin
       .from('orders')
       .select('*')
       .eq('status', 'shipped')
@@ -704,7 +704,7 @@ export async function getDiscountUsageStats(fid = null) {
   try {
     console.log('Getting discount usage statistics for FID:', fid);
 
-    let ordersQuery = supabase
+    let ordersQuery = supabaseAdmin
       .from('orders')
       .select('discount_code, discount_amount, discount_percentage, amount_total, amount_subtotal, created_at, status');
 
@@ -769,7 +769,7 @@ export async function hasUserUsedDiscounts(fid) {
   try {
     console.log('Checking if user has used discount codes:', fid);
 
-    const { data: orders, error } = await supabase
+    const { data: orders, error } = await supabaseAdmin
       .from('orders')
       .select('discount_code')
       .eq('fid', fid)
@@ -803,7 +803,7 @@ export async function checkDiscountUsageConflict(discountCode, excludeOrderId = 
   try {
     console.log('Checking for discount usage conflicts:', { discountCode, excludeOrderId });
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('orders')
       .select('order_id, status, created_at, fid')
       .eq('discount_code', discountCode.toUpperCase());
