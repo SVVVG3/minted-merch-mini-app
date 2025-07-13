@@ -86,24 +86,65 @@ export async function validateGiftCardCode(code, customerEmail = null) {
     // Clean the code - remove spaces and convert to uppercase
     const cleanCode = code.replace(/\s+/g, '').toUpperCase();
     
-    // Call Shopify API to validate gift card
-    const response = await fetch('/api/shopify/validate-gift-card', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        code: cleanCode,
-        customerEmail
-      })
-    });
+    // Use Shopify REST API to validate gift card directly
+    const shopDomain = process.env.SHOPIFY_SHOP_DOMAIN;
+    const accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
     
-    const result = await response.json();
-    
-    if (!result.success) {
+    if (!shopDomain || !accessToken) {
+      console.error('Missing Shopify credentials');
       return {
         success: false,
-        error: result.error || 'Gift card code is invalid',
+        error: 'Gift card validation unavailable',
+        isValid: false
+      };
+    }
+    
+    const url = `https://${shopDomain}/admin/api/2024-10/gift_cards.json?code=${cleanCode}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-Shopify-Access-Token': accessToken,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.error('Shopify REST API error:', response.status, response.statusText);
+      return {
+        success: false,
+        error: 'Gift card not found or invalid code',
+        isValid: false
+      };
+    }
+    
+    const data = await response.json();
+    
+    if (!data.gift_cards || data.gift_cards.length === 0) {
+      console.log('Gift card not found in Shopify');
+      return {
+        success: false,
+        error: 'Gift card not found or invalid code',
+        isValid: false
+      };
+    }
+    
+    const giftCard = data.gift_cards[0];
+    
+    // Check if gift card is enabled
+    if (giftCard.disabled_at !== null) {
+      return {
+        success: false,
+        error: 'Gift card is disabled',
+        isValid: false
+      };
+    }
+    
+    // Check if gift card has expired
+    if (giftCard.expires_on && new Date(giftCard.expires_on) < new Date()) {
+      return {
+        success: false,
+        error: 'Gift card has expired',
         isValid: false
       };
     }
@@ -112,9 +153,10 @@ export async function validateGiftCardCode(code, customerEmail = null) {
       success: true,
       isValid: true,
       isGiftCard: true,
-      balance: result.balance,
+      balance: parseFloat(giftCard.balance),
+      currency: giftCard.currency,
       code: cleanCode,
-      message: result.message
+      message: 'Gift card is valid'
     };
     
   } catch (error) {

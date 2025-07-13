@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { shopifyAdminFetch } from '@/lib/shopifyAdmin';
 
 export async function POST(request) {
   try {
@@ -14,125 +13,69 @@ export async function POST(request) {
 
     console.log('🎁 Validating gift card code:', code);
 
-    // Query Shopify for gift card information
-    const query = `
-      query getGiftCard($code: String!) {
-        giftCard(id: "gid://shopify/GiftCard/\${code}") {
-          id
-          code
-          balance {
-            amount
-            currencyCode
-          }
-          initialValue {
-            amount
-            currencyCode
-          }
-          enabled
-          expiresOn
-          lastCharacters
-          order {
-            id
-            name
-          }
-          customer {
-            email
-            firstName
-            lastName
-          }
-          createdAt
-          updatedAt
-        }
-      }
-    `;
-
-    // Alternative query if direct ID doesn't work - search by code
-    const searchQuery = `
-      query searchGiftCardsByCode($query: String!) {
-        giftCards(first: 5, query: $query) {
-          edges {
-            node {
-              id
-              code
-              balance {
-                amount
-                currencyCode
-              }
-              initialValue {
-                amount
-                currencyCode
-              }
-              enabled
-              expiresOn
-              lastCharacters
-              order {
-                id
-                name
-              }
-              customer {
-                email
-                firstName
-                lastName
-              }
-              createdAt
-              updatedAt
-            }
-          }
-        }
-      }
-    `;
-
-    let giftCardData = null;
+    // Clean the code - remove spaces and convert to uppercase
+    const cleanCode = code.replace(/\s+/g, '').toUpperCase();
     
-    try {
-      // First try direct lookup
-      const directResult = await shopifyAdminFetch(query, { code });
-      giftCardData = directResult.data?.giftCard;
-    } catch (error) {
-      console.log('Direct lookup failed, trying search:', error.message);
+    // Use Shopify REST API to validate gift card
+    const shopDomain = process.env.SHOPIFY_SHOP_DOMAIN;
+    const accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
+    
+    if (!shopDomain || !accessToken) {
+      console.error('Missing Shopify credentials');
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Gift card validation unavailable' 
+      }, { status: 500 });
     }
-
-    // If direct lookup failed, try search
-    if (!giftCardData) {
-      try {
-        const searchResult = await shopifyAdminFetch(searchQuery, { 
-          query: `code:${code}` 
-        });
-        
-        const giftCards = searchResult.data?.giftCards?.edges || [];
-        if (giftCards.length > 0) {
-          giftCardData = giftCards[0].node;
-        }
-      } catch (error) {
-        console.log('Search lookup also failed:', error.message);
+    
+    const url = `https://${shopDomain}/admin/api/2024-10/gift_cards.json?code=${cleanCode}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-Shopify-Access-Token': accessToken,
+        'Content-Type': 'application/json'
       }
-    }
-
-    if (!giftCardData) {
-      return NextResponse.json({
-        success: false,
-        error: 'Gift card not found or invalid code'
-      }, { status: 404 });
-    }
-
-    // Check if gift card is enabled
-    if (!giftCardData.enabled) {
-      return NextResponse.json({
-        success: false,
-        error: 'This gift card is disabled'
+    });
+    
+    if (!response.ok) {
+      console.error('Shopify REST API error:', response.status, response.statusText);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Gift card not found or invalid code' 
       }, { status: 400 });
     }
-
+    
+    const data = await response.json();
+    
+    if (!data.gift_cards || data.gift_cards.length === 0) {
+      console.log('Gift card not found in Shopify');
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Gift card not found or invalid code' 
+      }, { status: 400 });
+    }
+    
+    const giftCard = data.gift_cards[0];
+    
+    // Check if gift card is enabled
+    if (giftCard.disabled_at !== null) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Gift card is disabled' 
+      }, { status: 400 });
+    }
+    
     // Check if gift card has expired
-    if (giftCardData.expiresOn && new Date(giftCardData.expiresOn) < new Date()) {
-      return NextResponse.json({
-        success: false,
-        error: 'This gift card has expired'
+    if (giftCard.expires_on && new Date(giftCard.expires_on) < new Date()) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Gift card has expired' 
       }, { status: 400 });
     }
 
     // Check if gift card has balance
-    const balance = parseFloat(giftCardData.balance.amount);
+    const balance = parseFloat(giftCard.balance);
     if (balance <= 0) {
       return NextResponse.json({
         success: false,
@@ -141,9 +84,9 @@ export async function POST(request) {
     }
 
     console.log('✅ Gift card validation successful:', {
-      code: giftCardData.code,
+      code: giftCard.code,
       balance: balance,
-      lastCharacters: giftCardData.lastCharacters
+      lastCharacters: giftCard.last_characters
     });
 
     return NextResponse.json({
@@ -151,11 +94,11 @@ export async function POST(request) {
       isValid: true,
       isGiftCard: true,
       balance: balance,
-      currency: giftCardData.balance.currencyCode,
-      code: giftCardData.code,
-      lastCharacters: giftCardData.lastCharacters,
-      initialValue: parseFloat(giftCardData.initialValue.amount),
-      expiresOn: giftCardData.expiresOn,
+      currency: giftCard.currency,
+      code: giftCard.code,
+      lastCharacters: giftCard.last_characters,
+      initialValue: parseFloat(giftCard.initial_value),
+      expiresOn: giftCard.expires_on,
       message: `Gift card has $${balance} remaining balance`
     });
 

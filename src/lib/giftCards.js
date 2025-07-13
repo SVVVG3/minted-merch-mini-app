@@ -42,7 +42,7 @@ export async function createShopifyGiftCard(amount, note = null, expiresAt = nul
   return result.data.giftCardCreate;
 }
 
-// Validate gift card by code - using Shopify API validation
+// Validate gift card by code - using Shopify REST API validation
 export async function validateGiftCard(code) {
   console.log('🔍 Validating gift card:', code);
   
@@ -50,45 +50,58 @@ export async function validateGiftCard(code) {
     // Clean the code - remove spaces and convert to uppercase
     const cleanCode = code.replace(/\s+/g, '').toUpperCase();
     
-    // Use Shopify API to validate gift card
-    const query = `
-      query giftCardByCode($code: String!) {
-        giftCardByCode(code: $code) {
-          id
-          maskedCode
-          balance {
-            amount
-            currencyCode
-          }
-          enabled
-          createdAt
-          expiresAt
-          note
-        }
-      }
-    `;
+    // Use Shopify REST API to validate gift card
+    const shopDomain = process.env.SHOPIFY_SHOP_DOMAIN;
+    const accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
     
-    const variables = { code: cleanCode };
-    
-    const result = await shopifyAdminFetch(query, variables);
-    
-    if (result.errors) {
-      console.error('Shopify API error:', result.errors);
+    if (!shopDomain || !accessToken) {
+      console.error('Missing Shopify credentials');
       return null;
     }
     
-    const giftCard = result.data.giftCardByCode;
+    const url = `https://${shopDomain}/admin/api/2024-10/gift_cards.json?code=${cleanCode}`;
     
-    if (!giftCard) {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-Shopify-Access-Token': accessToken,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.error('Shopify REST API error:', response.status, response.statusText);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (!data.gift_cards || data.gift_cards.length === 0) {
       console.log('Gift card not found in Shopify');
       return null;
     }
     
-    console.log('✅ Gift card found in Shopify:', giftCard);
-    return giftCard;
+    const giftCard = data.gift_cards[0];
+    
+    // Return in GraphQL-style format for compatibility
+    const formattedGiftCard = {
+      id: `gid://shopify/GiftCard/${giftCard.id}`,
+      maskedCode: giftCard.masked_code,
+      balance: {
+        amount: giftCard.balance.toString(),
+        currencyCode: giftCard.currency
+      },
+      enabled: giftCard.disabled_at === null,
+      createdAt: giftCard.created_at,
+      expiresAt: giftCard.expires_on,
+      note: giftCard.note
+    };
+    
+    console.log('✅ Gift card found in Shopify via REST:', formattedGiftCard);
+    return formattedGiftCard;
     
   } catch (error) {
-    console.error('Error validating gift card with Shopify:', error);
+    console.error('Error validating gift card with Shopify REST API:', error);
     return null;
   }
 }
