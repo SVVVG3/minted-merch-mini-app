@@ -42,30 +42,55 @@ export async function createShopifyGiftCard(amount, note = null, expiresAt = nul
   return result.data.giftCardCreate;
 }
 
-// Validate gift card by code - using database lookup since GraphQL query is not available
+// Validate gift card by code - using Shopify API validation
 export async function validateGiftCard(code) {
   console.log('🔍 Validating gift card:', code);
   
-  // First check if we have this gift card in our database
-  const dbGiftCard = await getGiftCardFromDatabase(code);
-  
-  if (!dbGiftCard) {
-    console.log('Gift card not found in database');
+  try {
+    // Clean the code - remove spaces and convert to uppercase
+    const cleanCode = code.replace(/\s+/g, '').toUpperCase();
+    
+    // Use Shopify API to validate gift card
+    const query = `
+      query giftCardByCode($code: String!) {
+        giftCardByCode(code: $code) {
+          id
+          maskedCode
+          balance {
+            amount
+            currencyCode
+          }
+          enabled
+          createdAt
+          expiresAt
+          note
+        }
+      }
+    `;
+    
+    const variables = { code: cleanCode };
+    
+    const result = await shopifyAdminFetch(query, variables);
+    
+    if (result.errors) {
+      console.error('Shopify API error:', result.errors);
+      return null;
+    }
+    
+    const giftCard = result.data.giftCardByCode;
+    
+    if (!giftCard) {
+      console.log('Gift card not found in Shopify');
+      return null;
+    }
+    
+    console.log('✅ Gift card found in Shopify:', giftCard);
+    return giftCard;
+    
+  } catch (error) {
+    console.error('Error validating gift card with Shopify:', error);
     return null;
   }
-  
-  // Return a mock Shopify-style object with the data we have
-  return {
-    id: dbGiftCard.shopify_id,
-    maskedCode: dbGiftCard.code,
-    balance: {
-      amount: dbGiftCard.current_balance.toString(),
-      currencyCode: dbGiftCard.currency_code
-    },
-    enabled: dbGiftCard.status === 'active',
-    createdAt: dbGiftCard.created_at,
-    note: dbGiftCard.note
-  };
 }
 
 // Get gift card balance

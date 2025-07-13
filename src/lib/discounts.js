@@ -31,6 +31,9 @@ export function isGiftCardCode(code) {
     return false;
   }
   
+  // Remove spaces and dashes for gift card pattern matching
+  const cleanCode = upperCode.replace(/[\s-]/g, '');
+  
   // Gift card patterns:
   // - All numeric (e.g., "1234567890123456")
   // - Mix of letters and numbers without dashes (e.g., "ABCD1234EFGH5678")
@@ -39,10 +42,18 @@ export function isGiftCardCode(code) {
     /^\d{8,20}$/,                    // All numeric, 8-20 digits
     /^[A-Z0-9]{8,20}$/,              // Alphanumeric, 8-20 chars, no dashes
     /^[A-Z]{4}\d{4}[A-Z]{4}\d{4}$/,  // Pattern like ABCD1234EFGH5678
-    /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/,  // XXXX-XXXX-XXXX-XXXX
   ];
   
-  return giftCardPatterns.some(pattern => pattern.test(upperCode));
+  // Also check for common gift card formats with spaces or dashes
+  const giftCardFormats = [
+    /^[A-Z0-9]{4}\s[A-Z0-9]{4}\s[A-Z0-9]{4}\s[A-Z0-9]{4}$/,  // XXXX XXXX XXXX XXXX
+    /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/,     // XXXX-XXXX-XXXX-XXXX
+    /^[A-Z0-9]{3}\s[A-Z0-9]{1}\s[A-Z0-9]{4}\s[A-Z0-9]{4}\s[A-Z0-9]{4}$/,  // XXX X XXXX XXXX XXXX
+  ];
+  
+  // Check both cleaned code and formatted code
+  return giftCardPatterns.some(pattern => pattern.test(cleanCode)) || 
+         giftCardFormats.some(pattern => pattern.test(upperCode));
 }
 
 /**
@@ -72,6 +83,9 @@ export async function validateGiftCardCode(code, customerEmail = null) {
   try {
     console.log('🎁 Validating gift card code with Shopify:', code);
     
+    // Clean the code - remove spaces and convert to uppercase
+    const cleanCode = code.replace(/\s+/g, '').toUpperCase();
+    
     // Call Shopify API to validate gift card
     const response = await fetch('/api/shopify/validate-gift-card', {
       method: 'POST',
@@ -79,7 +93,7 @@ export async function validateGiftCardCode(code, customerEmail = null) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        code: code.toUpperCase(),
+        code: cleanCode,
         customerEmail
       })
     });
@@ -99,7 +113,7 @@ export async function validateGiftCardCode(code, customerEmail = null) {
       isValid: true,
       isGiftCard: true,
       balance: result.balance,
-      code: code.toUpperCase(),
+      code: cleanCode,
       message: result.message
     };
     
