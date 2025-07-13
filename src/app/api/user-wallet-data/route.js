@@ -3,6 +3,7 @@
 
 import { NextResponse } from 'next/server';
 import { fetchUserWalletData } from '@/lib/walletUtils';
+import { setUserContext } from '@/lib/auth';
 
 export async function GET(request) {
   try {
@@ -17,10 +18,7 @@ export async function GET(request) {
     }
 
     // 🔒 SECURITY: Set user context for RLS policies
-    await supabase.rpc('set_config', {
-      parameter: 'app.user_fid', 
-      value: fid.toString()
-    });
+    await setUserContext(parseInt(fid));
 
     // Fetch wallet data using server-side function
     const walletData = await fetchUserWalletData(parseInt(fid));
