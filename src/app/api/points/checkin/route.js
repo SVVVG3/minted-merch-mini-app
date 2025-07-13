@@ -1,7 +1,6 @@
 // API endpoint for daily check-ins
 import { performDailyCheckin, canCheckInToday, getUserLeaderboardData } from '../../../../lib/points.js';
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
 
 export async function POST(request) {
   try {
@@ -16,12 +15,6 @@ export async function POST(request) {
     }
 
     console.log(`🎯 Daily check-in attempt for FID: ${userFid}, timezone: ${timezone || 'not provided'}`);
-
-    // 🔒 SECURITY: Set user context for RLS policies
-    await supabase.rpc('set_config', {
-      parameter: 'app.user_fid', 
-      value: userFid.toString()
-    });
 
     // Perform daily check-in
     const result = await performDailyCheckin(userFid);

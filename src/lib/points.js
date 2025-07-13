@@ -15,7 +15,7 @@ import {
  */
 export async function getUserLeaderboardData(userFid) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('user_leaderboard')
       .select('*')
       .eq('user_fid', userFid)
@@ -40,7 +40,7 @@ export async function getUserLeaderboardData(userFid) {
  */
 export async function initializeUserLeaderboard(userFid) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('user_leaderboard')
       .insert({
         user_fid: userFid,
@@ -192,7 +192,7 @@ export async function performDailyCheckin(userFid) {
 
     // Update user leaderboard with PST check-in day
     const checkInDay = getCurrentCheckInDay();
-    const { data: updatedData, error } = await supabase
+    const { data: updatedData, error } = await supabaseAdmin
       .from('user_leaderboard')
       .update({
         total_points: userData.total_points + finalPoints,
@@ -377,7 +377,7 @@ export async function addPurchasePoints(userFid, orderTotal, orderId) {
  */
 export async function getLeaderboard(limit = 10, category = 'points') {
   try {
-    let query = supabase
+    let query = supabaseAdmin
       .from('user_leaderboard')
       .select('user_fid, total_points, checkin_streak, last_checkin_date, total_orders, total_spent, points_from_purchases, points_from_checkins, created_at')
       .limit(limit);
@@ -452,7 +452,7 @@ export async function getUserLeaderboardPosition(userFid) {
     }
 
     // Count users with more points
-    const { count, error } = await supabase
+    const { count, error } = await supabaseAdmin
       .from('user_leaderboard')
       .select('user_fid', { count: 'exact' })
       .gt('total_points', userData.total_points);
@@ -500,7 +500,7 @@ export async function getUserLeaderboardPosition(userFid) {
  */
 export async function syncPurchaseTracking(userFid = null) {
   try {
-    let query = supabase
+    let query = supabaseAdmin
       .from('orders')
       .select('fid, amount_total')
       .in('status', ['paid', 'shipped']); // Count both paid and shipped orders
@@ -538,7 +538,7 @@ export async function syncPurchaseTracking(userFid = null) {
       const pointsFromPurchases = Math.floor(stats.totalSpent * 5.0);
 
       // Check if user exists in leaderboard, if not create them
-      const { data: existingUser } = await supabase
+      const { data: existingUser } = await supabaseAdmin
         .from('user_leaderboard')
         .select('user_fid, total_points')
         .eq('user_fid', userFidNum)
@@ -548,7 +548,7 @@ export async function syncPurchaseTracking(userFid = null) {
 
       if (!existingUser) {
         // Create new leaderboard entry for users who have orders but haven't checked in
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
           .from('user_leaderboard')
           .insert({
             user_fid: userFidNum,
@@ -562,7 +562,7 @@ export async function syncPurchaseTracking(userFid = null) {
         leaderboardError = error;
       } else {
         // Update existing leaderboard entry
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
           .from('user_leaderboard')
           .update({
             total_orders: stats.totalOrders,
@@ -575,7 +575,7 @@ export async function syncPurchaseTracking(userFid = null) {
       }
 
       // Update profiles  
-      const { error: profileError } = await supabase
+      const { error: profileError } = await supabaseAdmin
         .from('profiles')
         .update({
           total_orders: stats.totalOrders,
@@ -669,7 +669,7 @@ export async function logPointTransaction({
  */
 export async function getUserPointTransactions(userFid, limit = 50, transactionType = null) {
   try {
-    let query = supabase
+    let query = supabaseAdmin
       .from('point_transactions')
       .select('*')
       .eq('user_fid', userFid)
@@ -702,7 +702,7 @@ export async function getUserPointTransactions(userFid, limit = 50, transactionT
  */
 export async function getUserPointTransactionStats(userFid) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('point_transactions')
       .select('transaction_type, points_earned')
       .eq('user_fid', userFid);
