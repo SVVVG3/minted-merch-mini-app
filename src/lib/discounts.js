@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { setUserContext, setSystemContext } from './auth';
+import { setUserContext } from './auth';
 
 /**
  * Check if a code looks like a gift card code (vs discount code)

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { setSystemContext } from '@/lib/auth';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
@@ -8,8 +7,7 @@ const SHOPIFY_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/api/2024-07/gra
 
 export async function POST(request) {
   try {
-    // 🔧 Set system context to bypass RLS policies for product sync
-    await setSystemContext();
+    // Use supabaseAdmin for system operations (no context needed)
     
     if (!SHOPIFY_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
       return NextResponse.json({
@@ -160,7 +158,7 @@ async function syncAllProducts(force = false) {
     for (let i = 0; i < productsToUpsert.length; i += batchSize) {
       const batch = productsToUpsert.slice(i, i + batchSize);
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('products')
         .upsert(batch, { 
           onConflict: 'handle',
@@ -182,7 +180,7 @@ async function syncAllProducts(force = false) {
     if (force) {
       const currentHandles = productsToUpsert.map(p => p.handle);
       
-      const { data: deletedProducts, error: deleteError } = await supabase
+      const { data: deletedProducts, error: deleteError } = await supabaseAdmin
         .from('products')
         .delete()
         .not('handle', 'in', `(${currentHandles.map(h => `'${h}'`).join(',')})`)
@@ -298,7 +296,7 @@ async function syncSingleProduct(handle) {
       synced_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('products')
       .upsert(productData, { onConflict: 'handle' })
       .select('*');
@@ -339,7 +337,7 @@ export async function GET(request) {
 
   if (action === 'status') {
     try {
-      const { data: productCount, error } = await supabase
+      const { data: productCount, error } = await supabaseAdmin
         .from('products')
         .select('id', { count: 'exact', head: true });
 
@@ -347,7 +345,7 @@ export async function GET(request) {
         throw error;
       }
 
-      const { data: recentSync, error: syncError } = await supabase
+      const { data: recentSync, error: syncError } = await supabaseAdmin
         .from('products')
         .select('synced_at')
         .order('synced_at', { ascending: false })
