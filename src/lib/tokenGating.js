@@ -517,9 +517,9 @@ async function checkBankrClubGating(discount, fid) {
       };
     }
 
-    // 🔧 Set user context for RLS access to own profile
-    const { setUserContext } = await import('./auth.js');
-    await setUserContext(fid);
+    // 🔧 CRITICAL: Set system context to access user profiles  
+    const { setSystemContext } = await import('./auth.js');
+    await setSystemContext();
 
     // Fetch user profile to check Bankr Club membership status
     const { data: profile, error } = await supabase
@@ -670,9 +670,9 @@ export async function getEligibleAutoApplyDiscounts(fid, userWalletAddresses = [
       return [];
     }
 
-    // 🔧 Set user context for proper RLS access
-    const { setUserContext } = await import('./auth.js');
-    await setUserContext(fid);
+    // 🔧 CRITICAL: Set system context to access all auto-apply discounts
+    const { setSystemContext } = await import('./auth.js');
+    await setSystemContext();
 
     // Build query to fetch auto-apply discounts that haven't expired
     let query = supabase

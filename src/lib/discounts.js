@@ -522,9 +522,8 @@ export async function getUserAvailableDiscounts(fid, includeUsed = false) {
       };
     }
 
-    // 🔧 Set user context for RLS access to user and shared codes
-    const { setUserContext } = await import('./auth.js');
-    await setUserContext(fid);
+    // 🔧 SYSTEM ACCESS: Set system context to access all discount codes
+    await setSystemContext();
 
     // Build query conditions - get user's codes AND global/shared codes
     let query = supabase
