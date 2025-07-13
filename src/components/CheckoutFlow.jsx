@@ -575,11 +575,23 @@ Transaction Hash: ${transactionHash}`;
         appliedGiftCard: appliedGiftCard, // Include gift card information (for display)
         giftCardAmount: appliedGiftCard?.discount?.discountAmount || 0,
         // Format gift cards array for database tracking
-        giftCards: appliedGiftCard ? [{
-          code: appliedGiftCard.code,
-          amountUsed: appliedGiftCard.discount?.discountAmount || 0,
-          balanceAfter: appliedGiftCard.balance?.amount || 0
-        }] : []
+        giftCards: appliedGiftCard ? (() => {
+          console.log('🔍 DEBUG: Applied gift card structure:', {
+            fullObject: appliedGiftCard,
+            hasCode: !!appliedGiftCard.code,
+            code: appliedGiftCard.code,
+            hasDiscount: !!appliedGiftCard.discount,
+            discountAmount: appliedGiftCard.discount?.discountAmount,
+            hasBalance: !!appliedGiftCard.balance,
+            balanceAmount: appliedGiftCard.balance?.amount
+          });
+          
+          return [{
+            code: appliedGiftCard.code,
+            amountUsed: appliedGiftCard.discount?.discountAmount || 0,
+            balanceAfter: appliedGiftCard.balance?.amount || 0
+          }];
+        })() : []
       };
 
       const response = await fetch('/api/shopify/orders', {
