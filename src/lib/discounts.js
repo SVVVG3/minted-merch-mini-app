@@ -1,5 +1,4 @@
-import { supabase } from './supabase';
-import { setUserContext } from './auth';
+import { supabaseAdmin } from './supabase';
 
 /**
  * Check if a code looks like a gift card code (vs discount code)
@@ -44,16 +43,7 @@ export function isGiftCardCode(code) {
     /^[A-Z]{4}\d{4}[A-Z]{4}\d{4}$/,  // Pattern like ABCD1234EFGH5678
   ];
   
-  // Also check for common gift card formats with spaces or dashes
-  const giftCardFormats = [
-    /^[A-Z0-9]{4}\s[A-Z0-9]{4}\s[A-Z0-9]{4}\s[A-Z0-9]{4}$/,  // XXXX XXXX XXXX XXXX
-    /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/,     // XXXX-XXXX-XXXX-XXXX
-    /^[A-Z0-9]{3}\s[A-Z0-9]{1}\s[A-Z0-9]{4}\s[A-Z0-9]{4}\s[A-Z0-9]{4}$/,  // XXX X XXXX XXXX XXXX
-  ];
-  
-  // Check both cleaned code and formatted code
-  return giftCardPatterns.some(pattern => pattern.test(cleanCode)) || 
-         giftCardFormats.some(pattern => pattern.test(upperCode));
+  return giftCardPatterns.some(pattern => pattern.test(cleanCode));
 }
 
 /**
@@ -188,7 +178,7 @@ export async function createWelcomeDiscountCode(fid) {
     console.log('Creating welcome discount code for FID:', fid);
 
     // Check if user already has a welcome discount code
-    const { data: existingCode, error: checkError } = await supabase
+    const { data: existingCode, error: checkError } = await supabaseAdmin
       .from('discount_codes')
       .select('*')
       .eq('fid', fid)
@@ -220,7 +210,7 @@ export async function createWelcomeDiscountCode(fid) {
       attempts++;
 
       // Check if code already exists
-      const { data: duplicateCheck } = await supabase
+      const { data: duplicateCheck } = await supabaseAdmin
         .from('discount_codes')
         .select('id')
         .eq('code', code)
@@ -247,7 +237,7 @@ export async function createWelcomeDiscountCode(fid) {
       minimum_order_amount: null // No minimum for welcome codes
     };
 
-    const { data: newCode, error: createError } = await supabase
+    const { data: newCode, error: createError } = await supabaseAdmin
       .from('discount_codes')
       .insert(discountData)
       .select()
@@ -277,7 +267,7 @@ export async function createWelcomeDiscountCode(fid) {
  */
 async function hasUserUsedSharedCode(discountCodeId, fid) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('discount_code_usage')
       .select('id')
       .eq('discount_code_id', discountCodeId)
@@ -304,7 +294,7 @@ async function hasUserUsedSharedCode(discountCodeId, fid) {
  */
 async function getDiscountUsageCount(discountCodeId) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('discount_code_usage')
       .select('id')
       .eq('discount_code_id', discountCodeId);
@@ -350,13 +340,8 @@ export async function validateDiscountCode(code, fid = null) {
       };
     }
 
-    // 🔒 Set user context for RLS policies
-    if (fid) {
-      await setUserContext(fid);
-    }
-
     // Get discount code from database
-    const { data: discountCode, error: fetchError } = await supabase
+    const { data: discountCode, error: fetchError } = await supabaseAdmin
       .from('discount_codes')
       .select('*')
       .eq('code', code.toUpperCase())
@@ -524,7 +509,7 @@ export function calculateDiscountAmount(subtotal, discountCode, shippingAmount =
  */
 async function recordSharedCodeUsage(discountCode, fid, orderId, discountAmount, originalSubtotal) {
   try {
-    const { data: usageRecord, error: insertError } = await supabase
+    const { data: usageRecord, error: insertError } = await supabaseAdmin
       .from('discount_code_usage')
       .insert({
         discount_code_id: discountCode.id,
@@ -561,7 +546,7 @@ export async function markDiscountCodeAsUsed(code, orderId, fid = null, discount
     console.log('Marking discount code as used:', code, 'for order:', orderId, 'FID:', fid);
 
     // First, get the discount code to check if it's shared
-    const { data: discountCode, error: fetchError } = await supabase
+    const { data: discountCode, error: fetchError } = await supabaseAdmin
       .from('discount_codes')
       .select('*')
       .eq('code', code.toUpperCase())
@@ -600,7 +585,7 @@ export async function markDiscountCodeAsUsed(code, orderId, fid = null, discount
       console.log('👤 Marking user-specific code as used:', code);
       
       // For user-specific codes, use the original logic
-      const { data: updatedCode, error: updateError } = await supabase
+      const { data: updatedCode, error: updateError } = await supabaseAdmin
         .from('discount_codes')
         .update({
           is_used: true,
@@ -633,7 +618,7 @@ export async function getUserDiscountCodes(fid, includeUsed = false) {
   try {
     console.log('Getting discount codes for FID:', fid, 'includeUsed:', includeUsed);
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('discount_codes')
       .select('*')
       .eq('fid', fid)
@@ -663,7 +648,7 @@ export async function getUserDiscountCodes(fid, includeUsed = false) {
  */
 export async function hasUnusedWelcomeDiscount(fid) {
   try {
-    const { data: codes, error } = await supabase
+    const { data: codes, error } = await supabaseAdmin
       .from('discount_codes')
       .select('code')
       .eq('fid', fid)
@@ -702,11 +687,8 @@ export async function getUserAvailableDiscounts(fid, includeUsed = false) {
       };
     }
 
-    // 🔒 Set user context for RLS policies
-    await setUserContext(fid);
-
-    // Build query conditions - get user's codes AND global/shared codes
-    let query = supabase
+    // Get user's codes AND global/shared codes
+    let query = supabaseAdmin
       .from('discount_codes')
       .select('*')
       .or(`fid.eq.${fid},fid.is.null,is_shared_code.eq.true`)
@@ -888,7 +870,7 @@ export async function getBestAvailableDiscount(fid, scope = 'site_wide', product
  */
 export async function hasDiscountOfType(fid, codeType = 'welcome') {
   try {
-    const { data: codes, error } = await supabase
+    const { data: codes, error } = await supabaseAdmin
       .from('discount_codes')
       .select('code, is_used, expires_at')
       .eq('fid', fid)

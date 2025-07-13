@@ -150,12 +150,6 @@ export async function POST(request) {
 
     console.log('Creating new discount code:', { fid, codeType, discountValue, discountType });
 
-    // 🔒 SECURITY: Set user context for RLS policies
-    await supabase.rpc('set_config', {
-      parameter: 'app.user_fid', 
-      value: fid.toString()
-    });
-
     // For now, we'll use the existing createWelcomeDiscountCode function
     // In the future, this could be expanded to create other types of codes
     if (codeType === 'welcome') {
