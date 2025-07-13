@@ -8,6 +8,9 @@ export async function GET(request) {
   try {
     console.log('🔍 Checking how many users would receive evening notifications...');
     
+    // Set system admin context at the very beginning  
+    await setSystemContext();
+    
     // Get current status
     const currentTime = formatPSTTime();
     const currentCheckInDay = getCurrentCheckInDay();
@@ -39,9 +42,6 @@ export async function GET(request) {
     }
     
     // Get total enabled users for comparison
-    // Set system admin context to read all profiles
-    await setSystemContext();
-    
     const { data: totalUsers, error: totalError } = await supabase
       .from('profiles')
       .select('fid', { count: 'exact' })
