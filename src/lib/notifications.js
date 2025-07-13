@@ -1,10 +1,9 @@
 // Daily check-in notification system
 // Handles sending reminders at 8 AM PST every day
 
-import { supabase } from './supabase.js';
+import { supabase, supabaseAdmin } from './supabase.js';
 import { sendNotificationWithNeynar } from './neynar.js';
 import { getCurrentPSTTime, formatPSTTime, isNotificationTime, isEveningNotificationTime } from './timezone.js';
-import { setSystemContext } from './auth.js';
 
 /**
  * Get all users who have notifications enabled and haven't checked in today
@@ -12,11 +11,11 @@ import { setSystemContext } from './auth.js';
  */
 export async function getUsersNeedingCheckInReminders() {
   try {
-    // Set system admin context to read all profiles
-    await setSystemContext();
+    // Use supabaseAdmin to bypass RLS for system operations
+    const adminClient = supabaseAdmin || supabase;
     
     // Get all users who have notifications enabled
-    const { data: profilesData, error: profilesError } = await supabase
+    const { data: profilesData, error: profilesError } = await adminClient
       .from('profiles')
       .select('fid')
       .eq('has_notifications', true);
@@ -31,12 +30,14 @@ export async function getUsersNeedingCheckInReminders() {
       return [];
     }
 
+    console.log(`Found ${profilesData.length} users with notifications enabled`);
+
     // Get current check-in day
     const { getCurrentCheckInDay } = await import('./timezone.js');
     const currentCheckInDay = getCurrentCheckInDay();
 
     // Get users who haven't checked in today
-    const { data: leaderboardData, error: leaderboardError } = await supabase
+    const { data: leaderboardData, error: leaderboardError } = await adminClient
       .from('user_leaderboard')
       .select('user_fid, last_checkin_date')
       .in('user_fid', profilesData.map(p => p.fid));
@@ -59,8 +60,8 @@ export async function getUsersNeedingCheckInReminders() {
       return userLeaderboard.last_checkin_date !== currentCheckInDay;
     });
 
-    console.log(`Found ${usersNeedingReminders.length} users needing check-in reminders`);
-    return usersNeedingReminders.map(user => user.fid);
+    console.log(`${usersNeedingReminders.length} users need check-in reminders`);
+    return usersNeedingReminders.map(u => u.fid);
 
   } catch (error) {
     console.error('Error in getUsersNeedingCheckInReminders:', error);
