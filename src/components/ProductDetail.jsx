@@ -352,10 +352,10 @@ export function ProductDetail({
             
             {/* Product-Specific Discount Display */}
             {discountLoading && (
-              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mt-3 p-3 bg-[#3eb489]/10 border border-[#3eb489]/20 rounded-lg">
                 <div className="flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  <span className="text-sm text-blue-700">Checking for special discounts...</span>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#3eb489]"></div>
+                  <span className="text-sm text-[#3eb489] font-medium">Checking for special discounts...</span>
                 </div>
               </div>
             )}
