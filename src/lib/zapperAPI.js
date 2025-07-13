@@ -61,38 +61,26 @@ export async function checkNftHoldingsWithZapper(walletAddresses, contractAddres
       chainIds: chainIds
     };
 
-    // Add timeout protection to prevent hanging requests
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+    const response = await fetch(ZAPPER_GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${Buffer.from(ZAPPER_API_KEY + ':').toString('base64')}`
+      },
+      body: JSON.stringify({
+        query,
+        variables
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Zapper API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
     
-    try {
-      const response = await fetch(ZAPPER_GRAPHQL_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${Buffer.from(ZAPPER_API_KEY + ':').toString('base64')}`
-        },
-        body: JSON.stringify({
-          query,
-          variables
-        }),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`Zapper API error: ${response.status} ${response.statusText}`);
-      }
-
-          const data = await response.json();
-      
-      if (data.errors) {
-        throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
-      }
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      throw fetchError;
+    if (data.errors) {
+      throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
     }
 
     // Process the NFT balance data
@@ -198,38 +186,26 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
       chainIds: chainIds
     };
 
-    // Add timeout protection to prevent hanging requests  
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
-    
-    try {
-      const response = await fetch(ZAPPER_GRAPHQL_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${Buffer.from(ZAPPER_API_KEY + ':').toString('base64')}`
-        },
-        body: JSON.stringify({
-          query,
-          variables
-        }),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
+    const response = await fetch(ZAPPER_GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${Buffer.from(ZAPPER_API_KEY + ':').toString('base64')}`
+      },
+      body: JSON.stringify({
+        query,
+        variables
+      })
+    });
 
-      if (!response.ok) {
-        throw new Error(`Zapper API error: ${response.status} ${response.statusText}`);
-      }
+    if (!response.ok) {
+      throw new Error(`Zapper API error: ${response.status} ${response.statusText}`);
+    }
 
-      const data = await response.json();
+    const data = await response.json();
     
     if (data.errors) {
       throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
-    }
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      throw fetchError;
     }
 
     // Process the token balance data
@@ -339,38 +315,26 @@ export async function getPortfolioSummaryWithZapper(walletAddresses, chainIds = 
       chainIds: chainIds
     };
 
-    // Add timeout protection to prevent hanging requests  
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+    const response = await fetch(ZAPPER_GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${Buffer.from(ZAPPER_API_KEY + ':').toString('base64')}`
+      },
+      body: JSON.stringify({
+        query,
+        variables
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Zapper API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
     
-    try {
-      const response = await fetch(ZAPPER_GRAPHQL_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${Buffer.from(ZAPPER_API_KEY + ':').toString('base64')}`
-        },
-        body: JSON.stringify({
-          query,
-          variables
-        }),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`Zapper API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.errors) {
-        throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
-      }
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      throw fetchError;
+    if (data.errors) {
+      throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
     }
 
     const portfolio = data.data?.portfolioV2;
