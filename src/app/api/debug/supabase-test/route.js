@@ -3,7 +3,8 @@ import { setSystemContext } from '@/lib/auth';
 import { 
   testSupabaseConnection, 
   getAllProfiles, 
-  getProfileCount 
+  getProfileCount,
+  supabase
 } from '@/lib/supabase';
 import { 
   fetchNotificationTokensFromNeynar, 
@@ -114,6 +115,124 @@ export async function GET(request) {
       if (isNeynarAvailable()) {
         const notificationStatus = await getNotificationStatus(userFidInt);
         results.neynarStatus = notificationStatus;
+      }
+    }
+
+    // Test discount codes with system context
+    if (testType === 'discounts') {
+      console.log('Testing discount codes with system context...');
+      
+      // 🔧 ADMIN ACCESS: Set system context for debug operations
+      await setSystemContext();
+      
+      try {
+        // Get all discounts
+        const { data: allDiscounts, error: allError } = await supabase
+          .from('discount_codes')
+          .select('id, code, discount_type, discount_value, gating_type, auto_apply, discount_scope, created_at, expires_at')
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (allError) {
+          console.error('Error fetching discounts:', allError);
+          results.discounts = { error: allError.message };
+        } else {
+          results.discounts = {
+            count: allDiscounts.length,
+            codes: allDiscounts
+          };
+        }
+
+        // Get auto-apply discounts specifically
+        const { data: autoApplyDiscounts, error: autoError } = await supabase
+          .from('discount_codes')
+          .select('*')
+          .eq('auto_apply', true)
+          .order('priority_level', { ascending: false });
+
+        if (autoError) {
+          console.error('Error fetching auto-apply discounts:', autoError);
+          results.autoApplyDiscounts = { error: autoError.message };
+        } else {
+          results.autoApplyDiscounts = {
+            count: autoApplyDiscounts.length,
+            codes: autoApplyDiscounts
+          };
+        }
+
+        // Get token-gated discounts
+        const { data: tokenGatedDiscounts, error: tokenError } = await supabase
+          .from('discount_codes')
+          .select('*')
+          .neq('gating_type', 'none')
+          .order('priority_level', { ascending: false });
+
+        if (tokenError) {
+          console.error('Error fetching token-gated discounts:', tokenError);
+          results.tokenGatedDiscounts = { error: tokenError.message };
+        } else {
+          results.tokenGatedDiscounts = {
+            count: tokenGatedDiscounts.length,
+            codes: tokenGatedDiscounts
+          };
+        }
+
+      } catch (error) {
+        console.error('Error in discount test:', error);
+        results.discounts = { error: error.message };
+      }
+    }
+
+    // Recreate user profile
+    if (testType === 'recreate_profile' && userFid) {
+      console.log('Recreating user profile for FID:', userFid);
+      const userFidInt = parseInt(userFid);
+      
+      // 🔧 ADMIN ACCESS: Set system context for debug operations
+      await setSystemContext();
+      
+      try {
+        // First check if profile exists
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('fid', userFidInt)
+          .single();
+
+        if (existingProfile) {
+          results.recreateProfile = {
+            status: 'profile_already_exists',
+            profile: existingProfile
+          };
+        } else {
+          // Create new profile with default values
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert({
+              fid: userFidInt,
+              username: `user_${userFidInt}`, // Default username
+              display_name: `User ${userFidInt}`,
+              has_notifications: false,
+              bankr_club_member: false, // Default to false, will be updated by registration flow
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('Error creating profile:', createError);
+            results.recreateProfile = { error: createError.message };
+          } else {
+            results.recreateProfile = {
+              status: 'profile_created',
+              profile: newProfile
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Error in recreate profile:', error);
+        results.recreateProfile = { error: error.message };
       }
     }
 
