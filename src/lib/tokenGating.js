@@ -1,5 +1,5 @@
 // Token-gating utility functions for discount eligibility
-import { supabase } from './supabase';
+import { supabaseAdmin } from './supabase';
 
 /**
  * Convert Shopify product IDs to Supabase products table IDs
@@ -8,33 +8,32 @@ async function convertShopifyIdsToSupabaseIds(shopifyIds) {
   if (!shopifyIds || shopifyIds.length === 0) {
     return [];
   }
-  
-  if (!supabase) {
+
+  if (!supabaseAdmin) {
     console.warn('⚠️ Supabase not available, cannot convert product IDs');
     return [];
   }
-  
+
   try {
-    // Extract just the numeric part from GraphQL IDs if needed
+    // Convert Shopify product IDs to a format we can search for
     const cleanIds = shopifyIds.map(id => {
-      if (typeof id === 'string' && id.startsWith('gid://shopify/Product/')) {
-        return id.split('/').pop();
+      if (typeof id === 'string' && id.includes('gid://shopify/Product/')) {
+        return id.split('/').pop(); // Extract the numeric ID
       }
       return id.toString();
     });
-    
+
     console.log(`🔄 Converting Shopify IDs to Supabase IDs: ${JSON.stringify(cleanIds)}`);
     
-    const { data: products, error } = await supabase
+    const { data: products, error } = await supabaseAdmin
       .from('products')
-      .select('id, shopify_id, shopify_graphql_id, handle, title')
+      .select('id, shopify_id')
       .in('shopify_id', cleanIds);
-    
+
     if (error) {
-      console.error('❌ Error fetching products for ID conversion:', error);
-      return [];
+      throw error;
     }
-    
+
     const supabaseIds = (products || []).map(p => p.id);
     console.log(`✅ Converted to Supabase IDs: ${JSON.stringify(supabaseIds)}`);
     
@@ -49,30 +48,29 @@ async function convertShopifyIdsToSupabaseIds(shopifyIds) {
  * Get Supabase product ID by handle (for easy discount creation)
  */
 export async function getProductIdByHandle(handle) {
-  if (!supabase) {
+  if (!supabaseAdmin) {
     console.warn('⚠️ Supabase not available, cannot get product ID');
     return null;
   }
-  
+
   try {
-    const { data: product, error } = await supabase
+    const { data: product, error } = await supabaseAdmin
       .from('products')
-      .select('id, handle, title')
+      .select('id')
       .eq('handle', handle)
       .single();
-    
+
     if (error) {
       if (error.code === 'PGRST116') {
-        console.log(`❌ Product with handle "${handle}" not found`);
+        console.warn(`Product not found for handle: ${handle}`);
         return null;
       }
       throw error;
     }
-    
-    console.log(`✅ Found product "${product.title}" with ID ${product.id} for handle "${handle}"`);
-    return product.id;
+
+    return product?.id || null;
   } catch (error) {
-    console.error(`❌ Error getting product ID for handle "${handle}":`, error);
+    console.error(`Error getting product ID for handle ${handle}:`, error);
     return null;
   }
 }
@@ -207,12 +205,12 @@ async function checkBasicDiscountEligibility(discount, fid) {
   }
 
   // Check user-specific usage limits
-  if (discount.max_uses_per_user && supabase) {
+  if (discount.max_uses_per_user && supabaseAdmin) {
     let userUsageCount = 0;
     
     if (discount.is_shared_code) {
       // For shared codes, check usage in discount_code_usage table
-      const { data: sharedUsage, error } = await supabase
+      const { data: sharedUsage, error } = await supabaseAdmin
         .from('discount_code_usage')
         .select('id')
         .eq('discount_code_id', discount.id)
@@ -225,7 +223,7 @@ async function checkBasicDiscountEligibility(discount, fid) {
       }
     } else {
       // For user-specific codes, check usage in discount_codes table
-      const { data: userUsage, error } = await supabase
+      const { data: userUsage, error } = await supabaseAdmin
         .from('discount_codes')
         .select('id')
         .eq('fid', fid)
@@ -500,7 +498,7 @@ async function checkBankrClubGating(discount, fid) {
   try {
     console.log('🏛️ Checking Bankr Club membership eligibility for FID:', fid);
     
-    if (!supabase) {
+    if (!supabaseAdmin) {
       console.warn('⚠️ Supabase not available for Bankr Club check');
       return {
         eligible: false,
@@ -522,7 +520,7 @@ async function checkBankrClubGating(discount, fid) {
     await setUserContext(fid);
 
     // Fetch user profile to check Bankr Club membership status
-    const { data: profile, error } = await supabase
+    const { data: profile, error } = await supabaseAdmin
       .from('profiles')
       .select('bankr_club_member, x_username, bankr_membership_updated_at')
       .eq('fid', fid)
@@ -629,7 +627,7 @@ async function checkTokenBalancePlaceholder(walletAddresses, contractAddresses, 
  */
 async function logEligibilityCheck(discountCodeId, fid, walletAddress, result, metadata) {
   try {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('discount_eligibility_checks')
       .insert({
         discount_code_id: discountCodeId,
@@ -665,17 +663,13 @@ export async function getEligibleAutoApplyDiscounts(fid, userWalletAddresses = [
   try {
     console.log('🎯 Getting eligible auto-apply discounts for FID:', fid);
 
-    if (!supabase) {
+    if (!supabaseAdmin) {
       console.log('⚠️ Supabase not available, using mock data');
       return [];
     }
 
-    // 🔒 Set user context for RLS policies
-    const { setUserContext } = await import('./auth.js');
-    await setUserContext(fid);
-
     // Build query to fetch auto-apply discounts that haven't expired
-    let query = supabase
+    let query = supabaseAdmin
       .from('discount_codes')
       .select('*')
       .eq('auto_apply', true)
@@ -696,7 +690,7 @@ export async function getEligibleAutoApplyDiscounts(fid, userWalletAddresses = [
     
     const { data: autoApplyDiscounts, error } = await query
       .order('priority_level', { ascending: false }) // Higher priority first
-      .order('discount_value', { ascending: false }); // Higher value first
+      .order('discount_value', { ascending: false });
 
     if (error) {
       console.error('Error fetching auto-apply discounts:', error);
@@ -815,7 +809,7 @@ async function doesDiscountMatchScope(discount, productScope, productIds = []) {
       
       try {
         // Convert Supabase product IDs to handles for legacy comparison
-        const { data: products, error } = await supabase
+        const { data: products, error } = await supabaseAdmin
           .from('products')
           .select('id, handle')
           .in('id', productIds);
@@ -862,7 +856,7 @@ async function doesDiscountMatchScope(discount, productScope, productIds = []) {
  * Create example token-gated discounts (for testing/admin)
  */
 export async function createExampleTokenGatedDiscounts() {
-  if (!supabase) {
+  if (!supabaseAdmin) {
     console.log('⚠️ Supabase not available, cannot create example discounts');
     return [];
   }
@@ -930,7 +924,7 @@ export async function createExampleTokenGatedDiscounts() {
   
   for (const example of examples) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('discount_codes')
         .insert({
           ...example,
