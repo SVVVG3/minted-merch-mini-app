@@ -329,10 +329,7 @@ export async function createShopifyOrder(orderData) {
                     currencyCode: 'USD'
                   }
                 },
-                gateway: `Gift Card (${giftCard.code})`,
-                paymentDetails: {
-                  giftCardCode: giftCard.code
-                }
+                gateway: `Gift Card (${giftCard.code})`
               });
             }
           });
