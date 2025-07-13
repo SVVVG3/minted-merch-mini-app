@@ -629,7 +629,9 @@ export async function logPointTransaction({
   metadata = {}
 }) {
   try {
-    const { data, error } = await supabase
+    // Use admin client for system operations that log transactions
+    const adminClient = supabaseAdmin || supabase;
+    const { data, error } = await adminClient
       .from('point_transactions')
       .insert({
         user_fid: userFid,

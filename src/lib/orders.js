@@ -348,8 +348,9 @@ export async function updateOrderStatus(orderId, newStatus, additionalData = {})
       updateData.delivered_at = new Date().toISOString();
     }
 
-    // Update the order
-    const { data: order, error } = await supabase
+    // Update the order - use admin client for system operations (webhooks)
+    const adminClient = supabaseAdmin || supabase;
+    const { data: order, error } = await adminClient
       .from('orders')
       .update(updateData)
       .eq('order_id', orderId)
@@ -424,8 +425,9 @@ export async function sendOrderConfirmationNotificationAndMark(order) {
     );
 
     if (notificationResult.success) {
-      // Mark notification as sent
-      const { error } = await supabase
+      // Mark notification as sent - use admin client for system operations
+      const adminClient = supabaseAdmin || supabase;
+      const { error } = await adminClient
         .from('orders')
         .update({
           order_confirmation_sent: true,
@@ -467,8 +469,9 @@ export async function sendShippingNotificationAndMark(order) {
     );
 
     if (notificationResult.success) {
-      // Mark notification as sent
-      const { error } = await supabase
+      // Mark notification as sent - use admin client for system operations
+      const adminClient = supabaseAdmin || supabase;
+      const { error } = await adminClient
         .from('orders')
         .update({
           shipping_notification_sent: true,
@@ -498,7 +501,9 @@ export async function addTrackingInfo(orderId, trackingData) {
   try {
     console.log(`Adding tracking info to order ${orderId}:`, trackingData);
 
-    const { data: order, error } = await supabase
+    // Use admin client for system operations (webhooks)
+    const adminClient = supabaseAdmin || supabase;
+    const { data: order, error } = await adminClient
       .from('orders')
       .update({
         tracking_number: trackingData.trackingNumber,
@@ -568,7 +573,9 @@ export async function archiveOrder(orderId, archiveReason = 'archived_in_shopify
   try {
     console.log(`Archiving order ${orderId} with reason: ${archiveReason}`);
 
-    const { data: order, error } = await supabase
+    // Use admin client for system operations (webhooks)
+    const adminClient = supabaseAdmin || supabase;
+    const { data: order, error } = await adminClient
       .from('orders')
       .update({
         archived_at: new Date().toISOString(),
