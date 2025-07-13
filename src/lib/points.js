@@ -1,7 +1,7 @@
 // Points system utility functions for daily check-in system
 // Handles check-ins, point awards, streaks, and leaderboard operations
 
-import { supabase } from './supabase.js';
+import { supabase, supabaseAdmin } from './supabase.js';
 import { 
   getCurrentCheckInDay, 
   canCheckInTodayPST, 
@@ -279,8 +279,9 @@ export async function addPurchasePoints(userFid, orderTotal, orderId) {
       }
     }
 
-    // Update user leaderboard with purchase tracking
-    const { data: updatedData, error } = await supabase
+    // Update user leaderboard with purchase tracking  
+    const adminClient = supabaseAdmin || supabase;
+    const { data: updatedData, error } = await adminClient
       .from('user_leaderboard')
       .update({
         total_points: userData.total_points + points,
@@ -301,17 +302,28 @@ export async function addPurchasePoints(userFid, orderTotal, orderId) {
     }
 
     // Also update profiles table for purchase tracking
-    const { error: profileError } = await supabase
+    // First get current values, then increment them
+    const { data: currentProfile, error: fetchError } = await adminClient
       .from('profiles')
-      .update({
-        total_orders: supabase.raw('total_orders + 1'),
-        total_spent: supabase.raw(`total_spent + ${orderTotal}`)
-      })
-      .eq('fid', userFid);
+      .select('total_orders, total_spent')
+      .eq('fid', userFid)
+      .single();
 
-    if (profileError) {
-      console.error('Error updating profiles purchase tracking:', profileError);
-      // Don't fail the entire operation, just log the error
+    if (!fetchError && currentProfile) {
+      const { error: profileError } = await adminClient
+        .from('profiles')
+        .update({
+          total_orders: (currentProfile.total_orders || 0) + 1,
+          total_spent: (parseFloat(currentProfile.total_spent) || 0) + parseFloat(orderTotal)
+        })
+        .eq('fid', userFid);
+
+      if (profileError) {
+        console.error('Error updating profiles purchase tracking:', profileError);
+        // Don't fail the entire operation, just log the error
+      }
+    } else {
+      console.error('Error fetching current profile for purchase tracking:', fetchError);
     }
 
     // Log the point transaction
