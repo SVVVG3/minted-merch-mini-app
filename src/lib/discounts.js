@@ -87,8 +87,8 @@ export async function validateGiftCardCode(code, customerEmail = null) {
     const cleanCode = code.replace(/\s+/g, '').toUpperCase();
     
     // Use Shopify REST API to validate gift card directly
-    const shopDomain = process.env.SHOPIFY_SHOP_DOMAIN;
-    const accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
+    const shopDomain = process.env.SHOPIFY_SITE_DOMAIN;
+    const accessToken = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
     
     if (!shopDomain || !accessToken) {
       console.error('Missing Shopify credentials');
