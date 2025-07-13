@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-
+import { setSystemContext } from './auth';
 
 
 /**
@@ -171,6 +171,9 @@ export async function validateDiscountCode(code, fid = null) {
         isValid: false 
       };
     }
+
+    // 🔧 SYSTEM ACCESS: Set system context to access all discount codes
+    await setSystemContext();
 
     // Get discount code from database
     const { data: discountCode, error: fetchError } = await supabase
@@ -519,11 +522,14 @@ export async function getUserAvailableDiscounts(fid, includeUsed = false) {
       };
     }
 
-    // Build query conditions
+    // 🔧 SYSTEM ACCESS: Set system context to access all discount codes
+    await setSystemContext();
+
+    // Build query conditions - get user's codes AND global/shared codes
     let query = supabase
       .from('discount_codes')
       .select('*')
-      .eq('fid', fid)
+      .or(`fid.eq.${fid},fid.is.null,is_shared_code.eq.true`)
       .order('created_at', { ascending: false }); // Most recent first
 
     // Filter by usage status if specified

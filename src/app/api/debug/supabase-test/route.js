@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { setSystemContext } from '@/lib/auth';
 import { 
   testSupabaseConnection, 
   getAllProfiles, 
@@ -27,6 +28,10 @@ export async function GET(request) {
     // Test Supabase connection
     if (testType === 'full' || testType === 'supabase') {
       console.log('Testing Supabase connection...');
+      
+      // 🔧 ADMIN ACCESS: Set system context for debug operations
+      await setSystemContext();
+      
       const supabaseTest = await testSupabaseConnection();
       results.supabase = supabaseTest;
 
@@ -77,6 +82,10 @@ export async function GET(request) {
     // Test specific profiles
     if (testType === 'profiles') {
       console.log('Getting profile information...');
+      
+      // 🔧 ADMIN ACCESS: Set system context for debug operations
+      await setSystemContext();
+      
       const allProfiles = await getAllProfiles();
       results.profiles = allProfiles;
     }
@@ -85,6 +94,9 @@ export async function GET(request) {
     if (testType === 'user' && userFid) {
       console.log('Testing specific user:', userFid);
       const userFidInt = parseInt(userFid);
+      
+      // 🔧 ADMIN ACCESS: Set system context for debug operations
+      await setSystemContext();
       
       // Check Supabase profile
       const supabaseTest = await testSupabaseConnection();
