@@ -87,8 +87,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       if (activeDiscountData) {
         const activeDiscount = JSON.parse(activeDiscountData);
         
-        // For product-specific discounts, only apply to qualifying products (and exclude gift cards)
-        if (activeDiscount.source === 'product_specific_api' && activeDiscount.code === code) {
+        // For product-specific discounts AND token-gated discounts, only apply to qualifying products (and exclude gift cards)
+        if ((activeDiscount.source === 'product_specific_api' || activeDiscount.source === 'token_gated') && activeDiscount.code === code) {
           let qualifyingSubtotal = 0;
           
           cart.items.forEach(item => {
@@ -107,6 +107,11 @@ export function CheckoutFlow({ checkoutData, onBack }) {
               }
             } else if (code === 'DICKBUTT-FREE') {
               if (productHandle === 'dickbutt-cap' || productTitle?.includes('Dickbutt Cap')) {
+                qualifyingSubtotal += (item.price * item.quantity);
+              }
+            } else if (code === 'DICKBUTT20') {
+              // NFT token-gated discount for CryptaDickButtz products
+              if (productHandle === 'cryptoadickbuttz-og-tee' || productTitle?.includes('CryptaDickButtz')) {
                 qualifyingSubtotal += (item.price * item.quantity);
               }
             } else {

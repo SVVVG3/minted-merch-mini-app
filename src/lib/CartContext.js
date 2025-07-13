@@ -339,9 +339,9 @@ export function CartProvider({ children }) {
       if (activeDiscountData) {
         const activeDiscount = JSON.parse(activeDiscountData);
         
-        // For product-specific discounts, only apply to qualifying products
-        if (activeDiscount.source === 'product_specific_api' && activeDiscount.code === code) {
-          console.log(`🎯 Processing product-specific discount: ${code}`);
+        // For product-specific discounts AND token-gated discounts, only apply to qualifying products
+        if ((activeDiscount.source === 'product_specific_api' || activeDiscount.source === 'token_gated') && activeDiscount.code === code) {
+          console.log(`🎯 Processing ${activeDiscount.source === 'token_gated' ? 'token-gated' : 'product-specific'} discount: ${code}`);
           
           // Get the target products from the active discount data
           const targetProducts = activeDiscount.target_products || [];
@@ -380,6 +380,9 @@ export function CartProvider({ children }) {
                 qualifies = productHandle === 'tiny-hyper-tee' || productTitle?.includes('Tiny Hyper Tee');
               } else if (code === 'DICKBUTT-FREE') {
                 qualifies = productHandle === 'dickbutt-cap' || productTitle?.includes('Dickbutt Cap');
+              } else if (code === 'DICKBUTT20') {
+                // NFT token-gated discount for CryptaDickButtz products
+                qualifies = productHandle === 'cryptoadickbuttz-og-tee' || productTitle?.includes('CryptaDickButtz');
               } else if (code.includes('BANKR')) {
                 qualifies = productHandle === 'bankr-cap' || productHandle === 'bankr-hoodie' || 
                            productTitle?.includes('Bankr');
