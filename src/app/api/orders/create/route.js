@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createOrder } from '@/lib/orders';
-import { setUserContext } from '@/lib/auth';
+import { setSystemContext } from '@/lib/auth';
 
 export async function POST(request) {
   try {
@@ -24,8 +24,8 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // 🔒 SECURITY: Set user context for RLS policies
-    await setUserContext(orderData.fid);
+    // 🔒 SECURITY: Set system context for order creation (admin access needed)
+    await setSystemContext();
 
     // Create order in database
     const result = await createOrder(orderData);
