@@ -249,6 +249,15 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       
       updateCheckout(mockCheckout);
       
+      // Set a mock "no shipping" option for digital products to satisfy validation
+      const mockShipping = {
+        handle: 'digital-no-shipping',
+        title: 'Digital Delivery',
+        price: { amount: 0, currencyCode: 'USD' },
+        description: 'Digital products delivered via email'
+      };
+      updateSelectedShipping(mockShipping);
+      
       // Skip directly to payment for digital products
       setCheckoutStep('payment');
       return;
@@ -1051,7 +1060,9 @@ Transaction Hash: ${transactionHash}`;
                   {/* Shipping Summary */}
                   {shippingData && (
                     <div className="bg-gray-50 rounded-lg p-3">
-                      <div className="text-sm font-medium text-gray-700 mb-1">Shipping to:</div>
+                      <div className="text-sm font-medium text-gray-700 mb-1">
+                        {isDigitalOnlyCart() ? 'Billing Address:' : 'Shipping to:'}
+                      </div>
                       <div className="text-sm text-gray-600">
                         {shippingData.firstName} {shippingData.lastName}<br />
                         {shippingData.address1}{shippingData.address2 && `, ${shippingData.address2}`}<br />
@@ -1108,23 +1119,25 @@ Transaction Hash: ${transactionHash}`;
                         </div>
                       )}
                       
-                      {/* Selected Shipping Method */}
-                      {cart.selectedShipping ? (
-                        <div className="flex justify-between text-sm">
-                          <span>Shipping ({cart.selectedShipping.title})</span>
-                          <span>
-                            {cart.selectedShipping.price.amount === 0 || appliedDiscount?.freeShipping ? (
-                              <span className="text-green-600 font-medium">FREE</span>
-                            ) : (
-                              `$${cart.selectedShipping.price.amount.toFixed(2)}`
-                            )}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex justify-between text-sm text-gray-600">
-                          <span>Shipping</span>
-                          <span>Not selected</span>
-                        </div>
+                      {/* Selected Shipping Method - Hide for digital products */}
+                      {!isDigitalOnlyCart() && (
+                        cart.selectedShipping ? (
+                          <div className="flex justify-between text-sm">
+                            <span>Shipping ({cart.selectedShipping.title})</span>
+                            <span>
+                              {cart.selectedShipping.price.amount === 0 || appliedDiscount?.freeShipping ? (
+                                <span className="text-green-600 font-medium">FREE</span>
+                              ) : (
+                                `$${cart.selectedShipping.price.amount.toFixed(2)}`
+                              )}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>Shipping</span>
+                            <span>Not selected</span>
+                          </div>
+                        )
                       )}
                       
                       <div className="flex justify-between text-sm">
@@ -1217,7 +1230,7 @@ Transaction Hash: ${transactionHash}`;
                   
                   <button
                     onClick={handlePayment}
-                    disabled={!cart.checkout || !cart.selectedShipping || !hasSufficientBalance(calculateFinalTotal()) || isPending}
+                    disabled={!cart.checkout || !hasSufficientBalance(calculateFinalTotal()) || isPending}
                     className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
                   >
                     {isPending ? 'Processing...' : `Pay ${calculateFinalTotal().toFixed(2)} USDC`}
