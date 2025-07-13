@@ -44,30 +44,7 @@ export function DiscountCodeSection({
   useEffect(() => {
     if (autoPopulate && !hasAutoPopulated) {
       try {
-        // Helper function to check if item is a gift card
-        const isGiftCardItem = (item) => {
-          const productTitle = item.product?.title || item.title || '';
-          const productHandle = item.product?.handle || '';
-          
-          return (
-            productTitle.toLowerCase().includes('gift card') ||
-            productHandle.includes('gift-card')
-          );
-        };
 
-        // Check if cart has any non-gift-card items eligible for discounts
-        const discountEligibleItems = cartItems.filter(item => !isGiftCardItem(item));
-        const hasGiftCards = cartItems.some(item => isGiftCardItem(item));
-
-        if (discountEligibleItems.length === 0) {
-          console.log('🎁 Cart contains only gift cards - skipping auto-discount population');
-          setHasAutoPopulated(true); // Prevent future attempts
-          return;
-        }
-        
-        if (hasGiftCards) {
-          console.log('🎁 Cart contains mixed items - auto-populating discount for eligible items only');
-        }
         
         // Check for active discount in session storage (from HomePage)
         const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
@@ -106,29 +83,7 @@ export function DiscountCodeSection({
     
     const handleStorageChange = () => {
       try {
-        // Helper function to check if item is a gift card
-        const isGiftCardItem = (item) => {
-          const productTitle = item.product?.title || item.title || '';
-          const productHandle = item.product?.handle || '';
-          
-          return (
-            productTitle.toLowerCase().includes('gift card') ||
-            productHandle.includes('gift-card')
-          );
-        };
 
-        // Check if cart has any non-gift-card items eligible for discounts
-        const discountEligibleItems = cartItems.filter(item => !isGiftCardItem(item));
-        const hasGiftCards = cartItems.some(item => isGiftCardItem(item));
-
-        if (discountEligibleItems.length === 0) {
-          console.log('🎁 Cart contains only gift cards - skipping discount update from storage');
-          return;
-        }
-        
-        if (hasGiftCards) {
-          console.log('🎁 Cart contains mixed items - processing discount update for eligible items only');
-        }
         
         const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
         if (activeDiscountData) {
@@ -176,28 +131,8 @@ export function DiscountCodeSection({
       return;
     }
 
-    // Helper function to check if item is a gift card
-    const isGiftCardItem = (item) => {
-      const productTitle = item.product?.title || item.title || '';
-      const productHandle = item.product?.handle || '';
-      
-      return (
-        productTitle.toLowerCase().includes('gift card') ||
-        productHandle.includes('gift-card')
-      );
-    };
-
-    // Check if cart has any non-gift-card items eligible for discounts
-    const discountEligibleItems = cartItems.filter(item => !isGiftCardItem(item));
-    const hasGiftCards = cartItems.some(item => isGiftCardItem(item));
-    
-    if (discountEligibleItems.length === 0) {
-      setDiscountError('Discount codes cannot be applied to gift cards');
-      return;
-    }
-    
     if (subtotal <= 0) {
-      setDiscountError('Please add eligible items to cart first');
+      setDiscountError('Please add items to cart first');
       return;
     }
 
