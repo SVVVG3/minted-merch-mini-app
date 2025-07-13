@@ -127,9 +127,9 @@ export default function GiftCardSection({
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-green-600 font-medium">✅ Gift Card Applied</span>
-                {appliedGiftCard.code && (
+                {(appliedGiftCard.maskedCode || appliedGiftCard.code) && (
                   <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                    {appliedGiftCard.code}
+                    {appliedGiftCard.maskedCode || appliedGiftCard.code}
                   </span>
                 )}
               </div>
@@ -191,7 +191,7 @@ export function GiftCardBalance({ giftCard }) {
   return (
     <div className="gift-card-balance text-sm text-gray-600">
       <div className="flex justify-between items-center">
-        <span>Gift Card ({giftCard.code})</span>
+        <span>Gift Card ({giftCard.maskedCode || giftCard.code})</span>
         <span className="font-medium text-green-600">
           -${giftCard.discount?.discountAmount?.toFixed(2) || '0.00'}
         </span>
