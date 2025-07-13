@@ -49,6 +49,101 @@ export async function shopifyAdminFetch(query, variables = {}) {
   return data;
 }
 
+// Consume/debit gift card balance in Shopify
+export async function debitGiftCard(giftCardCode, amount) {
+  console.log('🎁 Debiting gift card:', { code: giftCardCode, amount });
+  
+  try {
+    // First, get the gift card details to find its Shopify ID
+    const shopDomain = process.env.SHOPIFY_SITE_DOMAIN;
+    const accessToken = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
+    
+    // Get gift card by code
+    const getGiftCardUrl = `https://${shopDomain}.myshopify.com/admin/api/2024-10/gift_cards.json?code=${giftCardCode.toUpperCase()}`;
+    
+    const getResponse = await fetch(getGiftCardUrl, {
+      method: 'GET',
+      headers: {
+        'X-Shopify-Access-Token': accessToken,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!getResponse.ok) {
+      throw new Error(`Failed to fetch gift card: ${getResponse.status}`);
+    }
+    
+    const giftCardData = await getResponse.json();
+    
+    if (!giftCardData.gift_cards || giftCardData.gift_cards.length === 0) {
+      throw new Error('Gift card not found');
+    }
+    
+    const giftCard = giftCardData.gift_cards[0];
+    const giftCardId = giftCard.id;
+    const currentBalance = parseFloat(giftCard.balance);
+    
+    console.log('🎁 Gift card found:', {
+      id: giftCardId,
+      currentBalance,
+      requestedAmount: amount
+    });
+    
+    // Check if sufficient balance
+    if (currentBalance < amount) {
+      throw new Error(`Insufficient gift card balance. Available: $${currentBalance}, Requested: $${amount}`);
+    }
+    
+    // Create a gift card debit transaction
+    const debitData = {
+      debit: {
+        amount: amount.toString(),
+        note: `Used in order payment - Minted Merch Mini App`
+      }
+    };
+    
+    const debitUrl = `https://${shopDomain}.myshopify.com/admin/api/2024-10/gift_cards/${giftCardId}/debits.json`;
+    
+    const debitResponse = await fetch(debitUrl, {
+      method: 'POST',
+      headers: {
+        'X-Shopify-Access-Token': accessToken,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(debitData)
+    });
+    
+    if (!debitResponse.ok) {
+      const errorText = await debitResponse.text();
+      throw new Error(`Failed to debit gift card: ${debitResponse.status} - ${errorText}`);
+    }
+    
+    const debitResult = await debitResponse.json();
+    
+    console.log('✅ Gift card debited successfully:', {
+      giftCardId,
+      amountDebited: amount,
+      balanceAfter: currentBalance - amount,
+      debitId: debitResult.debit?.id
+    });
+    
+    return {
+      success: true,
+      giftCardId,
+      amountDebited: amount,
+      balanceAfter: currentBalance - amount,
+      debitId: debitResult.debit?.id
+    };
+    
+  } catch (error) {
+    console.error('❌ Error debiting gift card:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
 // Create order in Shopify with payment marked as paid
 export async function createShopifyOrder(orderData) {
   const {
@@ -210,17 +305,70 @@ export async function createShopifyOrder(orderData) {
         },
         code: shippingLines.code || shippingLines.title
       }] : [],
-      transactions: [{
-        kind: 'SALE',
-        status: 'SUCCESS',
-        amountSet: {
-          shopMoney: {
-            amount: totalPrice.toString(),
-            currencyCode: 'USD'
-          }
-        },
-        gateway: 'USDC Base Network'
-      }]
+      transactions: (() => {
+        const transactions = [];
+        
+        // Calculate USDC payment amount (total minus gift cards)
+        let usdcAmount = totalPrice;
+        let totalGiftCardAmount = 0;
+        
+        // Add gift card transactions if present
+        if (orderData.giftCards && Array.isArray(orderData.giftCards) && orderData.giftCards.length > 0) {
+          orderData.giftCards.forEach(giftCard => {
+            if (giftCard.code && parseFloat(giftCard.amountUsed || 0) > 0) {
+              const giftCardAmount = parseFloat(giftCard.amountUsed);
+              totalGiftCardAmount += giftCardAmount;
+              
+              // Add gift card transaction
+              transactions.push({
+                kind: 'SALE',
+                status: 'SUCCESS',
+                amountSet: {
+                  shopMoney: {
+                    amount: giftCardAmount.toString(),
+                    currencyCode: 'USD'
+                  }
+                },
+                gateway: `Gift Card (${giftCard.code})`,
+                paymentDetails: {
+                  giftCardCode: giftCard.code
+                }
+              });
+            }
+          });
+          
+          // Adjust USDC amount
+          usdcAmount = Math.max(0.01, totalPrice - totalGiftCardAmount); // Minimum $0.01 for processing
+        }
+        
+        // Add USDC transaction for remaining amount
+        if (usdcAmount > 0) {
+          transactions.push({
+            kind: 'SALE',
+            status: 'SUCCESS',
+            amountSet: {
+              shopMoney: {
+                amount: usdcAmount.toString(),
+                currencyCode: 'USD'
+              }
+            },
+            gateway: 'USDC Base Network'
+          });
+        }
+        
+        console.log('💳 Created transactions:', {
+          totalOrderAmount: totalPrice,
+          totalGiftCardAmount,
+          usdcAmount,
+          transactionCount: transactions.length,
+          transactions: transactions.map(t => ({
+            amount: t.amountSet.shopMoney.amount,
+            gateway: t.gateway
+          }))
+        });
+        
+        return transactions;
+      })()
     }
   };
 
@@ -244,6 +392,40 @@ export async function createShopifyOrder(orderData) {
     }
     
     console.log('Order created successfully:', order.name, order.id);
+    
+    // Consume gift cards after successful order creation
+    if (orderData.giftCards && Array.isArray(orderData.giftCards) && orderData.giftCards.length > 0) {
+      console.log('🎁 Processing gift card consumption for order:', order.name);
+      
+      for (const giftCard of orderData.giftCards) {
+        if (giftCard.code && parseFloat(giftCard.amountUsed || 0) > 0) {
+          try {
+            const debitResult = await debitGiftCard(giftCard.code, parseFloat(giftCard.amountUsed));
+            
+            if (debitResult.success) {
+              console.log('✅ Gift card consumed successfully:', {
+                code: giftCard.code,
+                amountUsed: giftCard.amountUsed,
+                newBalance: debitResult.balanceAfter
+              });
+            } else {
+              console.error('❌ Failed to consume gift card:', {
+                code: giftCard.code,
+                error: debitResult.error
+              });
+              // Note: We don't fail the order creation if gift card consumption fails
+              // The order is already created in Shopify, we just log the error
+            }
+          } catch (giftCardError) {
+            console.error('❌ Error consuming gift card:', {
+              code: giftCard.code,
+              error: giftCardError.message
+            });
+            // Note: We don't fail the order creation if gift card consumption fails
+          }
+        }
+      }
+    }
     
     return {
       success: true,

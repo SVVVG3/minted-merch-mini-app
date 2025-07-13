@@ -48,6 +48,9 @@ export async function POST(request) {
       hasDiscount: !!appliedDiscount,
       discountCode: appliedDiscount?.code,
       discountAmount: discountAmount,
+      hasGiftCards: !!giftCards,
+      giftCardsLength: giftCards?.length,
+      giftCardsData: giftCards,
       timestamp: new Date().toISOString(),
       requestId: requestId
     });
@@ -405,7 +408,10 @@ export async function POST(request) {
           customerEmail: supabaseOrderData.customerEmail,
           amountTotal: supabaseOrderData.amountTotal,
           hasDiscount: !!supabaseOrderData.discountCode,
-          discountCode: supabaseOrderData.discountCode
+          discountCode: supabaseOrderData.discountCode,
+          hasGiftCards: !!supabaseOrderData.giftCards,
+          giftCardsCount: supabaseOrderData.giftCards?.length,
+          giftCardsDetails: supabaseOrderData.giftCards
         });
 
         // 🔒 SECURITY: Set system context for order creation (admin access needed)
