@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getUsersNeedingCheckInReminders } from '../../../../lib/notifications.js';
 import { formatPSTTime, getCurrentCheckInDay, isEveningNotificationTime } from '../../../../lib/timezone.js';
 import { supabase } from '../../../../lib/supabase.js';
+import { setSystemContext } from '../../../../lib/auth.js';
 
 export async function GET(request) {
   try {
@@ -38,6 +39,9 @@ export async function GET(request) {
     }
     
     // Get total enabled users for comparison
+    // Set system admin context to read all profiles
+    await setSystemContext();
+    
     const { data: totalUsers, error: totalError } = await supabase
       .from('profiles')
       .select('fid', { count: 'exact' })
