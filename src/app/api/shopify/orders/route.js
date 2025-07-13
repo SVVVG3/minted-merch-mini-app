@@ -2,7 +2,6 @@ import { createShopifyOrder, getOrderStatus } from '@/lib/shopifyAdmin';
 import { createOrder as createSupabaseOrder } from '@/lib/orders';
 import { sendOrderConfirmationNotificationAndMark } from '@/lib/orders';
 import { markDiscountCodeAsUsed } from '@/lib/discounts';
-import { setSystemContext } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -414,8 +413,7 @@ export async function POST(request) {
           giftCardsDetails: supabaseOrderData.giftCards
         });
 
-        // 🔒 SECURITY: Set system context for order creation (admin access needed)
-        await setSystemContext();
+        // 🔒 SECURITY: Using supabaseAdmin client for order creation (admin access)
 
         // Create Supabase order with timeout protection
         const supabasePromise = createSupabaseOrder(supabaseOrderData);

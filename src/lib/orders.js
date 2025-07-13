@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, supabaseAdmin } from './supabase';
 import { sendOrderConfirmationNotification, sendShippingNotification } from './neynar';
 import { markDiscountCodeAsUsed, validateDiscountCode } from './discounts';
 
@@ -165,7 +165,9 @@ export async function createOrder(orderData) {
       lineItemsLength: insertData.line_items?.length
     });
     
-    const { data: order, error } = await supabase
+    // Use admin client to bypass RLS for order creation
+    const adminClient = supabaseAdmin || supabase;
+    const { data: order, error } = await adminClient
       .from('orders')
       .insert(insertData)
       .select()
@@ -201,7 +203,7 @@ export async function createOrder(orderData) {
           product_data: item
         }));
 
-        const { error: itemsError } = await supabase
+        const { error: itemsError } = await adminClient
           .from('order_items')
           .insert(orderItems);
 

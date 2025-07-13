@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createOrder } from '@/lib/orders';
-import { setSystemContext } from '@/lib/auth';
 
 export async function POST(request) {
   try {
@@ -24,8 +23,7 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // 🔒 SECURITY: Set system context for order creation (admin access needed)
-    await setSystemContext();
+    // 🔒 SECURITY: Using supabaseAdmin client for order creation (admin access)
 
     // Create order in database
     const result = await createOrder(orderData);
