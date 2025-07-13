@@ -630,7 +630,9 @@ export async function getUserOrders(fid, limit = 50, includeArchived = false) {
  */
 export async function getOrder(orderId) {
   try {
-    const { data: order, error } = await supabase
+    // Use admin client for system operations (webhooks, etc.) that don't have user context
+    const adminClient = supabaseAdmin || supabase;
+    const { data: order, error } = await adminClient
       .from('orders')
       .select('*')
       .eq('order_id', orderId)
