@@ -121,6 +121,13 @@ export async function createOrder(orderData) {
     // Create the order
     console.log('🔍 Attempting to insert order into database...');
     
+    // Calculate gift card summary data
+    const giftCardSummary = orderData.giftCards && Array.isArray(orderData.giftCards) ? {
+      codes: orderData.giftCards.filter(gc => gc.code).map(gc => gc.code.toUpperCase()),
+      totalUsed: orderData.giftCards.reduce((sum, gc) => sum + parseFloat(gc.amountUsed || 0), 0),
+      count: orderData.giftCards.filter(gc => gc.code && parseFloat(gc.amountUsed || 0) > 0).length
+    } : { codes: [], totalUsed: 0, count: 0 };
+
     const insertData = {
       fid: orderData.fid,
       order_id: orderData.orderId,
@@ -134,6 +141,9 @@ export async function createOrder(orderData) {
       discount_code: orderData.discountCode || null,
       discount_amount: orderData.discountAmount || 0,
       discount_percentage: orderData.discountPercentage || null,
+      gift_card_codes: giftCardSummary.codes,
+      gift_card_total_used: giftCardSummary.totalUsed,
+      gift_card_count: giftCardSummary.count,
       customer_email: orderData.customerEmail,
       customer_name: orderData.customerName,
       shipping_address: orderData.shippingAddress,
@@ -224,6 +234,53 @@ export async function createOrder(orderData) {
         }
       } catch (discountError) {
         console.error('❌ Error marking discount code as used:', discountError);
+      }
+    }
+
+    // Log gift card usage if gift cards were used in this order
+    if (orderData.giftCards && Array.isArray(orderData.giftCards) && orderData.giftCards.length > 0) {
+      try {
+        console.log('🎁 Recording gift card usage for order:', order.order_id);
+        
+        for (const giftCard of orderData.giftCards) {
+          if (giftCard.code && giftCard.amountUsed > 0) {
+            // First, try to get the gift card ID from our database
+            let giftCardId = null;
+            const { data: giftCardData, error: giftCardError } = await supabase
+              .from('gift_cards')
+              .select('id')
+              .eq('code', giftCard.code.toUpperCase())
+              .single();
+            
+            if (!giftCardError && giftCardData) {
+              giftCardId = giftCardData.id;
+            }
+            
+            // Record gift card usage
+            const { error: usageError } = await supabase
+              .from('gift_card_usage')
+              .insert({
+                gift_card_id: giftCardId, // May be null if gift card not in our database
+                order_id: order.order_id,
+                amount_used: parseFloat(giftCard.amountUsed),
+                balance_after: parseFloat(giftCard.balanceAfter || 0),
+                fid: orderData.fid
+              });
+            
+            if (usageError) {
+              console.error('❌ Error recording gift card usage:', usageError);
+            } else {
+              console.log('✅ Gift card usage recorded:', {
+                code: giftCard.code,
+                amountUsed: giftCard.amountUsed,
+                orderId: order.order_id
+              });
+            }
+          }
+        }
+      } catch (giftCardError) {
+        console.error('❌ Error processing gift card usage:', giftCardError);
+        // Don't fail the order creation, just log the error
       }
     }
 

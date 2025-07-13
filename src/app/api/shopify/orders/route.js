@@ -22,7 +22,8 @@ export async function POST(request) {
       notes,
       fid, // User's Farcaster ID for notifications
       appliedDiscount, // Discount information
-      discountAmount // Discount amount
+      discountAmount, // Discount amount
+      giftCards = [] // Gift card information array
     } = body;
 
     // Convert FID to integer to ensure proper database type matching
@@ -260,7 +261,8 @@ export async function POST(request) {
             code: appliedDiscount.code,
             amount: discountAmountValue,
             type: appliedDiscount.discountType
-          }] : []
+          }] : [],
+          giftCards: giftCards || [] // Pass gift card data to Shopify order creation
         };
 
         console.log(`📦 [${requestId}] Creating Shopify order (attempt ${shopifyAttempts}) with data:`, {
@@ -393,7 +395,8 @@ export async function POST(request) {
           }),
           paymentMethod: 'USDC',
           paymentStatus: 'completed',
-          paymentIntentId: transactionHash
+          paymentIntentId: transactionHash,
+          giftCards: giftCards || [] // Include gift card data for database tracking
         };
 
         console.log(`💾 [${requestId}] Creating Supabase order (attempt ${supabaseAttempts}):`, {

@@ -171,7 +171,35 @@ export async function createShopifyOrder(orderData) {
       },
       email: customer.email || '',
       phone: customer.phone || shippingAddress.phone || '',
-      note: notes ? `${notes}\n\nPaid with USDC on Base Network\nTransaction Hash: ${transactionHash}${userFid ? `\nFarcaster FID: ${userFid}` : ''}` : `Paid with USDC on Base Network\nTransaction Hash: ${transactionHash}${userFid ? `\nFarcaster FID: ${userFid}` : ''}`,
+      note: (() => {
+        let orderNotes = notes ? `${notes}\n\n` : '';
+        
+        // Add payment information
+        orderNotes += `Paid with USDC on Base Network\nTransaction Hash: ${transactionHash}`;
+        
+        // Add Farcaster FID if available
+        if (userFid) {
+          orderNotes += `\nFarcaster FID: ${userFid}`;
+        }
+        
+        // Add gift card information if present
+        if (orderData.giftCards && Array.isArray(orderData.giftCards) && orderData.giftCards.length > 0) {
+          const usedGiftCards = orderData.giftCards.filter(gc => gc.code && parseFloat(gc.amountUsed || 0) > 0);
+          if (usedGiftCards.length > 0) {
+            orderNotes += '\n\n--- GIFT CARDS USED ---';
+            usedGiftCards.forEach(gc => {
+              orderNotes += `\nGift Card: ${gc.code} - Amount Used: $${parseFloat(gc.amountUsed).toFixed(2)}`;
+              if (gc.balanceAfter !== undefined) {
+                orderNotes += ` (Balance After: $${parseFloat(gc.balanceAfter).toFixed(2)})`;
+              }
+            });
+            const totalGiftCardUsed = usedGiftCards.reduce((sum, gc) => sum + parseFloat(gc.amountUsed || 0), 0);
+            orderNotes += `\nTotal Gift Card Amount: $${totalGiftCardUsed.toFixed(2)}`;
+          }
+        }
+        
+        return orderNotes;
+      })(),
       shippingLines: shippingLines ? [{
         title: shippingLines.title,
         priceSet: {

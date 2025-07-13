@@ -47,12 +47,39 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     setAppliedGiftCard(giftCard);
   };
 
-  // Helper function to calculate product-aware discount amount
+  // Helper function to calculate product-aware discount amount (excludes gift cards)
   const calculateProductAwareDiscountAmount = () => {
     if (!appliedDiscount) return 0;
     
     const { code, discountType, discountValue } = appliedDiscount;
     const currentSubtotal = cart.checkout ? cart.checkout.subtotal.amount : cartSubtotal;
+    
+    // Helper function to check if item is a gift card
+    const isGiftCardItem = (item) => {
+      const productTitle = item.product?.title || item.title || '';
+      const productHandle = item.product?.handle || '';
+      
+      return (
+        productTitle.toLowerCase().includes('gift card') ||
+        productHandle.includes('gift-card')
+      );
+    };
+    
+    // Calculate subtotal excluding gift cards for discount application
+    const discountEligibleSubtotal = cart.items.reduce((total, item) => {
+      if (isGiftCardItem(item)) {
+        return total; // Skip gift cards
+      }
+      return total + (item.price * item.quantity);
+    }, 0);
+    
+    console.log(`💰 Discount calculation: Total subtotal: $${currentSubtotal}, Eligible for discount: $${discountEligibleSubtotal}`);
+    
+    // If no eligible items, return 0 discount
+    if (discountEligibleSubtotal <= 0) {
+      console.log('🎁 No discount-eligible items found (gift cards excluded)');
+      return 0;
+    }
     
     // Check if this is a product-specific discount from session storage
     try {
@@ -60,11 +87,16 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       if (activeDiscountData) {
         const activeDiscount = JSON.parse(activeDiscountData);
         
-        // For product-specific discounts, only apply to qualifying products
+        // For product-specific discounts, only apply to qualifying products (and exclude gift cards)
         if (activeDiscount.source === 'product_specific_api' && activeDiscount.code === code) {
           let qualifyingSubtotal = 0;
           
           cart.items.forEach(item => {
+            // Skip gift cards entirely
+            if (isGiftCardItem(item)) {
+              return;
+            }
+            
             const productHandle = item.product?.handle;
             const productTitle = item.product?.title || item.title;
             
@@ -78,10 +110,12 @@ export function CheckoutFlow({ checkoutData, onBack }) {
                 qualifyingSubtotal += (item.price * item.quantity);
               }
             } else {
-              // For other product-specific discounts, fall back to original behavior
-              qualifyingSubtotal = currentSubtotal;
+              // For other product-specific discounts, apply to all eligible (non-gift-card) items
+              qualifyingSubtotal += (item.price * item.quantity);
             }
           });
+          
+          console.log(`🎯 Product-specific discount: Qualifying subtotal: $${qualifyingSubtotal}`);
           
           // Calculate discount only on qualifying products
           if (discountType === 'percentage') {
@@ -95,7 +129,13 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       console.error('Error calculating product-aware discount:', error);
     }
     
-    // Fallback to original calculation
+    // Fallback to applying discount to all eligible (non-gift-card) items
+    if (discountType === 'percentage') {
+      return (discountEligibleSubtotal * discountValue) / 100;
+    } else if (discountType === 'fixed') {
+      return Math.min(discountValue, discountEligibleSubtotal);
+    }
+    
     return appliedDiscount.discountAmount || 0;
   };
 
@@ -532,8 +572,14 @@ Transaction Hash: ${transactionHash}`;
         fid: userFid, // Add user's Farcaster ID for notifications (may be null)
         appliedDiscount: appliedDiscount, // Include discount information from CartContext
         discountAmount: appliedDiscount ? appliedDiscount.discountAmount : 0,
-        appliedGiftCard: appliedGiftCard, // Include gift card information
-        giftCardAmount: appliedGiftCard?.discount?.discountAmount || 0
+        appliedGiftCard: appliedGiftCard, // Include gift card information (for display)
+        giftCardAmount: appliedGiftCard?.discount?.discountAmount || 0,
+        // Format gift cards array for database tracking
+        giftCards: appliedGiftCard ? [{
+          code: appliedGiftCard.code,
+          amountUsed: appliedGiftCard.discount?.discountAmount || 0,
+          balanceAfter: appliedGiftCard.balance?.amount || 0
+        }] : []
       };
 
       const response = await fetch('/api/shopify/orders', {
