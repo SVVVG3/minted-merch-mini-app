@@ -198,6 +198,28 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     }
   }, [paymentStatus, isConfirmed, transactionHash, checkoutStep, orderDetails]);
 
+  // Initialize shipping data for digital products with Farcaster info
+  useEffect(() => {
+    if (isDigitalOnlyCart() && !shippingData && user) {
+      const displayName = user.displayName || user.username || '';
+      const nameParts = displayName.split(' ');
+      
+      setShippingData({
+        firstName: nameParts[0] || '',
+        lastName: nameParts.slice(1).join(' ') || '',
+        email: '',
+        // Default empty address fields (will be filled with defaults during checkout)
+        address1: '',
+        address2: '',
+        city: '',
+        province: '',
+        zip: '',
+        country: 'US',
+        phone: ''
+      });
+    }
+  }, [isDigitalOnlyCart, user, shippingData]);
+
   const handleCheckout = async () => {
     if (!hasItems) return;
     
@@ -237,6 +259,20 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       
       // Save shipping data (billing address) to cart context
       updateShipping(shippingData);
+      
+      // For digital products, ensure we have minimal required fields for backend compatibility
+      const digitalShippingData = {
+        ...shippingData,
+        // Set default address values for digital products (not displayed to user)
+        address1: 'Digital Delivery',
+        address2: '',
+        city: 'Digital',
+        province: 'Digital',
+        zip: '00000',
+        country: 'US'
+      };
+      
+      updateShipping(digitalShippingData);
       
       // Create a mock checkout for digital products (no shipping, no tax for now)
       const mockCheckout = {
@@ -778,10 +814,86 @@ Transaction Hash: ${transactionHash}`;
               {/* Shipping Step */}
               {checkoutStep === 'shipping' && (
                 <>
-                  <ShippingForm
-                    onShippingChange={handleShippingChange}
-                    initialShipping={shippingData}
-                  />
+                  {/* Conditional Form - Simple for Digital Products, Full for Physical */}
+                  {isDigitalOnlyCart() ? (
+                    /* Digital Product Form - Name and Email Only */
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">Delivery Information</h3>
+                      <p className="text-sm text-gray-600">
+                        🎁 Digital products will be delivered via email - no shipping address needed!
+                      </p>
+                      
+                      {/* Name Fields */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            First Name *
+                          </label>
+                          <input
+                            type="text"
+                            value={shippingData?.firstName || ''}
+                            onChange={(e) => {
+                              const newData = { ...shippingData, firstName: e.target.value };
+                              setShippingData(newData);
+                              const isValid = newData.firstName && newData.lastName && newData.email && 
+                                             newData.email.includes('@') && newData.email.includes('.');
+                              setIsShippingValid(isValid);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                            placeholder="First name"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Last Name *
+                          </label>
+                          <input
+                            type="text"
+                            value={shippingData?.lastName || ''}
+                            onChange={(e) => {
+                              const newData = { ...shippingData, lastName: e.target.value };
+                              setShippingData(newData);
+                              const isValid = newData.firstName && newData.lastName && newData.email && 
+                                             newData.email.includes('@') && newData.email.includes('.');
+                              setIsShippingValid(isValid);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                            placeholder="Last name"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Email Field - Required and Prominent */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Email Address *
+                        </label>
+                        <input
+                          type="email"
+                          value={shippingData?.email || ''}
+                          onChange={(e) => {
+                            const newData = { ...shippingData, email: e.target.value };
+                            setShippingData(newData);
+                            const isValid = newData.firstName && newData.lastName && newData.email && 
+                                           newData.email.includes('@') && newData.email.includes('.');
+                            setIsShippingValid(isValid);
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                          placeholder="email@example.com"
+                        />
+                        <p className="text-gray-500 text-xs mt-1">
+                          Your digital products will be delivered to this email address
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Physical Product Form - Full Shipping Address */
+                    <ShippingForm
+                      onShippingChange={handleShippingChange}
+                      initialShipping={shippingData}
+                    />
+                  )}
                   
                   {/* Order Summary */}
                   <div className="space-y-2 border-t pt-4">
@@ -1057,17 +1169,27 @@ Transaction Hash: ${transactionHash}`;
                     {isDigitalOnlyCart() ? 'Back to Billing Information' : 'Back to Shipping Method'}
                   </button>
 
-                  {/* Shipping Summary */}
+                  {/* Customer Info Summary */}
                   {shippingData && (
                     <div className="bg-gray-50 rounded-lg p-3">
                       <div className="text-sm font-medium text-gray-700 mb-1">
-                        {isDigitalOnlyCart() ? 'Billing Address:' : 'Shipping to:'}
+                        {isDigitalOnlyCart() ? 'Customer Information:' : 'Shipping to:'}
                       </div>
                       <div className="text-sm text-gray-600">
                         {shippingData.firstName} {shippingData.lastName}<br />
-                        {shippingData.address1}{shippingData.address2 && `, ${shippingData.address2}`}<br />
-                        {shippingData.city}, {shippingData.province} {shippingData.zip}<br />
-                        {shippingData.country}
+                        {!isDigitalOnlyCart() && (
+                          <>
+                            {shippingData.address1}{shippingData.address2 && `, ${shippingData.address2}`}<br />
+                            {shippingData.city}, {shippingData.province} {shippingData.zip}<br />
+                            {shippingData.country}
+                          </>
+                        )}
+                        {isDigitalOnlyCart() && shippingData.email && (
+                          <>
+                            Email: {shippingData.email}<br />
+                            <span className="text-green-600 text-xs">🎁 Digital delivery via email</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
