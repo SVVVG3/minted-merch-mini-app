@@ -4,6 +4,7 @@
 import { supabase } from './supabase.js';
 import { sendNotificationWithNeynar } from './neynar.js';
 import { getCurrentPSTTime, formatPSTTime, isNotificationTime, isEveningNotificationTime } from './timezone.js';
+import { setSystemContext } from './auth.js';
 
 /**
  * Get all users who have notifications enabled and haven't checked in today
@@ -11,6 +12,9 @@ import { getCurrentPSTTime, formatPSTTime, isNotificationTime, isEveningNotifica
  */
 export async function getUsersNeedingCheckInReminders() {
   try {
+    // Set system admin context to read all profiles
+    await setSystemContext();
+    
     // Get all users who have notifications enabled
     const { data: profilesData, error: profilesError } = await supabase
       .from('profiles')
