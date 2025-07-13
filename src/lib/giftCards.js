@@ -59,7 +59,7 @@ export async function validateGiftCard(code) {
       return null;
     }
     
-    const url = `https://${shopDomain}/admin/api/2024-10/gift_cards.json?code=${cleanCode}`;
+    const url = `https://${shopDomain}.myshopify.com/admin/api/2024-10/gift_cards.json?code=${cleanCode}`;
     
     const response = await fetch(url, {
       method: 'GET',
