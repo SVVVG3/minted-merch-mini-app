@@ -290,7 +290,7 @@ export default function AdminDashboard() {
     setUsersError('');
     
     try {
-      const response = await fetch('/api/user-profiles');
+      const response = await fetch('/api/admin/users');
       const result = await response.json();
       
       if (result.success) {
@@ -660,10 +660,7 @@ export default function AdminDashboard() {
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h2 className="text-lg font-semibold text-gray-800">📊 Dashboard</h2>
                 <button
-                  onClick={() => {
-                    // Refresh dashboard data
-                    window.location.reload();
-                  }}
+                  onClick={loadDashboardData}
                   className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
                 >
                   🔄 Refresh
@@ -819,10 +816,7 @@ export default function AdminDashboard() {
                   📥 Export CSV
                 </button>
                 <button
-                  onClick={() => {
-                    // Refresh leaderboard data
-                    window.location.reload();
-                  }}
+                  onClick={loadDashboardData}
                   className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
                 >
                   🔄 Refresh
@@ -909,10 +903,7 @@ export default function AdminDashboard() {
                   📥 Export CSV
                 </button>
                 <button
-                  onClick={() => {
-                    // Refresh orders data
-                    window.location.reload();
-                  }}
+                  onClick={loadDashboardData}
                   className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
                 >
                   🔄 Refresh
@@ -998,11 +989,8 @@ export default function AdminDashboard() {
                     📥 Export CSV
                   </button>
                   <button
-                    onClick={() => {
-                      // Refresh discounts data
-                      window.location.reload();
-                    }}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm"
+                    onClick={loadDashboardData}
+                    className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
                   >
                     🔄 Refresh
                   </button>
@@ -1289,10 +1277,7 @@ export default function AdminDashboard() {
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h2 className="text-lg font-semibold text-gray-800">🎲 Raffle Tool</h2>
                 <button
-                  onClick={() => {
-                    // Refresh raffle data
-                    window.location.reload();
-                  }}
+                  onClick={loadDashboardData}
                   className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
                 >
                   🔄 Refresh
