@@ -5,13 +5,12 @@ export async function GET(request) {
   try {
     console.log('Fetching all users for admin dashboard...');
 
-    // Fetch all users from profiles table with aggregated order data
+    // Fetch all users from profiles table with their orders
     const { data: users, error } = await supabase
       .from('profiles')
       .select(`
         *,
         orders:orders(
-          count,
           amount_total
         )
       `)
