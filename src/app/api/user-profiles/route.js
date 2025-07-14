@@ -59,13 +59,11 @@ export async function POST(request) {
       return NextResponse.json(result);
     }
 
-    // Convert users object to array for admin dashboard compatibility
-    const usersArray = Object.values(result.users || {});
-    
+    // Return users object keyed by FID for leaderboard compatibility
     return NextResponse.json({
       success: true,
-      data: usersArray,
-      count: usersArray.length
+      users: result.users || {},
+      count: Object.keys(result.users || {}).length
     });
     
   } catch (error) {
