@@ -29,6 +29,11 @@ export default function AdminDashboard() {
   const [pastRaffles, setPastRaffles] = useState([]);
   const [pastRafflesLoading, setPastRafflesLoading] = useState(false);
   const [pastRafflesError, setPastRafflesError] = useState('');
+
+  // Users state
+  const [usersData, setUsersData] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState('');
   
   // Leaderboard sorting state
   const [sortField, setSortField] = useState('total_points');
@@ -279,10 +284,43 @@ export default function AdminDashboard() {
     }
   };
 
+  // Load users from database
+  const loadUsers = async () => {
+    setUsersLoading(true);
+    setUsersError('');
+    
+    try {
+      const response = await fetch('/api/user-profiles');
+      const result = await response.json();
+      
+      if (result.success) {
+        // Sort by most recently updated (most recently opened app)
+        const sortedUsers = result.data.sort((a, b) => 
+          new Date(b.updated_at) - new Date(a.updated_at)
+        );
+        setUsersData(sortedUsers);
+      } else {
+        setUsersError(result.error || 'Failed to load users');
+      }
+    } catch (error) {
+      console.error('Error loading users:', error);
+      setUsersError('Failed to load users');
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
   // Load past raffles when Past Raffles tab is selected
   useEffect(() => {
     if (activeTab === 'past-raffles' && pastRaffles.length === 0) {
       loadPastRaffles();
+    }
+  }, [activeTab]);
+
+  // Load users when Users tab is selected
+  useEffect(() => {
+    if (activeTab === 'users' && usersData.length === 0) {
+      loadUsers();
     }
   }, [activeTab]);
 
@@ -485,8 +523,7 @@ export default function AdminDashboard() {
       return product ? product.title : productHandle;
     });
     
-    return productTitles.slice(0, 2).join(', ') + 
-           (productTitles.length > 2 ? ` +${productTitles.length - 2} more` : '');
+    return productTitles.join(', ');
   };
 
   const handleEditDiscount = (discount) => {
@@ -593,9 +630,10 @@ export default function AdminDashboard() {
             <nav className="-mb-px flex space-x-8">
               {[
                 { key: 'dashboard', label: '📊 Dashboard' },
-                { key: 'leaderboard', label: '🏆 Leaderboard' },
+                { key: 'users', label: '👥 Users' },
                 { key: 'orders', label: '🛍️ Orders' },
                 { key: 'discounts', label: '🎫 Discounts' },
+                { key: 'leaderboard', label: '🏆 Leaderboard' },
                 { key: 'raffle', label: '🎲 Raffle Tool' },
                 { key: 'past-raffles', label: '📚 Past Raffles' }
               ].map((tab) => (
@@ -618,6 +656,21 @@ export default function AdminDashboard() {
         {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-800">📊 Dashboard</h2>
+                <button
+                  onClick={() => {
+                    // Refresh dashboard data
+                    window.location.reload();
+                  }}
+                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {dashboardStats && [
                 { label: 'Total Users', value: dashboardStats.totalUsers, icon: '👥' },
@@ -639,17 +692,142 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* Users Tab */}
+        {activeTab === 'users' && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-gray-800">👥 Users</h2>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => exportData(usersData, `users_${new Date().toISOString().split('T')[0]}.csv`)}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                >
+                  📥 Export CSV
+                </button>
+                <button
+                  onClick={loadUsers}
+                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+            </div>
+            
+            {usersLoading ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489] mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading users...</p>
+              </div>
+            ) : usersError ? (
+              <div className="p-6 text-center">
+                <div className="text-red-500 mb-4">❌ {usersError}</div>
+                <button
+                  onClick={loadUsers}
+                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                >
+                  🔄 Try Again
+                </button>
+              </div>
+            ) : usersData.length === 0 ? (
+              <div className="p-6 text-center">
+                <div className="text-4xl mb-4">👥</div>
+                <div className="text-gray-500">No users found</div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Spent</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notifications</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Active</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {usersData.map((user) => (
+                      <tr key={user.fid}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                              <span className="text-sm font-medium text-gray-700">
+                                {user.display_name?.[0] || user.username?.[0] || '?'}
+                              </span>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {user.display_name || user.username || 'Unknown'}
+                              </div>
+                              <div className="text-sm text-gray-500">@{user.username || 'unknown'}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                            {user.fid}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {user.email ? (
+                            <span className="text-green-600">{user.email}</span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="font-medium">{user.total_orders || 0}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="font-medium">${user.total_spent || '0.00'}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {user.has_notifications ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              ✓ Enabled
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              ✗ Disabled
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.updated_at ? formatDate(user.updated_at) : 'Never'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Leaderboard Tab */}
         {activeTab === 'leaderboard' && (
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
               <h2 className="text-lg font-semibold text-gray-800">User Leaderboard</h2>
-              <button
-                onClick={() => exportData(leaderboardData, 'leaderboard.csv')}
-                className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
-              >
-                📥 Export CSV
-              </button>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => exportData(leaderboardData, 'leaderboard.csv')}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                >
+                  📥 Export CSV
+                </button>
+                <button
+                  onClick={() => {
+                    // Refresh leaderboard data
+                    window.location.reload();
+                  }}
+                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
             </div>
             
             <div className="overflow-x-auto">
@@ -723,12 +901,23 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
               <h2 className="text-lg font-semibold text-gray-800">All Orders</h2>
-              <button
-                onClick={() => exportData(ordersData, `orders_${new Date().toISOString().split('T')[0]}.csv`)}
-                className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
-              >
-                📥 Export CSV
-              </button>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => exportData(ordersData, `orders_${new Date().toISOString().split('T')[0]}.csv`)}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                >
+                  📥 Export CSV
+                </button>
+                <button
+                  onClick={() => {
+                    // Refresh orders data
+                    window.location.reload();
+                  }}
+                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
             </div>
             
             <div className="overflow-x-auto">
@@ -807,6 +996,15 @@ export default function AdminDashboard() {
                     className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
                   >
                     📥 Export CSV
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Refresh discounts data
+                      window.location.reload();
+                    }}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm"
+                  >
+                    🔄 Refresh
                   </button>
                   <button
                     onClick={() => setShowCreateDiscount(true)}
@@ -1086,318 +1284,335 @@ export default function AdminDashboard() {
 
         {/* Raffle Tab */}
         {activeTab === 'raffle' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Raffle Controls */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">🎲 Raffle Configuration</h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ⭐ Minimum Points
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="e.g., 100 (0 = no minimum)"
-                    value={raffleFilters.minPoints}
-                    onChange={(e) => setRaffleFilters(prev => ({ ...prev, minPoints: parseInt(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Filter users by total points earned</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    🔥 Minimum Streak Days
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="e.g., 7 (0 = no minimum)"
-                    value={raffleFilters.minStreak}
-                    onChange={(e) => setRaffleFilters(prev => ({ ...prev, minStreak: parseInt(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Filter users by consecutive check-in days</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    🛍️ Minimum Purchase Points
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="e.g., 50 (0 = no minimum)"
-                    value={raffleFilters.minPurchasePoints}
-                    onChange={(e) => setRaffleFilters(prev => ({ ...prev, minPurchasePoints: parseInt(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Filter users by points from purchases</p>
-                </div>
-                
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="excludePrevious"
-                    checked={raffleFilters.excludePreviousWinners}
-                    onChange={(e) => setRaffleFilters(prev => ({ ...prev, excludePreviousWinners: e.target.checked }))}
-                    className="mr-2 h-4 w-4 text-[#3eb489] focus:ring-[#3eb489]"
-                  />
-                  <label htmlFor="excludePrevious" className="text-sm text-gray-700">
-                    🚫 Exclude previous winners
-                  </label>
-                </div>
-              </div>
-              
-              <div className="mt-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    🏆 Number of Winners
-                  </label>
-                  <select
-                    value={numWinners}
-                    onChange={(e) => setNumWinners(parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                  >
-                    <option value={1}>1 Winner</option>
-                    <option value={2}>2 Winners</option>
-                    <option value={3}>3 Winners</option>
-                    <option value={4}>4 Winners</option>
-                    <option value={5}>5 Winners</option>
-                  </select>
-                </div>
-
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-800">🎲 Raffle Tool</h2>
                 <button
-                  onClick={() => runRaffle()}
-                  className="w-full bg-gradient-to-r from-[#3eb489] to-[#45c497] hover:from-[#359970] hover:to-[#3eb489] text-white py-3 px-4 rounded-md transition-all transform hover:scale-105 shadow-lg"
+                  onClick={() => {
+                    // Refresh raffle data
+                    window.location.reload();
+                  }}
+                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
                 >
-                  🎲 Run Custom Raffle ({numWinners} Winner{numWinners > 1 ? 's' : ''})
+                  🔄 Refresh
                 </button>
-
-                {/* Quick Top Users Raffles */}
-                <div className="border-t pt-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">⚡ Quick Top Users Raffles</h3>
-                  
-                  <div className="space-y-2">
-                    <div className="text-xs text-gray-600 mb-2">🏅 By Total Points</div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={() => runTopUsersRaffle(10, 'total_points')}
-                        className="px-3 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded text-sm"
-                      >
-                        Top 10
-                      </button>
-                      <button
-                        onClick={() => runTopUsersRaffle(20, 'total_points')}
-                        className="px-3 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded text-sm"
-                      >
-                        Top 20
-                      </button>
-                      <button
-                        onClick={() => runTopUsersRaffle(50, 'total_points')}
-                        className="px-3 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded text-sm"
-                      >
-                        Top 50
-                      </button>
-                    </div>
-
-                    <div className="text-xs text-gray-600 mb-2 mt-3">🔥 By Streak Days</div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={() => runTopUsersRaffle(10, 'checkin_streak')}
-                        className="px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded text-sm"
-                      >
-                        Top 10
-                      </button>
-                      <button
-                        onClick={() => runTopUsersRaffle(20, 'checkin_streak')}
-                        className="px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded text-sm"
-                      >
-                        Top 20
-                      </button>
-                      <button
-                        onClick={() => runTopUsersRaffle(50, 'checkin_streak')}
-                        className="px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded text-sm"
-                      >
-                        Top 50
-                      </button>
-                    </div>
-
-                    <div className="text-xs text-gray-600 mb-2 mt-3">💰 By Purchase Points</div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={() => runTopUsersRaffle(10, 'points_from_purchases')}
-                        className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded text-sm"
-                      >
-                        Top 10
-                      </button>
-                      <button
-                        onClick={() => runTopUsersRaffle(20, 'points_from_purchases')}
-                        className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded text-sm"
-                      >
-                        Top 20
-                      </button>
-                      <button
-                        onClick={() => runTopUsersRaffle(50, 'points_from_purchases')}
-                        className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded text-sm"
-                      >
-                        Top 50
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-4 p-3 bg-blue-50 rounded-md">
-                <p className="text-xs text-blue-700">
-                  💡 <strong>Pro Tip:</strong> Perfect layout for screenshots! Results show user avatars and branding for professional announcements.
-                </p>
               </div>
             </div>
-
-            {/* Raffle Results */}
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              {raffleResults.length > 0 ? (
-                <div>
-                  {/* Professional Header with Branding */}
-                  <div className="bg-gradient-to-r from-gray-900 to-black p-6 text-white">
-                    <div className="flex items-center justify-center">
-                      <div className="flex items-center space-x-3">
-                        <img 
-                          src="/MintedMerchSpinnerLogo.png" 
-                          alt="Minted Merch"
-                          className="h-8 w-auto"
-                        />
-                        <h2 className="text-xl font-bold">Raffle Winners!</h2>
-                      </div>
-                    </div>
-                    <div className="text-center text-sm opacity-90 mt-2">
-                      {raffleResults.length} raffle{raffleResults.length > 1 ? 's' : ''} completed
-                    </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Raffle Controls */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">🎲 Raffle Configuration</h2>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ⭐ Minimum Points
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="e.g., 100 (0 = no minimum)"
+                      value={raffleFilters.minPoints}
+                      onChange={(e) => setRaffleFilters(prev => ({ ...prev, minPoints: parseInt(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Filter users by total points earned</p>
                   </div>
                   
-                  {/* Multiple Raffle Results */}
-                  <div className="p-6 space-y-6">
-                    {raffleResults.map((raffle, raffleIndex) => (
-                      <div key={raffleIndex} className="border-2 border-gray-200 rounded-lg overflow-hidden">
-                        {/* Raffle Header */}
-                        <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <span className="bg-[#3eb489] text-white px-2 py-1 rounded text-xs font-medium">
-                                Raffle #{raffleIndex + 1}
-                              </span>
-                              <span className="text-sm text-gray-600">
-                                {new Date(raffle.timestamp).toLocaleTimeString()}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      🔥 Minimum Streak Days
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="e.g., 7 (0 = no minimum)"
+                      value={raffleFilters.minStreak}
+                      onChange={(e) => setRaffleFilters(prev => ({ ...prev, minStreak: parseInt(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Filter users by consecutive check-in days</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      🛍️ Minimum Purchase Points
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="e.g., 50 (0 = no minimum)"
+                      value={raffleFilters.minPurchasePoints}
+                      onChange={(e) => setRaffleFilters(prev => ({ ...prev, minPurchasePoints: parseInt(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Filter users by points from purchases</p>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="excludePrevious"
+                      checked={raffleFilters.excludePreviousWinners}
+                      onChange={(e) => setRaffleFilters(prev => ({ ...prev, excludePreviousWinners: e.target.checked }))}
+                      className="mr-2 h-4 w-4 text-[#3eb489] focus:ring-[#3eb489]"
+                    />
+                    <label htmlFor="excludePrevious" className="text-sm text-gray-700">
+                      🚫 Exclude previous winners
+                    </label>
+                  </div>
+                </div>
+                
+                <div className="mt-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      🏆 Number of Winners
+                    </label>
+                    <select
+                      value={numWinners}
+                      onChange={(e) => setNumWinners(parseInt(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                    >
+                      <option value={1}>1 Winner</option>
+                      <option value={2}>2 Winners</option>
+                      <option value={3}>3 Winners</option>
+                      <option value={4}>4 Winners</option>
+                      <option value={5}>5 Winners</option>
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={() => runRaffle()}
+                    className="w-full bg-gradient-to-r from-[#3eb489] to-[#45c497] hover:from-[#359970] hover:to-[#3eb489] text-white py-3 px-4 rounded-md transition-all transform hover:scale-105 shadow-lg"
+                  >
+                    🎲 Run Custom Raffle ({numWinners} Winner{numWinners > 1 ? 's' : ''})
+                  </button>
+
+                  {/* Quick Top Users Raffles */}
+                  <div className="border-t pt-4">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">⚡ Quick Top Users Raffles</h3>
+                    
+                    <div className="space-y-2">
+                      <div className="text-xs text-gray-600 mb-2">🏅 By Total Points</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          onClick={() => runTopUsersRaffle(10, 'total_points')}
+                          className="px-3 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded text-sm"
+                        >
+                          Top 10
+                        </button>
+                        <button
+                          onClick={() => runTopUsersRaffle(20, 'total_points')}
+                          className="px-3 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded text-sm"
+                        >
+                          Top 20
+                        </button>
+                        <button
+                          onClick={() => runTopUsersRaffle(50, 'total_points')}
+                          className="px-3 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded text-sm"
+                        >
+                          Top 50
+                        </button>
+                      </div>
+
+                      <div className="text-xs text-gray-600 mb-2 mt-3">🔥 By Streak Days</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          onClick={() => runTopUsersRaffle(10, 'checkin_streak')}
+                          className="px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded text-sm"
+                        >
+                          Top 10
+                        </button>
+                        <button
+                          onClick={() => runTopUsersRaffle(20, 'checkin_streak')}
+                          className="px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded text-sm"
+                        >
+                          Top 20
+                        </button>
+                        <button
+                          onClick={() => runTopUsersRaffle(50, 'checkin_streak')}
+                          className="px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded text-sm"
+                        >
+                          Top 50
+                        </button>
+                      </div>
+
+                      <div className="text-xs text-gray-600 mb-2 mt-3">💰 By Purchase Points</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          onClick={() => runTopUsersRaffle(10, 'points_from_purchases')}
+                          className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded text-sm"
+                        >
+                          Top 10
+                        </button>
+                        <button
+                          onClick={() => runTopUsersRaffle(20, 'points_from_purchases')}
+                          className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded text-sm"
+                        >
+                          Top 20
+                        </button>
+                        <button
+                          onClick={() => runTopUsersRaffle(50, 'points_from_purchases')}
+                          className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded text-sm"
+                        >
+                          Top 50
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 p-3 bg-blue-50 rounded-md">
+                  <p className="text-xs text-blue-700">
+                    💡 <strong>Pro Tip:</strong> Perfect layout for screenshots! Results show user avatars and branding for professional announcements.
+                  </p>
+                </div>
+              </div>
+
+              {/* Raffle Results */}
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                {raffleResults.length > 0 ? (
+                  <div>
+                    {/* Professional Header with Branding */}
+                    <div className="bg-gradient-to-r from-gray-900 to-black p-6 text-white">
+                      <div className="flex items-center justify-center">
+                        <div className="flex items-center space-x-3">
+                          <img 
+                            src="/MintedMerchSpinnerLogo.png" 
+                            alt="Minted Merch"
+                            className="h-8 w-auto"
+                          />
+                          <h2 className="text-xl font-bold">Raffle Winners!</h2>
+                        </div>
+                      </div>
+                      <div className="text-center text-sm opacity-90 mt-2">
+                        {raffleResults.length} raffle{raffleResults.length > 1 ? 's' : ''} completed
+                      </div>
+                    </div>
+                    
+                    {/* Multiple Raffle Results */}
+                    <div className="p-6 space-y-6">
+                      {raffleResults.map((raffle, raffleIndex) => (
+                        <div key={raffleIndex} className="border-2 border-gray-200 rounded-lg overflow-hidden">
+                          {/* Raffle Header */}
+                          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <span className="bg-[#3eb489] text-white px-2 py-1 rounded text-xs font-medium">
+                                  Raffle #{raffleIndex + 1}
+                                </span>
+                                <span className="text-sm text-gray-600">
+                                  {new Date(raffle.timestamp).toLocaleTimeString()}
+                                </span>
+                              </div>
+                              <span className="text-xs text-gray-500">
+                                {raffle.winners.length} winner{raffle.winners.length > 1 ? 's' : ''}
                               </span>
                             </div>
-                            <span className="text-xs text-gray-500">
-                              {raffle.winners.length} winner{raffle.winners.length > 1 ? 's' : ''}
-                            </span>
+                            <div className="text-sm text-gray-700 mt-1">
+                              {raffle.criteriaDescription}
+                            </div>
                           </div>
-                          <div className="text-sm text-gray-700 mt-1">
-                            {raffle.criteriaDescription}
-                          </div>
-                        </div>
-                        
-                        {/* Winners for this raffle */}
-                        <div className="p-4 space-y-3">
-                          {raffle.winners.map((winner, winnerIndex) => {
-                            const avatar = getWinnerAvatar(winner);
-                            const isGradient = avatar.startsWith('linear-gradient');
-                            
-                            return (
-                              <div key={winner.user_fid} className="relative p-3 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg">
-                                {/* Position Badge */}
-                                <div className="absolute -top-2 -left-2 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
-                                  #{winnerIndex + 1}
-                                </div>
-                                
-                                <div className="flex items-center space-x-3">
-                                  {/* Avatar */}
-                                  <div className="relative">
-                                    {isGradient ? (
-                                      <div 
-                                        className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg"
-                                        style={{ background: avatar }}
-                                      >
-                                        {getWinnerDisplayName(winner).charAt(0).toUpperCase()}
-                                      </div>
-                                    ) : (
-                                      <img 
-                                        src={avatar}
-                                        alt={getWinnerDisplayName(winner)}
-                                        className="w-12 h-12 rounded-full object-cover shadow-lg border-2 border-white"
-                                      />
-                                    )}
+                          
+                          {/* Winners for this raffle */}
+                          <div className="p-4 space-y-3">
+                            {raffle.winners.map((winner, winnerIndex) => {
+                              const avatar = getWinnerAvatar(winner);
+                              const isGradient = avatar.startsWith('linear-gradient');
+                              
+                              return (
+                                <div key={winner.user_fid} className="relative p-3 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg">
+                                  {/* Position Badge */}
+                                  <div className="absolute -top-2 -left-2 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
+                                    #{winnerIndex + 1}
                                   </div>
                                   
-                                  {/* Winner Info */}
-                                  <div className="flex-1">
-                                    <div className="font-bold text-gray-800">
-                                      🎉 {getWinnerDisplayName(winner)}
+                                  <div className="flex items-center space-x-3">
+                                    {/* Avatar */}
+                                    <div className="relative">
+                                      {isGradient ? (
+                                        <div 
+                                          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg"
+                                          style={{ background: avatar }}
+                                        >
+                                          {getWinnerDisplayName(winner).charAt(0).toUpperCase()}
+                                        </div>
+                                      ) : (
+                                        <img 
+                                          src={avatar}
+                                          alt={getWinnerDisplayName(winner)}
+                                          className="w-12 h-12 rounded-full object-cover shadow-lg border-2 border-white"
+                                        />
+                                      )}
                                     </div>
-                                    <div className="text-xs text-gray-600 mb-1">
-                                      @{winner.username || 'unknown'} • FID: {winner.user_fid}
-                                    </div>
-                                    <div className="flex items-center space-x-3 text-xs">
-                                      <span className="flex items-center space-x-1 text-yellow-600">
-                                        <span>⭐</span>
-                                        <span className="font-medium">{winner.total_points?.toLocaleString()} points</span>
-                                      </span>
-                                      <span className="flex items-center space-x-1 text-orange-600">
-                                        <span>🔥</span>
-                                        <span className="font-medium">{winner.checkin_streak} day streak</span>
-                                      </span>
+                                    
+                                    {/* Winner Info */}
+                                    <div className="flex-1">
+                                      <div className="font-bold text-gray-800">
+                                        🎉 {getWinnerDisplayName(winner)}
+                                      </div>
+                                      <div className="text-xs text-gray-600 mb-1">
+                                        @{winner.username || 'unknown'} • FID: {winner.user_fid}
+                                      </div>
+                                      <div className="flex items-center space-x-3 text-xs">
+                                        <span className="flex items-center space-x-1 text-yellow-600">
+                                          <span>⭐</span>
+                                          <span className="font-medium">{winner.total_points?.toLocaleString()} points</span>
+                                        </span>
+                                        <span className="flex items-center space-x-1 text-orange-600">
+                                          <span>🔥</span>
+                                          <span className="font-medium">{winner.checkin_streak} day streak</span>
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* Export All Winners Button */}
-                  <div className="px-6 pb-6 space-y-3">
-                    <button
-                      onClick={() => {
-                        const allWinners = raffleResults.flatMap((raffle, index) => 
-                          raffle.winners.map(winner => ({
-                            ...winner,
-                            raffle_number: index + 1,
-                            raffle_criteria: raffle.criteriaDescription,
-                            raffle_timestamp: raffle.timestamp
-                          }))
-                        );
-                        exportData(allWinners, `all_raffle_winners_${new Date().toISOString().split('T')[0]}.csv`);
-                      }}
-                      className="w-full bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white py-3 px-4 rounded-md transition-all shadow-lg"
-                    >
-                      📥 Export All Winners CSV
-                    </button>
+                      ))}
+                    </div>
                     
-                    {/* Clear Results Button */}
-                    <button
-                      onClick={clearRaffleResults}
-                      className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-2 px-4 rounded-md transition-all shadow-lg text-sm"
-                    >
-                      🗑️ Clear Results
-                    </button>
+                    {/* Export All Winners Button */}
+                    <div className="px-6 pb-6 space-y-3">
+                      <button
+                        onClick={() => {
+                          const allWinners = raffleResults.flatMap((raffle, index) => 
+                            raffle.winners.map(winner => ({
+                              ...winner,
+                              raffle_number: index + 1,
+                              raffle_criteria: raffle.criteriaDescription,
+                              raffle_timestamp: raffle.timestamp
+                            }))
+                          );
+                          exportData(allWinners, `all_raffle_winners_${new Date().toISOString().split('T')[0]}.csv`);
+                        }}
+                        className="w-full bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white py-3 px-4 rounded-md transition-all shadow-lg"
+                      >
+                        📥 Export All Winners CSV
+                      </button>
+                      
+                      {/* Clear Results Button */}
+                      <button
+                        onClick={clearRaffleResults}
+                        className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-2 px-4 rounded-md transition-all shadow-lg text-sm"
+                      >
+                        🗑️ Clear Results
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="p-6">
-                  <h2 className="text-lg font-semibold text-gray-800 mb-4">🏆 Raffle Results</h2>
-                  <div className="text-center text-gray-500 py-12">
-                    <div className="text-4xl mb-4">🎲</div>
-                    <p>Configure your raffle settings and click the button to select random winners!</p>
-                    <p className="text-sm mt-2">Results will display with professional styling perfect for announcements.</p>
-                    <p className="text-sm mt-1 text-blue-600">💡 Run multiple raffles to see all results in one screenshot!</p>
+                ) : (
+                  <div className="p-6">
+                    <h2 className="text-lg font-semibold text-gray-800 mb-4">🏆 Raffle Results</h2>
+                    <div className="text-center text-gray-500 py-12">
+                      <div className="text-4xl mb-4">🎲</div>
+                      <p>Configure your raffle settings and click the button to select random winners!</p>
+                      <p className="text-sm mt-2">Results will display with professional styling perfect for announcements.</p>
+                      <p className="text-sm mt-1 text-blue-600">💡 Run multiple raffles to see all results in one screenshot!</p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         )}
