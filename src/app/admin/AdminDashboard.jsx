@@ -21,6 +21,7 @@ export default function AdminDashboard() {
     excludePreviousWinners: true
   });
   const [raffleResults, setRaffleResults] = useState(null);
+  const [winnerProfiles, setWinnerProfiles] = useState({});
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -86,6 +87,25 @@ export default function AdminDashboard() {
       
       if (result.success) {
         setRaffleResults(result.data);
+        
+        // Fetch user profiles for winners
+        const fids = result.data.winners.map(w => w.user_fid);
+        const profilesResponse = await fetch('/api/user-profiles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fids })
+        });
+        
+        if (profilesResponse.ok) {
+          const profilesResult = await profilesResponse.json();
+          if (profilesResult.success) {
+            const profilesMap = {};
+            profilesResult.data.forEach(profile => {
+              profilesMap[profile.fid] = profile;
+            });
+            setWinnerProfiles(profilesMap);
+          }
+        }
       } else {
         setError(result.error || 'Raffle failed');
       }
@@ -106,6 +126,22 @@ export default function AdminDashboard() {
     a.href = url;
     a.download = filename;
     a.click();
+  };
+
+  // Helper functions for winner display
+  const getWinnerDisplayName = (winner) => {
+    const profile = winnerProfiles[winner.user_fid];
+    return profile?.displayName || profile?.username || winner.username || `FID ${winner.user_fid}`;
+  };
+
+  const getWinnerAvatar = (winner) => {
+    const profile = winnerProfiles[winner.user_fid];
+    if (profile?.pfpUrl) {
+      return profile.pfpUrl;
+    }
+    // Generate a gradient based on user_fid for consistent fallback
+    const hue = (winner.user_fid * 137.508) % 360;
+    return `linear-gradient(45deg, hsl(${hue}, 70%, 60%), hsl(${(hue + 60) % 360}, 70%, 70%))`;
   };
 
   if (!isAuthenticated) {
@@ -276,38 +312,44 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Minimum Points
+                    ⭐ Minimum Points
                   </label>
                   <input
                     type="number"
+                    placeholder="e.g., 100 (0 = no minimum)"
                     value={raffleFilters.minPoints}
                     onChange={(e) => setRaffleFilters(prev => ({ ...prev, minPoints: parseInt(e.target.value) || 0 }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Filter users by total points earned</p>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Minimum Streak (days)
+                    🔥 Minimum Streak Days
                   </label>
                   <input
                     type="number"
+                    placeholder="e.g., 7 (0 = no minimum)"
                     value={raffleFilters.minStreak}
                     onChange={(e) => setRaffleFilters(prev => ({ ...prev, minStreak: parseInt(e.target.value) || 0 }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Filter users by consecutive check-in days</p>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Minimum Purchase Points
+                    🛍️ Minimum Purchase Points
                   </label>
                   <input
                     type="number"
+                    placeholder="e.g., 50 (0 = no minimum)"
                     value={raffleFilters.minPurchasePoints}
                     onChange={(e) => setRaffleFilters(prev => ({ ...prev, minPurchasePoints: parseInt(e.target.value) || 0 }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Filter users by points from purchases</p>
                 </div>
                 
                 <div className="flex items-center">
@@ -316,10 +358,10 @@ export default function AdminDashboard() {
                     id="excludePrevious"
                     checked={raffleFilters.excludePreviousWinners}
                     onChange={(e) => setRaffleFilters(prev => ({ ...prev, excludePreviousWinners: e.target.checked }))}
-                    className="mr-2"
+                    className="mr-2 h-4 w-4 text-[#3eb489] focus:ring-[#3eb489]"
                   />
                   <label htmlFor="excludePrevious" className="text-sm text-gray-700">
-                    Exclude previous winners (not implemented yet)
+                    🚫 Exclude previous winners <span className="text-gray-400">(coming soon)</span>
                   </label>
                 </div>
               </div>
@@ -327,59 +369,119 @@ export default function AdminDashboard() {
               <div className="mt-6 space-y-3">
                 <button
                   onClick={() => runRaffle(1)}
-                  className="w-full bg-[#3eb489] hover:bg-[#359970] text-white py-2 px-4 rounded-md transition-colors"
+                  className="w-full bg-gradient-to-r from-[#3eb489] to-[#45c497] hover:from-[#359970] hover:to-[#3eb489] text-white py-3 px-4 rounded-md transition-all transform hover:scale-105 shadow-lg"
                 >
-                  🎲 Run Raffle (1 Winner)
+                  🎲 Run Single Winner Raffle
                 </button>
                 <button
                   onClick={() => runRaffle(3)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors"
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-4 rounded-md transition-all transform hover:scale-105 shadow-lg"
                 >
-                  🎲 Run Raffle (3 Winners)
+                  🎲 Run Three Winner Raffle
                 </button>
+              </div>
+              
+              <div className="mt-4 p-3 bg-blue-50 rounded-md">
+                <p className="text-xs text-blue-700">
+                  💡 <strong>Pro Tip:</strong> Perfect layout for screenshots! Results show user avatars and branding for professional announcements.
+                </p>
               </div>
             </div>
 
             {/* Raffle Results */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">🏆 Raffle Results</h2>
-              
+            <div className="bg-white rounded-lg shadow overflow-hidden">
               {raffleResults ? (
-                <div className="space-y-4">
-                  <div className="text-sm text-gray-600">
-                    Selected from {raffleResults.eligibleCount} eligible users
+                <div>
+                  {/* Professional Header with Branding */}
+                  <div className="bg-gradient-to-r from-[#3eb489] to-[#45c497] p-6 text-white">
+                    <div className="flex items-center justify-center space-x-3 mb-2">
+                      <img 
+                        src="/MintedMerchHeaderLogo.png" 
+                        alt="Minted Merch"
+                        className="h-8 w-auto"
+                      />
+                      <h2 className="text-xl font-bold">Raffle Winners!</h2>
+                    </div>
+                    <div className="text-center text-sm opacity-90">
+                      Selected from {raffleResults.eligibleCount} eligible community members
+                    </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    {raffleResults.winners.map((winner, index) => (
-                      <div key={winner.user_fid} className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <div className="font-medium text-gray-800">
-                              🎉 Winner #{index + 1}
+                  {/* Winners Display */}
+                  <div className="p-6 space-y-4">
+                    {raffleResults.winners.map((winner, index) => {
+                      const avatar = getWinnerAvatar(winner);
+                      const isGradient = avatar.startsWith('linear-gradient');
+                      
+                      return (
+                        <div key={winner.user_fid} className="relative p-4 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-lg shadow-md">
+                          {/* Position Badge */}
+                          <div className="absolute -top-2 -left-2 w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-sm font-bold rounded-full flex items-center justify-center shadow-lg">
+                            #{index + 1}
+                          </div>
+                          
+                          <div className="flex items-center space-x-4">
+                            {/* Avatar */}
+                            <div className="relative">
+                              {isGradient ? (
+                                <div 
+                                  className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg"
+                                  style={{ background: avatar }}
+                                >
+                                  {getWinnerDisplayName(winner).charAt(0).toUpperCase()}
+                                </div>
+                              ) : (
+                                <img 
+                                  src={avatar}
+                                  alt={getWinnerDisplayName(winner)}
+                                  className="w-16 h-16 rounded-full object-cover shadow-lg border-2 border-white"
+                                />
+                              )}
                             </div>
-                            <div className="text-sm text-gray-600">
-                              FID: {winner.user_fid} | @{winner.username || 'N/A'}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {winner.total_points} points | {winner.checkin_streak} day streak
+                            
+                            {/* Winner Info */}
+                            <div className="flex-1">
+                              <div className="font-bold text-lg text-gray-800">
+                                🎉 {getWinnerDisplayName(winner)}
+                              </div>
+                              <div className="text-sm text-gray-600 mb-2">
+                                @{winner.username || 'unknown'} • FID: {winner.user_fid}
+                              </div>
+                              <div className="flex items-center space-x-4 text-sm">
+                                <span className="flex items-center space-x-1 text-yellow-600">
+                                  <span>⭐</span>
+                                  <span className="font-medium">{winner.total_points?.toLocaleString()} points</span>
+                                </span>
+                                <span className="flex items-center space-x-1 text-orange-600">
+                                  <span>🔥</span>
+                                  <span className="font-medium">{winner.checkin_streak} day streak</span>
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   
-                  <button
-                    onClick={() => exportData(raffleResults.winners, `raffle_winners_${new Date().toISOString().split('T')[0]}.csv`)}
-                    className="w-full bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-md transition-colors"
-                  >
-                    📥 Export Winners
-                  </button>
+                  {/* Export Button */}
+                  <div className="px-6 pb-6">
+                    <button
+                      onClick={() => exportData(raffleResults.winners, `raffle_winners_${new Date().toISOString().split('T')[0]}.csv`)}
+                      className="w-full bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white py-3 px-4 rounded-md transition-all shadow-lg"
+                    >
+                      📥 Export Winners CSV
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <div className="text-center text-gray-500 py-8">
-                  Configure filters and run a raffle to see results
+                <div className="p-6">
+                  <h2 className="text-lg font-semibold text-gray-800 mb-4">🏆 Raffle Results</h2>
+                  <div className="text-center text-gray-500 py-12">
+                    <div className="text-4xl mb-4">🎲</div>
+                    <p>Configure your raffle settings and click the button to select random winners!</p>
+                    <p className="text-sm mt-2">Results will display with professional styling perfect for announcements.</p>
+                  </div>
                 </div>
               )}
             </div>
