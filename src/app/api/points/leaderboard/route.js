@@ -19,10 +19,10 @@ export async function GET(request) {
     }
 
     // Validate limit
-    if (limit < 1 || limit > 100) {
+    if (limit < 1 || limit > 1000) {
       return Response.json({
         success: false,
-        error: 'Limit must be between 1 and 100'
+        error: 'Limit must be between 1 and 1000'
       }, { status: 400 });
     }
 

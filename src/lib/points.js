@@ -379,7 +379,7 @@ export async function getLeaderboard(limit = 10, category = 'points') {
   try {
     let query = supabaseAdmin
       .from('user_leaderboard')
-      .select('user_fid, total_points, checkin_streak, last_checkin_date, total_orders, total_spent, points_from_purchases, points_from_checkins, created_at')
+      .select('user_fid, username, total_points, checkin_streak, last_checkin_date, total_orders, total_spent, points_from_purchases, points_from_checkins, created_at')
       .limit(limit);
 
     // Sort based on category
