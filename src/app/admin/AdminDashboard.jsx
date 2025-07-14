@@ -986,9 +986,10 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {discount.gating_type === 'whitelist_fid' ? (
+                          {discount.fid || (discount.gating_type === 'whitelist_fid' && discount.whitelisted_fids?.length > 0) ? (
                             <span className="text-xs bg-yellow-50 border border-yellow-200 px-2 py-1 rounded">
-                              {getDiscountFids(discount) || 'No FIDs'}
+                              {discount.fid ? `FID: ${discount.fid}` : 
+                               (discount.whitelisted_fids?.length > 0 ? `${discount.whitelisted_fids.length} FIDs` : 'No FIDs')}
                             </span>
                           ) : (
                             <span className="text-gray-400">—</span>

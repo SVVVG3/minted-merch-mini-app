@@ -52,6 +52,9 @@ export async function GET(request) {
         
         // Targeting
         fid: discount.fid,
+        discount_scope: discount.discount_scope,
+        target_products: discount.target_products,
+        target_product_ids: discount.target_product_ids,
         whitelisted_fids: discount.whitelisted_fids,
         whitelisted_wallets: discount.whitelisted_wallets,
         contract_addresses: discount.contract_addresses,
