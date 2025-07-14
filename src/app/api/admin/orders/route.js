@@ -5,7 +5,7 @@ export async function GET(request) {
   try {
     console.log('🛍️ Fetching all orders for admin dashboard...');
 
-    // Fetch all orders with order items
+    // Fetch all orders with order items - using correct column names from database
     const { data: orders, error: ordersError } = await supabaseAdmin
       .from('orders')
       .select(`
@@ -31,11 +31,10 @@ export async function GET(request) {
       }, { status: 500 });
     }
 
-    // Calculate order totals and format data
+    // Format orders using correct database column names
     const formattedOrders = orders.map(order => {
       const itemCount = order.order_items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-      const orderTotal = order.order_items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
-
+      
       return {
         order_id: order.order_id,
         fid: order.fid,
@@ -43,19 +42,41 @@ export async function GET(request) {
         customer_name: order.customer_name,
         status: order.status,
         item_count: itemCount,
-        order_total: orderTotal,
-        discount_applied: order.discount_applied,
+        
+        // Use correct database columns for amounts
+        amount_total: order.amount_total,
+        amount_subtotal: order.amount_subtotal,
+        amount_tax: order.amount_tax,
+        amount_shipping: order.amount_shipping,
+        
+        // Discount information
+        discount_applied: !!order.discount_code, // true if discount_code exists
         discount_code: order.discount_code,
         discount_amount: order.discount_amount,
-        shipping_cost: order.shipping_cost,
-        final_total: order.final_total,
+        discount_percentage: order.discount_percentage,
+        
+        // Other order details
         payment_method: order.payment_method,
-        shopify_order_id: order.shopify_order_id,
+        payment_status: order.payment_status,
+        currency: order.currency,
+        
+        // Shopify and tracking info
+        shopify_order_id: order.order_id, // The order_id is the Shopify order number
+        tracking_number: order.tracking_number,
+        tracking_url: order.tracking_url,
+        carrier: order.carrier,
+        
+        // Timestamps
         created_at: order.created_at,
         updated_at: order.updated_at,
+        shipped_at: order.shipped_at,
+        delivered_at: order.delivered_at,
         archived_at: order.archived_at,
-        tracking_number: order.tracking_number,
-        tracking_url: order.tracking_url
+        
+        // Gift card info
+        gift_card_codes: order.gift_card_codes,
+        gift_card_total_used: order.gift_card_total_used,
+        gift_card_count: order.gift_card_count
       };
     });
 

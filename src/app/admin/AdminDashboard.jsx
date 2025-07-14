@@ -396,7 +396,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.item_count}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(order.final_total || order.order_total)}
+                        {formatCurrency(order.amount_total)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {order.discount_applied ? (
