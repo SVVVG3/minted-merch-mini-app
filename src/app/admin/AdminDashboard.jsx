@@ -23,6 +23,7 @@ export default function AdminDashboard() {
   });
   const [raffleResults, setRaffleResults] = useState(null);
   const [winnerProfiles, setWinnerProfiles] = useState({});
+  const [numWinners, setNumWinners] = useState(1);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -81,14 +82,17 @@ export default function AdminDashboard() {
     }
   };
 
-  const runRaffle = async (numWinners = 1) => {
+  const runRaffle = async (winnersCount = null, customFilters = null) => {
     try {
+      const winners = winnersCount || numWinners;
+      const filters = customFilters || raffleFilters;
+      
       const response = await fetch('/api/admin/raffle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          numWinners,
-          filters: raffleFilters
+          numWinners: winners,
+          filters: filters
         })
       });
 
@@ -121,6 +125,40 @@ export default function AdminDashboard() {
     } catch (error) {
       setError('Raffle execution failed');
     }
+  };
+
+  // Quick raffle functions for top users
+  const runTopUsersRaffle = async (topCount, sortBy = 'total_points') => {
+    if (!leaderboardData || leaderboardData.length === 0) {
+      setError('Leaderboard data not loaded');
+      return;
+    }
+
+    // Sort users by the specified criteria
+    const sortedUsers = [...leaderboardData].sort((a, b) => {
+      if (sortBy === 'total_points') return b.total_points - a.total_points;
+      if (sortBy === 'checkin_streak') return b.checkin_streak - a.checkin_streak;
+      if (sortBy === 'points_from_purchases') return b.points_from_purchases - a.points_from_purchases;
+      return 0;
+    });
+
+    // Get the minimum threshold for the top N users
+    const topUsers = sortedUsers.slice(0, topCount);
+    if (topUsers.length === 0) {
+      setError('No users found for top raffle');
+      return;
+    }
+
+    const minThreshold = topUsers[topUsers.length - 1][sortBy];
+    
+    // Create filter to include only top N users
+    const topUserFilters = { ...raffleFilters };
+    if (sortBy === 'total_points') topUserFilters.minPoints = minThreshold;
+    if (sortBy === 'checkin_streak') topUserFilters.minStreak = minThreshold;
+    if (sortBy === 'points_from_purchases') topUserFilters.minPurchasePoints = minThreshold;
+
+    // Run raffle with these filters
+    await runRaffle(numWinners, topUserFilters);
   };
 
   const exportData = (data, filename) => {
@@ -483,19 +521,103 @@ export default function AdminDashboard() {
                 </div>
               </div>
               
-              <div className="mt-6 space-y-3">
+              <div className="mt-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    🏆 Number of Winners
+                  </label>
+                  <select
+                    value={numWinners}
+                    onChange={(e) => setNumWinners(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                  >
+                    <option value={1}>1 Winner</option>
+                    <option value={2}>2 Winners</option>
+                    <option value={3}>3 Winners</option>
+                    <option value={4}>4 Winners</option>
+                    <option value={5}>5 Winners</option>
+                  </select>
+                </div>
+
                 <button
-                  onClick={() => runRaffle(1)}
+                  onClick={() => runRaffle()}
                   className="w-full bg-gradient-to-r from-[#3eb489] to-[#45c497] hover:from-[#359970] hover:to-[#3eb489] text-white py-3 px-4 rounded-md transition-all transform hover:scale-105 shadow-lg"
                 >
-                  🎲 Run Single Winner Raffle
+                  🎲 Run Custom Raffle ({numWinners} Winner{numWinners > 1 ? 's' : ''})
                 </button>
-                <button
-                  onClick={() => runRaffle(3)}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-4 rounded-md transition-all transform hover:scale-105 shadow-lg"
-                >
-                  🎲 Run Three Winner Raffle
-                </button>
+
+                {/* Quick Top Users Raffles */}
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">⚡ Quick Top Users Raffles</h3>
+                  
+                  <div className="space-y-2">
+                    <div className="text-xs text-gray-600 mb-2">🏅 By Total Points</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => runTopUsersRaffle(10, 'total_points')}
+                        className="px-3 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded text-sm"
+                      >
+                        Top 10
+                      </button>
+                      <button
+                        onClick={() => runTopUsersRaffle(20, 'total_points')}
+                        className="px-3 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded text-sm"
+                      >
+                        Top 20
+                      </button>
+                      <button
+                        onClick={() => runTopUsersRaffle(50, 'total_points')}
+                        className="px-3 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded text-sm"
+                      >
+                        Top 50
+                      </button>
+                    </div>
+
+                    <div className="text-xs text-gray-600 mb-2 mt-3">🔥 By Streak Days</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => runTopUsersRaffle(10, 'checkin_streak')}
+                        className="px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded text-sm"
+                      >
+                        Top 10
+                      </button>
+                      <button
+                        onClick={() => runTopUsersRaffle(20, 'checkin_streak')}
+                        className="px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded text-sm"
+                      >
+                        Top 20
+                      </button>
+                      <button
+                        onClick={() => runTopUsersRaffle(50, 'checkin_streak')}
+                        className="px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded text-sm"
+                      >
+                        Top 50
+                      </button>
+                    </div>
+
+                    <div className="text-xs text-gray-600 mb-2 mt-3">💰 By Purchase Points</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => runTopUsersRaffle(10, 'points_from_purchases')}
+                        className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded text-sm"
+                      >
+                        Top 10
+                      </button>
+                      <button
+                        onClick={() => runTopUsersRaffle(20, 'points_from_purchases')}
+                        className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded text-sm"
+                      >
+                        Top 20
+                      </button>
+                      <button
+                        onClick={() => runTopUsersRaffle(50, 'points_from_purchases')}
+                        className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded text-sm"
+                      >
+                        Top 50
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
               
               <div className="mt-4 p-3 bg-blue-50 rounded-md">

@@ -31,6 +31,13 @@ export async function GET(request) {
       }, { status: 500 });
     }
 
+    // Sort by order number (extract numeric part and sort descending)
+    orders.sort((a, b) => {
+      const orderNumA = parseInt(a.order_id.replace('#', '')) || 0;
+      const orderNumB = parseInt(b.order_id.replace('#', '')) || 0;
+      return orderNumB - orderNumA; // Descending order (newest first)
+    });
+
     // Format orders using correct database column names
     const formattedOrders = orders.map(order => {
       const itemCount = order.order_items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
