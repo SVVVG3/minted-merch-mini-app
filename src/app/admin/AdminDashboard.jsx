@@ -25,6 +25,11 @@ export default function AdminDashboard() {
   const [winnerProfiles, setWinnerProfiles] = useState({});
   const [numWinners, setNumWinners] = useState(1);
   
+  // Past Raffles state
+  const [pastRaffles, setPastRaffles] = useState([]);
+  const [pastRafflesLoading, setPastRafflesLoading] = useState(false);
+  const [pastRafflesError, setPastRafflesError] = useState('');
+  
   // Leaderboard sorting state
   const [sortField, setSortField] = useState('total_points');
   const [sortDirection, setSortDirection] = useState('desc');
@@ -226,6 +231,60 @@ export default function AdminDashboard() {
     setRaffleResults([]);
     setWinnerProfiles({});
   };
+
+  // Load past raffles from database
+  const loadPastRaffles = async () => {
+    setPastRafflesLoading(true);
+    setPastRafflesError('');
+    
+    try {
+      const response = await fetch('/api/admin/raffle');
+      const result = await response.json();
+      
+      if (result.success) {
+        setPastRaffles(result.data.raffles || []);
+      } else {
+        setPastRafflesError(result.error || 'Failed to load past raffles');
+      }
+    } catch (error) {
+      console.error('Error loading past raffles:', error);
+      setPastRafflesError('Failed to load past raffles');
+    } finally {
+      setPastRafflesLoading(false);
+    }
+  };
+
+  // Delete past raffle
+  const deletePastRaffle = async (raffleId) => {
+    if (!confirm('Are you sure you want to delete this raffle? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/admin/raffle/${raffleId}`, {
+        method: 'DELETE'
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Remove from local state
+        setPastRaffles(prev => prev.filter(raffle => raffle.raffleId !== raffleId));
+      } else {
+        alert(result.error || 'Failed to delete raffle');
+      }
+    } catch (error) {
+      console.error('Error deleting raffle:', error);
+      alert('Failed to delete raffle');
+    }
+  };
+
+  // Load past raffles when Past Raffles tab is selected
+  useEffect(() => {
+    if (activeTab === 'past-raffles' && pastRaffles.length === 0) {
+      loadPastRaffles();
+    }
+  }, [activeTab]);
 
   // Leaderboard sorting function
   const handleSort = (field) => {
@@ -537,7 +596,8 @@ export default function AdminDashboard() {
                 { key: 'leaderboard', label: '🏆 Leaderboard' },
                 { key: 'orders', label: '🛍️ Orders' },
                 { key: 'discounts', label: '🎫 Discounts' },
-                { key: 'raffle', label: '🎲 Raffle Tool' }
+                { key: 'raffle', label: '🎲 Raffle Tool' },
+                { key: 'past-raffles', label: '📚 Past Raffles' }
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -1212,14 +1272,6 @@ export default function AdminDashboard() {
                     <div className="text-center text-sm opacity-90 mt-2">
                       {raffleResults.length} raffle{raffleResults.length > 1 ? 's' : ''} completed
                     </div>
-                    <div className="text-center mt-2">
-                      <button
-                        onClick={clearRaffleResults}
-                        className="text-gray-300 hover:text-white text-xs underline hover:no-underline transition-all"
-                      >
-                        Clear Results
-                      </button>
-                    </div>
                   </div>
                   
                   {/* Multiple Raffle Results */}
@@ -1307,7 +1359,7 @@ export default function AdminDashboard() {
                   </div>
                   
                   {/* Export All Winners Button */}
-                  <div className="px-6 pb-6">
+                  <div className="px-6 pb-6 space-y-3">
                     <button
                       onClick={() => {
                         const allWinners = raffleResults.flatMap((raffle, index) => 
@@ -1324,6 +1376,14 @@ export default function AdminDashboard() {
                     >
                       📥 Export All Winners CSV
                     </button>
+                    
+                    {/* Clear Results Button */}
+                    <button
+                      onClick={clearRaffleResults}
+                      className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-2 px-4 rounded-md transition-all shadow-lg text-sm"
+                    >
+                      🗑️ Clear Results
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -1338,6 +1398,98 @@ export default function AdminDashboard() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Past Raffles Tab */}
+        {activeTab === 'past-raffles' && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-gray-800">📚 Past Raffles</h2>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => exportData(pastRaffles, `past_raffles_${new Date().toISOString().split('T')[0]}.csv`)}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                >
+                  📥 Export CSV
+                </button>
+                <button
+                  onClick={loadPastRaffles}
+                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+            </div>
+            
+            {pastRafflesLoading ? (
+              <div className="p-6 text-center">
+                <div className="text-gray-500">Loading past raffles...</div>
+              </div>
+            ) : pastRafflesError ? (
+              <div className="p-6 text-center">
+                <div className="text-red-600">{pastRafflesError}</div>
+                <button
+                  onClick={loadPastRaffles}
+                  className="mt-4 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : pastRaffles.length === 0 ? (
+              <div className="p-6 text-center">
+                <div className="text-4xl mb-4">🎲</div>
+                <div className="text-gray-500">No past raffles found</div>
+                <p className="text-sm mt-2">Past raffles will appear here after you run them from the Raffle Tool</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Raffle ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Winners</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eligible Users</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Criteria</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {pastRaffles.map((raffle) => (
+                      <tr key={raffle.raffleId}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                            {raffle.raffleId}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatDate(raffle.timestamp)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="font-medium">{raffle.winners.length}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {raffle.totalEligibleUsers}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 max-w-xs truncate" title={raffle.criteriaDescription}>
+                          {raffle.criteriaDescription}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <button
+                            onClick={() => deletePastRaffle(raffle.raffleId)}
+                            className="text-red-600 hover:text-red-900 text-xs mr-2"
+                            title="Delete Raffle"
+                          >
+                            🗑️
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>
