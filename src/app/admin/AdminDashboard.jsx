@@ -1142,7 +1142,7 @@ export default function AdminDashboard() {
                     className="mr-2 h-4 w-4 text-[#3eb489] focus:ring-[#3eb489]"
                   />
                   <label htmlFor="excludePrevious" className="text-sm text-gray-700">
-                    🚫 Exclude previous winners <span className="text-gray-400">(coming soon)</span>
+                    🚫 Exclude previous winners
                   </label>
                 </div>
               </div>
@@ -1449,7 +1449,7 @@ export default function AdminDashboard() {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Raffle ID</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Winners</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Winners & Details</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eligible Users</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Criteria</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -1466,8 +1466,25 @@ export default function AdminDashboard() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {formatDate(raffle.timestamp)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <span className="font-medium">{raffle.winners.length}</span>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          <div className="space-y-1">
+                            {raffle.winners.map((winner, index) => (
+                              <div key={winner.user_fid} className="flex items-center space-x-2">
+                                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                                  #{index + 1}
+                                </span>
+                                <span className="font-medium text-blue-600">
+                                  @{winner.username}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  (FID: {winner.user_fid})
+                                </span>
+                                <span className="text-xs text-gray-400">
+                                  {winner.total_points}pts
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {raffle.totalEligibleUsers}

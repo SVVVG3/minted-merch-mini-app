@@ -31,20 +31,44 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Failed to fetch eligible users' });
     }
 
-    if (!eligibleUsers || eligibleUsers.length === 0) {
-      return NextResponse.json({ success: false, error: 'No eligible users found' });
+    let filteredUsers = eligibleUsers || [];
+
+    // Exclude previous winners if filter is enabled
+    if (filters.excludePreviousWinners) {
+      // Get all previous winners
+      const { data: previousWinners, error: winnersError } = await supabaseAdmin
+        .from('raffle_winner_entries')
+        .select('user_fid');
+
+      if (winnersError) {
+        console.error('Error fetching previous winners:', winnersError);
+        return NextResponse.json({ success: false, error: 'Failed to fetch previous winners' });
+      }
+
+      // Create a set of previous winner FIDs for fast lookup
+      const previousWinnerFids = new Set(previousWinners.map(w => w.user_fid));
+      
+      // Filter out users who have previously won
+      filteredUsers = filteredUsers.filter(user => !previousWinnerFids.has(user.user_fid));
+    }
+
+    if (!filteredUsers || filteredUsers.length === 0) {
+      const message = filters.excludePreviousWinners 
+        ? 'No eligible users found (all eligible users have already won previous raffles)'
+        : 'No eligible users found';
+      return NextResponse.json({ success: false, error: message });
     }
 
     // Randomly select winners
-    const shuffled = [...eligibleUsers].sort(() => 0.5 - Math.random());
-    const winners = shuffled.slice(0, Math.min(numWinners, eligibleUsers.length));
+    const shuffled = [...filteredUsers].sort(() => 0.5 - Math.random());
+    const winners = shuffled.slice(0, Math.min(numWinners, filteredUsers.length));
 
     // Generate raffle ID and save to database
     const raffleId = generateRandomId();
     const raffleTimestamp = new Date().toISOString();
     
     // Generate criteria description
-    const criteriaDescription = generateCriteriaDescription(filters, eligibleUsers.length);
+    const criteriaDescription = generateCriteriaDescription(filters, filteredUsers.length, eligibleUsers.length);
 
     // Save raffle metadata
     const { data: raffleData, error: raffleError } = await supabaseAdmin
@@ -53,7 +77,7 @@ export async function POST(request) {
         raffle_id: raffleId,
         raffle_timestamp: raffleTimestamp,
         raffle_criteria: criteriaDescription,
-        total_eligible_users: eligibleUsers.length,
+        total_eligible_users: filteredUsers.length,
         total_winners: winners.length,
         filters_applied: filters,
         created_by_admin: 'admin_dashboard'
@@ -171,7 +195,7 @@ export async function GET(request) {
   }
 }
 
-function generateCriteriaDescription(filters, eligibleCount) {
+function generateCriteriaDescription(filters, eligibleCount, originalCount = null) {
   const criteria = [];
   
   if (filters.minPoints > 0) {
@@ -186,11 +210,20 @@ function generateCriteriaDescription(filters, eligibleCount) {
     criteria.push(`${filters.minPurchasePoints}+ purchase points`);
   }
   
+  let description;
   if (criteria.length === 0) {
-    return `Selected from ${eligibleCount} community members`;
+    description = `Selected from ${eligibleCount} community members`;
+  } else {
+    description = `Selected from ${eligibleCount} members with ${criteria.join(', ')}`;
   }
   
-  return `Selected from ${eligibleCount} members with ${criteria.join(', ')}`;
+  // Add exclusion info if previous winners were excluded
+  if (filters.excludePreviousWinners && originalCount && originalCount > eligibleCount) {
+    const excludedCount = originalCount - eligibleCount;
+    description += ` (excluding ${excludedCount} previous winner${excludedCount > 1 ? 's' : ''})`;
+  }
+  
+  return description;
 }
 
 // Helper function to generate random ID
