@@ -21,7 +21,7 @@ export default function AdminDashboard() {
     minPurchasePoints: 0,
     excludePreviousWinners: true
   });
-  const [raffleResults, setRaffleResults] = useState(null);
+  const [raffleResults, setRaffleResults] = useState([]);
   const [winnerProfiles, setWinnerProfiles] = useState({});
   const [numWinners, setNumWinners] = useState(1);
   
@@ -100,7 +100,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const runRaffle = async (winnersCount = null, customFilters = null) => {
+  const runRaffle = async (winnersCount = null, customFilters = null, criteriaDescription = null) => {
     try {
       const winners = winnersCount || numWinners;
       const filters = customFilters || raffleFilters;
@@ -117,7 +117,18 @@ export default function AdminDashboard() {
       const result = await response.json();
       
       if (result.success) {
-        setRaffleResults(result.data);
+        // Generate criteria description if not provided
+        const description = criteriaDescription || generateCriteriaDescription(filters, result.data.eligibleCount);
+        
+        // Add criteria description to the result
+        const resultWithDescription = {
+          ...result.data,
+          criteriaDescription: description,
+          timestamp: new Date().toISOString()
+        };
+        
+        // Add to results array instead of replacing
+        setRaffleResults(prev => [...prev, resultWithDescription]);
         
         // Fetch user profiles for winners
         const fids = result.data.winners.map(w => w.user_fid);
@@ -130,11 +141,12 @@ export default function AdminDashboard() {
         if (profilesResponse.ok) {
           const profilesResult = await profilesResponse.json();
           if (profilesResult.success) {
-            const profilesMap = {};
-            profilesResult.data.forEach(profile => {
-              profilesMap[profile.fid] = profile;
-            });
-            setWinnerProfiles(profilesMap);
+            // Fix: Use users object from API response, not data array
+            const newProfiles = profilesResult.users || {};
+            setWinnerProfiles(prev => ({
+              ...prev,
+              ...newProfiles
+            }));
           }
         }
       } else {
@@ -143,6 +155,28 @@ export default function AdminDashboard() {
     } catch (error) {
       setError('Raffle execution failed');
     }
+  };
+
+  const generateCriteriaDescription = (filters, eligibleCount) => {
+    const criteria = [];
+    
+    if (filters.minPoints > 0) {
+      criteria.push(`${filters.minPoints}+ points`);
+    }
+    
+    if (filters.minStreak > 0) {
+      criteria.push(`${filters.minStreak}+ day streak`);
+    }
+    
+    if (filters.minPurchasePoints > 0) {
+      criteria.push(`${filters.minPurchasePoints}+ purchase points`);
+    }
+    
+    if (criteria.length === 0) {
+      return `Selected from ${eligibleCount} community members`;
+    }
+    
+    return `Selected from ${eligibleCount} members with ${criteria.join(', ')}`;
   };
 
   // Quick raffle functions for top users
@@ -175,8 +209,22 @@ export default function AdminDashboard() {
     if (sortBy === 'checkin_streak') topUserFilters.minStreak = minThreshold;
     if (sortBy === 'points_from_purchases') topUserFilters.minPurchasePoints = minThreshold;
 
-    // Run raffle with these filters
-    await runRaffle(numWinners, topUserFilters);
+    // Generate description for top users raffle
+    const criteriaMap = {
+      'total_points': 'total points',
+      'checkin_streak': 'check-in streak',
+      'points_from_purchases': 'purchase points'
+    };
+    
+    const description = `Selected from top ${topCount} users by ${criteriaMap[sortBy]} (${minThreshold}+ ${criteriaMap[sortBy]})`;
+
+    // Run raffle with these filters and description
+    await runRaffle(numWinners, topUserFilters, description);
+  };
+
+  const clearRaffleResults = () => {
+    setRaffleResults([]);
+    setWinnerProfiles({});
   };
 
   // Leaderboard sorting function
@@ -1147,87 +1195,132 @@ export default function AdminDashboard() {
 
             {/* Raffle Results */}
             <div className="bg-white rounded-lg shadow overflow-hidden">
-              {raffleResults ? (
+              {raffleResults.length > 0 ? (
                 <div>
                   {/* Professional Header with Branding */}
                   <div className="bg-gradient-to-r from-[#3eb489] to-[#45c497] p-6 text-white">
-                    <div className="flex items-center justify-center space-x-3 mb-2">
-                      <img 
-                        src="/MintedMerchSpinnerLogo.png" 
-                        alt="Minted Merch"
-                        className="h-8 w-auto"
-                      />
-                      <h2 className="text-xl font-bold">Raffle Winners!</h2>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <img 
+                          src="/MintedMerchSpinnerLogo.png" 
+                          alt="Minted Merch"
+                          className="h-8 w-auto"
+                        />
+                        <h2 className="text-xl font-bold">Raffle Winners!</h2>
+                      </div>
+                      <button
+                        onClick={clearRaffleResults}
+                        className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-3 py-1 rounded text-sm transition-all"
+                      >
+                        Clear Results
+                      </button>
                     </div>
-                    <div className="text-center text-sm opacity-90">
-                      Selected from {raffleResults.eligibleCount} eligible community members
+                    <div className="text-center text-sm opacity-90 mt-2">
+                      {raffleResults.length} raffle{raffleResults.length > 1 ? 's' : ''} completed
                     </div>
                   </div>
                   
-                  {/* Winners Display */}
-                  <div className="p-6 space-y-4">
-                    {raffleResults.winners.map((winner, index) => {
-                      const avatar = getWinnerAvatar(winner);
-                      const isGradient = avatar.startsWith('linear-gradient');
-                      
-                      return (
-                        <div key={winner.user_fid} className="relative p-4 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-lg shadow-md">
-                          {/* Position Badge */}
-                          <div className="absolute -top-2 -left-2 w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-sm font-bold rounded-full flex items-center justify-center shadow-lg">
-                            #{index + 1}
+                  {/* Multiple Raffle Results */}
+                  <div className="p-6 space-y-6">
+                    {raffleResults.map((raffle, raffleIndex) => (
+                      <div key={raffleIndex} className="border-2 border-gray-200 rounded-lg overflow-hidden">
+                        {/* Raffle Header */}
+                        <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <span className="bg-[#3eb489] text-white px-2 py-1 rounded text-xs font-medium">
+                                Raffle #{raffleIndex + 1}
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                {new Date(raffle.timestamp).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {raffle.winners.length} winner{raffle.winners.length > 1 ? 's' : ''}
+                            </span>
                           </div>
-                          
-                          <div className="flex items-center space-x-4">
-                            {/* Avatar */}
-                            <div className="relative">
-                              {isGradient ? (
-                                <div 
-                                  className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg"
-                                  style={{ background: avatar }}
-                                >
-                                  {getWinnerDisplayName(winner).charAt(0).toUpperCase()}
-                                </div>
-                              ) : (
-                                <img 
-                                  src={avatar}
-                                  alt={getWinnerDisplayName(winner)}
-                                  className="w-16 h-16 rounded-full object-cover shadow-lg border-2 border-white"
-                                />
-                              )}
-                            </div>
-                            
-                            {/* Winner Info */}
-                            <div className="flex-1">
-                              <div className="font-bold text-lg text-gray-800">
-                                🎉 {getWinnerDisplayName(winner)}
-                              </div>
-                              <div className="text-sm text-gray-600 mb-2">
-                                @{winner.username || 'unknown'} • FID: {winner.user_fid}
-                              </div>
-                              <div className="flex items-center space-x-4 text-sm">
-                                <span className="flex items-center space-x-1 text-yellow-600">
-                                  <span>⭐</span>
-                                  <span className="font-medium">{winner.total_points?.toLocaleString()} points</span>
-                                </span>
-                                <span className="flex items-center space-x-1 text-orange-600">
-                                  <span>🔥</span>
-                                  <span className="font-medium">{winner.checkin_streak} day streak</span>
-                                </span>
-                              </div>
-                            </div>
+                          <div className="text-sm text-gray-700 mt-1">
+                            {raffle.criteriaDescription}
                           </div>
                         </div>
-                      );
-                    })}
+                        
+                        {/* Winners for this raffle */}
+                        <div className="p-4 space-y-3">
+                          {raffle.winners.map((winner, winnerIndex) => {
+                            const avatar = getWinnerAvatar(winner);
+                            const isGradient = avatar.startsWith('linear-gradient');
+                            
+                            return (
+                              <div key={winner.user_fid} className="relative p-3 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg">
+                                {/* Position Badge */}
+                                <div className="absolute -top-2 -left-2 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
+                                  #{winnerIndex + 1}
+                                </div>
+                                
+                                <div className="flex items-center space-x-3">
+                                  {/* Avatar */}
+                                  <div className="relative">
+                                    {isGradient ? (
+                                      <div 
+                                        className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg"
+                                        style={{ background: avatar }}
+                                      >
+                                        {getWinnerDisplayName(winner).charAt(0).toUpperCase()}
+                                      </div>
+                                    ) : (
+                                      <img 
+                                        src={avatar}
+                                        alt={getWinnerDisplayName(winner)}
+                                        className="w-12 h-12 rounded-full object-cover shadow-lg border-2 border-white"
+                                      />
+                                    )}
+                                  </div>
+                                  
+                                  {/* Winner Info */}
+                                  <div className="flex-1">
+                                    <div className="font-bold text-gray-800">
+                                      🎉 {getWinnerDisplayName(winner)}
+                                    </div>
+                                    <div className="text-xs text-gray-600 mb-1">
+                                      @{winner.username || 'unknown'} • FID: {winner.user_fid}
+                                    </div>
+                                    <div className="flex items-center space-x-3 text-xs">
+                                      <span className="flex items-center space-x-1 text-yellow-600">
+                                        <span>⭐</span>
+                                        <span className="font-medium">{winner.total_points?.toLocaleString()} points</span>
+                                      </span>
+                                      <span className="flex items-center space-x-1 text-orange-600">
+                                        <span>🔥</span>
+                                        <span className="font-medium">{winner.checkin_streak} day streak</span>
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                   
-                  {/* Export Button */}
+                  {/* Export All Winners Button */}
                   <div className="px-6 pb-6">
                     <button
-                      onClick={() => exportData(raffleResults.winners, `raffle_winners_${new Date().toISOString().split('T')[0]}.csv`)}
+                      onClick={() => {
+                        const allWinners = raffleResults.flatMap((raffle, index) => 
+                          raffle.winners.map(winner => ({
+                            ...winner,
+                            raffle_number: index + 1,
+                            raffle_criteria: raffle.criteriaDescription,
+                            raffle_timestamp: raffle.timestamp
+                          }))
+                        );
+                        exportData(allWinners, `all_raffle_winners_${new Date().toISOString().split('T')[0]}.csv`);
+                      }}
                       className="w-full bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white py-3 px-4 rounded-md transition-all shadow-lg"
                     >
-                      📥 Export Winners CSV
+                      📥 Export All Winners CSV
                     </button>
                   </div>
                 </div>
@@ -1238,6 +1331,7 @@ export default function AdminDashboard() {
                     <div className="text-4xl mb-4">🎲</div>
                     <p>Configure your raffle settings and click the button to select random winners!</p>
                     <p className="text-sm mt-2">Results will display with professional styling perfect for announcements.</p>
+                    <p className="text-sm mt-1 text-blue-600">💡 Run multiple raffles to see all results in one screenshot!</p>
                   </div>
                 </div>
               )}
