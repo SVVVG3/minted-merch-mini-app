@@ -15,7 +15,8 @@ export async function GET(request) {
           product_id,
           variant_id,
           quantity,
-          price_per_item,
+          price,
+          total,
           product_title,
           variant_title
         )
@@ -33,7 +34,7 @@ export async function GET(request) {
     // Calculate order totals and format data
     const formattedOrders = orders.map(order => {
       const itemCount = order.order_items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-      const orderTotal = order.order_items?.reduce((sum, item) => sum + (item.price_per_item * item.quantity), 0) || 0;
+      const orderTotal = order.order_items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
 
       return {
         order_id: order.order_id,
