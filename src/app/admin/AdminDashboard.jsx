@@ -1198,8 +1198,8 @@ export default function AdminDashboard() {
               {raffleResults.length > 0 ? (
                 <div>
                   {/* Professional Header with Branding */}
-                  <div className="bg-gradient-to-r from-[#3eb489] to-[#45c497] p-6 text-white">
-                    <div className="flex items-center justify-between">
+                  <div className="bg-gradient-to-r from-gray-900 to-black p-6 text-white">
+                    <div className="flex items-center justify-center">
                       <div className="flex items-center space-x-3">
                         <img 
                           src="/MintedMerchSpinnerLogo.png" 
@@ -1208,15 +1208,17 @@ export default function AdminDashboard() {
                         />
                         <h2 className="text-xl font-bold">Raffle Winners!</h2>
                       </div>
-                      <button
-                        onClick={clearRaffleResults}
-                        className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-3 py-1 rounded text-sm transition-all"
-                      >
-                        Clear Results
-                      </button>
                     </div>
                     <div className="text-center text-sm opacity-90 mt-2">
                       {raffleResults.length} raffle{raffleResults.length > 1 ? 's' : ''} completed
+                    </div>
+                    <div className="text-center mt-2">
+                      <button
+                        onClick={clearRaffleResults}
+                        className="text-gray-300 hover:text-white text-xs underline hover:no-underline transition-all"
+                      >
+                        Clear Results
+                      </button>
                     </div>
                   </div>
                   
