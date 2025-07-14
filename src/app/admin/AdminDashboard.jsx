@@ -32,6 +32,18 @@ export default function AdminDashboard() {
   // Discounts state
   const [discountsData, setDiscountsData] = useState([]);
   const [showCreateDiscount, setShowCreateDiscount] = useState(false);
+  const [productsData, setProductsData] = useState([]);
+  
+  // Discounts filtering and sorting state
+  const [discountFilters, setDiscountFilters] = useState({
+    searchTerm: '',
+    gatingType: 'all',
+    codeType: 'all',
+    status: 'all',
+    discountScope: 'all'
+  });
+  const [discountSortField, setDiscountSortField] = useState('created_at');
+  const [discountSortDirection, setDiscountSortDirection] = useState('desc');
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -92,6 +104,15 @@ export default function AdminDashboard() {
         const discountsResult = await discountsResponse.json();
         if (discountsResult.success) {
           setDiscountsData(discountsResult.data);
+        }
+      }
+
+      // Load products data for dropdown
+      const productsResponse = await fetch('/api/products?limit=1000');
+      if (productsResponse.ok) {
+        const productsResult = await productsResponse.json();
+        if (productsResult.success) {
+          setProductsData(productsResult.products);
         }
       }
     } catch (error) {
@@ -212,6 +233,79 @@ export default function AdminDashboard() {
     });
   };
 
+  // Discount sorting and filtering functions
+  const handleDiscountSort = (field) => {
+    if (discountSortField === field) {
+      setDiscountSortDirection(discountSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setDiscountSortField(field);
+      setDiscountSortDirection('desc');
+    }
+  };
+
+  const getFilteredAndSortedDiscounts = () => {
+    if (!discountsData || discountsData.length === 0) return [];
+    
+    // Apply filters
+    let filtered = discountsData.filter(discount => {
+      // Search filter
+      if (discountFilters.searchTerm) {
+        const searchLower = discountFilters.searchTerm.toLowerCase();
+        const matchesSearch = 
+          discount.code.toLowerCase().includes(searchLower) ||
+          discount.discount_description?.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+      
+      // Gating type filter
+      if (discountFilters.gatingType !== 'all') {
+        if (discount.gating_type !== discountFilters.gatingType) return false;
+      }
+      
+      // Code type filter
+      if (discountFilters.codeType !== 'all') {
+        if (discount.code_type !== discountFilters.codeType) return false;
+      }
+      
+      // Status filter
+      if (discountFilters.status !== 'all') {
+        if (discountFilters.status === 'active' && !discount.is_active) return false;
+        if (discountFilters.status === 'expired' && !discount.is_expired) return false;
+        if (discountFilters.status === 'inactive' && (discount.is_active || discount.is_expired)) return false;
+      }
+      
+      // Discount scope filter
+      if (discountFilters.discountScope !== 'all') {
+        if (discount.discount_scope !== discountFilters.discountScope) return false;
+      }
+      
+      return true;
+    });
+    
+    // Apply sorting
+    return filtered.sort((a, b) => {
+      let aValue = a[discountSortField];
+      let bValue = b[discountSortField];
+      
+      // Handle string sorting
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        aValue = aValue || '';
+        bValue = bValue || '';
+        return discountSortDirection === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+      
+      // Handle numeric sorting
+      aValue = Number(aValue) || 0;
+      bValue = Number(bValue) || 0;
+      
+      return discountSortDirection === 'asc' 
+        ? aValue - bValue
+        : bValue - aValue;
+    });
+  };
+
   const exportData = (data, filename) => {
     const csv = [
       Object.keys(data[0]).join(','),
@@ -257,6 +351,25 @@ export default function AdminDashboard() {
       style: 'currency',
       currency: 'USD'
     }).format(parseFloat(amount) || 0); // Amounts are already in dollars
+  };
+
+  // Helper functions for discount display
+  const getDiscountFids = (discount) => {
+    if (!discount.whitelisted_fids || discount.whitelisted_fids.length === 0) return null;
+    return discount.whitelisted_fids.slice(0, 3).join(', ') + 
+           (discount.whitelisted_fids.length > 3 ? ` +${discount.whitelisted_fids.length - 3} more` : '');
+  };
+
+  const getDiscountProducts = (discount) => {
+    if (!discount.target_products || discount.target_products.length === 0) return null;
+    
+    const productTitles = discount.target_products.map(productHandle => {
+      const product = productsData.find(p => p.handle === productHandle);
+      return product ? product.title : productHandle;
+    });
+    
+    return productTitles.slice(0, 2).join(', ') + 
+           (productTitles.length > 2 ? ` +${productTitles.length - 2} more` : '');
   };
 
   if (!isAuthenticated) {
@@ -543,7 +656,7 @@ export default function AdminDashboard() {
                 <h2 className="text-lg font-semibold text-gray-800">🎫 Discount Codes</h2>
                 <div className="flex space-x-3">
                   <button
-                    onClick={() => exportData(discountsData, 'discounts.csv')}
+                    onClick={() => exportData(getFilteredAndSortedDiscounts(), 'discounts.csv')}
                     className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
                   >
                     📥 Export CSV
@@ -557,22 +670,139 @@ export default function AdminDashboard() {
                 </div>
               </div>
               
+              {/* Filters */}
+              <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  <input
+                    type="text"
+                    placeholder="Search codes..."
+                    value={discountFilters.searchTerm}
+                    onChange={(e) => setDiscountFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] text-sm"
+                  />
+                  <select
+                    value={discountFilters.gatingType}
+                    onChange={(e) => setDiscountFilters(prev => ({ ...prev, gatingType: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] text-sm"
+                  >
+                    <option value="all">All Gating Types</option>
+                    <option value="none">Public</option>
+                    <option value="whitelist_fid">FID Whitelist</option>
+                    <option value="whitelist_wallet">Wallet Whitelist</option>
+                    <option value="nft_holding">NFT Holders</option>
+                    <option value="token_balance">Token Balance</option>
+                    <option value="bankr_club">Bankr Club</option>
+                  </select>
+                  <select
+                    value={discountFilters.codeType}
+                    onChange={(e) => setDiscountFilters(prev => ({ ...prev, codeType: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] text-sm"
+                  >
+                    <option value="all">All Code Types</option>
+                    <option value="welcome">Welcome</option>
+                    <option value="promotional">Promotional</option>
+                    <option value="referral">Referral</option>
+                  </select>
+                  <select
+                    value={discountFilters.status}
+                    onChange={(e) => setDiscountFilters(prev => ({ ...prev, status: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] text-sm"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="expired">Expired</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                  <select
+                    value={discountFilters.discountScope}
+                    onChange={(e) => setDiscountFilters(prev => ({ ...prev, discountScope: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] text-sm"
+                  >
+                    <option value="all">All Scopes</option>
+                    <option value="site_wide">Site Wide</option>
+                    <option value="product">Product Specific</option>
+                  </select>
+                </div>
+              </div>
+              
               {/* Discounts Table */}
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gating</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usage</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expires</th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleDiscountSort('code')}
+                      >
+                        Code
+                        {discountSortField === 'code' && (
+                          <span className="ml-1">{discountSortDirection === 'desc' ? '↓' : '↑'}</span>
+                        )}
+                      </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleDiscountSort('discount_type')}
+                      >
+                        Type
+                        {discountSortField === 'discount_type' && (
+                          <span className="ml-1">{discountSortDirection === 'desc' ? '↓' : '↑'}</span>
+                        )}
+                      </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleDiscountSort('discount_value')}
+                      >
+                        Value
+                        {discountSortField === 'discount_value' && (
+                          <span className="ml-1">{discountSortDirection === 'desc' ? '↓' : '↑'}</span>
+                        )}
+                      </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleDiscountSort('gating_type')}
+                      >
+                        Gating
+                        {discountSortField === 'gating_type' && (
+                          <span className="ml-1">{discountSortDirection === 'desc' ? '↓' : '↑'}</span>
+                        )}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        FID
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Product
+                      </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleDiscountSort('usage_count')}
+                      >
+                        Usage
+                        {discountSortField === 'usage_count' && (
+                          <span className="ml-1">{discountSortDirection === 'desc' ? '↓' : '↑'}</span>
+                        )}
+                      </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleDiscountSort('is_active')}
+                      >
+                        Status
+                        {discountSortField === 'is_active' && (
+                          <span className="ml-1">{discountSortDirection === 'desc' ? '↓' : '↑'}</span>
+                        )}
+                      </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleDiscountSort('expires_at')}
+                      >
+                        Expires
+                        {discountSortField === 'expires_at' && (
+                          <span className="ml-1">{discountSortDirection === 'desc' ? '↓' : '↑'}</span>
+                        )}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {discountsData.map((discount) => (
+                    {getFilteredAndSortedDiscounts().map((discount) => (
                       <tr key={discount.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {discount.code}
@@ -604,6 +834,24 @@ export default function AdminDashboard() {
                              discount.gating_type === 'nft_holding' ? 'NFT Holders' :
                              discount.gating_type}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {discount.gating_type === 'whitelist_fid' ? (
+                            <span className="text-xs bg-yellow-50 border border-yellow-200 px-2 py-1 rounded">
+                              {getDiscountFids(discount) || 'No FIDs'}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {discount.discount_scope === 'product' ? (
+                            <span className="text-xs bg-blue-50 border border-blue-200 px-2 py-1 rounded">
+                              {getDiscountProducts(discount) || 'No Products'}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {discount.usage_count} / {discount.max_uses_total || '∞'}
@@ -932,8 +1180,10 @@ function CreateDiscountForm({ onClose, onSuccess }) {
     discount_value: '',
     code_type: 'promotional',
     gating_type: 'none',
+    discount_scope: 'site_wide',
     target_fids: '',
     target_wallets: '',
+    target_products: '',
     contract_addresses: '',
     chain_ids: '1',
     required_balance: '1',
@@ -948,6 +1198,25 @@ function CreateDiscountForm({ onClose, onSuccess }) {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [productsData, setProductsData] = useState([]);
+
+  // Load products data on component mount
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const response = await fetch('/api/products?limit=1000');
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            setProductsData(result.products);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading products:', error);
+      }
+    };
+    loadProducts();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -960,6 +1229,7 @@ function CreateDiscountForm({ onClose, onSuccess }) {
         ...formData,
         target_fids: formData.target_fids ? formData.target_fids.split(',').map(fid => parseInt(fid.trim())).filter(fid => !isNaN(fid)) : [],
         target_wallets: formData.target_wallets ? formData.target_wallets.split(',').map(wallet => wallet.trim()).filter(w => w) : [],
+        target_products: formData.target_products ? formData.target_products.split(',').map(handle => handle.trim()).filter(h => h) : [],
         contract_addresses: formData.contract_addresses ? formData.contract_addresses.split(',').map(addr => addr.trim()).filter(a => a) : [],
         chain_ids: formData.chain_ids ? formData.chain_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [1]
       };
@@ -1081,6 +1351,21 @@ function CreateDiscountForm({ onClose, onSuccess }) {
           </select>
         </div>
 
+        {/* Discount Scope */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Discount Scope
+          </label>
+          <select
+            value={formData.discount_scope}
+            onChange={(e) => handleInputChange('discount_scope', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+          >
+            <option value="site_wide">Site Wide</option>
+            <option value="product">Product Specific</option>
+          </select>
+        </div>
+
         {/* Max Uses */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1125,6 +1410,45 @@ function CreateDiscountForm({ onClose, onSuccess }) {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
             placeholder="0x123..., 0x456..."
           />
+        </div>
+      )}
+
+      {/* Product Selection for Product-Specific Discounts */}
+      {formData.discount_scope === 'product' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Target Products
+          </label>
+          <div className="space-y-2">
+            <select
+              multiple
+              value={formData.target_products ? formData.target_products.split(',').map(p => p.trim()) : []}
+              onChange={(e) => {
+                const selectedHandles = Array.from(e.target.selectedOptions).map(option => option.value);
+                handleInputChange('target_products', selectedHandles.join(', '));
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] h-32"
+            >
+              {productsData.map(product => (
+                <option key={product.handle} value={product.handle}>
+                  {product.title} ({product.handle})
+                </option>
+              ))}
+            </select>
+            <div className="text-xs text-gray-500">
+              Hold Ctrl/Cmd to select multiple products. Selected: {formData.target_products ? formData.target_products.split(',').length : 0}
+            </div>
+            <div className="text-xs text-gray-500">
+              Or manually enter product handles (comma-separated):
+            </div>
+            <input
+              type="text"
+              value={formData.target_products}
+              onChange={(e) => handleInputChange('target_products', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+              placeholder="product-handle-1, product-handle-2, ..."
+            />
+          </div>
         </div>
       )}
 
