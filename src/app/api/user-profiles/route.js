@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { setUserContext } from '@/lib/auth';
 import { fetchBulkUserProfiles } from '@/lib/neynar';
 
 export async function GET(request) {
@@ -14,11 +13,8 @@ export async function GET(request) {
 
     console.log('Getting profile for FID:', fid);
 
-    // 🔒 SECURITY: Set user context for RLS policies
-    await setUserContext(fid);
-
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('*')
       .eq('fid', fid)
       .single();
@@ -59,7 +55,18 @@ export async function POST(request) {
     
     const result = await fetchBulkUserProfiles(limitedFids);
     
-    return NextResponse.json(result);
+    if (!result.success) {
+      return NextResponse.json(result);
+    }
+
+    // Convert users object to array for admin dashboard compatibility
+    const usersArray = Object.values(result.users || {});
+    
+    return NextResponse.json({
+      success: true,
+      data: usersArray,
+      count: usersArray.length
+    });
     
   } catch (error) {
     console.error('Error in user-profiles API:', error);
