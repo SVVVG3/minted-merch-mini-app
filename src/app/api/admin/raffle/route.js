@@ -115,7 +115,7 @@ export async function GET(request) {
       .from('raffle_winners')
       .select(`
         *,
-        raffle_winner_entries (
+        raffle_winner_entries!fk_raffle_winner_entries_raffle_id (
           id,
           user_fid,
           username,
