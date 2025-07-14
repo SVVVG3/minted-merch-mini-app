@@ -11,6 +11,7 @@ export default function AdminDashboard() {
   // Dashboard data state
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
+  const [ordersData, setOrdersData] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   
   // Raffle state
@@ -66,6 +67,14 @@ export default function AdminDashboard() {
       
       if (statsResult.success) {
         setDashboardStats(statsResult.data);
+      }
+
+      // Load orders data
+      const ordersResponse = await fetch('/api/admin/orders');
+      const ordersResult = await ordersResponse.json();
+      
+      if (ordersResult.success) {
+        setOrdersData(ordersResult.data);
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -131,26 +140,50 @@ export default function AdminDashboard() {
   // Helper functions for winner display
   const getWinnerDisplayName = (winner) => {
     const profile = winnerProfiles[winner.user_fid];
-    return profile?.displayName || profile?.username || winner.username || `FID ${winner.user_fid}`;
+    return profile?.display_name || profile?.username || winner.username || `FID ${winner.user_fid}`;
   };
 
   const getWinnerAvatar = (winner) => {
     const profile = winnerProfiles[winner.user_fid];
-    if (profile?.pfpUrl) {
-      return profile.pfpUrl;
+    if (profile?.avatar_url) {
+      return profile.avatar_url;
     }
     // Generate a gradient based on user_fid for consistent fallback
     const hue = (winner.user_fid * 137.508) % 360;
     return `linear-gradient(45deg, hsl(${hue}, 70%, 60%), hsl(${(hue + 60) % 360}, 70%, 70%))`;
   };
 
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount / 100); // Convert cents to dollars
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-          <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-            🛡️ Minted Merch Admin
-          </h1>
+          <div className="text-center mb-6">
+            <img 
+              src="/MintedMerchSpinnerLogo.png" 
+              alt="Minted Merch"
+              className="h-12 w-auto mx-auto mb-4"
+            />
+            <h1 className="text-2xl font-bold text-gray-800">
+              Admin Dashboard
+            </h1>
+          </div>
           
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
@@ -190,9 +223,16 @@ export default function AdminDashboard() {
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <h1 className="text-xl font-semibold text-gray-800">
-              🛡️ Minted Merch Admin Dashboard
-            </h1>
+            <div className="flex items-center space-x-3">
+              <img 
+                src="/MintedMerchSpinnerLogo.png" 
+                alt="Minted Merch"
+                className="h-8 w-auto"
+              />
+              <h1 className="text-xl font-semibold text-gray-800">
+                Mini App Dashboard
+              </h1>
+            </div>
             <button
               onClick={() => setIsAuthenticated(false)}
               className="text-gray-600 hover:text-gray-800 text-sm"
@@ -211,6 +251,7 @@ export default function AdminDashboard() {
               {[
                 { key: 'dashboard', label: '📊 Dashboard' },
                 { key: 'leaderboard', label: '🏆 Leaderboard' },
+                { key: 'orders', label: '🛍️ Orders' },
                 { key: 'raffle', label: '🎲 Raffle Tool' }
               ].map((tab) => (
                 <button
@@ -294,6 +335,82 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.checkin_streak}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.points_from_purchases || 0}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.total_orders || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Orders Tab */}
+        {activeTab === 'orders' && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-gray-800">All Orders</h2>
+              <button
+                onClick={() => exportData(ordersData, `orders_${new Date().toISOString().split('T')[0]}.csv`)}
+                className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+              >
+                📥 Export CSV
+              </button>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {ordersData.map((order) => (
+                    <tr key={order.order_id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {order.order_id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.fid}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div>
+                          <div className="font-medium">{order.customer_name || 'N/A'}</div>
+                          <div className="text-xs text-gray-500">{order.customer_email || 'N/A'}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          order.status === 'paid' ? 'bg-green-100 text-green-800' :
+                          order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
+                          order.status === 'delivered' ? 'bg-purple-100 text-purple-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.item_count}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatCurrency(order.final_total || order.order_total)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {order.discount_applied ? (
+                          <div>
+                            <div className="font-medium">{order.discount_code}</div>
+                            <div className="text-xs text-gray-500">{formatCurrency(order.discount_amount)}</div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatDate(order.created_at)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -396,7 +513,7 @@ export default function AdminDashboard() {
                   <div className="bg-gradient-to-r from-[#3eb489] to-[#45c497] p-6 text-white">
                     <div className="flex items-center justify-center space-x-3 mb-2">
                       <img 
-                        src="/MintedMerchHeaderLogo.png" 
+                        src="/MintedMerchSpinnerLogo.png" 
                         alt="Minted Merch"
                         className="h-8 w-auto"
                       />
