@@ -80,7 +80,7 @@ export default function AdminDashboard() {
         fetch('/api/points/leaderboard'),
         fetch('/api/admin/stats'),
         fetch('/api/admin/orders'),
-        fetch('/api/user-discounts'),
+        fetch('/api/admin/discounts'),
         fetch('/api/products')
       ]);
       
@@ -90,10 +90,10 @@ export default function AdminDashboard() {
       const discounts = await discountsRes.json();
       const products = await productsRes.json();
       
-      setLeaderboardData(leaderboard.users || []);
-      setDashboardStats(stats);
-      setOrdersData(orders.orders || []);
-      setDiscountsData(discounts.discounts || []);
+      setLeaderboardData(leaderboard.data?.leaderboard || []);
+      setDashboardStats(stats.data);
+      setOrdersData(orders.data || []);
+      setDiscountsData(discounts.data || []);
       setProductsData(products.products || []);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
