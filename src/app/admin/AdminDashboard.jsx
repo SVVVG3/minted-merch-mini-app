@@ -199,12 +199,27 @@ export default function AdminDashboard() {
       let aVal = a[sortField];
       let bVal = b[sortField];
       
+      // Handle null/undefined values - put them at the end
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      
       // Handle string fields
       if (typeof aVal === 'string') {
         aVal = aVal.toLowerCase();
-        bVal = bVal.toLowerCase();
+        bVal = typeof bVal === 'string' ? bVal.toLowerCase() : '';
       }
       
+      // Handle numeric fields
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        if (sortDirection === 'asc') {
+          return aVal - bVal;
+        } else {
+          return bVal - aVal;
+        }
+      }
+      
+      // Handle string comparison
       if (sortDirection === 'asc') {
         return aVal > bVal ? 1 : -1;
       } else {
@@ -534,7 +549,12 @@ export default function AdminDashboard() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FID</th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('user_fid')}
+                    >
+                      FID {sortField === 'user_fid' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('username')}
