@@ -33,6 +33,8 @@ export default function AdminDashboard() {
   const [discountsData, setDiscountsData] = useState([]);
   const [showCreateDiscount, setShowCreateDiscount] = useState(false);
   const [productsData, setProductsData] = useState([]);
+  const [showEditDiscount, setShowEditDiscount] = useState(false);
+  const [editingDiscount, setEditingDiscount] = useState(null);
   
   // Discounts filtering and sorting state
   const [discountFilters, setDiscountFilters] = useState({
@@ -49,24 +51,24 @@ export default function AdminDashboard() {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-
+    
     try {
-      const response = await fetch('/api/admin/auth', {
+      const response = await fetch('/api/admin/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
       });
-
-      const result = await response.json();
       
-      if (result.success) {
+      if (response.ok) {
         setIsAuthenticated(true);
         loadDashboardData();
       } else {
         setError('Invalid password');
       }
     } catch (error) {
-      setError('Authentication failed');
+      setError('Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -74,49 +76,27 @@ export default function AdminDashboard() {
 
   const loadDashboardData = async () => {
     try {
-      // Load leaderboard data
-      const leaderboardResponse = await fetch('/api/admin/leaderboard');
-      const leaderboardResult = await leaderboardResponse.json();
+      const [leaderboardRes, statsRes, ordersRes, discountsRes, productsRes] = await Promise.all([
+        fetch('/api/points/leaderboard'),
+        fetch('/api/admin/stats'),
+        fetch('/api/admin/orders'),
+        fetch('/api/user-discounts'),
+        fetch('/api/products')
+      ]);
       
-      if (leaderboardResult.success) {
-        setLeaderboardData(leaderboardResult.data);
-      }
-
-      // Load dashboard stats
-      const statsResponse = await fetch('/api/admin/stats');
-      const statsResult = await statsResponse.json();
+      const leaderboard = await leaderboardRes.json();
+      const stats = await statsRes.json();
+      const orders = await ordersRes.json();
+      const discounts = await discountsRes.json();
+      const products = await productsRes.json();
       
-      if (statsResult.success) {
-        setDashboardStats(statsResult.data);
-      }
-
-      // Load orders data
-      const ordersResponse = await fetch('/api/admin/orders');
-      const ordersResult = await ordersResponse.json();
-      
-      if (ordersResult.success) {
-        setOrdersData(ordersResult.data);
-      }
-
-      // Load discounts data
-      const discountsResponse = await fetch('/api/admin/discounts');
-      if (discountsResponse.ok) {
-        const discountsResult = await discountsResponse.json();
-        if (discountsResult.success) {
-          setDiscountsData(discountsResult.data);
-        }
-      }
-
-      // Load products data for dropdown
-      const productsResponse = await fetch('/api/products?limit=1000');
-      if (productsResponse.ok) {
-        const productsResult = await productsResponse.json();
-        if (productsResult.success) {
-          setProductsData(productsResult.products);
-        }
-      }
+      setLeaderboardData(leaderboard.users || []);
+      setDashboardStats(stats);
+      setOrdersData(orders.orders || []);
+      setDiscountsData(discounts.discounts || []);
+      setProductsData(products.products || []);
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      console.error('Failed to load dashboard data:', error);
     }
   };
 
@@ -355,21 +335,60 @@ export default function AdminDashboard() {
 
   // Helper functions for discount display
   const getDiscountFids = (discount) => {
-    if (!discount.whitelisted_fids || discount.whitelisted_fids.length === 0) return null;
-    return discount.whitelisted_fids.slice(0, 3).join(', ') + 
-           (discount.whitelisted_fids.length > 3 ? ` +${discount.whitelisted_fids.length - 3} more` : '');
+    // Read from the single fid column, not whitelisted_fids array
+    if (!discount.fid) return null;
+    return discount.fid.toString();
   };
 
   const getDiscountProducts = (discount) => {
-    if (!discount.target_products || discount.target_products.length === 0) return null;
+    // Parse target_products JSONB field
+    let targetProducts = [];
+    if (discount.target_products) {
+      try {
+        if (typeof discount.target_products === 'string') {
+          targetProducts = JSON.parse(discount.target_products);
+        } else if (Array.isArray(discount.target_products)) {
+          targetProducts = discount.target_products;
+        }
+      } catch (e) {
+        console.error('Error parsing target_products:', e);
+        return null;
+      }
+    }
     
-    const productTitles = discount.target_products.map(productHandle => {
+    if (!targetProducts || targetProducts.length === 0) return null;
+    
+    const productTitles = targetProducts.map(productHandle => {
       const product = productsData.find(p => p.handle === productHandle);
       return product ? product.title : productHandle;
     });
     
     return productTitles.slice(0, 2).join(', ') + 
            (productTitles.length > 2 ? ` +${productTitles.length - 2} more` : '');
+  };
+
+  const handleEditDiscount = (discount) => {
+    setEditingDiscount(discount);
+    setShowEditDiscount(true);
+  };
+
+  const handleDeleteDiscount = async (discountId) => {
+    if (!confirm('Are you sure you want to delete this discount code?')) return;
+    
+    try {
+      const response = await fetch(`/api/admin/discounts/${discountId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        loadDashboardData();
+      } else {
+        alert('Failed to delete discount');
+      }
+    } catch (error) {
+      console.error('Error deleting discount:', error);
+      alert('Failed to delete discount');
+    }
   };
 
   if (!isAuthenticated) {
@@ -799,6 +818,9 @@ export default function AdminDashboard() {
                           <span className="ml-1">{discountSortDirection === 'desc' ? '↓' : '↑'}</span>
                         )}
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -870,6 +892,22 @@ export default function AdminDashboard() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {discount.expires_at ? formatDate(discount.expires_at) : 'Never'}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <button
+                            onClick={() => handleEditDiscount(discount)}
+                            className="text-blue-600 hover:text-blue-900 text-xs mr-2"
+                            title="Edit Discount"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDiscount(discount.id)}
+                            className="text-red-600 hover:text-red-900 text-xs"
+                            title="Delete Discount"
+                          >
+                            🗑️
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -892,6 +930,25 @@ export default function AdminDashboard() {
                   </div>
                   
                                      <CreateDiscountForm onClose={() => setShowCreateDiscount(false)} onSuccess={loadDashboardData} />
+                </div>
+              </div>
+            )}
+
+            {/* Edit Discount Modal */}
+            {showEditDiscount && editingDiscount && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Edit Discount Code</h3>
+                    <button
+                      onClick={() => setShowEditDiscount(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  
+                  <EditDiscountForm discount={editingDiscount} onClose={() => setShowEditDiscount(false)} onSuccess={loadDashboardData} />
                 </div>
               </div>
             )}
@@ -1564,6 +1621,414 @@ function CreateDiscountForm({ onClose, onSuccess }) {
           className="bg-[#3eb489] hover:bg-[#359970] text-white px-6 py-2 rounded-md disabled:opacity-50"
         >
           {isLoading ? 'Creating...' : 'Create Discount'}
+        </button>
+      </div>
+    </form>
+  );
+} 
+
+// EditDiscountForm Component
+function EditDiscountForm({ discount, onClose, onSuccess }) {
+  const [formData, setFormData] = useState({
+    code: discount.code,
+    discount_type: discount.discount_type,
+    discount_value: discount.discount_value,
+    code_type: discount.code_type,
+    gating_type: discount.gating_type || 'none',
+    discount_scope: discount.discount_scope || 'site_wide',
+    target_fids: discount.whitelisted_fids ? (Array.isArray(discount.whitelisted_fids) ? discount.whitelisted_fids.join(', ') : discount.whitelisted_fids) : (discount.fid ? discount.fid.toString() : ''),
+    target_wallets: discount.whitelisted_wallets ? (Array.isArray(discount.whitelisted_wallets) ? discount.whitelisted_wallets.join(', ') : discount.whitelisted_wallets) : '',
+    target_products: (() => {
+      if (discount.target_products) {
+        try {
+          const products = typeof discount.target_products === 'string' ? JSON.parse(discount.target_products) : discount.target_products;
+          return Array.isArray(products) ? products.join(', ') : products;
+        } catch (e) {
+          return discount.target_products;
+        }
+      }
+      return '';
+    })(),
+    contract_addresses: discount.contract_addresses ? (Array.isArray(discount.contract_addresses) ? discount.contract_addresses.join(', ') : discount.contract_addresses) : '',
+    chain_ids: discount.chain_ids ? (Array.isArray(discount.chain_ids) ? discount.chain_ids.join(', ') : discount.chain_ids.toString()) : '1',
+    required_balance: discount.required_balance || 1,
+    minimum_order_amount: discount.minimum_order_amount || '',
+    expires_at: discount.expires_at ? discount.expires_at.slice(0, 16) : '', // Format to YYYY-MM-DDTHH:MM
+    max_uses_total: discount.max_uses_total || '',
+    max_uses_per_user: discount.max_uses_per_user || 1,
+    discount_description: discount.discount_description || '',
+    free_shipping: discount.free_shipping || false,
+    is_shared_code: discount.is_shared_code || false
+  });
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [productsData, setProductsData] = useState([]);
+
+  // Load products data on component mount
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const response = await fetch('/api/products?limit=1000');
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            setProductsData(result.products);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading products:', error);
+      }
+    };
+    loadProducts();
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      // Prepare the data
+      const submitData = {
+        ...formData,
+        target_fids: formData.target_fids ? formData.target_fids.split(',').map(fid => parseInt(fid.trim())).filter(fid => !isNaN(fid)) : [],
+        target_wallets: formData.target_wallets ? formData.target_wallets.split(',').map(wallet => wallet.trim()).filter(w => w) : [],
+        target_products: formData.target_products ? formData.target_products.split(',').map(handle => handle.trim()).filter(h => h) : [],
+        contract_addresses: formData.contract_addresses ? formData.contract_addresses.split(',').map(addr => addr.trim()).filter(a => a) : [],
+        chain_ids: formData.chain_ids ? formData.chain_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [1]
+      };
+
+      const response = await fetch(`/api/admin/discounts/${discount.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submitData)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        onSuccess(); // Reload data
+        onClose(); // Close modal
+      } else {
+        setError(result.error || 'Failed to update discount');
+      }
+    } catch (error) {
+      console.error('Error updating discount:', error);
+      setError('Failed to update discount');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Discount Code */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Discount Code *
+          </label>
+          <input
+            type="text"
+            required
+            value={formData.code}
+            onChange={(e) => handleInputChange('code', e.target.value.toUpperCase())}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+            placeholder="SAVE20"
+          />
+        </div>
+
+        {/* Discount Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Discount Type *
+          </label>
+          <select
+            value={formData.discount_type}
+            onChange={(e) => handleInputChange('discount_type', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+          >
+            <option value="percentage">Percentage (%)</option>
+            <option value="fixed">Fixed Amount ($)</option>
+          </select>
+        </div>
+
+        {/* Discount Value */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Discount Value *
+          </label>
+          <input
+            type="number"
+            required
+            step="0.01"
+            min="0"
+            value={formData.discount_value}
+            onChange={(e) => handleInputChange('discount_value', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+            placeholder={formData.discount_type === 'percentage' ? '15' : '5.00'}
+          />
+        </div>
+
+        {/* Code Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Code Type
+          </label>
+          <select
+            value={formData.code_type}
+            onChange={(e) => handleInputChange('code_type', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+          >
+            <option value="promotional">Promotional</option>
+            <option value="welcome">Welcome</option>
+            <option value="referral">Referral</option>
+          </select>
+        </div>
+
+        {/* Gating Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Access Control
+          </label>
+          <select
+            value={formData.gating_type}
+            onChange={(e) => handleInputChange('gating_type', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+          >
+            <option value="none">Public (Anyone can use)</option>
+            <option value="whitelist_fid">Specific FIDs</option>
+            <option value="whitelist_wallet">Specific Wallets</option>
+            <option value="nft_holding">NFT Holders</option>
+            <option value="token_balance">Token Balance</option>
+            <option value="bankr_club">Bankr Club Members</option>
+          </select>
+        </div>
+
+        {/* Discount Scope */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Discount Scope
+          </label>
+          <select
+            value={formData.discount_scope}
+            onChange={(e) => handleInputChange('discount_scope', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+          >
+            <option value="site_wide">Site Wide</option>
+            <option value="product">Product Specific</option>
+          </select>
+        </div>
+
+        {/* Max Uses */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Max Total Uses
+          </label>
+          <input
+            type="number"
+            min="1"
+            value={formData.max_uses_total}
+            onChange={(e) => handleInputChange('max_uses_total', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+            placeholder="Leave empty for unlimited"
+          />
+        </div>
+      </div>
+
+      {/* Conditional Fields Based on Gating Type */}
+      {formData.gating_type === 'whitelist_fid' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Target FIDs (comma-separated)
+          </label>
+          <input
+            type="text"
+            value={formData.target_fids}
+            onChange={(e) => handleInputChange('target_fids', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+            placeholder="123456, 789012, 345678"
+          />
+        </div>
+      )}
+
+      {formData.gating_type === 'whitelist_wallet' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Target Wallets (comma-separated)
+          </label>
+          <input
+            type="text"
+            value={formData.target_wallets}
+            onChange={(e) => handleInputChange('target_wallets', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+            placeholder="0x123..., 0x456..."
+          />
+        </div>
+      )}
+
+      {/* Product Selection for Product-Specific Discounts */}
+      {formData.discount_scope === 'product' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Target Products
+          </label>
+          <div className="space-y-2">
+            <select
+              multiple
+              value={formData.target_products ? formData.target_products.split(',').map(p => p.trim()) : []}
+              onChange={(e) => {
+                const selectedHandles = Array.from(e.target.selectedOptions).map(option => option.value);
+                handleInputChange('target_products', selectedHandles.join(', '));
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] h-32"
+            >
+              {productsData.map(product => (
+                <option key={product.handle} value={product.handle}>
+                  {product.title} ({product.handle})
+                </option>
+              ))}
+            </select>
+            <div className="text-xs text-gray-500">
+              Hold Ctrl/Cmd to select multiple products. Selected: {formData.target_products ? formData.target_products.split(',').length : 0}
+            </div>
+            <div className="text-xs text-gray-500">
+              Or manually enter product handles (comma-separated):
+            </div>
+            <input
+              type="text"
+              value={formData.target_products}
+              onChange={(e) => handleInputChange('target_products', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+              placeholder="product-handle-1, product-handle-2, ..."
+            />
+          </div>
+        </div>
+      )}
+
+      {(formData.gating_type === 'nft_holding' || formData.gating_type === 'token_balance') && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Contract Addresses (comma-separated)
+            </label>
+            <input
+              type="text"
+              value={formData.contract_addresses}
+              onChange={(e) => handleInputChange('contract_addresses', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+              placeholder="0x123..., 0x456..."
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Required Balance
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.required_balance}
+              onChange={(e) => handleInputChange('required_balance', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+              placeholder="1"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Optional Fields */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Minimum Order Amount
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={formData.minimum_order_amount}
+            onChange={(e) => handleInputChange('minimum_order_amount', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+            placeholder="25.00"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Expires At
+          </label>
+          <input
+            type="datetime-local"
+            value={formData.expires_at}
+            onChange={(e) => handleInputChange('expires_at', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+          />
+        </div>
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Description
+        </label>
+        <textarea
+          value={formData.discount_description}
+          onChange={(e) => handleInputChange('discount_description', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+          rows="3"
+          placeholder="Internal description for this discount..."
+        />
+      </div>
+
+      {/* Checkboxes */}
+      <div className="flex space-x-6">
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={formData.free_shipping}
+            onChange={(e) => handleInputChange('free_shipping', e.target.checked)}
+            className="mr-2 h-4 w-4 text-[#3eb489] focus:ring-[#3eb489]"
+          />
+          Free Shipping
+        </label>
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={formData.is_shared_code}
+            onChange={(e) => handleInputChange('is_shared_code', e.target.checked)}
+            className="mr-2 h-4 w-4 text-[#3eb489] focus:ring-[#3eb489]"
+          />
+          Shared Code (multiple users can use)
+        </label>
+      </div>
+
+      {/* Submit Buttons */}
+      <div className="flex justify-end space-x-3 pt-4">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 text-gray-600 hover:text-gray-800"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="bg-[#3eb489] hover:bg-[#359970] text-white px-6 py-2 rounded-md disabled:opacity-50"
+        >
+          {isLoading ? 'Updating...' : 'Update Discount'}
         </button>
       </div>
     </form>

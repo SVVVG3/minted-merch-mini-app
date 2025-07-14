@@ -1,0 +1,151 @@
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+// Update a discount code
+export async function PUT(request, { params }) {
+  try {
+    const { id } = params;
+    const data = await request.json();
+    
+    // Validate required fields
+    if (!data.code || !data.discount_type || !data.discount_value) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Missing required fields' 
+      }, { status: 400 });
+    }
+
+    // Prepare update data
+    const updateData = {
+      code: data.code.toUpperCase(),
+      discount_type: data.discount_type,
+      discount_value: parseFloat(data.discount_value),
+      code_type: data.code_type || 'promotional',
+      gating_type: data.gating_type || 'none',
+      discount_scope: data.discount_scope || 'site_wide',
+      target_products: data.target_products || [],
+      whitelisted_fids: data.target_fids || [],
+      whitelisted_wallets: data.target_wallets || [],
+      contract_addresses: data.contract_addresses || [],
+      chain_ids: data.chain_ids || [1],
+      required_balance: data.required_balance ? parseFloat(data.required_balance) : 1,
+      minimum_order_amount: data.minimum_order_amount ? parseFloat(data.minimum_order_amount) : null,
+      expires_at: data.expires_at || null,
+      max_uses_total: data.max_uses_total ? parseInt(data.max_uses_total) : null,
+      max_uses_per_user: data.max_uses_per_user ? parseInt(data.max_uses_per_user) : 1,
+      discount_description: data.discount_description || null,
+      free_shipping: data.free_shipping || false,
+      is_shared_code: data.is_shared_code || false,
+      updated_at: new Date().toISOString()
+    };
+
+    // Handle FID for user-specific codes
+    if (data.gating_type === 'whitelist_fid' && data.target_fids && data.target_fids.length === 1) {
+      updateData.fid = data.target_fids[0];
+    } else {
+      updateData.fid = null;
+    }
+
+    const { data: updatedDiscount, error } = await supabase
+      .from('discount_codes')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating discount:', error);
+      return NextResponse.json({ 
+        success: false, 
+        error: error.message 
+      }, { status: 500 });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      discount: updatedDiscount 
+    });
+
+  } catch (error) {
+    console.error('Error in PUT /api/admin/discounts/[id]:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Internal server error' 
+    }, { status: 500 });
+  }
+}
+
+// Delete a discount code
+export async function DELETE(request, { params }) {
+  try {
+    const { id } = params;
+
+    // First check if the discount exists and get its details
+    const { data: discount, error: fetchError } = await supabase
+      .from('discount_codes')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !discount) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Discount not found' 
+      }, { status: 404 });
+    }
+
+    // Check if discount has been used
+    const { data: usageData, error: usageError } = await supabase
+      .from('discount_code_usage')
+      .select('id')
+      .eq('discount_code_id', id)
+      .limit(1);
+
+    if (usageError) {
+      console.error('Error checking discount usage:', usageError);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Error checking discount usage' 
+      }, { status: 500 });
+    }
+
+    // If discount has been used, we should not delete it (or ask for confirmation)
+    if (usageData && usageData.length > 0) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Cannot delete discount that has been used. Consider deactivating it instead.' 
+      }, { status: 400 });
+    }
+
+    // Delete the discount
+    const { error: deleteError } = await supabase
+      .from('discount_codes')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      console.error('Error deleting discount:', deleteError);
+      return NextResponse.json({ 
+        success: false, 
+        error: deleteError.message 
+      }, { status: 500 });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Discount deleted successfully' 
+    });
+
+  } catch (error) {
+    console.error('Error in DELETE /api/admin/discounts/[id]:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Internal server error' 
+    }, { status: 500 });
+  }
+} 
