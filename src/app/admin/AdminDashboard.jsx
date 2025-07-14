@@ -24,6 +24,14 @@ export default function AdminDashboard() {
   const [raffleResults, setRaffleResults] = useState(null);
   const [winnerProfiles, setWinnerProfiles] = useState({});
   const [numWinners, setNumWinners] = useState(1);
+  
+  // Leaderboard sorting state
+  const [sortField, setSortField] = useState('total_points');
+  const [sortDirection, setSortDirection] = useState('desc');
+  
+  // Discounts state
+  const [discountsData, setDiscountsData] = useState([]);
+  const [showCreateDiscount, setShowCreateDiscount] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -76,6 +84,15 @@ export default function AdminDashboard() {
       
       if (ordersResult.success) {
         setOrdersData(ordersResult.data);
+      }
+
+      // Load discounts data
+      const discountsResponse = await fetch('/api/admin/discounts');
+      if (discountsResponse.ok) {
+        const discountsResult = await discountsResponse.json();
+        if (discountsResult.success) {
+          setDiscountsData(discountsResult.data);
+        }
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -159,6 +176,40 @@ export default function AdminDashboard() {
 
     // Run raffle with these filters
     await runRaffle(numWinners, topUserFilters);
+  };
+
+  // Leaderboard sorting function
+  const handleSort = (field) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, default to descending
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  // Get sorted leaderboard data
+  const getSortedLeaderboard = () => {
+    if (!leaderboardData) return [];
+    
+    return [...leaderboardData].sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+      
+      // Handle string fields
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+      
+      if (sortDirection === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
   };
 
   const exportData = (data, filename) => {
@@ -290,6 +341,7 @@ export default function AdminDashboard() {
                 { key: 'dashboard', label: '📊 Dashboard' },
                 { key: 'leaderboard', label: '🏆 Leaderboard' },
                 { key: 'orders', label: '🛍️ Orders' },
+                { key: 'discounts', label: '🎫 Discounts' },
                 { key: 'raffle', label: '🎲 Raffle Tool' }
               ].map((tab) => (
                 <button
@@ -351,15 +403,40 @@ export default function AdminDashboard() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Points</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Streak</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase Points</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('username')}
+                    >
+                      Username {sortField === 'username' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('total_points')}
+                    >
+                      Total Points {sortField === 'total_points' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('checkin_streak')}
+                    >
+                      Streak {sortField === 'checkin_streak' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('points_from_purchases')}
+                    >
+                      Purchase Points {sortField === 'points_from_purchases' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('total_orders')}
+                    >
+                      Orders {sortField === 'total_orders' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {leaderboardData.map((user, index) => (
+                  {getSortedLeaderboard().map((user, index) => (
                     <tr key={user.user_fid} className={index < 3 ? 'bg-yellow-50' : ''}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {index + 1}
@@ -454,6 +531,122 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* Discounts Tab */}
+        {activeTab === 'discounts' && (
+          <div className="space-y-6">
+            {/* Discounts Header */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-800">🎫 Discount Codes</h2>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => exportData(discountsData, 'discounts.csv')}
+                    className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                  >
+                    📥 Export CSV
+                  </button>
+                  <button
+                    onClick={() => setShowCreateDiscount(true)}
+                    className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                  >
+                    ➕ Create New Discount
+                  </button>
+                </div>
+              </div>
+              
+              {/* Discounts Table */}
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gating</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usage</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expires</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {discountsData.map((discount) => (
+                      <tr key={discount.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {discount.code}
+                          {discount.free_shipping && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">🚚 Free Ship</span>}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {discount.discount_type === 'percentage' ? `${discount.discount_value}%` : `$${discount.discount_value}`}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className={`px-2 py-1 text-xs rounded ${
+                            discount.code_type === 'welcome' ? 'bg-green-100 text-green-800' :
+                            discount.code_type === 'promotional' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {discount.code_type}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className={`px-2 py-1 text-xs rounded ${
+                            discount.gating_type === 'none' ? 'bg-gray-100 text-gray-800' :
+                            discount.gating_type === 'bankr_club' ? 'bg-purple-100 text-purple-800' :
+                            discount.gating_type === 'whitelist_fid' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-orange-100 text-orange-800'
+                          }`}>
+                            {discount.gating_type === 'none' ? 'Public' :
+                             discount.gating_type === 'bankr_club' ? 'Bankr Club' :
+                             discount.gating_type === 'whitelist_fid' ? 'FID Whitelist' :
+                             discount.gating_type === 'whitelist_wallet' ? 'Wallet Whitelist' :
+                             discount.gating_type === 'nft_holding' ? 'NFT Holders' :
+                             discount.gating_type}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {discount.usage_count} / {discount.max_uses_total || '∞'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className={`px-2 py-1 text-xs rounded ${
+                            discount.is_active ? 'bg-green-100 text-green-800' :
+                            discount.is_expired ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {discount.is_active ? 'Active' :
+                             discount.is_expired ? 'Expired' :
+                             'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {discount.expires_at ? formatDate(discount.expires_at) : 'Never'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Create Discount Modal */}
+            {showCreateDiscount && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Create New Discount Code</h3>
+                    <button
+                      onClick={() => setShowCreateDiscount(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  
+                                     <CreateDiscountForm onClose={() => setShowCreateDiscount(false)} onSuccess={loadDashboardData} />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -728,5 +921,327 @@ export default function AdminDashboard() {
         )}
       </div>
     </div>
+  );
+} 
+
+// CreateDiscountForm Component
+function CreateDiscountForm({ onClose, onSuccess }) {
+  const [formData, setFormData] = useState({
+    code: '',
+    discount_type: 'percentage',
+    discount_value: '',
+    code_type: 'promotional',
+    gating_type: 'none',
+    target_fids: '',
+    target_wallets: '',
+    contract_addresses: '',
+    chain_ids: '1',
+    required_balance: '1',
+    minimum_order_amount: '',
+    expires_at: '',
+    max_uses_total: '',
+    max_uses_per_user: '1',
+    discount_description: '',
+    free_shipping: false,
+    is_shared_code: true
+  });
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      // Prepare the data
+      const submitData = {
+        ...formData,
+        target_fids: formData.target_fids ? formData.target_fids.split(',').map(fid => parseInt(fid.trim())).filter(fid => !isNaN(fid)) : [],
+        target_wallets: formData.target_wallets ? formData.target_wallets.split(',').map(wallet => wallet.trim()).filter(w => w) : [],
+        contract_addresses: formData.contract_addresses ? formData.contract_addresses.split(',').map(addr => addr.trim()).filter(a => a) : [],
+        chain_ids: formData.chain_ids ? formData.chain_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [1]
+      };
+
+      const response = await fetch('/api/admin/discounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submitData)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        onSuccess(); // Reload data
+        onClose(); // Close modal
+      } else {
+        setError(result.error || 'Failed to create discount');
+      }
+    } catch (error) {
+      console.error('Error creating discount:', error);
+      setError('Failed to create discount');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Discount Code */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Discount Code *
+          </label>
+          <input
+            type="text"
+            required
+            value={formData.code}
+            onChange={(e) => handleInputChange('code', e.target.value.toUpperCase())}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+            placeholder="SAVE20"
+          />
+        </div>
+
+        {/* Discount Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Discount Type *
+          </label>
+          <select
+            value={formData.discount_type}
+            onChange={(e) => handleInputChange('discount_type', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+          >
+            <option value="percentage">Percentage (%)</option>
+            <option value="fixed">Fixed Amount ($)</option>
+          </select>
+        </div>
+
+        {/* Discount Value */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Discount Value *
+          </label>
+          <input
+            type="number"
+            required
+            step="0.01"
+            min="0"
+            value={formData.discount_value}
+            onChange={(e) => handleInputChange('discount_value', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+            placeholder={formData.discount_type === 'percentage' ? '15' : '5.00'}
+          />
+        </div>
+
+        {/* Code Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Code Type
+          </label>
+          <select
+            value={formData.code_type}
+            onChange={(e) => handleInputChange('code_type', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+          >
+            <option value="promotional">Promotional</option>
+            <option value="welcome">Welcome</option>
+            <option value="referral">Referral</option>
+          </select>
+        </div>
+
+        {/* Gating Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Access Control
+          </label>
+          <select
+            value={formData.gating_type}
+            onChange={(e) => handleInputChange('gating_type', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+          >
+            <option value="none">Public (Anyone can use)</option>
+            <option value="whitelist_fid">Specific FIDs</option>
+            <option value="whitelist_wallet">Specific Wallets</option>
+            <option value="nft_holding">NFT Holders</option>
+            <option value="token_balance">Token Balance</option>
+            <option value="bankr_club">Bankr Club Members</option>
+          </select>
+        </div>
+
+        {/* Max Uses */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Max Total Uses
+          </label>
+          <input
+            type="number"
+            min="1"
+            value={formData.max_uses_total}
+            onChange={(e) => handleInputChange('max_uses_total', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+            placeholder="Leave empty for unlimited"
+          />
+        </div>
+      </div>
+
+      {/* Conditional Fields Based on Gating Type */}
+      {formData.gating_type === 'whitelist_fid' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Target FIDs (comma-separated)
+          </label>
+          <input
+            type="text"
+            value={formData.target_fids}
+            onChange={(e) => handleInputChange('target_fids', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+            placeholder="123456, 789012, 345678"
+          />
+        </div>
+      )}
+
+      {formData.gating_type === 'whitelist_wallet' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Target Wallets (comma-separated)
+          </label>
+          <input
+            type="text"
+            value={formData.target_wallets}
+            onChange={(e) => handleInputChange('target_wallets', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+            placeholder="0x123..., 0x456..."
+          />
+        </div>
+      )}
+
+      {(formData.gating_type === 'nft_holding' || formData.gating_type === 'token_balance') && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Contract Addresses (comma-separated)
+            </label>
+            <input
+              type="text"
+              value={formData.contract_addresses}
+              onChange={(e) => handleInputChange('contract_addresses', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+              placeholder="0x123..., 0x456..."
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Required Balance
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.required_balance}
+              onChange={(e) => handleInputChange('required_balance', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+              placeholder="1"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Optional Fields */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Minimum Order Amount
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={formData.minimum_order_amount}
+            onChange={(e) => handleInputChange('minimum_order_amount', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+            placeholder="25.00"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Expires At
+          </label>
+          <input
+            type="datetime-local"
+            value={formData.expires_at}
+            onChange={(e) => handleInputChange('expires_at', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+          />
+        </div>
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Description
+        </label>
+        <textarea
+          value={formData.discount_description}
+          onChange={(e) => handleInputChange('discount_description', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+          rows="3"
+          placeholder="Internal description for this discount..."
+        />
+      </div>
+
+      {/* Checkboxes */}
+      <div className="flex space-x-6">
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={formData.free_shipping}
+            onChange={(e) => handleInputChange('free_shipping', e.target.checked)}
+            className="mr-2 h-4 w-4 text-[#3eb489] focus:ring-[#3eb489]"
+          />
+          Free Shipping
+        </label>
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={formData.is_shared_code}
+            onChange={(e) => handleInputChange('is_shared_code', e.target.checked)}
+            className="mr-2 h-4 w-4 text-[#3eb489] focus:ring-[#3eb489]"
+          />
+          Shared Code (multiple users can use)
+        </label>
+      </div>
+
+      {/* Submit Buttons */}
+      <div className="flex justify-end space-x-3 pt-4">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 text-gray-600 hover:text-gray-800"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="bg-[#3eb489] hover:bg-[#359970] text-white px-6 py-2 rounded-md disabled:opacity-50"
+        >
+          {isLoading ? 'Creating...' : 'Create Discount'}
+        </button>
+      </div>
+    </form>
   );
 } 
