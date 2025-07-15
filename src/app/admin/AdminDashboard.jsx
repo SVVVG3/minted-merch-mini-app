@@ -915,6 +915,18 @@ export default function AdminDashboard() {
                       </th>
                       <th 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleUsersSort('x_username')}
+                      >
+                        X Username {usersSortField === 'x_username' && (usersSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleUsersSort('bankr_club_member')}
+                      >
+                        Bankr Club {usersSortField === 'bankr_club_member' && (usersSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleUsersSort('total_orders')}
                       >
                         Orders {usersSortField === 'total_orders' && (usersSortDirection === 'asc' ? '↑' : '↓')}
@@ -981,6 +993,24 @@ export default function AdminDashboard() {
                             <span className="text-green-600">{user.email}</span>
                           ) : (
                             <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {user.x_username ? (
+                            <span className="text-blue-600">@{user.x_username}</span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {user.bankr_club_member ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              ✓ Member
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              ✗ Not Member
+                            </span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
