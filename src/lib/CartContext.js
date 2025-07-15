@@ -433,8 +433,8 @@ export function CartProvider({ children }) {
     
     const { code, discountType, discountValue, source } = cart.appliedDiscount;
     
-    // Check if this is a product-specific discount
-    const isProductSpecific = source === 'product_specific_api' || source === 'token_gated' || 
+    // Check if this is a product-specific discount using proper database fields
+    const isProductSpecific = cart.appliedDiscount.discount_scope === 'product' || 
                               (cart.appliedDiscount.target_products && cart.appliedDiscount.target_products.length > 0);
     
     if (isProductSpecific) {
