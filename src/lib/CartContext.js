@@ -398,8 +398,8 @@ export function CartProvider({ children }) {
               } else if (code === 'DICKBUTT20') {
                 // NFT token-gated discount for CryptaDickButtz products
                 qualifies = productHandle === 'cryptoadickbuttz-og-tee' || productTitle?.includes('CryptaDickButtz');
-              } else if (code.includes('BANKR')) {
-                qualifies = productHandle === 'bankr-cap' || productHandle === 'bankr-hoodie' || 
+              } else if (code.includes('BANKR') || code.includes('SAVAGE-TEST')) {
+                qualifies = productHandle === 'bankr-cap' || productHandle === 'bankr-hoodie' || productHandle === 'bankr-bag' ||
                            productTitle?.includes('Bankr');
               }
             }
@@ -426,10 +426,15 @@ export function CartProvider({ children }) {
           console.log(`💰 Qualifying subtotal for ${code}: $${qualifyingSubtotal.toFixed(2)} (vs cart total: $${cartSubtotal.toFixed(2)})`);
           
           // Calculate discount only on qualifying products
-          if (discountType === 'percentage') {
-            return (qualifyingSubtotal * discountValue) / 100;
-          } else if (discountType === 'fixed') {
-            return Math.min(discountValue, qualifyingSubtotal);
+          if (qualifyingSubtotal > 0) {
+            if (discountType === 'percentage') {
+              return (qualifyingSubtotal * discountValue) / 100;
+            } else if (discountType === 'fixed') {
+              return Math.min(discountValue, qualifyingSubtotal);
+            }
+          } else {
+            console.log(`❌ No qualifying products found for product-specific discount ${code} - returning 0`);
+            return 0;
           }
         }
       }
@@ -437,12 +442,18 @@ export function CartProvider({ children }) {
       console.error('Error calculating product-aware discount:', error);
     }
     
-    // Fallback for site-wide discounts or when product-specific logic fails
-    console.log(`🌐 Applying site-wide discount calculation for ${code}`);
-    if (discountType === 'percentage') {
-      return (cartSubtotal * discountValue) / 100;
-    } else if (discountType === 'fixed') {
-      return Math.min(discountValue, cartSubtotal);
+    // Fallback for site-wide discounts only (not product-specific failures)
+    // Only apply site-wide calculation if the discount is actually site-wide
+    if (source !== 'product_specific_api' && source !== 'token_gated') {
+      console.log(`🌐 Applying site-wide discount calculation for ${code}`);
+      if (discountType === 'percentage') {
+        return (cartSubtotal * discountValue) / 100;
+      } else if (discountType === 'fixed') {
+        return Math.min(discountValue, cartSubtotal);
+      }
+    } else {
+      console.log(`❌ Product-specific discount ${code} failed qualification - returning 0`);
+      return 0;
     }
     
     return cart.appliedDiscount.discountAmount || 0;
