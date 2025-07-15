@@ -334,10 +334,18 @@ export function CartProvider({ children }) {
     const { code, discountType, discountValue, discountAmount, source } = cart.appliedDiscount;
     
     // FIRST: If we have a pre-calculated discountAmount from the API, use it
-    // This is the most reliable source since it was calculated by the backend
+    // BUT only for cart-wide discounts, not product-specific ones
+    // For product-specific discounts, we need to calculate based on qualifying products only
     if (discountAmount && typeof discountAmount === 'number' && discountAmount > 0) {
-      console.log(`💰 Using pre-calculated discount amount from API: $${discountAmount.toFixed(2)}`);
-      return discountAmount;
+      // Check if this is a product-specific or token-gated discount that needs product-aware calculation
+      const isProductSpecific = source === 'product_specific_api' || source === 'token_gated';
+      
+      if (!isProductSpecific) {
+        console.log(`💰 Using pre-calculated discount amount from API (cart-wide): $${discountAmount.toFixed(2)}`);
+        return discountAmount;
+      } else {
+        console.log(`🎯 Product-specific discount detected - using product-aware calculation instead of pre-calculated amount`);
+      }
     }
     
     // Check if this is a product-specific discount from session storage
