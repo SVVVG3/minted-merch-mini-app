@@ -3,6 +3,65 @@ import { sendOrderConfirmationNotification, sendShippingNotification } from './n
 import { markDiscountCodeAsUsed, validateDiscountCode } from './discounts';
 
 /**
+ * Ensure user profile exists before order creation
+ */
+async function ensureUserProfileExists(fid, customerEmail, customerName) {
+  try {
+    console.log('🔍 Checking if user profile exists for FID:', fid);
+
+    // Check if profile already exists
+    const { data: existingProfile, error: fetchError } = await supabaseAdmin
+      .from('profiles')
+      .select('fid')
+      .eq('fid', fid)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error checking existing profile:', fetchError);
+      return { success: false, error: fetchError.message };
+    }
+
+    if (existingProfile) {
+      console.log('✅ User profile already exists for FID:', fid);
+      return { success: true, profile: existingProfile };
+    }
+
+    // Profile doesn't exist, create it
+    console.log('👤 Creating user profile for FID:', fid);
+    
+    const profileData = {
+      fid: fid,
+      username: `user_${fid}`, // Default username
+      display_name: customerName || `User ${fid}`,
+      email: customerEmail,
+      email_updated_at: new Date().toISOString(),
+      has_notifications: false, // Default to false, will be updated by registration flow
+      bankr_club_member: false, // Default to false, will be updated by registration flow
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: newProfile, error: createError } = await supabaseAdmin
+      .from('profiles')
+      .insert(profileData)
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('❌ Error creating user profile:', createError);
+      return { success: false, error: createError.message };
+    }
+
+    console.log('✅ User profile created successfully for FID:', fid);
+    return { success: true, profile: newProfile };
+
+  } catch (error) {
+    console.error('Error in ensureUserProfileExists:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Validate discount code before order creation
  */
 export async function validateDiscountForOrder(discountCode, fid, subtotal, cartItems = []) {
@@ -107,6 +166,20 @@ export async function createOrder(orderData) {
       })),
       fullOrderData: orderData
     });
+
+    // CRITICAL FIX: Ensure user profile exists before creating order
+    if (orderData.fid) {
+      const profileResult = await ensureUserProfileExists(
+        orderData.fid, 
+        orderData.customerEmail, 
+        orderData.customerName
+      );
+      
+      if (!profileResult.success) {
+        console.error('❌ Failed to ensure user profile exists:', profileResult.error);
+        return { success: false, error: `Failed to create user profile: ${profileResult.error}` };
+      }
+    }
 
     // Skip discount validation during order creation - discount was already validated during checkout
     if (orderData.discountCode) {
