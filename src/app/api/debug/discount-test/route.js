@@ -35,9 +35,97 @@ function testCodeClassification() {
   return results;
 }
 
+// Check and fix SAVAGE-TEST-345 discount configuration
+async function checkAndFixSavageTestDiscount() {
+  try {
+    // First, check current configuration
+    const { data: discount, error } = await supabase
+      .from('discount_codes')
+      .select('*')
+      .eq('code', 'SAVAGE-TEST-345')
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+
+    if (!discount) {
+      // Create the discount if it doesn't exist
+      const newDiscount = {
+        code: 'SAVAGE-TEST-345',
+        discount_type: 'percentage',
+        discount_value: 100,
+        discount_scope: 'product',
+        target_products: ['bankr-bag'], // Proper target product
+        gating_type: 'whitelist_fid',
+        whitelisted_fids: [466111],
+        auto_apply: true,
+        priority_level: 50,
+        is_shared_code: false,
+        fid: 466111,
+        discount_description: 'Test 100% discount for Bankr Bag',
+        free_shipping: true,
+        max_uses_per_user: 1,
+        expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year
+      };
+
+      const { data: created, error: createError } = await supabase
+        .from('discount_codes')
+        .insert(newDiscount)
+        .select()
+        .single();
+
+      if (createError) throw createError;
+
+      return {
+        action: 'created',
+        discount: created,
+        message: 'SAVAGE-TEST-345 discount created with proper target_products'
+      };
+    } else {
+      // Check if it needs fixing
+      const targetProducts = discount.target_products;
+      const needsFixing = !targetProducts || targetProducts.length === 0 || !targetProducts.includes('bankr-bag');
+
+      if (needsFixing) {
+        const { data: updated, error: updateError } = await supabase
+          .from('discount_codes')
+          .update({
+            target_products: ['bankr-bag'],
+            discount_scope: 'product' // Ensure it's product-specific
+          })
+          .eq('code', 'SAVAGE-TEST-345')
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+
+        return {
+          action: 'updated',
+          discount: updated,
+          message: 'SAVAGE-TEST-345 discount updated with proper target_products',
+          previous_target_products: targetProducts
+        };
+      } else {
+        return {
+          action: 'no_change',
+          discount: discount,
+          message: 'SAVAGE-TEST-345 discount already has proper target_products configuration'
+        };
+      }
+    }
+  } catch (error) {
+    return {
+      action: 'error',
+      error: error.message,
+      message: 'Failed to check/fix SAVAGE-TEST-345 discount configuration'
+    };
+  }
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const action = searchParams.get('action');
+  const action = searchParams.get('action') || 'default';
   
   if (action === 'test-classification') {
     const results = testCodeClassification();
@@ -55,6 +143,15 @@ export async function GET(request) {
           (!r.isGiftCard && r.expectedType === 'gift_card')
         ).length
       }
+    });
+  }
+
+  if (action === 'fix-savage-test') {
+    const result = await checkAndFixSavageTestDiscount();
+    return NextResponse.json({
+      action: 'fix-savage-test',
+      result: result,
+      timestamp: new Date().toISOString()
     });
   }
 

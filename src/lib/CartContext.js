@@ -390,18 +390,9 @@ export function CartProvider({ children }) {
                 return false;
               });
             } else {
-              // Fallback: check specific discount codes
-              if (code === 'SNAPSHOT-TINY-HYPER-FREE') {
-                qualifies = productHandle === 'tiny-hyper-tee' || productTitle?.includes('Tiny Hyper Tee');
-              } else if (code === 'DICKBUTT-FREE') {
-                qualifies = productHandle === 'dickbutt-cap' || productTitle?.includes('Dickbutt Cap');
-              } else if (code === 'DICKBUTT20') {
-                // NFT token-gated discount for CryptaDickButtz products
-                qualifies = productHandle === 'cryptoadickbuttz-og-tee' || productTitle?.includes('CryptaDickButtz');
-              } else if (code.includes('BANKR') || code.includes('SAVAGE-TEST')) {
-                qualifies = productHandle === 'bankr-cap' || productHandle === 'bankr-hoodie' || productHandle === 'bankr-bag' ||
-                           productTitle?.includes('Bankr');
-              }
+              // No target products defined - discount is not properly configured
+              console.log(`❌ Product-specific discount ${code} has no target_products defined in database`);
+              qualifies = false;
             }
             
             if (qualifies) {
