@@ -1870,6 +1870,18 @@ export default function AdminDashboard() {
                       </th>
                       <th 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleCheckinsSort('total_points')}
+                      >
+                        Total Points {checkinsSortField === 'total_points' && (checkinsSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleCheckinsSort('checkin_streak')}
+                      >
+                        Streak {checkinsSortField === 'checkin_streak' && (checkinsSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleCheckinsSort('created_at')}
                       >
                         Date {checkinsSortField === 'created_at' && (checkinsSortDirection === 'asc' ? '↑' : '↓')}
@@ -1914,6 +1926,16 @@ export default function AdminDashboard() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <span className="font-medium text-green-600">
                             +{checkin.points_earned || 0}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="font-medium text-blue-600">
+                            {checkin.total_points || 0}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="font-medium text-orange-600">
+                            {checkin.checkin_streak || 0}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
