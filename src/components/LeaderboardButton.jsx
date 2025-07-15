@@ -30,7 +30,7 @@ export function LeaderboardButton() {
     <>
       <button
         onClick={handleOpenModal}
-        className="flex items-center justify-center w-11 h-11 bg-[#3eb489] hover:bg-[#359970] text-white rounded-lg transition-colors"
+        className="flex items-center justify-center w-12 h-12 bg-[#3eb489] hover:bg-[#359970] text-white rounded-lg transition-colors"
         title="View Leaderboard"
         aria-label="View leaderboard"
       >
