@@ -66,7 +66,7 @@ export function DiscountCodeSection({
           }
           
           // Optionally auto-apply the discount if we have subtotal
-          if (subtotal > 0 && activeDiscount.code) {
+          if ((subtotal > 0 || cartSubtotal > 0) && activeDiscount.code) {
             console.log('🚀 Auto-applying discount:', activeDiscount.code);
             handleApplyDiscount(activeDiscount.code);
           }
@@ -96,7 +96,7 @@ export function DiscountCodeSection({
             // Update the discount code and apply it
             setDiscountCode(activeDiscount.code);
             
-            if (subtotal > 0) {
+            if (subtotal > 0 || cartSubtotal > 0) {
               handleApplyDiscount(activeDiscount.code);
             }
           }
@@ -126,12 +126,7 @@ export function DiscountCodeSection({
       return;
     }
 
-    if (subtotal <= 0) {
-      setDiscountError('Please add items to cart first');
-      return;
-    }
-
-    if (subtotal <= 0) {
+    if (subtotal <= 0 && cartSubtotal <= 0) {
       setDiscountError('Please add items to cart first');
       return;
     }
@@ -153,7 +148,7 @@ export function DiscountCodeSection({
         body: JSON.stringify({
           code: code.toUpperCase(),
           fid: userFid || null, // Allow null FID - API will handle appropriately
-          subtotal: subtotal,
+          subtotal: cartSubtotal > 0 ? cartSubtotal : subtotal,
           cartItems: cartItems || [] // Pass cart items for gift card validation
         })
       });
