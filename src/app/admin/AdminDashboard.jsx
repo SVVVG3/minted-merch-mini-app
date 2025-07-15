@@ -609,6 +609,17 @@ export default function AdminDashboard() {
     }).format(parseFloat(amount) || 0); // Amounts are already in dollars
   };
 
+  // Copy to clipboard function
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // You could add a toast notification here
+      console.log('Copied to clipboard:', text);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
+  };
+
   // Helper functions for discount display
   const getDiscountFids = (discount) => {
     // Read from the single fid column, not whitelisted_fids array
@@ -775,12 +786,20 @@ export default function AdminDashboard() {
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h2 className="text-lg font-semibold text-gray-800">📊 Dashboard</h2>
-                <button
-                  onClick={loadDashboardData}
-                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
-                >
-                  🔄 Refresh
-                </button>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => copyToClipboard('https://mintedmerch.vercel.app/')}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm"
+                  >
+                    🔗 Copy Main Page URL
+                  </button>
+                  <button
+                    onClick={loadDashboardData}
+                    className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                  >
+                    🔄 Refresh
+                  </button>
+                </div>
               </div>
             </div>
             
@@ -791,8 +810,8 @@ export default function AdminDashboard() {
                 { label: 'Active Streaks', value: dashboardStats.activeStreaks, icon: '🔥' },
                 { label: 'Check-Ins Today', value: dashboardStats.checkInsToday, icon: '📅' },
                 { label: 'Users with Notifications', value: dashboardStats.usersWithNotifications, icon: '🔔' },
-                { label: 'Discounts Used', value: dashboardStats.discountsUsed, icon: '🎫' },
                 { label: 'Total Points Awarded', value: dashboardStats.totalPoints?.toLocaleString(), icon: '⭐' },
+                { label: 'Discounts Used', value: dashboardStats.discountsUsed, icon: '🎫' },
                 { label: 'Total Orders', value: dashboardStats.totalOrders, icon: '🛍️' }
               ].map((stat) => (
                 <div key={stat.label} className="bg-white rounded-lg shadow p-6">
@@ -846,6 +865,47 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
+            
+            {/* Products Section */}
+            <div className="bg-white rounded-lg shadow p-6 mt-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">🛍️ Products</h3>
+              {productsData.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-4">📦</div>
+                  <div className="text-gray-500">No products found</div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {productsData.map((product) => (
+                    <div key={product.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-center mb-3">
+                        {product.image_url && (
+                          <img 
+                            src={product.image_url} 
+                            alt={product.title}
+                            className="w-12 h-12 object-cover rounded-lg mr-3"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900 text-sm line-clamp-2">{product.title}</h4>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {product.price_min === product.price_max 
+                              ? `$${product.price_min}` 
+                              : `$${product.price_min} - $${product.price_max}`}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => copyToClipboard(`https://mintedmerch.vercel.app/product/${product.handle}`)}
+                        className="w-full bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-2 rounded-md text-sm font-medium"
+                      >
+                        📋 Copy Product URL
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
