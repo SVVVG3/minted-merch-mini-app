@@ -86,7 +86,7 @@ export function CheckInButton() {
       {/* Check-in Button - Wider rectangle for horizontal content layout */}
       <button
         onClick={handleOpenModal}
-        className="flex items-center justify-center w-16 h-12 bg-[#3eb489] hover:bg-[#359970] text-white rounded-lg transition-colors relative"
+        className="flex items-center justify-center w-15 h-12 bg-[#3eb489] hover:bg-[#359970] text-white rounded-lg transition-colors relative"
         title={canCheckIn ? "Daily Check-in Available!" : "View Points & Streak"}
       >
         {canCheckIn ? (
