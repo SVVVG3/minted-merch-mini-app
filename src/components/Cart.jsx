@@ -31,7 +31,8 @@ export function Cart({ isOpen, onClose }) {
       isOpen,
       itemCount: cart.items.length,
       items: cart.items.map(i => i.product?.title || i.title),
-      appliedDiscount: cart.appliedDiscount?.code
+      appliedDiscount: cart.appliedDiscount?.code,
+      userFid: getFid()
     });
     
     if (isOpen && cart.items.length > 0) {
@@ -45,15 +46,15 @@ export function Cart({ isOpen, onClose }) {
         sessionStorage.removeItem('activeDiscountCode');
       }
     }
-  }, [isOpen, JSON.stringify(cart.items), cart.appliedDiscount?.code]); // Deep dependency check on cart contents
+  }, [isOpen, JSON.stringify(cart.items), cart.appliedDiscount?.code, getFid()]); // Deep dependency check on cart contents and FID
   
   const evaluateBestCartDiscount = async () => {
     try {
       setIsEvaluatingDiscounts(true);
       const userFid = getFid();
       
-      if (!userFid) {
-        console.log('🔍 No FID available for cart discount evaluation');
+      if (!userFid || typeof userFid !== 'number') {
+        console.log('🔍 No valid FID available for cart discount evaluation:', userFid);
         return;
       }
 
@@ -101,7 +102,7 @@ export function Cart({ isOpen, onClose }) {
         // Get Shopify product IDs for the products in cart
         const productIds = [];
         for (const handle of productHandles) {
-          const response = await fetch(`/api/shopify/products?handle=${handle}`);
+          const response = await fetch(`/api/shopify/products?handle=${handle}&fid=${userFid}`);
           const productData = await response.json();
           if (productData.product?.id) {
             productIds.push(parseInt(productData.product.id));
