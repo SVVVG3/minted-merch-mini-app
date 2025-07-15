@@ -35,11 +35,11 @@ export async function GET(request) {
       console.error('Error fetching users on leaderboard:', usersError);
     }
 
-    // Get users with active streaks (streak > 0)
+    // Get users with active streaks (streak >= 2, since 1 day isn't really a streak)
     const { count: activeStreaks, error: streaksError } = await supabaseAdmin
       .from('user_leaderboard')
       .select('user_fid', { count: 'exact', head: true })
-      .gt('checkin_streak', 0);
+      .gte('checkin_streak', 2);
 
     if (streaksError) {
       console.error('Error fetching active streaks:', streaksError);
