@@ -117,13 +117,12 @@ export async function GET(request) {
     }
 
     // Get total orders across all users
-    const { data: ordersData, error: ordersError } = await supabaseAdmin
-      .from('user_leaderboard')
-      .select('total_orders');
+    const { count: totalOrders, error: ordersError } = await supabaseAdmin
+      .from('orders')
+      .select('id', { count: 'exact', head: true });
 
-    let totalOrders = 0;
-    if (!ordersError && ordersData) {
-      totalOrders = ordersData.reduce((sum, user) => sum + (user.total_orders || 0), 0);
+    if (ordersError) {
+      console.error('Error fetching total orders:', ordersError);
     }
 
     // Get users with notifications enabled
@@ -168,7 +167,7 @@ export async function GET(request) {
       usersWithNotifications: usersWithNotifications || 0,
       discountsUsed: discountsUsed || 0,
       totalPoints: totalPoints,
-      totalOrders: totalOrders,
+      totalOrders: totalOrders || 0,
       lastRaffle: lastRaffle,
       topStreaks: topStreaks || [],
       topSpenders: topSpenders || []
