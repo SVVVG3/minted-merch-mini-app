@@ -45,9 +45,18 @@ export function DiscountCodeSection({
     if (autoPopulate && !hasAutoPopulated) {
       try {
         const userFid = getFid();
+        console.log('🎯 Auto-populate effect triggered:', {
+          autoPopulate,
+          hasAutoPopulated,
+          userFid,
+          subtotal,
+          cartSubtotal
+        });
         
         // Check for active discount in session storage (from HomePage)
         const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
+        console.log('💾 Session storage data:', activeDiscountData);
+        
         if (activeDiscountData) {
           const activeDiscount = JSON.parse(activeDiscountData);
           console.log('🎯 Auto-populating discount from session:', activeDiscount);
@@ -72,10 +81,24 @@ export function DiscountCodeSection({
           }
           
           // Auto-apply the discount if we have subtotal and valid FID (for token-gated) or any FID (for non-token-gated)
+          console.log('🔍 Auto-apply conditions:', {
+            hasSubtotal: subtotal > 0,
+            hasCartSubtotal: cartSubtotal > 0,
+            subtotalCondition: subtotal > 0 || cartSubtotal > 0,
+            hasCode: !!activeDiscount.code,
+            isTokenGated: activeDiscount.isTokenGated,
+            userFid: userFid,
+            validFid: userFid && typeof userFid === 'number'
+          });
+          
           if ((subtotal > 0 || cartSubtotal > 0) && activeDiscount.code) {
             console.log('🚀 Auto-applying discount:', activeDiscount.code);
             handleApplyDiscount(activeDiscount.code);
+          } else {
+            console.log('❌ Auto-apply conditions not met');
           }
+        } else {
+          console.log('❌ No active discount data found in session storage');
         }
       } catch (error) {
         console.error('Error auto-populating discount:', error);
@@ -89,11 +112,22 @@ export function DiscountCodeSection({
     
     const handleStorageChange = () => {
       try {
-
+        console.log('📻 Session storage change detected in DiscountCodeSection');
         
         const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
+        console.log('💾 Active discount data:', activeDiscountData);
+        
         if (activeDiscountData) {
           const activeDiscount = JSON.parse(activeDiscountData);
+          console.log('🔍 Parsed active discount:', activeDiscount);
+          console.log('🔍 Current discount code:', discountCode);
+          console.log('🔍 Condition checks:', {
+            codeMatch: activeDiscount.code !== discountCode,
+            autoApplied: activeDiscount.autoApplied,
+            subtotal: subtotal,
+            cartSubtotal: cartSubtotal,
+            subtotalCondition: subtotal > 0 || cartSubtotal > 0
+          });
           
           // Check if this is a new/better discount
           if (activeDiscount.code !== discountCode && activeDiscount.autoApplied) {
@@ -103,7 +137,10 @@ export function DiscountCodeSection({
             setDiscountCode(activeDiscount.code);
             
             if (subtotal > 0 || cartSubtotal > 0) {
+              console.log('🚀 Auto-applying discount from storage change:', activeDiscount.code);
               handleApplyDiscount(activeDiscount.code);
+            } else {
+              console.log('❌ Subtotal conditions not met for auto-apply');
             }
           }
         }
@@ -166,16 +203,28 @@ export function DiscountCodeSection({
   const handleApplyDiscount = async (codeToApply = null) => {
     const code = codeToApply || discountCode.trim();
     
+    console.log('🔥 handleApplyDiscount called:', {
+      codeToApply,
+      discountCode,
+      finalCode: code,
+      subtotal,
+      cartSubtotal,
+      appliedDiscount: !!appliedDiscount
+    });
+    
     if (!code) {
+      console.log('❌ No code provided');
       setDiscountError('Please enter a discount code');
       return;
     }
 
     if (subtotal <= 0 && cartSubtotal <= 0) {
+      console.log('❌ Subtotal conditions not met:', { subtotal, cartSubtotal });
       setDiscountError('Please add items to cart first');
       return;
     }
 
+    console.log('✅ Proceeding with discount validation');
     setIsValidatingDiscount(true);
     setDiscountError(null);
 
