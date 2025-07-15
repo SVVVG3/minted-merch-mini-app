@@ -27,6 +27,13 @@ export function Cart({ isOpen, onClose }) {
   
   // Cart-aware discount evaluation - runs when cart opens and has items
   useEffect(() => {
+    console.log('🛒 Cart effect triggered:', {
+      isOpen,
+      itemCount: cart.items.length,
+      items: cart.items.map(i => i.product?.title || i.title),
+      appliedDiscount: cart.appliedDiscount?.code
+    });
+    
     if (isOpen && cart.items.length > 0) {
       console.log('🔄 Cart changed - re-evaluating discounts...', cart.items.map(i => i.product?.title || i.title));
       evaluateBestCartDiscount();
@@ -84,33 +91,68 @@ export function Cart({ isOpen, onClose }) {
         return;
       }
 
-      // Check each product for the best available discount
+      // Check for auto-apply token-gated discounts directly
       let bestDiscountFound = null;
       let bestDiscountValue = 0;
       
-      for (const handle of productHandles) {
-        try {
-          console.log(`🔍 Checking discounts for product: ${handle}`);
-          
-          const response = await fetch(`/api/shopify/products?handle=${handle}&fid=${userFid}`);
+      try {
+        console.log('🔍 Checking for token-gated auto-apply discounts...');
+        
+        // Get Shopify product IDs for the products in cart
+        const productIds = [];
+        for (const handle of productHandles) {
+          const response = await fetch(`/api/shopify/products?handle=${handle}`);
           const productData = await response.json();
-          
-          if (productData.availableDiscounts?.best) {
-            const discount = productData.availableDiscounts.best;
-            const discountValue = discount.discount_value || discount.value || 0;
+          if (productData.product?.id) {
+            productIds.push(parseInt(productData.product.id));
+          }
+        }
+        
+        console.log('🔍 Product IDs in cart:', productIds);
+        
+        // Check token-gated eligibility for auto-apply discounts
+        const tokenGatedResponse = await fetch('/api/check-token-gated-eligibility', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fid: userFid,
+            scope: 'all',
+            productIds: productIds
+          })
+        });
+        
+        const tokenGatedResult = await tokenGatedResponse.json();
+        console.log('🎯 Token-gated API response:', tokenGatedResult);
+        
+        if (tokenGatedResult.success && tokenGatedResult.eligibleDiscounts && tokenGatedResult.eligibleDiscounts.length > 0) {
+          // Find the best discount from eligible ones
+          for (const discount of tokenGatedResult.eligibleDiscounts) {
+            const discountValue = discount.discount_value || 0;
+            console.log(`💰 Found eligible discount: ${discount.code} (${discountValue}% off)`);
             
-            console.log(`💰 Found discount for ${handle}: ${discount.code} (${discountValue}% off)`);
-            
-            // Prioritize: product-specific token-gated > site-wide token-gated > product-specific > site-wide
-            if (!bestDiscountFound || shouldPreferDiscount(discount, bestDiscountFound)) {
-              bestDiscountFound = discount;
+            if (!bestDiscountFound || discountValue > bestDiscountValue) {
+              bestDiscountFound = {
+                code: discount.code,
+                discount_value: discountValue,
+                discount_type: discount.discount_type || 'percentage',
+                discount_scope: discount.discount_scope || 'product',
+                isTokenGated: true,
+                gating_type: discount.gating_type,
+                description: discount.description,
+                displayText: `${discountValue}% off`,
+                freeShipping: discount.free_shipping || false
+              };
               bestDiscountValue = discountValue;
               console.log(`🎯 New best discount: ${discount.code} (${discountValue}% off)`);
             }
           }
-        } catch (error) {
-          console.error(`❌ Error checking discount for ${handle}:`, error);
+        } else {
+          console.log('❌ No eligible token-gated discounts found');
         }
+      } catch (error) {
+        console.error('❌ Error checking token-gated discounts:', error);
       }
       
       // Compare with currently applied discount
@@ -126,20 +168,25 @@ export function Cart({ isOpen, onClose }) {
         })) {
           console.log(`🔄 Upgrading discount from ${currentDiscount?.code || 'none'} to ${bestDiscountFound.code}`);
           
-          // Update session storage with better discount
-          sessionStorage.setItem('activeDiscountCode', JSON.stringify({
+          const sessionData = {
             code: bestDiscountFound.code,
-            source: (bestDiscountFound.discount_scope || bestDiscountFound.scope) === 'product' ? 'product_specific_api' : 'site_wide_api',
+            source: 'token_gated_cart',
             displayText: bestDiscountFound.displayText,
-            discountType: bestDiscountFound.discount_type || bestDiscountFound.type,
-            discountValue: bestDiscountFound.discount_value || bestDiscountFound.value,
+            discountType: bestDiscountFound.discount_type,
+            discountValue: bestDiscountFound.discount_value,
             timestamp: new Date().toISOString(),
             isTokenGated: bestDiscountFound.isTokenGated,
             gatingType: bestDiscountFound.gating_type,
             description: bestDiscountFound.description,
             autoApplied: true // Flag this as auto-applied from cart evaluation
-          }));
+          };
           
+          console.log('💾 Setting session storage with:', sessionData);
+          
+          // Update session storage with better discount
+          sessionStorage.setItem('activeDiscountCode', JSON.stringify(sessionData));
+          
+          console.log('📻 Dispatching sessionStorageUpdate event');
           // Trigger a custom event to notify DiscountCodeSection
           window.dispatchEvent(new Event('sessionStorageUpdate'));
         } else {
