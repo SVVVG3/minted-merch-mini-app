@@ -51,6 +51,7 @@ export default function AdminDashboard() {
   const [discountsData, setDiscountsData] = useState([]);
   const [showCreateDiscount, setShowCreateDiscount] = useState(false);
   const [productsData, setProductsData] = useState([]);
+  const [productsSyncLoading, setProductsSyncLoading] = useState(false);
   const [showEditDiscount, setShowEditDiscount] = useState(false);
   const [editingDiscount, setEditingDiscount] = useState(null);
   
@@ -620,6 +621,47 @@ export default function AdminDashboard() {
     }
   };
 
+  // Sync products from Shopify
+  const syncProducts = async () => {
+    setProductsSyncLoading(true);
+    try {
+      console.log('🔄 Starting product sync...');
+      
+      const response = await fetch('/api/products/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'sync_all',
+          force: false
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Product sync completed:', result);
+        
+        // Refresh the products data
+        const productsResponse = await fetch('/api/products');
+        const productsData = await productsResponse.json();
+        setProductsData(productsData.products || []);
+        
+        // Could add a toast notification here
+        alert(`Product sync completed! ${result.synced_count || 0} products synced, ${result.updated_count || 0} updated.`);
+      } else {
+        console.error('❌ Product sync failed:', result.error);
+        alert(`Product sync failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('❌ Error syncing products:', error);
+      alert('Product sync failed. Please try again.');
+    } finally {
+      setProductsSyncLoading(false);
+    }
+  };
+
   // Helper functions for discount display
   const getDiscountFids = (discount) => {
     // Read from the single fid column, not whitelisted_fids array
@@ -868,11 +910,31 @@ export default function AdminDashboard() {
             
             {/* Products Section */}
             <div className="bg-white rounded-lg shadow p-6 mt-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">🛍️ Products</h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">🛍️ Products</h3>
+                <button
+                  onClick={syncProducts}
+                  disabled={productsSyncLoading}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {productsSyncLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Syncing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🔄</span>
+                      <span>Sync from Shopify</span>
+                    </>
+                  )}
+                </button>
+              </div>
               {productsData.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-4xl mb-4">📦</div>
                   <div className="text-gray-500">No products found</div>
+                  <p className="text-sm text-gray-400 mt-2">Click "Sync from Shopify" to load products</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
