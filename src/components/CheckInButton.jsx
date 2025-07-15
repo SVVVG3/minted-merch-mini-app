@@ -83,10 +83,10 @@ export function CheckInButton() {
 
   return (
     <>
-      {/* Check-in Button - Rectangular button, larger size */}
+      {/* Check-in Button - Rectangular but matching height of other buttons */}
       <button
         onClick={handleOpenModal}
-        className="flex items-center justify-center w-16 h-12 bg-[#3eb489] hover:bg-[#359970] text-white rounded-lg transition-colors relative"
+        className="flex items-center justify-center w-12 h-10 bg-[#3eb489] hover:bg-[#359970] text-white rounded-lg transition-colors relative"
         title={canCheckIn ? "Daily Check-in Available!" : "View Points & Streak"}
       >
         {canCheckIn ? (
@@ -95,25 +95,25 @@ export function CheckInButton() {
             <img 
               src="/RewardsIcon.png" 
               alt="Daily Rewards" 
-              className="w-8 h-8" 
+              className="w-6 h-6" 
             />
             
             {/* New Check-in Available Indicator */}
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
           </>
         ) : (
           <div className="flex flex-col items-center">
             {/* Checkmark Icon */}
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
               <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
             </svg>
             
             {/* Streak Count */}
             {streak > 0 && (
-              <div className="flex items-center gap-1">
-                <span className="text-sm font-semibold leading-none">{streak}</span>
+              <div className="flex items-center gap-0.5">
+                <span className="text-xs font-semibold leading-none">{streak}</span>
                 {/* Lightning Bolt Icon */}
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+                <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 16 16">
                   <path d="M5.52.359A.5.5 0 0 1 6 0h4a.5.5 0 0 1 .474.658L8.694 6H12.5a.5.5 0 0 1 .395.807l-7 9a.5.5 0 0 1-.873-.454L6.823 9.5H3.5a.5.5 0 0 1-.48-.641l2.5-8.5z"/>
                 </svg>
               </div>

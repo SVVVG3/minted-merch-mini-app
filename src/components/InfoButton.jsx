@@ -30,12 +30,12 @@ export function InfoButton() {
     <>
       <button
         onClick={handleOpenModal}
-        className="flex items-center justify-center w-15 h-15 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+        className="flex items-center justify-center w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
         title="Mini App Guide"
         aria-label="View Mini App guide and help"
       >
         {/* Question Mark Icon */}
-        <span className="text-2xl font-bold">?</span>
+        <span className="text-lg font-bold">?</span>
       </button>
 
       <InfoModal 
