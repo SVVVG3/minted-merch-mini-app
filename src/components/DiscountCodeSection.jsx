@@ -62,7 +62,8 @@ export function DiscountCodeSection({
           console.log('🎯 Auto-populating discount from session:', activeDiscount);
           
           setDiscountCode(activeDiscount.code || '');
-          setHasAutoPopulated(true);
+          // Only set hasAutoPopulated to true if we actually apply the discount
+          // setHasAutoPopulated(true);
           
           // Store token-gating information if available
           if (activeDiscount.isTokenGated) {
@@ -77,6 +78,24 @@ export function DiscountCodeSection({
           // For token-gated discounts, wait for valid FID before auto-applying
           if (activeDiscount.isTokenGated && (!userFid || typeof userFid !== 'number')) {
             console.log('🔄 Token-gated discount found but waiting for valid FID...');
+            
+            // Set up a retry mechanism
+            const retryAutoApply = () => {
+              const retryFid = getFid();
+              if (retryFid && typeof retryFid === 'number') {
+                console.log('🔄 Retrying auto-apply with FID:', retryFid);
+                if ((subtotal > 0 || cartSubtotal > 0) && activeDiscount.code) {
+                  setHasAutoPopulated(true); // Set this when we successfully retry
+                  handleApplyDiscount(activeDiscount.code);
+                }
+              }
+            };
+            
+            // Retry after 500ms, 1s, and 2s
+            setTimeout(retryAutoApply, 500);
+            setTimeout(retryAutoApply, 1000);
+            setTimeout(retryAutoApply, 2000);
+            
             return; // Don't auto-apply yet, wait for FID
           }
           
@@ -93,6 +112,7 @@ export function DiscountCodeSection({
           
           if ((subtotal > 0 || cartSubtotal > 0) && activeDiscount.code) {
             console.log('🚀 Auto-applying discount:', activeDiscount.code);
+            setHasAutoPopulated(true); // Set this here when we actually apply
             handleApplyDiscount(activeDiscount.code);
           } else {
             console.log('❌ Auto-apply conditions not met');
@@ -165,12 +185,21 @@ export function DiscountCodeSection({
   useEffect(() => {
     const userFid = getFid();
     
+    console.log('🔄 FID retry effect triggered:', {
+      userFid,
+      userFidType: typeof userFid,
+      hasAutoPopulated,
+      autoPopulate
+    });
+    
     // Only proceed if we have a valid FID and haven't auto-populated yet
     if (userFid && typeof userFid === 'number' && !hasAutoPopulated && autoPopulate) {
       try {
         const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
         if (activeDiscountData) {
           const activeDiscount = JSON.parse(activeDiscountData);
+          
+          console.log('🔄 Checking discount for auto-apply with FID:', activeDiscount);
           
           // Check if this is a token-gated discount that was waiting for FID
           if (activeDiscount.isTokenGated && activeDiscount.code) {
@@ -193,12 +222,24 @@ export function DiscountCodeSection({
               handleApplyDiscount(activeDiscount.code);
             }
           }
+          // Also handle non-token-gated discounts that might be waiting
+          else if (activeDiscount.code && !activeDiscount.isTokenGated) {
+            console.log('🔄 Non-token-gated discount found, auto-applying:', activeDiscount.code);
+            
+            setDiscountCode(activeDiscount.code);
+            setHasAutoPopulated(true);
+            
+            if (subtotal > 0 || cartSubtotal > 0) {
+              console.log('🚀 Auto-applying non-token-gated discount:', activeDiscount.code);
+              handleApplyDiscount(activeDiscount.code);
+            }
+          }
         }
       } catch (error) {
         console.error('Error in FID retry logic:', error);
       }
     }
-  }, [getFid, hasAutoPopulated, autoPopulate, subtotal, cartSubtotal]); // Watch for FID changes
+  }, [getFid(), hasAutoPopulated, autoPopulate, subtotal, cartSubtotal]); // Watch for FID changes
 
   const handleApplyDiscount = async (codeToApply = null) => {
     const code = codeToApply || discountCode.trim();

@@ -36,8 +36,17 @@ export function Cart({ isOpen, onClose }) {
     });
     
     if (isOpen && cart.items.length > 0) {
-      console.log('🔄 Cart changed - re-evaluating discounts...', cart.items.map(i => i.product?.title || i.title));
-      evaluateBestCartDiscount();
+      console.log('🔄 Cart changed - checking for existing discount...', cart.items.map(i => i.product?.title || i.title));
+      
+      // Check if we already have a discount from the product page
+      const existingDiscount = sessionStorage.getItem('activeDiscountCode');
+      if (existingDiscount) {
+        console.log('✅ Using existing discount from product page:', JSON.parse(existingDiscount).code);
+        // Let DiscountCodeSection handle the auto-apply
+      } else {
+        console.log('🔄 No existing discount found, evaluating...');
+        evaluateBestCartDiscount();
+      }
     } else if (isOpen && cart.items.length === 0) {
       // Clear any applied discount when cart is empty
       if (cart.appliedDiscount) {
