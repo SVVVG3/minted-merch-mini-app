@@ -35,6 +35,14 @@ export default function AdminDashboard() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState('');
   
+  // Users sorting state
+  const [usersSortField, setUsersSortField] = useState('updated_at');
+  const [usersSortDirection, setUsersSortDirection] = useState('desc');
+  
+  // Orders sorting state
+  const [ordersSortField, setOrdersSortField] = useState('created_at');
+  const [ordersSortDirection, setOrdersSortDirection] = useState('desc');
+  
   // Leaderboard sorting state
   const [sortField, setSortField] = useState('total_points');
   const [sortDirection, setSortDirection] = useState('desc');
@@ -336,6 +344,26 @@ export default function AdminDashboard() {
     }
   };
 
+  // Users sorting function
+  const handleUsersSort = (field) => {
+    if (usersSortField === field) {
+      setUsersSortDirection(usersSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setUsersSortField(field);
+      setUsersSortDirection('desc');
+    }
+  };
+
+  // Orders sorting function
+  const handleOrdersSort = (field) => {
+    if (ordersSortField === field) {
+      setOrdersSortDirection(ordersSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setOrdersSortField(field);
+      setOrdersSortDirection('desc');
+    }
+  };
+
   // Get sorted leaderboard data
   const getSortedLeaderboard = () => {
     if (!leaderboardData) return [];
@@ -366,6 +394,94 @@ export default function AdminDashboard() {
       
       // Handle string comparison
       if (sortDirection === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+  };
+
+  // Get sorted users data
+  const getSortedUsers = () => {
+    if (!usersData) return [];
+    
+    return [...usersData].sort((a, b) => {
+      let aVal = a[usersSortField];
+      let bVal = b[usersSortField];
+      
+      // Handle null/undefined values - put them at the end
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      
+      // Handle string fields
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = typeof bVal === 'string' ? bVal.toLowerCase() : '';
+      }
+      
+      // Handle numeric fields
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        if (usersSortDirection === 'asc') {
+          return aVal - bVal;
+        } else {
+          return bVal - aVal;
+        }
+      }
+      
+      // Handle date fields
+      if (usersSortField === 'updated_at') {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+        return usersSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
+      // Handle string comparison
+      if (usersSortDirection === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+  };
+
+  // Get sorted orders data
+  const getSortedOrders = () => {
+    if (!ordersData) return [];
+    
+    return [...ordersData].sort((a, b) => {
+      let aVal = a[ordersSortField];
+      let bVal = b[ordersSortField];
+      
+      // Handle null/undefined values - put them at the end
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      
+      // Handle string fields
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = typeof bVal === 'string' ? bVal.toLowerCase() : '';
+      }
+      
+      // Handle numeric fields
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        if (ordersSortDirection === 'asc') {
+          return aVal - bVal;
+        } else {
+          return bVal - aVal;
+        }
+      }
+      
+      // Handle date fields
+      if (ordersSortField === 'created_at') {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+        return ordersSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
+      // Handle string comparison
+      if (ordersSortDirection === 'asc') {
         return aVal > bVal ? 1 : -1;
       } else {
         return aVal < bVal ? 1 : -1;
@@ -671,6 +787,8 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {dashboardStats && [
                 { label: 'Total Users', value: dashboardStats.totalUsers, icon: '👥' },
+                { label: 'Users on Leaderboard', value: dashboardStats.usersOnLeaderboard, icon: '🏆' },
+                { label: 'Check-Ins Today', value: dashboardStats.checkInsToday, icon: '📅' },
                 { label: 'Active Streaks', value: dashboardStats.activeStreaks, icon: '🔥' },
                 { label: 'Total Points Awarded', value: dashboardStats.totalPoints?.toLocaleString(), icon: '⭐' },
                 { label: 'Total Orders', value: dashboardStats.totalOrders, icon: '🛍️' }
@@ -686,6 +804,46 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
+            
+            {/* Last Raffle Info */}
+            {dashboardStats?.lastRaffle && (
+              <div className="bg-white rounded-lg shadow p-6 mt-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">🎲 Last Raffle</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <div className="text-sm text-gray-600 mb-2">Date</div>
+                    <div className="font-medium">{formatDate(dashboardStats.lastRaffle.date)}</div>
+                    
+                    <div className="text-sm text-gray-600 mb-2 mt-4">Criteria</div>
+                    <div className="font-medium">{dashboardStats.lastRaffle.criteria}</div>
+                    
+                    <div className="text-sm text-gray-600 mb-2 mt-4">Results</div>
+                    <div className="font-medium">
+                      {dashboardStats.lastRaffle.totalWinners} winner{dashboardStats.lastRaffle.totalWinners > 1 ? 's' : ''} from {dashboardStats.lastRaffle.totalEligible} eligible users
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-gray-600 mb-2">Winners</div>
+                    <div className="space-y-2">
+                      {dashboardStats.lastRaffle.winners.map((winner) => (
+                        <div key={winner.fid} className="flex items-center space-x-2">
+                          <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">
+                            #{winner.position}
+                          </span>
+                          <span className="font-medium text-blue-600">
+                            @{winner.username}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            (FID: {winner.fid})
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -735,17 +893,52 @@ export default function AdminDashboard() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FID</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Spent</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notifications</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Active</th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleUsersSort('display_name')}
+                      >
+                        User {usersSortField === 'display_name' && (usersSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleUsersSort('fid')}
+                      >
+                        FID {usersSortField === 'fid' && (usersSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleUsersSort('email')}
+                      >
+                        Email {usersSortField === 'email' && (usersSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleUsersSort('total_orders')}
+                      >
+                        Orders {usersSortField === 'total_orders' && (usersSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleUsersSort('total_spent')}
+                      >
+                        Total Spent {usersSortField === 'total_spent' && (usersSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleUsersSort('has_notifications')}
+                      >
+                        Notifications {usersSortField === 'has_notifications' && (usersSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleUsersSort('updated_at')}
+                      >
+                        Last Active {usersSortField === 'updated_at' && (usersSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {usersData.map((user) => (
+                    {getSortedUsers().map((user) => (
                       <tr key={user.fid}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -915,18 +1108,58 @@ export default function AdminDashboard() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleOrdersSort('order_id')}
+                    >
+                      Order ID {ordersSortField === 'order_id' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleOrdersSort('fid')}
+                    >
+                      FID {ordersSortField === 'fid' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleOrdersSort('customer_name')}
+                    >
+                      Customer {ordersSortField === 'customer_name' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleOrdersSort('status')}
+                    >
+                      Status {ordersSortField === 'status' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleOrdersSort('item_count')}
+                    >
+                      Items {ordersSortField === 'item_count' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleOrdersSort('amount_total')}
+                    >
+                      Total {ordersSortField === 'amount_total' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleOrdersSort('discount_amount')}
+                    >
+                      Discount {ordersSortField === 'discount_amount' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleOrdersSort('created_at')}
+                    >
+                      Date {ordersSortField === 'created_at' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {ordersData.map((order) => (
+                  {getSortedOrders().map((order) => (
                     <tr key={order.order_id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {order.order_id}
