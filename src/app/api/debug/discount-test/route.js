@@ -5,11 +5,59 @@ import {
   calculateDiscountAmount,
   markDiscountCodeAsUsed,
   getUserDiscountCodes,
-  hasUnusedWelcomeDiscount
+  hasUnusedWelcomeDiscount,
+  isGiftCardCode
 } from '@/lib/discounts';
 import { supabase } from '@/lib/supabase';
 
-export async function GET() {
+// Test the isGiftCardCode function with various codes
+function testCodeClassification() {
+  const testCodes = [
+    'SAVAGE-TEST-345',
+    'WELCOME15-ABC123',
+    'BANKRCLUB-MERCH-20',
+    'SNAPSHOT-TINY-HYPER-FREE',
+    'PROMO-SUMMER50',
+    'SAVE20',
+    'CODE15-XXXXX',
+    'ABCD1234EFGH5678', // Should be gift card
+    '1234567890123456', // Should be gift card
+    'TESTCODE-ALPHA-123',
+    'MYTEST-999'
+  ];
+
+  const results = testCodes.map(code => ({
+    code,
+    isGiftCard: isGiftCardCode(code),
+    expectedType: code.includes('1234') || /^\d+$/.test(code) ? 'gift_card' : 'discount'
+  }));
+
+  return results;
+}
+
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const action = searchParams.get('action');
+  
+  if (action === 'test-classification') {
+    const results = testCodeClassification();
+    return NextResponse.json({
+      message: 'Code classification test results',
+      results,
+      summary: {
+        total: results.length,
+        correctly_classified: results.filter(r => 
+          (r.isGiftCard && r.expectedType === 'gift_card') || 
+          (!r.isGiftCard && r.expectedType === 'discount')
+        ).length,
+        incorrectly_classified: results.filter(r => 
+          (r.isGiftCard && r.expectedType === 'discount') || 
+          (!r.isGiftCard && r.expectedType === 'gift_card')
+        ).length
+      }
+    });
+  }
+
   try {
     console.log('=== DISCOUNT SYSTEM TEST ===');
     
