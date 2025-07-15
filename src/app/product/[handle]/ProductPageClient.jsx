@@ -14,20 +14,109 @@ export function ProductPageClient({ handle }) {
   const [productDiscount, setProductDiscount] = useState(null);
   const [discountLoading, setDiscountLoading] = useState(false);
   
-  const { user: farcasterUser, isInFarcaster, isReady } = useFarcaster();
+  const { 
+    user: farcasterUser, 
+    isInFarcaster, 
+    isReady,
+    context,
+    getFid,
+    getUsername,
+    getDisplayName,
+    getPfpUrl
+  } = useFarcaster();
 
   // Fetch product immediately on mount (without discounts)
   useEffect(() => {
     fetchProductBasic();
   }, []);
 
-  // Check for discounts when Farcaster context is ready
+  // CRITICAL FIX: Register user profile when Farcaster context is ready (like HomePage.jsx does)
   useEffect(() => {
-    if (isReady && product) {
+    if (!isInFarcaster || !isReady) return;
+    
+    const userFid = getFid();
+    if (!userFid) return;
+
+    // Prevent multiple registrations
+    const hasRegistered = sessionStorage.getItem(`user_registered_${userFid}`);
+    if (hasRegistered) {
+      console.log('User already registered in this session, loading discounts only');
+      checkForDiscounts();
+      return;
+    }
+
+    const registerUserProfile = async () => {
+      try {
+        console.log('=== REGISTERING USER PROFILE (Product Page) ===');
+        console.log('User FID:', userFid);
+        console.log('User Data:', {
+          fid: userFid,
+          username: getUsername(),
+          displayName: getDisplayName(),
+          pfpUrl: getPfpUrl()
+        });
+        
+        // Prepare user data for registration
+        const userData = {
+          username: getUsername() || `user_${userFid}`,
+          displayName: getDisplayName() || null,
+          bio: null, // Bio not available in simplified version
+          pfpUrl: getPfpUrl() || null
+        };
+
+        console.log('Registering user profile with data:', userData);
+        
+        // Register user profile
+        const response = await fetch('/api/register-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            fid: userFid,
+            username: userData.username,
+            displayName: userData.displayName,
+            bio: userData.bio,
+            pfpUrl: userData.pfpUrl
+          }),
+        });
+        
+        const result = await response.json();
+        console.log('User profile registration result:', result);
+        
+        if (result.success) {
+          console.log('✅ User profile successfully registered from product page!');
+          
+          // Mark as registered to prevent multiple calls
+          sessionStorage.setItem(`user_registered_${userFid}`, 'true');
+          
+          // After successful registration, check for discounts
+          checkForDiscounts();
+        } else {
+          console.error('❌ User profile registration failed:', result.error);
+          // Still try to check for discounts even if registration failed
+          checkForDiscounts();
+        }
+        
+      } catch (error) {
+        console.error('Error registering user profile:', error);
+        // Still try to check for discounts even if registration failed
+        checkForDiscounts();
+      }
+    };
+
+    // Small delay to ensure Farcaster context is fully loaded
+    const timer = setTimeout(registerUserProfile, 1000);
+    return () => clearTimeout(timer);
+  }, [isInFarcaster, isReady]);
+
+  // Check for discounts when Farcaster context is ready AND product is loaded
+  useEffect(() => {
+    if (isReady && product && farcasterUser?.fid) {
       console.log('🔄 Farcaster context ready, checking for discounts...');
       checkForDiscounts();
     }
-  }, [isReady, product]);
+  }, [isReady, product, farcasterUser?.fid]);
 
   const fetchProductBasic = async () => {
     try {
