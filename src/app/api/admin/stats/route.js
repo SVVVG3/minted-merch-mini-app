@@ -45,12 +45,29 @@ export async function GET(request) {
       console.error('Error fetching active streaks:', streaksError);
     }
 
-    // Get check-ins today
+    // Get check-ins today (California time)
+    // Calculate today's date in California time (PST/PDT)
+    const now = new Date();
+    const californiaOffset = -8; // UTC-8 for PST (will be -7 for PDT, but we'll use -8 to be safe)
+    const californiaTime = new Date(now.getTime() + (californiaOffset * 60 * 60 * 1000));
+    
+    // Get start of today in California time
+    const startOfTodayCA = new Date(californiaTime.getFullYear(), californiaTime.getMonth(), californiaTime.getDate());
+    
+    // Convert back to UTC for database query
+    const startOfTodayUTC = new Date(startOfTodayCA.getTime() - (californiaOffset * 60 * 60 * 1000));
+    
+    console.log('🕐 Check-ins today calculation:');
+    console.log('  Current UTC time:', now.toISOString());
+    console.log('  California time:', californiaTime.toISOString());
+    console.log('  Start of today CA:', startOfTodayCA.toISOString());
+    console.log('  Start of today UTC:', startOfTodayUTC.toISOString());
+
     const { count: checkInsToday, error: checkInsError } = await supabaseAdmin
       .from('point_transactions')
       .select('id', { count: 'exact', head: true })
       .eq('transaction_type', 'daily_checkin')
-      .gte('created_at', new Date().toISOString().split('T')[0]);
+      .gte('created_at', startOfTodayUTC.toISOString());
 
     if (checkInsError) {
       console.error('Error fetching check-ins today:', checkInsError);

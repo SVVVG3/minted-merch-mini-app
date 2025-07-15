@@ -942,8 +942,22 @@ export default function AdminDashboard() {
                       <tr key={user.fid}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                              <span className="text-sm font-medium text-gray-700">
+                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                              {user.pfp_url ? (
+                                <img 
+                                  src={user.pfp_url} 
+                                  alt={`${user.display_name || user.username || 'User'} profile`}
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              <span 
+                                className="text-sm font-medium text-gray-700 flex items-center justify-center h-full w-full"
+                                style={{ display: user.pfp_url ? 'none' : 'flex' }}
+                              >
                                 {user.display_name?.[0] || user.username?.[0] || '?'}
                               </span>
                             </div>
