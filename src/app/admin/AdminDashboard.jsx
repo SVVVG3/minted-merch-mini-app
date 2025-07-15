@@ -52,6 +52,7 @@ export default function AdminDashboard() {
   const [showCreateDiscount, setShowCreateDiscount] = useState(false);
   const [productsData, setProductsData] = useState([]);
   const [productsSyncLoading, setProductsSyncLoading] = useState(false);
+  const [copiedButtons, setCopiedButtons] = useState(new Set());
   const [showEditDiscount, setShowEditDiscount] = useState(false);
   const [editingDiscount, setEditingDiscount] = useState(null);
   
@@ -611,11 +612,22 @@ export default function AdminDashboard() {
   };
 
   // Copy to clipboard function
-  const copyToClipboard = async (text) => {
+  const copyToClipboard = async (text, buttonId = null) => {
     try {
       await navigator.clipboard.writeText(text);
-      // You could add a toast notification here
       console.log('Copied to clipboard:', text);
+      
+      // Add visual feedback if buttonId is provided
+      if (buttonId) {
+        setCopiedButtons(prev => new Set(prev).add(buttonId));
+        setTimeout(() => {
+          setCopiedButtons(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(buttonId);
+            return newSet;
+          });
+        }, 1000);
+      }
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
     }
@@ -830,10 +842,10 @@ export default function AdminDashboard() {
                 <h2 className="text-lg font-semibold text-gray-800">📊 Dashboard</h2>
                 <div className="flex space-x-3">
                   <button
-                    onClick={() => copyToClipboard('https://mintedmerch.vercel.app/')}
+                    onClick={() => copyToClipboard('https://mintedmerch.vercel.app/', 'main-page-url')}
                     className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm"
                   >
-                    🔗 Copy Main Page URL
+                    {copiedButtons.has('main-page-url') ? '✅ Copied!' : '🔗 Copy Main Page URL'}
                   </button>
                   <button
                     onClick={loadDashboardData}
@@ -958,10 +970,10 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       <button
-                        onClick={() => copyToClipboard(`https://mintedmerch.vercel.app/product/${product.handle}`)}
+                        onClick={() => copyToClipboard(`https://mintedmerch.vercel.app/product/${product.handle}`, `product-${product.id}`)}
                         className="w-full bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-2 rounded-md text-sm font-medium"
                       >
-                        📋 Copy Product URL
+                        {copiedButtons.has(`product-${product.id}`) ? '✅ Copied!' : '📋 Copy Product URL'}
                       </button>
                     </div>
                   ))}
@@ -1031,6 +1043,12 @@ export default function AdminDashboard() {
                       </th>
                       <th 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleUsersSort('has_notifications')}
+                      >
+                        Notifications {usersSortField === 'has_notifications' && (usersSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleUsersSort('email')}
                       >
                         Email {usersSortField === 'email' && (usersSortDirection === 'asc' ? '↑' : '↓')}
@@ -1058,12 +1076,6 @@ export default function AdminDashboard() {
                         onClick={() => handleUsersSort('total_spent')}
                       >
                         Total Spent {usersSortField === 'total_spent' && (usersSortDirection === 'asc' ? '↑' : '↓')}
-                      </th>
-                      <th 
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleUsersSort('has_notifications')}
-                      >
-                        Notifications {usersSortField === 'has_notifications' && (usersSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                       <th 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -1111,6 +1123,17 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {user.has_notifications ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              ✓ Enabled
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              ✗ Disabled
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {user.email ? (
                             <span className="text-green-600">{user.email}</span>
                           ) : (
@@ -1140,17 +1163,6 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <span className="font-medium">${user.total_spent || '0.00'}</span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {user.has_notifications ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              ✓ Enabled
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              ✗ Disabled
-                            </span>
-                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {user.updated_at ? formatDate(user.updated_at) : 'Never'}
