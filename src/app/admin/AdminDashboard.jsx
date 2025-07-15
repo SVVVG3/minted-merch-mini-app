@@ -788,8 +788,10 @@ export default function AdminDashboard() {
               {dashboardStats && [
                 { label: 'Total Users', value: dashboardStats.totalUsers, icon: '👥' },
                 { label: 'Users on Leaderboard', value: dashboardStats.usersOnLeaderboard, icon: '🏆' },
-                { label: 'Check-Ins Today', value: dashboardStats.checkInsToday, icon: '📅' },
                 { label: 'Active Streaks', value: dashboardStats.activeStreaks, icon: '🔥' },
+                { label: 'Check-Ins Today', value: dashboardStats.checkInsToday, icon: '📅' },
+                { label: 'Users with Notifications', value: dashboardStats.usersWithNotifications, icon: '🔔' },
+                { label: 'Discounts Used', value: dashboardStats.discountsUsed, icon: '🎫' },
                 { label: 'Total Points Awarded', value: dashboardStats.totalPoints?.toLocaleString(), icon: '⭐' },
                 { label: 'Total Orders', value: dashboardStats.totalOrders, icon: '🛍️' }
               ].map((stat) => (

@@ -126,6 +126,25 @@ export async function GET(request) {
       totalOrders = ordersData.reduce((sum, user) => sum + (user.total_orders || 0), 0);
     }
 
+    // Get users with notifications enabled
+    const { count: usersWithNotifications, error: notificationsError } = await supabaseAdmin
+      .from('profiles')
+      .select('fid', { count: 'exact', head: true })
+      .eq('has_notifications', true);
+
+    if (notificationsError) {
+      console.error('Error fetching users with notifications:', notificationsError);
+    }
+
+    // Get total discounts used
+    const { count: discountsUsed, error: discountsUsedError } = await supabaseAdmin
+      .from('discount_code_usage')
+      .select('id', { count: 'exact', head: true });
+
+    if (discountsUsedError) {
+      console.error('Error fetching discounts used:', discountsUsedError);
+    }
+
     // Get top streaks
     const { data: topStreaks, error: topStreaksError } = await supabaseAdmin
       .from('user_leaderboard')
@@ -146,6 +165,8 @@ export async function GET(request) {
       usersOnLeaderboard: usersOnLeaderboard || 0,
       activeStreaks: activeStreaks || 0,
       checkInsToday: checkInsToday || 0,
+      usersWithNotifications: usersWithNotifications || 0,
+      discountsUsed: discountsUsed || 0,
       totalPoints: totalPoints,
       totalOrders: totalOrders,
       lastRaffle: lastRaffle,
