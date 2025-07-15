@@ -331,7 +331,14 @@ export function CartProvider({ children }) {
   const calculateProductAwareDiscount = () => {
     if (!cart.appliedDiscount) return 0;
     
-    const { code, discountType, discountValue, source } = cart.appliedDiscount;
+    const { code, discountType, discountValue, discountAmount, source } = cart.appliedDiscount;
+    
+    // FIRST: If we have a pre-calculated discountAmount from the API, use it
+    // This is the most reliable source since it was calculated by the backend
+    if (discountAmount && typeof discountAmount === 'number' && discountAmount > 0) {
+      console.log(`💰 Using pre-calculated discount amount from API: $${discountAmount.toFixed(2)}`);
+      return discountAmount;
+    }
     
     // Check if this is a product-specific discount from session storage
     try {
