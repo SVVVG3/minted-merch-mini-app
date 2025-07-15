@@ -261,7 +261,7 @@ export function ProductDetail({
             {/* Share Button */}
             <button
               onClick={handleShareProduct}
-              className="flex items-center justify-center w-10 h-10 bg-[#8A63D2] hover:bg-[#7C5BC7] text-white rounded-lg transition-colors"
+              className="flex items-center justify-center w-12 h-12 bg-[#8A63D2] hover:bg-[#7C5BC7] text-white rounded-lg transition-colors"
               title="Share on Farcaster"
             >
               {/* Official Farcaster Logo */}
@@ -275,7 +275,7 @@ export function ProductDetail({
             {/* Cart Button */}
             <button
               onClick={openCart}
-              className="flex items-center justify-center w-10 h-10 bg-[#3eb489] hover:bg-[#359970] text-white rounded-lg transition-colors"
+              className="flex items-center justify-center w-12 h-12 bg-[#3eb489] hover:bg-[#359970] text-white rounded-lg transition-colors"
               title="Open Cart"
             >
               <div className="relative">
