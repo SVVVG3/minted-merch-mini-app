@@ -83,10 +83,10 @@ export function CheckInButton() {
 
   return (
     <>
-      {/* Check-in Button - Rectangular but matching height of other buttons */}
+      {/* Check-in Button - Wider rectangle for horizontal content layout */}
       <button
         onClick={handleOpenModal}
-        className="flex items-center justify-center w-12 h-10 bg-[#3eb489] hover:bg-[#359970] text-white rounded-lg transition-colors relative"
+        className="flex items-center justify-center w-16 h-11 bg-[#3eb489] hover:bg-[#359970] text-white rounded-lg transition-colors relative"
         title={canCheckIn ? "Daily Check-in Available!" : "View Points & Streak"}
       >
         {canCheckIn ? (
@@ -102,7 +102,7 @@ export function CheckInButton() {
             <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
           </>
         ) : (
-          <div className="flex flex-col items-center">
+          <div className="flex items-center gap-1">
             {/* Checkmark Icon */}
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
               <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
