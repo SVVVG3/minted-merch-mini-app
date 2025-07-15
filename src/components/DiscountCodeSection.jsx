@@ -44,7 +44,7 @@ export function DiscountCodeSection({
   useEffect(() => {
     if (autoPopulate && !hasAutoPopulated) {
       try {
-
+        const userFid = getFid();
         
         // Check for active discount in session storage (from HomePage)
         const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
@@ -65,7 +65,13 @@ export function DiscountCodeSection({
             });
           }
           
-          // Optionally auto-apply the discount if we have subtotal
+          // For token-gated discounts, wait for valid FID before auto-applying
+          if (activeDiscount.isTokenGated && (!userFid || typeof userFid !== 'number')) {
+            console.log('🔄 Token-gated discount found but waiting for valid FID...');
+            return; // Don't auto-apply yet, wait for FID
+          }
+          
+          // Auto-apply the discount if we have subtotal and valid FID (for token-gated) or any FID (for non-token-gated)
           if ((subtotal > 0 || cartSubtotal > 0) && activeDiscount.code) {
             console.log('🚀 Auto-applying discount:', activeDiscount.code);
             handleApplyDiscount(activeDiscount.code);
@@ -75,7 +81,7 @@ export function DiscountCodeSection({
         console.error('Error auto-populating discount:', error);
       }
     }
-  }, [autoPopulate, hasAutoPopulated, subtotal, cartItems]);
+  }, [autoPopulate, hasAutoPopulated, subtotal, cartItems, getFid]); // Add getFid to dependencies
 
   // Listen for sessionStorage changes (for cart discount re-evaluation)
   useEffect(() => {
@@ -118,6 +124,45 @@ export function DiscountCodeSection({
     };
   }, [autoPopulate, discountCode, subtotal, cartItems]);
 
+  // Retry auto-apply when FID becomes available (for token-gated discounts)
+  useEffect(() => {
+    const userFid = getFid();
+    
+    // Only proceed if we have a valid FID and haven't auto-populated yet
+    if (userFid && typeof userFid === 'number' && !hasAutoPopulated && autoPopulate) {
+      try {
+        const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
+        if (activeDiscountData) {
+          const activeDiscount = JSON.parse(activeDiscountData);
+          
+          // Check if this is a token-gated discount that was waiting for FID
+          if (activeDiscount.isTokenGated && activeDiscount.code) {
+            console.log('🔄 Valid FID now available, attempting auto-apply for token-gated discount:', activeDiscount.code);
+            
+            setDiscountCode(activeDiscount.code);
+            setHasAutoPopulated(true);
+            
+            // Store token-gating information
+            setTokenGatingInfo({
+              isTokenGated: true,
+              gatingType: activeDiscount.gatingType,
+              description: activeDiscount.description,
+              priorityLevel: activeDiscount.priorityLevel
+            });
+            
+            // Auto-apply now that we have a valid FID
+            if (subtotal > 0 || cartSubtotal > 0) {
+              console.log('🚀 Auto-applying token-gated discount with valid FID:', activeDiscount.code);
+              handleApplyDiscount(activeDiscount.code);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error in FID retry logic:', error);
+      }
+    }
+  }, [getFid, hasAutoPopulated, autoPopulate, subtotal, cartSubtotal]); // Watch for FID changes
+
   const handleApplyDiscount = async (codeToApply = null) => {
     const code = codeToApply || discountCode.trim();
     
@@ -136,9 +181,26 @@ export function DiscountCodeSection({
 
     try {
       const userFid = getFid();
-      console.log('🔍 Validating code:', code, 'User FID:', userFid);
-
-      // Cart items are already available from the cart context at component level
+      
+      // Debug logging for FID
+      console.log('🔍 FID Debug:', {
+        userFid,
+        userFidType: typeof userFid,
+        userFidValue: userFid,
+        userFidIsNull: userFid === null,
+        userFidIsUndefined: userFid === undefined
+      });
+      
+      // Validate FID - only send if it's a valid number
+      const validatedFid = (userFid && typeof userFid === 'number') ? userFid : null;
+      
+      console.log('🔍 Validating code:', {
+        code,
+        originalFid: userFid,
+        validatedFid,
+        subtotal: cartSubtotal > 0 ? cartSubtotal : subtotal,
+        hasCartItems: !!(cartItems && cartItems.length > 0)
+      });
 
       const response = await fetch('/api/validate-discount', {
         method: 'POST',
@@ -147,7 +209,7 @@ export function DiscountCodeSection({
         },
         body: JSON.stringify({
           code: code.toUpperCase(),
-          fid: userFid || null, // Allow null FID - API will handle appropriately
+          fid: validatedFid, // Use validated FID
           subtotal: cartSubtotal > 0 ? cartSubtotal : subtotal,
           cartItems: cartItems || [] // Pass cart items for gift card validation
         })
