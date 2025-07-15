@@ -32,9 +32,12 @@ export function DiscountCodeSection({
   showNotificationPrompt = false
 }) {
   const { getFid } = useFarcaster();
-  const { cartSubtotal, cartTotal, items: cartItems } = useCart();
+  const { cart, cartSubtotal, cartTotal, items: cartItems } = useCart();
   const [discountCode, setDiscountCode] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState(null);
+  
+  // Use cart's applied discount if available, otherwise use local state
+  const effectiveAppliedDiscount = cart.appliedDiscount || appliedDiscount;
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [discountError, setDiscountError] = useState(null);
   const [hasAutoPopulated, setHasAutoPopulated] = useState(false);
@@ -377,7 +380,7 @@ export function DiscountCodeSection({
 
   // Helper function to calculate actual discount amount (product-aware)
   const calculateActualDiscountAmount = () => {
-    if (!appliedDiscount) return 0;
+    if (!effectiveAppliedDiscount) return 0;
     
     // The actual discount amount is the difference between subtotal and total (from cart context)
     const actualDiscountAmount = cartSubtotal - cartTotal;
@@ -386,6 +389,17 @@ export function DiscountCodeSection({
     
     return actualDiscountAmount;
   };
+
+  // Analytics tracking for component state
+  useEffect(() => {
+    console.log('📊 DiscountCodeSection Analytics:', {
+      hasDiscountCode: !!discountCode,
+      hasAutoPopulated,
+      isValidatingDiscount,
+      discountError: !!discountError,
+      appliedDiscount: !!effectiveAppliedDiscount
+    });
+  }, [discountCode, hasAutoPopulated, isValidatingDiscount, discountError, effectiveAppliedDiscount]);
 
   const userFid = getFid();
   const isAuthenticated = !!userFid;
@@ -404,7 +418,7 @@ export function DiscountCodeSection({
         )}
       </div>
       
-      {!appliedDiscount ? (
+      {!effectiveAppliedDiscount ? (
         <div className="space-y-2">
           {discountError && (
             <div className="text-red-600 text-xs">{discountError}</div>
@@ -418,7 +432,7 @@ export function DiscountCodeSection({
           )}
 
           {/* Helper text for auto-populated codes */}
-          {autoPopulate && hasAutoPopulated && !appliedDiscount && (
+          {autoPopulate && hasAutoPopulated && !effectiveAppliedDiscount && (
             <div className="text-green-600 text-xs">
               {tokenGatingInfo?.isTokenGated ? (
                 <div>
@@ -447,7 +461,7 @@ export function DiscountCodeSection({
           )}
 
           {/* Show that auto-discounts are available for notification users */}
-          {hasNotifications === true && !hasAutoPopulated && !appliedDiscount && (
+          {hasNotifications === true && !hasAutoPopulated && !effectiveAppliedDiscount && (
             <div className="text-gray-600 text-xs">
               ✅ Auto-discounts enabled - we'll apply any available codes for you
             </div>
@@ -458,28 +472,28 @@ export function DiscountCodeSection({
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-medium text-green-800">
-                {appliedDiscount.discountValue}% discount applied!
-                {appliedDiscount.freeShipping && (
+                {effectiveAppliedDiscount.discountValue}% discount applied!
+                {effectiveAppliedDiscount.freeShipping && (
                   <span className="ml-2 bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold">
                     + FREE SHIPPING
                   </span>
                 )}
               </div>
               <div className="text-xs text-green-600">
-                {appliedDiscount.source === 'auto_applied' ? (
+                {effectiveAppliedDiscount.source === 'auto_applied' ? (
                   tokenGatingInfo?.isTokenGated ? (
                     `🎫 ${getTokenGatingDisplayText(tokenGatingInfo.gatingType)} discount`
                   ) : (
                     'Auto-applied discount'
                   )
                 ) : (
-                  `Code: ${appliedDiscount.code}`
+                  `Code: ${effectiveAppliedDiscount.code}`
                 )}
               </div>
-              {appliedDiscount.discountAmount && (
+              {effectiveAppliedDiscount.discountAmount && (
                 <div className="text-xs text-green-600">
                   Savings: ${calculateActualDiscountAmount().toFixed(2)}
-                  {appliedDiscount.freeShipping && (
+                  {effectiveAppliedDiscount.freeShipping && (
                     <span className="ml-1">+ Free shipping</span>
                   )}
                 </div>
