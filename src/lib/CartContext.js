@@ -327,127 +327,162 @@ export function CartProvider({ children }) {
     return total + (item.price * item.quantity);
   }, 0);
 
+  // New function to evaluate and select the optimal discount for current cart
+  const evaluateOptimalDiscount = async (userFid) => {
+    if (!userFid || cart.items.length === 0) return null;
+    
+    try {
+      console.log('🎯 Evaluating optimal discount for cart:', cart.items.map(i => i.product?.handle));
+      
+      // Get all user's available discounts
+      const userDiscountsResponse = await fetch(`/api/user-discounts?fid=${userFid}`);
+      const userDiscountsData = await userDiscountsResponse.json();
+      
+      if (!userDiscountsData.success || !userDiscountsData.categorized?.usable) {
+        console.log('❌ No usable discounts found for user');
+        return null;
+      }
+      
+      let eligibleDiscounts = userDiscountsData.categorized.usable;
+      
+      // Get user's wallet addresses for token-gated discounts
+      const walletResponse = await fetch(`/api/user-wallet-data?fid=${userFid}`);
+      const walletData = await walletResponse.json();
+      const walletAddresses = walletData.success ? walletData.walletAddresses : [];
+      
+      // Check token-gated eligibility if user has wallets
+      if (walletAddresses.length > 0) {
+        const productIds = cart.items.map(item => parseInt(item.product?.id)).filter(Boolean);
+        
+        const tokenGatedResponse = await fetch('/api/check-token-gated-eligibility', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fid: userFid,
+            walletAddresses: walletAddresses,
+            scope: 'all',
+            productIds: productIds
+          })
+        });
+        
+        const tokenGatedResult = await tokenGatedResponse.json();
+        if (tokenGatedResult.success && tokenGatedResult.eligibleDiscounts) {
+          // Add eligible token-gated discounts to the list
+          eligibleDiscounts = [...eligibleDiscounts, ...tokenGatedResult.eligibleDiscounts];
+        }
+      }
+      
+      // Filter discounts that are relevant to current cart
+      const cartRelevantDiscounts = eligibleDiscounts.filter(discount => {
+        // Site-wide discounts always apply
+        if (discount.discount_scope === 'site_wide' || !discount.target_products || discount.target_products.length === 0) {
+          return true;
+        }
+        
+        // Product-specific discounts - check if any cart items qualify
+        if (discount.target_products && discount.target_products.length > 0) {
+          const hasQualifyingProduct = cart.items.some(item => {
+            const productHandle = item.product?.handle;
+            const productTitle = item.product?.title;
+            
+            return discount.target_products.some(target => {
+              if (productHandle && productHandle === target) return true;
+              if (productTitle && productTitle.toLowerCase().includes(target.toLowerCase())) return true;
+              return false;
+            });
+          });
+          
+          return hasQualifyingProduct;
+        }
+        
+        return false;
+      });
+      
+      if (cartRelevantDiscounts.length === 0) {
+        console.log('❌ No discounts relevant to current cart contents');
+        return null;
+      }
+      
+      // Sort by priority_level (higher first), then by discount_value (higher first)
+      const sortedDiscounts = cartRelevantDiscounts.sort((a, b) => {
+        const priorityA = a.priority_level || 0;
+        const priorityB = b.priority_level || 0;
+        
+        if (priorityA !== priorityB) {
+          return priorityB - priorityA; // Higher priority first
+        }
+        
+        // If same priority, prefer higher discount value
+        return (b.discount_value || 0) - (a.discount_value || 0);
+      });
+      
+      const bestDiscount = sortedDiscounts[0];
+      console.log('🎯 Selected best discount:', bestDiscount.code, `(Priority: ${bestDiscount.priority_level}, Value: ${bestDiscount.discount_value}%)`);
+      
+      return bestDiscount;
+      
+    } catch (error) {
+      console.error('❌ Error evaluating optimal discount:', error);
+      return null;
+    }
+  };
+
   // Helper function to calculate product-aware discount amount
   const calculateProductAwareDiscount = () => {
     if (!cart.appliedDiscount) return 0;
     
-    const { code, discountType, discountValue, discountAmount, source } = cart.appliedDiscount;
+    const { code, discountType, discountValue, source } = cart.appliedDiscount;
     
-    // FIRST: If we have a pre-calculated discountAmount from the API, use it
-    // BUT only for cart-wide discounts, not product-specific ones
-    // For product-specific discounts, we need to calculate based on qualifying products only
-    if (discountAmount && typeof discountAmount === 'number' && discountAmount > 0) {
-      // Check if this is a product-specific or token-gated discount that needs product-aware calculation
-      const isProductSpecific = source === 'product_specific_api' || source === 'token_gated';
+    // Check if this is a product-specific discount
+    const isProductSpecific = source === 'product_specific_api' || source === 'token_gated' || 
+                              (cart.appliedDiscount.target_products && cart.appliedDiscount.target_products.length > 0);
+    
+    if (isProductSpecific) {
+      // Apply discount only to qualifying products
+      const targetProducts = cart.appliedDiscount.target_products || [];
+      let qualifyingSubtotal = 0;
       
-      if (!isProductSpecific) {
-        console.log(`💰 Using pre-calculated discount amount from API (cart-wide): $${discountAmount.toFixed(2)}`);
-        return discountAmount;
-      } else {
-        console.log(`🎯 Product-specific discount detected - using product-aware calculation instead of pre-calculated amount`);
-      }
-    }
-    
-    // Check if this is a product-specific discount from session storage
-    try {
-      const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
-      if (activeDiscountData) {
-        const activeDiscount = JSON.parse(activeDiscountData);
+      console.log(`🎯 Applying product-specific discount ${code} to qualifying products:`, targetProducts);
+      
+      cart.items.forEach(item => {
+        const productHandle = item.product?.handle;
+        const productTitle = item.product?.title;
         
-        // For product-specific discounts AND token-gated discounts, only apply to qualifying products
-        if ((activeDiscount.source === 'product_specific_api' || activeDiscount.source === 'token_gated') && activeDiscount.code === code) {
-          console.log(`🎯 Processing ${activeDiscount.source === 'token_gated' ? 'token-gated' : 'product-specific'} discount: ${code}`);
-          
-          // Get the target products from the active discount data
-          const targetProducts = activeDiscount.target_products || [];
-          console.log(`🎯 Target products for ${code}:`, targetProducts);
-          
-          let qualifyingSubtotal = 0;
-          let discountAppliedCount = 0;
-          
-          // For 100% discounts, limit to 1 item per discount to prevent abuse
-          const isFullDiscount = discountValue >= 100;
-          const maxDiscountableItems = isFullDiscount ? 1 : 999; // No limit for partial discounts
-          
-          cart.items.forEach(item => {
-            const productHandle = item.product?.handle;
-            const productTitle = item.product?.title || item.title;
-            
-            console.log(`🔍 Checking item: ${productTitle} (handle: ${productHandle})`);
-            
-            // Check if this product qualifies for the discount
-            let qualifies = false;
-            
-            if (targetProducts.length > 0) {
-              // Check against target_products array (handles or IDs)
-              qualifies = targetProducts.some(target => {
-                // Check handle match
-                if (productHandle && productHandle === target) return true;
-                // Check title match (partial)
-                if (productTitle && productTitle.toLowerCase().includes(target.toLowerCase())) return true;
-                // Check exact title match
-                if (productTitle && productTitle === target) return true;
-                return false;
-              });
-            } else {
-              // No target products defined - discount is not properly configured
-              console.log(`❌ Product-specific discount ${code} has no target_products defined in database`);
-              qualifies = false;
-            }
-            
-            if (qualifies) {
-              // Only apply discount if we haven't reached the limit
-              if (discountAppliedCount < maxDiscountableItems) {
-                const remainingDiscountableItems = maxDiscountableItems - discountAppliedCount;
-                const discountableQuantity = Math.min(remainingDiscountableItems, item.quantity);
-                const discountableAmount = item.price * discountableQuantity;
-                
-                qualifyingSubtotal += discountableAmount;
-                discountAppliedCount += discountableQuantity;
-                
-                console.log(`✅ Product qualifies: ${productTitle} (${discountableQuantity} of ${item.quantity} items = $${discountableAmount.toFixed(2)}) [Total discounted: ${discountAppliedCount}]`);
-              } else {
-                console.log(`⏭️ Product qualifies but discount limit reached: ${productTitle} (0 of ${item.quantity} items discounted)`);
-              }
-            } else {
-              console.log(`❌ Product does NOT qualify: ${productTitle}`);
-            }
-          });
-          
-          console.log(`💰 Qualifying subtotal for ${code}: $${qualifyingSubtotal.toFixed(2)} (vs cart total: $${cartSubtotal.toFixed(2)})`);
-          
-          // Calculate discount only on qualifying products
-          if (qualifyingSubtotal > 0) {
-            if (discountType === 'percentage') {
-              return (qualifyingSubtotal * discountValue) / 100;
-            } else if (discountType === 'fixed') {
-              return Math.min(discountValue, qualifyingSubtotal);
-            }
-          } else {
-            console.log(`❌ No qualifying products found for product-specific discount ${code} - returning 0`);
-            return 0;
-          }
+        // Check if this product qualifies
+        const qualifies = targetProducts.some(target => {
+          if (productHandle && productHandle === target) return true;
+          if (productTitle && productTitle.toLowerCase().includes(target.toLowerCase())) return true;
+          return false;
+        });
+        
+        if (qualifies) {
+          qualifyingSubtotal += (item.price * item.quantity);
+          console.log(`✅ ${productTitle}: $${(item.price * item.quantity).toFixed(2)}`);
+        } else {
+          console.log(`❌ ${productTitle}: Not qualifying`);
         }
+      });
+      
+      console.log(`💰 Qualifying subtotal: $${qualifyingSubtotal.toFixed(2)}`);
+      
+      // Calculate discount on qualifying products only
+      if (discountType === 'percentage') {
+        return (qualifyingSubtotal * discountValue) / 100;
+      } else if (discountType === 'fixed') {
+        return Math.min(discountValue, qualifyingSubtotal);
       }
-    } catch (error) {
-      console.error('Error calculating product-aware discount:', error);
-    }
-    
-    // Fallback for site-wide discounts only (not product-specific failures)
-    // Only apply site-wide calculation if the discount is actually site-wide
-    if (source !== 'product_specific_api' && source !== 'token_gated') {
-      console.log(`🌐 Applying site-wide discount calculation for ${code}`);
+    } else {
+      // Site-wide discount - apply to entire cart
+      console.log(`🌐 Applying site-wide discount ${code} to entire cart: $${cartSubtotal.toFixed(2)}`);
+      
       if (discountType === 'percentage') {
         return (cartSubtotal * discountValue) / 100;
       } else if (discountType === 'fixed') {
         return Math.min(discountValue, cartSubtotal);
       }
-    } else {
-      console.log(`❌ Product-specific discount ${code} failed qualification - returning 0`);
-      return 0;
     }
     
-    return cart.appliedDiscount.discountAmount || 0;
+    return 0;
   };
 
   const cartTotal = (() => {
@@ -492,7 +527,8 @@ export function CartProvider({ children }) {
     cartTotal,
     itemCount,
     isInCart,
-    getItemQuantity
+    getItemQuantity,
+    evaluateOptimalDiscount
   };
 
   return (

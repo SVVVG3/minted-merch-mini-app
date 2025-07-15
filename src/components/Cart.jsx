@@ -18,7 +18,8 @@ export function Cart({ isOpen, onClose }) {
     cartTotal, 
     itemCount,
     applyDiscount,
-    removeDiscount
+    removeDiscount,
+    evaluateOptimalDiscount
   } = useCart();
   const { getFid } = useFarcaster();
   const [localNotes, setLocalNotes] = useState(cart.notes || '');
@@ -80,171 +81,51 @@ export function Cart({ isOpen, onClose }) {
 
       console.log('🛒 Evaluating best discount for current cart contents...');
       
-      // Get all unique product handles in cart
-      const productHandles = [...new Set(cart.items.map(item => item.product?.handle).filter(Boolean))];
-      console.log('🔍 Products in cart:', productHandles);
+      // Use the new evaluateOptimalDiscount function from CartContext
+      const bestDiscount = await evaluateOptimalDiscount(userFid);
       
-      // Check if current applied discount is still valid for current cart
-      const appliedDiscount = cart.appliedDiscount;
-      if (appliedDiscount) {
-        const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
-        if (activeDiscountData) {
-          const activeDiscount = JSON.parse(activeDiscountData);
-          
-          // If current discount is product-specific, check if those products are still in cart
-          if (activeDiscount.source === 'product_specific_api' && activeDiscount.code === 'SNAPSHOT-TINY-HYPER-FREE') {
-            const hasTinyHyperTee = productHandles.includes('tiny-hyper-tee') || 
-                                   cart.items.some(item => (item.product?.title || item.title)?.includes('Tiny Hyper Tee'));
-            
-            if (!hasTinyHyperTee) {
-              console.log('🗑️ SNAPSHOT-TINY-HYPER-FREE discount no longer valid - Tiny Hyper Tee removed from cart');
-              removeDiscount();
-              sessionStorage.removeItem('activeDiscountCode');
-              window.dispatchEvent(new Event('sessionStorageUpdate'));
-              // Continue to find new best discount for remaining items
-            }
-          }
-          
-          // If current discount is product-specific and still valid, don't replace it
-          if (activeDiscount.source === 'product_specific_api' || activeDiscount.source === 'token_gated') {
-            console.log('✅ Current product-specific discount is still valid, not evaluating alternatives');
-            return;
-          }
+      if (!bestDiscount) {
+        console.log('❌ No suitable discount found for current cart');
+        // Remove any existing discount if no optimal discount found
+        if (cart.appliedDiscount) {
+          removeDiscount();
+          sessionStorage.removeItem('activeDiscountCode');
         }
-      }
-      
-      if (productHandles.length === 0) {
-        console.log('❌ No valid product handles found in cart');
         return;
       }
-
-      // For product-specific discounts, we should NOT replace existing valid ones
-      // Only evaluate if there's no current discount or if current discount is site-wide
-      let bestDiscountFound = null;
-      let bestDiscountValue = 0;
       
-      try {
-        console.log('🔍 Checking for token-gated auto-apply discounts...');
-        
-        // Get Shopify product IDs for the products in cart
-        const productIds = [];
-        for (const handle of productHandles) {
-          const response = await fetch(`/api/shopify/products?handle=${handle}&fid=${userFid}`);
-          const productData = await response.json();
-          if (productData.product?.id) {
-            productIds.push(parseInt(productData.product.id));
-          }
-        }
-        
-        console.log('🔍 Product IDs in cart:', productIds);
-        
-        // Get wallet addresses for the user
-        const walletResponse = await fetch(`/api/user-wallet-data?fid=${userFid}`);
-        const walletData = await walletResponse.json();
-        
-        if (!walletData.success || !walletData.walletAddresses || walletData.walletAddresses.length === 0) {
-          console.log('❌ No wallet addresses found for user');
-          return;
-        }
-        
-        console.log('🔍 Wallet addresses:', walletData.walletAddresses);
-        
-        // Check token-gated eligibility for auto-apply discounts
-        const tokenGatedResponse = await fetch('/api/check-token-gated-eligibility', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fid: userFid,
-            walletAddresses: walletData.walletAddresses,
-            scope: 'all',
-            productIds: productIds
-          })
-        });
-        
-        const tokenGatedResult = await tokenGatedResponse.json();
-        console.log('🎯 Token-gated API response:', tokenGatedResult);
-        
-        if (tokenGatedResult.success && tokenGatedResult.eligibleDiscounts && tokenGatedResult.eligibleDiscounts.length > 0) {
-          // Find the best site-wide discount from eligible ones (avoid product-specific conflicts)
-          for (const discount of tokenGatedResult.eligibleDiscounts) {
-            const discountValue = discount.discount_value || 0;
-            console.log(`💰 Found eligible discount: ${discount.code} (${discountValue}% off)`);
-            
-            // Only consider site-wide discounts for cart-level evaluation
-            // Product-specific discounts should be handled at the product level
-            if (discount.discount_scope === 'site_wide' || !discount.target_products || discount.target_products.length === 0) {
-              if (!bestDiscountFound || discountValue > bestDiscountValue) {
-                bestDiscountFound = {
-                  code: discount.code,
-                  discount_value: discountValue,
-                  discount_type: discount.discount_type || 'percentage',
-                  discount_scope: discount.discount_scope || 'site_wide',
-                  isTokenGated: true,
-                  gating_type: discount.gating_type,
-                  description: discount.description,
-                  displayText: `${discountValue}% off`,
-                  freeShipping: discount.free_shipping || false
-                };
-                bestDiscountValue = discountValue;
-                console.log(`🎯 New best site-wide discount: ${discount.code} (${discountValue}% off)`);
-              }
-            } else {
-              console.log(`⏭️ Skipping product-specific discount ${discount.code} in cart-level evaluation`);
-            }
-          }
-        } else {
-          console.log('❌ No eligible token-gated discounts found');
-        }
-      } catch (error) {
-        console.error('❌ Error checking token-gated discounts:', error);
-      }
+      console.log('✅ Found optimal discount:', bestDiscount.code);
       
-      // Compare with currently applied discount
-      const currentDiscount = cart.appliedDiscount;
+      // Apply the best discount
+      const discountToApply = {
+        code: bestDiscount.code,
+        discountType: bestDiscount.discount_type || 'percentage',
+        discountValue: bestDiscount.discount_value || 0,
+        description: bestDiscount.description,
+        freeShipping: bestDiscount.free_shipping || false,
+        source: bestDiscount.gating_type ? 'token_gated' : 
+                bestDiscount.target_products && bestDiscount.target_products.length > 0 ? 'product_specific_api' : 'site_wide',
+        target_products: bestDiscount.target_products || [],
+        priority_level: bestDiscount.priority_level || 0,
+        isTokenGated: !!bestDiscount.gating_type
+      };
       
-      if (bestDiscountFound) {
-        const currentDiscountValue = currentDiscount?.discountValue || 0;
-        
-        // Only upgrade if new discount is significantly better AND is site-wide
-        if (!currentDiscount || bestDiscountValue > currentDiscountValue) {
-          console.log(`🔄 Upgrading discount from ${currentDiscount?.code || 'none'} to ${bestDiscountFound.code}`);
-          
-          const sessionData = {
-            code: bestDiscountFound.code,
-            source: 'token_gated_cart',
-            displayText: bestDiscountFound.displayText,
-            discountType: bestDiscountFound.discount_type,
-            discountValue: bestDiscountFound.discount_value,
-            timestamp: new Date().toISOString(),
-            isTokenGated: bestDiscountFound.isTokenGated,
-            gatingType: bestDiscountFound.gating_type,
-            description: bestDiscountFound.description,
-            autoApplied: true // Flag this as auto-applied from cart evaluation
-          };
-          
-          console.log('💾 Setting session storage with:', sessionData);
-          
-          // Update session storage with better discount
-          sessionStorage.setItem('activeDiscountCode', JSON.stringify(sessionData));
-          
-          console.log('📻 Dispatching sessionStorageUpdate event');
-          // Trigger a custom event to notify DiscountCodeSection
-          window.dispatchEvent(new Event('sessionStorageUpdate'));
-        } else {
-          console.log(`✅ Current discount ${currentDiscount.code} is already the best available`);
-        }
-      } else {
-        // No site-wide discount found for current cart - check if current discount is still valid
-        if (currentDiscount) {
-          console.log('🔍 No site-wide discount found for current cart - checking if current discount is still valid...');
-          // Current discount validation logic would go here
-        }
-      }
+      // Store in session storage for persistence
+      const sessionData = {
+        ...discountToApply,
+        timestamp: new Date().toISOString(),
+        autoApplied: true
+      };
+      
+      sessionStorage.setItem('activeDiscountCode', JSON.stringify(sessionData));
+      
+      // Apply to cart
+      applyDiscount(discountToApply);
+      
+      console.log('🎉 Applied optimal discount:', bestDiscount.code);
       
     } catch (error) {
-      console.error('❌ Error evaluating best cart discount:', error);
+      console.error('❌ Error evaluating cart discount:', error);
     } finally {
       setIsEvaluatingDiscounts(false);
     }
