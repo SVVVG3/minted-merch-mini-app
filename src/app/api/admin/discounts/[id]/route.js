@@ -41,6 +41,7 @@ export async function PUT(request, { params }) {
       discount_description: data.discount_description || null,
       free_shipping: data.free_shipping || false,
       is_shared_code: data.is_shared_code || false,
+      auto_apply: data.auto_apply || false,
       updated_at: new Date().toISOString()
     };
 

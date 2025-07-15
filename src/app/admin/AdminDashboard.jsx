@@ -2394,7 +2394,8 @@ function CreateDiscountForm({ onClose, onSuccess }) {
     max_uses_per_user: '1',
     discount_description: '',
     free_shipping: false,
-    is_shared_code: true
+    is_shared_code: true,
+    auto_apply: true
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -2748,6 +2749,15 @@ function CreateDiscountForm({ onClose, onSuccess }) {
           />
           Shared Code (multiple users can use)
         </label>
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={formData.auto_apply}
+            onChange={(e) => handleInputChange('auto_apply', e.target.checked)}
+            className="mr-2 h-4 w-4 text-[#3eb489] focus:ring-[#3eb489]"
+          />
+          Auto-apply discount
+        </label>
       </div>
 
       {/* Submit Buttons */}
@@ -2802,7 +2812,8 @@ function EditDiscountForm({ discount, onClose, onSuccess }) {
     max_uses_per_user: discount.max_uses_per_user || 1,
     discount_description: discount.discount_description || '',
     free_shipping: discount.free_shipping || false,
-    is_shared_code: discount.is_shared_code || false
+    is_shared_code: discount.is_shared_code || false,
+    auto_apply: discount.auto_apply || false
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -3155,6 +3166,15 @@ function EditDiscountForm({ discount, onClose, onSuccess }) {
             className="mr-2 h-4 w-4 text-[#3eb489] focus:ring-[#3eb489]"
           />
           Shared Code (multiple users can use)
+        </label>
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={formData.auto_apply}
+            onChange={(e) => handleInputChange('auto_apply', e.target.checked)}
+            className="mr-2 h-4 w-4 text-[#3eb489] focus:ring-[#3eb489]"
+          />
+          Auto-apply discount
         </label>
       </div>
 

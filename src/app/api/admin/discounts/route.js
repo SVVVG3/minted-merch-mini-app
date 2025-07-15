@@ -94,6 +94,8 @@ export async function POST(request) {
       discount_value,
       code_type,
       gating_type,
+      discount_scope,
+      target_products,
       target_fids,
       target_wallets,
       contract_addresses,
@@ -105,7 +107,8 @@ export async function POST(request) {
       max_uses_per_user,
       discount_description,
       free_shipping,
-      is_shared_code
+      is_shared_code,
+      auto_apply
     } = await request.json();
 
     console.log('🎫 Creating new discount code:', code);
@@ -139,6 +142,8 @@ export async function POST(request) {
       discount_value: parseFloat(discount_value),
       code_type: code_type || 'promotional',
       gating_type: gating_type || 'none',
+      discount_scope: discount_scope || 'site_wide',
+      target_products: target_products || [],
       minimum_order_amount: minimum_order_amount ? parseFloat(minimum_order_amount) : null,
       expires_at: expires_at ? new Date(expires_at).toISOString() : null,
       max_uses_total: max_uses_total ? parseInt(max_uses_total) : null,
@@ -146,6 +151,7 @@ export async function POST(request) {
       discount_description: discount_description || null,
       free_shipping: free_shipping || false,
       is_shared_code: is_shared_code !== false, // Default to true for admin-created codes
+      auto_apply: auto_apply !== false, // Default to true for admin-created codes
       
       // Gating configuration
       whitelisted_fids: target_fids || [],
