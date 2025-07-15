@@ -136,14 +136,32 @@ export async function POST(request) {
     }
 
     // Prepare discount data
+    const parsedDiscountValue = parseFloat(discount_value);
+    
+    // Calculate priority_level based on discount type and value
+    let priority_level = 0;
+    if (discount_type === 'percentage') {
+      // For percentage discounts, priority equals the percentage (20% = priority 20)
+      priority_level = Math.round(parsedDiscountValue);
+    } else if (discount_type === 'fixed') {
+      // For fixed discounts, use a scaled priority based on dollar amount
+      // $1-5 = priority 5, $6-10 = priority 10, $11-20 = priority 20, etc.
+      if (parsedDiscountValue <= 5) priority_level = 5;
+      else if (parsedDiscountValue <= 10) priority_level = 10;
+      else if (parsedDiscountValue <= 20) priority_level = 20;
+      else if (parsedDiscountValue <= 50) priority_level = 50;
+      else priority_level = 100; // High priority for large fixed discounts
+    }
+    
     const discountData = {
       code: code.toUpperCase(),
       discount_type,
-      discount_value: parseFloat(discount_value),
+      discount_value: parsedDiscountValue,
       code_type: code_type || 'promotional',
       gating_type: gating_type || 'none',
       discount_scope: discount_scope || 'site_wide',
       target_products: target_products || [],
+      priority_level, // Auto-calculated based on discount value
       minimum_order_amount: minimum_order_amount ? parseFloat(minimum_order_amount) : null,
       expires_at: expires_at ? new Date(expires_at).toISOString() : null,
       max_uses_total: max_uses_total ? parseInt(max_uses_total) : null,
