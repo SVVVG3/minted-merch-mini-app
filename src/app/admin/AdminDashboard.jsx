@@ -30,6 +30,13 @@ export default function AdminDashboard() {
   const [pastRafflesLoading, setPastRafflesLoading] = useState(false);
   const [pastRafflesError, setPastRafflesError] = useState('');
 
+  // Check-ins state
+  const [checkinsData, setCheckinsData] = useState([]);
+  const [checkinsLoading, setCheckinsLoading] = useState(false);
+  const [checkinsError, setCheckinsError] = useState('');
+  const [checkinsSortField, setCheckinsSortField] = useState('created_at');
+  const [checkinsSortDirection, setCheckinsSortDirection] = useState('desc');
+
   // Users state
   const [usersData, setUsersData] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -320,6 +327,28 @@ export default function AdminDashboard() {
     }
   };
 
+  // Load check-ins from database
+  const loadCheckinsData = async () => {
+    setCheckinsLoading(true);
+    setCheckinsError('');
+    
+    try {
+      const response = await fetch('/api/admin/checkins');
+      const result = await response.json();
+      
+      if (result.success) {
+        setCheckinsData(result.data);
+      } else {
+        setCheckinsError(result.error || 'Failed to load check-ins');
+      }
+    } catch (error) {
+      console.error('Error loading check-ins:', error);
+      setCheckinsError('Failed to load check-ins');
+    } finally {
+      setCheckinsLoading(false);
+    }
+  };
+
   // Load past raffles when Past Raffles tab is selected
   useEffect(() => {
     if (activeTab === 'past-raffles' && pastRaffles.length === 0) {
@@ -331,6 +360,13 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (activeTab === 'users' && usersData.length === 0) {
       loadUsers();
+    }
+  }, [activeTab]);
+
+  // Load check-ins when Check-ins tab is selected
+  useEffect(() => {
+    if (activeTab === 'checkins' && checkinsData.length === 0) {
+      loadCheckinsData();
     }
   }, [activeTab]);
 
@@ -363,6 +399,16 @@ export default function AdminDashboard() {
     } else {
       setOrdersSortField(field);
       setOrdersSortDirection('desc');
+    }
+  };
+
+  // Check-ins sorting function
+  const handleCheckinsSort = (field) => {
+    if (checkinsSortField === field) {
+      setCheckinsSortDirection(checkinsSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setCheckinsSortField(field);
+      setCheckinsSortDirection('desc');
     }
   };
 
@@ -731,6 +777,50 @@ export default function AdminDashboard() {
     }
   };
 
+  // Get sorted check-ins data
+  const getSortedCheckinsData = () => {
+    if (!checkinsData) return [];
+    
+    return [...checkinsData].sort((a, b) => {
+      let aVal = a[checkinsSortField];
+      let bVal = b[checkinsSortField];
+      
+      // Handle null/undefined values - put them at the end
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      
+      // Handle string fields
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = typeof bVal === 'string' ? bVal.toLowerCase() : '';
+      }
+      
+      // Handle numeric fields
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        if (checkinsSortDirection === 'asc') {
+          return aVal - bVal;
+        } else {
+          return bVal - aVal;
+        }
+      }
+      
+      // Handle date fields
+      if (checkinsSortField === 'created_at') {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+        return checkinsSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
+      // Handle string comparison
+      if (checkinsSortDirection === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -815,6 +905,7 @@ export default function AdminDashboard() {
                 { key: 'orders', label: '🛍️ Orders' },
                 { key: 'discounts', label: '🎫 Discounts' },
                 { key: 'leaderboard', label: '🏆 Leaderboard' },
+                { key: 'checkins', label: '📅 Check-ins' },
                 { key: 'raffle', label: '🎲 Raffle Tool' },
                 { key: 'past-raffles', label: '📚 Past Raffles' }
               ].map((tab) => (
@@ -1555,7 +1646,7 @@ export default function AdminDashboard() {
                       <tr key={discount.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {discount.code}
-                          {discount.free_shipping && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">🚚 Free Ship</span>}
+                          {discount.free_shipping && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">�� Free Ship</span>}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {discount.discount_type === 'percentage' ? `${discount.discount_value}%` : `$${discount.discount_value}`}
@@ -1678,6 +1769,108 @@ export default function AdminDashboard() {
                   
                   <EditDiscountForm discount={editingDiscount} onClose={() => setShowEditDiscount(false)} onSuccess={loadDashboardData} />
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Check-ins Tab */}
+        {activeTab === 'checkins' && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-gray-800">📅 Check-ins</h2>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => exportData(checkinsData, `checkins_${new Date().toISOString().split('T')[0]}.csv`)}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                >
+                  📥 Export CSV
+                </button>
+                <button
+                  onClick={loadCheckinsData}
+                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+            </div>
+            
+            {checkinsLoading ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489] mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading check-ins...</p>
+              </div>
+            ) : checkinsError ? (
+              <div className="p-6 text-center">
+                <div className="text-red-500 mb-4">❌ {checkinsError}</div>
+                <button
+                  onClick={loadCheckinsData}
+                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                >
+                  🔄 Try Again
+                </button>
+              </div>
+            ) : checkinsData.length === 0 ? (
+              <div className="p-6 text-center">
+                <div className="text-4xl mb-4">📅</div>
+                <div className="text-gray-500">No check-ins found</div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleCheckinsSort('user_fid')}
+                      >
+                        FID {checkinsSortField === 'user_fid' && (checkinsSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleCheckinsSort('username')}
+                      >
+                        Username {checkinsSortField === 'username' && (checkinsSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleCheckinsSort('points_earned')}
+                      >
+                        Points {checkinsSortField === 'points_earned' && (checkinsSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleCheckinsSort('created_at')}
+                      >
+                        Date {checkinsSortField === 'created_at' && (checkinsSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {getSortedCheckinsData().map((checkin, index) => (
+                      <tr key={`${checkin.user_fid}-${checkin.created_at}`}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                            {checkin.user_fid}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="font-medium text-blue-600">
+                            @{checkin.username || 'unknown'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="font-medium text-green-600">
+                            +{checkin.points_earned || 0}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(checkin.created_at)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
