@@ -110,6 +110,17 @@ export function Cart({ isOpen, onClose }) {
         
         console.log('🔍 Product IDs in cart:', productIds);
         
+        // Get wallet addresses for the user
+        const walletResponse = await fetch(`/api/user-wallet-data?fid=${userFid}`);
+        const walletData = await walletResponse.json();
+        
+        if (!walletData.success || !walletData.walletAddresses || walletData.walletAddresses.length === 0) {
+          console.log('❌ No wallet addresses found for user');
+          return;
+        }
+        
+        console.log('🔍 Wallet addresses:', walletData.walletAddresses);
+        
         // Check token-gated eligibility for auto-apply discounts
         const tokenGatedResponse = await fetch('/api/check-token-gated-eligibility', {
           method: 'POST',
@@ -118,6 +129,7 @@ export function Cart({ isOpen, onClose }) {
           },
           body: JSON.stringify({
             fid: userFid,
+            walletAddresses: walletData.walletAddresses,
             scope: 'all',
             productIds: productIds
           })
