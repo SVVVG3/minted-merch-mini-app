@@ -379,7 +379,22 @@ export async function getLeaderboard(limit = 10, category = 'points') {
   try {
     let query = supabaseAdmin
       .from('user_leaderboard')
-      .select('user_fid, username, total_points, checkin_streak, last_checkin_date, total_orders, total_spent, points_from_purchases, points_from_checkins, created_at')
+      .select(`
+        user_fid, 
+        username, 
+        total_points, 
+        checkin_streak, 
+        last_checkin_date, 
+        total_orders, 
+        total_spent, 
+        points_from_purchases, 
+        points_from_checkins, 
+        created_at,
+        profiles!inner (
+          display_name,
+          pfp_url
+        )
+      `)
       .limit(limit);
 
     // Sort based on category
@@ -417,9 +432,11 @@ export async function getLeaderboard(limit = 10, category = 'points') {
       return [];
     }
 
-    // Add category-specific display information
+    // Add category-specific display information and flatten profile data
     const enhancedData = (data || []).map((user, index) => ({
       ...user,
+      display_name: user.profiles?.display_name || user.username,
+      pfp_url: user.profiles?.pfp_url || null,
       rank: index + 1,
       category: category
     }));

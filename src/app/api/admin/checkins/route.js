@@ -17,16 +17,20 @@ export async function GET(request) {
   try {
     console.log('Fetching all check-ins for admin dashboard...');
 
-    // Fetch all daily check-ins from point_transactions table using service role
+    // Fetch all daily check-ins from point_transactions table with profile info
     const { data: checkins, error } = await supabaseAdmin
       .from('point_transactions')
       .select(`
         id,
         user_fid,
-        username,
         points_earned,
         transaction_type,
-        created_at
+        created_at,
+        profiles!inner (
+          username,
+          display_name,
+          pfp_url
+        )
       `)
       .eq('transaction_type', 'daily_checkin')
       .order('created_at', { ascending: false });
@@ -39,11 +43,23 @@ export async function GET(request) {
       }, { status: 500 });
     }
 
-    console.log(`Fetched ${checkins.length} check-ins successfully`);
+    // Transform data to flatten the profile info
+    const transformedCheckins = checkins.map(checkin => ({
+      id: checkin.id,
+      user_fid: checkin.user_fid,
+      username: checkin.profiles?.username || 'N/A',
+      display_name: checkin.profiles?.display_name || 'N/A',
+      pfp_url: checkin.profiles?.pfp_url || null,
+      points_earned: checkin.points_earned,
+      transaction_type: checkin.transaction_type,
+      created_at: checkin.created_at
+    }));
+
+    console.log(`Fetched ${transformedCheckins.length} check-ins successfully`);
 
     return NextResponse.json({
       success: true,
-      data: checkins || []
+      data: transformedCheckins || []
     });
 
   } catch (error) {

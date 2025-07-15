@@ -1303,7 +1303,7 @@ export default function AdminDashboard() {
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('username')}
                     >
-                      Username {sortField === 'username' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      User {sortField === 'username' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -1340,8 +1340,38 @@ export default function AdminDashboard() {
                         {index === 1 && ' 🥈'}
                         {index === 2 && ' 🥉'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.user_fid}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.username || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                          {user.user_fid}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mr-3">
+                            {user.pfp_url ? (
+                              <img 
+                                src={user.pfp_url} 
+                                alt={`${user.display_name || user.username || 'User'} profile`}
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <span 
+                              className="text-xs font-medium text-gray-700 flex items-center justify-center h-full w-full"
+                              style={{ display: user.pfp_url ? 'none' : 'flex' }}
+                            >
+                              {user.display_name?.[0] || user.username?.[0] || '?'}
+                            </span>
+                          </div>
+                          <div className="text-sm">
+                            <div className="font-medium text-gray-900">{user.display_name || user.username || 'Unknown'}</div>
+                            <div className="text-gray-500">@{user.username || 'unknown'}</div>
+                          </div>
+                        </div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.total_points?.toLocaleString()}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.checkin_streak}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.points_from_purchases || 0}</td>
@@ -1830,7 +1860,7 @@ export default function AdminDashboard() {
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleCheckinsSort('username')}
                       >
-                        Username {checkinsSortField === 'username' && (checkinsSortDirection === 'asc' ? '↑' : '↓')}
+                        User {checkinsSortField === 'username' && (checkinsSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                       <th 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -1854,10 +1884,32 @@ export default function AdminDashboard() {
                             {checkin.user_fid}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <span className="font-medium text-blue-600">
-                            @{checkin.username || 'unknown'}
-                          </span>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mr-3">
+                              {checkin.pfp_url ? (
+                                <img 
+                                  src={checkin.pfp_url} 
+                                  alt={`${checkin.display_name || checkin.username || 'User'} profile`}
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              <span 
+                                className="text-xs font-medium text-gray-700 flex items-center justify-center h-full w-full"
+                                style={{ display: checkin.pfp_url ? 'none' : 'flex' }}
+                              >
+                                {checkin.display_name?.[0] || checkin.username?.[0] || '?'}
+                              </span>
+                            </div>
+                            <div className="text-sm">
+                              <div className="font-medium text-gray-900">{checkin.display_name || checkin.username || 'Unknown'}</div>
+                              <div className="text-gray-500">@{checkin.username || 'unknown'}</div>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <span className="font-medium text-green-600">
