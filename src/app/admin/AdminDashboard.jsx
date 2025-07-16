@@ -1440,6 +1440,11 @@ export default function AdminDashboard() {
                       Items {ordersSortField === 'item_count' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
                     </th>
                     <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Products
+                    </th>
+                    <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleOrdersSort('amount_total')}
                     >
@@ -1467,9 +1472,27 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.fid}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div>
-                          <div className="font-medium">{order.customer_name || 'N/A'}</div>
-                          <div className="text-xs text-gray-500">{order.customer_email || 'N/A'}</div>
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-8 w-8 mr-3">
+                            {order.pfp_url ? (
+                              <img 
+                                src={order.pfp_url} 
+                                alt={order.username || 'User'} 
+                                className="h-8 w-8 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div 
+                                className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-medium"
+                                style={{ display: order.pfp_url ? 'none' : 'flex' }}
+                              >
+                                {order.username?.charAt(0).toUpperCase() || order.fid?.toString().charAt(0) || '?'}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium">{order.username || order.customer_name || 'N/A'}</div>
+                            <div className="text-xs text-gray-500">{order.customer_email || 'N/A'}</div>
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -1484,6 +1507,31 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.item_count}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        <div className="space-y-1">
+                          {order.products && order.products.length > 0 ? (
+                            order.products.map((product, index) => (
+                              <div key={index} className="flex items-center">
+                                {product.image && (
+                                  <img 
+                                    src={product.image} 
+                                    alt={product.title} 
+                                    className="h-8 w-8 rounded mr-2 object-cover"
+                                  />
+                                )}
+                                <div>
+                                  <div className="font-medium text-xs">{product.title}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {product.variant !== 'Default' && product.variant} • Qty: {product.quantity}
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-gray-400 text-xs">No products</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatCurrency(order.amount_total)}
                       </td>

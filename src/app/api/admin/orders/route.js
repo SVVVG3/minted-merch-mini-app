@@ -5,7 +5,7 @@ export async function GET(request) {
   try {
     console.log('🛍️ Fetching all orders for admin dashboard...');
 
-    // Fetch all orders with order items - using correct column names from database
+    // Fetch all orders with order items and user profiles - using correct column names from database
     const { data: orders, error: ordersError } = await supabaseAdmin
       .from('orders')
       .select(`
@@ -19,6 +19,11 @@ export async function GET(request) {
           total,
           product_title,
           variant_title
+        ),
+        profiles (
+          username,
+          display_name,
+          pfp_url
         )
       `)
       .order('created_at', { ascending: false });
@@ -41,6 +46,24 @@ export async function GET(request) {
     // Format orders using correct database column names
     const formattedOrders = orders.map(order => {
       const itemCount = order.order_items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+      
+      // Parse line_items JSONB to get product details
+      let lineItems = [];
+      try {
+        lineItems = JSON.parse(order.line_items || '[]');
+      } catch (error) {
+        console.error('Error parsing line_items:', error);
+        lineItems = [];
+      }
+      
+      // Format product details from line_items
+      const products = lineItems.map(item => ({
+        title: item.title || item.product_title,
+        variant: item.variant_title || 'Default',
+        quantity: item.quantity,
+        price: item.price,
+        image: item.image || null
+      }));
       
       return {
         order_id: order.order_id,
@@ -83,7 +106,15 @@ export async function GET(request) {
         // Gift card info
         gift_card_codes: order.gift_card_codes,
         gift_card_total_used: order.gift_card_total_used,
-        gift_card_count: order.gift_card_count
+        gift_card_count: order.gift_card_count,
+        
+        // Profile information
+        username: order.profiles?.username || null,
+        display_name: order.profiles?.display_name || null,
+        pfp_url: order.profiles?.pfp_url || null,
+        
+        // Product details
+        products: products
       };
     });
 
