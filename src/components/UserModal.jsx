@@ -389,29 +389,32 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                             <div className="mt-3 border-t pt-3">
                               <h5 className="text-sm font-medium mb-2">Products:</h5>
                               <div className="space-y-2">
-                                {order.order_items.map((item, index) => (
-                                  <div key={index} className="flex items-center space-x-3">
-                                    {item.product_image && (
-                                      <img 
-                                        src={item.product_image} 
-                                        alt={item.product_name}
-                                        className="w-10 h-10 object-cover rounded"
-                                      />
-                                    )}
-                                    <div className="flex-1">
-                                      <div className="text-sm font-medium">{item.product_name}</div>
-                                      {item.variant_title && item.variant_title !== 'Default Title' && (
-                                        <div className="text-xs text-gray-600">{item.variant_title}</div>
+                                {order.order_items.map((item, index) => {
+                                  const productImage = item.product_data?.images?.[0]?.src || item.product_data?.image?.src;
+                                  return (
+                                    <div key={index} className="flex items-center space-x-3">
+                                      {productImage && (
+                                        <img 
+                                          src={productImage} 
+                                          alt={item.product_title}
+                                          className="w-10 h-10 object-cover rounded"
+                                        />
                                       )}
+                                      <div className="flex-1">
+                                        <div className="text-sm font-medium">{item.product_title}</div>
+                                        {item.variant_title && item.variant_title !== 'Default Title' && (
+                                          <div className="text-xs text-gray-600">{item.variant_title}</div>
+                                        )}
+                                      </div>
+                                      <div className="text-sm text-gray-600">
+                                        Qty: {item.quantity}
+                                      </div>
+                                      <div className="text-sm font-medium">
+                                        {formatCurrency(item.price)}
+                                      </div>
                                     </div>
-                                    <div className="text-sm text-gray-600">
-                                      Qty: {item.quantity}
-                                    </div>
-                                    <div className="text-sm font-medium">
-                                      {formatCurrency(item.price)}
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           )}

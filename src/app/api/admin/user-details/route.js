@@ -48,8 +48,8 @@ export async function GET(request) {
         *,
         order_items (
           product_id,
-          product_name,
-          product_image,
+          product_title,
+          product_data,
           quantity,
           price,
           variant_id,
