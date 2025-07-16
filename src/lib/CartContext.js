@@ -215,14 +215,17 @@ export function CartProvider({ children }) {
   // AUTO-EVALUATE DISCOUNT WHENEVER CART CHANGES
   useEffect(() => {
     const autoEvaluateDiscount = async () => {
+      // Defensive check to ensure cart.items is always an array
+      const cartItems = cart.items || [];
+      
       console.log('🔄 AUTO-EVALUATE DISCOUNT TRIGGERED:', {
-        cartItemsLength: cart.items.length,
-        cartItems: cart.items.map(i => ({ handle: i.product?.handle || 'unknown', title: i.product?.title || 'unknown' })),
+        cartItemsLength: cartItems.length,
+        cartItems: cartItems.map(i => ({ handle: i.product?.handle || 'unknown', title: i.product?.title || 'unknown' })),
         currentDiscount: cart.appliedDiscount?.code || 'none',
-        isEvaluating: isEvaluatingDiscount
+        isEvaluatingDiscount: isEvaluatingDiscount
       });
 
-      if (cart.items.length === 0) {
+      if (cartItems.length === 0) {
         // Clear discount if cart is empty
         if (cart.appliedDiscount) {
           console.log('🗑️ Cart is empty - clearing discount');
@@ -232,22 +235,19 @@ export function CartProvider({ children }) {
         return;
       }
 
-      // Don't evaluate if we're already evaluating
       if (isEvaluatingDiscount) {
         console.log('⏳ Already evaluating discount, skipping...');
         return;
       }
 
+      // Auto-evaluate discount for cart
+      setIsEvaluatingDiscount(true);
       try {
-        setIsEvaluatingDiscount(true);
-        
-        // Get user FID from sessionStorage or other source
-        const userFid = getUserFid();
-        
+        const fid = getUserFid();
         console.log('🔍 User FID detection result:', {
-          userFid,
-          userFidType: typeof userFid,
-          isValid: userFid && typeof userFid === 'number',
+          userFid: fid,
+          userFidType: typeof fid,
+          isValid: fid && typeof fid === 'number',
           sessionStorage: {
             userDiscountContext: !!sessionStorage.getItem('userDiscountContext'),
             activeDiscountCode: !!sessionStorage.getItem('activeDiscountCode')
@@ -258,78 +258,39 @@ export function CartProvider({ children }) {
           }
         });
         
-        if (!userFid) {
-          console.log('🔍 No user FID available for discount evaluation');
-          return;
-        }
-
-        console.log('🔄 Auto-evaluating discount for cart changes:', cart.items.map(i => i.product?.handle));
-        
-        const bestDiscount = await evaluateOptimalDiscount(userFid);
-        
-        console.log('🎯 Evaluation result:', {
-          bestDiscount: bestDiscount?.code || 'none',
-          discountValue: bestDiscount?.discount_value || 0,
-          discountScope: bestDiscount?.discount_scope || 'unknown',
-          targetProducts: bestDiscount?.target_products || []
-        });
-        
-        if (!bestDiscount) {
-          console.log('❌ No eligible discount found');
-          // Remove existing discount if none is eligible
-          if (cart.appliedDiscount) {
-            console.log('🗑️ Removing existing discount since no eligible discount found');
-            dispatch({ type: CART_ACTIONS.REMOVE_DISCOUNT });
-            sessionStorage.removeItem('activeDiscountCode');
+        if (fid && typeof fid === 'number') {
+          console.log('🔄 Auto-evaluating discount for cart changes:', cartItems.map(i => i.product?.handle || 'unknown'));
+          const result = await evaluateOptimalDiscount(fid);
+          
+          console.log('🎯 Evaluation result:', result);
+          
+          if (result) {
+            console.log('💰 Applying auto-evaluated discount:', result);
+            dispatch({ type: CART_ACTIONS.APPLY_DISCOUNT, payload: result });
+            
+            // Store active discount code in session storage
+            sessionStorage.setItem('activeDiscountCode', JSON.stringify({
+              code: result.code,
+              source: 'auto_evaluation',
+              timestamp: Date.now()
+            }));
+          } else {
+            console.log('❌ No eligible discount found');
           }
-          return;
-        }
-
-        // Check if we need to update the discount (different or better one found)
-        if (!cart.appliedDiscount || cart.appliedDiscount.code !== bestDiscount.code) {
-          console.log('✅ Applying best discount:', bestDiscount.code);
-          
-          const discountToApply = {
-            code: bestDiscount.code,
-            discountType: bestDiscount.discount_type || 'percentage',
-            discountValue: bestDiscount.discount_value || 0,
-            description: bestDiscount.description,
-            freeShipping: bestDiscount.free_shipping || false,
-            source: bestDiscount.gating_type ? 'token_gated' : 
-                    bestDiscount.target_products && bestDiscount.target_products.length > 0 ? 'product_specific' : 'site_wide',
-            target_products: bestDiscount.target_products || [],
-            discount_scope: bestDiscount.discount_scope || 'site_wide',
-            priority_level: bestDiscount.priority_level || 0,
-            isTokenGated: !!bestDiscount.gating_type
-          };
-
-          console.log('📦 Discount to apply:', discountToApply);
-
-          dispatch({ type: CART_ACTIONS.APPLY_DISCOUNT, payload: { discount: discountToApply } });
-          
-          // Update sessionStorage for other components
-          sessionStorage.setItem('activeDiscountCode', JSON.stringify({
-            ...discountToApply,
-            timestamp: new Date().toISOString(),
-            autoApplied: true
-          }));
-          
-          console.log('🎉 Discount applied successfully!');
         } else {
-          console.log('✅ Same discount already applied, no change needed');
+          console.log('❌ No valid FID found for discount evaluation');
         }
-
       } catch (error) {
-        console.error('❌ Error in auto-discount evaluation:', error);
+        console.error('❌ Error evaluating optimal discount:', error);
       } finally {
         setIsEvaluatingDiscount(false);
       }
     };
 
-    // Debounce the evaluation to avoid excessive calls
+    // Debounce the auto-evaluation to prevent excessive API calls
     const timeoutId = setTimeout(autoEvaluateDiscount, 500);
     return () => clearTimeout(timeoutId);
-  }, [cart.items, cart.appliedDiscount?.code, isEvaluatingDiscount]);
+  }, [cart.items, cart.appliedDiscount, isEvaluatingDiscount]);
 
   // Helper function to get user FID (you might need to adjust this based on your auth system)
   const getUserFid = () => {
@@ -482,16 +443,19 @@ export function CartProvider({ children }) {
   };
 
   // Cart calculations
-  const cartSubtotal = cart.items.reduce((total, item) => {
+  const cartSubtotal = (cart.items || []).reduce((total, item) => {
     return total + (item.price * item.quantity);
   }, 0);
 
   // New function to evaluate and select the optimal discount for current cart
   const evaluateOptimalDiscount = async (userFid) => {
-    if (!userFid || cart.items.length === 0) return null;
+    // Defensive check to ensure cart.items is always an array
+    const cartItems = cart.items || [];
+    
+    if (!userFid || cartItems.length === 0) return null;
     
     try {
-      console.log('🎯 Evaluating optimal discount for cart:', cart.items.map(i => i.product?.handle));
+      console.log('🎯 Evaluating optimal discount for cart:', cartItems.map(i => i.product?.handle));
       
       // Get all user's available discounts
       const userDiscountsResponse = await fetch(`/api/user-discounts?fid=${userFid}`);
@@ -512,7 +476,7 @@ export function CartProvider({ children }) {
       
       // Check token-gated eligibility if user has wallets
       if (walletAddresses.length > 0) {
-        const productIds = cart.items.map(item => parseInt(item.product?.id)).filter(Boolean);
+        const productIds = cartItems.map(item => parseInt(item.product?.id)).filter(Boolean);
         
         const tokenGatedResponse = await fetch('/api/check-token-gated-eligibility', {
           method: 'POST',
@@ -541,7 +505,7 @@ export function CartProvider({ children }) {
         
         // Product-specific discounts - check if any cart items qualify
         if (Array.isArray(discount.target_products) && discount.target_products.length > 0) {
-          const hasQualifyingProduct = cart.items.some(item => {
+          const hasQualifyingProduct = cartItems.some(item => {
             const productHandle = item.product?.handle;
             const productTitle = item.product?.title;
             
@@ -633,7 +597,7 @@ export function CartProvider({ children }) {
       }
     } else {
       // Site-wide discount - apply to entire cart
-      console.log(`🌐 Applying site-wide discount ${code} to entire cart: $${cartSubtotal.toFixed(2)}`);
+      console.log(`�� Applying site-wide discount ${code} to entire cart: $${cartSubtotal.toFixed(2)}`);
       
       if (discountType === 'percentage') {
         return (cartSubtotal * discountValue) / 100;
@@ -653,20 +617,20 @@ export function CartProvider({ children }) {
     return cartSubtotal;
   })();
 
-  const itemCount = cart.items.reduce((count, item) => {
+  const itemCount = (cart.items || []).reduce((count, item) => {
     return count + item.quantity;
   }, 0);
 
   // Helper function to check if a specific variant is in cart
   const isInCart = (productId, variantId = null) => {
     const itemKey = `${productId}-${variantId || 'default'}`;
-    return cart.items.some(item => item.key === itemKey);
+    return (cart.items || []).some(item => item.key === itemKey);
   };
 
   // Helper function to get quantity of specific item in cart
   const getItemQuantity = (productId, variantId = null) => {
     const itemKey = `${productId}-${variantId || 'default'}`;
-    const item = cart.items.find(item => item.key === itemKey);
+    const item = (cart.items || []).find(item => item.key === itemKey);
     return item ? item.quantity : 0;
   };
 
