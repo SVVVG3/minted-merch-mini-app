@@ -91,7 +91,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         if ((activeDiscount.source === 'product_specific_api' || activeDiscount.source === 'token_gated') && activeDiscount.code === code) {
           let qualifyingSubtotal = 0;
           
-          cart.items.forEach(item => {
+          (cart.items || []).forEach(item => {
             // Skip gift cards entirely
             if (isGiftCardItem(item)) {
               return;
@@ -233,7 +233,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   } = useUSDCPayment();
 
   // Use cart total from context instead of calculating locally
-  const hasItems = cart.items.length > 0;
+  const hasItems = (cart.items || []).length > 0;
   const appliedDiscount = cart.appliedDiscount;
 
   // Auto-create order when payment succeeds
