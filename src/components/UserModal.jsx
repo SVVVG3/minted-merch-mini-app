@@ -58,6 +58,33 @@ export default function UserModal({ isOpen, onClose, userFid }) {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // You could add a toast notification here
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  const openFarcasterProfile = (username) => {
+    window.open(`https://warpcast.com/${username}`, '_blank');
+  };
+
+  const openXProfile = (username) => {
+    window.open(`https://x.com/${username}`, '_blank');
+  };
+
+  const CopyButton = ({ text, label }) => (
+    <button
+      onClick={() => copyToClipboard(text)}
+      className="ml-2 px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
+      title={`Copy ${label}`}
+    >
+      📋
+    </button>
+  );
+
   if (!isOpen) return null;
 
   return (
@@ -144,7 +171,16 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Username</label>
-                        <p className="text-gray-900">@{userData.username || 'N/A'}</p>
+                        <p className="text-gray-900">
+                          {userData.username ? (
+                            <span 
+                              onClick={() => openFarcasterProfile(userData.username)}
+                              className="text-blue-600 hover:text-blue-800 cursor-pointer"
+                            >
+                              @{userData.username}
+                            </span>
+                          ) : 'N/A'}
+                        </p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Email</label>
@@ -173,7 +209,16 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">X Username</label>
-                        <p className="text-gray-900">{userData.x_username || 'N/A'}</p>
+                        <p className="text-gray-900">
+                          {userData.x_username ? (
+                            <span 
+                              onClick={() => openXProfile(userData.x_username)}
+                              className="text-blue-600 hover:text-blue-800 cursor-pointer"
+                            >
+                              {userData.x_username}
+                            </span>
+                          ) : 'N/A'}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -195,8 +240,8 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                     </div>
                   </div>
 
-                  {/* Quick Stats */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Quick Stats - Updated to include streak */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-blue-50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-blue-600">
                         {userData.leaderboard.total_points.toLocaleString()}
@@ -215,6 +260,12 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                       </div>
                       <div className="text-sm text-purple-600">Total Spent</div>
                     </div>
+                    <div className="bg-orange-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {userData.leaderboard.checkin_streak}
+                      </div>
+                      <div className="text-sm text-orange-600">Day Streak</div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -226,8 +277,13 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                   {/* Custody Address */}
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h4 className="font-medium mb-2">Custody Address</h4>
-                    <div className="font-mono text-sm bg-white p-2 rounded border">
-                      {userData.walletAddresses.custody || 'N/A'}
+                    <div className="flex items-center">
+                      <div className="font-mono text-sm bg-white p-2 rounded border flex-1">
+                        {userData.walletAddresses.custody || 'N/A'}
+                      </div>
+                      {userData.walletAddresses.custody && (
+                        <CopyButton text={userData.walletAddresses.custody} label="custody address" />
+                      )}
                     </div>
                   </div>
 
@@ -235,14 +291,24 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h4 className="font-medium mb-2">Primary Ethereum</h4>
-                      <div className="font-mono text-sm bg-white p-2 rounded border">
-                        {userData.walletAddresses.primary_eth || 'N/A'}
+                      <div className="flex items-center">
+                        <div className="font-mono text-sm bg-white p-2 rounded border flex-1">
+                          {userData.walletAddresses.primary_eth || 'N/A'}
+                        </div>
+                        {userData.walletAddresses.primary_eth && (
+                          <CopyButton text={userData.walletAddresses.primary_eth} label="primary Ethereum address" />
+                        )}
                       </div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h4 className="font-medium mb-2">Primary Solana</h4>
-                      <div className="font-mono text-sm bg-white p-2 rounded border">
-                        {userData.walletAddresses.primary_sol || 'N/A'}
+                      <div className="flex items-center">
+                        <div className="font-mono text-sm bg-white p-2 rounded border flex-1">
+                          {userData.walletAddresses.primary_sol || 'N/A'}
+                        </div>
+                        {userData.walletAddresses.primary_sol && (
+                          <CopyButton text={userData.walletAddresses.primary_sol} label="primary Solana address" />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -254,8 +320,11 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                       <div className="space-y-1">
                         {userData.walletAddresses.verified_eth.length > 0 ? (
                           userData.walletAddresses.verified_eth.map((addr, index) => (
-                            <div key={index} className="font-mono text-sm bg-white p-2 rounded border">
-                              {addr}
+                            <div key={index} className="flex items-center">
+                              <div className="font-mono text-sm bg-white p-2 rounded border flex-1">
+                                {addr}
+                              </div>
+                              <CopyButton text={addr} label="verified Ethereum address" />
                             </div>
                           ))
                         ) : (
@@ -268,8 +337,11 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                       <div className="space-y-1">
                         {userData.walletAddresses.verified_sol.length > 0 ? (
                           userData.walletAddresses.verified_sol.map((addr, index) => (
-                            <div key={index} className="font-mono text-sm bg-white p-2 rounded border">
-                              {addr}
+                            <div key={index} className="flex items-center">
+                              <div className="font-mono text-sm bg-white p-2 rounded border flex-1">
+                                {addr}
+                              </div>
+                              <CopyButton text={addr} label="verified Solana address" />
                             </div>
                           ))
                         ) : (
@@ -296,7 +368,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                         <div key={order.id} className="bg-gray-50 rounded-lg p-4">
                           <div className="flex justify-between items-start mb-2">
                             <div>
-                              <div className="font-medium">{order.order_id}</div>
+                              <div className="font-medium">#{order.order_id}</div>
                               <div className="text-sm text-gray-600">{formatDate(order.created_at)}</div>
                             </div>
                             <div className="text-right">
@@ -311,8 +383,41 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                               </div>
                             </div>
                           </div>
+                          
+                          {/* Products */}
+                          {order.order_items && order.order_items.length > 0 && (
+                            <div className="mt-3 border-t pt-3">
+                              <h5 className="text-sm font-medium mb-2">Products:</h5>
+                              <div className="space-y-2">
+                                {order.order_items.map((item, index) => (
+                                  <div key={index} className="flex items-center space-x-3">
+                                    {item.product_image && (
+                                      <img 
+                                        src={item.product_image} 
+                                        alt={item.product_name}
+                                        className="w-10 h-10 object-cover rounded"
+                                      />
+                                    )}
+                                    <div className="flex-1">
+                                      <div className="text-sm font-medium">{item.product_name}</div>
+                                      {item.variant_title && item.variant_title !== 'Default Title' && (
+                                        <div className="text-xs text-gray-600">{item.variant_title}</div>
+                                      )}
+                                    </div>
+                                    <div className="text-sm text-gray-600">
+                                      Qty: {item.quantity}
+                                    </div>
+                                    <div className="text-sm font-medium">
+                                      {formatCurrency(item.price)}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
                           {order.discount_code && (
-                            <div className="text-sm text-green-600">
+                            <div className="text-sm text-green-600 mt-2">
                               Discount: {order.discount_code} (-{formatCurrency(order.discount_amount)})
                             </div>
                           )}

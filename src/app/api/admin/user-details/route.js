@@ -44,7 +44,18 @@ export async function GET(request) {
     // Fetch user orders
     const { data: orders, error: ordersError } = await supabaseAdmin
       .from('orders')
-      .select('*')
+      .select(`
+        *,
+        order_items (
+          product_id,
+          product_name,
+          product_image,
+          quantity,
+          price,
+          variant_id,
+          variant_title
+        )
+      `)
       .eq('fid', fid)
       .order('created_at', { ascending: false });
 
