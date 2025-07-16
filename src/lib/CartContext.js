@@ -212,7 +212,9 @@ export function CartProvider({ children }) {
     }
   }, [cart]);
 
-  // AUTO-EVALUATE DISCOUNT WHENEVER CART CHANGES
+  // TEMPORARILY DISABLED - AUTO-EVALUATE DISCOUNT (CAUSING CRASHES)
+  // TODO: Re-enable after fixing the undefined length access bug
+  /*
   useEffect(() => {
     const autoEvaluateDiscount = async () => {
       // Defensive check to ensure cart.items is always an array
@@ -259,23 +261,41 @@ export function CartProvider({ children }) {
         });
         
         if (fid && typeof fid === 'number') {
-          console.log('🔄 Auto-evaluating discount for cart changes:', cartItems.map(i => i.product?.handle || 'unknown'));
-          const result = await evaluateOptimalDiscount(fid);
+          console.log('🔄 Auto-evaluating discount for cart changes:', cartItems.map(i => i.product?.handle));
+          const optimalDiscount = await evaluateOptimalDiscount(fid);
           
-          console.log('🎯 Evaluation result:', result);
+          console.log('🎯 Evaluation result:', optimalDiscount);
           
-          if (result) {
-            console.log('💰 Applying auto-evaluated discount:', result);
-            dispatch({ type: CART_ACTIONS.APPLY_DISCOUNT, payload: result });
+          if (optimalDiscount && optimalDiscount.code) {
+            console.log('✅ Applying optimal discount:', optimalDiscount.code);
+            dispatch({ 
+              type: CART_ACTIONS.APPLY_DISCOUNT, 
+              payload: {
+                code: optimalDiscount.code,
+                discountType: optimalDiscount.discountType,
+                discountValue: optimalDiscount.discountValue,
+                source: optimalDiscount.source,
+                discount_scope: optimalDiscount.discount_scope,
+                target_products: optimalDiscount.target_products,
+                priority_level: optimalDiscount.priority_level
+              }
+            });
             
-            // Store active discount code in session storage
-            sessionStorage.setItem('activeDiscountCode', JSON.stringify({
-              code: result.code,
-              source: 'auto_evaluation',
-              timestamp: Date.now()
+            // Store in session storage for persistence
+            sessionStorage.setItem('activeDiscountCode', optimalDiscount.code);
+            sessionStorage.setItem('userDiscountContext', JSON.stringify({
+              fid: fid,
+              source: optimalDiscount.source,
+              appliedAt: Date.now()
             }));
           } else {
             console.log('❌ No eligible discount found');
+            // Clear any existing discount if no optimal one found
+            if (cart.appliedDiscount) {
+              console.log('🗑️ Clearing existing discount - no optimal discount available');
+              dispatch({ type: CART_ACTIONS.REMOVE_DISCOUNT });
+              sessionStorage.removeItem('activeDiscountCode');
+            }
           }
         } else {
           console.log('❌ No valid FID found for discount evaluation');
@@ -287,10 +307,11 @@ export function CartProvider({ children }) {
       }
     };
 
-    // Debounce the auto-evaluation to prevent excessive API calls
+    // Debounce the auto-evaluation to prevent excessive calls
     const timeoutId = setTimeout(autoEvaluateDiscount, 500);
     return () => clearTimeout(timeoutId);
   }, [cart.items, cart.appliedDiscount, isEvaluatingDiscount]);
+  */
 
   // Helper function to get user FID (you might need to adjust this based on your auth system)
   const getUserFid = () => {
