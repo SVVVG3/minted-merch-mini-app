@@ -235,7 +235,7 @@ export function DiscountCodeSection({
     effectiveAppliedDiscountCode: effectiveAppliedDiscount?.code,
     showManualInput: !effectiveAppliedDiscount,
     isAuthenticated,
-    cartHasItems: cartItems.length > 0
+    cartHasItems: Array.isArray(cartItems) ? cartItems.length > 0 : false
   });
 
   return (

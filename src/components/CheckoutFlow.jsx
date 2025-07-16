@@ -238,7 +238,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   } = useUSDCPayment();
 
   // Use cart total from context instead of calculating locally
-  const hasItems = (cart.items || []).length > 0;
+  const hasItems = Array.isArray(cart.items) ? cart.items.length > 0 : false;
   const appliedDiscount = cart.appliedDiscount;
 
   // Auto-create order when payment succeeds

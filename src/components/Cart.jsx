@@ -27,7 +27,7 @@ export function Cart({ isOpen, onClose }) {
   
   // Simple cart effect - just for cleanup when cart is empty
   useEffect(() => {
-    const cartItems = cart.items || [];
+    const cartItems = Array.isArray(cart.items) ? cart.items : [];
     if (isOpen && cartItems.length === 0) {
       // Clear any applied discount when cart is empty
       if (cart.appliedDiscount) {
@@ -65,6 +65,18 @@ export function Cart({ isOpen, onClose }) {
   };
   
   if (!isOpen) return null;
+  
+  // Safety check - ensure cart is properly initialized
+  if (!cart || typeof cart !== 'object') {
+    console.warn('Cart state is not properly initialized:', cart);
+    return null;
+  }
+  
+  // Ensure cart.items is always an array
+  const safeCart = {
+    ...cart,
+    items: Array.isArray(cart.items) ? cart.items : []
+  };
 
   const handleQuantityChange = (itemKey, newQuantity) => {
     if (newQuantity <= 0) {
@@ -133,7 +145,7 @@ export function Cart({ isOpen, onClose }) {
 
         {/* Cart Content */}
         <div className="flex-1 overflow-y-auto">
-          {(cart.items || []).length === 0 ? (
+          {safeCart.items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full p-8 text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                           <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -152,7 +164,7 @@ export function Cart({ isOpen, onClose }) {
           ) : (
             <div className="p-4 space-y-4">
               
-              {(cart.items || []).map((item) => (
+              {safeCart.items.map((item) => (
                 <CartItem
                   key={item.key}
                   item={item}
@@ -195,7 +207,7 @@ export function Cart({ isOpen, onClose }) {
         </div>
 
         {/* Footer */}
-        {(cart.items || []).length > 0 && (
+        {safeCart.items.length > 0 && (
           <div className="border-t p-4 space-y-4">
             {/* Action Buttons Row */}
             <div className="flex justify-between items-center">
