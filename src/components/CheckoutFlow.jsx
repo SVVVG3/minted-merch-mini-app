@@ -25,7 +25,10 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
   // Helper function to detect if cart contains only digital products
   const isDigitalOnlyCart = () => {
-    return cart.items.every(item => {
+    const safeItems = Array.isArray(cart.items) ? cart.items : [];
+    if (safeItems.length === 0) return false;
+    
+    return safeItems.every(item => {
       const productTitle = item.product?.title || item.title || '';
       const productHandle = item.product?.handle || '';
       
@@ -66,7 +69,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     };
     
     // Calculate subtotal excluding gift cards for discount application
-    const discountEligibleSubtotal = cart.items.reduce((total, item) => {
+    const safeItems = Array.isArray(cart.items) ? cart.items : [];
+    const discountEligibleSubtotal = safeItems.reduce((total, item) => {
       if (isGiftCardItem(item)) {
         return total; // Skip gift cards
       }
@@ -91,7 +95,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         if ((activeDiscount.source === 'product_specific_api' || activeDiscount.source === 'token_gated') && activeDiscount.code === code) {
           let qualifyingSubtotal = 0;
           
-          (cart.items || []).forEach(item => {
+          const safeCartItems = Array.isArray(cart.items) ? cart.items : [];
+          safeCartItems.forEach(item => {
             // Skip gift cards entirely
             if (isGiftCardItem(item)) {
               return;
@@ -658,7 +663,7 @@ Transaction Hash: ${transactionHash}`;
             email: shippingData.email || ''
           },
           transactionHash: transactionHash,
-          lineItems: cart.items.map(item => ({
+          lineItems: (Array.isArray(cart.items) ? cart.items : []).map(item => ({
             title: item.product?.title || item.title || 'Unknown Item',
             variantTitle: item.variant?.title || item.variantTitle,
             quantity: item.quantity,
@@ -962,7 +967,7 @@ Transaction Hash: ${transactionHash}`;
                   {/* Order Summary */}
                   <div className="space-y-2 border-t pt-4">
                     <h3 className="font-medium">Order Summary</h3>
-                    {cart.items.map((item) => (
+                    {(Array.isArray(cart.items) ? cart.items : []).map((item) => (
                       <div key={item.key} className="flex justify-between text-sm">
                         <span>{item.product?.title || item.title} {item.variant?.title && item.variant.title !== 'Default Title' && `(${item.variant.title})`} × {item.quantity}</span>
                         <span>${(item.price * item.quantity).toFixed(2)}</span>
@@ -1074,7 +1079,7 @@ Transaction Hash: ${transactionHash}`;
                   {/* Order Summary with Discount */}
                   <div className="space-y-2 border-t pt-4">
                     <h3 className="font-medium">Order Summary</h3>
-                    {cart.items.map((item) => (
+                    {(Array.isArray(cart.items) ? cart.items : []).map((item) => (
                       <div key={item.key} className="flex justify-between text-sm">
                         <span>{item.product?.title || item.title} {item.variant?.title && item.variant.title !== 'Default Title' && `(${item.variant.title})`} × {item.quantity}</span>
                         <span>${(item.price * item.quantity).toFixed(2)}</span>
@@ -1272,7 +1277,7 @@ Transaction Hash: ${transactionHash}`;
                   {/* Order Summary */}
                   <div className="space-y-2">
                     <h3 className="font-medium">Order Summary</h3>
-                    {cart.items.map((item) => (
+                    {(Array.isArray(cart.items) ? cart.items : []).map((item) => (
                       <div key={item.key} className="flex justify-between text-sm">
                         <span>{item.product.title} {item.variant?.title && item.variant.title !== 'Default Title' && `(${item.variant.title})`} × {item.quantity}</span>
                         <span>${(item.price * item.quantity).toFixed(2)}</span>
@@ -1427,7 +1432,7 @@ Transaction Hash: ${transactionHash}`;
               {/* Success Step */}
               {checkoutStep === 'success' && orderDetails && (() => {
                 // Generate product text for order page link
-                const productNames = cart.items.map(item => {
+                const productNames = (Array.isArray(cart.items) ? cart.items : []).map(item => {
                   const productName = item.product?.title || item.title;
                   const variantName = item.variant?.title && item.variant.title !== 'Default Title' ? item.variant.title : '';
                   const quantity = item.quantity > 1 ? ` (${item.quantity}x)` : '';
