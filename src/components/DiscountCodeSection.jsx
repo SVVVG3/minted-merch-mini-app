@@ -41,6 +41,13 @@ export function DiscountCodeSection({
 
   // Simple effect to sync with cart's applied discount
   useEffect(() => {
+    console.log('📋 DiscountCodeSection - Cart discount change detected:', {
+      hasCartDiscount: !!cart.appliedDiscount,
+      cartDiscountCode: cart.appliedDiscount?.code,
+      cartDiscountValue: cart.appliedDiscount?.discountValue,
+      cartDiscountType: cart.appliedDiscount?.discountType
+    });
+    
     if (cart.appliedDiscount) {
       setDiscountCode(cart.appliedDiscount.code || '');
       setAppliedDiscount(cart.appliedDiscount);
@@ -67,9 +74,12 @@ export function DiscountCodeSection({
       hasDiscountCode: !!discountCode,
       isValidatingDiscount,
       discountError: !!discountError,
-      appliedDiscount: !!effectiveAppliedDiscount
+      appliedDiscount: !!effectiveAppliedDiscount,
+      effectiveAppliedDiscountCode: effectiveAppliedDiscount?.code,
+      cartAppliedDiscount: !!cart.appliedDiscount,
+      cartAppliedDiscountCode: cart.appliedDiscount?.code
     });
-  }, [discountCode, isValidatingDiscount, discountError, effectiveAppliedDiscount]);
+  }, [discountCode, isValidatingDiscount, discountError, effectiveAppliedDiscount, cart.appliedDiscount]);
 
   const handleApplyDiscount = async (codeToApply = null) => {
     const code = codeToApply || discountCode.trim();
@@ -220,6 +230,14 @@ export function DiscountCodeSection({
   const userFid = getFid();
   const isAuthenticated = !!userFid;
 
+  console.log('🎨 DiscountCodeSection render state:', {
+    effectiveAppliedDiscount: !!effectiveAppliedDiscount,
+    effectiveAppliedDiscountCode: effectiveAppliedDiscount?.code,
+    showManualInput: !effectiveAppliedDiscount,
+    isAuthenticated,
+    cartHasItems: cartItems.length > 0
+  });
+
   return (
     <div className={`space-y-3 border border-gray-200 rounded-lg p-3`}>
       <div className="flex items-center justify-between">
@@ -234,7 +252,41 @@ export function DiscountCodeSection({
         )}
       </div>
       
-      {!effectiveAppliedDiscount ? (
+      {effectiveAppliedDiscount ? (
+        <div className="bg-green-50 border border-green-200 rounded-md p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium text-green-800">
+                {effectiveAppliedDiscount.discountValue}% discount applied!
+                {effectiveAppliedDiscount.freeShipping && (
+                  <span className="ml-2 bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold">
+                    FREE SHIPPING
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-green-600 mt-1">
+                Code: {effectiveAppliedDiscount.code}
+                {effectiveAppliedDiscount.description && (
+                  <span className="ml-2">• {effectiveAppliedDiscount.description}</span>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={handleRemoveDiscount}
+              className="text-red-600 hover:text-red-800 text-xs font-medium"
+            >
+              Remove
+            </button>
+          </div>
+          
+          {/* Show savings calculation */}
+          <div className="mt-2 pt-2 border-t border-green-200">
+            <div className="text-xs text-green-700">
+              You save: ${calculateActualDiscountAmount().toFixed(2)}
+            </div>
+          </div>
+        </div>
+      ) : (
         <div className="space-y-2">
           {discountError && (
             <div className="text-red-600 text-xs">{discountError}</div>
@@ -268,40 +320,6 @@ export function DiscountCodeSection({
 
           <div className="text-xs text-gray-500">
             💡 Best discounts are applied automatically when you add items to your cart
-          </div>
-        </div>
-      ) : (
-        <div className="bg-green-50 border border-green-200 rounded-md p-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium text-green-800">
-                {effectiveAppliedDiscount.discountValue}% discount applied!
-                {effectiveAppliedDiscount.freeShipping && (
-                  <span className="ml-2 bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold">
-                    FREE SHIPPING
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-green-600 mt-1">
-                Code: {effectiveAppliedDiscount.code}
-                {effectiveAppliedDiscount.description && (
-                  <span className="ml-2">• {effectiveAppliedDiscount.description}</span>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={handleRemoveDiscount}
-              className="text-red-600 hover:text-red-800 text-xs font-medium"
-            >
-              Remove
-            </button>
-          </div>
-          
-          {/* Show savings calculation */}
-          <div className="mt-2 pt-2 border-t border-green-200">
-            <div className="text-xs text-green-700">
-              You save: ${calculateActualDiscountAmount().toFixed(2)}
-            </div>
           </div>
         </div>
       )}

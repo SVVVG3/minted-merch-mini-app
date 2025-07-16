@@ -217,7 +217,7 @@ export function CartProvider({ children }) {
     const autoEvaluateDiscount = async () => {
       console.log('🔄 AUTO-EVALUATE DISCOUNT TRIGGERED:', {
         cartItemsLength: cart.items.length,
-        cartItems: cart.items.map(i => i.product?.handle || 'unknown'),
+        cartItems: cart.items.map(i => ({ handle: i.product?.handle || 'unknown', title: i.product?.title || 'unknown' })),
         currentDiscount: cart.appliedDiscount?.code || 'none',
         isEvaluating: isEvaluatingDiscount
       });
@@ -247,7 +247,15 @@ export function CartProvider({ children }) {
         console.log('🔍 User FID detection result:', {
           userFid,
           userFidType: typeof userFid,
-          isValid: userFid && typeof userFid === 'number'
+          isValid: userFid && typeof userFid === 'number',
+          sessionStorage: {
+            userDiscountContext: !!sessionStorage.getItem('userDiscountContext'),
+            activeDiscountCode: !!sessionStorage.getItem('activeDiscountCode')
+          },
+          windowFarcaster: {
+            exists: typeof window !== 'undefined' && !!window.farcaster,
+            userFid: typeof window !== 'undefined' && window.farcaster ? window.farcaster.user?.fid : 'N/A'
+          }
         });
         
         if (!userFid) {
