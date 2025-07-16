@@ -54,99 +54,13 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const calculateProductAwareDiscountAmount = () => {
     if (!appliedDiscount) return 0;
     
-    const { code, discountType, discountValue } = appliedDiscount;
-    const currentSubtotal = cart.checkout ? cart.checkout.subtotal.amount : cartSubtotal;
+    // Use the same logic as CartContext to ensure consistency
+    // The cart subtotal calculation already correctly handles product-specific discounts
+    const discountAmount = cartSubtotal - cartTotal;
     
-    // Helper function to check if item is a gift card
-    const isGiftCardItem = (item) => {
-      const productTitle = item.product?.title || item.title || '';
-      const productHandle = item.product?.handle || '';
-      
-      return (
-        productTitle.toLowerCase().includes('gift card') ||
-        productHandle.includes('gift-card')
-      );
-    };
+    console.log(`💰 Discount calculation: Cart subtotal: $${cartSubtotal}, Cart total: $${cartTotal}, Discount amount: $${discountAmount}`);
     
-    // Calculate subtotal excluding gift cards for discount application
-    const safeItems = Array.isArray(cart.items) ? cart.items : [];
-    const discountEligibleSubtotal = safeItems.reduce((total, item) => {
-      if (isGiftCardItem(item)) {
-        return total; // Skip gift cards
-      }
-      return total + (item.price * item.quantity);
-    }, 0);
-    
-    console.log(`💰 Discount calculation: Total subtotal: $${currentSubtotal}, Eligible for discount: $${discountEligibleSubtotal}`);
-    
-    // If no eligible items, return 0 discount
-    if (discountEligibleSubtotal <= 0) {
-      console.log('🎁 No discount-eligible items found (gift cards excluded)');
-      return 0;
-    }
-    
-    // Check if this is a product-specific discount from session storage
-    try {
-      const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
-      if (activeDiscountData) {
-        const activeDiscount = JSON.parse(activeDiscountData);
-        
-        // For product-specific discounts AND token-gated discounts, only apply to qualifying products (and exclude gift cards)
-        if ((activeDiscount.source === 'product_specific_api' || activeDiscount.source === 'token_gated') && activeDiscount.code === code) {
-          let qualifyingSubtotal = 0;
-          
-          const safeCartItems = Array.isArray(cart.items) ? cart.items : [];
-          safeCartItems.forEach(item => {
-            // Skip gift cards entirely
-            if (isGiftCardItem(item)) {
-              return;
-            }
-            
-            const productHandle = item.product?.handle;
-            const productTitle = item.product?.title || item.title;
-            
-            // Check if this product qualifies for specific discount codes
-            if (code === 'SNAPSHOT-TINY-HYPER-FREE') {
-              if (productHandle === 'tiny-hyper-tee' || productTitle?.includes('Tiny Hyper Tee')) {
-                qualifyingSubtotal += (item.price * item.quantity);
-              }
-            } else if (code === 'DICKBUTT-FREE') {
-              if (productHandle === 'dickbutt-cap' || productTitle?.includes('Dickbutt Cap')) {
-                qualifyingSubtotal += (item.price * item.quantity);
-              }
-            } else if (code === 'DICKBUTT20') {
-              // NFT token-gated discount for CryptaDickButtz products
-              if (productHandle === 'cryptoadickbuttz-og-tee' || productTitle?.includes('CryptaDickButtz')) {
-                qualifyingSubtotal += (item.price * item.quantity);
-              }
-            } else {
-              // For other product-specific discounts, apply to all eligible (non-gift-card) items
-              qualifyingSubtotal += (item.price * item.quantity);
-            }
-          });
-          
-          console.log(`🎯 Product-specific discount: Qualifying subtotal: $${qualifyingSubtotal}`);
-          
-          // Calculate discount only on qualifying products
-          if (discountType === 'percentage') {
-            return (qualifyingSubtotal * discountValue) / 100;
-          } else if (discountType === 'fixed') {
-            return Math.min(discountValue, qualifyingSubtotal);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error calculating product-aware discount:', error);
-    }
-    
-    // Fallback to applying discount to all eligible (non-gift-card) items
-    if (discountType === 'percentage') {
-      return (discountEligibleSubtotal * discountValue) / 100;
-    } else if (discountType === 'fixed') {
-      return Math.min(discountValue, discountEligibleSubtotal);
-    }
-    
-    return appliedDiscount.discountAmount || 0;
+    return discountAmount;
   };
 
   // Helper function to calculate tax - taxes should be calculated on discounted subtotal (after discount codes, before gift cards)
@@ -202,7 +116,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     
     // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
     // Use <= 0.01 to handle floating point precision issues
-    if (finalTotal <= 0.01 && (appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100 || appliedGiftCard?.discount?.discountAmount > 0)) {
+    const isCartFree = cartTotal <= 0.01;
+    if (finalTotal <= 0.01 && (isCartFree || appliedGiftCard?.discount?.discountAmount > 0)) {
       finalTotal = 0.01;
       console.log('💰 Applied minimum charge of $0.01 for free giveaway order processing');
     }
@@ -645,7 +560,8 @@ Transaction Hash: ${transactionHash}`;
         
         // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
         // Use <= 0.01 to handle floating point precision issues
-        if (finalOrderTotal <= 0.01 && (appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100 || appliedGiftCard?.discount?.discountAmount > 0)) {
+        const isCartFree = cartTotal <= 0.01;
+        if (finalOrderTotal <= 0.01 && (isCartFree || appliedGiftCard?.discount?.discountAmount > 0)) {
           finalOrderTotal = 0.01;
           console.log('💰 Applied minimum charge of $0.01 for free giveaway order processing');
         }
@@ -823,7 +739,9 @@ Transaction Hash: ${transactionHash}`;
         className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
       >
         {!isConnected ? 'Connect Wallet to Pay' : (() => {
-          const isFreeWithShipping = appliedDiscount?.discountValue >= 100 && appliedDiscount?.freeShipping;
+          // Check if cart total is effectively free (considering product-specific discounts)
+          const isCartFree = cartTotal <= 0.01;
+          const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
           
           if (isFreeWithShipping) {
             return 'Checkout (FREE + $0.01 processing fee)';
@@ -998,7 +916,7 @@ Transaction Hash: ${transactionHash}`;
                       <div className="flex justify-between font-medium">
                         <span>Total</span>
                         <span>
-                          {(appliedDiscount && appliedDiscount.discountValue >= 100) || 
+                          {(cartTotal <= 0.01) || 
                            (appliedGiftCard && appliedGiftCard.discount.discountAmount >= cartTotal) ? (
                             (appliedDiscount?.freeShipping || appliedGiftCard) ? (
                               <span className="text-green-600">$0.01 <span className="text-xs">(min processing fee)</span></span>
@@ -1200,7 +1118,8 @@ Transaction Hash: ${transactionHash}`;
                                 
                                 // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
                                 // Use <= 0.01 to handle floating point precision issues
-                                if (finalTotal <= 0.01 && (appliedDiscount?.freeShipping && appliedDiscount?.discountValue >= 100 || giftCardDiscount > 0)) {
+                                const isCartFree = cartTotal <= 0.01;
+                                if (finalTotal <= 0.01 && (isCartFree || giftCardDiscount > 0)) {
                                   finalTotal = 0.01;
                                 }
                                 
