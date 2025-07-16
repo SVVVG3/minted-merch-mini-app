@@ -212,11 +212,80 @@ export function CartProvider({ children }) {
     }
   }, [cart]);
 
-  // TEMPORARILY DISABLED - AUTO-EVALUATE DISCOUNT (CAUSING CRASHES)
-  // TODO: Re-enable after fixing the undefined length access bug
-  // Auto-evaluation logic has been completely removed to prevent cart crashes
-  // Users can still manually enter discount codes in the cart
-  // CACHE REFRESH: 2024-01-02 - Force fresh deployment to clear cached JavaScript
+  // AUTO-EVALUATE DISCOUNT - RE-ENABLED WITH CRASH PROTECTION
+  useEffect(() => {
+    // Defensive checks to prevent crashes
+    if (!cart || typeof cart !== 'object') {
+      console.log('⚠️ Cart not properly initialized, skipping auto-evaluation');
+      return;
+    }
+    
+    const safeItems = Array.isArray(cart.items) ? cart.items : [];
+    
+    // Only trigger if we have items and no discount is currently applied
+    if (safeItems.length === 0) {
+      console.log('📭 Cart is empty, skipping auto-evaluation');
+      return;
+    }
+    
+    if (isEvaluatingDiscount) {
+      console.log('⏳ Already evaluating discount, skipping...');
+      return;
+    }
+    
+    // Check if we already have a discount applied
+    if (cart.appliedDiscount) {
+      console.log('✅ Discount already applied:', cart.appliedDiscount.code);
+      return;
+    }
+    
+    const userFid = getUserFid();
+    if (!userFid) {
+      console.log('❌ No user FID found, skipping auto-evaluation');
+      return;
+    }
+    
+    console.log('🔄 AUTO-EVALUATE DISCOUNT TRIGGERED:', {
+      cartItemsLength: safeItems.length,
+      cartItems: safeItems.map(item => ({ handle: item.product?.handle, title: item.product?.title })),
+      currentDiscount: cart.appliedDiscount?.code || 'none',
+      isEvaluating: isEvaluatingDiscount
+    });
+    
+    // Debounce the evaluation to prevent too many API calls
+    const timeoutId = setTimeout(async () => {
+      try {
+        setIsEvaluatingDiscount(true);
+        console.log('🔄 Auto-evaluating discount for cart changes:', safeItems.map(item => item.product?.handle || 'unknown'));
+        
+        const bestDiscount = await evaluateOptimalDiscount(userFid);
+        
+        if (bestDiscount) {
+          console.log('✅ Auto-applying best discount:', bestDiscount.code);
+          applyDiscount(bestDiscount);
+          
+          // Store in session storage for consistency
+          sessionStorage.setItem('activeDiscountCode', JSON.stringify({
+            code: bestDiscount.code,
+            source: 'auto_cart_evaluation',
+            discountType: bestDiscount.discountType,
+            discountValue: bestDiscount.discountValue,
+            timestamp: new Date().toISOString(),
+            isTokenGated: bestDiscount.isTokenGated,
+            gatingType: bestDiscount.gating_type
+          }));
+        } else {
+          console.log('❌ No optimal discount found for current cart');
+        }
+      } catch (error) {
+        console.error('❌ Error in auto-evaluation:', error);
+      } finally {
+        setIsEvaluatingDiscount(false);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [cart.items, cart.appliedDiscount, isEvaluatingDiscount]);
 
   // Helper function to get user FID (you might need to adjust this based on your auth system)
   const getUserFid = () => {
@@ -447,11 +516,116 @@ export function CartProvider({ children }) {
     return item ? item.quantity : 0;
   };
 
-  // DISABLED: New function to evaluate and select the optimal discount for current cart
+  // Re-enabled: Function to evaluate and select the optimal discount for current cart
   const evaluateOptimalDiscount = async (userFid) => {
-    // Completely disabled to prevent cart crashes
-    console.log('🚫 Auto-evaluation is disabled to prevent cart crashes');
-    return null;
+    try {
+      console.log('🎯 Evaluating optimal discount for cart:', safeCart.items.map(item => item.product?.handle || 'unknown'));
+      
+      // Validate input
+      if (!userFid || typeof userFid !== 'number') {
+        console.log('❌ Invalid user FID provided:', userFid);
+        return null;
+      }
+      
+      if (safeCart.items.length === 0) {
+        console.log('❌ Cart is empty, no discount evaluation needed');
+        return null;
+      }
+      
+      // Get unique product handles and their Supabase IDs
+      const uniqueProducts = [];
+      const productHandles = [...new Set(safeCart.items.map(item => item.product?.handle).filter(Boolean))];
+      
+      console.log('🔍 Unique products in cart:', productHandles);
+      
+      // For each product, get its Supabase ID
+      for (const handle of productHandles) {
+        try {
+          const response = await fetch(`/api/shopify/products?handle=${handle}&fid=${userFid}`);
+          if (response.ok) {
+            const productData = await response.json();
+            if (productData.supabaseId && productData.availableDiscounts) {
+              uniqueProducts.push({
+                handle,
+                supabaseId: productData.supabaseId,
+                availableDiscounts: productData.availableDiscounts
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching discount data for product ${handle}:`, error);
+        }
+      }
+      
+      console.log('📊 Products with discount data:', uniqueProducts.map(p => ({ handle: p.handle, hasBest: !!p.availableDiscounts?.best })));
+      
+      // Collect all available discounts from all products
+      const allAvailableDiscounts = [];
+      
+      uniqueProducts.forEach(product => {
+        if (product.availableDiscounts?.best) {
+          allAvailableDiscounts.push({
+            ...product.availableDiscounts.best,
+            sourceProduct: product.handle
+          });
+        }
+      });
+      
+      console.log('🎁 All available discounts:', allAvailableDiscounts.map(d => `${d.code} (${d.discount_value || d.value}% off, ${d.discount_scope || d.scope}, tokenGated: ${d.isTokenGated || false})`));
+      
+      if (allAvailableDiscounts.length === 0) {
+        console.log('❌ No discounts available for current cart');
+        return null;
+      }
+      
+      // Find the best discount using the same prioritization logic as product pages
+      const bestDiscount = allAvailableDiscounts.reduce((best, current) => {
+        // Normalize property names
+        const currentValue = current.discount_value || current.value;
+        const bestValue = best.discount_value || best.value;
+        const currentScope = current.discount_scope || current.scope;
+        const bestScope = best.discount_scope || best.scope;
+        
+        // Token-gated discounts have highest priority
+        if (current.isTokenGated && !best.isTokenGated) return current;
+        if (!current.isTokenGated && best.isTokenGated) return best;
+        
+        // Among same gating type, product-specific beats site-wide
+        if (currentScope === 'product' && bestScope === 'site_wide') return current;
+        if (currentScope === 'site_wide' && bestScope === 'product') return best;
+        
+        // Among same scope and gating, higher value wins
+        if (currentValue > bestValue) return current;
+        if (currentValue === bestValue && current.priority_level > best.priority_level) return current;
+        
+        return best;
+      });
+      
+      console.log('🏆 Best discount selected:', bestDiscount.code, `(${bestDiscount.discount_value || bestDiscount.value}% off, ${bestDiscount.discount_scope || bestDiscount.scope})`);
+      
+      // Format discount for cart context
+      const formattedDiscount = {
+        code: bestDiscount.code,
+        discountType: bestDiscount.discount_type || bestDiscount.type || 'percentage',
+        discountValue: bestDiscount.discount_value || bestDiscount.value,
+        discountAmount: 0, // Will be calculated by cart
+        displayText: bestDiscount.displayText || `${bestDiscount.discount_value || bestDiscount.value}% off`,
+        description: bestDiscount.description || bestDiscount.discount_description,
+        freeShipping: bestDiscount.free_shipping || false,
+        discount_scope: bestDiscount.discount_scope || bestDiscount.scope,
+        target_products: bestDiscount.target_products || [],
+        isTokenGated: bestDiscount.isTokenGated || false,
+        gating_type: bestDiscount.gating_type,
+        priority_level: bestDiscount.priority_level || 0,
+        sourceProduct: bestDiscount.sourceProduct
+      };
+      
+      return formattedDiscount;
+      
+    } catch (error) {
+      console.error('❌ Error evaluating optimal discount:', error);
+      return null;
+    }
   };
 
   const contextValue = {
