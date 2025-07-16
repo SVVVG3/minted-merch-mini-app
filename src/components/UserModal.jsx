@@ -190,10 +190,6 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                         <label className="text-sm font-medium text-gray-600">Joined</label>
                         <p className="text-gray-900">{formatDate(userData.created_at)}</p>
                       </div>
-                      <div className="md:col-span-2">
-                        <label className="text-sm font-medium text-gray-600">Bio</label>
-                        <p className="text-gray-900">{userData.bio || 'N/A'}</p>
-                      </div>
                     </div>
                   </div>
 
@@ -366,11 +362,11 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                     {userData.recentOrders.length > 0 ? (
                       userData.recentOrders.map((order) => (
                         <div key={order.id} className="bg-gray-50 rounded-lg p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <div className="font-medium">#{order.order_id}</div>
-                              <div className="text-sm text-gray-600">{formatDate(order.created_at)}</div>
-                            </div>
+                                                      <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <div className="font-medium">{order.order_id}</div>
+                                <div className="text-sm text-gray-600">{formatDate(order.created_at)}</div>
+                              </div>
                             <div className="text-right">
                               <div className="font-medium">{formatCurrency(order.amount_total)}</div>
                               <div className={`text-sm px-2 py-1 rounded ${
