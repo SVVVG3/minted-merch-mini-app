@@ -68,7 +68,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
   };
 
   const openFarcasterProfile = (username) => {
-    window.open(`https://warpcast.com/${username}`, '_blank');
+    window.open(`https://farcaster.xyz/${username}`, '_blank');
   };
 
   const openXProfile = (username) => {
