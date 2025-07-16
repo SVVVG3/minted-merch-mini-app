@@ -469,6 +469,13 @@ export function CartProvider({ children }) {
       // Ensure eligibleDiscounts is always an array
       let eligibleDiscounts = Array.isArray(userDiscountsData.categorized.usable) ? userDiscountsData.categorized.usable : [];
       
+      console.log('📋 Initial eligible discounts:', eligibleDiscounts.map(d => ({
+        code: d.code,
+        scope: d.discount_scope,
+        target_products: d.target_products,
+        target_products_type: Array.isArray(d.target_products) ? 'array' : typeof d.target_products
+      })));
+      
       // Get user's wallet addresses for token-gated discounts
       const walletResponse = await fetch(`/api/user-wallet-data?fid=${userFid}`);
       const walletData = await walletResponse.json();
@@ -498,28 +505,34 @@ export function CartProvider({ children }) {
       
       // Filter discounts that are relevant to current cart
       const cartRelevantDiscounts = eligibleDiscounts.filter(discount => {
-        // Site-wide discounts always apply
-        if (discount.discount_scope === 'site_wide' || !discount.target_products || discount.target_products.length === 0) {
-          return true;
-        }
-        
-        // Product-specific discounts - check if any cart items qualify
-        if (Array.isArray(discount.target_products) && discount.target_products.length > 0) {
-          const hasQualifyingProduct = cartItems.some(item => {
-            const productHandle = item.product?.handle;
-            const productTitle = item.product?.title;
-            
-            return discount.target_products.some(target => {
-              if (productHandle && productHandle === target) return true;
-              if (productTitle && productTitle.toLowerCase().includes(target.toLowerCase())) return true;
-              return false;
-            });
-          });
+        try {
+          // Site-wide discounts always apply
+          if (discount.discount_scope === 'site_wide' || !discount.target_products || !Array.isArray(discount.target_products) || discount.target_products.length === 0) {
+            return true;
+          }
           
-          return hasQualifyingProduct;
+          // Product-specific discounts - check if any cart items qualify
+          if (Array.isArray(discount.target_products) && discount.target_products.length > 0) {
+            const hasQualifyingProduct = cartItems.some(item => {
+              const productHandle = item.product?.handle;
+              const productTitle = item.product?.title;
+              
+              return discount.target_products.some(target => {
+                if (productHandle && productHandle === target) return true;
+                if (productTitle && productTitle.toLowerCase().includes(target.toLowerCase())) return true;
+                return false;
+              });
+            });
+            
+            return hasQualifyingProduct;
+          }
+          
+          return false;
+        } catch (filterError) {
+          console.error('❌ Error filtering discount:', discount.code, filterError);
+          console.error('🔍 Discount object:', discount);
+          return false;
         }
-        
-        return false;
       });
       
       if (cartRelevantDiscounts.length === 0) {
@@ -559,16 +572,20 @@ export function CartProvider({ children }) {
     
     // Check if this is a product-specific discount using proper database fields
     const isProductSpecific = cart.appliedDiscount.discount_scope === 'product' || 
-                              (cart.appliedDiscount.target_products && cart.appliedDiscount.target_products.length > 0);
+                              (cart.appliedDiscount.target_products && 
+                               Array.isArray(cart.appliedDiscount.target_products) && 
+                               cart.appliedDiscount.target_products.length > 0);
     
     if (isProductSpecific) {
       // Apply discount only to qualifying products
-      const targetProducts = cart.appliedDiscount.target_products || [];
+      const targetProducts = Array.isArray(cart.appliedDiscount.target_products) ? cart.appliedDiscount.target_products : [];
       let qualifyingSubtotal = 0;
       
       console.log(`🎯 Applying product-specific discount ${code} to qualifying products:`, targetProducts);
       
-      cart.items.forEach(item => {
+      // Defensive check to ensure cart.items is always an array
+      const cartItems = cart.items || [];
+      cartItems.forEach(item => {
         const productHandle = item.product?.handle;
         const productTitle = item.product?.title;
         
@@ -597,7 +614,7 @@ export function CartProvider({ children }) {
       }
     } else {
       // Site-wide discount - apply to entire cart
-      console.log(`�� Applying site-wide discount ${code} to entire cart: $${cartSubtotal.toFixed(2)}`);
+      console.log(`🌍 Applying site-wide discount ${code} to entire cart: $${cartSubtotal.toFixed(2)}`);
       
       if (discountType === 'percentage') {
         return (cartSubtotal * discountValue) / 100;
