@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import UserModal from '@/components/UserModal';
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -49,6 +50,10 @@ export default function AdminDashboard() {
   // Orders sorting state
   const [ordersSortField, setOrdersSortField] = useState('created_at');
   const [ordersSortDirection, setOrdersSortDirection] = useState('desc');
+  
+  // User modal state
+  const [userModalOpen, setUserModalOpen] = useState(false);
+  const [selectedUserFid, setSelectedUserFid] = useState(null);
   
   // Leaderboard sorting state
   const [sortField, setSortField] = useState('total_points');
@@ -125,6 +130,17 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     }
+  };
+
+  // User modal functions
+  const openUserModal = (fid) => {
+    setSelectedUserFid(fid);
+    setUserModalOpen(true);
+  };
+
+  const closeUserModal = () => {
+    setUserModalOpen(false);
+    setSelectedUserFid(null);
   };
 
   const runRaffle = async (winnersCount = null, customFilters = null, criteriaDescription = null) => {
@@ -1181,7 +1197,10 @@ export default function AdminDashboard() {
                       <tr key={user.fid}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                            <div 
+                              className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#3eb489] transition-all"
+                              onClick={() => openUserModal(user.fid)}
+                            >
                               {user.pfp_url ? (
                                 <img 
                                   src={user.pfp_url} 
@@ -1201,10 +1220,18 @@ export default function AdminDashboard() {
                               </span>
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
+                              <div 
+                                className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer"
+                                onClick={() => openUserModal(user.fid)}
+                              >
                                 {user.display_name || user.username || 'Unknown'}
                               </div>
-                              <div className="text-sm text-gray-500">@{user.username || 'unknown'}</div>
+                              <div 
+                                className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer"
+                                onClick={() => openUserModal(user.fid)}
+                              >
+                                @{user.username || 'unknown'}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -1347,7 +1374,10 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mr-3">
+                          <div 
+                            className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mr-3 cursor-pointer hover:ring-2 hover:ring-[#3eb489] transition-all"
+                            onClick={() => openUserModal(user.user_fid)}
+                          >
                             {user.pfp_url ? (
                               <img 
                                 src={user.pfp_url} 
@@ -1367,8 +1397,18 @@ export default function AdminDashboard() {
                             </span>
                           </div>
                           <div className="text-sm">
-                            <div className="font-medium text-gray-900">{user.display_name || user.username || 'Unknown'}</div>
-                            <div className="text-gray-500">@{user.username || 'unknown'}</div>
+                            <div 
+                              className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer"
+                              onClick={() => openUserModal(user.user_fid)}
+                            >
+                              {user.display_name || user.username || 'Unknown'}
+                            </div>
+                            <div 
+                              className="text-gray-500 hover:text-gray-700 cursor-pointer"
+                              onClick={() => openUserModal(user.user_fid)}
+                            >
+                              @{user.username || 'unknown'}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -1479,16 +1519,19 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.fid}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-8 w-8 mr-3">
+                          <div 
+                            className="flex-shrink-0 h-8 w-8 mr-3 cursor-pointer"
+                            onClick={() => openUserModal(order.fid)}
+                          >
                             {order.pfp_url ? (
                               <img 
                                 src={order.pfp_url} 
                                 alt={order.username || 'User'} 
-                                className="h-8 w-8 rounded-full object-cover"
+                                className="h-8 w-8 rounded-full object-cover hover:ring-2 hover:ring-[#3eb489] transition-all"
                               />
                             ) : (
                               <div 
-                                className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-medium"
+                                className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-medium hover:bg-gray-500 transition-colors"
                                 style={{ display: order.pfp_url ? 'none' : 'flex' }}
                               >
                                 {order.username?.charAt(0).toUpperCase() || order.fid?.toString().charAt(0) || '?'}
@@ -1496,7 +1539,12 @@ export default function AdminDashboard() {
                             )}
                           </div>
                           <div>
-                            <div className="font-medium">{order.username || 'N/A'}</div>
+                            <div 
+                              className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer"
+                              onClick={() => openUserModal(order.fid)}
+                            >
+                              {order.username || 'N/A'}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -1957,7 +2005,10 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mr-3">
+                            <div 
+                              className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mr-3 cursor-pointer hover:ring-2 hover:ring-[#3eb489] transition-all"
+                              onClick={() => openUserModal(checkin.user_fid)}
+                            >
                               {checkin.pfp_url ? (
                                 <img 
                                   src={checkin.pfp_url} 
@@ -1977,8 +2028,18 @@ export default function AdminDashboard() {
                               </span>
                             </div>
                             <div className="text-sm">
-                              <div className="font-medium text-gray-900">{checkin.display_name || checkin.username || 'Unknown'}</div>
-                              <div className="text-gray-500">@{checkin.username || 'unknown'}</div>
+                              <div 
+                                className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer"
+                                onClick={() => openUserModal(checkin.user_fid)}
+                              >
+                                {checkin.display_name || checkin.username || 'Unknown'}
+                              </div>
+                              <div 
+                                className="text-gray-500 hover:text-gray-700 cursor-pointer"
+                                onClick={() => openUserModal(checkin.user_fid)}
+                              >
+                                @{checkin.username || 'unknown'}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -2450,6 +2511,13 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+      
+      {/* User Modal */}
+      <UserModal 
+        isOpen={userModalOpen} 
+        onClose={closeUserModal} 
+        userFid={selectedUserFid} 
+      />
     </div>
   );
 } 
