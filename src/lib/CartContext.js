@@ -502,7 +502,8 @@ export function CartProvider({ children }) {
         return null;
       }
       
-      let eligibleDiscounts = userDiscountsData.categorized.usable;
+      // Ensure eligibleDiscounts is always an array
+      let eligibleDiscounts = Array.isArray(userDiscountsData.categorized.usable) ? userDiscountsData.categorized.usable : [];
       
       // Get user's wallet addresses for token-gated discounts
       const walletResponse = await fetch(`/api/user-wallet-data?fid=${userFid}`);
@@ -525,7 +526,7 @@ export function CartProvider({ children }) {
         });
         
         const tokenGatedResult = await tokenGatedResponse.json();
-        if (tokenGatedResult.success && tokenGatedResult.eligibleDiscounts) {
+        if (tokenGatedResult.success && Array.isArray(tokenGatedResult.eligibleDiscounts)) {
           // Add eligible token-gated discounts to the list
           eligibleDiscounts = [...eligibleDiscounts, ...tokenGatedResult.eligibleDiscounts];
         }
@@ -539,7 +540,7 @@ export function CartProvider({ children }) {
         }
         
         // Product-specific discounts - check if any cart items qualify
-        if (discount.target_products && discount.target_products.length > 0) {
+        if (Array.isArray(discount.target_products) && discount.target_products.length > 0) {
           const hasQualifyingProduct = cart.items.some(item => {
             const productHandle = item.product?.handle;
             const productTitle = item.product?.title;
