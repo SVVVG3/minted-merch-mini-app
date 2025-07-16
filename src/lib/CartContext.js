@@ -368,199 +368,69 @@ export function CartProvider({ children }) {
     dispatch({ type: CART_ACTIONS.REMOVE_DISCOUNT });
   };
 
-  // Cart calculations
-  const cartSubtotal = (cart.items || []).reduce((total, item) => {
+  // Safety wrapper to ensure cart always has valid items array
+  const safeCart = {
+    ...cart,
+    items: Array.isArray(cart.items) ? cart.items : []
+  };
+
+  // Cart calculations using safeCart
+  const cartSubtotal = safeCart.items.reduce((total, item) => {
     return total + (item.price * item.quantity);
   }, 0);
 
-  // New function to evaluate and select the optimal discount for current cart
-  const evaluateOptimalDiscount = async (userFid) => {
-    // Defensive check to ensure cart.items is always an array
-    const cartItems = cart.items || [];
-    
-    if (!userFid || cartItems.length === 0) return null;
-    
-    try {
-      console.log('🎯 Evaluating optimal discount for cart:', cartItems.map(i => i.product?.handle));
-      
-      // Get all user's available discounts
-      const userDiscountsResponse = await fetch(`/api/user-discounts?fid=${userFid}`);
-      const userDiscountsData = await userDiscountsResponse.json();
-      
-      if (!userDiscountsData.success || !userDiscountsData.categorized?.usable) {
-        console.log('❌ No usable discounts found for user');
-        return null;
-      }
-      
-      // Ensure eligibleDiscounts is always an array
-      let eligibleDiscounts = Array.isArray(userDiscountsData.categorized.usable) ? userDiscountsData.categorized.usable : [];
-      
-      console.log('📋 Initial eligible discounts:', eligibleDiscounts.map(d => ({
-        code: d.code,
-        scope: d.discount_scope,
-        target_products: d.target_products,
-        target_products_type: Array.isArray(d.target_products) ? 'array' : typeof d.target_products
-      })));
-      
-      // Get user's wallet addresses for token-gated discounts
-      const walletResponse = await fetch(`/api/user-wallet-data?fid=${userFid}`);
-      const walletData = await walletResponse.json();
-      const walletAddresses = walletData.success ? walletData.walletAddresses : [];
-      
-      // Check token-gated eligibility if user has wallets
-      if (walletAddresses.length > 0) {
-        const productIds = cartItems.map(item => parseInt(item.product?.id)).filter(Boolean);
-        
-        const tokenGatedResponse = await fetch('/api/check-token-gated-eligibility', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fid: userFid,
-            walletAddresses: walletAddresses,
-            scope: 'all',
-            productIds: productIds
-          })
-        });
-        
-        const tokenGatedResult = await tokenGatedResponse.json();
-        if (tokenGatedResult.success && Array.isArray(tokenGatedResult.eligibleDiscounts)) {
-          // Add eligible token-gated discounts to the list
-          eligibleDiscounts = [...eligibleDiscounts, ...tokenGatedResult.eligibleDiscounts];
-        }
-      }
-      
-      // Filter discounts that are relevant to current cart
-      const cartRelevantDiscounts = eligibleDiscounts.filter(discount => {
-        try {
-          // Site-wide discounts always apply
-          if (discount.discount_scope === 'site_wide' || !discount.target_products || !Array.isArray(discount.target_products) || discount.target_products.length === 0) {
-            return true;
-          }
-          
-          // Product-specific discounts - check if any cart items qualify
-          if (Array.isArray(discount.target_products) && discount.target_products.length > 0) {
-            const hasQualifyingProduct = cartItems.some(item => {
-              const productHandle = item.product?.handle;
-              const productTitle = item.product?.title;
-              
-              return discount.target_products.some(target => {
-                if (productHandle && productHandle === target) return true;
-                if (productTitle && productTitle.toLowerCase().includes(target.toLowerCase())) return true;
-                return false;
-              });
-            });
-            
-            return hasQualifyingProduct;
-          }
-          
-          return false;
-        } catch (filterError) {
-          console.error('❌ Error filtering discount:', discount.code, filterError);
-          console.error('🔍 Discount object:', discount);
-          return false;
-        }
-      });
-      
-      if (cartRelevantDiscounts.length === 0) {
-        console.log('❌ No discounts relevant to current cart contents');
-        return null;
-      }
-      
-      // Sort by priority_level (higher first), then by discount_value (higher first)
-      const sortedDiscounts = cartRelevantDiscounts.sort((a, b) => {
-        const priorityA = a.priority_level || 0;
-        const priorityB = b.priority_level || 0;
-        
-        if (priorityA !== priorityB) {
-          return priorityB - priorityA; // Higher priority first
-        }
-        
-        // If same priority, prefer higher discount value
-        return (b.discount_value || 0) - (a.discount_value || 0);
-      });
-      
-      const bestDiscount = sortedDiscounts[0];
-      console.log('🎯 Selected best discount:', bestDiscount.code, `(Priority: ${bestDiscount.priority_level}, Value: ${bestDiscount.discount_value}%)`);
-      
-      return bestDiscount;
-      
-    } catch (error) {
-      console.error('❌ Error evaluating optimal discount:', error);
-      return null;
-    }
-  };
-
   // Helper function to calculate product-aware discount amount
   const calculateProductAwareDiscount = () => {
-    if (!cart.appliedDiscount) return 0;
+    if (!safeCart.appliedDiscount) return 0;
     
-    const { code, discountType, discountValue, source } = cart.appliedDiscount;
+    const { code, discountType, discountValue, source } = safeCart.appliedDiscount;
     
     // Check if this is a product-specific discount using proper database fields
-    const isProductSpecific = cart.appliedDiscount.discount_scope === 'product' || 
-                              (cart.appliedDiscount.target_products && 
-                               Array.isArray(cart.appliedDiscount.target_products) && 
-                               cart.appliedDiscount.target_products.length > 0);
+    const isProductSpecific = safeCart.appliedDiscount.discount_scope === 'product' || 
+                              (safeCart.appliedDiscount.target_products && 
+                               Array.isArray(safeCart.appliedDiscount.target_products) && 
+                               safeCart.appliedDiscount.target_products.length > 0);
     
     if (isProductSpecific) {
       // Apply discount only to qualifying products
-      const targetProducts = Array.isArray(cart.appliedDiscount.target_products) ? cart.appliedDiscount.target_products : [];
+      const targetProducts = Array.isArray(safeCart.appliedDiscount.target_products) ? 
+                             safeCart.appliedDiscount.target_products : [];
+      
       let qualifyingSubtotal = 0;
       
-      console.log(`🎯 Applying product-specific discount ${code} to qualifying products:`, targetProducts);
-      
-      // Defensive check to ensure cart.items is always an array
-      const cartItems = cart.items || [];
-      cartItems.forEach(item => {
+      safeCart.items.forEach(item => {
         const productHandle = item.product?.handle;
         const productTitle = item.product?.title;
         
-        // Check if this product qualifies
+        // Check if this item qualifies for the discount
         const qualifies = targetProducts.some(target => {
-          if (productHandle && productHandle === target) return true;
-          if (productTitle && productTitle.toLowerCase().includes(target.toLowerCase())) return true;
+          // Handle different target formats
+          if (typeof target === 'string') {
+            return target === productHandle || target === productTitle;
+          } else if (typeof target === 'object' && target.handle) {
+            return target.handle === productHandle;
+          }
           return false;
         });
         
         if (qualifies) {
           qualifyingSubtotal += (item.price * item.quantity);
-          console.log(`✅ ${productTitle}: $${(item.price * item.quantity).toFixed(2)}`);
-        } else {
-          console.log(`❌ ${productTitle}: Not qualifying`);
         }
       });
       
-      console.log(`💰 Qualifying subtotal: $${qualifyingSubtotal.toFixed(2)}`);
-      
-      // Calculate discount on qualifying products only
-      if (discountType === 'percentage') {
-        return (qualifyingSubtotal * discountValue) / 100;
-      } else if (discountType === 'fixed') {
-        return Math.min(discountValue, qualifyingSubtotal);
-      }
+      return qualifyingSubtotal * (discountValue / 100);
     } else {
-      // Site-wide discount - apply to entire cart
-      console.log(`🌍 Applying site-wide discount ${code} to entire cart: $${cartSubtotal.toFixed(2)}`);
-      
-      if (discountType === 'percentage') {
-        return (cartSubtotal * discountValue) / 100;
-      } else if (discountType === 'fixed') {
-        return Math.min(discountValue, cartSubtotal);
-      }
+      // Site-wide discount applies to entire cart
+      return cartSubtotal * (discountValue / 100);
     }
-    
-    return 0;
   };
 
   const cartTotal = (() => {
-    if (cart.appliedDiscount) {
-      const productAwareDiscountAmount = calculateProductAwareDiscount();
-      return Math.max(0, cartSubtotal - productAwareDiscountAmount);
-    }
-    return cartSubtotal;
+    const discountAmount = calculateProductAwareDiscount();
+    return Math.max(0, cartSubtotal - discountAmount);
   })();
 
-  const itemCount = (cart.items || []).reduce((count, item) => {
+  const itemCount = safeCart.items.reduce((count, item) => {
     return count + item.quantity;
   }, 0);
 
@@ -577,8 +447,15 @@ export function CartProvider({ children }) {
     return item ? item.quantity : 0;
   };
 
+  // DISABLED: New function to evaluate and select the optimal discount for current cart
+  const evaluateOptimalDiscount = async (userFid) => {
+    // Completely disabled to prevent cart crashes
+    console.log('🚫 Auto-evaluation is disabled to prevent cart crashes');
+    return null;
+  };
+
   const contextValue = {
-    cart,
+    cart: safeCart,
     addItem,
     removeItem,
     updateQuantity,
