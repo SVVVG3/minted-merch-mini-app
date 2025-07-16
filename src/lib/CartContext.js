@@ -233,12 +233,6 @@ export function CartProvider({ children }) {
       return;
     }
     
-    // Check if we already have a discount applied
-    if (cart.appliedDiscount) {
-      console.log('✅ Discount already applied:', cart.appliedDiscount.code);
-      return;
-    }
-    
     const userFid = getUserFid();
     if (!userFid) {
       console.log('❌ No user FID found, skipping auto-evaluation');
@@ -259,23 +253,40 @@ export function CartProvider({ children }) {
         console.log('🔄 Auto-evaluating discount for cart changes:', safeItems.map(item => item.product?.handle || 'unknown'));
         
         const bestDiscount = await evaluateOptimalDiscount(userFid);
+        const currentDiscount = cart.appliedDiscount;
         
         if (bestDiscount) {
-          console.log('✅ Auto-applying best discount:', bestDiscount.code);
-          applyDiscount(bestDiscount);
-          
-          // Store in session storage for consistency
-          sessionStorage.setItem('activeDiscountCode', JSON.stringify({
-            code: bestDiscount.code,
-            source: 'auto_cart_evaluation',
-            discountType: bestDiscount.discountType,
-            discountValue: bestDiscount.discountValue,
-            timestamp: new Date().toISOString(),
-            isTokenGated: bestDiscount.isTokenGated,
-            gatingType: bestDiscount.gating_type
-          }));
+          // Check if we need to apply/update the discount
+          if (!currentDiscount || currentDiscount.code !== bestDiscount.code) {
+            console.log('🔄 Discount needs updating:', {
+              from: currentDiscount?.code || 'none',
+              to: bestDiscount.code,
+              reason: !currentDiscount ? 'no current discount' : 'better discount found'
+            });
+            
+            applyDiscount(bestDiscount);
+            
+            // Store in session storage for consistency
+            sessionStorage.setItem('activeDiscountCode', JSON.stringify({
+              code: bestDiscount.code,
+              source: 'auto_cart_evaluation',
+              discountType: bestDiscount.discountType,
+              discountValue: bestDiscount.discountValue,
+              timestamp: new Date().toISOString(),
+              isTokenGated: bestDiscount.isTokenGated,
+              gatingType: bestDiscount.gating_type
+            }));
+          } else {
+            console.log('✅ Current discount is still optimal:', currentDiscount.code);
+          }
         } else {
-          console.log('❌ No optimal discount found for current cart');
+          // No discount found - remove current discount if any
+          if (currentDiscount) {
+            console.log('🗑️ Removing discount - no longer optimal for current cart');
+            removeDiscount();
+          } else {
+            console.log('❌ No optimal discount found for current cart');
+          }
         }
       } catch (error) {
         console.error('❌ Error in auto-evaluation:', error);
