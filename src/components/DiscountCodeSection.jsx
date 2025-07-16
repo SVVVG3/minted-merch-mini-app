@@ -171,10 +171,10 @@ export function DiscountCodeSection({
           </div>
         </div>
       ) : isEvaluatingDiscount ? (
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+        <div className="bg-green-50 border border-green-200 rounded-md p-3">
           <div className="flex items-center">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#3eb489] mr-2"></div>
-            <div className="text-sm text-blue-800">
+            <div className="text-sm text-green-800">
               Loading best discount...
             </div>
           </div>
