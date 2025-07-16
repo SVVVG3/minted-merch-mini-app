@@ -571,7 +571,7 @@ export function CartProvider({ children }) {
         }
       });
       
-      console.log('🎁 All available discounts:', allAvailableDiscounts.map(d => `${d.code} (${d.discount_value || d.value}% off, ${d.discount_scope || d.scope}, tokenGated: ${d.isTokenGated || false})`));
+      console.log('🎁 All available discounts:', allAvailableDiscounts.map(d => `${d.code} (${d.discount_value || d.value}% off, ${d.discount_scope || d.scope}, tokenGated: ${d.isTokenGated || false}, priority: ${d.priority_level || 0})`));
       
       if (allAvailableDiscounts.length === 0) {
         console.log('❌ No discounts available for current cart');
@@ -585,19 +585,48 @@ export function CartProvider({ children }) {
         const bestValue = best.discount_value || best.value;
         const currentScope = current.discount_scope || current.scope;
         const bestScope = best.discount_scope || best.scope;
+        const currentPriority = current.priority_level || 0;
+        const bestPriority = best.priority_level || 0;
+        
+        console.log(`🔍 Comparing discounts: ${current.code} (${currentValue}%, ${currentScope}, tokenGated: ${current.isTokenGated || false}, priority: ${currentPriority}) vs ${best.code} (${bestValue}%, ${bestScope}, tokenGated: ${best.isTokenGated || false}, priority: ${bestPriority})`);
         
         // Token-gated discounts have highest priority
-        if (current.isTokenGated && !best.isTokenGated) return current;
-        if (!current.isTokenGated && best.isTokenGated) return best;
+        if (current.isTokenGated && !best.isTokenGated) {
+          console.log(`✅ ${current.code} wins - token-gated beats non-token-gated`);
+          return current;
+        }
+        if (!current.isTokenGated && best.isTokenGated) {
+          console.log(`✅ ${best.code} wins - token-gated beats non-token-gated`);
+          return best;
+        }
         
         // Among same gating type, product-specific beats site-wide
-        if (currentScope === 'product' && bestScope === 'site_wide') return current;
-        if (currentScope === 'site_wide' && bestScope === 'product') return best;
+        if (currentScope === 'product' && bestScope === 'site_wide') {
+          console.log(`✅ ${current.code} wins - product-specific beats site-wide`);
+          return current;
+        }
+        if (currentScope === 'site_wide' && bestScope === 'product') {
+          console.log(`✅ ${best.code} wins - product-specific beats site-wide`);
+          return best;
+        }
         
-        // Among same scope and gating, higher value wins
-        if (currentValue > bestValue) return current;
-        if (currentValue === bestValue && current.priority_level > best.priority_level) return current;
+        // Among same scope and gating, higher priority_level wins first
+        if (currentPriority > bestPriority) {
+          console.log(`✅ ${current.code} wins - higher priority_level (${currentPriority} > ${bestPriority})`);
+          return current;
+        }
+        if (currentPriority < bestPriority) {
+          console.log(`✅ ${best.code} wins - higher priority_level (${bestPriority} > ${currentPriority})`);
+          return best;
+        }
         
+        // If same priority_level, higher discount value wins
+        if (currentValue > bestValue) {
+          console.log(`✅ ${current.code} wins - higher discount value (${currentValue}% > ${bestValue}%)`);
+          return current;
+        }
+        
+        console.log(`✅ ${best.code} wins - no change`);
         return best;
       });
       
