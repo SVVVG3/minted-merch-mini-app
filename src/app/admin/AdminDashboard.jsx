@@ -1423,6 +1423,12 @@ export default function AdminDashboard() {
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleOrdersSort('username')}
+                    >
+                      Username {ordersSortField === 'username' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleOrdersSort('customer_name')}
                     >
                       Customer {ordersSortField === 'customer_name' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
@@ -1490,9 +1496,14 @@ export default function AdminDashboard() {
                             )}
                           </div>
                           <div>
-                            <div className="font-medium">{order.username || order.customer_name || 'N/A'}</div>
-                            <div className="text-xs text-gray-500">{order.customer_email || 'N/A'}</div>
+                            <div className="font-medium">{order.username || 'N/A'}</div>
                           </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div>
+                          <div className="font-medium">{order.customer_name || 'N/A'}</div>
+                          <div className="text-xs text-gray-500">{order.customer_email || 'N/A'}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

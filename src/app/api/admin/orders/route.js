@@ -18,7 +18,9 @@ export async function GET(request) {
           price,
           total,
           product_title,
-          variant_title
+          variant_title,
+          price_per_item,
+          image_url
         ),
         profiles (
           username,
@@ -47,23 +49,14 @@ export async function GET(request) {
     const formattedOrders = orders.map(order => {
       const itemCount = order.order_items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
       
-      // Parse line_items JSONB to get product details
-      let lineItems = [];
-      try {
-        lineItems = JSON.parse(order.line_items || '[]');
-      } catch (error) {
-        console.error('Error parsing line_items:', error);
-        lineItems = [];
-      }
-      
-      // Format product details from line_items
-      const products = lineItems.map(item => ({
-        title: item.title || item.product_title,
+      // Format product details from order_items table (not line_items JSONB)
+      const products = order.order_items?.map(item => ({
+        title: item.product_title,
         variant: item.variant_title || 'Default',
         quantity: item.quantity,
-        price: item.price,
-        image: item.image || null
-      }));
+        price: item.price_per_item || item.price,
+        image: item.image_url || null
+      })) || [];
       
       return {
         order_id: order.order_id,
@@ -113,7 +106,7 @@ export async function GET(request) {
         display_name: order.profiles?.display_name || null,
         pfp_url: order.profiles?.pfp_url || null,
         
-        // Product details
+        // Product details from order_items table
         products: products
       };
     });
