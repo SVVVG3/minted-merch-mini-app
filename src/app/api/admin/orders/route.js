@@ -19,8 +19,7 @@ export async function GET(request) {
           total,
           product_title,
           variant_title,
-          price_per_item,
-          image_url
+          product_data
         ),
         profiles (
           username,
@@ -50,13 +49,26 @@ export async function GET(request) {
       const itemCount = order.order_items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
       
       // Format product details from order_items table (not line_items JSONB)
-      const products = order.order_items?.map(item => ({
-        title: item.product_title,
-        variant: item.variant_title || 'Default',
-        quantity: item.quantity,
-        price: item.price_per_item || item.price,
-        image: item.image_url || null
-      })) || [];
+      const products = order.order_items?.map(item => {
+        // Try to extract image from product_data JSONB if available
+        let image = null;
+        if (item.product_data) {
+          try {
+            const productData = typeof item.product_data === 'string' ? JSON.parse(item.product_data) : item.product_data;
+            image = productData.image || productData.featured_image || null;
+          } catch (e) {
+            console.warn('Error parsing product_data:', e);
+          }
+        }
+        
+        return {
+          title: item.product_title,
+          variant: item.variant_title || 'Default',
+          quantity: item.quantity,
+          price: item.price,
+          image: image
+        };
+      }) || [];
       
       return {
         order_id: order.order_id,
