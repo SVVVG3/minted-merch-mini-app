@@ -215,6 +215,13 @@ export function CartProvider({ children }) {
   // AUTO-EVALUATE DISCOUNT WHENEVER CART CHANGES
   useEffect(() => {
     const autoEvaluateDiscount = async () => {
+      console.log('🔄 AUTO-EVALUATE DISCOUNT TRIGGERED:', {
+        cartItemsLength: cart.items.length,
+        cartItems: cart.items.map(i => i.product?.handle || 'unknown'),
+        currentDiscount: cart.appliedDiscount?.code || 'none',
+        isEvaluating: isEvaluatingDiscount
+      });
+
       if (cart.items.length === 0) {
         // Clear discount if cart is empty
         if (cart.appliedDiscount) {
@@ -226,13 +233,22 @@ export function CartProvider({ children }) {
       }
 
       // Don't evaluate if we're already evaluating
-      if (isEvaluatingDiscount) return;
+      if (isEvaluatingDiscount) {
+        console.log('⏳ Already evaluating discount, skipping...');
+        return;
+      }
 
       try {
         setIsEvaluatingDiscount(true);
         
         // Get user FID from sessionStorage or other source
         const userFid = getUserFid();
+        
+        console.log('🔍 User FID detection result:', {
+          userFid,
+          userFidType: typeof userFid,
+          isValid: userFid && typeof userFid === 'number'
+        });
         
         if (!userFid) {
           console.log('🔍 No user FID available for discount evaluation');
@@ -243,10 +259,18 @@ export function CartProvider({ children }) {
         
         const bestDiscount = await evaluateOptimalDiscount(userFid);
         
+        console.log('🎯 Evaluation result:', {
+          bestDiscount: bestDiscount?.code || 'none',
+          discountValue: bestDiscount?.discount_value || 0,
+          discountScope: bestDiscount?.discount_scope || 'unknown',
+          targetProducts: bestDiscount?.target_products || []
+        });
+        
         if (!bestDiscount) {
           console.log('❌ No eligible discount found');
           // Remove existing discount if none is eligible
           if (cart.appliedDiscount) {
+            console.log('🗑️ Removing existing discount since no eligible discount found');
             dispatch({ type: CART_ACTIONS.REMOVE_DISCOUNT });
             sessionStorage.removeItem('activeDiscountCode');
           }
@@ -271,6 +295,8 @@ export function CartProvider({ children }) {
             isTokenGated: !!bestDiscount.gating_type
           };
 
+          console.log('📦 Discount to apply:', discountToApply);
+
           dispatch({ type: CART_ACTIONS.APPLY_DISCOUNT, payload: { discount: discountToApply } });
           
           // Update sessionStorage for other components
@@ -279,6 +305,10 @@ export function CartProvider({ children }) {
             timestamp: new Date().toISOString(),
             autoApplied: true
           }));
+          
+          console.log('🎉 Discount applied successfully!');
+        } else {
+          console.log('✅ Same discount already applied, no change needed');
         }
 
       } catch (error) {

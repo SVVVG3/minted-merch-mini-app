@@ -224,7 +224,7 @@ export function DiscountCodeSection({
     <div className={`space-y-3 border border-gray-200 rounded-lg p-3`}>
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-gray-900">Discount Code</h3>
-        {appliedDiscount && appliedDiscount.source === 'auto_applied' && (
+        {effectiveAppliedDiscount && (
           <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
             {tokenGatingInfo?.isTokenGated 
               ? `🎫 ${getTokenGatingDisplayText(tokenGatingInfo.gatingType)}` 
@@ -247,28 +247,28 @@ export function DiscountCodeSection({
             </div>
           )}
 
-          {/* Helper text for auto-populated codes */}
-          {autoPopulate && (
-            <div className="text-green-600 text-xs">
-              {tokenGatingInfo?.isTokenGated ? (
-                <div>
-                  🎫 <strong>{getTokenGatingDisplayText(tokenGatingInfo.gatingType)} discount found!</strong>
-                  {tokenGatingInfo.description && (
-                    <div className="text-gray-600 mt-1">{tokenGatingInfo.description}</div>
-                  )}
-                  <div className="mt-1">Click Apply to use it.</div>
-                </div>
-              ) : (
-                '💡 We found a discount code for you! Click Apply to use it.'
-              )}
-            </div>
-          )}
+          {/* Manual discount code entry */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={discountCode}
+              onChange={handleDiscountCodeChange}
+              placeholder="Enter discount code"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent"
+              disabled={isValidatingDiscount}
+            />
+            <button
+              onClick={handleApplyDiscount}
+              disabled={!discountCode.trim() || isValidatingDiscount}
+              className="px-4 py-2 bg-[#3eb489] text-white rounded-md text-sm font-medium hover:bg-[#359970] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isValidatingDiscount ? 'Applying...' : 'Apply'}
+            </button>
+          </div>
 
-          {/* Notification prompt for users without notifications */}
-          {/* This section is removed as auto-population is removed */}
-
-          {/* Show that auto-discounts are available for notification users */}
-          {/* This section is removed as auto-population is removed */}
+          <div className="text-xs text-gray-500">
+            💡 Best discounts are applied automatically when you add items to your cart
+          </div>
         </div>
       ) : (
         <div className="bg-green-50 border border-green-200 rounded-md p-3">
@@ -278,36 +278,30 @@ export function DiscountCodeSection({
                 {effectiveAppliedDiscount.discountValue}% discount applied!
                 {effectiveAppliedDiscount.freeShipping && (
                   <span className="ml-2 bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold">
-                    + FREE SHIPPING
+                    FREE SHIPPING
                   </span>
                 )}
               </div>
-              <div className="text-xs text-green-600">
-                {effectiveAppliedDiscount.source === 'auto_applied' ? (
-                  tokenGatingInfo?.isTokenGated ? (
-                    `🎫 ${getTokenGatingDisplayText(tokenGatingInfo.gatingType)} discount`
-                  ) : (
-                    'Auto-applied discount'
-                  )
-                ) : (
-                  `Code: ${effectiveAppliedDiscount.code}`
+              <div className="text-xs text-green-600 mt-1">
+                Code: {effectiveAppliedDiscount.code}
+                {effectiveAppliedDiscount.description && (
+                  <span className="ml-2">• {effectiveAppliedDiscount.description}</span>
                 )}
               </div>
-              {effectiveAppliedDiscount.discountAmount && (
-                <div className="text-xs text-green-600">
-                  Savings: ${calculateActualDiscountAmount().toFixed(2)}
-                  {effectiveAppliedDiscount.freeShipping && (
-                    <span className="ml-1">+ Free shipping</span>
-                  )}
-                </div>
-              )}
             </div>
             <button
               onClick={handleRemoveDiscount}
-              className="text-green-600 hover:text-green-800 text-sm transition-colors"
+              className="text-red-600 hover:text-red-800 text-xs font-medium"
             >
               Remove
             </button>
+          </div>
+          
+          {/* Show savings calculation */}
+          <div className="mt-2 pt-2 border-t border-green-200">
+            <div className="text-xs text-green-700">
+              You save: ${calculateActualDiscountAmount().toFixed(2)}
+            </div>
           </div>
         </div>
       )}
