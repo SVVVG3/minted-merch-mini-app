@@ -401,33 +401,20 @@ export function HomePage({ collection, products }) {
         error: null
       });
 
-      // Store notification status in session storage for other components (like Cart)
+      // If we have an active discount, show it as available but don't store for auto-application
+      if (activeDiscount) {
+        console.log('✅ Active discount available for user:', activeDiscount.code);
+        console.log('💡 Discount will be automatically applied when user adds items to cart');
+      } else {
+        console.log('🔄 No discount available for user');
+      }
+
+      // Store user context for CartContext to use
       sessionStorage.setItem('userDiscountContext', JSON.stringify({
         hasNotifications,
         lastChecked: new Date().toISOString(),
         fid
       }));
-
-      // If we have an active discount, make it available for cart integration
-      if (activeDiscount) {
-        console.log('✅ Active discount ready for cart integration:', activeDiscount.code);
-        // Store in sessionStorage for cart access
-        sessionStorage.setItem('activeDiscountCode', JSON.stringify({
-          code: activeDiscount.code,
-          source: discountSource,
-          displayText: activeDiscount.displayText || formatDiscountText(activeDiscount),
-          timestamp: new Date().toISOString(),
-          requiresNotifications: discountSource === 'user_account', // Flag database discounts
-          isTokenGated: discountSource === 'token_gated', // Flag token-gated discounts
-          gatingType: activeDiscount.gating_type || null,
-          priorityLevel: activeDiscount.priority_level || 0,
-          description: activeDiscount.discount_description || null
-        }));
-      } else {
-        // Clear any existing discount code if user doesn't qualify
-        sessionStorage.removeItem('activeDiscountCode');
-        console.log('🔄 Cleared existing discount code - user not eligible for auto-discount');
-      }
 
     } catch (error) {
       console.error('❌ Error loading user discount codes:', error);

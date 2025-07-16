@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { getBestAvailableDiscount } from './discounts';
 
 // Cart Context
@@ -186,6 +186,7 @@ const initialCartState = {
 // Cart Provider Component
 export function CartProvider({ children }) {
   const [cart, dispatch] = useReducer(cartReducer, initialCartState);
+  const [isEvaluatingDiscount, setIsEvaluatingDiscount] = useState(false);
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -211,6 +212,124 @@ export function CartProvider({ children }) {
     }
   }, [cart]);
 
+  // AUTO-EVALUATE DISCOUNT WHENEVER CART CHANGES
+  useEffect(() => {
+    const autoEvaluateDiscount = async () => {
+      if (cart.items.length === 0) {
+        // Clear discount if cart is empty
+        if (cart.appliedDiscount) {
+          console.log('🗑️ Cart is empty - clearing discount');
+          dispatch({ type: CART_ACTIONS.REMOVE_DISCOUNT });
+          sessionStorage.removeItem('activeDiscountCode');
+        }
+        return;
+      }
+
+      // Don't evaluate if we're already evaluating
+      if (isEvaluatingDiscount) return;
+
+      try {
+        setIsEvaluatingDiscount(true);
+        
+        // Get user FID from sessionStorage or other source
+        const userFid = getUserFid();
+        
+        if (!userFid) {
+          console.log('🔍 No user FID available for discount evaluation');
+          return;
+        }
+
+        console.log('🔄 Auto-evaluating discount for cart changes:', cart.items.map(i => i.product?.handle));
+        
+        const bestDiscount = await evaluateOptimalDiscount(userFid);
+        
+        if (!bestDiscount) {
+          console.log('❌ No eligible discount found');
+          // Remove existing discount if none is eligible
+          if (cart.appliedDiscount) {
+            dispatch({ type: CART_ACTIONS.REMOVE_DISCOUNT });
+            sessionStorage.removeItem('activeDiscountCode');
+          }
+          return;
+        }
+
+        // Check if we need to update the discount (different or better one found)
+        if (!cart.appliedDiscount || cart.appliedDiscount.code !== bestDiscount.code) {
+          console.log('✅ Applying best discount:', bestDiscount.code);
+          
+          const discountToApply = {
+            code: bestDiscount.code,
+            discountType: bestDiscount.discount_type || 'percentage',
+            discountValue: bestDiscount.discount_value || 0,
+            description: bestDiscount.description,
+            freeShipping: bestDiscount.free_shipping || false,
+            source: bestDiscount.gating_type ? 'token_gated' : 
+                    bestDiscount.target_products && bestDiscount.target_products.length > 0 ? 'product_specific' : 'site_wide',
+            target_products: bestDiscount.target_products || [],
+            discount_scope: bestDiscount.discount_scope || 'site_wide',
+            priority_level: bestDiscount.priority_level || 0,
+            isTokenGated: !!bestDiscount.gating_type
+          };
+
+          dispatch({ type: CART_ACTIONS.APPLY_DISCOUNT, payload: { discount: discountToApply } });
+          
+          // Update sessionStorage for other components
+          sessionStorage.setItem('activeDiscountCode', JSON.stringify({
+            ...discountToApply,
+            timestamp: new Date().toISOString(),
+            autoApplied: true
+          }));
+        }
+
+      } catch (error) {
+        console.error('❌ Error in auto-discount evaluation:', error);
+      } finally {
+        setIsEvaluatingDiscount(false);
+      }
+    };
+
+    // Debounce the evaluation to avoid excessive calls
+    const timeoutId = setTimeout(autoEvaluateDiscount, 500);
+    return () => clearTimeout(timeoutId);
+  }, [cart.items, cart.appliedDiscount?.code, isEvaluatingDiscount]);
+
+  // Helper function to get user FID (you might need to adjust this based on your auth system)
+  const getUserFid = () => {
+    try {
+      // Method 1: Check if we have user FID in sessionStorage from the Farcaster hook
+      const userContextData = sessionStorage.getItem('userDiscountContext');
+      if (userContextData) {
+        const userData = JSON.parse(userContextData);
+        return userData.fid;
+      }
+      
+      // Method 2: Check for FID in active discount data
+      const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
+      if (activeDiscountData) {
+        const discountData = JSON.parse(activeDiscountData);
+        if (discountData.fid) return discountData.fid;
+      }
+      
+      // Method 3: Access Farcaster context directly from window
+      if (typeof window !== 'undefined' && window.farcaster) {
+        const fid = window.farcaster.user?.fid;
+        if (fid && typeof fid === 'number') return fid;
+      }
+      
+      // Method 4: Check for FID in localStorage (fallback)
+      const storedFid = localStorage.getItem('farcaster_fid');
+      if (storedFid) {
+        const fid = parseInt(storedFid);
+        if (!isNaN(fid)) return fid;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error getting user FID:', error);
+      return null;
+    }
+  };
+
   // Simplified cart logic - discounts are now pre-calculated by enhanced API
   // No more complex re-evaluation needed!
 
@@ -222,7 +341,7 @@ export function CartProvider({ children }) {
     });
     
     console.log('✅ Added item to cart:', product.title);
-    // No re-evaluation needed - discounts are pre-calculated by enhanced API
+    // Auto-evaluation will happen via useEffect
   };
 
   const removeItem = (itemKey) => {
@@ -230,6 +349,7 @@ export function CartProvider({ children }) {
       type: CART_ACTIONS.REMOVE_ITEM,
       payload: { itemKey }
     });
+    // Auto-evaluation will happen via useEffect
   };
 
   const updateQuantity = (itemKey, quantity) => {
@@ -237,6 +357,7 @@ export function CartProvider({ children }) {
       type: CART_ACTIONS.UPDATE_QUANTITY,
       payload: { itemKey, quantity }
     });
+    // Auto-evaluation will happen via useEffect
   };
 
   const clearCart = () => {

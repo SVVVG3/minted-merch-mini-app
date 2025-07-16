@@ -25,11 +25,8 @@ const getTokenGatingDisplayText = (gatingType) => {
 export function DiscountCodeSection({ 
   onDiscountApplied, 
   onDiscountRemoved, 
-  subtotal = 0,
-  autoPopulate = false,
-  className = "",
-  hasNotifications = null,
-  showNotificationPrompt = false
+  subtotal, 
+  autoPopulate = false 
 }) {
   const { getFid } = useFarcaster();
   const { cart, cartSubtotal, cartTotal, items: cartItems } = useCart();
@@ -40,209 +37,39 @@ export function DiscountCodeSection({
   const effectiveAppliedDiscount = cart.appliedDiscount || appliedDiscount;
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [discountError, setDiscountError] = useState(null);
-  const [hasAutoPopulated, setHasAutoPopulated] = useState(false);
   const [tokenGatingInfo, setTokenGatingInfo] = useState(null);
 
-  // Auto-populate discount code from session storage
+  // Simple effect to sync with cart's applied discount
   useEffect(() => {
-    if (autoPopulate && !hasAutoPopulated) {
-      try {
-        const userFid = getFid();
-        console.log('🎯 Auto-populate effect triggered:', {
-          autoPopulate,
-          hasAutoPopulated,
-          userFid,
-          subtotal,
-          cartSubtotal
+    if (cart.appliedDiscount) {
+      setDiscountCode(cart.appliedDiscount.code || '');
+      setAppliedDiscount(cart.appliedDiscount);
+      
+      // Store token-gating information if available
+      if (cart.appliedDiscount.isTokenGated) {
+        setTokenGatingInfo({
+          isTokenGated: true,
+          gatingType: cart.appliedDiscount.gatingType,
+          description: cart.appliedDiscount.description,
+          priorityLevel: cart.appliedDiscount.priority_level
         });
-        
-        // Check for active discount in session storage (from HomePage)
-        const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
-        console.log('💾 Session storage data:', activeDiscountData);
-        
-        if (activeDiscountData) {
-          const activeDiscount = JSON.parse(activeDiscountData);
-          console.log('🎯 Auto-populating discount from session:', activeDiscount);
-          
-          setDiscountCode(activeDiscount.code || '');
-          // Only set hasAutoPopulated to true if we actually apply the discount
-          // setHasAutoPopulated(true);
-          
-          // Store token-gating information if available
-          if (activeDiscount.isTokenGated) {
-            setTokenGatingInfo({
-              isTokenGated: true,
-              gatingType: activeDiscount.gatingType,
-              description: activeDiscount.description,
-              priorityLevel: activeDiscount.priorityLevel
-            });
-          }
-          
-          // For token-gated discounts, wait for valid FID before auto-applying
-          if (activeDiscount.isTokenGated && (!userFid || typeof userFid !== 'number')) {
-            console.log('🔄 Token-gated discount found but waiting for valid FID...');
-            
-            // Set up a retry mechanism
-            const retryAutoApply = () => {
-              const retryFid = getFid();
-              if (retryFid && typeof retryFid === 'number') {
-                console.log('🔄 Retrying auto-apply with FID:', retryFid);
-                if ((subtotal > 0 || cartSubtotal > 0) && activeDiscount.code) {
-                  setHasAutoPopulated(true); // Set this when we successfully retry
-                  handleApplyDiscount(activeDiscount.code);
-                }
-              }
-            };
-            
-            // Retry after 500ms, 1s, and 2s
-            setTimeout(retryAutoApply, 500);
-            setTimeout(retryAutoApply, 1000);
-            setTimeout(retryAutoApply, 2000);
-            
-            return; // Don't auto-apply yet, wait for FID
-          }
-          
-          // Auto-apply the discount if we have subtotal and valid FID (for token-gated) or any FID (for non-token-gated)
-          console.log('🔍 Auto-apply conditions:', {
-            hasSubtotal: subtotal > 0,
-            hasCartSubtotal: cartSubtotal > 0,
-            subtotalCondition: subtotal > 0 || cartSubtotal > 0,
-            hasCode: !!activeDiscount.code,
-            isTokenGated: activeDiscount.isTokenGated,
-            userFid: userFid,
-            validFid: userFid && typeof userFid === 'number'
-          });
-          
-          if ((subtotal > 0 || cartSubtotal > 0) && activeDiscount.code) {
-            console.log('🚀 Auto-applying discount:', activeDiscount.code);
-            setHasAutoPopulated(true); // Set this here when we actually apply
-            handleApplyDiscount(activeDiscount.code);
-          } else {
-            console.log('❌ Auto-apply conditions not met');
-          }
-        } else {
-          console.log('❌ No active discount data found in session storage');
-        }
-      } catch (error) {
-        console.error('Error auto-populating discount:', error);
       }
+    } else {
+      setDiscountCode('');
+      setAppliedDiscount(null);
+      setTokenGatingInfo(null);
     }
-  }, [autoPopulate, hasAutoPopulated, subtotal, cartItems, getFid]); // Add getFid to dependencies
+  }, [cart.appliedDiscount]);
 
-  // Listen for sessionStorage changes (for cart discount re-evaluation)
+  // Debug effect to monitor component state
   useEffect(() => {
-    if (!autoPopulate) return;
-    
-    const handleStorageChange = () => {
-      try {
-        console.log('📻 Session storage change detected in DiscountCodeSection');
-        
-        const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
-        console.log('💾 Active discount data:', activeDiscountData);
-        
-        if (activeDiscountData) {
-          const activeDiscount = JSON.parse(activeDiscountData);
-          console.log('🔍 Parsed active discount:', activeDiscount);
-          console.log('🔍 Current discount code:', discountCode);
-          console.log('🔍 Condition checks:', {
-            codeMatch: activeDiscount.code !== discountCode,
-            autoApplied: activeDiscount.autoApplied,
-            subtotal: subtotal,
-            cartSubtotal: cartSubtotal,
-            subtotalCondition: subtotal > 0 || cartSubtotal > 0
-          });
-          
-          // Check if this is a new/better discount
-          if (activeDiscount.code !== discountCode && activeDiscount.autoApplied) {
-            console.log('🔄 New discount detected from cart re-evaluation:', activeDiscount.code);
-            
-            // Update the discount code and apply it
-            setDiscountCode(activeDiscount.code);
-            
-            if (subtotal > 0 || cartSubtotal > 0) {
-              console.log('🚀 Auto-applying discount from storage change:', activeDiscount.code);
-              handleApplyDiscount(activeDiscount.code);
-            } else {
-              console.log('❌ Subtotal conditions not met for auto-apply');
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error handling discount update:', error);
-      }
-    };
-
-    // Listen for storage events (from other tabs/components)
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Also set up a custom event listener for same-tab updates
-    window.addEventListener('sessionStorageUpdate', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('sessionStorageUpdate', handleStorageChange);
-    };
-  }, [autoPopulate, discountCode, subtotal, cartItems]);
-
-  // Retry auto-apply when FID becomes available (for token-gated discounts)
-  useEffect(() => {
-    const userFid = getFid();
-    
-    console.log('🔄 FID retry effect triggered:', {
-      userFid,
-      userFidType: typeof userFid,
-      hasAutoPopulated,
-      autoPopulate
+    console.log('📊 DiscountCodeSection Analytics:', {
+      hasDiscountCode: !!discountCode,
+      isValidatingDiscount,
+      discountError: !!discountError,
+      appliedDiscount: !!effectiveAppliedDiscount
     });
-    
-    // Only proceed if we have a valid FID and haven't auto-populated yet
-    if (userFid && typeof userFid === 'number' && !hasAutoPopulated && autoPopulate) {
-      try {
-        const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
-        if (activeDiscountData) {
-          const activeDiscount = JSON.parse(activeDiscountData);
-          
-          console.log('🔄 Checking discount for auto-apply with FID:', activeDiscount);
-          
-          // Check if this is a token-gated discount that was waiting for FID
-          if (activeDiscount.isTokenGated && activeDiscount.code) {
-            console.log('🔄 Valid FID now available, attempting auto-apply for token-gated discount:', activeDiscount.code);
-            
-            setDiscountCode(activeDiscount.code);
-            setHasAutoPopulated(true);
-            
-            // Store token-gating information
-            setTokenGatingInfo({
-              isTokenGated: true,
-              gatingType: activeDiscount.gatingType,
-              description: activeDiscount.description,
-              priorityLevel: activeDiscount.priorityLevel
-            });
-            
-            // Auto-apply now that we have a valid FID
-            if (subtotal > 0 || cartSubtotal > 0) {
-              console.log('🚀 Auto-applying token-gated discount with valid FID:', activeDiscount.code);
-              handleApplyDiscount(activeDiscount.code);
-            }
-          }
-          // Also handle non-token-gated discounts that might be waiting
-          else if (activeDiscount.code && !activeDiscount.isTokenGated) {
-            console.log('🔄 Non-token-gated discount found, auto-applying:', activeDiscount.code);
-            
-            setDiscountCode(activeDiscount.code);
-            setHasAutoPopulated(true);
-            
-            if (subtotal > 0 || cartSubtotal > 0) {
-              console.log('🚀 Auto-applying non-token-gated discount:', activeDiscount.code);
-              handleApplyDiscount(activeDiscount.code);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error in FID retry logic:', error);
-      }
-    }
-  }, [getFid(), hasAutoPopulated, autoPopulate, subtotal, cartSubtotal]); // Watch for FID changes
+  }, [discountCode, isValidatingDiscount, discountError, effectiveAppliedDiscount]);
 
   const handleApplyDiscount = async (codeToApply = null) => {
     const code = codeToApply || discountCode.trim();
@@ -355,7 +182,7 @@ export function DiscountCodeSection({
     setAppliedDiscount(null);
     setDiscountCode('');
     setDiscountError(null);
-    setHasAutoPopulated(false);
+    // setHasAutoPopulated(false); // This state is removed
     setTokenGatingInfo(null);
 
     // Clear from session storage
@@ -390,22 +217,11 @@ export function DiscountCodeSection({
     return actualDiscountAmount;
   };
 
-  // Analytics tracking for component state
-  useEffect(() => {
-    console.log('📊 DiscountCodeSection Analytics:', {
-      hasDiscountCode: !!discountCode,
-      hasAutoPopulated,
-      isValidatingDiscount,
-      discountError: !!discountError,
-      appliedDiscount: !!effectiveAppliedDiscount
-    });
-  }, [discountCode, hasAutoPopulated, isValidatingDiscount, discountError, effectiveAppliedDiscount]);
-
   const userFid = getFid();
   const isAuthenticated = !!userFid;
 
   return (
-    <div className={`space-y-3 border border-gray-200 rounded-lg p-3 ${className}`}>
+    <div className={`space-y-3 border border-gray-200 rounded-lg p-3`}>
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-gray-900">Discount Code</h3>
         {appliedDiscount && appliedDiscount.source === 'auto_applied' && (
@@ -425,14 +241,14 @@ export function DiscountCodeSection({
           )}
 
           {/* Show authentication status only if it's relevant */}
-          {!isAuthenticated && hasAutoPopulated && (
+          {!isAuthenticated && (
             <div className="text-amber-600 text-xs">
               ⚠️ For personalized discounts, connect via Farcaster
             </div>
           )}
 
           {/* Helper text for auto-populated codes */}
-          {autoPopulate && hasAutoPopulated && !effectiveAppliedDiscount && (
+          {autoPopulate && (
             <div className="text-green-600 text-xs">
               {tokenGatingInfo?.isTokenGated ? (
                 <div>
@@ -449,23 +265,10 @@ export function DiscountCodeSection({
           )}
 
           {/* Notification prompt for users without notifications */}
-          {showNotificationPrompt && hasNotifications === false && !hasAutoPopulated && (
-            <div className="bg-green-50 border border-green-200 rounded-md p-2 mt-2">
-              <div className="text-green-800 text-xs font-medium mb-1">
-                🔔 Enable notifications for automatic discounts!
-              </div>
-              <div className="text-green-600 text-xs">
-                Get 15% off your first/next order when you add the mini app and turn on notifications.
-              </div>
-            </div>
-          )}
+          {/* This section is removed as auto-population is removed */}
 
           {/* Show that auto-discounts are available for notification users */}
-          {hasNotifications === true && !hasAutoPopulated && !effectiveAppliedDiscount && (
-            <div className="text-gray-600 text-xs">
-              ✅ Auto-discounts enabled - we'll apply any available codes for you
-            </div>
-          )}
+          {/* This section is removed as auto-population is removed */}
         </div>
       ) : (
         <div className="bg-green-50 border border-green-200 rounded-md p-3">

@@ -24,42 +24,10 @@ export function Cart({ isOpen, onClose }) {
   const { getFid } = useFarcaster();
   const [localNotes, setLocalNotes] = useState(cart.notes || '');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [isEvaluatingDiscounts, setIsEvaluatingDiscounts] = useState(false);
   
-  // Cart-aware discount evaluation - runs when cart opens and has items
+  // Simple cart effect - just for cleanup when cart is empty
   useEffect(() => {
-    console.log('🛒 Cart effect triggered:', {
-      isOpen,
-      itemCount: cart.items.length,
-      items: cart.items.map(i => i.product?.title || i.title),
-      appliedDiscount: cart.appliedDiscount?.code,
-      userFid: getFid()
-    });
-    
-    if (isOpen && cart.items.length > 0) {
-      console.log('🔄 Cart changed - checking for existing discount...', cart.items.map(i => i.product?.title || i.title));
-      
-      // Check if we already have a discount from the product page
-      const existingDiscount = sessionStorage.getItem('activeDiscountCode');
-      if (existingDiscount) {
-        const discountData = JSON.parse(existingDiscount);
-        console.log('✅ Using existing discount from product page:', discountData.code);
-        
-        // If it's a product-specific discount, don't try to replace it
-        if (discountData.source === 'product_specific_api' || discountData.source === 'token_gated') {
-          console.log('🎯 Product-specific discount detected - not evaluating alternatives');
-          return;
-        }
-      }
-      
-      // Only evaluate if no existing discount or if current discount is site-wide
-      if (!existingDiscount || !cart.appliedDiscount) {
-        console.log('🔄 No existing discount found or no applied discount, evaluating...');
-        evaluateBestCartDiscount();
-      } else {
-        console.log('✅ Valid discount already applied - skipping evaluation');
-      }
-    } else if (isOpen && cart.items.length === 0) {
+    if (isOpen && cart.items.length === 0) {
       // Clear any applied discount when cart is empty
       if (cart.appliedDiscount) {
         console.log('🗑️ Cart is empty - clearing applied discount');
@@ -67,91 +35,8 @@ export function Cart({ isOpen, onClose }) {
         sessionStorage.removeItem('activeDiscountCode');
       }
     }
-  }, [isOpen, JSON.stringify(cart.items), cart.appliedDiscount?.code, getFid()]); // Deep dependency check on cart contents and FID
-  
-  const evaluateBestCartDiscount = async () => {
-    try {
-      setIsEvaluatingDiscounts(true);
-      const userFid = getFid();
-      
-      if (!userFid || typeof userFid !== 'number') {
-        console.log('🔍 No valid FID available for cart discount evaluation:', userFid);
-        return;
-      }
+  }, [isOpen, cart.items.length, cart.appliedDiscount, removeDiscount]);
 
-      console.log('🛒 Evaluating best discount for current cart contents...');
-      
-      // Use the new evaluateOptimalDiscount function from CartContext
-      const bestDiscount = await evaluateOptimalDiscount(userFid);
-      
-      if (!bestDiscount) {
-        console.log('❌ No suitable discount found for current cart');
-        // Remove any existing discount if no optimal discount found
-        if (cart.appliedDiscount) {
-          removeDiscount();
-          sessionStorage.removeItem('activeDiscountCode');
-        }
-        return;
-      }
-      
-      console.log('✅ Found optimal discount:', bestDiscount.code);
-      
-      // Apply the best discount
-      const discountToApply = {
-        code: bestDiscount.code,
-        discountType: bestDiscount.discount_type || 'percentage',
-        discountValue: bestDiscount.discount_value || 0,
-        description: bestDiscount.description,
-        freeShipping: bestDiscount.free_shipping || false,
-        source: bestDiscount.gating_type ? 'token_gated' : 
-                bestDiscount.target_products && bestDiscount.target_products.length > 0 ? 'product_specific_api' : 'site_wide',
-        target_products: bestDiscount.target_products || [],
-        priority_level: bestDiscount.priority_level || 0,
-        isTokenGated: !!bestDiscount.gating_type
-      };
-      
-      // Store in session storage for persistence
-      const sessionData = {
-        ...discountToApply,
-        timestamp: new Date().toISOString(),
-        autoApplied: true
-      };
-      
-      sessionStorage.setItem('activeDiscountCode', JSON.stringify(sessionData));
-      
-      // Apply to cart
-      applyDiscount(discountToApply);
-      
-      console.log('🎉 Applied optimal discount:', bestDiscount.code);
-      
-    } catch (error) {
-      console.error('❌ Error evaluating cart discount:', error);
-    } finally {
-      setIsEvaluatingDiscounts(false);
-    }
-  };
-  
-  // Helper function to determine if one discount should be preferred over another
-  const shouldPreferDiscount = (newDiscount, currentDiscount) => {
-    const newValue = newDiscount.discount_value || newDiscount.value || 0;
-    const currentValue = currentDiscount.discount_value || currentDiscount.value || 0;
-    const newScope = newDiscount.discount_scope || newDiscount.scope;
-    const currentScope = currentDiscount.discount_scope || currentDiscount.scope;
-    const newIsTokenGated = newDiscount.isTokenGated || false;
-    const currentIsTokenGated = currentDiscount.isTokenGated || false;
-    
-    // Token-gated discounts have highest priority
-    if (newIsTokenGated && !currentIsTokenGated) return true;
-    if (!newIsTokenGated && currentIsTokenGated) return false;
-    
-    // Among same gating type, product-specific beats site-wide
-    if (newScope === 'product' && currentScope === 'site_wide') return true;
-    if (newScope === 'site_wide' && currentScope === 'product') return false;
-    
-    // Among same scope and gating, higher value wins
-    return newValue > currentValue;
-  };
-  
   // Check notification status from session storage (set by HomePage)
   const getNotificationStatus = () => {
     try {
@@ -265,17 +150,6 @@ export function Cart({ isOpen, onClose }) {
             </div>
           ) : (
             <div className="p-4 space-y-4">
-              {/* Discount Evaluation Loading */}
-              {isEvaluatingDiscounts && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
-                    <div className="text-sm text-blue-800">
-                      🔍 Finding the best discount for your cart...
-                    </div>
-                  </div>
-                </div>
-              )}
               
               {cart.items.map((item) => (
                 <CartItem
