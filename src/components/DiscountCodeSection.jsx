@@ -29,14 +29,11 @@ export function DiscountCodeSection({
   autoPopulate = false 
 }) {
   const { getFid } = useFarcaster();
-  const { cart, cartSubtotal, cartTotal, items: cartItems } = useCart();
-  const [discountCode, setDiscountCode] = useState('');
+  const { cart, cartSubtotal, cartTotal, items: cartItems, isEvaluatingDiscount } = useCart();
   const [appliedDiscount, setAppliedDiscount] = useState(null);
   
   // Use cart's applied discount if available, otherwise use local state
   const effectiveAppliedDiscount = cart.appliedDiscount || appliedDiscount;
-  const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
-  const [discountError, setDiscountError] = useState(null);
   const [tokenGatingInfo, setTokenGatingInfo] = useState(null);
 
   // Simple effect to sync with cart's applied discount
@@ -49,7 +46,6 @@ export function DiscountCodeSection({
     });
     
     if (cart.appliedDiscount) {
-      setDiscountCode(cart.appliedDiscount.code || '');
       setAppliedDiscount(cart.appliedDiscount);
       
       // Store token-gating information if available
@@ -62,7 +58,6 @@ export function DiscountCodeSection({
         });
       }
     } else {
-      setDiscountCode('');
       setAppliedDiscount(null);
       setTokenGatingInfo(null);
     }
@@ -71,122 +66,15 @@ export function DiscountCodeSection({
   // Debug effect to monitor component state
   useEffect(() => {
     console.log('📊 DiscountCodeSection Analytics:', {
-      hasDiscountCode: !!discountCode,
-      isValidatingDiscount,
-      discountError: !!discountError,
+      isEvaluatingDiscount,
       appliedDiscount: !!effectiveAppliedDiscount,
       effectiveAppliedDiscountCode: effectiveAppliedDiscount?.code,
       cartAppliedDiscount: !!cart.appliedDiscount,
       cartAppliedDiscountCode: cart.appliedDiscount?.code
     });
-  }, [discountCode, isValidatingDiscount, discountError, effectiveAppliedDiscount, cart.appliedDiscount]);
+  }, [isEvaluatingDiscount, effectiveAppliedDiscount, cart.appliedDiscount]);
 
-  const handleApplyDiscount = async (codeToApply = null) => {
-    const code = codeToApply || discountCode.trim();
-    
-    console.log('🔥 handleApplyDiscount called:', {
-      codeToApply,
-      discountCode,
-      finalCode: code,
-      subtotal,
-      cartSubtotal,
-      appliedDiscount: !!appliedDiscount
-    });
-    
-    if (!code) {
-      console.log('❌ No code provided');
-      setDiscountError('Please enter a discount code');
-      return;
-    }
 
-    if (subtotal <= 0 && cartSubtotal <= 0) {
-      console.log('❌ Subtotal conditions not met:', { subtotal, cartSubtotal });
-      setDiscountError('Please add items to cart first');
-      return;
-    }
-
-    console.log('✅ Proceeding with discount validation');
-    setIsValidatingDiscount(true);
-    setDiscountError(null);
-
-    try {
-      const userFid = getFid();
-      
-      // Debug logging for FID
-      console.log('🔍 FID Debug:', {
-        userFid,
-        userFidType: typeof userFid,
-        userFidValue: userFid,
-        userFidIsNull: userFid === null,
-        userFidIsUndefined: userFid === undefined
-      });
-      
-      // Validate FID - only send if it's a valid number
-      const validatedFid = (userFid && typeof userFid === 'number') ? userFid : null;
-      
-      console.log('🔍 Validating code:', {
-        code,
-        originalFid: userFid,
-        validatedFid,
-        subtotal: cartSubtotal > 0 ? cartSubtotal : subtotal,
-        hasCartItems: !!(cartItems && cartItems.length > 0)
-      });
-
-      const response = await fetch('/api/validate-discount', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          code: code.toUpperCase(),
-          fid: validatedFid, // Use validated FID
-          subtotal: cartSubtotal > 0 ? cartSubtotal : subtotal,
-          cartItems: cartItems || [] // Pass cart items for gift card validation
-        })
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Invalid code');
-      }
-
-      // Check if this is a gift card
-      if (result.isGiftCard) {
-        console.log('🎁 Gift card detected:', result);
-        setDiscountError('Gift cards are not supported in this checkout flow. Please use the regular checkout.');
-        return;
-      }
-
-      // Apply the discount
-      const discount = {
-        code: result.code || code.toUpperCase(),
-        discountType: result.discountType,
-        discountValue: result.discountValue,
-        discountAmount: result.discountAmount,
-        freeShipping: result.freeShipping || false,
-        message: result.message,
-        source: codeToApply ? 'auto_applied' : 'user_entered',
-        requiresAuth: result.requiresAuth || false
-      };
-
-      setAppliedDiscount(discount);
-      setDiscountCode(discount.code);
-
-      // Notify parent component
-      if (onDiscountApplied) {
-        onDiscountApplied(discount);
-      }
-
-      console.log('✅ Discount applied successfully:', discount);
-
-    } catch (error) {
-      console.error('❌ Error applying code:', error);
-      setDiscountError(error.message);
-    } finally {
-      setIsValidatingDiscount(false);
-    }
-  };
 
   const handleRemoveDiscount = () => {
     setAppliedDiscount(null);
@@ -210,10 +98,7 @@ export function DiscountCodeSection({
     console.log('🗑️ Discount removed');
   };
 
-  const handleDiscountCodeChange = (e) => {
-    setDiscountCode(e.target.value.toUpperCase());
-    setDiscountError(null);
-  };
+
 
   // Helper function to calculate actual discount amount (product-aware)
   const calculateActualDiscountAmount = () => {
@@ -233,7 +118,7 @@ export function DiscountCodeSection({
   console.log('🎨 DiscountCodeSection render state:', {
     effectiveAppliedDiscount: !!effectiveAppliedDiscount,
     effectiveAppliedDiscountCode: effectiveAppliedDiscount?.code,
-    showManualInput: !effectiveAppliedDiscount,
+    isEvaluatingDiscount,
     isAuthenticated,
     cartHasItems: Array.isArray(cartItems) ? cartItems.length > 0 : false
   });
@@ -264,12 +149,11 @@ export function DiscountCodeSection({
                   </span>
                 )}
               </div>
-              <div className="text-xs text-green-600 mt-1">
-                Code: {effectiveAppliedDiscount.code}
-                {effectiveAppliedDiscount.description && (
-                  <span className="ml-2">• {effectiveAppliedDiscount.description}</span>
-                )}
-              </div>
+              {effectiveAppliedDiscount.description && (
+                <div className="text-xs text-green-600 mt-1">
+                  {effectiveAppliedDiscount.description}
+                </div>
+              )}
             </div>
             <button
               onClick={handleRemoveDiscount}
@@ -286,40 +170,22 @@ export function DiscountCodeSection({
             </div>
           </div>
         </div>
-      ) : (
-        <div className="space-y-2">
-          {discountError && (
-            <div className="text-red-600 text-xs">{discountError}</div>
-          )}
-
-          {/* Show authentication status only if it's relevant */}
-          {!isAuthenticated && (
-            <div className="text-amber-600 text-xs">
-              ⚠️ For personalized discounts, connect via Farcaster
+      ) : isEvaluatingDiscount ? (
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+          <div className="flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#3eb489] mr-2"></div>
+            <div className="text-sm text-blue-800">
+              Loading best discount...
             </div>
-          )}
-
-          {/* Manual discount code entry */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={discountCode}
-              onChange={handleDiscountCodeChange}
-              placeholder="Enter discount code"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent"
-              disabled={isValidatingDiscount}
-            />
-            <button
-              onClick={handleApplyDiscount}
-              disabled={!discountCode.trim() || isValidatingDiscount}
-              className="px-4 py-2 bg-[#3eb489] text-white rounded-md text-sm font-medium hover:bg-[#359970] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isValidatingDiscount ? 'Applying...' : 'Apply'}
-            </button>
           </div>
-
-          <div className="text-xs text-gray-500">
+        </div>
+      ) : (
+        <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
+          <div className="text-sm text-amber-800">
             💡 Best discounts are applied automatically when you add items to your cart
+          </div>
+          <div className="text-xs text-amber-600 mt-1">
+            Add this mini app to your Farcaster notifications for a 15% off welcome discount!
           </div>
         </div>
       )}

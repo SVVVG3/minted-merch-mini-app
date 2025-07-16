@@ -646,7 +646,8 @@ export function CartProvider({ children }) {
     itemCount,
     isInCart,
     getItemQuantity,
-    evaluateOptimalDiscount
+    evaluateOptimalDiscount,
+    isEvaluatingDiscount
   };
 
   return (
