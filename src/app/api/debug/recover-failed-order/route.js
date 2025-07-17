@@ -26,7 +26,7 @@ export async function POST(request) {
       },
       shippingAddress: {
         firstName: 'YES2Crypto',
-        lastName: sanitizeAddressField('🎩 🟪🟡'), // Remove emojis
+        lastName: '', // Manually remove emojis - was "🎩 🟪🟡"
         address1: '6001 West Parmer Lane',
         address2: 'STE 370 PMB 1654',
         city: 'Austin',
