@@ -4,6 +4,34 @@ import { sendOrderConfirmationNotificationAndMark } from '@/lib/orders';
 import { markDiscountCodeAsUsed } from '@/lib/discounts';
 import { NextResponse } from 'next/server';
 
+// Function to sanitize address fields by removing emojis
+function sanitizeAddressField(text) {
+  if (!text || typeof text !== 'string') return text;
+  
+  // Remove emojis using regex that matches most emoji ranges
+  return text.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{FE0F}]|[\u{200D}]/gu, '').trim();
+}
+
+// Function to sanitize address object
+function sanitizeAddress(address) {
+  if (!address) return address;
+  
+  return {
+    ...address,
+    firstName: sanitizeAddressField(address.firstName),
+    lastName: sanitizeAddressField(address.lastName),
+    // Keep other fields as-is since they typically don't contain emojis
+    address1: address.address1,
+    address2: address.address2,
+    city: address.city,
+    province: address.province,
+    zip: address.zip,
+    country: address.country,
+    phone: address.phone,
+    email: address.email
+  };
+}
+
 export async function POST(request) {
   const requestId = `order-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   
@@ -233,21 +261,32 @@ export async function POST(request) {
           code: selectedShipping.code || selectedShipping.title
         };
 
+        // Sanitize addresses to remove emojis before sending to Shopify
+        const sanitizedShippingAddress = sanitizeAddress(shippingAddress);
+        const sanitizedBillingAddress = billingAddress ? sanitizeAddress(billingAddress) : null;
+        
+        console.log(`🧹 [${requestId}] Address sanitization:`, {
+          originalShipping: { firstName: shippingAddress.firstName, lastName: shippingAddress.lastName },
+          sanitizedShipping: { firstName: sanitizedShippingAddress.firstName, lastName: sanitizedShippingAddress.lastName },
+          originalBilling: billingAddress ? { firstName: billingAddress.firstName, lastName: billingAddress.lastName } : null,
+          sanitizedBilling: sanitizedBillingAddress ? { firstName: sanitizedBillingAddress.firstName, lastName: sanitizedBillingAddress.lastName } : null
+        });
+
         // Prepare order data for Shopify Admin API
         const orderData = {
           lineItems,
           shippingAddress: {
-            firstName: shippingAddress.firstName,
-            lastName: shippingAddress.lastName,
-            address1: shippingAddress.address1,
-            address2: shippingAddress.address2 || '',
-            city: shippingAddress.city,
-            province: shippingAddress.province, // Use province directly
-            zip: shippingAddress.zip,
-            country: shippingAddress.country,
-            phone: shippingAddress.phone || ''
+            firstName: sanitizedShippingAddress.firstName,
+            lastName: sanitizedShippingAddress.lastName,
+            address1: sanitizedShippingAddress.address1,
+            address2: sanitizedShippingAddress.address2 || '',
+            city: sanitizedShippingAddress.city,
+            province: sanitizedShippingAddress.province, // Use province directly
+            zip: sanitizedShippingAddress.zip,
+            country: sanitizedShippingAddress.country,
+            phone: sanitizedShippingAddress.phone || ''
           },
-          billingAddress: billingAddress || null,
+          billingAddress: sanitizedBillingAddress || null,
           customer: {
             email: customer?.email || shippingAddress.email || '',
             phone: customer?.phone || shippingAddress.phone || ''
