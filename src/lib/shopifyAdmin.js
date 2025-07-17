@@ -10,6 +10,25 @@ if (!SHOPIFY_DOMAIN || !SHOPIFY_ADMIN_ACCESS_TOKEN) {
 
 const SHOPIFY_ADMIN_API_URL = `https://${SHOPIFY_DOMAIN}.myshopify.com/admin/api/2024-10/graphql.json`;
 
+// Function to sanitize address fields by removing emojis
+function sanitizeAddressField(text) {
+  if (!text || typeof text !== 'string') return text;
+  
+  // Remove emojis using regex that matches most emoji ranges
+  return text.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{FE0F}]|[\u{200D}]/gu, '').trim();
+}
+
+// Function to sanitize address object
+function sanitizeAddress(address) {
+  if (!address) return address;
+  
+  return {
+    ...address,
+    firstName: sanitizeAddressField(address.firstName),
+    lastName: sanitizeAddressField(address.lastName)
+  };
+}
+
 export async function shopifyAdminFetch(query, variables = {}) {
   if (!SHOPIFY_DOMAIN || !SHOPIFY_ADMIN_ACCESS_TOKEN) {
     throw new Error('Missing Shopify Admin environment variables. Please check SHOPIFY_SITE_DOMAIN and SHOPIFY_ADMIN_ACCESS_TOKEN.');
@@ -220,6 +239,17 @@ export async function createShopifyOrder(orderData) {
     }
   `;
 
+  // Sanitize addresses before sending to Shopify
+  const sanitizedShippingAddress = sanitizeAddress(shippingAddress);
+  const sanitizedBillingAddress = billingAddress ? sanitizeAddress(billingAddress) : sanitizeAddress(shippingAddress);
+
+  console.log('🧹 Shopify Admin: Address sanitization applied', {
+    originalShipping: { firstName: shippingAddress.firstName, lastName: shippingAddress.lastName },
+    sanitizedShipping: { firstName: sanitizedShippingAddress.firstName, lastName: sanitizedShippingAddress.lastName },
+    originalBilling: billingAddress ? { firstName: billingAddress.firstName, lastName: billingAddress.lastName } : { firstName: shippingAddress.firstName, lastName: shippingAddress.lastName },
+    sanitizedBilling: { firstName: sanitizedBillingAddress.firstName, lastName: sanitizedBillingAddress.lastName }
+  });
+
   const variables = {
     order: {
       lineItems: lineItems.map(item => ({
@@ -233,36 +263,26 @@ export async function createShopifyOrder(orderData) {
         }
       })),
       shippingAddress: {
-        firstName: shippingAddress.firstName,
-        lastName: shippingAddress.lastName,
-        address1: shippingAddress.address1,
-        address2: shippingAddress.address2 || '',
-        city: shippingAddress.city,
-        province: shippingAddress.province,
-        zip: shippingAddress.zip,
-        country: shippingAddress.country,
-        phone: shippingAddress.phone || ''
+        firstName: sanitizedShippingAddress.firstName,
+        lastName: sanitizedShippingAddress.lastName,
+        address1: sanitizedShippingAddress.address1,
+        address2: sanitizedShippingAddress.address2 || '',
+        city: sanitizedShippingAddress.city,
+        province: sanitizedShippingAddress.province,
+        zip: sanitizedShippingAddress.zip,
+        country: sanitizedShippingAddress.country,
+        phone: sanitizedShippingAddress.phone || ''
       },
-      billingAddress: billingAddress ? {
-        firstName: billingAddress.firstName,
-        lastName: billingAddress.lastName,
-        address1: billingAddress.address1,
-        address2: billingAddress.address2 || '',
-        city: billingAddress.city,
-        province: billingAddress.province,
-        zip: billingAddress.zip,
-        country: billingAddress.country,
-        phone: billingAddress.phone || ''
-      } : {
-        firstName: shippingAddress.firstName,
-        lastName: shippingAddress.lastName,
-        address1: shippingAddress.address1,
-        address2: shippingAddress.address2 || '',
-        city: shippingAddress.city,
-        province: shippingAddress.province,
-        zip: shippingAddress.zip,
-        country: shippingAddress.country,
-        phone: shippingAddress.phone || ''
+      billingAddress: {
+        firstName: sanitizedBillingAddress.firstName,
+        lastName: sanitizedBillingAddress.lastName,
+        address1: sanitizedBillingAddress.address1,
+        address2: sanitizedBillingAddress.address2 || '',
+        city: sanitizedBillingAddress.city,
+        province: sanitizedBillingAddress.province,
+        zip: sanitizedBillingAddress.zip,
+        country: sanitizedBillingAddress.country,
+        phone: sanitizedBillingAddress.phone || ''
       },
       email: customer.email || '',
       phone: customer.phone || shippingAddress.phone || '',
