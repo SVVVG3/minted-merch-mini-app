@@ -496,7 +496,7 @@ Transaction Hash: ${transactionHash}`;
         notes: cart.notes || '',
         fid: userFid, // Add user's Farcaster ID for notifications (may be null)
         appliedDiscount: appliedDiscount, // Include discount information from CartContext
-        discountAmount: appliedDiscount ? appliedDiscount.discountAmount : 0,
+        discountAmount: calculateProductAwareDiscountAmount(),
         appliedGiftCard: appliedGiftCard, // Include gift card information (for display)
         giftCardAmount: appliedGiftCard?.discount?.discountAmount || 0,
         // Format gift cards array for database tracking
