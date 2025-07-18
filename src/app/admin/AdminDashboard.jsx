@@ -154,7 +154,6 @@ export default function AdminDashboard() {
     setOrderEditData({
       status: order.status,
       tracking_number: order.tracking_number || '',
-      tracking_url: order.tracking_url || '',
       carrier: order.carrier || '',
       customer_name: order.customer_name || '',
       customer_email: order.customer_email || '',
@@ -170,16 +169,37 @@ export default function AdminDashboard() {
     setOrderEditData({});
   };
 
+  // Function to generate tracking URL based on tracking number
+  const generateTrackingUrl = (trackingNumber) => {
+    if (!trackingNumber) return null;
+    
+    // For GM tracking numbers from fulfillment service
+    if (trackingNumber.startsWith('GM533396')) {
+      // Extract 8 digits starting at position 8 (0-indexed)
+      const baseNumber = trackingNumber.substring(8, 16);
+      return `https://myorders.co/tracking/${baseNumber}/${trackingNumber}`;
+    } 
+    
+    // For manual orders (partner products, etc.) - use default base number
+    return `https://myorders.co/tracking/65859081/${trackingNumber}`;
+  };
+
   const handleOrderUpdate = async () => {
     if (!selectedOrder) return;
 
     try {
+      // Auto-generate tracking URL based on tracking number
+      const updateData = {
+        ...orderEditData,
+        tracking_url: generateTrackingUrl(orderEditData.tracking_number)
+      };
+
       const response = await fetch(`/api/admin/orders/${selectedOrder.order_id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(orderEditData),
+        body: JSON.stringify(updateData),
       });
 
       if (response.ok) {
@@ -2737,18 +2757,27 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                {/* Tracking URL */}
+                {/* Auto-generated Tracking URL Display */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tracking URL
+                    Tracking URL (Auto-generated)
                   </label>
-                  <input
-                    type="url"
-                    value={orderEditData.tracking_url || ''}
-                    onChange={(e) => setOrderEditData({...orderEditData, tracking_url: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://..."
-                  />
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 text-sm">
+                    {orderEditData.tracking_number ? 
+                      generateTrackingUrl(orderEditData.tracking_number) : 
+                      'Enter tracking number to generate URL'
+                    }
+                  </div>
+                  {orderEditData.tracking_number && orderEditData.tracking_number.startsWith('GM533396') && (
+                    <div className="text-xs text-green-600 mt-1">
+                      ✅ Fulfillment service tracking (auto-extracted base number)
+                    </div>
+                  )}
+                  {orderEditData.tracking_number && !orderEditData.tracking_number.startsWith('GM533396') && (
+                    <div className="text-xs text-blue-600 mt-1">
+                      📦 Manual order tracking (using default base number)
+                    </div>
+                  )}
                 </div>
 
                 {/* Carrier */}
