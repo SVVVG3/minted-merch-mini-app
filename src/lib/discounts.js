@@ -268,25 +268,52 @@ export async function createWelcomeDiscountCode(fid) {
 }
 
 /**
- * Check if a user has already used a specific discount code (for shared codes)
+ * Check if a user has reached their usage limit for a shared discount code
  */
 async function hasUserUsedSharedCode(discountCodeId, fid) {
   try {
+    // First get the discount code to check max_uses_per_user
+    const { data: discountCode, error: fetchError } = await supabaseAdmin
+      .from('discount_codes')
+      .select('max_uses_per_user')
+      .eq('id', discountCodeId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching discount code:', fetchError);
+      return { success: false, error: fetchError.message };
+    }
+
+    // If max_uses_per_user is null, user has unlimited uses
+    if (discountCode.max_uses_per_user === null) {
+      return { 
+        success: true, 
+        hasUsed: false,
+        userUsageCount: 0,
+        maxUsesPerUser: null
+      };
+    }
+
+    // Count how many times the user has used this code
     const { data, error } = await supabaseAdmin
       .from('discount_code_usage')
       .select('id')
       .eq('discount_code_id', discountCodeId)
-      .eq('fid', fid)
-      .limit(1);
+      .eq('fid', fid);
 
     if (error) {
       console.error('Error checking shared code usage:', error);
       return { success: false, error: error.message };
     }
 
+    const userUsageCount = data ? data.length : 0;
+    const hasReachedLimit = userUsageCount >= discountCode.max_uses_per_user;
+
     return { 
       success: true, 
-      hasUsed: data && data.length > 0 
+      hasUsed: hasReachedLimit,
+      userUsageCount,
+      maxUsesPerUser: discountCode.max_uses_per_user
     };
   } catch (error) {
     console.error('Error in hasUserUsedSharedCode:', error);
@@ -562,34 +589,35 @@ export async function markDiscountCodeAsUsed(code, orderId, fid = null, discount
       return { success: false, error: fetchError.message };
     }
 
+    // Always record usage in the tracking table for analytics (both shared and single-use codes)
+    console.log('🔄 Recording usage for discount code:', code, 'type:', discountCode.is_shared_code ? 'shared' : 'single-use');
+    
+    if (!fid) {
+      return { success: false, error: 'FID is required for discount code usage tracking' };
+    }
+
+    // Record usage in the tracking table
+    const usageResult = await recordSharedCodeUsage(
+      discountCode,
+      fid, 
+      orderId, 
+      discountAmount, 
+      originalSubtotal
+    );
+
+    if (!usageResult.success) {
+      return { success: false, error: usageResult.error };
+    }
+
     if (discountCode.is_shared_code) {
-      console.log('🔄 Recording usage for shared code:', code);
-      
-      if (!fid) {
-        return { success: false, error: 'FID is required for shared code usage tracking' };
-      }
-
-      // For shared codes, record usage in the tracking table
-      const usageResult = await recordSharedCodeUsage(
-        discountCode,
-        fid, 
-        orderId, 
-        discountAmount, 
-        originalSubtotal
-      );
-
-      if (!usageResult.success) {
-        return { success: false, error: usageResult.error };
-      }
-
       console.log('✅ Shared discount code usage recorded:', discountCode.code);
       console.log('📊 current_total_uses counter automatically updated by database trigger');
       return { success: true, discountCode, usageRecord: usageResult.usageRecord };
 
     } else {
-      console.log('👤 Marking user-specific code as used:', code);
+      console.log('👤 Marking single-use code as used:', code);
       
-      // For user-specific codes, use the original logic
+      // For single-use codes, also mark as used in the discount_codes table
       const { data: updatedCode, error: updateError } = await supabaseAdmin
         .from('discount_codes')
         .update({
@@ -606,8 +634,8 @@ export async function markDiscountCodeAsUsed(code, orderId, fid = null, discount
         return { success: false, error: updateError.message };
       }
 
-      console.log('✅ User-specific discount code marked as used:', updatedCode);
-      return { success: true, discountCode: updatedCode };
+      console.log('✅ Single-use discount code marked as used and usage recorded:', updatedCode);
+      return { success: true, discountCode: updatedCode, usageRecord: usageResult.usageRecord };
     }
 
   } catch (error) {
