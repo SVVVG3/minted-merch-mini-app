@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { updateOrderStatus } from '@/lib/orders';
 
 export async function PUT(request, { params }) {
   try {
@@ -16,79 +17,95 @@ export async function PUT(request, { params }) {
       }, { status: 400 });
     }
 
-    // Prepare update object with only the fields that can be updated
-    const updateFields = {};
-    
-    // Order status
-    if (updateData.status) {
-      updateFields.status = updateData.status;
-    }
-
-    // Tracking information
-    if (updateData.tracking_number !== undefined) {
-      updateFields.tracking_number = updateData.tracking_number || null;
-    }
-    if (updateData.tracking_url !== undefined) {
-      updateFields.tracking_url = updateData.tracking_url || null;
-    }
-    if (updateData.carrier !== undefined) {
-      updateFields.carrier = updateData.carrier || null;
-    }
-
-    // Customer information
-    if (updateData.customer_name !== undefined) {
-      updateFields.customer_name = updateData.customer_name || null;
-    }
-    if (updateData.customer_email !== undefined) {
-      updateFields.customer_email = updateData.customer_email || null;
-    }
-
-    // Notes
-    if (updateData.notes !== undefined) {
-      updateFields.notes = updateData.notes || null;
-    }
-
-    // Shipping address
-    if (updateData.shipping_address) {
-      updateFields.shipping_address = updateData.shipping_address;
-    }
-
-    // Set shipped_at timestamp when status changes to shipped
-    if (updateData.status === 'shipped' && updateFields.status === 'shipped') {
-      updateFields.shipped_at = new Date().toISOString();
-    }
-
-    // Set delivered_at timestamp when status changes to delivered
-    if (updateData.status === 'delivered' && updateFields.status === 'delivered') {
-      updateFields.delivered_at = new Date().toISOString();
-    }
-
-    // Always update the updated_at timestamp
-    updateFields.updated_at = new Date().toISOString();
-
-    console.log('📝 Update fields:', updateFields);
-
-    // Update the order in the database
-    const { data: updatedOrder, error } = await supabaseAdmin
+    // Get current order first to check for status changes
+    const { data: currentOrder, error: fetchError } = await supabaseAdmin
       .from('orders')
-      .update(updateFields)
+      .select('*')
       .eq('order_id', orderId)
-      .select()
       .single();
 
-    if (error) {
-      console.error('❌ Error updating order:', error);
-      return NextResponse.json({
-        success: false,
-        error: error.message || 'Failed to update order'
-      }, { status: 500 });
-    }
-
-    if (!updatedOrder) {
+    if (fetchError || !currentOrder) {
+      console.error('❌ Error fetching current order:', fetchError);
       return NextResponse.json({
         success: false,
         error: 'Order not found'
       }, { status: 404 });
+    }
+
+    let updatedOrder = currentOrder;
+
+    // Handle status updates with notifications using the existing system
+    if (updateData.status && updateData.status !== currentOrder.status) {
+      console.log(`🔄 Status change detected: ${currentOrder.status} → ${updateData.status}`);
+      
+      const statusResult = await updateOrderStatus(orderId, updateData.status);
+      
+      if (!statusResult.success) {
+        console.error('❌ Error updating order status:', statusResult.error);
+        return NextResponse.json({
+          success: false,
+          error: statusResult.error || 'Failed to update order status'
+        }, { status: 500 });
+      }
+      
+      updatedOrder = statusResult.order;
+      console.log('✅ Order status updated with notifications:', updatedOrder.order_id);
+    }
+
+    // Handle other field updates (non-status fields)
+    const otherUpdateFields = {};
+    
+    // Tracking information
+    if (updateData.tracking_number !== undefined) {
+      otherUpdateFields.tracking_number = updateData.tracking_number || null;
+    }
+    if (updateData.tracking_url !== undefined) {
+      otherUpdateFields.tracking_url = updateData.tracking_url || null;
+    }
+    if (updateData.carrier !== undefined) {
+      otherUpdateFields.carrier = updateData.carrier || null;
+    }
+
+    // Customer information
+    if (updateData.customer_name !== undefined) {
+      otherUpdateFields.customer_name = updateData.customer_name || null;
+    }
+    if (updateData.customer_email !== undefined) {
+      otherUpdateFields.customer_email = updateData.customer_email || null;
+    }
+
+    // Notes
+    if (updateData.notes !== undefined) {
+      otherUpdateFields.notes = updateData.notes || null;
+    }
+
+    // Shipping address
+    if (updateData.shipping_address) {
+      otherUpdateFields.shipping_address = updateData.shipping_address;
+    }
+
+    // If there are other fields to update, do a separate update
+    if (Object.keys(otherUpdateFields).length > 0) {
+      otherUpdateFields.updated_at = new Date().toISOString();
+      
+      console.log('📝 Updating other fields:', otherUpdateFields);
+
+      const { data: finalOrder, error: updateError } = await supabaseAdmin
+        .from('orders')
+        .update(otherUpdateFields)
+        .eq('order_id', orderId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('❌ Error updating other order fields:', updateError);
+        return NextResponse.json({
+          success: false,
+          error: updateError.message || 'Failed to update order fields'
+        }, { status: 500 });
+      }
+
+      updatedOrder = finalOrder;
     }
 
     console.log('✅ Order updated successfully:', updatedOrder.order_id);
