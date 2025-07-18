@@ -491,30 +491,30 @@ export async function POST(request) {
       }
     }
 
+    // Mark discount code as used if one was applied (track usage whenever Shopify order succeeds)
+    if (shopifyOrder && appliedDiscount && appliedDiscount.code) {
+      try {
+        const orderIdForTracking = supabaseOrder?.order?.order_id || shopifyOrder.name;
+        const markUsedResult = await markDiscountCodeAsUsed(
+          appliedDiscount.code, 
+          orderIdForTracking,
+          fidInt,
+          discountAmount || 0,
+          subtotalPrice // Use original subtotal for discount calculation
+        );
+        if (markUsedResult.success) {
+          console.log('✅ Discount code marked as used:', appliedDiscount.code);
+        } else {
+          console.error('❌ Failed to mark discount code as used:', markUsedResult.error);
+        }
+      } catch (discountError) {
+        console.error('❌ Error marking discount code as used:', discountError);
+      }
+    }
+
     if (shopifyOrder && (supabaseOrder || supabaseOrder?.manual_fix_needed)) {
       console.log(`✅ [${requestId}] Order created in Shopify${supabaseOrder?.manual_fix_needed ? ' (Supabase skipped - manual fix needed)' : ' and Supabase'}`);
       
-      // Mark discount code as used if one was applied (only if Supabase order was created)
-      if (appliedDiscount && appliedDiscount.code && supabaseOrder?.success !== false) {
-        try {
-          const markUsedResult = await markDiscountCodeAsUsed(
-            appliedDiscount.code, 
-            supabaseOrder.order.order_id,
-            fidInt,
-            discountAmount || 0,
-            subtotalPrice // Use original subtotal for discount calculation
-          );
-          if (markUsedResult.success) {
-            console.log('✅ Discount code marked as used:', appliedDiscount.code);
-          } else {
-            console.error('❌ Failed to mark discount code as used:', markUsedResult.error);
-          }
-        } catch (discountError) {
-          console.error('❌ Error marking discount code as used:', discountError);
-        }
-      } else if (appliedDiscount && appliedDiscount.code && supabaseOrder?.manual_fix_needed) {
-        console.warn('⚠️ Discount code usage tracking skipped due to missing Supabase order - manual fix needed');
-      }
       
       // Send order confirmation notification (only if FID provided and Supabase order created)
       if (fidInt && supabaseOrder?.success !== false) {

@@ -1,6 +1,7 @@
 import { createShopifyOrder } from '@/lib/shopifyAdmin';
 import { createOrder as createSupabaseOrder } from '@/lib/orders';
 import { sendOrderConfirmationNotificationAndMark } from '@/lib/orders';
+import { markDiscountCodeAsUsed } from '@/lib/discounts';
 import { NextResponse } from 'next/server';
 
 // Function to sanitize address fields by removing emojis
@@ -163,6 +164,27 @@ export async function POST(request) {
       // Don't throw here - Shopify order was already created
     } else {
       console.log(`✅ [${requestId}] Supabase order created with ID: ${supabaseResult.order.id}`);
+    }
+
+    // Mark discount code as used
+    console.log(`🔧 [${requestId}] Marking discount code as used...`);
+    
+    try {
+      const markUsedResult = await markDiscountCodeAsUsed(
+        failedOrderData.appliedDiscount.code,
+        shopifyOrder.name,
+        failedOrderData.fid,
+        failedOrderData.discountAmount || 0,
+        subtotal
+      );
+      if (markUsedResult.success) {
+        console.log(`✅ [${requestId}] Discount code marked as used: ${failedOrderData.appliedDiscount.code}`);
+      } else {
+        console.error(`❌ [${requestId}] Failed to mark discount code as used:`, markUsedResult.error);
+      }
+    } catch (discountError) {
+      console.error(`⚠️ [${requestId}] Discount code marking failed:`, discountError);
+      // Don't throw - order is created, discount tracking failure is non-critical
     }
 
     // Send order confirmation notification
