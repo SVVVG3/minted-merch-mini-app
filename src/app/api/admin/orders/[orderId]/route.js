@@ -81,6 +81,18 @@ export async function PUT(request, { params }) {
       otherUpdateFields.shipping_address = updateData.shipping_address;
     }
 
+    // Partner assignment
+    if (updateData.assigned_partner_id !== undefined) {
+      otherUpdateFields.assigned_partner_id = updateData.assigned_partner_id || null;
+      // Set assigned_at timestamp when assigning to a partner
+      if (updateData.assigned_partner_id) {
+        otherUpdateFields.assigned_at = new Date().toISOString();
+      } else {
+        // Clear assigned_at when unassigning
+        otherUpdateFields.assigned_at = null;
+      }
+    }
+
     // If there are other fields to update, do a separate update
     if (Object.keys(otherUpdateFields).length > 0) {
       otherUpdateFields.updated_at = new Date().toISOString();

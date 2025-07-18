@@ -73,6 +73,18 @@ export default function AdminDashboard() {
   const [showEditDiscount, setShowEditDiscount] = useState(false);
   const [editingDiscount, setEditingDiscount] = useState(null);
   
+  // Partners state
+  const [partnersData, setPartnersData] = useState([]);
+  const [partnersLoading, setPartnersLoading] = useState(false);
+  const [partnersError, setPartnersError] = useState('');
+  const [showCreatePartner, setShowCreatePartner] = useState(false);
+  const [createPartnerData, setCreatePartnerData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    fid: ''
+  });
+
   // Discounts filtering and sorting state
   const [discountFilters, setDiscountFilters] = useState({
     searchTerm: '',
@@ -157,9 +169,14 @@ export default function AdminDashboard() {
       carrier: order.carrier || '',
       customer_name: order.customer_name || '',
       customer_email: order.customer_email || '',
-      shipping_address: order.shipping_address || {}
+      shipping_address: order.shipping_address || {},
+      assigned_partner_id: order.assigned_partner_id || ''
     });
     setOrderEditModalOpen(true);
+    // Load partners for assignment if not already loaded
+    if (partnersData.length === 0) {
+      loadPartners();
+    }
   };
 
   const closeOrderEditModal = () => {
@@ -437,6 +454,89 @@ export default function AdminDashboard() {
     }
   };
 
+  // Load partners from database
+  const loadPartners = async () => {
+    setPartnersLoading(true);
+    setPartnersError('');
+    
+    try {
+      const response = await fetch('/api/admin/partners');
+      const result = await response.json();
+      
+      if (result.success) {
+        setPartnersData(result.data);
+      } else {
+        setPartnersError(result.error || 'Failed to load partners');
+      }
+    } catch (error) {
+      console.error('Error loading partners:', error);
+      setPartnersError('Failed to load partners');
+    } finally {
+      setPartnersLoading(false);
+    }
+  };
+
+  // Create new partner
+  const handleCreatePartner = async () => {
+    if (!createPartnerData.name || !createPartnerData.email || !createPartnerData.password) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/partners', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: createPartnerData.name,
+          email: createPartnerData.email,
+          password: createPartnerData.password,
+          fid: createPartnerData.fid || null
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('Partner created successfully!');
+        setShowCreatePartner(false);
+        setCreatePartnerData({ name: '', email: '', password: '', fid: '' });
+        loadPartners(); // Refresh the list
+      } else {
+        alert(result.error || 'Failed to create partner');
+      }
+    } catch (error) {
+      console.error('Error creating partner:', error);
+      alert('Failed to create partner');
+    }
+  };
+
+  // Toggle partner active status
+  const togglePartnerStatus = async (partnerId, isActive) => {
+    try {
+      const response = await fetch(`/api/admin/partners/${partnerId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_active: !isActive }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        loadPartners(); // Refresh the list
+      } else {
+        alert(result.error || 'Failed to update partner status');
+      }
+    } catch (error) {
+      console.error('Error updating partner status:', error);
+      alert('Failed to update partner status');
+    }
+  };
+
   // Load past raffles when Past Raffles tab is selected
   useEffect(() => {
     if (activeTab === 'past-raffles' && pastRaffles.length === 0) {
@@ -455,6 +555,13 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (activeTab === 'checkins' && checkinsData.length === 0) {
       loadCheckinsData();
+    }
+  }, [activeTab]);
+
+  // Load partners when Partners tab is selected
+  useEffect(() => {
+    if (activeTab === 'partners' && partnersData.length === 0) {
+      loadPartners();
     }
   }, [activeTab]);
 
@@ -991,6 +1098,7 @@ export default function AdminDashboard() {
                 { key: 'dashboard', label: '📊 Dashboard' },
                 { key: 'users', label: '👥 Users' },
                 { key: 'orders', label: '🛍️ Orders' },
+                { key: 'partners', label: '🤝 Partners' },
                 { key: 'discounts', label: '🎫 Discounts' },
                 { key: 'leaderboard', label: '🏆 Leaderboard' },
                 { key: 'checkins', label: '📅 Check-ins' },
@@ -1557,6 +1665,11 @@ export default function AdminDashboard() {
                       Status {ordersSortField === 'status' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
                     </th>
                     <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Assigned Partner
+                    </th>
+                    <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleOrdersSort('shipped_at')}
                     >
@@ -1675,12 +1788,26 @@ export default function AdminDashboard() {
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           order.status === 'paid' ? 'bg-green-100 text-green-800' :
                           order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          order.status === 'assigned' ? 'bg-orange-100 text-orange-800' :
                           order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
                           order.status === 'delivered' ? 'bg-purple-100 text-purple-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
                           {order.status}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {order.partners ? (
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                            <div>
+                              <div className="font-medium text-xs">{order.partners.name}</div>
+                              <div className="text-xs text-gray-500">{order.partners.email}</div>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">Unassigned</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         <div className="space-y-1">
@@ -2695,6 +2822,218 @@ export default function AdminDashboard() {
             )}
           </div>
         )}
+
+        {/* Partners Tab */}
+        {activeTab === 'partners' && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-gray-800">🤝 Partners</h2>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowCreatePartner(true)}
+                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                >
+                  ➕ Add Partner
+                </button>
+                <button
+                  onClick={loadPartners}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+            </div>
+            
+            {partnersLoading ? (
+              <div className="p-6 text-center">
+                <div className="text-gray-500">Loading partners...</div>
+              </div>
+            ) : partnersError ? (
+              <div className="p-6 text-center">
+                <div className="text-red-600">{partnersError}</div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Partner Info
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Linked Farcaster
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Created
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {partnersData.map((partner) => (
+                      <tr key={partner.id}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{partner.name}</div>
+                              <div className="text-sm text-gray-500">{partner.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {partner.fid ? (
+                            <div className="flex items-center space-x-2">
+                              {partner.profiles?.pfp_url && (
+                                <img
+                                  src={partner.profiles.pfp_url}
+                                  alt={partner.profiles.username}
+                                  className="w-6 h-6 rounded-full"
+                                />
+                              )}
+                              <span className="text-sm text-gray-900">
+                                @{partner.profiles?.username || `FID ${partner.fid}`}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-500">No FID linked</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            partner.is_active 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {partner.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(partner.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={() => togglePartnerStatus(partner.id, partner.is_active)}
+                            className={`${
+                              partner.is_active 
+                                ? 'text-red-600 hover:text-red-900' 
+                                : 'text-green-600 hover:text-green-900'
+                            } mr-4`}
+                          >
+                            {partner.is_active ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {partnersData.length === 0 && (
+                  <div className="p-6 text-center text-gray-500">
+                    No partners found. Create your first partner to get started.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Create Partner Modal */}
+        {showCreatePartner && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg max-w-md w-full">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold">Add New Partner</h2>
+                  <button
+                    onClick={() => setShowCreatePartner(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={createPartnerData.name}
+                      onChange={(e) => setCreatePartnerData({...createPartnerData, name: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Partner Name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email *
+                    </label>
+                    <input
+                      type="email"
+                      value={createPartnerData.email}
+                      onChange={(e) => setCreatePartnerData({...createPartnerData, email: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="partner@example.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Password *
+                    </label>
+                    <input
+                      type="password"
+                      value={createPartnerData.password}
+                      onChange={(e) => setCreatePartnerData({...createPartnerData, password: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Password"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Farcaster ID (Optional)
+                    </label>
+                    <input
+                      type="number"
+                      value={createPartnerData.fid}
+                      onChange={(e) => setCreatePartnerData({...createPartnerData, fid: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="123456"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Optional: Link to Farcaster profile for notifications
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex space-x-3">
+                  <button
+                    onClick={() => setShowCreatePartner(false)}
+                    className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreatePartner}
+                    className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md"
+                  >
+                    Create Partner
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       
             {/* User Modal */}
@@ -2735,11 +3074,34 @@ export default function AdminDashboard() {
                     <option value="pending">Pending</option>
                     <option value="paid">Paid</option>
                     <option value="processing">Processing</option>
+                    <option value="assigned">Assigned</option>
                     <option value="shipped">Shipped</option>
                     <option value="delivered">Delivered</option>
                     <option value="cancelled">Cancelled</option>
                     <option value="refunded">Refunded</option>
                   </select>
+                </div>
+
+                {/* Assigned Partner */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Assigned Partner
+                  </label>
+                  <select
+                    value={orderEditData.assigned_partner_id || ''}
+                    onChange={(e) => setOrderEditData({...orderEditData, assigned_partner_id: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Unassigned</option>
+                    {partnersData.filter(partner => partner.is_active).map((partner) => (
+                      <option key={partner.id} value={partner.id}>
+                        {partner.name} ({partner.email})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Select a partner to assign this order for fulfillment
+                  </p>
                 </div>
 
                 {/* Tracking Number */}

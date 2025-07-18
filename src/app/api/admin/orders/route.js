@@ -5,7 +5,7 @@ export async function GET(request) {
   try {
     console.log('🛍️ Fetching all orders for admin dashboard...');
 
-    // Fetch all orders with order items and user profiles - using correct column names from database
+    // Fetch all orders with order items, user profiles, and assigned partners - using correct column names from database
     const { data: orders, error: ordersError } = await supabaseAdmin
       .from('orders')
       .select(`
@@ -25,6 +25,11 @@ export async function GET(request) {
           username,
           display_name,
           pfp_url
+        ),
+        partners (
+          id,
+          name,
+          email
         )
       `)
       .order('created_at', { ascending: false });
