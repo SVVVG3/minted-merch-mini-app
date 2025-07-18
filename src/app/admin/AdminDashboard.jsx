@@ -157,7 +157,6 @@ export default function AdminDashboard() {
       carrier: order.carrier || '',
       customer_name: order.customer_name || '',
       customer_email: order.customer_email || '',
-      notes: order.notes || '',
       shipping_address: order.shipping_address || {}
     });
     setOrderEditModalOpen(true);
@@ -2828,19 +2827,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Notes */}
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Notes
-                </label>
-                <textarea
-                  value={orderEditData.notes || ''}
-                  onChange={(e) => setOrderEditData({...orderEditData, notes: e.target.value})}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Add any notes or comments about this order..."
-                />
-              </div>
+              {/* Notes field removed - doesn't exist in orders table */}
 
               {/* Shipping Address Section */}
               <div className="mt-6">

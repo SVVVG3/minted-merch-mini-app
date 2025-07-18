@@ -74,10 +74,7 @@ export async function PUT(request, { params }) {
       otherUpdateFields.customer_email = updateData.customer_email || null;
     }
 
-    // Notes
-    if (updateData.notes !== undefined) {
-      otherUpdateFields.notes = updateData.notes || null;
-    }
+    // Notes field doesn't exist in orders table - removed
 
     // Shipping address
     if (updateData.shipping_address) {
