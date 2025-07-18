@@ -1486,6 +1486,17 @@ export default function AdminDashboard() {
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleOrdersSort('shipped_at')}
+                    >
+                      Tracking {ordersSortField === 'shipped_at' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Notifications
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleOrdersSort('item_count')}
                     >
                       Items {ordersSortField === 'item_count' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
@@ -1593,6 +1604,66 @@ export default function AdminDashboard() {
                         }`}>
                           {order.status}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        <div className="space-y-1">
+                          {order.tracking_number ? (
+                            <div className="text-xs">
+                              <div className="font-medium">
+                                {order.tracking_url ? (
+                                  <a 
+                                    href={order.tracking_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                                  >
+                                    {order.tracking_number}
+                                  </a>
+                                ) : (
+                                  <span>{order.tracking_number}</span>
+                                )}
+                              </div>
+                              {order.carrier && (
+                                <div className="text-gray-500">{order.carrier}</div>
+                              )}
+                              {order.shipped_at && (
+                                <div className="text-gray-500">
+                                  Shipped: {formatDate(order.shipped_at)}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs">No tracking</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        <div className="space-y-1">
+                          <div className="text-xs">
+                            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              order.order_confirmation_sent ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {order.order_confirmation_sent ? '✅' : '❌'} Order Confirmation
+                            </div>
+                            {order.order_confirmation_sent_at && (
+                              <div className="text-gray-500 mt-1">
+                                {formatDate(order.order_confirmation_sent_at)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-xs">
+                            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              order.shipping_notification_sent ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {order.shipping_notification_sent ? '✅' : '❌'} Shipping Notification
+                            </div>
+                            {order.shipping_notification_sent_at && (
+                              <div className="text-gray-500 mt-1">
+                                {formatDate(order.shipping_notification_sent_at)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.item_count}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">

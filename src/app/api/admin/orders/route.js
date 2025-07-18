@@ -113,6 +113,12 @@ export async function GET(request) {
         delivered_at: order.delivered_at,
         archived_at: order.archived_at,
         
+        // Notification status
+        order_confirmation_sent: order.order_confirmation_sent,
+        order_confirmation_sent_at: order.order_confirmation_sent_at,
+        shipping_notification_sent: order.shipping_notification_sent,
+        shipping_notification_sent_at: order.shipping_notification_sent_at,
+        
         // Gift card info
         gift_card_codes: order.gift_card_codes,
         gift_card_total_used: order.gift_card_total_used,
