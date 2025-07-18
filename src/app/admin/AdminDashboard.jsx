@@ -1474,6 +1474,11 @@ export default function AdminDashboard() {
                       Customer {ordersSortField === 'customer_name' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
                     </th>
                     <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Shipping Address
+                    </th>
+                    <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleOrdersSort('status')}
                     >
@@ -1552,6 +1557,30 @@ export default function AdminDashboard() {
                         <div>
                           <div className="font-medium">{order.customer_name || 'N/A'}</div>
                           <div className="text-xs text-gray-500">{order.customer_email || 'N/A'}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        <div className="max-w-xs">
+                          {order.shipping_address ? (
+                            <div className="text-xs space-y-1">
+                              <div className="font-medium">
+                                {order.shipping_address.firstName} {order.shipping_address.lastName}
+                              </div>
+                              <div>{order.shipping_address.address1}</div>
+                              {order.shipping_address.address2 && (
+                                <div>{order.shipping_address.address2}</div>
+                              )}
+                              <div>
+                                {order.shipping_address.city}, {order.shipping_address.province} {order.shipping_address.zip}
+                              </div>
+                              <div className="text-gray-500">{order.shipping_address.country}</div>
+                              {order.shipping_address.phone && (
+                                <div className="text-gray-500">{order.shipping_address.phone}</div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs">No shipping address</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

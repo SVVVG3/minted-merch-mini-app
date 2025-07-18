@@ -90,6 +90,11 @@ export async function GET(request) {
         discount_amount: order.discount_amount,
         discount_percentage: order.discount_percentage,
         
+        // Shipping information
+        shipping_address: order.shipping_address,
+        shipping_method: order.shipping_method,
+        shipping_cost: order.shipping_cost,
+        
         // Other order details
         payment_method: order.payment_method,
         payment_status: order.payment_status,
