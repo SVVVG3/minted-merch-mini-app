@@ -194,7 +194,7 @@ export default function AdminDashboard() {
         tracking_url: generateTrackingUrl(orderEditData.tracking_number)
       };
 
-      const response = await fetch(`/api/admin/orders/${selectedOrder.order_id}`, {
+      const response = await fetch(`/api/admin/orders/${encodeURIComponent(selectedOrder.order_id)}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
