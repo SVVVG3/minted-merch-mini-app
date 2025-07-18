@@ -55,6 +55,11 @@ export default function AdminDashboard() {
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [selectedUserFid, setSelectedUserFid] = useState(null);
   
+  // Order edit modal state
+  const [orderEditModalOpen, setOrderEditModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orderEditData, setOrderEditData] = useState({});
+  
   // Leaderboard sorting state
   const [sortField, setSortField] = useState('total_points');
   const [sortDirection, setSortDirection] = useState('desc');
@@ -141,6 +146,54 @@ export default function AdminDashboard() {
   const closeUserModal = () => {
     setUserModalOpen(false);
     setSelectedUserFid(null);
+  };
+
+  // Order edit modal functions
+  const openOrderEditModal = (order) => {
+    setSelectedOrder(order);
+    setOrderEditData({
+      status: order.status,
+      tracking_number: order.tracking_number || '',
+      tracking_url: order.tracking_url || '',
+      carrier: order.carrier || '',
+      customer_name: order.customer_name || '',
+      customer_email: order.customer_email || '',
+      notes: order.notes || '',
+      shipping_address: order.shipping_address || {}
+    });
+    setOrderEditModalOpen(true);
+  };
+
+  const closeOrderEditModal = () => {
+    setOrderEditModalOpen(false);
+    setSelectedOrder(null);
+    setOrderEditData({});
+  };
+
+  const handleOrderUpdate = async () => {
+    if (!selectedOrder) return;
+
+    try {
+      const response = await fetch(`/api/admin/orders/${selectedOrder.order_id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderEditData),
+      });
+
+      if (response.ok) {
+        // Refresh the orders data
+        loadDashboardData();
+        closeOrderEditModal();
+        alert('Order updated successfully!');
+      } else {
+        alert('Failed to update order');
+      }
+    } catch (error) {
+      console.error('Error updating order:', error);
+      alert('Failed to update order');
+    }
   };
 
   const runRaffle = async (winnersCount = null, customFilters = null, criteriaDescription = null) => {
@@ -1524,6 +1577,11 @@ export default function AdminDashboard() {
                     >
                       Date {ordersSortField === 'created_at' && (ordersSortDirection === 'asc' ? '↑' : '↓')}
                     </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -1706,6 +1764,14 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatDate(order.created_at)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <button
+                          onClick={() => openOrderEditModal(order)}
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
+                        >
+                          Edit
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -2612,12 +2678,303 @@ export default function AdminDashboard() {
         )}
       </div>
       
-      {/* User Modal */}
-      <UserModal 
-        isOpen={userModalOpen} 
-        onClose={closeUserModal} 
-        userFid={selectedUserFid} 
+            {/* User Modal */}
+      <UserModal
+        isOpen={userModalOpen}
+        onClose={closeUserModal}
+        userFid={selectedUserFid}
       />
+
+      {/* Order Edit Modal */}
+      {orderEditModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Edit Order {selectedOrder?.order_id}</h2>
+                <button
+                  onClick={closeOrderEditModal}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Order Status */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Order Status
+                  </label>
+                  <select
+                    value={orderEditData.status || ''}
+                    onChange={(e) => setOrderEditData({...orderEditData, status: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="processing">Processing</option>
+                    <option value="shipped">Shipped</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="refunded">Refunded</option>
+                  </select>
+                </div>
+
+                {/* Tracking Number */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tracking Number
+                  </label>
+                  <input
+                    type="text"
+                    value={orderEditData.tracking_number || ''}
+                    onChange={(e) => setOrderEditData({...orderEditData, tracking_number: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter tracking number"
+                  />
+                </div>
+
+                {/* Tracking URL */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tracking URL
+                  </label>
+                  <input
+                    type="url"
+                    value={orderEditData.tracking_url || ''}
+                    onChange={(e) => setOrderEditData({...orderEditData, tracking_url: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://..."
+                  />
+                </div>
+
+                {/* Carrier */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Carrier
+                  </label>
+                  <select
+                    value={orderEditData.carrier || ''}
+                    onChange={(e) => setOrderEditData({...orderEditData, carrier: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select carrier</option>
+                    <option value="UPS">UPS</option>
+                    <option value="FedEx">FedEx</option>
+                    <option value="USPS">USPS</option>
+                    <option value="DHL">DHL</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                {/* Customer Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Customer Name
+                  </label>
+                  <input
+                    type="text"
+                    value={orderEditData.customer_name || ''}
+                    onChange={(e) => setOrderEditData({...orderEditData, customer_name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Customer name"
+                  />
+                </div>
+
+                {/* Customer Email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Customer Email
+                  </label>
+                  <input
+                    type="email"
+                    value={orderEditData.customer_email || ''}
+                    onChange={(e) => setOrderEditData({...orderEditData, customer_email: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="customer@example.com"
+                  />
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Notes
+                </label>
+                <textarea
+                  value={orderEditData.notes || ''}
+                  onChange={(e) => setOrderEditData({...orderEditData, notes: e.target.value})}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Add any notes or comments about this order..."
+                />
+              </div>
+
+              {/* Shipping Address Section */}
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-3">Shipping Address</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      value={orderEditData.shipping_address?.firstName || ''}
+                      onChange={(e) => setOrderEditData({
+                        ...orderEditData,
+                        shipping_address: {
+                          ...orderEditData.shipping_address,
+                          firstName: e.target.value
+                        }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      value={orderEditData.shipping_address?.lastName || ''}
+                      onChange={(e) => setOrderEditData({
+                        ...orderEditData,
+                        shipping_address: {
+                          ...orderEditData.shipping_address,
+                          lastName: e.target.value
+                        }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Address Line 1
+                    </label>
+                    <input
+                      type="text"
+                      value={orderEditData.shipping_address?.address1 || ''}
+                      onChange={(e) => setOrderEditData({
+                        ...orderEditData,
+                        shipping_address: {
+                          ...orderEditData.shipping_address,
+                          address1: e.target.value
+                        }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Address Line 2 (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={orderEditData.shipping_address?.address2 || ''}
+                      onChange={(e) => setOrderEditData({
+                        ...orderEditData,
+                        shipping_address: {
+                          ...orderEditData.shipping_address,
+                          address2: e.target.value
+                        }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      City
+                    </label>
+                    <input
+                      type="text"
+                      value={orderEditData.shipping_address?.city || ''}
+                      onChange={(e) => setOrderEditData({
+                        ...orderEditData,
+                        shipping_address: {
+                          ...orderEditData.shipping_address,
+                          city: e.target.value
+                        }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      State/Province
+                    </label>
+                    <input
+                      type="text"
+                      value={orderEditData.shipping_address?.province || ''}
+                      onChange={(e) => setOrderEditData({
+                        ...orderEditData,
+                        shipping_address: {
+                          ...orderEditData.shipping_address,
+                          province: e.target.value
+                        }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ZIP/Postal Code
+                    </label>
+                    <input
+                      type="text"
+                      value={orderEditData.shipping_address?.zip || ''}
+                      onChange={(e) => setOrderEditData({
+                        ...orderEditData,
+                        shipping_address: {
+                          ...orderEditData.shipping_address,
+                          zip: e.target.value
+                        }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Country
+                    </label>
+                    <input
+                      type="text"
+                      value={orderEditData.shipping_address?.country || ''}
+                      onChange={(e) => setOrderEditData({
+                        ...orderEditData,
+                        shipping_address: {
+                          ...orderEditData.shipping_address,
+                          country: e.target.value
+                        }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={closeOrderEditModal}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleOrderUpdate}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                >
+                  Update Order
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
