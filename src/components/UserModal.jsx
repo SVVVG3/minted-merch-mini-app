@@ -370,12 +370,13 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                             <div className="text-right">
                               <div className="font-medium">{formatCurrency(order.amount_total)}</div>
                               <div className={`text-sm px-2 py-1 rounded ${
-                                order.status === 'paid' ? 'bg-green-100 text-green-800' :
-                                order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
-                                order.status === 'delivered' ? 'bg-purple-100 text-purple-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                                {order.status}
+                                                              order.status === 'paid' ? 'bg-green-100 text-green-800' :
+                              order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
+                              order.status === 'vendor_paid' ? 'bg-teal-100 text-teal-800' :
+                              order.status === 'delivered' ? 'bg-purple-100 text-purple-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                            {order.status === 'vendor_paid' ? 'Vendor Paid' : order.status}
                               </div>
                             </div>
                           </div>

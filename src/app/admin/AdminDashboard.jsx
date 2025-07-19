@@ -1790,10 +1790,11 @@ export default function AdminDashboard() {
                           order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                           order.status === 'assigned' ? 'bg-orange-100 text-orange-800' :
                           order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
+                          order.status === 'vendor_paid' ? 'bg-teal-100 text-teal-800' :
                           order.status === 'delivered' ? 'bg-purple-100 text-purple-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
-                          {order.status}
+                          {order.status === 'vendor_paid' ? 'Vendor Paid' : order.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -2890,7 +2891,10 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {partner.fid ? (
-                            <div className="flex items-center space-x-2">
+                            <div 
+                              className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1"
+                              onClick={() => openUserModal(partner.fid)}
+                            >
                               {partner.profiles?.pfp_url && (
                                 <img
                                   src={partner.profiles.pfp_url}
@@ -2898,7 +2902,7 @@ export default function AdminDashboard() {
                                   className="w-6 h-6 rounded-full"
                                 />
                               )}
-                              <span className="text-sm text-gray-900">
+                              <span className="text-sm text-gray-900 hover:text-blue-600">
                                 @{partner.profiles?.username || `FID ${partner.fid}`}
                               </span>
                             </div>
@@ -3100,6 +3104,7 @@ export default function AdminDashboard() {
                     <option value="processing">Processing</option>
                     <option value="assigned">Assigned</option>
                     <option value="shipped">Shipped</option>
+                    <option value="vendor_paid">Vendor Paid</option>
                     <option value="delivered">Delivered</option>
                     <option value="cancelled">Cancelled</option>
                     <option value="refunded">Refunded</option>

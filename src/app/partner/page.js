@@ -104,6 +104,7 @@ function PartnerDashboard() {
       case 'assigned': return 'bg-orange-100 text-orange-800';
       case 'processing': return 'bg-blue-100 text-blue-800';
       case 'shipped': return 'bg-green-100 text-green-800';
+      case 'vendor_paid': return 'bg-teal-100 text-teal-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -243,7 +244,7 @@ function PartnerDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
-                          {order.status}
+                          {order.status === 'vendor_paid' ? 'Vendor Paid' : order.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
