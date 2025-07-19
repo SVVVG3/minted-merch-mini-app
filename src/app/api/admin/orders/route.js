@@ -26,7 +26,7 @@ export async function GET(request) {
           display_name,
           pfp_url
         ),
-        partners (
+        assigned_partner:partners!assigned_partner_id (
           id,
           name,
           email

@@ -1797,12 +1797,12 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {order.partners ? (
+                        {order.assigned_partner ? (
                           <div className="flex items-center space-x-2">
                             <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                             <div>
-                              <div className="font-medium text-xs">{order.partners.name}</div>
-                              <div className="text-xs text-gray-500">{order.partners.email}</div>
+                              <div className="font-medium text-xs">{order.assigned_partner.name}</div>
+                              <div className="text-xs text-gray-500">{order.assigned_partner.email}</div>
                             </div>
                           </div>
                         ) : (
