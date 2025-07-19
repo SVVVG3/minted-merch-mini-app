@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAllPartners, createPartner } from '@/lib/partnerAuth';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // GET all partners (admin only)
 export async function GET(request) {
@@ -16,11 +17,68 @@ export async function GET(request) {
       }, { status: 500 });
     }
 
-    console.log(`✅ Retrieved ${result.partners.length} partners`);
+    // Enhance each partner with order statistics
+    const partnersWithStats = await Promise.all(
+      result.partners.map(async (partner) => {
+        try {
+          // Get order counts by status for this partner
+          const { data: orderStats, error: statsError } = await supabaseAdmin
+            .from('orders')
+            .select('status')
+            .eq('assigned_partner_id', partner.id);
+
+          if (statsError) {
+            console.warn(`⚠️ Could not fetch order stats for partner ${partner.id}:`, statsError);
+            return {
+              ...partner,
+              orderStats: {
+                total: 0,
+                assigned: 0,
+                processing: 0,
+                shipped: 0
+              }
+            };
+          }
+
+          // Count orders by status
+          const statusCounts = orderStats.reduce((counts, order) => {
+            counts[order.status] = (counts[order.status] || 0) + 1;
+            return counts;
+          }, {});
+
+          const orderStatsForPartner = {
+            total: orderStats.length,
+            assigned: statusCounts.assigned || 0,
+            processing: statusCounts.processing || 0,
+            shipped: statusCounts.shipped || 0
+          };
+
+          console.log(`📊 Partner ${partner.name} stats:`, orderStatsForPartner);
+
+          return {
+            ...partner,
+            orderStats: orderStatsForPartner
+          };
+        } catch (error) {
+          console.error(`❌ Error fetching stats for partner ${partner.id}:`, error);
+          return {
+            ...partner,
+            orderStats: {
+              total: 0,
+              assigned: 0,
+              processing: 0,
+              shipped: 0
+            }
+          };
+        }
+      })
+    );
+
+    console.log(`✅ Retrieved ${partnersWithStats.length} partners with order statistics`);
     
     return NextResponse.json({
       success: true,
-      data: result.partners
+      data: partnersWithStats
     });
 
   } catch (error) {

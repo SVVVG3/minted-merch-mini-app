@@ -2864,6 +2864,9 @@ export default function AdminDashboard() {
                         Linked Farcaster
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Order Statistics
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -2902,6 +2905,27 @@ export default function AdminDashboard() {
                           ) : (
                             <span className="text-sm text-gray-500">No FID linked</span>
                           )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm">
+                            <div className="font-medium text-gray-900">
+                              {partner.orderStats?.total || 0} Total Orders
+                            </div>
+                            <div className="flex space-x-4 text-xs text-gray-500 mt-1">
+                              <span className="flex items-center">
+                                <div className="w-2 h-2 bg-orange-400 rounded-full mr-1"></div>
+                                {partner.orderStats?.assigned || 0} Assigned
+                              </span>
+                              <span className="flex items-center">
+                                <div className="w-2 h-2 bg-blue-400 rounded-full mr-1"></div>
+                                {partner.orderStats?.processing || 0} Processing
+                              </span>
+                              <span className="flex items-center">
+                                <div className="w-2 h-2 bg-green-400 rounded-full mr-1"></div>
+                                {partner.orderStats?.shipped || 0} Shipped
+                              </span>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
