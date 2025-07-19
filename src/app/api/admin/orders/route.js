@@ -134,6 +134,9 @@ export async function GET(request) {
         display_name: order.profiles?.display_name || null,
         pfp_url: order.profiles?.pfp_url || null,
         
+        // Partner assignment information
+        assigned_partner: order.assigned_partner || null,
+        
         // Product details from order_items table
         products: products
       };
