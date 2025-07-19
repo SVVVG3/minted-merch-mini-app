@@ -130,7 +130,7 @@ function PartnerDashboard() {
               <img 
                 src="/MintedMerchSpinnerLogo.png" 
                 alt="Minted Merch"
-                className="h-8 w-auto"
+                className="h-16 w-auto"
               />
               <h1 className="text-2xl font-bold text-gray-900">Partner Dashboard</h1>
             </div>

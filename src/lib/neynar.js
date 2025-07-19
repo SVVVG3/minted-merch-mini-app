@@ -482,7 +482,7 @@ export async function sendPartnerAssignmentNotification(partnerFid, assignmentDe
     
     const notification = {
       title: "🎯 New Order Assigned to You!",
-      body: `Order ${assignmentDetails.orderId} from ${assignmentDetails.customerName} has been assigned to you. Check your partner dashboard to fulfill!`,
+      body: `Order ${assignmentDetails.orderId} has been assigned to you. Check your partner dashboard to fulfill!`,
       target_url: `https://mintedmerch.vercel.app/partner`,
       uuid: generateUUID()
     };
