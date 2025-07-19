@@ -125,22 +125,34 @@ function PartnerDashboard() {
       {/* Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-3">
-              <img 
-                src="/MintedMerchSpinnerLogo.png" 
-                alt="Minted Merch"
-                className="h-8 w-auto"
-              />
-              <h1 className="text-2xl font-bold text-gray-900">Partner Dashboard</h1>
+          <div className="py-4 sm:py-6">
+            {/* Logo and Title Row */}
+            <div className="flex items-center justify-between mb-3 sm:mb-0">
+              <div className="flex items-center space-x-3">
+                <img 
+                  src="/MintedMerchSpinnerLogo.png" 
+                  alt="Minted Merch"
+                  className="h-8 w-auto"
+                />
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Partner Dashboard</h1>
+              </div>
+              {/* Logout button on mobile, hidden on desktop */}
+              <button
+                onClick={handleLogout}
+                className="sm:hidden bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-md text-sm"
+              >
+                Logout
+              </button>
             </div>
-            <div className="flex items-center space-x-4">
+            {/* Welcome and Logout Row - Mobile: stacked, Desktop: right-aligned */}
+            <div className="flex flex-col sm:flex-row sm:justify-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
               <div className="text-sm text-gray-600">
                 Welcome, <span className="font-medium">{partner?.name}</span>
               </div>
+              {/* Logout button on desktop, hidden on mobile */}
               <button
                 onClick={handleLogout}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm"
+                className="hidden sm:block bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm"
               >
                 Logout
               </button>
