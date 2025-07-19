@@ -31,12 +31,13 @@ export async function GET(request) {
             console.warn(`⚠️ Could not fetch order stats for partner ${partner.id}:`, statsError);
             return {
               ...partner,
-              orderStats: {
-                total: 0,
-                assigned: 0,
-                processing: 0,
-                shipped: 0
-              }
+                          orderStats: {
+              total: 0,
+              assigned: 0,
+              processing: 0,
+              shipped: 0,
+              vendor_paid: 0
+            }
             };
           }
 
@@ -50,7 +51,8 @@ export async function GET(request) {
             total: orderStats.length,
             assigned: statusCounts.assigned || 0,
             processing: statusCounts.processing || 0,
-            shipped: statusCounts.shipped || 0
+            shipped: statusCounts.shipped || 0,
+            vendor_paid: statusCounts.vendor_paid || 0
           };
 
           console.log(`📊 Partner ${partner.name} stats:`, orderStatsForPartner);
@@ -67,7 +69,8 @@ export async function GET(request) {
               total: 0,
               assigned: 0,
               processing: 0,
-              shipped: 0
+              shipped: 0,
+              vendor_paid: 0
             }
           };
         }

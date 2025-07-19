@@ -2928,6 +2928,10 @@ export default function AdminDashboard() {
                                 <div className="w-2 h-2 bg-green-400 rounded-full mr-1"></div>
                                 {partner.orderStats?.shipped || 0} Shipped
                               </span>
+                              <span className="flex items-center">
+                                <div className="w-2 h-2 bg-teal-400 rounded-full mr-1"></div>
+                                {partner.orderStats?.vendor_paid || 0} Vendor Paid
+                              </span>
                             </div>
                           </div>
                         </td>
