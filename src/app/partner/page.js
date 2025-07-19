@@ -126,14 +126,12 @@ function PartnerDashboard() {
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-                           <div className="h-8 w-8 flex items-center justify-center rounded-full bg-[#3eb489] p-1 mr-3">
-               <img 
-                 src="/MintedMerchSpinnerLogo.png" 
-                 alt="Minted Merch Logo" 
-                 className="w-full h-full object-contain"
-               />
-             </div>
+            <div className="flex items-center space-x-3">
+              <img 
+                src="/MintedMerchSpinnerLogo.png" 
+                alt="Minted Merch"
+                className="h-8 w-auto"
+              />
               <h1 className="text-2xl font-bold text-gray-900">Partner Dashboard</h1>
             </div>
             <div className="flex items-center space-x-4">
