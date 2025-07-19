@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { updateOrderStatus } from '@/lib/orders';
+import { sendPartnerAssignmentNotification } from '@/lib/neynar';
 
 export async function PUT(request, { params }) {
   try {
@@ -115,6 +116,43 @@ export async function PUT(request, { params }) {
       }
 
       updatedOrder = finalOrder;
+      
+      // Send partner assignment notification if a partner was newly assigned
+      if (updateData.assigned_partner_id && updateData.assigned_partner_id !== currentOrder.assigned_partner_id) {
+        try {
+          console.log('🔔 Sending partner assignment notification for order:', orderId);
+          
+          // Get the partner's FID from the partners table
+          const { data: partner, error: partnerError } = await supabaseAdmin
+            .from('partners')
+            .select('fid')
+            .eq('id', updateData.assigned_partner_id)
+            .single();
+
+          if (partnerError || !partner?.fid) {
+            console.warn('⚠️ Could not get partner FID for notification:', partnerError);
+          } else {
+            // Send notification to partner (NOT to customer)
+            const notificationResult = await sendPartnerAssignmentNotification(
+              partner.fid, // Send to PARTNER's FID, not customer's FID
+              {
+                orderId: currentOrder.order_id,
+                customerName: currentOrder.customer_name || 'Customer',
+                orderTotal: currentOrder.amount_total
+              }
+            );
+
+            if (notificationResult.success) {
+              console.log('✅ Partner assignment notification sent successfully');
+            } else {
+              console.log('⚠️ Partner assignment notification failed or skipped:', notificationResult.error || notificationResult.reason);
+            }
+          }
+        } catch (notificationError) {
+          console.error('❌ Error sending partner assignment notification:', notificationError);
+          // Don't fail the order update if notification fails
+        }
+      }
     }
 
     console.log('✅ Order updated successfully:', updatedOrder.order_id);

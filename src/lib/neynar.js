@@ -469,6 +469,63 @@ export async function sendOrderConfirmationNotification(userFid, orderDetails) {
   }
 }
 
+// Send partner assignment notification
+export async function sendPartnerAssignmentNotification(partnerFid, assignmentDetails) {
+  if (!isNeynarAvailable()) {
+    console.log('Neynar not available, skipping partner assignment notification');
+    return { success: false, error: 'Neynar not configured' };
+  }
+
+  try {
+    console.log('Sending partner assignment notification to partner FID:', partnerFid);
+    console.log('Assignment details:', assignmentDetails);
+    
+    const notification = {
+      title: "🎯 New Order Assigned to You!",
+      body: `Order ${assignmentDetails.orderId} from ${assignmentDetails.customerName} has been assigned to you. Check your partner dashboard to fulfill!`,
+      target_url: `https://mintedmerch.vercel.app/partner`,
+      uuid: generateUUID()
+    };
+
+    console.log('Sending partner notification via Neynar:', notification);
+
+    const response = await neynarClient.publishFrameNotifications({
+      targetFids: [partnerFid],
+      notification: notification
+    });
+
+    console.log('Partner assignment notification sent successfully:', response);
+    return { 
+      success: true, 
+      data: response,
+      notificationId: notification.uuid,
+      delivery: 'sent_via_neynar_managed'
+    };
+
+  } catch (error) {
+    console.error('❌ Error sending partner assignment notification:', error);
+    console.error('Full error details:', error.response?.data || error);
+    
+    // If the error indicates partner has not enabled notifications, that's expected behavior
+    if (error.message && (error.message.includes('notification') || error.message.includes('token'))) {
+      console.log('Partner notifications not enabled - this is normal, Neynar will handle appropriately');
+      return { 
+        success: true, 
+        skipped: true, 
+        reason: 'Partner has not enabled notifications',
+        delivery: 'handled_by_neynar'
+      };
+    }
+    
+    return { 
+      success: false, 
+      error: error.message, 
+      details: error.response?.data,
+      delivery: 'failed'
+    };
+  }
+}
+
 // Send shipping notification
 export async function sendShippingNotification(userFid, shippingDetails) {
   if (!isNeynarAvailable()) {
