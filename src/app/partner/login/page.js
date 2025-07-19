@@ -56,7 +56,7 @@ function LoginForm() {
           <img 
             src="/MintedMerchSpinnerLogo.png" 
             alt="Minted Merch"
-            className="h-24 w-auto mx-auto mb-4"
+            className="h-12 w-auto mx-auto mb-4"
           />
           <h2 className="mt-2 text-center text-3xl font-bold text-gray-900">
             Partner Portal
