@@ -83,10 +83,32 @@ async function calculateWithAdminAPI(cartItems, shippingAddress, email) {
       throw new Error(`No variant ID found for item: ${item.product?.title || 'Unknown'}`);
     }
 
+    // Check if the variant requires shipping (based on weight or requiresShipping flag)
+    let requiresShipping = true; // Default to requiring shipping
+    
+    if (item.variant) {
+      // If variant has requiresShipping flag, use it
+      if (typeof item.variant.requiresShipping === 'boolean') {
+        requiresShipping = item.variant.requiresShipping;
+      } 
+      // If variant has weight = 0, it doesn't require shipping
+      else if (item.variant.weight === 0 || item.variant.weight === '0') {
+        requiresShipping = false;
+        console.log(`📦 Product "${item.product?.title}" has 0 weight, setting requiresShipping = false`);
+      }
+    }
+    
+    // Product-specific overrides for known free shipping items (temporary fix)
+    const freeShippingProducts = ['Opepin', 'Gift Card'];
+    if (item.product && freeShippingProducts.includes(item.product.title)) {
+      requiresShipping = false;
+      console.log(`📦 Product "${item.product.title}" is in free shipping list, setting requiresShipping = false`);
+    }
+
     return {
       variantId: variantId,
       quantity: item.quantity || 1,
-      requiresShipping: true,
+      requiresShipping: requiresShipping,
       taxable: true
     };
   });
@@ -217,6 +239,23 @@ async function calculateWithAdminAPI(cartItems, shippingAddress, email) {
     }
   }));
 
+  // Check if any line items actually require shipping
+  const anyRequiresShipping = lineItems.some(item => item.requiresShipping);
+  console.log(`📦 Cart shipping requirements: ${anyRequiresShipping ? 'Some items require shipping' : 'No items require shipping'}`);
+  
+  // If no items require shipping, add a free shipping option
+  if (!anyRequiresShipping) {
+    console.log(`📦 No items require shipping, adding free shipping option`);
+    shippingRates.unshift({
+      handle: 'free-digital-delivery',
+      title: 'FREE Shipping',
+      price: {
+        amount: 0,
+        currencyCode: 'USD'
+      }
+    });
+  }
+
   return {
     cartId: `calculated-draft-order-${Date.now()}`,
     checkoutUrl: null,
@@ -234,7 +273,7 @@ async function calculateWithAdminAPI(cartItems, shippingAddress, email) {
     },
     shippingRates: shippingRates,
     shippingRatesReady: true,
-    requiresShipping: true,
+    requiresShipping: anyRequiresShipping,
     lineItems: calculatedOrder.lineItems.map((item, index) => ({
       id: `calculated-line-${index}`,
       title: item.title,
