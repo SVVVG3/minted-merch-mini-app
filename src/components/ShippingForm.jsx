@@ -237,8 +237,22 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     return valid;
   };
 
+  // Function to sanitize name fields by removing emojis and non-alphabetic characters
+  const sanitizeNameField = (text) => {
+    if (!text || typeof text !== 'string') return text;
+    
+    // Only keep alphabetic characters, spaces, apostrophes, hyphens, and periods
+    // This approach is more reliable than trying to match all emoji ranges
+    return text.replace(/[^a-zA-Z\s'\-\.]/g, '').replace(/\s+/g, ' ').trim();
+  };
+
   // Handle input changes
   const handleChange = (field, value) => {
+    // Sanitize name fields to prevent emojis
+    if (field === 'firstName' || field === 'lastName') {
+      value = sanitizeNameField(value);
+    }
+    
     const updatedShipping = { ...shipping, [field]: value };
     setShipping(updatedShipping);
     
@@ -327,6 +341,7 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
           {errors.firstName && (
             <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>
           )}
+          <p className="text-gray-400 text-xs mt-1">Letters, spaces, and basic punctuation only</p>
         </div>
         
         <div>
@@ -345,6 +360,7 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
           {errors.lastName && (
             <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>
           )}
+          <p className="text-gray-400 text-xs mt-1">Letters, spaces, and basic punctuation only</p>
         </div>
       </div>
 
