@@ -133,9 +133,20 @@ export default function AdminDashboard() {
     }
   };
 
-  const loadDiscounts = async (page = 1, limit = 50) => {
+  const loadDiscounts = async (page = 1, limit = 50, filters = discountFilters) => {
     try {
-      const response = await fetch(`/api/admin/discounts?page=${page}&limit=${limit}`);
+      // Build query parameters
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        search: filters.searchTerm || '',
+        gatingType: filters.gatingType || 'all',
+        codeType: filters.codeType || 'all',
+        status: filters.status || 'all',
+        discountScope: filters.discountScope || 'all'
+      });
+
+      const response = await fetch(`/api/admin/discounts?${params}`);
       const result = await response.json();
       
       if (result.success) {
@@ -147,6 +158,13 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Failed to load discounts:', error);
     }
+  };
+
+  // Handle filter changes - reset to page 1 and reload
+  const handleFilterChange = (filterKey, filterValue) => {
+    const newFilters = { ...discountFilters, [filterKey]: filterValue };
+    setDiscountFilters(newFilters);
+    loadDiscounts(1, discountPagination.limit, newFilters);
   };
 
   const loadDashboardData = async () => {
@@ -769,66 +787,9 @@ export default function AdminDashboard() {
   };
 
   const getFilteredAndSortedDiscounts = () => {
-    if (!discountsData || discountsData.length === 0) return [];
-    
-    // Apply filters
-    let filtered = discountsData.filter(discount => {
-      // Search filter
-      if (discountFilters.searchTerm) {
-        const searchLower = discountFilters.searchTerm.toLowerCase();
-        const matchesSearch = 
-          discount.code.toLowerCase().includes(searchLower) ||
-          discount.discount_description?.toLowerCase().includes(searchLower);
-        if (!matchesSearch) return false;
-      }
-      
-      // Gating type filter
-      if (discountFilters.gatingType !== 'all') {
-        if (discount.gating_type !== discountFilters.gatingType) return false;
-      }
-      
-      // Code type filter
-      if (discountFilters.codeType !== 'all') {
-        if (discount.code_type !== discountFilters.codeType) return false;
-      }
-      
-      // Status filter
-      if (discountFilters.status !== 'all') {
-        if (discountFilters.status === 'active' && !discount.is_active) return false;
-        if (discountFilters.status === 'expired' && !discount.is_expired) return false;
-        if (discountFilters.status === 'inactive' && (discount.is_active || discount.is_expired)) return false;
-      }
-      
-      // Discount scope filter
-      if (discountFilters.discountScope !== 'all') {
-        if (discount.discount_scope !== discountFilters.discountScope) return false;
-      }
-      
-      return true;
-    });
-    
-    // Apply sorting
-    return filtered.sort((a, b) => {
-      let aValue = a[discountSortField];
-      let bValue = b[discountSortField];
-      
-      // Handle string sorting
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        aValue = aValue || '';
-        bValue = bValue || '';
-        return discountSortDirection === 'asc' 
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
-      
-      // Handle numeric sorting
-      aValue = Number(aValue) || 0;
-      bValue = Number(bValue) || 0;
-      
-      return discountSortDirection === 'asc' 
-        ? aValue - bValue
-        : bValue - aValue;
-    });
+    // Server-side filtering and pagination is now handled in the API
+    // This function just returns the current page data
+    return discountsData || [];
   };
 
   const exportData = (data, filename) => {
@@ -1970,7 +1931,7 @@ export default function AdminDashboard() {
                     📥 Export CSV
                   </button>
                   <button
-                    onClick={loadDashboardData}
+                    onClick={() => loadDiscounts(discountPagination.page, discountPagination.limit)}
                     className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
                   >
                     🔄 Refresh
@@ -1991,12 +1952,12 @@ export default function AdminDashboard() {
                     type="text"
                     placeholder="Search codes..."
                     value={discountFilters.searchTerm}
-                    onChange={(e) => setDiscountFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                    onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] text-sm"
                   />
                   <select
                     value={discountFilters.gatingType}
-                    onChange={(e) => setDiscountFilters(prev => ({ ...prev, gatingType: e.target.value }))}
+                    onChange={(e) => handleFilterChange('gatingType', e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] text-sm"
                   >
                     <option value="all">All Gating Types</option>
@@ -2009,7 +1970,7 @@ export default function AdminDashboard() {
                   </select>
                   <select
                     value={discountFilters.codeType}
-                    onChange={(e) => setDiscountFilters(prev => ({ ...prev, codeType: e.target.value }))}
+                    onChange={(e) => handleFilterChange('codeType', e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] text-sm"
                   >
                     <option value="all">All Code Types</option>
@@ -2019,7 +1980,7 @@ export default function AdminDashboard() {
                   </select>
                   <select
                     value={discountFilters.status}
-                    onChange={(e) => setDiscountFilters(prev => ({ ...prev, status: e.target.value }))}
+                    onChange={(e) => handleFilterChange('status', e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] text-sm"
                   >
                     <option value="all">All Status</option>
@@ -2029,7 +1990,7 @@ export default function AdminDashboard() {
                   </select>
                   <select
                     value={discountFilters.discountScope}
-                    onChange={(e) => setDiscountFilters(prev => ({ ...prev, discountScope: e.target.value }))}
+                    onChange={(e) => handleFilterChange('discountScope', e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] text-sm"
                   >
                     <option value="all">All Scopes</option>

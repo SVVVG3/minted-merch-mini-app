@@ -7,24 +7,62 @@ export async function GET(request) {
     const page = parseInt(searchParams.get('page')) || 1;
     const limit = parseInt(searchParams.get('limit')) || 50;
     const offset = (page - 1) * limit;
+    
+    // Extract filter parameters
+    const filters = {
+      searchTerm: searchParams.get('search') || '',
+      gatingType: searchParams.get('gatingType') || 'all',
+      codeType: searchParams.get('codeType') || 'all',
+      status: searchParams.get('status') || 'all',
+      discountScope: searchParams.get('discountScope') || 'all'
+    };
 
-    console.log(`🎫 Fetching discount codes for admin dashboard (page ${page}, limit ${limit})...`);
+    console.log(`🎫 Fetching discount codes for admin dashboard (page ${page}, limit ${limit}, filters:`, filters, ')...');
 
-    // Get total count first
-    const { count: totalCount, error: countError } = await supabaseAdmin
+    // Build base query with filters
+    const buildFilteredQuery = (query) => {
+      // Search filter
+      if (filters.searchTerm) {
+        query = query.or(`code.ilike.%${filters.searchTerm}%,discount_description.ilike.%${filters.searchTerm}%`);
+      }
+      
+      // Gating type filter
+      if (filters.gatingType !== 'all') {
+        query = query.eq('gating_type', filters.gatingType);
+      }
+      
+      // Code type filter
+      if (filters.codeType !== 'all') {
+        query = query.eq('code_type', filters.codeType);
+      }
+      
+      // Discount scope filter
+      if (filters.discountScope !== 'all') {
+        query = query.eq('discount_scope', filters.discountScope);
+      }
+      
+      return query;
+    };
+
+    // Get filtered count first
+    let countQuery = supabaseAdmin
       .from('discount_codes')
       .select('*', { count: 'exact', head: true });
+    
+    countQuery = buildFilteredQuery(countQuery);
+    
+    const { count: totalCount, error: countError } = await countQuery;
 
     if (countError) {
-      console.error('Error getting discount count:', countError);
+      console.error('Error getting filtered discount count:', countError);
       return NextResponse.json({
         success: false,
         error: 'Failed to get discount count'
       }, { status: 500 });
     }
 
-    // Fetch discount codes with usage counts
-    const { data: discounts, error: discountsError } = await supabaseAdmin
+    // Fetch filtered discount codes with usage counts
+    let dataQuery = supabaseAdmin
       .from('discount_codes')
       .select(`
         *,
@@ -34,8 +72,12 @@ export async function GET(request) {
           used_at
         )
       `)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('created_at', { ascending: false });
+    
+    dataQuery = buildFilteredQuery(dataQuery);
+    dataQuery = dataQuery.range(offset, offset + limit - 1);
+    
+    const { data: discounts, error: discountsError } = await dataQuery;
 
     if (discountsError) {
       console.error('Error fetching discounts:', discountsError);
@@ -46,7 +88,7 @@ export async function GET(request) {
     }
 
     // Format discounts with usage statistics
-    const formattedDiscounts = discounts.map(discount => {
+    let formattedDiscounts = discounts.map(discount => {
       const usageCount = discount.discount_code_usage?.length || 0;
       const isExpired = discount.expires_at && new Date(discount.expires_at) < new Date();
       const isActive = !isExpired && !discount.is_used && usageCount < (discount.max_uses_total || Infinity);
@@ -87,6 +129,16 @@ export async function GET(request) {
         is_shared_code: discount.is_shared_code
       };
     });
+
+    // Apply status filter (needs to be done after calculating is_active/is_expired)
+    if (filters.status !== 'all') {
+      formattedDiscounts = formattedDiscounts.filter(discount => {
+        if (filters.status === 'active' && !discount.is_active) return false;
+        if (filters.status === 'expired' && !discount.is_expired) return false;
+        if (filters.status === 'inactive' && (discount.is_active || discount.is_expired)) return false;
+        return true;
+      });
+    }
 
     console.log(`✅ Successfully fetched ${formattedDiscounts.length} of ${totalCount} discount codes (page ${page})`);
 
