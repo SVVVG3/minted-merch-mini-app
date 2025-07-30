@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useFarcaster } from '@/lib/useFarcaster';
 
 export function ShippingForm({ onShippingChange, initialShipping = null }) {
-  const { getDisplayName, getUsername } = useFarcaster();
+
   const addressContainerRef = useRef(null);
   const placeAutocompleteRef = useRef(null);
   
@@ -25,27 +24,7 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
   const [isValid, setIsValid] = useState(false);
   const [googleMapsStatus, setGoogleMapsStatus] = useState('loading');
 
-  // Pre-fill name from Farcaster if available
-  useEffect(() => {
-    const displayName = getDisplayName();
-    const username = getUsername();
-    
-    if (displayName && !shipping.firstName) {
-      // Try to split display name into first/last
-      const nameParts = displayName.split(' ');
-      setShipping(prev => ({
-        ...prev,
-        firstName: nameParts[0] || '',
-        lastName: nameParts.slice(1).join(' ') || ''
-      }));
-    } else if (username && !shipping.firstName) {
-      // Use username as first name if no display name
-      setShipping(prev => ({
-        ...prev,
-        firstName: username
-      }));
-    }
-  }, [getDisplayName, getUsername]);
+
 
   // Load initial shipping data if provided
   useEffect(() => {
