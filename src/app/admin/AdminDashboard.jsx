@@ -95,6 +95,16 @@ export default function AdminDashboard() {
   });
   const [discountSortField, setDiscountSortField] = useState('created_at');
   const [discountSortDirection, setDiscountSortDirection] = useState('desc');
+  
+  // Discounts pagination state
+  const [discountPagination, setDiscountPagination] = useState({
+    page: 1,
+    limit: 50,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false
+  });
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -123,27 +133,43 @@ export default function AdminDashboard() {
     }
   };
 
+  const loadDiscounts = async (page = 1, limit = 50) => {
+    try {
+      const response = await fetch(`/api/admin/discounts?page=${page}&limit=${limit}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        setDiscountsData(result.data || []);
+        setDiscountPagination(result.pagination);
+      } else {
+        console.error('Failed to load discounts:', result.error);
+      }
+    } catch (error) {
+      console.error('Failed to load discounts:', error);
+    }
+  };
+
   const loadDashboardData = async () => {
     try {
-      const [leaderboardRes, statsRes, ordersRes, discountsRes, productsRes] = await Promise.all([
+      const [leaderboardRes, statsRes, ordersRes, productsRes] = await Promise.all([
         fetch('/api/points/leaderboard?limit=1000'),
         fetch('/api/admin/stats'),
         fetch('/api/admin/orders'),
-        fetch('/api/admin/discounts'),
         fetch('/api/products')
       ]);
       
       const leaderboard = await leaderboardRes.json();
       const stats = await statsRes.json();
       const orders = await ordersRes.json();
-      const discounts = await discountsRes.json();
       const products = await productsRes.json();
       
       setLeaderboardData(leaderboard.data?.leaderboard || []);
       setDashboardStats(stats.data);
       setOrdersData(orders.data || []);
-      setDiscountsData(discounts.data || []);
       setProductsData(products.products || []);
+      
+      // Load discounts separately with pagination
+      await loadDiscounts(1, 50);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     }
@@ -962,7 +988,8 @@ export default function AdminDashboard() {
       });
       
       if (response.ok) {
-        loadDashboardData();
+        // Reload current page of discounts
+        await loadDiscounts(discountPagination.page, discountPagination.limit);
       } else {
         alert('Failed to delete discount');
       }
@@ -2182,6 +2209,89 @@ export default function AdminDashboard() {
                   </tbody>
                 </table>
               </div>
+              
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+                <div className="flex flex-1 justify-between sm:hidden">
+                  <button
+                    onClick={() => loadDiscounts(discountPagination.page - 1, discountPagination.limit)}
+                    disabled={!discountPagination.hasPrev}
+                    className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => loadDiscounts(discountPagination.page + 1, discountPagination.limit)}
+                    disabled={!discountPagination.hasNext}
+                    className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Showing{' '}
+                      <span className="font-medium">{((discountPagination.page - 1) * discountPagination.limit) + 1}</span>
+                      {' '}to{' '}
+                      <span className="font-medium">
+                        {Math.min(discountPagination.page * discountPagination.limit, discountPagination.total)}
+                      </span>
+                      {' '}of{' '}
+                      <span className="font-medium">{discountPagination.total}</span> discount codes
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                      <button
+                        onClick={() => loadDiscounts(discountPagination.page - 1, discountPagination.limit)}
+                        disabled={!discountPagination.hasPrev}
+                        className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className="sr-only">Previous</span>
+                        ←
+                      </button>
+                      
+                      {/* Page numbers */}
+                      {Array.from({ length: Math.min(discountPagination.totalPages, 7) }, (_, i) => {
+                        let pageNum;
+                        if (discountPagination.totalPages <= 7) {
+                          pageNum = i + 1;
+                        } else if (discountPagination.page <= 4) {
+                          pageNum = i + 1;
+                        } else if (discountPagination.page >= discountPagination.totalPages - 3) {
+                          pageNum = discountPagination.totalPages - 6 + i;
+                        } else {
+                          pageNum = discountPagination.page - 3 + i;
+                        }
+                        
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => loadDiscounts(pageNum, discountPagination.limit)}
+                            className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                              pageNum === discountPagination.page
+                                ? 'z-10 bg-[#3eb489] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3eb489]'
+                                : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                      
+                      <button
+                        onClick={() => loadDiscounts(discountPagination.page + 1, discountPagination.limit)}
+                        disabled={!discountPagination.hasNext}
+                        className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className="sr-only">Next</span>
+                        →
+                      </button>
+                    </nav>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Create Discount Modal */}
@@ -2198,7 +2308,10 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                   
-                                     <CreateDiscountForm onClose={() => setShowCreateDiscount(false)} onSuccess={loadDashboardData} />
+                                     <CreateDiscountForm 
+                      onClose={() => setShowCreateDiscount(false)} 
+                      onSuccess={() => loadDiscounts(discountPagination.page, discountPagination.limit)} 
+                    />
                 </div>
               </div>
             )}
@@ -2217,7 +2330,11 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                   
-                  <EditDiscountForm discount={editingDiscount} onClose={() => setShowEditDiscount(false)} onSuccess={loadDashboardData} />
+                                      <EditDiscountForm 
+                      discount={editingDiscount} 
+                      onClose={() => setShowEditDiscount(false)} 
+                      onSuccess={() => loadDiscounts(discountPagination.page, discountPagination.limit)} 
+                    />
                 </div>
               </div>
             )}

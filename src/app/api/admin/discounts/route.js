@@ -3,9 +3,27 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request) {
   try {
-    console.log('🎫 Fetching all discount codes for admin dashboard...');
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = parseInt(searchParams.get('limit')) || 50;
+    const offset = (page - 1) * limit;
 
-    // Fetch all discount codes with usage counts
+    console.log(`🎫 Fetching discount codes for admin dashboard (page ${page}, limit ${limit})...`);
+
+    // Get total count first
+    const { count: totalCount, error: countError } = await supabaseAdmin
+      .from('discount_codes')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) {
+      console.error('Error getting discount count:', countError);
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to get discount count'
+      }, { status: 500 });
+    }
+
+    // Fetch discount codes with usage counts
     const { data: discounts, error: discountsError } = await supabaseAdmin
       .from('discount_codes')
       .select(`
@@ -16,7 +34,8 @@ export async function GET(request) {
           used_at
         )
       `)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (discountsError) {
       console.error('Error fetching discounts:', discountsError);
@@ -69,11 +88,19 @@ export async function GET(request) {
       };
     });
 
-    console.log(`✅ Successfully fetched ${formattedDiscounts.length} discount codes`);
+    console.log(`✅ Successfully fetched ${formattedDiscounts.length} of ${totalCount} discount codes (page ${page})`);
 
     return NextResponse.json({
       success: true,
       data: formattedDiscounts,
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasNext: page < Math.ceil(totalCount / limit),
+        hasPrev: page > 1
+      },
       count: formattedDiscounts.length
     });
 
