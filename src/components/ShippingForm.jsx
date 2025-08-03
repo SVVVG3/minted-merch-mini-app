@@ -66,11 +66,7 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
           input.style.borderRadius = '8px';
           input.style.fontSize = '16px';
           
-          // Set the input value to the pre-populated address if available
-          if (shipping.address1) {
-            input.value = shipping.address1;
-            console.log('🏠 Pre-populated Google autocomplete with address:', shipping.address1);
-          }
+
           
           // Add the input to the container
           if (addressContainerRef.current) {
@@ -95,6 +91,14 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
           
           console.log('Google Places autocomplete initialized successfully with stable API');
           setGoogleMapsStatus('ready');
+          
+          // Set the pre-populated address value after autocomplete is fully ready
+          setTimeout(() => {
+            if (shipping.address1 && input && !input.value) {
+              input.value = shipping.address1;
+              console.log('🏠 [POST-INIT] Set pre-populated address after autocomplete ready:', shipping.address1);
+            }
+          }, 100);
         } catch (error) {
           console.error('Error initializing Google Places autocomplete:', error);
           setGoogleMapsStatus('error');
@@ -131,29 +135,81 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
 
   // Update Google autocomplete input value when address1 changes (for pre-populated data)
   useEffect(() => {
-    if (placeAutocompleteRef.current && shipping.address1) {
+    if (placeAutocompleteRef.current && shipping.address1 && googleMapsStatus === 'ready') {
       const autocompleteInput = addressContainerRef.current?.querySelector('input');
-      if (autocompleteInput && !autocompleteInput.value) {
-        autocompleteInput.value = shipping.address1;
-        console.log('🏠 Updated Google autocomplete input with pre-populated address:', shipping.address1);
+      if (autocompleteInput) {
+        // Use a small delay to ensure any other operations (like country restrictions) are complete
+        setTimeout(() => {
+          if (!autocompleteInput.value || autocompleteInput.value.trim() === '') {
+            autocompleteInput.value = shipping.address1;
+            console.log('🏠 [DELAYED] Updated Google autocomplete input with pre-populated address:', shipping.address1);
+          }
+        }, 150);
       }
     }
-  }, [shipping.address1]);
+  }, [shipping.address1, googleMapsStatus]);
 
   // Update autocomplete country restrictions when country changes
   useEffect(() => {
     if (placeAutocompleteRef.current && shipping.country) {
       try {
+        // Store current input value before updating restrictions
+        const autocompleteInput = addressContainerRef.current?.querySelector('input');
+        const currentValue = autocompleteInput?.value;
+        
         // Update the country restrictions based on selected country (stable API)
         placeAutocompleteRef.current.setComponentRestrictions({
           country: [shipping.country.toLowerCase()]
         });
         console.log(`Updated autocomplete to focus on ${shipping.country}`);
+        
+        // Restore the input value if it was cleared by setComponentRestrictions
+        setTimeout(() => {
+          if (currentValue && autocompleteInput && !autocompleteInput.value) {
+            autocompleteInput.value = currentValue;
+            console.log('🏠 [COUNTRY] Restored address value after country restriction update:', currentValue);
+          } else if (shipping.address1 && autocompleteInput && !autocompleteInput.value) {
+            // Fallback: use current shipping.address1 if original value was lost
+            autocompleteInput.value = shipping.address1;
+            console.log('🏠 [COUNTRY] Restored address value with shipping.address1:', shipping.address1);
+          }
+        }, 50);
       } catch (error) {
         console.warn('Could not update autocomplete country restrictions:', error);
       }
     }
   }, [shipping.country]);
+
+  // Debug monitor for address input value changes
+  useEffect(() => {
+    if (placeAutocompleteRef.current && googleMapsStatus === 'ready') {
+      const autocompleteInput = addressContainerRef.current?.querySelector('input');
+      if (autocompleteInput) {
+        let lastValue = autocompleteInput.value;
+        
+        const monitor = setInterval(() => {
+          const currentValue = autocompleteInput.value;
+          if (currentValue !== lastValue) {
+            console.log('🏠 [MONITOR] Address input value changed from:', lastValue, 'to:', currentValue);
+            lastValue = currentValue;
+            
+            // If it gets cleared unexpectedly, try to restore it
+            if (!currentValue && shipping.address1) {
+              console.log('🏠 [MONITOR] Address was cleared unexpectedly, attempting to restore:', shipping.address1);
+              setTimeout(() => {
+                if (!autocompleteInput.value) {
+                  autocompleteInput.value = shipping.address1;
+                  console.log('🏠 [MONITOR] Restored address value:', shipping.address1);
+                }
+              }, 100);
+            }
+          }
+        }, 500);
+        
+        return () => clearInterval(monitor);
+      }
+    }
+  }, [googleMapsStatus, shipping.address1]);
 
   // Populate address fields from Google Places result (stable API)
   const populateAddressFromPlace = (place) => {
