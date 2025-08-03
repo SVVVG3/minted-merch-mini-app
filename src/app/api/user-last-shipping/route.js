@@ -15,13 +15,13 @@ export async function GET(request) {
 
     console.log('🔍 Fetching last shipping address for FID:', fid);
 
-    // Get the most recent order with shipping address for this user
+    // Get the most recent order with shipping address for this user (including archived orders)
     const { data: order, error } = await supabaseAdmin
       .from('orders')
       .select('shipping_address')
       .eq('fid', fid)
       .not('shipping_address', 'is', null)
-      .is('archived_at', null) // Only non-archived orders
+      // Include archived orders since they contain the most complete shipping info
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
