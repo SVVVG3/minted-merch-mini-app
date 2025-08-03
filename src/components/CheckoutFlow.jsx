@@ -134,6 +134,43 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       buyNowProcessed.current = true;
     }
   }, [checkoutData, addItem]);
+
+  // Fetch user's previous shipping address for pre-population
+  useEffect(() => {
+    const fetchPreviousShippingAddress = async () => {
+      const userFid = getFid();
+      
+      // Only fetch if we don't already have shipping data and user is identified
+      if (!shippingData && userFid) {
+        try {
+          console.log('🔍 Fetching previous shipping address for returning user...');
+          
+          const response = await fetch(`/api/user-last-shipping?fid=${userFid}`);
+          
+          if (!response.ok) {
+            console.log('📝 No previous shipping address found or API error');
+            return;
+          }
+          
+          const data = await response.json();
+          
+          if (data.shippingAddress) {
+            console.log('✅ Found previous shipping address, pre-populating form');
+            setShippingData(data.shippingAddress);
+            // Also update the cart context with the shipping data
+            updateShipping(data.shippingAddress);
+          } else {
+            console.log('📝 No previous shipping address available');
+          }
+        } catch (error) {
+          console.error('❌ Error fetching previous shipping address:', error);
+          // Fail silently - user can still enter address manually
+        }
+      }
+    };
+
+    fetchPreviousShippingAddress();
+  }, [getFid, shippingData, updateShipping]);
   
   const {
     balance,
