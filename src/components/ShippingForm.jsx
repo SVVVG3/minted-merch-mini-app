@@ -66,6 +66,12 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
           input.style.borderRadius = '8px';
           input.style.fontSize = '16px';
           
+          // Set the input value to the pre-populated address if available
+          if (shipping.address1) {
+            input.value = shipping.address1;
+            console.log('🏠 Pre-populated Google autocomplete with address:', shipping.address1);
+          }
+          
           // Add the input to the container
           if (addressContainerRef.current) {
             addressContainerRef.current.appendChild(input);
@@ -122,6 +128,17 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
       }
     };
   }, []);
+
+  // Update Google autocomplete input value when address1 changes (for pre-populated data)
+  useEffect(() => {
+    if (placeAutocompleteRef.current && shipping.address1) {
+      const autocompleteInput = addressContainerRef.current?.querySelector('input');
+      if (autocompleteInput && !autocompleteInput.value) {
+        autocompleteInput.value = shipping.address1;
+        console.log('🏠 Updated Google autocomplete input with pre-populated address:', shipping.address1);
+      }
+    }
+  }, [shipping.address1]);
 
   // Update autocomplete country restrictions when country changes
   useEffect(() => {
