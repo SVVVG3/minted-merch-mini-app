@@ -1,6 +1,8 @@
 // Chat member database management using Neynar for wallet data
 
 import { supabase } from './supabase';
+import { fetchBulkUserProfiles } from './neynar';
+import { fetchUserWalletData } from './walletUtils';
 
 /**
  * Add chat members by FID and fetch their wallet addresses from Neynar
@@ -15,48 +17,44 @@ export async function addChatMembersByFids(fids) {
     const chatMembers = [];
     const errors = [];
 
-    // Fetch wallet data for each FID individually
+    // Fetch profile data for all FIDs at once
+    console.log('🔍 Fetching bulk user profiles...');
+    const profileResult = await fetchBulkUserProfiles(fids);
+    
+    if (!profileResult.success) {
+      return {
+        success: false,
+        error: `Failed to fetch user profiles: ${profileResult.error}`,
+        errors: [profileResult.error]
+      };
+    }
+
+    // Process each FID individually
     for (const fid of fids) {
       try {
-        console.log(`🔍 Fetching data for FID: ${fid}`);
+        console.log(`🔍 Processing FID: ${fid}`);
         
-        // Get user profile data
-        const profileResponse = await fetch('/api/user-profiles', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fids: [fid] })
-        });
-
-        if (!profileResponse.ok) {
-          errors.push(`Failed to fetch profile for FID ${fid}`);
-          continue;
-        }
-
-        const profileData = await profileResponse.json();
-        console.log(`📊 Profile response for FID ${fid}:`, profileData);
-        
-        const profile = profileData.users?.[fid];
+        const profile = profileResult.users[fid];
         
         if (!profile) {
-          console.log(`❌ No profile found for FID ${fid}. Available users:`, Object.keys(profileData.users || {}));
+          console.log(`❌ No profile found for FID ${fid}. Available users:`, Object.keys(profileResult.users || {}));
           errors.push(`No profile found for FID ${fid}`);
           continue;
         }
         
         console.log(`👤 Found profile for FID ${fid}:`, profile.username);
 
-        // Get wallet data
-        const walletResponse = await fetch(`/api/user-wallet-data?fid=${fid}`);
+        // Get wallet data directly
+        console.log(`💰 Fetching wallet data for FID ${fid}...`);
+        const walletData = await fetchUserWalletData(fid);
         
-        if (!walletResponse.ok) {
+        if (!walletData) {
+          console.log(`❌ No wallet data found for FID ${fid}`);
           errors.push(`Failed to fetch wallet data for FID ${fid}`);
           continue;
         }
-
-        const walletResponseData = await walletResponse.json();
-        console.log(`💰 Wallet response for FID ${fid}:`, walletResponseData);
         
-        const walletData = walletResponseData.walletData;
+        console.log(`💰 Wallet data for FID ${fid}:`, walletData);
         
         // Extract wallet addresses from wallet data
         const walletAddresses = [];
@@ -204,14 +202,8 @@ export async function removeChatMember(fid) {
  */
 export async function updateMemberWallets(fid) {
   try {
-    // Fetch latest wallet data from Neynar
-    const response = await fetch(`/api/user-wallet-data?fid=${fid}`);
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch wallet data from Neynar');
-    }
-
-    const { walletData } = await response.json();
+    // Fetch latest wallet data directly from Neynar
+    const walletData = await fetchUserWalletData(fid);
     
     if (!walletData) {
       throw new Error(`No wallet data found for FID ${fid}`);
