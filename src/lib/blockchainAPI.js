@@ -1,6 +1,7 @@
-// Zapper API integration for token-gating and portfolio data
-// Documentation: https://docs.zapper.xyz/docs/apis/balances
+// Direct blockchain RPC integration for token-gating and portfolio data
+// No longer dependent on Zapper API - uses direct blockchain calls for better reliability
 
+// Legacy Zapper constants (kept for backward compatibility)
 const ZAPPER_API_KEY = process.env.ZAPPER_API_KEY;
 const ZAPPER_GRAPHQL_ENDPOINT = 'https://public.zapper.xyz/graphql';
 
@@ -61,6 +62,98 @@ function setCachedResponse(cacheKey, data) {
 }
 
 /**
+ * Check NFT balance directly via blockchain RPC (more reliable than Zapper)
+ */
+async function checkNftBalanceDirectly(walletAddresses, contractAddresses, chainId) {
+  const rpcUrls = {
+    1: 'https://eth.llamarpc.com',
+    8453: 'https://mainnet.base.org',
+    137: 'https://polygon.llamarpc.com',
+    42161: 'https://arb1.arbitrum.io/rpc'
+  };
+
+  const rpcUrl = rpcUrls[chainId] || rpcUrls[1]; // Default to Ethereum for NFTs
+  
+  console.log('🖼️ Checking NFT balance via RPC:', {
+    rpcUrl,
+    contracts: contractAddresses,
+    walletCount: walletAddresses.length,
+    chainId
+  });
+
+  let totalNfts = 0;
+  const collectionDetails = [];
+
+  // Check each NFT contract
+  for (const contractAddress of contractAddresses) {
+    let contractTotal = 0;
+    
+    // Check balance for each wallet address
+    for (const walletAddress of walletAddresses) {
+      try {
+        // ERC-721 balanceOf function call (same as ERC-20)
+        const data = `0x70a08231${walletAddress.slice(2).padStart(64, '0')}`;
+        
+        const response = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_call',
+            params: [
+              {
+                to: contractAddress,
+                data: data
+              },
+              'latest'
+            ],
+            id: 1
+          })
+        });
+
+        const result = await response.json();
+        
+        if (result.result && result.result !== '0x') {
+          // Convert hex to decimal (NFTs are whole numbers, no decimals)
+          const balanceHex = result.result;
+          const nftCount = parseInt(balanceHex, 16);
+          
+          contractTotal += nftCount;
+          
+          if (nftCount > 0) {
+            console.log(`🖼️ Wallet ${walletAddress}: ${nftCount} NFTs from ${contractAddress}`);
+          }
+        }
+      } catch (error) {
+        console.error(`❌ Error checking NFT balance for ${walletAddress}:`, error);
+        // Continue with other addresses
+      }
+    }
+    
+    totalNfts += contractTotal;
+    collectionDetails.push({
+      address: contractAddress,
+      name: `NFT Collection ${contractAddress.slice(0, 8)}...`,
+      chainId: chainId,
+      totalTokensOwned: contractTotal,
+      distinctTokensOwned: contractTotal, // Assume each token is distinct
+      totalBalanceUSD: 0 // We don't have USD conversion without external APIs
+    });
+  }
+
+  console.log(`🖼️ Total NFT balance across all collections: ${totalNfts}`);
+  
+  return {
+    success: true,
+    totalNfts,
+    collectionDetails,
+    method: 'direct_rpc'
+  };
+}
+
+/**
  * Check if user holds specific NFTs using Zapper API
  * @param {Array} walletAddresses - Array of wallet addresses to check
  * @param {Array} contractAddresses - Array of NFT contract addresses
@@ -69,12 +162,7 @@ function setCachedResponse(cacheKey, data) {
  * @returns {Promise<Object>} NFT holding result
  */
 export async function checkNftHoldingsWithZapper(walletAddresses, contractAddresses, chainIds = [1], requiredBalance = 1) {
-  if (!ZAPPER_API_KEY) {
-    console.warn('Zapper API key not configured, using mock data');
-    return getMockNftHoldings(walletAddresses, contractAddresses, requiredBalance);
-  }
-
-  // Filter out invalid addresses - Zapper only accepts valid Ethereum addresses (0x...)
+  // Filter out invalid addresses - only check valid Ethereum addresses (0x...)
   const validAddresses = walletAddresses.filter(addr => {
     const isValid = typeof addr === 'string' && addr.startsWith('0x') && addr.length === 42;
     if (!isValid) {
@@ -88,134 +176,33 @@ export async function checkNftHoldingsWithZapper(walletAddresses, contractAddres
     return getMockNftHoldings(walletAddresses, contractAddresses, requiredBalance);
   }
 
+  // Use direct blockchain RPC instead of Zapper API for better reliability
+  console.log('🖼️ Using direct blockchain RPC for NFT checking (bypassing Zapper API)');
+  
   try {
-    console.log('🔍 Checking NFT holdings with Zapper API:', {
-      totalWallets: walletAddresses.length,
-      validWallets: validAddresses.length,
-      contracts: contractAddresses,
-      chains: chainIds,
-      required: requiredBalance
-    });
-
-    // Convert contract addresses to the new format expected by Zapper API
-    const collections = contractAddresses.map(address => ({
-      address: address,
-      chainId: chainIds[0] || 1 // Use the first chain ID as default
-    }));
-
-    const query = `
-      query GetNftBalances($addresses: [Address!]!, $chainIds: [Int!]!, $collections: [NftCollectionInputV2!]!) {
-        portfolioV2(addresses: $addresses, chainIds: $chainIds) {
-          nftBalances {
-            byCollection(
-              first: 100,
-              filters: {
-                collections: $collections
-              }
-            ) {
-              edges {
-                node {
-                  collection {
-                    address
-                    name
-                    chainId
-                  }
-                  totalTokensOwned
-                  distinctTokensOwned
-                  totalBalanceUSD
-                }
-              }
-            }
-            totalTokensOwned
-            distinctTokensOwned
-          }
-        }
-      }
-    `;
-
-    const variables = {
-      addresses: validAddresses,
-      chainIds: chainIds,
-      collections: collections
-    };
-
-    const response = await fetch(ZAPPER_GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Basic ${Buffer.from(ZAPPER_API_KEY + ':').toString('base64')}`
-      },
-      body: JSON.stringify({
-        query,
-        variables
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Zapper API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
+    const nftResult = await checkNftBalanceDirectly(validAddresses, contractAddresses, chainIds[0] || 1);
     
-    if (data.errors) {
-      throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
-    }
-
-    const nftBalances = data.data?.portfolioV2?.nftBalances;
-    if (!nftBalances) {
-      console.warn('No NFT balance data returned from Zapper API');
-      return {
-        success: false,
-        totalNfts: 0,
-        eligible: false,
-        message: 'No NFT data returned from Zapper API'
-      };
-    }
-
-    console.log('✅ Zapper API NFT data:', {
-      totalTokensOwned: nftBalances.totalTokensOwned,
-      distinctTokensOwned: nftBalances.distinctTokensOwned,
-      collections: nftBalances.byCollection.edges.length
-    });
-
-    // Calculate total NFTs across all specified collections
-    let totalNfts = 0;
-    const collectionDetails = [];
-
-    for (const edge of nftBalances.byCollection.edges) {
-      const collection = edge.node;
-      const nftCount = parseInt(collection.totalTokensOwned) || 0;
-      
-      totalNfts += nftCount;
-      collectionDetails.push({
-        address: collection.collection.address,
-        name: collection.collection.name,
-        chainId: collection.collection.chainId,
-        totalTokensOwned: nftCount,
-        distinctTokensOwned: collection.distinctTokensOwned,
-        totalBalanceUSD: collection.totalBalanceUSD
-      });
-    }
-
-    console.log('📊 NFT Holdings Summary:', {
-      totalNfts,
-      requiredBalance,
-      eligible: totalNfts >= requiredBalance,
-      collectionDetails
+    const eligible = nftResult.totalNfts >= requiredBalance;
+    
+    console.log('✅ Direct blockchain NFT check result:', {
+      eligible,
+      totalNfts: nftResult.totalNfts,
+      required: requiredBalance,
+      contractsChecked: contractAddresses,
+      method: 'direct_rpc'
     });
 
     return {
       success: true,
-      totalNfts,
-      eligible: totalNfts >= requiredBalance,
-      collectionDetails,
-      message: `Found ${totalNfts} NFT(s), need ${requiredBalance}`
+      totalNfts: nftResult.totalNfts,
+      eligible,
+      collectionDetails: nftResult.collectionDetails,
+      message: `Found ${nftResult.totalNfts} NFT(s), need ${requiredBalance}`
     };
-
-  } catch (error) {
-    console.error('❌ Error checking NFT holdings with Zapper:', error);
     
-    // Fall back to mock data
+  } catch (rpcError) {
+    console.error('❌ Direct RPC NFT check failed:', rpcError);
+    // Fall back to mock data only if RPC fails
     console.log('🔄 Falling back to mock NFT data...');
     return getMockNftHoldings(walletAddresses, contractAddresses, requiredBalance);
   }

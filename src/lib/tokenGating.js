@@ -332,8 +332,8 @@ async function checkNftHolding(discount, userWalletAddresses) {
   console.log('🔍 Checking NFT holdings for contracts:', contractAddresses);
   
   try {
-    // Import Zapper API function dynamically to avoid circular imports
-    const { checkNftHoldingsWithZapper } = await import('./zapperAPI.js');
+    // Import blockchain API function dynamically to avoid circular imports
+    const { checkNftHoldingsWithZapper } = await import('./blockchainAPI.js');
     
     const zapperResult = await checkNftHoldingsWithZapper(
       userWalletAddresses, 
@@ -405,8 +405,8 @@ async function checkTokenBalance(discount, userWalletAddresses) {
   console.log('🪙 Checking token balances for contracts:', contractAddresses);
   
   try {
-    // Import Zapper API function dynamically to avoid circular imports
-    const { checkTokenHoldingsWithZapper } = await import('./zapperAPI.js');
+    // Import blockchain API function dynamically to avoid circular imports
+    const { checkTokenHoldingsWithZapper } = await import('./blockchainAPI.js');
     
     const zapperResult = await checkTokenHoldingsWithZapper(
       userWalletAddresses,

@@ -586,12 +586,12 @@ async function testZapperIntegration(fid) {
     };
 
     try {
-      // Import Zapper API functions
+      // Import blockchain API functions
       const { 
         checkNftHoldingsWithZapper, 
         checkTokenHoldingsWithZapper,
         getPortfolioSummaryWithZapper 
-      } = await import('@/lib/zapperAPI.js');
+      } = await import('@/lib/blockchainAPI.js');
 
       // Test NFT holdings check with known collections
       console.log('Testing NFT holdings...');
