@@ -1089,7 +1089,7 @@ export default function AdminDashboard() {
                 { key: 'orders', label: '🛍️ Orders' },
                 { key: 'partners', label: '🤝 Partners' },
                 { key: 'discounts', label: '🎫 Discounts' },
-                { key: 'chat', label: '💬 Chat Eligibility' },
+                { key: 'chat', label: '💬 Chat' },
                 { key: 'leaderboard', label: '🏆 Leaderboard' },
                 { key: 'checkins', label: '📅 Check-ins' },
                 { key: 'raffle', label: '🎲 Raffle Tool' },

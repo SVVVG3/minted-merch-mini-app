@@ -8,6 +8,8 @@ export function ChatAdminDashboard() {
   const [eligibilityData, setEligibilityData] = useState(null);
   const [summary, setSummary] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [newFids, setNewFids] = useState('');
+  const [isAddingMembers, setIsAddingMembers] = useState(false);
 
   const runEligibilityCheck = async () => {
     setIsLoading(true);
@@ -40,6 +42,57 @@ export function ChatAdminDashboard() {
       alert('Error checking eligibility: ' + error.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const addChatMembers = async () => {
+    if (!newFids.trim()) {
+      alert('Please enter at least one FID');
+      return;
+    }
+
+    setIsAddingMembers(true);
+    
+    try {
+      // Parse FIDs from input (comma or line separated)
+      const fids = newFids
+        .split(/[,\n\r\s]+/)
+        .map(fid => fid.trim())
+        .filter(fid => fid && /^\d+$/.test(fid))
+        .map(fid => parseInt(fid));
+
+      if (fids.length === 0) {
+        alert('No valid FIDs found. Please enter numeric FIDs separated by commas or new lines.');
+        return;
+      }
+
+      console.log('Adding chat members for FIDs:', fids);
+
+      const response = await fetch('/api/admin/chat-members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_members',
+          fids
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(`Successfully added ${result.added} chat members!`);
+        setNewFids('');
+        // Refresh the eligibility check to show new members
+        runEligibilityCheck();
+      } else {
+        alert(`Error adding members: ${result.error}`);
+      }
+
+    } catch (error) {
+      console.error('Error adding chat members:', error);
+      alert('Error adding chat members: ' + error.message);
+    } finally {
+      setIsAddingMembers(false);
     }
   };
 
@@ -95,6 +148,43 @@ export function ChatAdminDashboard() {
               Last updated: {lastUpdated}
             </p>
           )}
+        </div>
+
+        {/* Add Members Section */}
+        <div className="p-6 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Add Chat Members</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Enter FIDs (comma or line separated)
+              </label>
+              <textarea
+                value={newFids}
+                onChange={(e) => setNewFids(e.target.value)}
+                placeholder="466111, 12345, 67890&#10;Or one per line:&#10;466111&#10;12345&#10;67890"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent"
+                rows="4"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                System will automatically fetch wallet addresses from Neynar for each FID
+              </p>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={addChatMembers}
+                disabled={isAddingMembers || !newFids.trim()}
+                className="bg-[#3eb489] text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isAddingMembers ? 'Adding Members...' : 'Add Members'}
+              </button>
+              <button
+                onClick={() => setNewFids('')}
+                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
         </div>
 
         {summary && (

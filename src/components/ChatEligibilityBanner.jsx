@@ -14,6 +14,7 @@ export function ChatEligibilityBanner() {
     const checkEligibility = async () => {
       if (!user?.fid || !isInFarcaster || hasChecked) return;
 
+      console.log('🎫 Checking chat eligibility for banner, FID:', user.fid);
       setIsChecking(true);
       
       try {
@@ -21,15 +22,26 @@ export function ChatEligibilityBanner() {
         const response = await fetch(`/api/user-wallet-data?fid=${user.fid}`);
         const userData = await response.json();
         
+        console.log('🎫 User wallet data:', userData);
+        
         if (userData.success && userData.walletAddresses?.length > 0) {
           // Check eligibility
           const eligibility = await checkChatEligibility(userData.walletAddresses);
+          console.log('🎫 Chat eligibility result:', eligibility);
           setIsEligible(eligibility.eligible);
+          
+          if (eligibility.eligible) {
+            console.log('🎉 User is eligible for chat! Showing banner.');
+          } else {
+            console.log('❌ User not eligible:', eligibility.message);
+          }
+        } else {
+          console.log('❌ No wallet addresses found for user');
         }
         
         setHasChecked(true);
       } catch (error) {
-        console.error('Error checking chat eligibility:', error);
+        console.error('❌ Error checking chat eligibility for banner:', error);
         setHasChecked(true);
       } finally {
         setIsChecking(false);
@@ -37,7 +49,7 @@ export function ChatEligibilityBanner() {
     };
 
     // Small delay to avoid checking too early
-    const timer = setTimeout(checkEligibility, 2000);
+    const timer = setTimeout(checkEligibility, 3000); // Increased delay
     return () => clearTimeout(timer);
   }, [user?.fid, isInFarcaster, hasChecked]);
 

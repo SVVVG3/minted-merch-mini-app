@@ -134,18 +134,37 @@ export async function generateChatInvitation(userFid, walletAddresses) {
     };
   }
 
-  // Generate invitation token (you could store this in your database)
+  // Generate invitation token and record the invitation
   const invitationToken = `invite_${userFid}_${Date.now()}`;
+  const groupInviteLink = 'https://farcaster.xyz/~/group/f_3WBwjLNbY6K9khTauJog';
+  
+  // TODO: Store invitation in database for tracking
+  try {
+    await fetch('/api/chat-invitations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fid: userFid,
+        invitation_token: invitationToken,
+        group_link: groupInviteLink,
+        token_balance: eligibility.tokenBalance,
+        generated_at: new Date().toISOString()
+      })
+    });
+  } catch (error) {
+    console.warn('Could not record invitation:', error);
+  }
   
   return {
     success: true,
     invitationToken,
-    message: `✅ You're eligible! Use this invitation to join the $MINTEDMERCH holders chat.`,
+    groupInviteLink,
+    message: `✅ You're eligible! Join the $MINTEDMERCH holders chat.`,
     eligibility,
     instructions: [
       '1. You hold the required 50M+ $MINTEDMERCH tokens',
-      '2. Save this invitation token for chat access',
-      '3. Contact an admin to be added to the group',
+      '2. Click the group link below to join the chat',
+      '3. Your eligibility will be monitored automatically',
       '4. Note: You may be removed if your token balance falls below 50M'
     ]
   };

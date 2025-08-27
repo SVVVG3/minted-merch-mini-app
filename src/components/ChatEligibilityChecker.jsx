@@ -125,31 +125,45 @@ export function ChatEligibilityChecker() {
       )}
 
       {invitationResult && invitationResult.success && (
-        <div className="bg-blue-100 border border-blue-300 p-4 rounded-lg">
-          <h4 className="font-semibold text-blue-800 mb-2">🎉 Invitation Generated!</h4>
-          
-          <div className="bg-white p-3 rounded border mb-3">
-            <p className="text-xs text-gray-500 mb-1">Invitation Token:</p>
-            <code className="text-sm font-mono text-blue-800 break-all">
-              {invitationResult.invitationToken}
-            </code>
-          </div>
+                  <div className="bg-blue-100 border border-blue-300 p-4 rounded-lg">
+            <h4 className="font-semibold text-blue-800 mb-2">🎉 You're Eligible!</h4>
+            
+            {invitationResult.groupInviteLink && (
+              <div className="bg-white p-3 rounded border mb-3">
+                <p className="text-xs text-gray-500 mb-2">Join the $MINTEDMERCH Holders Chat:</p>
+                <a 
+                  href={invitationResult.groupInviteLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center bg-[#3eb489] text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
+                >
+                  🚀 Join Group Chat
+                </a>
+              </div>
+            )}
 
-          <div className="text-sm text-blue-700">
-            <p className="font-medium mb-2">Next Steps:</p>
-            <ol className="list-decimal list-inside space-y-1">
-              {invitationResult.instructions.map((instruction, index) => (
-                <li key={index}>{instruction}</li>
-              ))}
-            </ol>
-          </div>
+            <div className="bg-white p-3 rounded border mb-3">
+              <p className="text-xs text-gray-500 mb-1">Invitation Token (for reference):</p>
+              <code className="text-sm font-mono text-blue-800 break-all">
+                {invitationResult.invitationToken}
+              </code>
+            </div>
 
-          <div className="mt-3 pt-3 border-t border-blue-200">
-            <p className="text-xs text-blue-600">
-              💡 <strong>Note:</strong> Save this invitation token and contact a chat admin to be added to the group.
-            </p>
+            <div className="text-sm text-blue-700">
+              <p className="font-medium mb-2">Instructions:</p>
+              <ol className="list-decimal list-inside space-y-1">
+                {invitationResult.instructions.map((instruction, index) => (
+                  <li key={index}>{instruction}</li>
+                ))}
+              </ol>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-blue-200">
+              <p className="text-xs text-blue-600">
+                💡 <strong>Note:</strong> Your token balance will be monitored automatically. You may be removed if it falls below 50M tokens.
+              </p>
+            </div>
           </div>
-        </div>
       )}
 
       <div className="mt-4 text-center">
