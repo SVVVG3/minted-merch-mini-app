@@ -222,6 +222,78 @@ export async function checkNftHoldingsWithZapper(walletAddresses, contractAddres
 }
 
 /**
+ * Process Zapper API token response data
+ */
+async function processTokenResponse(data, contractAddresses, chainIds, requiredBalance, cacheKey) {
+  console.log('📊 Zapper REST API response:', {
+    dataKeys: Object.keys(data || {}),
+    hasBalances: !!data?.balances,
+    isArray: Array.isArray(data),
+    dataLength: Array.isArray(data) ? data.length : 'not array'
+  });
+
+  // Process the REST API response format
+  if (!data || !Array.isArray(data)) {
+    console.warn('❌ Unexpected Zapper API response format:', data);
+    return {
+      hasRequiredTokens: false,
+      totalBalance: 0,
+      tokenBalances: [],
+      apiCalls: 1
+    };
+  }
+
+  // Filter for the specific contract addresses we're checking (case-insensitive)
+  const lowerCaseContracts = contractAddresses.map(addr => addr.toLowerCase());
+  const relevantTokens = data.filter(tokenData => {
+    const tokenAddress = tokenData.token?.address?.toLowerCase();
+    return tokenAddress && lowerCaseContracts.includes(tokenAddress);
+  });
+
+  // Extract token balance information from REST API format
+  const balanceDetails = relevantTokens.map(tokenData => ({
+    contractAddress: tokenData.token?.address,
+    symbol: tokenData.token?.symbol,
+    name: tokenData.token?.name,
+    chainId: tokenData.token?.network?.chainId || chainIds[0],
+    balance: parseFloat(tokenData.balance || 0), // Actual token balance
+    balanceRaw: tokenData.balanceRaw,
+    balanceUsd: parseFloat(tokenData.balanceUSD || 0),
+    decimals: tokenData.token?.decimals
+  }));
+
+  // Calculate total balance for the specific tokens we're checking
+  const totalBalance = balanceDetails.reduce((sum, token) => sum + token.balance, 0);
+  const hasRequiredTokens = totalBalance >= requiredBalance;
+
+  console.log('✅ Zapper REST API token check result:', {
+    hasRequired: hasRequiredTokens,
+    totalTokenBalance: totalBalance,
+    required: requiredBalance,
+    contractsChecked: contractAddresses,
+    tokensFound: balanceDetails.length,
+    relevantTokensFound: relevantTokens.length,
+    totalApiResults: data.length,
+    tokenDetails: balanceDetails.map(t => ({
+      symbol: t.symbol,
+      balance: t.balance,
+      address: t.contractAddress
+    }))
+  });
+
+  const result = {
+    hasRequiredTokens,
+    totalBalance,
+    tokenBalances: balanceDetails,
+    apiCalls: 1
+  };
+
+  // Cache the successful result
+  setCachedResponse(cacheKey, result);
+  return result;
+}
+
+/**
  * Check if user holds specific tokens using Zapper API
  * @param {Array} walletAddresses - Array of wallet addresses to check
  * @param {Array} contractAddresses - Array of token contract addresses
@@ -284,84 +356,64 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
       'network': getNetworkSlugFromChainId(chainIds[0] || 8453)
     });
 
-    const response = await fetch(`${baseUrl}${endpoint}?${params}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Basic ${Buffer.from(ZAPPER_API_KEY + ':').toString('base64')}`
-      }
+    console.log('🔑 Making Zapper API request:', {
+      url: `${baseUrl}${endpoint}?${params}`,
+      hasApiKey: !!ZAPPER_API_KEY,
+      apiKeyLength: ZAPPER_API_KEY?.length
     });
 
+    // Try different authentication approaches
+    const authHeaders = {
+      'accept': 'application/json',
+      'User-Agent': 'Minted-Merch-App/1.0'
+    };
+
+    // Try API key in header (common format)
+    if (ZAPPER_API_KEY) {
+      authHeaders['Authorization'] = `Bearer ${ZAPPER_API_KEY}`;
+      // Also try x-api-key format as fallback
+      authHeaders['x-api-key'] = ZAPPER_API_KEY;
+    }
+
+    const response = await fetch(`${baseUrl}${endpoint}?${params}`, {
+      method: 'GET',
+      headers: authHeaders
+    });
+
+    // If authentication fails, try without auth (in case it's a public endpoint)
+    if (!response.ok && response.status === 403 && ZAPPER_API_KEY) {
+      console.log('🔄 Authentication failed, trying without API key...');
+      
+      const publicResponse = await fetch(`${baseUrl}${endpoint}?${params}`, {
+        method: 'GET',
+        headers: {
+          'accept': 'application/json',
+          'User-Agent': 'Minted-Merch-App/1.0'
+        }
+      });
+      
+      if (publicResponse.ok) {
+        console.log('✅ Public endpoint access successful');
+        const publicData = await publicResponse.json();
+        // Continue with the public response
+        return await processTokenResponse(publicData, contractAddresses, chainIds, requiredBalance, cacheKey);
+      }
+    }
+
     if (!response.ok) {
-      throw new Error(`Zapper API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('❌ Zapper API error details:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: errorText,
+        url: `${baseUrl}${endpoint}?${params}`
+      });
+      throw new Error(`Zapper API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
-    
-    console.log('📊 Zapper REST API response:', {
-      status: response.status,
-      dataKeys: Object.keys(data || {}),
-      hasBalances: !!data?.balances
-    });
-
-    // Process the REST API response format
-    if (!data || !Array.isArray(data)) {
-      console.warn('❌ Unexpected Zapper API response format:', data);
-      return {
-        hasRequiredTokens: false,
-        totalBalance: 0,
-        tokenBalances: [],
-        apiCalls: 1
-      };
-    }
-
-    // Filter for the specific contract addresses we're checking (case-insensitive)
-    const lowerCaseContracts = contractAddresses.map(addr => addr.toLowerCase());
-    const relevantTokens = data.filter(tokenData => {
-      const tokenAddress = tokenData.token?.address?.toLowerCase();
-      return tokenAddress && lowerCaseContracts.includes(tokenAddress);
-    });
-
-    // Extract token balance information from REST API format
-    const balanceDetails = relevantTokens.map(tokenData => ({
-      contractAddress: tokenData.token?.address,
-      symbol: tokenData.token?.symbol,
-      name: tokenData.token?.name,
-      chainId: tokenData.token?.network?.chainId || chainIds[0],
-      balance: parseFloat(tokenData.balance || 0), // Actual token balance
-      balanceRaw: tokenData.balanceRaw,
-      balanceUsd: parseFloat(tokenData.balanceUSD || 0),
-      decimals: tokenData.token?.decimals
-    }));
-
-    // Calculate total balance for the specific tokens we're checking
-    const totalBalance = balanceDetails.reduce((sum, token) => sum + token.balance, 0);
-    const hasRequiredTokens = totalBalance >= requiredBalance;
-
-    console.log('✅ Zapper REST API token check result:', {
-      hasRequired: hasRequiredTokens,
-      totalTokenBalance: totalBalance,
-      required: requiredBalance,
-      contractsChecked: contractAddresses,
-      tokensFound: balanceDetails.length,
-      relevantTokensFound: relevantTokens.length,
-      totalApiResults: data.length,
-      tokenDetails: balanceDetails.map(t => ({
-        symbol: t.symbol,
-        balance: t.balance,
-        address: t.contractAddress
-      }))
-    });
-
-      const result = {
-        hasRequiredTokens,
-        totalBalance,
-        tokenBalances: balanceDetails,
-        apiCalls: 1
-      };
-
-      // Cache the successful result
-      setCachedResponse(cacheKey, result);
-      return result;
+    return await processTokenResponse(data, contractAddresses, chainIds, requiredBalance, cacheKey);
 
     } catch (error) {
       console.error('❌ Error checking token holdings with Zapper:', error);
