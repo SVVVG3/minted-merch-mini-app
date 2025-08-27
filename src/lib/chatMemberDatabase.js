@@ -11,61 +11,72 @@ export async function addChatMembersByFids(fids) {
   try {
     console.log('🔄 Adding chat members for FIDs:', fids);
     
-    // Fetch user data from Neynar for all FIDs
-    const response = await fetch('/api/user-profiles', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fids })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch user profiles from Neynar');
-    }
-
-    const { profiles } = await response.json();
-    
-    if (!profiles || Object.keys(profiles).length === 0) {
-      throw new Error('No user profiles found');
-    }
-
     // Prepare chat member records
     const chatMembers = [];
     const errors = [];
 
+    // Fetch wallet data for each FID individually
     for (const fid of fids) {
-      const profile = profiles[fid];
-      
-      if (!profile) {
-        errors.push(`No profile found for FID ${fid}`);
-        continue;
-      }
+      try {
+        console.log(`🔍 Fetching data for FID: ${fid}`);
+        
+        // Get user profile data
+        const profileResponse = await fetch('/api/user-profiles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fids: [fid] })
+        });
 
-      // Get wallet addresses from profile
-      const walletAddresses = [];
-      
-      // Add custody address if available
-      if (profile.custody_address) {
-        walletAddresses.push(profile.custody_address);
-      }
-      
-      // Add verified addresses if available
-      if (profile.verified_addresses?.eth_addresses) {
-        walletAddresses.push(...profile.verified_addresses.eth_addresses);
-      }
+        if (!profileResponse.ok) {
+          errors.push(`Failed to fetch profile for FID ${fid}`);
+          continue;
+        }
 
-      // Filter out duplicates and invalid addresses
-      const uniqueWallets = [...new Set(walletAddresses)]
-        .filter(addr => addr && addr.startsWith('0x') && addr.length === 42);
+        const { users } = await profileResponse.json();
+        const profile = users[fid];
+        
+        if (!profile) {
+          errors.push(`No profile found for FID ${fid}`);
+          continue;
+        }
 
-      chatMembers.push({
-        fid: parseInt(fid),
-        username: profile.username,
-        display_name: profile.display_name,
-        pfp_url: profile.pfp_url,
-        wallet_addresses: uniqueWallets,
-        added_at: new Date().toISOString(),
-        is_active: true
-      });
+        // Get wallet data
+        const walletResponse = await fetch(`/api/user-wallet-data?fid=${fid}`);
+        
+        if (!walletResponse.ok) {
+          errors.push(`Failed to fetch wallet data for FID ${fid}`);
+          continue;
+        }
+
+        const { walletData } = await walletResponse.json();
+        
+        // Extract wallet addresses from wallet data
+        const walletAddresses = [];
+        
+        if (walletData?.walletAddresses) {
+          walletAddresses.push(...walletData.walletAddresses);
+        }
+
+        // Filter out duplicates and invalid addresses
+        const uniqueWallets = [...new Set(walletAddresses)]
+          .filter(addr => addr && addr.startsWith('0x') && addr.length === 42);
+
+        chatMembers.push({
+          fid: parseInt(fid),
+          username: profile.username,
+          display_name: profile.display_name,
+          pfp_url: profile.avatar_url, // Note: different field name from neynar
+          wallet_addresses: uniqueWallets,
+          added_at: new Date().toISOString(),
+          is_active: true
+        });
+
+        console.log(`✅ Successfully prepared data for FID ${fid} with ${uniqueWallets.length} wallets`);
+
+      } catch (error) {
+        console.error(`❌ Error processing FID ${fid}:`, error);
+        errors.push(`Error processing FID ${fid}: ${error.message}`);
+      }
     }
 
     if (chatMembers.length === 0) {
@@ -177,32 +188,23 @@ export async function removeChatMember(fid) {
 export async function updateMemberWallets(fid) {
   try {
     // Fetch latest wallet data from Neynar
-    const response = await fetch('/api/user-profiles', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fids: [fid] })
-    });
+    const response = await fetch(`/api/user-wallet-data?fid=${fid}`);
 
     if (!response.ok) {
-      throw new Error('Failed to fetch user profile from Neynar');
+      throw new Error('Failed to fetch wallet data from Neynar');
     }
 
-    const { profiles } = await response.json();
-    const profile = profiles[fid];
+    const { walletData } = await response.json();
     
-    if (!profile) {
-      throw new Error(`No profile found for FID ${fid}`);
+    if (!walletData) {
+      throw new Error(`No wallet data found for FID ${fid}`);
     }
 
-    // Extract wallet addresses
+    // Extract wallet addresses from wallet data
     const walletAddresses = [];
     
-    if (profile.custody_address) {
-      walletAddresses.push(profile.custody_address);
-    }
-    
-    if (profile.verified_addresses?.eth_addresses) {
-      walletAddresses.push(...profile.verified_addresses.eth_addresses);
+    if (walletData?.walletAddresses) {
+      walletAddresses.push(...walletData.walletAddresses);
     }
 
     const uniqueWallets = [...new Set(walletAddresses)]
