@@ -356,32 +356,31 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
       'network': getNetworkSlugFromChainId(chainIds[0] || 8453)
     });
 
+    // Zapper API expects the key as a query parameter, not header
+    const authParams = new URLSearchParams(params);
+    if (ZAPPER_API_KEY) {
+      authParams.set('api_key', ZAPPER_API_KEY);
+    }
+
     console.log('🔑 Making Zapper API request:', {
-      url: `${baseUrl}${endpoint}?${params}`,
+      url: `${baseUrl}${endpoint}?${authParams}`,
       hasApiKey: !!ZAPPER_API_KEY,
-      apiKeyLength: ZAPPER_API_KEY?.length
+      apiKeyLength: ZAPPER_API_KEY?.length,
+      authMethod: 'query_parameter'
     });
 
-    // Try different authentication approaches
     const authHeaders = {
       'accept': 'application/json',
       'User-Agent': 'Minted-Merch-App/1.0'
     };
 
-    // Try API key in header (common format)
-    if (ZAPPER_API_KEY) {
-      authHeaders['Authorization'] = `Bearer ${ZAPPER_API_KEY}`;
-      // Also try x-api-key format as fallback
-      authHeaders['x-api-key'] = ZAPPER_API_KEY;
-    }
-
-    const response = await fetch(`${baseUrl}${endpoint}?${params}`, {
+    const response = await fetch(`${baseUrl}${endpoint}?${authParams}`, {
       method: 'GET',
       headers: authHeaders
     });
 
     // If authentication fails, try without auth (in case it's a public endpoint)
-    if (!response.ok && response.status === 403 && ZAPPER_API_KEY) {
+    if (!response.ok && (response.status === 403 || response.status === 400) && ZAPPER_API_KEY) {
       console.log('🔄 Authentication failed, trying without API key...');
       
       const publicResponse = await fetch(`${baseUrl}${endpoint}?${params}`, {
