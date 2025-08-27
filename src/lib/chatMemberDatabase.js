@@ -11,30 +11,37 @@ export async function addChatMembersByFids(fids) {
   try {
     console.log('🔄 Adding chat members for FIDs:', fids);
     
+    // Convert FIDs to integers for the query
+    const fidInts = fids.map(fid => parseInt(fid));
+    console.log('🔍 Querying profiles for FIDs:', fidInts);
+
     // Fetch profile data directly from our profiles table
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
       .select('fid, username, display_name, pfp_url, custody_address, verified_eth_addresses, all_wallet_addresses')
-      .in('fid', fids);
+      .in('fid', fidInts);
 
     if (profileError) {
+      console.error('❌ Supabase profile query error:', profileError);
       throw new Error(`Failed to fetch profiles: ${profileError.message}`);
     }
 
-    console.log(`📊 Found ${profiles.length} profiles for ${fids.length} FIDs`);
+    console.log(`📊 Found ${profiles?.length || 0} profiles for ${fids.length} FIDs`);
+    console.log('📊 Profile data:', profiles);
 
     // Prepare chat member records
     const chatMembers = [];
     const errors = [];
 
-    for (const fid of fids) {
+    for (const fid of fidInts) {
       try {
-        console.log(`🔍 Processing FID: ${fid}`);
+        console.log(`🔍 Processing FID: ${fid} (type: ${typeof fid})`);
         
         const profile = profiles.find(p => p.fid === fid);
         
         if (!profile) {
           console.log(`❌ No profile found for FID ${fid}`);
+          console.log(`🔍 Available profiles:`, profiles.map(p => ({ fid: p.fid, username: p.username })));
           errors.push(`No profile found for FID ${fid}`);
           continue;
         }
@@ -66,7 +73,7 @@ export async function addChatMembersByFids(fids) {
         console.log(`🔗 Found ${uniqueWallets.length} valid ETH wallet addresses for FID ${fid}:`, uniqueWallets);
 
         chatMembers.push({
-          fid: parseInt(fid),
+          fid: fid, // Already an integer from fidInts
           username: profile.username,
           display_name: profile.display_name,
           pfp_url: profile.pfp_url,
