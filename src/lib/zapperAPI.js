@@ -274,47 +274,21 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
         cacheKey: cacheKey.substring(0, 50) + '...'
       });
 
-    const query = `
-      query GetTokenBalance($addresses: [Address!]!, $contractAddresses: [Address!]!, $chainIds: [Int!]) {
-        portfolioV2(addresses: $addresses, chainIds: $chainIds) {
-          tokenBalances {
-            byToken(filter: { tokenAddresses: $contractAddresses }) {
-              edges {
-                node {
-                  balance
-                  balanceRaw
-                  balanceUSD
-                  token {
-                    address
-                    symbol
-                    name
-                    chainId
-                    decimals
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-`;
+    // Use REST API instead of GraphQL for better reliability
+    const baseUrl = 'https://api.zapper.xyz';
+    const endpoint = '/v2/balances/tokens';
+    
+    // Build query parameters
+    const params = new URLSearchParams({
+      'addresses[]': validAddresses.join(','),
+      'network': getNetworkSlugFromChainId(chainIds[0] || 8453)
+    });
 
-    const variables = {
-      addresses: validAddresses,
-      contractAddresses: contractAddresses,
-      chainIds: chainIds
-    };
-
-    const response = await fetch(ZAPPER_GRAPHQL_ENDPOINT, {
-      method: 'POST',
+    const response = await fetch(`${baseUrl}${endpoint}?${params}`, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
         'Authorization': `Basic ${Buffer.from(ZAPPER_API_KEY + ':').toString('base64')}`
-      },
-      body: JSON.stringify({
-        query,
-        variables
-      })
+      }
     });
 
     if (!response.ok) {
@@ -323,13 +297,15 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
 
     const data = await response.json();
     
-    if (data.errors) {
-      throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
-    }
+    console.log('📊 Zapper REST API response:', {
+      status: response.status,
+      dataKeys: Object.keys(data || {}),
+      hasBalances: !!data?.balances
+    });
 
-    // Process the specific token balance data
-    const tokenBalances = data.data?.portfolioV2?.tokenBalances;
-    if (!tokenBalances) {
+    // Process the REST API response format
+    if (!data || !Array.isArray(data)) {
+      console.warn('❌ Unexpected Zapper API response format:', data);
       return {
         hasRequiredTokens: false,
         totalBalance: 0,
@@ -338,28 +314,37 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
       };
     }
 
-    // Extract token balance information
-    const balanceDetails = tokenBalances.byToken.edges.map(edge => ({
-      contractAddress: edge.node.token.address,
-      symbol: edge.node.token.symbol,
-      name: edge.node.token.name,
-      chainId: edge.node.token.chainId,
-      balance: parseFloat(edge.node.balance || 0), // Actual token balance
-      balanceRaw: edge.node.balanceRaw,
-      balanceUsd: parseFloat(edge.node.balanceUSD || 0),
-      decimals: edge.node.token.decimals
+    // Filter for the specific contract addresses we're checking (case-insensitive)
+    const lowerCaseContracts = contractAddresses.map(addr => addr.toLowerCase());
+    const relevantTokens = data.filter(tokenData => {
+      const tokenAddress = tokenData.token?.address?.toLowerCase();
+      return tokenAddress && lowerCaseContracts.includes(tokenAddress);
+    });
+
+    // Extract token balance information from REST API format
+    const balanceDetails = relevantTokens.map(tokenData => ({
+      contractAddress: tokenData.token?.address,
+      symbol: tokenData.token?.symbol,
+      name: tokenData.token?.name,
+      chainId: tokenData.token?.network?.chainId || chainIds[0],
+      balance: parseFloat(tokenData.balance || 0), // Actual token balance
+      balanceRaw: tokenData.balanceRaw,
+      balanceUsd: parseFloat(tokenData.balanceUSD || 0),
+      decimals: tokenData.token?.decimals
     }));
 
     // Calculate total balance for the specific tokens we're checking
     const totalBalance = balanceDetails.reduce((sum, token) => sum + token.balance, 0);
     const hasRequiredTokens = totalBalance >= requiredBalance;
 
-    console.log('✅ Zapper specific token check result:', {
+    console.log('✅ Zapper REST API token check result:', {
       hasRequired: hasRequiredTokens,
       totalTokenBalance: totalBalance,
       required: requiredBalance,
       contractsChecked: contractAddresses,
       tokensFound: balanceDetails.length,
+      relevantTokensFound: relevantTokens.length,
+      totalApiResults: data.length,
       tokenDetails: balanceDetails.map(t => ({
         symbol: t.symbol,
         balance: t.balance,
@@ -564,6 +549,24 @@ function getNetworkFromChainId(chainId) {
   };
   
   return networkMap[chainId] || 'ETHEREUM';
+}
+
+/**
+ * Helper function to convert chain ID to Zapper network slug for REST API
+ */
+function getNetworkSlugFromChainId(chainId) {
+  const networkMap = {
+    1: 'ethereum',
+    8453: 'base',
+    137: 'polygon',
+    42161: 'arbitrum',
+    10: 'optimism',
+    43114: 'avalanche',
+    250: 'fantom',
+    56: 'binance-smart-chain'
+  };
+  
+  return networkMap[chainId] || 'base';
 }
 
 /**
