@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 export function PriceTicker() {
   const [tokenData, setTokenData] = useState(null);
@@ -81,14 +82,25 @@ export function PriceTicker() {
   const getChangeColor = (change) => {
     if (!change) return 'text-gray-600';
     const numChange = parseFloat(change);
-    return numChange >= 0 ? 'text-green-600' : 'text-red-600';
+    return numChange >= 0 ? 'text-[#3eb489]' : 'text-red-600';
+  };
+
+  // Handle click to view token in Farcaster
+  const handleTokenClick = async () => {
+    try {
+      await sdk.actions.viewToken({
+        token: `eip155:8453/erc20:${MINTEDMERCH_TOKEN_ADDRESS}`
+      });
+    } catch (error) {
+      console.error('Error opening token view:', error);
+    }
   };
 
   if (error) {
     return (
-      <div className="bg-white text-gray-900 py-1 px-4 text-xs overflow-hidden border-b border-gray-200">
+      <div className="bg-black text-white py-1 px-4 text-xs overflow-hidden">
         <div className="flex items-center justify-center">
-          <span className="text-gray-600">Unable to load $MINTEDMERCH price data</span>
+          <span className="text-gray-400">Unable to load $MINTEDMERCH price data</span>
         </div>
       </div>
     );
@@ -96,9 +108,9 @@ export function PriceTicker() {
 
   if (isLoading || !tokenData) {
     return (
-      <div className="bg-white text-gray-900 py-1 px-4 text-xs overflow-hidden border-b border-gray-200">
+      <div className="bg-black text-white py-1 px-4 text-xs overflow-hidden">
         <div className="flex items-center justify-center">
-          <span className="text-gray-600">Loading $MINTEDMERCH price...</span>
+          <span className="text-gray-400">Loading $MINTEDMERCH price...</span>
         </div>
       </div>
     );
@@ -110,37 +122,28 @@ export function PriceTicker() {
   const marketCap = tokenData.marketCap;
 
   return (
-    <div className="bg-white text-gray-900 py-1 px-4 text-xs overflow-hidden relative border-b border-gray-200">
-      <div className="animate-scroll flex items-center space-x-4 whitespace-nowrap">
+    <div 
+      className="bg-black text-white py-1 px-4 text-xs overflow-hidden relative cursor-pointer"
+      onClick={handleTokenClick}
+    >
+      <div className="animate-scroll flex items-center space-x-8 whitespace-nowrap">
         {/* Repeat the content multiple times for continuous scroll */}
-        {[...Array(3)].map((_, index) => (
-          <div key={index} className="flex items-center space-x-4 flex-shrink-0">
+        {[...Array(5)].map((_, index) => (
+          <div key={index} className="flex items-center space-x-8 flex-shrink-0">
             <div className="flex items-center space-x-2">
-              <span className="font-semibold">$MINTEDMERCH</span>
-              <span className="text-gray-900">{formatPrice(priceUsd)}</span>
+              <span className="font-semibold text-[#3eb489]">$MINTEDMERCH</span>
+              <span className="text-white">{formatPrice(priceUsd)}</span>
               <span className={getChangeColor(hourlyChange)}>
                 {formatPercentage(hourlyChange)}
               </span>
             </div>
             
-            {volume24h && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-600">24h Vol:</span>
-                <span className="text-gray-900">${parseFloat(volume24h).toLocaleString()}</span>
-              </div>
-            )}
-            
             {marketCap && (
               <div className="flex items-center space-x-1">
-                <span className="text-gray-600">MCap:</span>
-                <span className="text-gray-900">${parseFloat(marketCap).toLocaleString()}</span>
+                <span className="text-gray-400">MCap:</span>
+                <span className="text-white">${parseFloat(marketCap).toLocaleString()}</span>
               </div>
             )}
-            
-            <div className="flex items-center space-x-1">
-              <span className="text-gray-600">DEX:</span>
-              <span className="text-gray-900">{tokenData.dexId?.toUpperCase() || 'UNISWAP'}</span>
-            </div>
           </div>
         ))}
       </div>
