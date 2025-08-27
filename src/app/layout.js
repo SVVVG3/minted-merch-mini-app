@@ -5,6 +5,7 @@ import { FrameInit } from "@/components/FrameInit";
 import { GoogleMapsScript } from "@/components/GoogleMapsScript";
 import { FarcasterHeader } from "@/components/FarcasterHeader";
 import { PriceTicker } from "@/components/PriceTicker";
+import { ChatEligibilityBanner } from "@/components/ChatEligibilityBanner";
 import { CartProvider } from "@/lib/CartContext";
 import { WagmiProvider } from "@/components/WagmiProvider";
 // import { MiniAppProvider } from '@neynar/react';
@@ -40,6 +41,7 @@ export default function RootLayout({ children }) {
             <div>
               <PriceTicker />
               <FarcasterHeader />
+              <ChatEligibilityBanner />
               {children}
             </div>
           </CartProvider>

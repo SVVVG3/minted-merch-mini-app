@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import UserModal from '@/components/UserModal';
+import { ChatAdminDashboard } from '@/components/ChatAdminDashboard';
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -1088,6 +1089,7 @@ export default function AdminDashboard() {
                 { key: 'orders', label: '🛍️ Orders' },
                 { key: 'partners', label: '🤝 Partners' },
                 { key: 'discounts', label: '🎫 Discounts' },
+                { key: 'chat', label: '💬 Chat Eligibility' },
                 { key: 'leaderboard', label: '🏆 Leaderboard' },
                 { key: 'checkins', label: '📅 Check-ins' },
                 { key: 'raffle', label: '🎲 Raffle Tool' },
@@ -3142,6 +3144,13 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Chat Eligibility Tab */}
+        {activeTab === 'chat' && (
+          <div className="bg-white rounded-lg shadow">
+            <ChatAdminDashboard />
           </div>
         )}
       </div>
