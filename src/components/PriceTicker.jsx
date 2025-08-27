@@ -126,23 +126,21 @@ export function PriceTicker() {
       className="bg-black text-white py-1 px-4 text-xs overflow-hidden relative cursor-pointer"
       onClick={handleTokenClick}
     >
-      <div className="animate-scroll flex items-center space-x-8 whitespace-nowrap">
+      <div className="animate-scroll flex items-center space-x-3 whitespace-nowrap">
         {/* Repeat the content multiple times for continuous scroll */}
-        {[...Array(5)].map((_, index) => (
-          <div key={index} className="flex items-center space-x-8 flex-shrink-0">
-            <div className="flex items-center space-x-2">
-              <span className="font-semibold text-[#3eb489]">$MINTEDMERCH</span>
-              <span className="text-white">{formatPrice(priceUsd)}</span>
-              <span className={getChangeColor(hourlyChange)}>
-                {formatPercentage(hourlyChange)}
-              </span>
-            </div>
+        {[...Array(8)].map((_, index) => (
+          <div key={index} className="flex items-center space-x-3 flex-shrink-0">
+            <span className="font-semibold text-[#3eb489]">$MINTEDMERCH</span>
+            <span className="text-white">{formatPrice(priceUsd)}</span>
+            <span className={getChangeColor(hourlyChange)}>
+              {formatPercentage(hourlyChange)}
+            </span>
             
             {marketCap && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-400">MCap:</span>
+              <>
+                <span className="text-gray-400">MC:</span>
                 <span className="text-white">${parseFloat(marketCap).toLocaleString()}</span>
-              </div>
+              </>
             )}
           </div>
         ))}

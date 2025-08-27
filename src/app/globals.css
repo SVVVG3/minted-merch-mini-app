@@ -93,12 +93,12 @@ body {
     transform: translateX(0);
   }
   100% {
-    transform: translateX(-20%);
+    transform: translateX(-12.5%);
   }
 }
 
 .animate-scroll {
-  animation: scroll-ticker 15s linear infinite;
+  animation: scroll-ticker 8s linear infinite;
 }
 
 .animate-scroll:hover {
