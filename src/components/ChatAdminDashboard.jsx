@@ -85,7 +85,18 @@ export function ChatAdminDashboard() {
         // Refresh the eligibility check to show new members
         runEligibilityCheck();
       } else {
-        alert(`Error adding members: ${result.error}`);
+        console.error('❌ Detailed error adding members:', result);
+        let errorMessage = `Error adding members: ${result.error}`;
+        
+        if (result.errors && result.errors.length > 0) {
+          errorMessage += '\n\nDetailed errors:\n' + result.errors.join('\n');
+        }
+        
+        if (result.debug) {
+          errorMessage += `\n\nDebug info: Processed ${result.debug.processedMembers}/${result.debug.totalFids} FIDs, ${result.debug.errorCount} errors`;
+        }
+        
+        alert(errorMessage);
       }
 
     } catch (error) {

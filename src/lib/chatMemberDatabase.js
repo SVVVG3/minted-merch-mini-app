@@ -32,13 +32,18 @@ export async function addChatMembersByFids(fids) {
           continue;
         }
 
-        const { users } = await profileResponse.json();
-        const profile = users[fid];
+        const profileData = await profileResponse.json();
+        console.log(`📊 Profile response for FID ${fid}:`, profileData);
+        
+        const profile = profileData.users?.[fid];
         
         if (!profile) {
+          console.log(`❌ No profile found for FID ${fid}. Available users:`, Object.keys(profileData.users || {}));
           errors.push(`No profile found for FID ${fid}`);
           continue;
         }
+        
+        console.log(`👤 Found profile for FID ${fid}:`, profile.username);
 
         // Get wallet data
         const walletResponse = await fetch(`/api/user-wallet-data?fid=${fid}`);
@@ -48,13 +53,19 @@ export async function addChatMembersByFids(fids) {
           continue;
         }
 
-        const { walletData } = await walletResponse.json();
+        const walletResponseData = await walletResponse.json();
+        console.log(`💰 Wallet response for FID ${fid}:`, walletResponseData);
+        
+        const walletData = walletResponseData.walletData;
         
         // Extract wallet addresses from wallet data
         const walletAddresses = [];
         
         if (walletData?.walletAddresses) {
           walletAddresses.push(...walletData.walletAddresses);
+          console.log(`🔗 Found ${walletData.walletAddresses.length} wallet addresses for FID ${fid}`);
+        } else {
+          console.log(`❌ No wallet addresses found for FID ${fid}. WalletData:`, walletData);
         }
 
         // Filter out duplicates and invalid addresses
@@ -80,10 +91,16 @@ export async function addChatMembersByFids(fids) {
     }
 
     if (chatMembers.length === 0) {
+      console.log('❌ No valid chat members to add. Errors:', errors);
       return {
         success: false,
         error: 'No valid chat members to add',
-        errors
+        errors,
+        debug: {
+          totalFids: fids.length,
+          processedMembers: chatMembers.length,
+          errorCount: errors.length
+        }
       };
     }
 
