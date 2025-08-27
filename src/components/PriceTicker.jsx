@@ -126,22 +126,26 @@ export function PriceTicker() {
       className="bg-black text-white py-1 px-4 text-xs overflow-hidden relative cursor-pointer"
       onClick={handleTokenClick}
     >
-      <div className="animate-scroll flex items-center space-x-3 whitespace-nowrap">
-        {/* Repeat the content multiple times for continuous scroll */}
-        {[...Array(8)].map((_, index) => (
-          <div key={index} className="flex items-center space-x-3 flex-shrink-0">
-            <span className="font-semibold text-[#3eb489]">$MINTEDMERCH</span>
-            <span className="text-white">{formatPrice(priceUsd)}</span>
-            <span className={getChangeColor(hourlyChange)}>
-              {formatPercentage(hourlyChange)}
-            </span>
-            
-            {marketCap && (
-              <>
-                <span className="text-gray-400">MC:</span>
-                <span className="text-white">${parseFloat(marketCap).toLocaleString()}</span>
-              </>
-            )}
+      <div className="animate-scroll flex items-center whitespace-nowrap">
+        {/* Create the ticker content */}
+        {[...Array(2)].map((_, setIndex) => (
+          <div key={setIndex} className="flex items-center">
+            {[...Array(10)].map((_, index) => (
+              <div key={`${setIndex}-${index}`} className="flex items-center space-x-3 flex-shrink-0 mr-8">
+                <span className="font-semibold text-[#3eb489]">$MINTEDMERCH</span>
+                <span className="text-white">{formatPrice(priceUsd)}</span>
+                <span className={getChangeColor(hourlyChange)}>
+                  {formatPercentage(hourlyChange)}
+                </span>
+                
+                {marketCap && (
+                  <>
+                    <span className="text-gray-400">MC:</span>
+                    <span className="text-white">${parseFloat(marketCap).toLocaleString()}</span>
+                  </>
+                )}
+              </div>
+            ))}
           </div>
         ))}
       </div>
