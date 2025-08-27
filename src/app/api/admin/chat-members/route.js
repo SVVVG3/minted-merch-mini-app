@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { batchCheckEligibility, getEligibilitySummary } from '@/lib/chatEligibility';
-import { getChatMembers, addChatMembersByFids, removeChatMember, updateMemberWallets, refreshAllMemberWallets } from '@/lib/chatMemberDatabase';
+import { getChatMembers, addChatMembersByFids, removeChatMember } from '@/lib/chatMemberDatabase';
 
 // This would need to be secured with admin authentication in production
 export async function GET(request) {
@@ -80,23 +80,10 @@ export async function POST(request) {
         const removeResult = await removeChatMember(fid);
         return NextResponse.json(removeResult);
 
-      case 'refresh_wallets':
-        if (fid) {
-          // Refresh wallets for specific member
-          console.log('🔄 Refreshing wallet data for FID:', fid);
-          const refreshResult = await updateMemberWallets(fid);
-          return NextResponse.json(refreshResult);
-        } else {
-          // Refresh wallets for all members
-          console.log('🔄 Refreshing wallet data for all members');
-          const refreshAllResult = await refreshAllMemberWallets();
-          return NextResponse.json(refreshAllResult);
-        }
-
       default:
         return NextResponse.json({
           success: false,
-          error: 'Invalid action. Use: batch_check, add_members, remove_member, or refresh_wallets'
+          error: 'Invalid action. Use: batch_check, add_members, or remove_member'
         }, { status: 400 });
     }
 

@@ -1,11 +1,9 @@
-// Chat member database management using Neynar for wallet data
+// Chat member database management using existing profiles data
 
 import { supabase } from './supabase';
-import { fetchBulkUserProfiles } from './neynar';
-import { fetchUserWalletData } from './walletUtils';
 
 /**
- * Add chat members by FID and fetch their wallet addresses from Neynar
+ * Add chat members by FID using existing profiles data
  * @param {Array} fids - Array of Farcaster IDs to add as chat members
  * @returns {Promise<Object>} Result of the operation
  */
@@ -13,68 +11,65 @@ export async function addChatMembersByFids(fids) {
   try {
     console.log('🔄 Adding chat members for FIDs:', fids);
     
+    // Fetch profile data directly from our profiles table
+    const { data: profiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('fid, username, display_name, pfp_url, custody_address, verified_eth_addresses, all_wallet_addresses')
+      .in('fid', fids);
+
+    if (profileError) {
+      throw new Error(`Failed to fetch profiles: ${profileError.message}`);
+    }
+
+    console.log(`📊 Found ${profiles.length} profiles for ${fids.length} FIDs`);
+
     // Prepare chat member records
     const chatMembers = [];
     const errors = [];
 
-    // Fetch profile data for all FIDs at once
-    console.log('🔍 Fetching bulk user profiles...');
-    const profileResult = await fetchBulkUserProfiles(fids);
-    
-    if (!profileResult.success) {
-      return {
-        success: false,
-        error: `Failed to fetch user profiles: ${profileResult.error}`,
-        errors: [profileResult.error]
-      };
-    }
-
-    // Process each FID individually
     for (const fid of fids) {
       try {
         console.log(`🔍 Processing FID: ${fid}`);
         
-        const profile = profileResult.users[fid];
+        const profile = profiles.find(p => p.fid === fid);
         
         if (!profile) {
-          console.log(`❌ No profile found for FID ${fid}. Available users:`, Object.keys(profileResult.users || {}));
+          console.log(`❌ No profile found for FID ${fid}`);
           errors.push(`No profile found for FID ${fid}`);
           continue;
         }
         
         console.log(`👤 Found profile for FID ${fid}:`, profile.username);
 
-        // Get wallet data directly
-        console.log(`💰 Fetching wallet data for FID ${fid}...`);
-        const walletData = await fetchUserWalletData(fid);
-        
-        if (!walletData) {
-          console.log(`❌ No wallet data found for FID ${fid}`);
-          errors.push(`Failed to fetch wallet data for FID ${fid}`);
-          continue;
-        }
-        
-        console.log(`💰 Wallet data for FID ${fid}:`, walletData);
-        
-        // Extract wallet addresses from wallet data
+        // Extract wallet addresses from profile data
         const walletAddresses = [];
         
-        if (walletData?.walletAddresses) {
-          walletAddresses.push(...walletData.walletAddresses);
-          console.log(`🔗 Found ${walletData.walletAddresses.length} wallet addresses for FID ${fid}`);
-        } else {
-          console.log(`❌ No wallet addresses found for FID ${fid}. WalletData:`, walletData);
+        // Add custody address
+        if (profile.custody_address) {
+          walletAddresses.push(profile.custody_address);
+        }
+        
+        // Add verified ETH addresses
+        if (profile.verified_eth_addresses && Array.isArray(profile.verified_eth_addresses)) {
+          walletAddresses.push(...profile.verified_eth_addresses);
+        }
+        
+        // Add all wallet addresses (this should include everything)
+        if (profile.all_wallet_addresses && Array.isArray(profile.all_wallet_addresses)) {
+          walletAddresses.push(...profile.all_wallet_addresses);
         }
 
-        // Filter out duplicates and invalid addresses
+        // Filter out duplicates and keep only valid ETH addresses
         const uniqueWallets = [...new Set(walletAddresses)]
-          .filter(addr => addr && addr.startsWith('0x') && addr.length === 42);
+          .filter(addr => addr && typeof addr === 'string' && addr.startsWith('0x') && addr.length === 42);
+
+        console.log(`🔗 Found ${uniqueWallets.length} valid ETH wallet addresses for FID ${fid}:`, uniqueWallets);
 
         chatMembers.push({
           fid: parseInt(fid),
           username: profile.username,
           display_name: profile.display_name,
-          pfp_url: profile.avatar_url, // Note: different field name from neynar
+          pfp_url: profile.pfp_url,
           wallet_addresses: uniqueWallets,
           added_at: new Date().toISOString(),
           is_active: true
@@ -139,14 +134,25 @@ export async function addChatMembersByFids(fids) {
 }
 
 /**
- * Get all chat members from the database
- * @returns {Promise<Array>} Array of chat members
+ * Get all chat members with their wallet data from profiles
+ * @returns {Promise<Array>} Array of chat members with wallet addresses
  */
 export async function getChatMembers() {
   try {
+    // Get chat members and join with profiles for fresh wallet data
     const { data, error } = await supabase
       .from('chat_members')
-      .select('*')
+      .select(`
+        fid,
+        username,
+        display_name,
+        added_at,
+        profiles!inner(
+          custody_address,
+          verified_eth_addresses,
+          all_wallet_addresses
+        )
+      `)
       .eq('is_active', true)
       .order('added_at', { ascending: false });
 
@@ -154,13 +160,40 @@ export async function getChatMembers() {
       throw new Error(`Database error: ${error.message}`);
     }
 
-    // Transform data for compatibility with eligibility checker
-    return data.map(member => ({
-      fid: member.fid,
-      username: member.username,
-      displayName: member.display_name,
-      walletAddresses: member.wallet_addresses || []
-    }));
+    console.log(`📊 Fetched ${data.length} active chat members with profile data`);
+
+    // Transform data and extract wallet addresses from profiles
+    return data.map(member => {
+      const walletAddresses = [];
+      
+      // Add custody address
+      if (member.profiles?.custody_address) {
+        walletAddresses.push(member.profiles.custody_address);
+      }
+      
+      // Add verified ETH addresses
+      if (member.profiles?.verified_eth_addresses && Array.isArray(member.profiles.verified_eth_addresses)) {
+        walletAddresses.push(...member.profiles.verified_eth_addresses);
+      }
+      
+      // Add all wallet addresses
+      if (member.profiles?.all_wallet_addresses && Array.isArray(member.profiles.all_wallet_addresses)) {
+        walletAddresses.push(...member.profiles.all_wallet_addresses);
+      }
+
+      // Filter out duplicates and keep only valid ETH addresses
+      const uniqueWallets = [...new Set(walletAddresses)]
+        .filter(addr => addr && typeof addr === 'string' && addr.startsWith('0x') && addr.length === 42);
+
+      console.log(`👤 Member ${member.username} (FID: ${member.fid}) has ${uniqueWallets.length} wallet addresses`);
+
+      return {
+        fid: member.fid,
+        username: member.username,
+        displayName: member.display_name,
+        walletAddresses: uniqueWallets
+      };
+    });
 
   } catch (error) {
     console.error('❌ Error fetching chat members:', error);
@@ -204,101 +237,5 @@ export async function removeChatMember(fid) {
  * @param {number} fid - Farcaster ID
  * @returns {Promise<Object>} Result of the operation
  */
-export async function updateMemberWallets(fid) {
-  try {
-    console.log(`🔄 Updating wallet data for FID ${fid}...`);
-    
-    // Fetch latest wallet data directly from Neynar
-    const walletData = await fetchUserWalletData(fid);
-    
-    if (!walletData) {
-      throw new Error(`No wallet data found for FID ${fid}`);
-    }
-
-    console.log(`💰 Fetched wallet data for FID ${fid}:`, walletData);
-
-    // Extract wallet addresses from wallet data
-    const walletAddresses = [];
-    
-    if (walletData?.walletAddresses) {
-      walletAddresses.push(...walletData.walletAddresses);
-    }
-
-    const uniqueWallets = [...new Set(walletAddresses)]
-      .filter(addr => addr && addr.startsWith('0x') && addr.length === 42);
-
-    console.log(`🔗 Updating ${uniqueWallets.length} wallet addresses for FID ${fid}`);
-
-    // Update in database
-    const { data, error } = await supabase
-      .from('chat_members')
-      .update({ 
-        wallet_addresses: uniqueWallets,
-        updated_at: new Date().toISOString()
-      })
-      .eq('fid', fid)
-      .select();
-
-    if (error) {
-      throw new Error(`Database error: ${error.message}`);
-    }
-
-    console.log(`✅ Successfully updated wallet data for FID ${fid}`);
-
-    return {
-      success: true,
-      updated: data.length > 0,
-      walletAddresses: uniqueWallets,
-      member: data[0]
-    };
-
-  } catch (error) {
-    console.error('❌ Error updating member wallets:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-
-/**
- * Refresh wallet data for all active chat members
- * @returns {Promise<Object>} Result of the operation
- */
-export async function refreshAllMemberWallets() {
-  try {
-    const members = await getChatMembers();
-    console.log(`🔄 Refreshing wallet data for ${members.length} chat members...`);
-    
-    const results = [];
-    const errors = [];
-    
-    for (const member of members) {
-      try {
-        const result = await updateMemberWallets(member.fid);
-        results.push({
-          fid: member.fid,
-          username: member.username,
-          ...result
-        });
-      } catch (error) {
-        errors.push(`FID ${member.fid}: ${error.message}`);
-      }
-    }
-    
-    return {
-      success: true,
-      updated: results.filter(r => r.success).length,
-      failed: errors.length,
-      results,
-      errors
-    };
-    
-  } catch (error) {
-    console.error('❌ Error refreshing all member wallets:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
+// Wallet refresh functions removed - we now use profiles data directly
+// No need to maintain separate wallet data in chat_members table
