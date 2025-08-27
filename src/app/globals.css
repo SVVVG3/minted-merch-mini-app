@@ -86,3 +86,21 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Price ticker scrolling animation */
+@keyframes scroll-ticker {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-33.333%);
+  }
+}
+
+.animate-scroll {
+  animation: scroll-ticker 20s linear infinite;
+}
+
+.animate-scroll:hover {
+  animation-play-state: paused;
+}

@@ -4,6 +4,7 @@ import "./globals.css";
 import { FrameInit } from "@/components/FrameInit";
 import { GoogleMapsScript } from "@/components/GoogleMapsScript";
 import { FarcasterHeader } from "@/components/FarcasterHeader";
+import { PriceTicker } from "@/components/PriceTicker";
 import { CartProvider } from "@/lib/CartContext";
 import { WagmiProvider } from "@/components/WagmiProvider";
 // import { MiniAppProvider } from '@neynar/react';
@@ -37,6 +38,7 @@ export default function RootLayout({ children }) {
         <WagmiProvider>
           <CartProvider>
             <div>
+              <PriceTicker />
               <FarcasterHeader />
               {children}
             </div>
