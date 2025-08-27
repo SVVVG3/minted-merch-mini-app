@@ -102,10 +102,14 @@ export async function addChatMembersByFids(fids) {
       };
     }
 
-    // Insert into Supabase (you'll need to create this table)
+    // Insert/update into Supabase with reactivation logic
     const { data, error } = await supabase
       .from('chat_members')
-      .upsert(chatMembers, { 
+      .upsert(chatMembers.map(member => ({
+        ...member,
+        is_active: true, // Reactivate if they were previously removed
+        removed_at: null // Clear removal timestamp
+      })), { 
         onConflict: 'fid',
         ignoreDuplicates: false 
       })
@@ -202,12 +206,16 @@ export async function removeChatMember(fid) {
  */
 export async function updateMemberWallets(fid) {
   try {
+    console.log(`🔄 Updating wallet data for FID ${fid}...`);
+    
     // Fetch latest wallet data directly from Neynar
     const walletData = await fetchUserWalletData(fid);
     
     if (!walletData) {
       throw new Error(`No wallet data found for FID ${fid}`);
     }
+
+    console.log(`💰 Fetched wallet data for FID ${fid}:`, walletData);
 
     // Extract wallet addresses from wallet data
     const walletAddresses = [];
@@ -218,6 +226,8 @@ export async function updateMemberWallets(fid) {
 
     const uniqueWallets = [...new Set(walletAddresses)]
       .filter(addr => addr && addr.startsWith('0x') && addr.length === 42);
+
+    console.log(`🔗 Updating ${uniqueWallets.length} wallet addresses for FID ${fid}`);
 
     // Update in database
     const { data, error } = await supabase
@@ -233,14 +243,59 @@ export async function updateMemberWallets(fid) {
       throw new Error(`Database error: ${error.message}`);
     }
 
+    console.log(`✅ Successfully updated wallet data for FID ${fid}`);
+
     return {
       success: true,
       updated: data.length > 0,
-      walletAddresses: uniqueWallets
+      walletAddresses: uniqueWallets,
+      member: data[0]
     };
 
   } catch (error) {
     console.error('❌ Error updating member wallets:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Refresh wallet data for all active chat members
+ * @returns {Promise<Object>} Result of the operation
+ */
+export async function refreshAllMemberWallets() {
+  try {
+    const members = await getChatMembers();
+    console.log(`🔄 Refreshing wallet data for ${members.length} chat members...`);
+    
+    const results = [];
+    const errors = [];
+    
+    for (const member of members) {
+      try {
+        const result = await updateMemberWallets(member.fid);
+        results.push({
+          fid: member.fid,
+          username: member.username,
+          ...result
+        });
+      } catch (error) {
+        errors.push(`FID ${member.fid}: ${error.message}`);
+      }
+    }
+    
+    return {
+      success: true,
+      updated: results.filter(r => r.success).length,
+      failed: errors.length,
+      results,
+      errors
+    };
+    
+  } catch (error) {
+    console.error('❌ Error refreshing all member wallets:', error);
     return {
       success: false,
       error: error.message

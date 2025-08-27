@@ -12,6 +12,7 @@ export function ChatAdminDashboard() {
   const [usernameSearch, setUsernameSearch] = useState('');
   const [isAddingMembers, setIsAddingMembers] = useState(false);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  const [isRefreshingWallets, setIsRefreshingWallets] = useState(false);
 
   const runEligibilityCheck = async () => {
     setIsLoading(true);
@@ -211,6 +212,40 @@ export function ChatAdminDashboard() {
     }
   };
 
+  const refreshAllWallets = async () => {
+    if (!confirm('This will refresh wallet data for all chat members. This may take a while. Continue?')) {
+      return;
+    }
+
+    setIsRefreshingWallets(true);
+    
+    try {
+      const response = await fetch('/api/admin/chat-members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'refresh_wallets'
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(`Successfully refreshed wallet data for ${result.updated} members! ${result.failed} failed.`);
+        // Refresh the eligibility check to show updated data
+        runEligibilityCheck();
+      } else {
+        alert(`Error refreshing wallets: ${result.error}`);
+      }
+
+    } catch (error) {
+      console.error('Error refreshing wallets:', error);
+      alert('Error refreshing wallets: ' + error.message);
+    } finally {
+      setIsRefreshingWallets(false);
+    }
+  };
+
   const exportIneligibleUsers = () => {
     if (!eligibilityData) return;
     
@@ -249,13 +284,22 @@ export function ChatAdminDashboard() {
                 Monitor $MINTEDMERCH token requirements for chat members
               </p>
             </div>
-            <button
-              onClick={runEligibilityCheck}
-              disabled={isLoading}
-              className="bg-[#3eb489] text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Checking...' : 'Run Eligibility Check'}
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={runEligibilityCheck}
+                disabled={isLoading}
+                className="bg-[#3eb489] text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Checking...' : 'Run Eligibility Check'}
+              </button>
+              <button
+                onClick={refreshAllWallets}
+                disabled={isRefreshingWallets}
+                className="bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isRefreshingWallets ? 'Refreshing...' : 'Refresh Wallets'}
+              </button>
+            </div>
           </div>
           
           {lastUpdated && (
