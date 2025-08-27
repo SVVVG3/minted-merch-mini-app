@@ -222,6 +222,76 @@ export async function checkNftHoldingsWithZapper(walletAddresses, contractAddres
 }
 
 /**
+ * Check token balance directly via blockchain RPC (more reliable than Zapper)
+ */
+async function checkTokenBalanceDirectly(walletAddresses, contractAddresses, chainId) {
+  const rpcUrls = {
+    1: 'https://eth.llamarpc.com',
+    8453: 'https://mainnet.base.org',
+    137: 'https://polygon.llamarpc.com',
+    42161: 'https://arb1.arbitrum.io/rpc'
+  };
+
+  const rpcUrl = rpcUrls[chainId] || rpcUrls[8453]; // Default to Base
+  const contractAddress = contractAddresses[0]; // Focus on the first contract (mintedmerch)
+
+  console.log('🔗 Checking token balance via RPC:', {
+    rpcUrl,
+    contractAddress,
+    walletCount: walletAddresses.length,
+    chainId
+  });
+
+  let totalBalance = 0;
+
+  // Check balance for each wallet address
+  for (const walletAddress of walletAddresses) {
+    try {
+      // ERC-20 balanceOf function call
+      const data = `0x70a08231${walletAddress.slice(2).padStart(64, '0')}`;
+      
+      const response = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'eth_call',
+          params: [
+            {
+              to: contractAddress,
+              data: data
+            },
+            'latest'
+          ],
+          id: 1
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.result && result.result !== '0x') {
+        // Convert hex to decimal and adjust for 18 decimals
+        const balanceHex = result.result;
+        const balanceWei = BigInt(balanceHex);
+        const balanceTokens = Number(balanceWei) / Math.pow(10, 18);
+        
+        totalBalance += balanceTokens;
+        
+        console.log(`💰 Wallet ${walletAddress}: ${balanceTokens.toLocaleString()} tokens`);
+      }
+    } catch (error) {
+      console.error(`❌ Error checking balance for ${walletAddress}:`, error);
+      // Continue with other addresses
+    }
+  }
+
+  console.log(`📊 Total token balance across all wallets: ${totalBalance.toLocaleString()}`);
+  return totalBalance;
+}
+
+/**
  * Process Zapper API token response data
  */
 async function processTokenResponse(data, contractAddresses, chainIds, requiredBalance, cacheKey) {
@@ -346,58 +416,64 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
         cacheKey: cacheKey.substring(0, 50) + '...'
       });
 
-    // Use REST API instead of GraphQL for better reliability
+    // Since Zapper API is giving 403 errors, let's try a direct blockchain RPC approach
+    // This will be more reliable and doesn't require API keys
+    console.log('🔗 Using direct blockchain RPC instead of Zapper API for better reliability');
+    
+    try {
+      const tokenBalances = await checkTokenBalanceDirectly(validAddresses, contractAddresses, chainIds[0] || 8453);
+      
+      const result = {
+        hasRequiredTokens: tokenBalances >= requiredBalance,
+        totalBalance: tokenBalances,
+        tokenBalances: [{
+          contractAddress: contractAddresses[0],
+          symbol: 'MINTEDMERCH',
+          name: '$mintedmerch',
+          chainId: chainIds[0] || 8453,
+          balance: tokenBalances,
+          balanceRaw: tokenBalances.toString(),
+          balanceUsd: 0, // We don't have USD conversion without Zapper
+          decimals: 18
+        }],
+        apiCalls: validAddresses.length // One RPC call per address
+      };
+
+      console.log('✅ Direct blockchain token check result:', {
+        hasRequired: result.hasRequiredTokens,
+        totalTokenBalance: result.totalBalance,
+        required: requiredBalance,
+        contractsChecked: contractAddresses,
+        method: 'direct_rpc'
+      });
+
+      // Cache the successful result
+      setCachedResponse(cacheKey, result);
+      return result;
+      
+    } catch (rpcError) {
+      console.error('❌ Direct RPC also failed:', rpcError);
+      // Fall through to original Zapper attempt as final fallback
+    }
+
+    // Fallback to Zapper API (original code) if RPC fails
     const baseUrl = 'https://api.zapper.xyz';
     const endpoint = '/v2/balances/tokens';
     
-    // Build query parameters
     const params = new URLSearchParams({
       'addresses[]': validAddresses.join(','),
       'network': getNetworkSlugFromChainId(chainIds[0] || 8453)
     });
 
-    // Zapper API expects the key as a query parameter, not header
-    const authParams = new URLSearchParams(params);
-    if (ZAPPER_API_KEY) {
-      authParams.set('api_key', ZAPPER_API_KEY);
-    }
-
-    console.log('🔑 Making Zapper API request:', {
-      url: `${baseUrl}${endpoint}?${authParams}`,
-      hasApiKey: !!ZAPPER_API_KEY,
-      apiKeyLength: ZAPPER_API_KEY?.length,
-      authMethod: 'query_parameter'
-    });
-
-    const authHeaders = {
-      'accept': 'application/json',
-      'User-Agent': 'Minted-Merch-App/1.0'
-    };
-
-    const response = await fetch(`${baseUrl}${endpoint}?${authParams}`, {
+    console.log('🔄 Falling back to Zapper API as last resort...');
+    
+    const response = await fetch(`${baseUrl}${endpoint}?${params}`, {
       method: 'GET',
-      headers: authHeaders
-    });
-
-    // If authentication fails, try without auth (in case it's a public endpoint)
-    if (!response.ok && (response.status === 403 || response.status === 400) && ZAPPER_API_KEY) {
-      console.log('🔄 Authentication failed, trying without API key...');
-      
-      const publicResponse = await fetch(`${baseUrl}${endpoint}?${params}`, {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json',
-          'User-Agent': 'Minted-Merch-App/1.0'
-        }
-      });
-      
-      if (publicResponse.ok) {
-        console.log('✅ Public endpoint access successful');
-        const publicData = await publicResponse.json();
-        // Continue with the public response
-        return await processTokenResponse(publicData, contractAddresses, chainIds, requiredBalance, cacheKey);
+      headers: {
+        'accept': 'application/json',
+        'User-Agent': 'Minted-Merch-App/1.0'
       }
-    }
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
