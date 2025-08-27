@@ -252,6 +252,18 @@ export function CartProvider({ children }) {
       try {
         setIsEvaluatingDiscount(true);
         
+        // Add rate limiting to prevent excessive API calls
+        const now = Date.now();
+        const lastApiCall = sessionStorage.getItem('lastDiscountApiCall');
+        const minInterval = 30000; // Minimum 30 seconds between API calls
+        
+        if (lastApiCall && (now - parseInt(lastApiCall)) < minInterval) {
+          console.log('⏸️ Skipping discount evaluation - too soon since last API call');
+          return;
+        }
+        
+        sessionStorage.setItem('lastDiscountApiCall', now.toString());
+        
         const bestDiscount = await evaluateOptimalDiscount(userFid);
         const currentDiscount = cart.appliedDiscount;
         

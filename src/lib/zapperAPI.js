@@ -4,6 +4,62 @@
 const ZAPPER_API_KEY = process.env.ZAPPER_API_KEY;
 const ZAPPER_GRAPHQL_ENDPOINT = 'https://public.zapper.xyz/graphql';
 
+// Cache for API responses to minimize calls and costs
+const zapperCache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
+// Request deduplication to prevent simultaneous calls for same data
+const pendingRequests = new Map();
+
+/**
+ * Generate cache key for API requests
+ */
+function generateCacheKey(type, walletAddresses, contractAddresses, chainIds) {
+  const sortedWallets = [...walletAddresses].sort();
+  const sortedContracts = [...contractAddresses].sort();
+  const sortedChains = [...chainIds].sort();
+  return `${type}:${sortedWallets.join(',')}:${sortedContracts.join(',')}:${sortedChains.join(',')}`;
+}
+
+/**
+ * Check if cached response is still valid
+ */
+function isCacheValid(cacheEntry) {
+  return cacheEntry && (Date.now() - cacheEntry.timestamp) < CACHE_DURATION;
+}
+
+/**
+ * Get cached response if valid
+ */
+function getCachedResponse(cacheKey) {
+  const cached = zapperCache.get(cacheKey);
+  if (isCacheValid(cached)) {
+    console.log(`💾 Using cached Zapper response for: ${cacheKey}`);
+    return { ...cached.data, fromCache: true };
+  }
+  return null;
+}
+
+/**
+ * Cache API response
+ */
+function setCachedResponse(cacheKey, data) {
+  zapperCache.set(cacheKey, {
+    data: { ...data, fromCache: false },
+    timestamp: Date.now()
+  });
+  
+  // Clean up old cache entries periodically
+  if (zapperCache.size > 100) {
+    const cutoff = Date.now() - CACHE_DURATION;
+    for (const [key, entry] of zapperCache.entries()) {
+      if (entry.timestamp < cutoff) {
+        zapperCache.delete(key);
+      }
+    }
+  }
+}
+
 /**
  * Check if user holds specific NFTs using Zapper API
  * @param {Array} walletAddresses - Array of wallet addresses to check
@@ -193,14 +249,30 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
     return getMockTokenHoldings(walletAddresses, contractAddresses, requiredBalance);
   }
 
-  try {
-    console.log('🪙 Checking token holdings with Zapper API:', {
-      totalWallets: walletAddresses.length,
-      validWallets: validAddresses.length,
-      contracts: contractAddresses,
-      chains: chainIds,
-      required: requiredBalance
-    });
+  // Check cache first to avoid unnecessary API calls
+  const cacheKey = generateCacheKey('tokens', validAddresses, contractAddresses, chainIds);
+  const cachedResult = getCachedResponse(cacheKey);
+  if (cachedResult) {
+    return cachedResult;
+  }
+
+  // Check if there's already a pending request for the same data
+  if (pendingRequests.has(cacheKey)) {
+    console.log(`⏳ Waiting for pending Zapper request: ${cacheKey}`);
+    return await pendingRequests.get(cacheKey);
+  }
+
+  // Create promise for this request and store it to prevent duplicates
+  const requestPromise = (async () => {
+    try {
+      console.log('🪙 Checking token holdings with Zapper API:', {
+        totalWallets: walletAddresses.length,
+        validWallets: validAddresses.length,
+        contracts: contractAddresses,
+        chains: chainIds,
+        required: requiredBalance,
+        cacheKey: cacheKey.substring(0, 50) + '...'
+      });
 
     const query = `
       query GetTokenBalance($addresses: [Address!]!, $contractAddresses: [Address!]!, $chainIds: [Int!]) {
@@ -295,19 +367,38 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
       }))
     });
 
-    return {
-      hasRequiredTokens,
-      totalBalance,
-      tokenBalances: balanceDetails,
-      apiCalls: 1
-    };
+      const result = {
+        hasRequiredTokens,
+        totalBalance,
+        tokenBalances: balanceDetails,
+        apiCalls: 1
+      };
 
-  } catch (error) {
-    console.error('❌ Error checking token holdings with Zapper:', error);
-    
-    // Fallback to mock data in case of API issues
-    console.log('🔄 Falling back to mock token data...');
-    return getMockTokenHoldings(walletAddresses, contractAddresses, requiredBalance);
+      // Cache the successful result
+      setCachedResponse(cacheKey, result);
+      return result;
+
+    } catch (error) {
+      console.error('❌ Error checking token holdings with Zapper:', error);
+      
+      // Fallback to mock data in case of API issues
+      console.log('🔄 Falling back to mock token data...');
+      const mockResult = getMockTokenHoldings(walletAddresses, contractAddresses, requiredBalance);
+      
+      // Don't cache mock data, but still return it
+      return mockResult;
+    }
+  })();
+
+  // Store the promise to prevent duplicate requests
+  pendingRequests.set(cacheKey, requestPromise);
+  
+  try {
+    const result = await requestPromise;
+    return result;
+  } finally {
+    // Clean up the pending request
+    pendingRequests.delete(cacheKey);
   }
 }
 
