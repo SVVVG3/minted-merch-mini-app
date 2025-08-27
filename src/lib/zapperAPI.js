@@ -173,13 +173,13 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
     });
 
     const query = `
-      query GetTokenBalances($addresses: [Address!]!, $chainIds: [Int!]!) {
+      query GetTokenBalances($addresses: [Address!]!, $chainIds: [Int!]!, $includeTokens: [TokenInputV2!]!) {
         portfolioV2(addresses: $addresses, chainIds: $chainIds) {
           tokenBalances {
             byToken(
               first: 100,
               filters: {
-                includeTokens: ${JSON.stringify(contractAddresses.map(addr => ({ address: addr, network: getNetworkFromChainId(chainIds[0]) })))}
+                includeTokens: $includeTokens
               }
             ) {
               edges {
@@ -200,11 +200,15 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
           }
         }
       }
-    `;
+`;
 
     const variables = {
       addresses: walletAddresses,
-      chainIds: chainIds
+      chainIds: chainIds,
+      includeTokens: contractAddresses.map(addr => ({ 
+        address: addr, 
+        network: getNetworkFromChainId(chainIds[0]) 
+      }))
     };
 
     const response = await fetch(ZAPPER_GRAPHQL_ENDPOINT, {

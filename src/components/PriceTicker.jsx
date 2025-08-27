@@ -16,9 +16,9 @@ export function PriceTicker() {
         setIsLoading(true);
         setError(null);
 
-        // Fetch token data from DexScreener API
+        // Fetch token data from DexScreener API using search endpoint
         const response = await fetch(
-          `https://api.dexscreener.com/latest/dex/tokens/${CHAIN_ID}/${MINTEDMERCH_TOKEN_ADDRESS}`,
+          `https://api.dexscreener.com/latest/dex/search?q=${MINTEDMERCH_TOKEN_ADDRESS}`,
           {
             method: 'GET',
             headers: {
