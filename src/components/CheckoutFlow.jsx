@@ -6,6 +6,12 @@ import { useUSDCPayment } from '@/lib/useUSDCPayment';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { calculateCheckout } from '@/lib/shopify';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { 
+  isMobileFarcasterClient, 
+  isDesktopBrowser, 
+  getRecommendedPaymentMethod,
+  getEnvironmentDescription 
+} from '@/lib/environmentDetection';
 
 import { ShippingForm } from './ShippingForm';
 import GiftCardSection, { GiftCardBalance } from './GiftCardSection';
@@ -388,33 +394,67 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   };
 
   const handlePayment = async () => {
-    if (!isConnected) {
-      throw new Error('Please connect your wallet to continue');
+    try {
+      // Check environment and provide helpful error messages
+      const paymentMethod = getRecommendedPaymentMethod();
+      const envDescription = getEnvironmentDescription();
+      
+      console.log('🔍 Payment environment:', envDescription);
+      
+      if (!isConnected) {
+        if (isDesktopBrowser()) {
+          throw new Error('Please connect your wallet (MetaMask, Coinbase Wallet, etc.) to continue. Desktop browsers require an external wallet extension.');
+        } else {
+          throw new Error('Please connect your wallet to continue');
+        }
+      }
+
+      if (!shippingData) {
+        throw new Error('Please provide shipping information');
+      }
+
+      if (!cart.checkout) {
+        throw new Error('Checkout calculation not available');
+      }
+
+      // Calculate final total using the safe helper function
+      const finalTotal = calculateFinalTotal();
+      const discountAmount = calculateProductAwareDiscountAmount();
+
+      console.log('💳 Executing payment:', {
+        environment: paymentMethod,
+        total: finalTotal,
+        isDesktop: isDesktopBrowser(),
+        isMobile: isMobileFarcasterClient()
+      });
+
+      // Execute the payment
+      await executePayment(finalTotal, {
+        items: cart.items,
+        notes: cart.notes,
+        shipping: shippingData,
+        selectedShipping: cart.selectedShipping,
+        checkout: cart.checkout,
+        appliedDiscount: appliedDiscount,
+        discountAmount: discountAmount,
+        total: finalTotal
+      });
+      
+    } catch (error) {
+      console.error('💥 Payment error:', error);
+      
+      // Provide environment-specific error messages
+      if (error.message.includes('connector.getChainId is not a function')) {
+        if (isDesktopBrowser()) {
+          throw new Error('Desktop wallet connection issue. Please try refreshing the page and connecting with MetaMask or Coinbase Wallet. If the issue persists, try opening this app on mobile through the Farcaster app.');
+        } else {
+          throw new Error('Wallet connection issue. Please try refreshing the app.');
+        }
+      }
+      
+      // Re-throw the original error if it's not the connector issue
+      throw error;
     }
-
-    if (!shippingData) {
-      throw new Error('Please provide shipping information');
-    }
-
-    if (!cart.checkout) {
-      throw new Error('Checkout calculation not available');
-    }
-
-    // Calculate final total using the safe helper function
-    const finalTotal = calculateFinalTotal();
-    const discountAmount = calculateProductAwareDiscountAmount();
-
-    // Execute the payment
-    await executePayment(finalTotal, {
-      items: cart.items,
-      notes: cart.notes,
-      shipping: shippingData,
-      selectedShipping: cart.selectedShipping,
-      checkout: cart.checkout,
-      appliedDiscount: appliedDiscount,
-      discountAmount: discountAmount,
-      total: finalTotal
-    });
   };
 
   const handlePaymentSuccess = async () => {
