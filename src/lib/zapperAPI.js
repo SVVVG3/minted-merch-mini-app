@@ -203,49 +203,22 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
     });
 
     const query = `
-      query PortfolioV2Totals($addresses: [Address!]!) {
-        portfolioV2(addresses: $addresses) {
+      query GetTokenBalance($addresses: [Address!]!, $contractAddresses: [Address!]!, $chainIds: [Int!]) {
+        portfolioV2(addresses: $addresses, chainIds: $chainIds) {
           tokenBalances {
-            totalBalanceUSD
-            byNetwork(first: 20) {
+            byToken(filter: { tokenAddresses: $contractAddresses }) {
               edges {
                 node {
-                  network {
-                    name
-                    slug
-                    chainId
-                  }
+                  balance
+                  balanceRaw
                   balanceUSD
-                }
-              }
-            }
-          }
-          nftBalances {
-            totalBalanceUSD
-            byNetwork(first: 20) {
-              edges {
-                node {
-                  network {
+                  token {
+                    address
+                    symbol
                     name
-                    slug
                     chainId
+                    decimals
                   }
-                  balanceUSD
-                }
-              }
-            }
-          }
-          appBalances {
-            totalBalanceUSD
-            byNetwork(first: 20) {
-              edges {
-                node {
-                  network {
-                    name
-                    slug
-                    chainId
-                  }
-                  balanceUSD
                 }
               }
             }
@@ -255,7 +228,9 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
 `;
 
     const variables = {
-      addresses: validAddresses
+      addresses: validAddresses,
+      contractAddresses: contractAddresses,
+      chainIds: chainIds
     };
 
     const response = await fetch(ZAPPER_GRAPHQL_ENDPOINT, {
@@ -280,9 +255,9 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
       throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
     }
 
-    // Process the portfolio data using the new totals approach
-    const portfolio = data.data?.portfolioV2;
-    if (!portfolio) {
+    // Process the specific token balance data
+    const tokenBalances = data.data?.portfolioV2?.tokenBalances;
+    if (!tokenBalances) {
       return {
         hasRequiredTokens: false,
         totalBalance: 0,
@@ -291,39 +266,39 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
       };
     }
 
-    // Calculate total portfolio value (tokens + NFTs + app balances)
-    const tokenBalanceUSD = parseFloat(portfolio.tokenBalances?.totalBalanceUSD || 0);
-    const nftBalanceUSD = parseFloat(portfolio.nftBalances?.totalBalanceUSD || 0);
-    const appBalanceUSD = parseFloat(portfolio.appBalances?.totalBalanceUSD || 0);
-    
-    const totalPortfolioUSD = tokenBalanceUSD + nftBalanceUSD + appBalanceUSD;
+    // Extract token balance information
+    const balanceDetails = tokenBalances.byToken.edges.map(edge => ({
+      contractAddress: edge.node.token.address,
+      symbol: edge.node.token.symbol,
+      name: edge.node.token.name,
+      chainId: edge.node.token.chainId,
+      balance: parseFloat(edge.node.balance || 0), // Actual token balance
+      balanceRaw: edge.node.balanceRaw,
+      balanceUsd: parseFloat(edge.node.balanceUSD || 0),
+      decimals: edge.node.token.decimals
+    }));
 
-    // For token gating, we'll use the total portfolio value as a proxy
-    // Since we can't query specific tokens easily, we'll check if they have significant holdings
-    const hasRequiredTokens = totalPortfolioUSD >= requiredBalance;
+    // Calculate total balance for the specific tokens we're checking
+    const totalBalance = balanceDetails.reduce((sum, token) => sum + token.balance, 0);
+    const hasRequiredTokens = totalBalance >= requiredBalance;
 
-    console.log('✅ Zapper portfolio check result:', {
+    console.log('✅ Zapper specific token check result:', {
       hasRequired: hasRequiredTokens,
-      totalPortfolioUSD: totalPortfolioUSD,
-      tokenBalanceUSD: tokenBalanceUSD,
-      nftBalanceUSD: nftBalanceUSD,
-      appBalanceUSD: appBalanceUSD,
+      totalTokenBalance: totalBalance,
       required: requiredBalance,
-      contractsChecked: contractAddresses
+      contractsChecked: contractAddresses,
+      tokensFound: balanceDetails.length,
+      tokenDetails: balanceDetails.map(t => ({
+        symbol: t.symbol,
+        balance: t.balance,
+        address: t.contractAddress
+      }))
     });
 
     return {
       hasRequiredTokens,
-      totalBalance: totalPortfolioUSD, // Return total portfolio value
-      tokenBalances: [{
-        contractAddress: contractAddresses[0] || 'portfolio',
-        symbol: 'PORTFOLIO',
-        name: 'Total Portfolio Value',
-        chainId: chainIds[0] || 8453,
-        balance: totalPortfolioUSD,
-        balanceUsd: totalPortfolioUSD,
-        price: 1
-      }],
+      totalBalance,
+      tokenBalances: balanceDetails,
       apiCalls: 1
     };
 
