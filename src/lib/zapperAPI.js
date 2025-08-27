@@ -18,9 +18,24 @@ export async function checkNftHoldingsWithZapper(walletAddresses, contractAddres
     return getMockNftHoldings(walletAddresses, contractAddresses, requiredBalance);
   }
 
+  // Filter out invalid addresses - Zapper only accepts valid Ethereum addresses (0x...)
+  const validAddresses = walletAddresses.filter(addr => {
+    const isValid = typeof addr === 'string' && addr.startsWith('0x') && addr.length === 42;
+    if (!isValid) {
+      console.log(`🚫 Filtering out invalid address for NFT check: ${addr}`);
+    }
+    return isValid;
+  });
+
+  if (validAddresses.length === 0) {
+    console.warn('❌ No valid Ethereum addresses found for NFT check, using mock data');
+    return getMockNftHoldings(walletAddresses, contractAddresses, requiredBalance);
+  }
+
   try {
     console.log('🔍 Checking NFT holdings with Zapper API:', {
-      wallets: walletAddresses.length,
+      totalWallets: walletAddresses.length,
+      validWallets: validAddresses.length,
       contracts: contractAddresses,
       chains: chainIds,
       required: requiredBalance
@@ -63,7 +78,7 @@ export async function checkNftHoldingsWithZapper(walletAddresses, contractAddres
     `;
 
     const variables = {
-      addresses: walletAddresses,
+      addresses: validAddresses,
       chainIds: chainIds,
       collections: collections
     };
@@ -164,9 +179,24 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
     return getMockTokenHoldings(walletAddresses, contractAddresses, requiredBalance);
   }
 
+  // Filter out invalid addresses - Zapper only accepts valid Ethereum addresses (0x...)
+  const validAddresses = walletAddresses.filter(addr => {
+    const isValid = typeof addr === 'string' && addr.startsWith('0x') && addr.length === 42;
+    if (!isValid) {
+      console.log(`🚫 Filtering out invalid address: ${addr}`);
+    }
+    return isValid;
+  });
+
+  if (validAddresses.length === 0) {
+    console.warn('❌ No valid Ethereum addresses found, using mock data');
+    return getMockTokenHoldings(walletAddresses, contractAddresses, requiredBalance);
+  }
+
   try {
     console.log('🪙 Checking token holdings with Zapper API:', {
-      wallets: walletAddresses.length,
+      totalWallets: walletAddresses.length,
+      validWallets: validAddresses.length,
       contracts: contractAddresses,
       chains: chainIds,
       required: requiredBalance
@@ -225,7 +255,7 @@ export async function checkTokenHoldingsWithZapper(walletAddresses, contractAddr
 `;
 
     const variables = {
-      addresses: walletAddresses
+      addresses: validAddresses
     };
 
     const response = await fetch(ZAPPER_GRAPHQL_ENDPOINT, {
@@ -318,9 +348,24 @@ export async function getPortfolioSummaryWithZapper(walletAddresses, chainIds = 
     return getMockPortfolioSummary(walletAddresses);
   }
 
+  // Filter out invalid addresses - Zapper only accepts valid Ethereum addresses (0x...)
+  const validAddresses = walletAddresses.filter(addr => {
+    const isValid = typeof addr === 'string' && addr.startsWith('0x') && addr.length === 42;
+    if (!isValid) {
+      console.log(`🚫 Filtering out invalid address for portfolio summary: ${addr}`);
+    }
+    return isValid;
+  });
+
+  if (validAddresses.length === 0) {
+    console.warn('❌ No valid Ethereum addresses found for portfolio summary, using mock data');
+    return getMockPortfolioSummary(walletAddresses);
+  }
+
   try {
     console.log('📊 Getting portfolio summary with Zapper API:', {
-      wallets: walletAddresses.length,
+      totalWallets: walletAddresses.length,
+      validWallets: validAddresses.length,
       chains: chainIds
     });
 
@@ -361,7 +406,7 @@ export async function getPortfolioSummaryWithZapper(walletAddresses, chainIds = 
     `;
 
     const variables = {
-      addresses: walletAddresses,
+      addresses: validAddresses,
       chainIds: chainIds
     };
 
