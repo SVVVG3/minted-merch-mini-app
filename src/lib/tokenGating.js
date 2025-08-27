@@ -378,7 +378,13 @@ async function checkNftHolding(discount, userWalletAddresses) {
 async function checkTokenBalance(discount, userWalletAddresses) {
   const contractAddresses = discount.contract_addresses || [];
   const requiredBalance = parseFloat(discount.required_balance) || 1;
-  const chainIds = discount.chain_ids || [1];
+  
+  // Fix chain ID for mintedmerch token - it's on Base, not Ethereum
+  let chainIds = discount.chain_ids || [1];
+  if (contractAddresses.includes('0x774EAeFE73Df7959496Ac92a77279A8D7d690b07')) {
+    chainIds = [8453]; // Force Base chain for mintedmerch token
+    console.log('🔧 Corrected chain ID to Base (8453) for mintedmerch token');
+  }
   
   if (contractAddresses.length === 0) {
     return {

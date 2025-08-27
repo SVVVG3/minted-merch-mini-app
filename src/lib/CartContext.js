@@ -212,45 +212,45 @@ export function CartProvider({ children }) {
     }
   }, [cart]);
 
-  // AUTO-EVALUATE DISCOUNT - RE-ENABLED WITH CRASH PROTECTION
+  // AUTO-EVALUATE DISCOUNT - OPTIMIZED WITH BETTER DEBOUNCING
   useEffect(() => {
     // Defensive checks to prevent crashes
     if (!cart || typeof cart !== 'object') {
-      console.log('⚠️ Cart not properly initialized, skipping auto-evaluation');
       return;
     }
     
     const safeItems = Array.isArray(cart.items) ? cart.items : [];
     
-    // Only trigger if we have items and no discount is currently applied
+    // Only trigger if we have items
     if (safeItems.length === 0) {
-      console.log('📭 Cart is empty, skipping auto-evaluation');
       return;
     }
     
     if (isEvaluatingDiscount) {
-      console.log('⏳ Already evaluating discount, skipping...');
       return;
     }
     
     const userFid = getUserFid();
     if (!userFid) {
-      console.log('❌ No user FID found, skipping auto-evaluation');
       return;
     }
     
-    console.log('🔄 AUTO-EVALUATE DISCOUNT TRIGGERED:', {
-      cartItemsLength: safeItems.length,
-      cartItems: safeItems.map(item => ({ handle: item.product?.handle, title: item.product?.title })),
-      currentDiscount: cart.appliedDiscount?.code || 'none',
-      isEvaluating: isEvaluatingDiscount
-    });
+    // Create a stable key for cart contents to prevent unnecessary re-evaluations
+    const cartKey = safeItems.map(item => `${item.product?.handle}-${item.quantity}`).sort().join('|');
+    const currentDiscountCode = cart.appliedDiscount?.code || 'none';
+    
+    // Check if we've already evaluated this exact cart state recently
+    const lastEvaluationKey = `${cartKey}-${currentDiscountCode}`;
+    const lastEvaluation = sessionStorage.getItem('lastDiscountEvaluation');
+    
+    if (lastEvaluation === lastEvaluationKey) {
+      return; // Skip if we've already evaluated this exact state
+    }
     
     // Debounce the evaluation to prevent too many API calls
     const timeoutId = setTimeout(async () => {
       try {
         setIsEvaluatingDiscount(true);
-        console.log('🔄 Auto-evaluating discount for cart changes:', safeItems.map(item => item.product?.handle || 'unknown'));
         
         const bestDiscount = await evaluateOptimalDiscount(userFid);
         const currentDiscount = cart.appliedDiscount;
@@ -258,12 +258,6 @@ export function CartProvider({ children }) {
         if (bestDiscount) {
           // Check if we need to apply/update the discount
           if (!currentDiscount || currentDiscount.code !== bestDiscount.code) {
-            console.log('🔄 Discount needs updating:', {
-              from: currentDiscount?.code || 'none',
-              to: bestDiscount.code,
-              reason: !currentDiscount ? 'no current discount' : 'better discount found'
-            });
-            
             applyDiscount(bestDiscount);
             
             // Store in session storage for consistency
@@ -276,27 +270,26 @@ export function CartProvider({ children }) {
               isTokenGated: bestDiscount.isTokenGated,
               gatingType: bestDiscount.gating_type
             }));
-          } else {
-            console.log('✅ Current discount is still optimal:', currentDiscount.code);
           }
         } else {
           // No discount found - remove current discount if any
           if (currentDiscount) {
-            console.log('🗑️ Removing discount - no longer optimal for current cart');
             removeDiscount();
-          } else {
-            console.log('❌ No optimal discount found for current cart');
           }
         }
+        
+        // Store the evaluation key to prevent re-evaluation of same state
+        sessionStorage.setItem('lastDiscountEvaluation', lastEvaluationKey);
+        
       } catch (error) {
         console.error('❌ Error in auto-evaluation:', error);
       } finally {
         setIsEvaluatingDiscount(false);
       }
-    }, 500); // 500ms debounce
+    }, 1000); // Increased debounce to 1 second
 
     return () => clearTimeout(timeoutId);
-  }, [cart.items, cart.appliedDiscount, isEvaluatingDiscount]);
+  }, [cart.items, cart.appliedDiscount]);
 
   // Helper function to get user FID (you might need to adjust this based on your auth system)
   const getUserFid = () => {

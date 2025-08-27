@@ -38,13 +38,6 @@ export function DiscountCodeSection({
 
   // Simple effect to sync with cart's applied discount
   useEffect(() => {
-    console.log('📋 DiscountCodeSection - Cart discount change detected:', {
-      hasCartDiscount: !!cart.appliedDiscount,
-      cartDiscountCode: cart.appliedDiscount?.code,
-      cartDiscountValue: cart.appliedDiscount?.discountValue,
-      cartDiscountType: cart.appliedDiscount?.discountType
-    });
-    
     if (cart.appliedDiscount) {
       setAppliedDiscount(cart.appliedDiscount);
       
@@ -62,17 +55,6 @@ export function DiscountCodeSection({
       setTokenGatingInfo(null);
     }
   }, [cart.appliedDiscount]);
-
-  // Debug effect to monitor component state
-  useEffect(() => {
-    console.log('📊 DiscountCodeSection Analytics:', {
-      isEvaluatingDiscount,
-      appliedDiscount: !!effectiveAppliedDiscount,
-      effectiveAppliedDiscountCode: effectiveAppliedDiscount?.code,
-      cartAppliedDiscount: !!cart.appliedDiscount,
-      cartAppliedDiscountCode: cart.appliedDiscount?.code
-    });
-  }, [isEvaluatingDiscount, effectiveAppliedDiscount, cart.appliedDiscount]);
 
 
 
