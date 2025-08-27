@@ -58,8 +58,60 @@ export async function GET(request) {
       data: usersWithStats
     });
 
-  } catch (error) {
+    } catch (error) {
     console.error('Error in admin users API:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Internal server error' 
+    }, { status: 500 });
+  }
+}
+
+export async function POST(request) {
+  try {
+    const { action, username } = await request.json();
+
+    if (action === 'search_username') {
+      if (!username) {
+        return NextResponse.json({
+          success: false,
+          error: 'Username is required'
+        }, { status: 400 });
+      }
+
+      console.log('🔍 Searching for username:', username);
+
+      // Search for users by username (case-insensitive)
+      const { data: users, error } = await supabaseAdmin
+        .from('profiles')
+        .select('fid, username, display_name, pfp_url')
+        .ilike('username', `%${username}%`)
+        .limit(10);
+
+      if (error) {
+        console.error('Error searching users:', error);
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to search users'
+        }, { status: 500 });
+      }
+
+      console.log(`✅ Found ${users.length} users matching "${username}"`);
+
+      return NextResponse.json({
+        success: true,
+        users,
+        count: users.length
+      });
+    }
+
+    return NextResponse.json({
+      success: false,
+      error: 'Invalid action'
+    }, { status: 400 });
+
+  } catch (error) {
+    console.error('Error in admin users POST API:', error);
     return NextResponse.json({
       success: false,
       error: 'Internal server error'

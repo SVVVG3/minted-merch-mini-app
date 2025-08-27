@@ -9,7 +9,9 @@ export function ChatAdminDashboard() {
   const [summary, setSummary] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [newFids, setNewFids] = useState('');
+  const [usernameSearch, setUsernameSearch] = useState('');
   const [isAddingMembers, setIsAddingMembers] = useState(false);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
 
   const runEligibilityCheck = async () => {
     setIsLoading(true);
@@ -27,8 +29,22 @@ export function ChatAdminDashboard() {
 
       console.log('🔍 Checking eligibility for', members.length, 'chat members');
       
+      // Debug: Log member wallet data
+      members.forEach(member => {
+        console.log(`👤 Member ${member.username} (FID: ${member.fid}):`, {
+          walletCount: member.walletAddresses?.length || 0,
+          wallets: member.walletAddresses
+        });
+      });
+      
       // Batch check all members
       const results = await batchCheckEligibility(members);
+      
+      // Debug: Log results
+      results.forEach(result => {
+        console.log(`🎯 ${result.username}: ${result.tokenBalance} tokens (eligible: ${result.eligible})`);
+      });
+      
       setEligibilityData(results);
       
       // Generate summary
@@ -104,6 +120,94 @@ export function ChatAdminDashboard() {
       alert('Error adding chat members: ' + error.message);
     } finally {
       setIsAddingMembers(false);
+    }
+  };
+
+  const searchAndAddByUsername = async () => {
+    if (!usernameSearch.trim()) {
+      alert('Please enter a username to search');
+      return;
+    }
+
+    setIsSearchingUsers(true);
+    
+    try {
+      // Search for user by username in profiles table
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'search_username',
+          username: usernameSearch.trim()
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.users && result.users.length > 0) {
+        const user = result.users[0];
+        console.log('Found user:', user);
+        
+        // Add the user's FID to the chat members
+        const addResponse = await fetch('/api/admin/chat-members', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'add_members',
+            fids: [user.fid]
+          })
+        });
+
+        const addResult = await addResponse.json();
+
+        if (addResult.success) {
+          alert(`Successfully added ${user.username} (FID: ${user.fid}) to chat members!`);
+          setUsernameSearch('');
+          // Refresh the eligibility check to show new member
+          runEligibilityCheck();
+        } else {
+          alert(`Error adding user: ${addResult.error}`);
+        }
+      } else {
+        alert(`No user found with username: ${usernameSearch}`);
+      }
+
+    } catch (error) {
+      console.error('Error searching for user:', error);
+      alert('Error searching for user: ' + error.message);
+    } finally {
+      setIsSearchingUsers(false);
+    }
+  };
+
+  const removeChatMember = async (fid, username) => {
+    if (!confirm(`Are you sure you want to remove ${username} (FID: ${fid}) from chat members?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/chat-members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'remove_member',
+          fid: fid
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(`Successfully removed ${username} from chat members!`);
+        // Refresh the eligibility check to update the list
+        runEligibilityCheck();
+      } else {
+        alert(`Error removing member: ${result.error}`);
+      }
+
+    } catch (error) {
+      console.error('Error removing chat member:', error);
+      alert('Error removing chat member: ' + error.message);
     }
   };
 
@@ -195,6 +299,33 @@ export function ChatAdminDashboard() {
                 Clear
               </button>
             </div>
+            
+            {/* Username Search Section */}
+            <div className="border-t pt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Or search by username
+              </label>
+              <div className="flex space-x-3">
+                <input
+                  type="text"
+                  value={usernameSearch}
+                  onChange={(e) => setUsernameSearch(e.target.value)}
+                  placeholder="Enter username (e.g., svvvg3.eth)"
+                  className="flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent"
+                  disabled={isSearchingUsers}
+                />
+                <button
+                  onClick={searchAndAddByUsername}
+                  disabled={isSearchingUsers || !usernameSearch.trim()}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSearchingUsers ? 'Searching...' : 'Search & Add'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Search existing users in the database and add them to chat members
+              </p>
+            </div>
           </div>
         </div>
 
@@ -252,6 +383,7 @@ export function ChatAdminDashboard() {
                       <th className="px-4 py-2 text-right text-sm font-semibold text-gray-700">Token Balance</th>
                       <th className="px-4 py-2 text-right text-sm font-semibold text-gray-700">Shortfall</th>
                       <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Status</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -281,6 +413,14 @@ export function ChatAdminDashboard() {
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                               Remove Required
                             </span>
+                          </td>
+                          <td className="px-4 py-2">
+                            <button
+                              onClick={() => removeChatMember(user.fid, user.username || user.displayName)}
+                              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                            >
+                              Remove
+                            </button>
                           </td>
                         </tr>
                       ))}

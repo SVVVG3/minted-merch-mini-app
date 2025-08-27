@@ -76,6 +76,7 @@ export async function POST(request) {
           }, { status: 400 });
         }
 
+        console.log('🗑️ Removing chat member with FID:', fid);
         const removeResult = await removeChatMember(fid);
         return NextResponse.json(removeResult);
 
