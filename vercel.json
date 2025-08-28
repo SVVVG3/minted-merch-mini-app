@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/update-chat-balances",
-      "schedule": "0 9 * * *"
+      "schedule": "0 10 * * *"
     }
   ]
 }
