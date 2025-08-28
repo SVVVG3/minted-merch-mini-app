@@ -111,17 +111,14 @@ export function ChatEligibilityPopup() {
           <img 
             src="/merchmogulmeme.png" 
             alt="Merch Mogul Meme" 
-            className="w-32 h-32 object-contain rounded-lg"
+            className="w-64 h-64 object-contain rounded-lg"
           />
         </div>
 
         {/* Content */}
         <div className="mb-6">
           <p className="text-gray-700 mb-3">
-            🚀 You hold <span className="font-bold text-green-600">50M+ $MINTEDMERCH</span> tokens!
-          </p>
-          <p className="text-gray-700 mb-4">
-            Join the exclusive <span className="font-bold text-purple-600">Merch Moguls Chat</span> for elite token holders.
+            🚀 You hold <span className="font-bold text-green-600">50M+ $MINTEDMERCH</span> and are now eligible to join the <span className="font-bold text-purple-600">Merch Moguls Group Chat</span>!
           </p>
           
           {/* Token Balance Display */}
@@ -138,12 +135,12 @@ export function ChatEligibilityPopup() {
 
           {/* Benefits */}
           <div className="bg-gray-50 rounded-lg p-3 mb-4">
-            <p className="text-sm font-medium text-gray-700 mb-2">Chat Benefits:</p>
+            <p className="text-sm font-medium text-gray-700 mb-2">Merch Mogul Benefits:</p>
             <ul className="text-sm text-gray-600 space-y-1">
-              <li>• Exclusive holder discussions</li>
-              <li>• Early access to drops</li>
-              <li>• Direct team communication</li>
-              <li>• Community alpha & insights</li>
+              <li>• Collab partner access</li>
+              <li>• Create/order your own custom merch</li>
+              <li>• 15% off store wide while you hold</li>
+              <li>• Access to the Merch Moguls group chat</li>
             </ul>
           </div>
         </div>
@@ -154,7 +151,7 @@ export function ChatEligibilityPopup() {
             onClick={handleJoinChat}
             className="flex-1 bg-[#3eb489] text-white px-4 py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors"
           >
-            🚀 Join Chat
+            🤌 Join Chat
           </button>
           <button
             onClick={handleDismiss}
