@@ -83,9 +83,9 @@ export async function batchCheckEligibility(users) {
     try {
       console.log(`🔍 Checking user ${i + 1}/${users.length}: ${user.username} (FID: ${user.fid})`);
       
-      // Add delay between users to avoid overwhelming RPC
+      // Add longer delay between users to avoid overwhelming RPC
       if (i > 0) {
-        const delay = 2000; // 2 second delay between users
+        const delay = 5000; // 5 second delay between users
         console.log(`⏳ Waiting ${delay}ms before next user...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
