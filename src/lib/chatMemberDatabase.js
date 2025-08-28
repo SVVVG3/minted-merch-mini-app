@@ -2,6 +2,10 @@
 
 import { supabase } from './supabase';
 
+// Debug Supabase configuration
+console.log('🔧 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+console.log('🔧 Supabase client configured:', !!supabase);
+
 /**
  * Add chat members by FID using existing profiles data
  * @param {Array} fids - Array of Farcaster IDs to add as chat members
@@ -14,6 +18,15 @@ export async function addChatMembersByFids(fids) {
     // Convert FIDs to integers for the query
     const fidInts = fids.map(fid => parseInt(fid));
     console.log('🔍 Querying profiles for FIDs:', fidInts);
+
+    // DEBUGGING: Test direct query first
+    console.log('🧪 Testing direct Supabase query...');
+    const testQuery = await supabase
+      .from('profiles')
+      .select('fid, username')
+      .eq('fid', 466111);
+    
+    console.log('🧪 Direct test query result:', testQuery);
 
     // Fetch profile data directly from our profiles table
     const { data: profiles, error: profileError } = await supabase
