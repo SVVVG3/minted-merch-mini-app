@@ -420,19 +420,21 @@ export function ChatAdminDashboard() {
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Summary</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-blue-50 p-4 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">{summary.total}</div>
+                <div className="text-2xl font-bold text-blue-600">{summary.totalMembers || 0}</div>
                 <div className="text-sm text-blue-800">Total Members</div>
               </div>
               <div className="bg-green-50 p-4 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">{summary.eligible}</div>
+                <div className="text-2xl font-bold text-green-600">{summary.eligibleMembers || 0}</div>
                 <div className="text-sm text-green-800">Eligible</div>
               </div>
               <div className="bg-red-50 p-4 rounded-lg">
-                <div className="text-2xl font-bold text-red-600">{summary.ineligible}</div>
+                <div className="text-2xl font-bold text-red-600">{summary.ineligibleMembers || 0}</div>
                 <div className="text-sm text-red-800">Need Removal</div>
               </div>
               <div className="bg-purple-50 p-4 rounded-lg">
-                <div className="text-2xl font-bold text-purple-600">{summary.eligibilityRate}%</div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {summary.totalMembers > 0 ? Math.round((summary.eligibleMembers / summary.totalMembers) * 100) : 0}%
+                </div>
                 <div className="text-sm text-purple-800">Eligibility Rate</div>
               </div>
             </div>
