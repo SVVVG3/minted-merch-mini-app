@@ -237,9 +237,10 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
     const walletAddress = walletAddresses[i];
     
     try {
-      // Add small delay between requests to avoid rate limiting
+      // Add progressive delay between requests to avoid rate limiting
       if (i > 0) {
-        await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+        const delay = Math.min(200 + (i * 100), 1000); // Progressive delay: 200ms, 300ms, 400ms... up to 1s
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
 
       // ERC-20 balanceOf function call
@@ -247,27 +248,58 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
       
       console.log(`🔍 Checking wallet ${i + 1}/${walletAddresses.length}: ${walletAddress}`);
       
-      const response = await fetch(rpcUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'eth_call',
-          params: [
-            {
-              to: contractAddress,
-              data: data
+      // Retry logic for rate limiting
+      let response;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount <= maxRetries) {
+        try {
+          response = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
             },
-            'latest'
-          ],
-          id: Date.now() + i // Unique ID for each request
-        })
-      });
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'eth_call',
+              params: [
+                {
+                  to: contractAddress,
+                  data: data
+                },
+                'latest'
+              ],
+              id: Date.now() + i + retryCount // Unique ID for each request
+            })
+          });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          if (response.status === 429) {
+            // Rate limited - wait and retry
+            retryCount++;
+            if (retryCount <= maxRetries) {
+              const retryDelay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 2s, 4s, 8s
+              console.log(`⏳ Rate limited, retrying in ${retryDelay}ms (attempt ${retryCount}/${maxRetries})`);
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+              continue;
+            }
+          }
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          break; // Success, exit retry loop
+          
+        } catch (fetchError) {
+          if (retryCount >= maxRetries) {
+            throw fetchError;
+          }
+          retryCount++;
+          const retryDelay = Math.pow(2, retryCount) * 1000;
+          console.log(`⏳ Request failed, retrying in ${retryDelay}ms (attempt ${retryCount}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
       }
 
       const result = await response.json();

@@ -76,42 +76,46 @@ export async function batchCheckEligibility(users) {
   
   const results = [];
   
-  // Process in batches to avoid overwhelming the RPC
-  const batchSize = 10;
-  for (let i = 0; i < users.length; i += batchSize) {
-    const batch = users.slice(i, i + batchSize);
+  // Process users sequentially to avoid rate limiting (no concurrent requests)
+  for (let i = 0; i < users.length; i++) {
+    const user = users[i];
     
-    const batchPromises = batch.map(async (user) => {
-      try {
-        const eligibility = await checkChatEligibility(user.walletAddresses || []);
-        return {
-          fid: user.fid,
-          username: user.username,
-          displayName: user.displayName,
-          ...eligibility,
-          lastChecked: new Date().toISOString()
-        };
-      } catch (error) {
-        return {
-          fid: user.fid,
-          username: user.username,
-          displayName: user.displayName,
-          eligible: false,
-          tokenBalance: 0,
-          requiredBalance: REQUIRED_TOKENS,
-          message: 'Error checking eligibility',
-          error: error.message,
-          lastChecked: new Date().toISOString()
-        };
+    try {
+      console.log(`🔍 Checking user ${i + 1}/${users.length}: ${user.username} (FID: ${user.fid})`);
+      
+      // Add delay between users to avoid overwhelming RPC
+      if (i > 0) {
+        const delay = 2000; // 2 second delay between users
+        console.log(`⏳ Waiting ${delay}ms before next user...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-    });
-
-    const batchResults = await Promise.all(batchPromises);
-    results.push(...batchResults);
-    
-    // Small delay between batches
-    if (i + batchSize < users.length) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const eligibility = await checkChatEligibility(user.walletAddresses || []);
+      
+      results.push({
+        fid: user.fid,
+        username: user.username,
+        displayName: user.displayName,
+        ...eligibility,
+        lastChecked: new Date().toISOString()
+      });
+      
+      console.log(`✅ User ${user.username}: ${eligibility.tokenBalance.toLocaleString()} tokens (eligible: ${eligibility.eligible})`);
+      
+    } catch (error) {
+      console.error(`❌ Error checking ${user.username}:`, error);
+      
+      results.push({
+        fid: user.fid,
+        username: user.username,
+        displayName: user.displayName,
+        eligible: false,
+        tokenBalance: 0,
+        requiredBalance: REQUIRED_TOKENS,
+        message: 'Error checking eligibility',
+        error: error.message,
+        lastChecked: new Date().toISOString()
+      });
     }
   }
   
