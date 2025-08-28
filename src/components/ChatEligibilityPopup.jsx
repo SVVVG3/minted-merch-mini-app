@@ -107,11 +107,11 @@ export function ChatEligibilityPopup() {
         </div>
 
         {/* Merch Mogul Meme Image */}
-        <div className="flex justify-center -mt-2 -mb-2">
+        <div className="flex justify-center mb-3">
           <img 
             src="/merchmogulmeme.png" 
             alt="Merch Mogul Meme" 
-            className="w-64 h-64 object-cover rounded-lg"
+            className="w-full max-w-sm h-auto object-contain rounded-lg"
           />
         </div>
 
