@@ -1,6 +1,14 @@
 {
   "crons": [
     {
+      "path": "/api/notifications/daily-checkin",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/notifications/evening-checkin",
+      "schedule": "0 3 * * *"
+    },
+    {
       "path": "/api/cron/update-chat-balances",
       "schedule": "0 10 * * *"
     }
