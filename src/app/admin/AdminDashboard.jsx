@@ -1085,11 +1085,11 @@ export default function AdminDashboard() {
             <nav className="-mb-px flex space-x-8">
               {[
                 { key: 'dashboard', label: '📊 Dashboard' },
+                { key: 'chat', label: '💬 Chat' },
                 { key: 'users', label: '👥 Users' },
                 { key: 'orders', label: '🛍️ Orders' },
                 { key: 'partners', label: '🤝 Partners' },
                 { key: 'discounts', label: '🎫 Discounts' },
-                { key: 'chat', label: '💬 Chat' },
                 { key: 'leaderboard', label: '🏆 Leaderboard' },
                 { key: 'checkins', label: '📅 Check-ins' },
                 { key: 'raffle', label: '🎲 Raffle Tool' },

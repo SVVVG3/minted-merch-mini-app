@@ -96,6 +96,7 @@ export async function batchCheckEligibility(users) {
         fid: user.fid,
         username: user.username,
         displayName: user.displayName,
+        pfpUrl: user.pfpUrl,
         ...eligibility,
         lastChecked: new Date().toISOString()
       });
@@ -109,6 +110,7 @@ export async function batchCheckEligibility(users) {
         fid: user.fid,
         username: user.username,
         displayName: user.displayName,
+        pfpUrl: user.pfpUrl,
         eligible: false,
         tokenBalance: 0,
         requiredBalance: REQUIRED_TOKENS,

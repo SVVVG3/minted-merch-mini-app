@@ -30,11 +30,13 @@ export function ChatAdminDashboard() {
 
       console.log('🔍 Checking eligibility for', members.length, 'chat members');
       
-      // Debug: Log member wallet data
+      // Debug: Log member wallet data and profile pictures
       members.forEach(member => {
         console.log(`👤 Member ${member.username} (FID: ${member.fid}):`, {
           walletCount: member.walletAddresses?.length || 0,
-          wallets: member.walletAddresses
+          wallets: member.walletAddresses,
+          pfpUrl: member.pfpUrl,
+          displayName: member.displayName
         });
       });
       
@@ -56,9 +58,13 @@ export function ChatAdminDashboard() {
 
       const results = eligibilityResult.results;
       
-      // Debug: Log results
+      // Debug: Log results including pfp data
       results.forEach(result => {
-        console.log(`🎯 ${result.username}: ${result.tokenBalance} tokens (eligible: ${result.eligible})`);
+        console.log(`🎯 ${result.username}: ${result.tokenBalance} tokens (eligible: ${result.eligible})`, {
+          pfpUrl: result.pfpUrl,
+          displayName: result.displayName,
+          fid: result.fid
+        });
       });
       
       setEligibilityData(results);
