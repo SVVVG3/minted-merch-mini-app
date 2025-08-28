@@ -13,6 +13,68 @@ export function ChatAdminDashboard() {
   const [isAddingMembers, setIsAddingMembers] = useState(false);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
 
+  // Load existing chat members when component mounts
+  useEffect(() => {
+    loadChatMembers();
+  }, []);
+
+  const loadChatMembers = async () => {
+    try {
+      console.log('📋 Loading existing chat members with cached balances...');
+      
+      const response = await fetch('/api/admin/chat-members');
+      const { members } = await response.json();
+      
+      if (!members || members.length === 0) {
+        console.log('ℹ️ No existing chat members found');
+        setEligibilityData([]);
+        setSummary({
+          totalMembers: 0,
+          eligibleMembers: 0,
+          ineligibleMembers: 0,
+          averageBalance: 0
+        });
+        return;
+      }
+
+      console.log(`📊 Loaded ${members.length} existing chat members`);
+      
+      // Transform members data to match eligibility format
+      const memberData = members.map(member => ({
+        fid: member.fid,
+        username: member.username,
+        displayName: member.displayName,
+        pfpUrl: member.pfpUrl,
+        tokenBalance: member.tokenBalance || 0,
+        eligible: (member.tokenBalance || 0) >= 50000000, // 50M tokens
+        requiredBalance: 50000000,
+        walletCount: member.walletAddresses?.length || 0,
+        lastChecked: member.lastBalanceCheck || 'Never',
+        balanceCheckStatus: member.balanceCheckStatus || 'pending'
+      }));
+
+      // Calculate summary statistics
+      const eligibleCount = memberData.filter(m => m.eligible).length;
+      const totalBalance = memberData.reduce((sum, m) => sum + (m.tokenBalance || 0), 0);
+      const avgBalance = memberData.length > 0 ? totalBalance / memberData.length : 0;
+
+      setEligibilityData(memberData);
+      setSummary({
+        totalMembers: memberData.length,
+        eligibleMembers: eligibleCount,
+        ineligibleMembers: memberData.length - eligibleCount,
+        averageBalance: avgBalance
+      });
+      
+      setLastUpdated(new Date().toLocaleString());
+      
+      console.log(`✅ Displayed ${memberData.length} members (${eligibleCount} eligible)`);
+      
+    } catch (error) {
+      console.error('❌ Error loading chat members:', error);
+      // Don't show alert on initial load, just log the error
+    }
+  };
 
   const updateAllBalances = async () => {
     setIsLoading(true);
@@ -33,8 +95,8 @@ export function ChatAdminDashboard() {
       if (result.success) {
         alert(`✅ Successfully updated balances for ${result.stats.totalMembers} members!\n\nResults:\n- ${result.stats.successCount} successful\n- ${result.stats.errorCount} errors\n- ${result.stats.eligibleCount} eligible\n- ${result.stats.ineligibleCount} ineligible`);
         
-        // Refresh the display
-        runEligibilityCheck();
+        // Refresh the display with updated data
+        loadChatMembers();
       } else {
         throw new Error(result.error || 'Failed to update balances');
       }
@@ -51,63 +113,14 @@ export function ChatAdminDashboard() {
     setIsLoading(true);
     
     try {
-      // This would fetch your current chat members from your database
-      // For now, I'll show the structure you'd need
-      const response = await fetch('/api/admin/chat-members');
-      const { members } = await response.json();
+      console.log('🔄 Refreshing chat member display with cached data...');
       
-      if (!members || members.length === 0) {
-        alert('No chat members found to check');
-        return;
-      }
-
-      console.log('🔍 Checking eligibility for', members.length, 'chat members');
-      
-      // Debug: Log member wallet data and profile pictures
-      members.forEach(member => {
-        console.log(`👤 Member ${member.username} (FID: ${member.fid}):`, {
-          walletCount: member.walletAddresses?.length || 0,
-          wallets: member.walletAddresses,
-          pfpUrl: member.pfpUrl,
-          displayName: member.displayName
-        });
-      });
-      
-      // Call server-side API for batch eligibility check
-      const eligibilityResponse = await fetch('/api/admin/chat-members', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'batch_check',
-          members: members
-        })
-      });
-
-      const eligibilityResult = await eligibilityResponse.json();
-
-      if (!eligibilityResult.success) {
-        throw new Error(eligibilityResult.error || 'Failed to check eligibility');
-      }
-
-      const results = eligibilityResult.results;
-      
-      // Debug: Log results including pfp data
-      results.forEach(result => {
-        console.log(`🎯 ${result.username}: ${result.tokenBalance} tokens (eligible: ${result.eligible})`, {
-          pfpUrl: result.pfpUrl,
-          displayName: result.displayName,
-          fid: result.fid
-        });
-      });
-      
-      setEligibilityData(results);
-      setSummary(eligibilityResult.summary);
-      
-      setLastUpdated(new Date().toLocaleString());
+      // Just reload the cached data from database (fast)
+      await loadChatMembers();
       
     } catch (error) {
-      console.error('Error running eligibility check:', error);
-      alert('Error checking eligibility: ' + error.message);
+      console.error('Error refreshing eligibility display:', error);
+      alert('Error refreshing display: ' + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -150,8 +163,8 @@ export function ChatAdminDashboard() {
       if (result.success) {
         alert(`Successfully added ${result.added} chat members!`);
         setNewFids('');
-        // Refresh the eligibility check to show new members
-        runEligibilityCheck();
+        // Refresh the display to show new members
+        loadChatMembers();
       } else {
         console.error('❌ Detailed error adding members:', result);
         let errorMessage = `Error adding members: ${result.error}`;
@@ -307,16 +320,16 @@ export function ChatAdminDashboard() {
               <button
                 onClick={runEligibilityCheck}
                 disabled={isLoading}
-                className="bg-[#3eb489] text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-gray-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Checking...' : 'Run Eligibility Check'}
+                {isLoading ? 'Refreshing...' : '🔄 Refresh Display'}
               </button>
               <button
                 onClick={updateAllBalances}
                 disabled={isLoading}
-                className="bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-[#3eb489] text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Updating...' : 'Update All Balances'}
+                {isLoading ? 'Updating...' : '🔗 Update All Balances'}
               </button>
             </div>
           </div>
