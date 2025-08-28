@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { batchCheckEligibility, getEligibilitySummary } from '@/lib/chatEligibility';
+// Removed client-side imports - eligibility check now happens server-side
 
 export function ChatAdminDashboard() {
   const [isLoading, setIsLoading] = useState(false);
@@ -38,8 +38,23 @@ export function ChatAdminDashboard() {
         });
       });
       
-      // Batch check all members
-      const results = await batchCheckEligibility(members);
+      // Call server-side API for batch eligibility check
+      const eligibilityResponse = await fetch('/api/admin/chat-members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'batch_check',
+          members: members
+        })
+      });
+
+      const eligibilityResult = await eligibilityResponse.json();
+
+      if (!eligibilityResult.success) {
+        throw new Error(eligibilityResult.error || 'Failed to check eligibility');
+      }
+
+      const results = eligibilityResult.results;
       
       // Debug: Log results
       results.forEach(result => {
@@ -47,10 +62,7 @@ export function ChatAdminDashboard() {
       });
       
       setEligibilityData(results);
-      
-      // Generate summary
-      const summaryStats = getEligibilitySummary(results);
-      setSummary(summaryStats);
+      setSummary(eligibilityResult.summary);
       
       setLastUpdated(new Date().toLocaleString());
       
