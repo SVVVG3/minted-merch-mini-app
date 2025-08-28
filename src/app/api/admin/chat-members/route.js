@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { batchCheckEligibility, getEligibilitySummary } from '@/lib/chatEligibility';
 import { getChatMembers, addChatMembersByFids, removeChatMember } from '@/lib/chatMemberDatabase';
+import { supabase } from '@/lib/supabase';
 
 // This would need to be secured with admin authentication in production
 export async function GET(request) {
@@ -31,7 +32,7 @@ export async function POST(request) {
   try {
     // TODO: Add admin authentication check here
     
-    const { action, members, fids, fid } = await request.json();
+    const { action, members, fids, fid, username } = await request.json();
 
     switch (action) {
       case 'batch_check':
@@ -80,10 +81,43 @@ export async function POST(request) {
         const removeResult = await removeChatMember(fid);
         return NextResponse.json(removeResult);
 
+      case 'search_username':
+        if (!username) {
+          return NextResponse.json({
+            success: false,
+            error: 'Username is required for search'
+          }, { status: 400 });
+        }
+
+        console.log('🔍 Searching for username:', username);
+        
+        // Search in profiles table directly
+        const { data: searchResults, error: searchError } = await supabase
+          .from('profiles')
+          .select('fid, username, display_name, pfp_url')
+          .ilike('username', `%${username}%`)
+          .limit(10);
+
+        if (searchError) {
+          console.error('❌ Search error:', searchError);
+          return NextResponse.json({
+            success: false,
+            error: 'Search failed: ' + searchError.message
+          }, { status: 500 });
+        }
+
+        console.log(`🔍 Found ${searchResults?.length || 0} users matching "${username}"`);
+
+        return NextResponse.json({
+          success: true,
+          users: searchResults || [],
+          count: searchResults?.length || 0
+        });
+
       default:
         return NextResponse.json({
           success: false,
-          error: 'Invalid action. Use: batch_check, add_members, or remove_member'
+          error: 'Invalid action. Use: batch_check, add_members, remove_member, or search_username'
         }, { status: 400 });
     }
 

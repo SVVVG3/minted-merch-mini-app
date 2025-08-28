@@ -67,8 +67,16 @@ export async function addChatMembersByFids(fids) {
         }
 
         // Filter out duplicates and keep only valid ETH addresses
+        console.log(`🔍 Raw wallet addresses for FID ${fid}:`, walletAddresses);
+        
         const uniqueWallets = [...new Set(walletAddresses)]
-          .filter(addr => addr && typeof addr === 'string' && addr.startsWith('0x') && addr.length === 42);
+          .filter(addr => {
+            const isValid = addr && typeof addr === 'string' && addr.startsWith('0x') && addr.length === 42;
+            if (!isValid && addr) {
+              console.log(`❌ Filtered out invalid address: ${addr} (type: ${typeof addr}, length: ${addr.length})`);
+            }
+            return isValid;
+          });
 
         console.log(`🔗 Found ${uniqueWallets.length} valid ETH wallet addresses for FID ${fid}:`, uniqueWallets);
 
@@ -90,6 +98,10 @@ export async function addChatMembersByFids(fids) {
       }
     }
 
+    console.log(`📊 Processing complete. Chat members prepared: ${chatMembers.length}, Errors: ${errors.length}`);
+    console.log('📊 Prepared chat members:', chatMembers);
+    console.log('📊 Errors encountered:', errors);
+
     if (chatMembers.length === 0) {
       console.log('❌ No valid chat members to add. Errors:', errors);
       return {
@@ -99,7 +111,8 @@ export async function addChatMembersByFids(fids) {
         debug: {
           totalFids: fids.length,
           processedMembers: chatMembers.length,
-          errorCount: errors.length
+          errorCount: errors.length,
+          profilesFound: profiles?.length || 0
         }
       };
     }
