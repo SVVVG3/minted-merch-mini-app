@@ -196,7 +196,7 @@ export async function getChatMembers() {
     const fids = chatMembersData.map(member => member.fid);
     const { data: profilesData, error: profilesError } = await supabaseAdmin
       .from('profiles')
-      .select('fid, custody_address, verified_eth_addresses, all_wallet_addresses')
+      .select('fid, username, display_name, pfp_url, custody_address, verified_eth_addresses, all_wallet_addresses')
       .in('fid', fids);
 
     if (profilesError) {
@@ -245,8 +245,9 @@ export async function getChatMembers() {
 
       return {
         fid: member.fid,
-        username: member.username,
-        displayName: member.display_name,
+        username: member.profiles?.username || member.username,
+        displayName: member.profiles?.display_name || member.display_name,
+        pfpUrl: member.profiles?.pfp_url,
         walletAddresses: uniqueWallets
       };
     });

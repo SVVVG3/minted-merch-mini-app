@@ -449,33 +449,61 @@ export function ChatAdminDashboard() {
         {eligibilityData && summary?.eligible > 0 && (
           <div className="p-6 border-t border-gray-200">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              Eligible Members ({summary.eligible})
+              All Eligible Members ({summary.eligible}) - Sorted by Holdings
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {eligibilityData
                 .filter(user => user.eligible)
-                .slice(0, 12) // Show first 12 eligible members
+                .sort((a, b) => (b.tokenBalance || 0) - (a.tokenBalance || 0)) // Sort by token balance (highest first)
                 .map((user) => (
-                  <div key={user.fid} className="bg-green-50 border border-green-200 rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-green-800">
-                          {user.displayName || user.username || 'Unknown'}
-                        </div>
-                        <div className="text-sm text-green-600">
-                          {(user.tokenBalance || 0).toLocaleString()} tokens
+                  <div key={user.fid} className="bg-green-50 border border-green-200 rounded-lg p-4 hover:bg-green-100 transition-colors">
+                    <div className="flex items-start space-x-3">
+                      {/* Profile Picture */}
+                      <div className="flex-shrink-0">
+                        {user.pfpUrl ? (
+                          <img 
+                            src={user.pfpUrl} 
+                            alt={user.displayName || user.username || 'User'}
+                            className="w-12 h-12 rounded-full object-cover border-2 border-green-300"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div 
+                          className={`w-12 h-12 rounded-full bg-green-200 border-2 border-green-300 flex items-center justify-center text-green-700 font-semibold ${user.pfpUrl ? 'hidden' : 'flex'}`}
+                        >
+                          {(user.displayName || user.username || 'U').charAt(0).toUpperCase()}
                         </div>
                       </div>
-                      <div className="text-green-500">✅</div>
+                      
+                      {/* User Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-green-800 truncate">
+                          {user.displayName || user.username || 'Unknown'}
+                        </div>
+                        {user.username && user.displayName && (
+                          <div className="text-xs text-green-600 truncate">
+                            @{user.username}
+                          </div>
+                        )}
+                        <div className="text-sm font-semibold text-green-700 mt-1">
+                          {(user.tokenBalance || 0).toLocaleString()} tokens
+                        </div>
+                        <div className="text-xs text-green-600">
+                          FID: {user.fid}
+                        </div>
+                      </div>
+                      
+                      {/* Status Icon */}
+                      <div className="flex-shrink-0">
+                        <div className="text-green-500 text-xl">✅</div>
+                      </div>
                     </div>
                   </div>
                 ))}
             </div>
-            {summary.eligible > 12 && (
-              <p className="text-sm text-gray-500 mt-4 text-center">
-                ... and {summary.eligible - 12} more eligible members
-              </p>
-            )}
           </div>
         )}
       </div>
