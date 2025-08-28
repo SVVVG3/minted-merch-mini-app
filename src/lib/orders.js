@@ -1,6 +1,8 @@
 import { supabase, supabaseAdmin } from './supabase';
 import { sendOrderConfirmationNotification, sendShippingNotification } from './neynar';
 import { validateDiscountCode } from './discounts';
+import { checkTokenGatedEligibility } from './tokenGating';
+import { fetchUserWalletData } from './neynar';
 
 /**
  * Ensure user profile exists before order creation
@@ -120,6 +122,57 @@ export async function validateDiscountForOrder(discountCode, fid, subtotal, cart
         error: 'This discount code has already been used',
         isValid: false
       };
+    }
+
+    // 🔒 CRITICAL SECURITY FIX: Check token gating requirements for order processing
+    const discountCodeObj = validationResult.discountCode;
+    if (discountCodeObj && discountCodeObj.gating_type && discountCodeObj.gating_type !== 'none') {
+      console.log('🎫 Token-gated discount detected during order processing, checking eligibility:', {
+        code: discountCodeObj.code,
+        gating_type: discountCodeObj.gating_type,
+        fid
+      });
+
+      if (!fid) {
+        return {
+          success: false,
+          error: 'Authentication required for this discount code',
+          isValid: false
+        };
+      }
+
+      // Get user's wallet addresses
+      let userWalletAddresses = [];
+      try {
+        const walletData = await fetchUserWalletData(fid);
+        userWalletAddresses = walletData.walletAddresses || [];
+        console.log('📱 Retrieved wallet addresses for order validation, FID', fid, ':', userWalletAddresses.length, 'wallets');
+      } catch (error) {
+        console.error('❌ Failed to fetch wallet data for order validation, FID', fid, ':', error);
+        return {
+          success: false,
+          error: 'Unable to verify discount eligibility. Please try again.',
+          isValid: false
+        };
+      }
+
+      // Check token gating eligibility
+      const eligibilityResult = await checkTokenGatedEligibility(
+        discountCodeObj, 
+        fid, 
+        userWalletAddresses
+      );
+
+      if (!eligibilityResult.eligible) {
+        console.log('❌ Token gating check failed during order processing:', eligibilityResult.reason);
+        return {
+          success: false,
+          error: eligibilityResult.reason || 'You are not eligible for this discount code',
+          isValid: false
+        };
+      }
+
+      console.log('✅ Token gating check passed during order processing:', eligibilityResult.reason);
     }
 
     console.log('✅ Discount code is valid for order creation');

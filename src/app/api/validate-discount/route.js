@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { setUserContext } from '@/lib/auth';
 import { validateDiscountCode, calculateDiscountAmount, isGiftCardCode, validateGiftCardCode, cartContainsGiftCards } from '@/lib/discounts';
+import { checkTokenGatedEligibility } from '@/lib/tokenGating';
+import { fetchUserWalletData } from '@/lib/neynar';
 
 export async function POST(request) {
   try {
@@ -70,6 +72,58 @@ export async function POST(request) {
         success: false,
         error: 'This discount code is not valid or has already been used'
       }, { status: 400 });
+    }
+
+    // 🔒 CRITICAL SECURITY FIX: Check token gating requirements
+    const discountCode = validationResult.discountCode;
+    if (discountCode && discountCode.gating_type && discountCode.gating_type !== 'none') {
+      console.log('🎫 Token-gated discount detected, checking eligibility:', {
+        code: discountCode.code,
+        gating_type: discountCode.gating_type,
+        fid: fid || 'null'
+      });
+
+      if (!fid) {
+        return NextResponse.json({
+          success: false,
+          error: 'Authentication required for this discount code'
+        }, { status: 401 });
+      }
+
+      // Get user's wallet addresses
+      let userWalletAddresses = [];
+      try {
+        const walletData = await fetchUserWalletData(fid);
+        userWalletAddresses = walletData.walletAddresses || [];
+        console.log('📱 Retrieved wallet addresses for FID', fid, ':', userWalletAddresses.length, 'wallets');
+      } catch (error) {
+        console.error('❌ Failed to fetch wallet data for FID', fid, ':', error);
+        return NextResponse.json({
+          success: false,
+          error: 'Unable to verify eligibility. Please try again.'
+        }, { status: 500 });
+      }
+
+      // Check token gating eligibility
+      const eligibilityResult = await checkTokenGatedEligibility(
+        discountCode, 
+        fid, 
+        userWalletAddresses,
+        {
+          userAgent: request.headers.get('user-agent'),
+          ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip')
+        }
+      );
+
+      if (!eligibilityResult.eligible) {
+        console.log('❌ Token gating check failed:', eligibilityResult.reason);
+        return NextResponse.json({
+          success: false,
+          error: eligibilityResult.reason || 'You are not eligible for this discount code'
+        }, { status: 403 });
+      }
+
+      console.log('✅ Token gating check passed:', eligibilityResult.reason);
     }
 
     // Calculate discount amount
