@@ -66,7 +66,17 @@ export function ChatAdminDashboard() {
         averageBalance: avgBalance
       });
       
-      setLastUpdated(new Date().toLocaleString());
+      // Find the most recent balance check timestamp from all members
+      const lastBalanceUpdate = memberData
+        .map(m => m.lastBalanceCheck)
+        .filter(date => date) // Remove null/undefined dates
+        .sort((a, b) => new Date(b) - new Date(a))[0]; // Get most recent
+      
+      if (lastBalanceUpdate) {
+        setLastUpdated(new Date(lastBalanceUpdate).toLocaleString());
+      } else {
+        setLastUpdated('Never updated');
+      }
       
       console.log(`✅ Displayed ${memberData.length} members (${eligibleCount} eligible)`);
       
@@ -94,8 +104,9 @@ export function ChatAdminDashboard() {
       if (result.success) {
         alert(`✅ Successfully updated balances for ${result.stats.totalMembers} members!\n\nResults:\n- ${result.stats.successCount} successful\n- ${result.stats.errorCount} errors\n- ${result.stats.eligibleCount} eligible\n- ${result.stats.ineligibleCount} ineligible\n\nDuration: ${(result.stats.duration / 1000).toFixed(1)}s`);
         
-        // Refresh the display with updated data
-        loadChatMembers();
+        // Refresh the display with updated data and set current time as last update
+        await loadChatMembers();
+        setLastUpdated(new Date().toLocaleString());
       } else {
         throw new Error(result.error || 'Failed to update balances');
       }
@@ -335,7 +346,7 @@ export function ChatAdminDashboard() {
           
           {lastUpdated && (
             <p className="text-sm text-gray-500 mt-2">
-              Last updated: {lastUpdated}
+              Balances last updated: {lastUpdated}
             </p>
           )}
         </div>
