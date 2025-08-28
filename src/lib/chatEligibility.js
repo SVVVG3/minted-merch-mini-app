@@ -122,10 +122,12 @@ export async function batchCheckEligibility(users) {
  * Generate chat invitation data for eligible users
  * @param {number} userFid - User's Farcaster ID
  * @param {Array} walletAddresses - User's wallet addresses
+ * @param {Object} existingEligibility - Optional pre-computed eligibility result to avoid re-checking
  * @returns {Promise<Object>} Invitation result
  */
-export async function generateChatInvitation(userFid, walletAddresses) {
-  const eligibility = await checkChatEligibility(walletAddresses);
+export async function generateChatInvitation(userFid, walletAddresses, existingEligibility = null) {
+  // Use existing eligibility result if provided, otherwise check again
+  const eligibility = existingEligibility || await checkChatEligibility(walletAddresses);
   
   if (!eligibility.eligible) {
     return {

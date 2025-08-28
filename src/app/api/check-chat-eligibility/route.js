@@ -99,8 +99,8 @@ export async function POST(request) {
       console.log('🔄 User was previously removed but is now eligible again');
     }
 
-    // Step 5: Generate invitation
-    const invitation = await generateChatInvitation(fid, validWallets);
+    // Step 5: Generate invitation (pass existing eligibility to avoid re-checking)
+    const invitation = await generateChatInvitation(fid, validWallets, eligibility);
 
     if (!invitation.success) {
       console.error('❌ Failed to generate invitation:', invitation.message);
