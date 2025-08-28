@@ -230,12 +230,22 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
   });
 
   let totalBalance = 0;
+  const balanceResults = [];
 
-  // Check balance for each wallet address
-  for (const walletAddress of walletAddresses) {
+  // Check balance for each wallet address with proper error handling and delays
+  for (let i = 0; i < walletAddresses.length; i++) {
+    const walletAddress = walletAddresses[i];
+    
     try {
+      // Add small delay between requests to avoid rate limiting
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+      }
+
       // ERC-20 balanceOf function call
       const data = `0x70a08231${walletAddress.slice(2).padStart(64, '0')}`;
+      
+      console.log(`🔍 Checking wallet ${i + 1}/${walletAddresses.length}: ${walletAddress}`);
       
       const response = await fetch(rpcUrl, {
         method: 'POST',
@@ -252,29 +262,55 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
             },
             'latest'
           ],
-          id: 1
+          id: Date.now() + i // Unique ID for each request
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const result = await response.json();
       
+      if (result.error) {
+        throw new Error(`RPC Error: ${result.error.message || result.error}`);
+      }
+      
+      let walletBalance = 0;
       if (result.result && result.result !== '0x') {
         // Convert hex to decimal and adjust for 18 decimals
         const balanceHex = result.result;
         const balanceWei = BigInt(balanceHex);
-        const balanceTokens = Number(balanceWei) / Math.pow(10, 18);
+        walletBalance = Number(balanceWei) / Math.pow(10, 18);
         
-        totalBalance += balanceTokens;
+        totalBalance += walletBalance;
         
-        console.log(`💰 Wallet ${walletAddress}: ${balanceTokens.toLocaleString()} tokens`);
+        console.log(`💰 Wallet ${walletAddress}: ${walletBalance.toLocaleString()} tokens`);
+      } else {
+        console.log(`💰 Wallet ${walletAddress}: 0 tokens`);
       }
+      
+      balanceResults.push({
+        wallet: walletAddress,
+        balance: walletBalance,
+        success: true
+      });
+      
     } catch (error) {
       console.error(`❌ Error checking balance for ${walletAddress}:`, error);
+      balanceResults.push({
+        wallet: walletAddress,
+        balance: 0,
+        success: false,
+        error: error.message
+      });
       // Continue with other addresses
     }
   }
 
   console.log(`📊 Total token balance across all wallets: ${totalBalance.toLocaleString()}`);
+  console.log(`📊 Balance check results:`, balanceResults);
+  
   return totalBalance;
 }
 
