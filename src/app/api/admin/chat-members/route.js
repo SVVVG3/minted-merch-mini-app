@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { batchCheckEligibility, getEligibilitySummary } from '@/lib/chatEligibility';
 import { getChatMembers, addChatMembersByFids, removeChatMember } from '@/lib/chatMemberDatabase';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // This would need to be secured with admin authentication in production
 export async function GET(request) {
@@ -92,7 +92,7 @@ export async function POST(request) {
         console.log('🔍 Searching for username:', username);
         
         // Search in profiles table directly
-        const { data: searchResults, error: searchError } = await supabase
+        const { data: searchResults, error: searchError } = await supabaseAdmin
           .from('profiles')
           .select('fid, username, display_name, pfp_url')
           .ilike('username', `%${username}%`)

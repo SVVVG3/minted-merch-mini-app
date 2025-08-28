@@ -1,10 +1,10 @@
 // Chat member database management using existing profiles data
 
-import { supabase } from './supabase';
+import { supabaseAdmin } from './supabase';
 
 // Debug Supabase configuration
 console.log('🔧 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
-console.log('🔧 Supabase client configured:', !!supabase);
+console.log('🔧 Supabase admin client configured:', !!supabaseAdmin);
 
 /**
  * Add chat members by FID using existing profiles data
@@ -20,8 +20,8 @@ export async function addChatMembersByFids(fids) {
     console.log('🔍 Querying profiles for FIDs:', fidInts);
 
     // DEBUGGING: Test direct query first
-    console.log('🧪 Testing direct Supabase query...');
-    const testQuery = await supabase
+    console.log('🧪 Testing direct Supabase admin query...');
+    const testQuery = await supabaseAdmin
       .from('profiles')
       .select('fid, username')
       .eq('fid', 466111);
@@ -29,7 +29,7 @@ export async function addChatMembersByFids(fids) {
     console.log('🧪 Direct test query result:', testQuery);
 
     // Fetch profile data directly from our profiles table
-    const { data: profiles, error: profileError } = await supabase
+    const { data: profiles, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('fid, username, display_name, pfp_url, custody_address, verified_eth_addresses, all_wallet_addresses')
       .in('fid', fidInts);
@@ -131,7 +131,7 @@ export async function addChatMembersByFids(fids) {
     }
 
     // Insert/update into Supabase with reactivation logic
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('chat_members')
       .upsert(chatMembers.map(member => ({
         ...member,
@@ -173,7 +173,7 @@ export async function addChatMembersByFids(fids) {
 export async function getChatMembers() {
   try {
     // Get chat members and join with profiles for fresh wallet data
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('chat_members')
       .select(`
         fid,
@@ -241,7 +241,7 @@ export async function getChatMembers() {
  */
 export async function removeChatMember(fid) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('chat_members')
       .update({ is_active: false, removed_at: new Date().toISOString() })
       .eq('fid', fid)
