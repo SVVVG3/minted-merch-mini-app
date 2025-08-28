@@ -432,9 +432,9 @@ export function ChatAdminDashboard() {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800">
-                Members Requiring Removal ({summary?.ineligible || 0})
+                Members Requiring Removal ({summary?.ineligibleMembers || 0})
               </h3>
-              {summary?.ineligible > 0 && (
+              {summary?.ineligibleMembers > 0 && (
                 <button
                   onClick={exportIneligibleUsers}
                   className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700 transition-colors"
@@ -444,63 +444,86 @@ export function ChatAdminDashboard() {
               )}
             </div>
 
-            {summary?.ineligible === 0 ? (
+            {summary?.ineligibleMembers === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 🎉 All members are currently eligible!
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full table-auto">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">User</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">FID</th>
-                      <th className="px-4 py-2 text-right text-sm font-semibold text-gray-700">Token Balance</th>
-                      <th className="px-4 py-2 text-right text-sm font-semibold text-gray-700">Shortfall</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Status</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {eligibilityData
-                      .filter(user => !user.eligible)
-                      .sort((a, b) => (b.tokenBalance || 0) - (a.tokenBalance || 0))
-                      .map((user, index) => (
-                        <tr key={user.fid} className="hover:bg-gray-50">
-                          <td className="px-4 py-2">
-                            <div>
-                              <div className="font-medium text-gray-900">
-                                {user.displayName || user.username || 'Unknown'}
-                              </div>
-                              {user.username && (
-                                <div className="text-sm text-gray-500">@{user.username}</div>
-                              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {eligibilityData
+                  .filter(user => !user.eligible)
+                  .sort((a, b) => (b.tokenBalance || 0) - (a.tokenBalance || 0))
+                  .map((user, index) => (
+                    <div key={user.fid} className="bg-red-50 border border-red-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-start space-x-3">
+                        {/* Profile Picture */}
+                        <div className="flex-shrink-0">
+                          {user.pfpUrl ? (
+                            <img
+                              src={user.pfpUrl}
+                              alt={user.displayName || user.username || 'User'}
+                              className="w-12 h-12 rounded-full object-cover border-2 border-red-300"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div 
+                            className={`w-12 h-12 rounded-full bg-red-200 border-2 border-red-300 flex items-center justify-center text-red-700 font-semibold ${user.pfpUrl ? 'hidden' : 'flex'}`}
+                          >
+                            {(user.displayName || user.username || 'U').charAt(0).toUpperCase()}
+                          </div>
+                        </div>
+                        
+                        {/* User Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold text-red-900 truncate">
+                            {user.displayName || user.username || 'Unknown User'}
+                          </div>
+                          {user.username && user.displayName && (
+                            <div className="text-xs text-red-600 truncate">
+                              @{user.username}
                             </div>
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-600">{user.fid}</td>
-                          <td className="px-4 py-2 text-right text-sm">
-                            {(user.tokenBalance || 0).toLocaleString()}
-                          </td>
-                          <td className="px-4 py-2 text-right text-sm text-red-600">
-                            -{(user.requiredBalance - (user.tokenBalance || 0)).toLocaleString()}
-                          </td>
-                          <td className="px-4 py-2">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              Remove Required
-                            </span>
-                          </td>
-                          <td className="px-4 py-2">
-                            <button
-                              onClick={() => removeChatMember(user.fid, user.username || user.displayName)}
-                              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                            >
-                              Remove
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
+                          )}
+                          <div className="text-sm font-semibold text-red-700 mt-1">
+                            {(user.tokenBalance || 0).toLocaleString()} tokens
+                          </div>
+                          <div className="text-xs text-red-600">
+                            FID: {user.fid}
+                          </div>
+                          <div className="text-xs text-red-600 mt-1">
+                            Shortfall: -{(user.requiredBalance - (user.tokenBalance || 0)).toLocaleString()}
+                          </div>
+                          {user.lastBalanceCheck && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Updated: {new Date(user.lastBalanceCheck).toLocaleDateString()}
+                            </div>
+                          )}
+                          {user.balanceCheckStatus === 'error' && (
+                            <div className="text-xs text-red-500 mt-1">
+                              ⚠️ Balance check failed
+                            </div>
+                          )}
+                          {user.balanceCheckStatus === 'pending' && (
+                            <div className="text-xs text-yellow-600 mt-1">
+                              ⏳ Balance pending update
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Remove Button */}
+                        <div className="flex-shrink-0">
+                          <button
+                            onClick={() => removeChatMember(user.fid, user.username || user.displayName)}
+                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
               </div>
             )}
           </div>
