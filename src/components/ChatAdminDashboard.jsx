@@ -82,18 +82,17 @@ export function ChatAdminDashboard() {
     try {
       console.log('🔄 Manually triggering balance update for all chat members...');
       
-      const response = await fetch('/api/cron/update-chat-balances', {
+      const response = await fetch('/api/admin/update-balances', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET || 'your-secret-key'}`
+          'Content-Type': 'application/json'
         }
       });
 
       const result = await response.json();
 
       if (result.success) {
-        alert(`✅ Successfully updated balances for ${result.stats.totalMembers} members!\n\nResults:\n- ${result.stats.successCount} successful\n- ${result.stats.errorCount} errors\n- ${result.stats.eligibleCount} eligible\n- ${result.stats.ineligibleCount} ineligible`);
+        alert(`✅ Successfully updated balances for ${result.stats.totalMembers} members!\n\nResults:\n- ${result.stats.successCount} successful\n- ${result.stats.errorCount} errors\n- ${result.stats.eligibleCount} eligible\n- ${result.stats.ineligibleCount} ineligible\n\nDuration: ${(result.stats.duration / 1000).toFixed(1)}s`);
         
         // Refresh the display with updated data
         loadChatMembers();
