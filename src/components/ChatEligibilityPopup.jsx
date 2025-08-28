@@ -106,13 +106,22 @@ export function ChatEligibilityPopup() {
           </button>
         </div>
 
+        {/* Merch Mogul Meme Image */}
+        <div className="flex justify-center mb-4">
+          <img 
+            src="/merchmogulmeme.png" 
+            alt="Merch Mogul Meme" 
+            className="w-32 h-32 object-contain rounded-lg"
+          />
+        </div>
+
         {/* Content */}
         <div className="mb-6">
           <p className="text-gray-700 mb-3">
             🚀 You hold <span className="font-bold text-green-600">50M+ $MINTEDMERCH</span> tokens!
           </p>
           <p className="text-gray-700 mb-4">
-            Join the exclusive <span className="font-bold">Merch Moguls Chat</span> for token holders.
+            Join the exclusive <span className="font-bold text-purple-600">Merch Moguls Chat</span> for elite token holders.
           </p>
           
           {/* Token Balance Display */}
