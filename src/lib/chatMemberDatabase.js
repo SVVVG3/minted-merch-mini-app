@@ -174,12 +174,12 @@ export async function getChatMembers() {
   try {
     console.log('🔍 getChatMembers: Fetching active chat members with profiles...');
     
-    // Get active chat members first
+    // Get active chat members first with token balance data
     const { data: chatMembersData, error: chatMembersError } = await supabaseAdmin
       .from('chat_members')
-      .select('fid, username, display_name, added_at')
+      .select('fid, username, display_name, added_at, token_balance, last_balance_check, balance_check_status')
       .eq('is_active', true)
-      .order('added_at', { ascending: false });
+      .order('token_balance', { ascending: false }); // Order by token balance (highest first)
 
     if (chatMembersError) {
       throw new Error(`Error fetching chat members: ${chatMembersError.message}`);
@@ -248,13 +248,66 @@ export async function getChatMembers() {
         username: member.profiles?.username || member.username,
         displayName: member.profiles?.display_name || member.display_name,
         pfpUrl: member.profiles?.pfp_url,
-        walletAddresses: uniqueWallets
+        walletAddresses: uniqueWallets,
+        tokenBalance: member.token_balance || 0,
+        lastBalanceCheck: member.last_balance_check,
+        balanceCheckStatus: member.balance_check_status || 'pending'
       };
     });
 
   } catch (error) {
     console.error('❌ Error fetching chat members:', error);
     return [];
+  }
+}
+
+/**
+ * Update token balance for a chat member
+ * @param {number} fid - Farcaster ID
+ * @param {number} tokenBalance - Current token balance
+ * @param {string} status - Check status ('success' or 'error')
+ * @returns {Promise<Object>} Result of the operation
+ */
+export async function updateChatMemberBalance(fid, tokenBalance, status = 'success') {
+  try {
+    console.log(`💰 Updating token balance for FID ${fid}: ${tokenBalance} tokens (status: ${status})`);
+    
+    const { data, error } = await supabaseAdmin
+      .from('chat_members')
+      .update({
+        token_balance: tokenBalance,
+        last_balance_check: new Date().toISOString(),
+        balance_check_status: status
+      })
+      .eq('fid', fid)
+      .eq('is_active', true)
+      .select();
+
+    if (error) {
+      throw new Error(`Error updating token balance: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      throw new Error(`No active chat member found with FID: ${fid}`);
+    }
+
+    console.log(`✅ Updated token balance for ${data[0].username || fid}: ${tokenBalance} tokens`);
+    
+    return {
+      success: true,
+      fid,
+      tokenBalance,
+      status,
+      updatedAt: new Date().toISOString()
+    };
+
+  } catch (error) {
+    console.error(`❌ Error updating token balance for FID ${fid}:`, error);
+    return {
+      success: false,
+      fid,
+      error: error.message
+    };
   }
 }
 

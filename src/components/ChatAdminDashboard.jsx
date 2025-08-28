@@ -14,6 +14,39 @@ export function ChatAdminDashboard() {
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
 
 
+  const updateAllBalances = async () => {
+    setIsLoading(true);
+    
+    try {
+      console.log('🔄 Manually triggering balance update for all chat members...');
+      
+      const response = await fetch('/api/cron/update-chat-balances', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET || 'your-secret-key'}`
+        }
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(`✅ Successfully updated balances for ${result.stats.totalMembers} members!\n\nResults:\n- ${result.stats.successCount} successful\n- ${result.stats.errorCount} errors\n- ${result.stats.eligibleCount} eligible\n- ${result.stats.ineligibleCount} ineligible`);
+        
+        // Refresh the display
+        runEligibilityCheck();
+      } else {
+        throw new Error(result.error || 'Failed to update balances');
+      }
+
+    } catch (error) {
+      console.error('❌ Error updating balances:', error);
+      alert('Error updating balances: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const runEligibilityCheck = async () => {
     setIsLoading(true);
     
@@ -270,13 +303,22 @@ export function ChatAdminDashboard() {
                 Monitor $MINTEDMERCH token requirements for chat members
               </p>
             </div>
-            <button
-              onClick={runEligibilityCheck}
-              disabled={isLoading}
-              className="bg-[#3eb489] text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Checking...' : 'Run Eligibility Check'}
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={runEligibilityCheck}
+                disabled={isLoading}
+                className="bg-[#3eb489] text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Checking...' : 'Run Eligibility Check'}
+              </button>
+              <button
+                onClick={updateAllBalances}
+                disabled={isLoading}
+                className="bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Updating...' : 'Update All Balances'}
+              </button>
+            </div>
           </div>
           
           {lastUpdated && (
@@ -500,6 +542,21 @@ export function ChatAdminDashboard() {
                         <div className="text-xs text-green-600">
                           FID: {user.fid}
                         </div>
+                        {user.lastBalanceCheck && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Updated: {new Date(user.lastBalanceCheck).toLocaleDateString()}
+                          </div>
+                        )}
+                        {user.balanceCheckStatus === 'error' && (
+                          <div className="text-xs text-red-500 mt-1">
+                            ⚠️ Balance check failed
+                          </div>
+                        )}
+                        {user.balanceCheckStatus === 'pending' && (
+                          <div className="text-xs text-yellow-600 mt-1">
+                            ⏳ Balance pending update
+                          </div>
+                        )}
                       </div>
                       
                       {/* Status Icon */}

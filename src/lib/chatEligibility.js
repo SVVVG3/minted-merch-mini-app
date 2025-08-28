@@ -1,6 +1,7 @@
 // Token-gated chat eligibility system for $mintedmerch holders
 
 import { checkTokenBalanceDirectly } from './blockchainAPI';
+import { updateChatMemberBalance } from './chatMemberDatabase';
 
 const MINTEDMERCH_TOKEN_ADDRESS = '0x774EAeFE73Df7959496Ac92a77279A8D7d690b07';
 const BASE_CHAIN_ID = 8453;
@@ -92,6 +93,9 @@ export async function batchCheckEligibility(users) {
       
       const eligibility = await checkChatEligibility(user.walletAddresses || []);
       
+      // Store token balance in database for caching
+      await updateChatMemberBalance(user.fid, eligibility.tokenBalance, 'success');
+      
       results.push({
         fid: user.fid,
         username: user.username,
@@ -105,6 +109,9 @@ export async function batchCheckEligibility(users) {
       
     } catch (error) {
       console.error(`❌ Error checking ${user.username}:`, error);
+      
+      // Store error status in database
+      await updateChatMemberBalance(user.fid, 0, 'error');
       
       results.push({
         fid: user.fid,
