@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { sdk } from '@farcaster/frame-sdk';
 
 export function ChatEligibilityPopup() {
   const { user, isInFarcaster } = useFarcaster();
@@ -65,16 +66,28 @@ export function ChatEligibilityPopup() {
         })
       });
 
-      // Open the chat invite link
-      window.open(eligibilityData.inviteLink, '_blank');
+      // Use Farcaster SDK to navigate to the group chat
+      if (isInFarcaster && sdk?.actions?.openUrl) {
+        console.log('🚀 Opening group chat via Farcaster SDK');
+        await sdk.actions.openUrl(eligibilityData.inviteLink);
+      } else {
+        // Fallback to window.open for web/non-Farcaster environments
+        console.log('🌐 Opening group chat via window.open (fallback)');
+        window.open(eligibilityData.inviteLink, '_blank');
+      }
       
       // Close popup and mark as dismissed
       handleDismiss();
     } catch (error) {
-      console.error('❌ Error tracking invite click:', error);
-      // Still open the link even if tracking fails
-      window.open(eligibilityData.inviteLink, '_blank');
-      handleDismiss();
+      console.error('❌ Error opening chat or tracking click:', error);
+      // Fallback to window.open if SDK fails
+      try {
+        window.open(eligibilityData.inviteLink, '_blank');
+        handleDismiss();
+      } catch (fallbackError) {
+        console.error('❌ Fallback also failed:', fallbackError);
+        alert('Unable to open chat. Please try again.');
+      }
     }
   };
 
