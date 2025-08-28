@@ -211,7 +211,7 @@ export async function checkNftHoldingsWithZapper(walletAddresses, contractAddres
 /**
  * Check token balance directly via blockchain RPC (more reliable than Zapper)
  */
-async function checkTokenBalanceDirectly(walletAddresses, contractAddresses, chainId) {
+export async function checkTokenBalanceDirectly(walletAddresses, contractAddresses, chainId) {
   const rpcUrls = {
     1: 'https://eth.llamarpc.com',
     8453: 'https://mainnet.base.org',
