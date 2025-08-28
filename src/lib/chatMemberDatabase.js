@@ -172,6 +172,8 @@ export async function addChatMembersByFids(fids) {
  */
 export async function getChatMembers() {
   try {
+    console.log('🔍 getChatMembers: Fetching active chat members with profiles...');
+    
     // Get chat members and join with profiles for fresh wallet data
     const { data, error } = await supabaseAdmin
       .from('chat_members')
@@ -188,6 +190,8 @@ export async function getChatMembers() {
       `)
       .eq('is_active', true)
       .order('added_at', { ascending: false });
+
+    console.log('🔍 getChatMembers: Raw query result:', { data, error });
 
     if (error) {
       throw new Error(`Database error: ${error.message}`);
