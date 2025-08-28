@@ -32,11 +32,35 @@ export async function POST(request) {
     // This ensures they're tracked even if they don't complete the join process
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('fid, username, display_name, pfp_url')
+      .select('fid, username, display_name, pfp_url, custody_address, verified_eth_addresses, all_wallet_addresses')
       .eq('fid', fid)
       .single();
 
     if (!profileError && profile) {
+      // Extract wallet addresses from profile data (same logic as addChatMembersByFids)
+      const walletAddresses = [];
+      
+      // Add custody address
+      if (profile.custody_address) {
+        walletAddresses.push(profile.custody_address);
+      }
+      
+      // Add verified ETH addresses
+      if (profile.verified_eth_addresses && Array.isArray(profile.verified_eth_addresses)) {
+        walletAddresses.push(...profile.verified_eth_addresses);
+      }
+      
+      // Add all wallet addresses
+      if (profile.all_wallet_addresses && Array.isArray(profile.all_wallet_addresses)) {
+        walletAddresses.push(...profile.all_wallet_addresses);
+      }
+
+      // Filter out duplicates and keep only valid ETH addresses
+      const uniqueWallets = [...new Set(walletAddresses)]
+        .filter(addr => addr && typeof addr === 'string' && addr.startsWith('0x') && addr.length === 42);
+
+      console.log(`💰 Adding user to chat_members with ${uniqueWallets.length} wallet addresses`);
+
       const { error: upsertError } = await supabaseAdmin
         .from('chat_members')
         .upsert({
@@ -44,7 +68,7 @@ export async function POST(request) {
           username: profile.username,
           display_name: profile.display_name,
           pfp_url: profile.pfp_url,
-          wallet_addresses: [], // Will be populated from profiles when needed
+          wallet_addresses: uniqueWallets, // Now properly populated!
           added_at: new Date().toISOString(),
           is_active: true,
           removed_at: null
