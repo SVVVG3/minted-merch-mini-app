@@ -174,28 +174,47 @@ export async function getChatMembers() {
   try {
     console.log('🔍 getChatMembers: Fetching active chat members with profiles...');
     
-    // Get chat members and join with profiles for fresh wallet data
-    const { data, error } = await supabaseAdmin
+    // Get active chat members first
+    const { data: chatMembersData, error: chatMembersError } = await supabaseAdmin
       .from('chat_members')
-      .select(`
-        fid,
-        username,
-        display_name,
-        added_at,
-        profiles!inner(
-          custody_address,
-          verified_eth_addresses,
-          all_wallet_addresses
-        )
-      `)
+      .select('fid, username, display_name, added_at')
       .eq('is_active', true)
       .order('added_at', { ascending: false });
 
-    console.log('🔍 getChatMembers: Raw query result:', { data, error });
-
-    if (error) {
-      throw new Error(`Database error: ${error.message}`);
+    if (chatMembersError) {
+      throw new Error(`Error fetching chat members: ${chatMembersError.message}`);
     }
+
+    console.log('🔍 getChatMembers: Found chat members:', chatMembersData);
+
+    if (!chatMembersData || chatMembersData.length === 0) {
+      console.log('🔍 getChatMembers: No active chat members found');
+      return [];
+    }
+
+    // Get profile data for each chat member
+    const fids = chatMembersData.map(member => member.fid);
+    const { data: profilesData, error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .select('fid, custody_address, verified_eth_addresses, all_wallet_addresses')
+      .in('fid', fids);
+
+    if (profilesError) {
+      throw new Error(`Error fetching profiles: ${profilesError.message}`);
+    }
+
+    console.log('🔍 getChatMembers: Found profiles:', profilesData);
+
+    // Combine chat member data with profile data
+    const data = chatMembersData.map(member => {
+      const profile = profilesData.find(p => p.fid === member.fid);
+      return {
+        ...member,
+        profiles: profile || null
+      };
+    }).filter(member => member.profiles); // Only include members with valid profiles
+
+    console.log('🔍 getChatMembers: Combined data:', data);
 
     console.log(`📊 Fetched ${data.length} active chat members with profile data`);
 
