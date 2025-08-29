@@ -32,6 +32,11 @@ export default function AdminDashboard() {
   const [pastRafflesLoading, setPastRafflesLoading] = useState(false);
   const [pastRafflesError, setPastRafflesError] = useState('');
 
+  // Notifications state
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const [notificationResult, setNotificationResult] = useState(null);
+  const [showNotificationConfirm, setShowNotificationConfirm] = useState(null);
+
   // Check-ins state
   const [checkinsData, setCheckinsData] = useState([]);
   const [checkinsLoading, setCheckinsLoading] = useState(false);
@@ -860,6 +865,58 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
     }
+  };
+
+  // Manual notification triggers
+  const handleManualNotification = async (type) => {
+    setNotificationLoading(true);
+    setNotificationResult(null);
+    
+    try {
+      const endpoint = type === 'daily' 
+        ? '/api/notifications/daily-checkin'
+        : '/api/notifications/evening-checkin';
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Force-Run': 'true'
+        },
+        body: JSON.stringify({})
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        setNotificationResult({
+          success: true,
+          type,
+          message: result.message,
+          stats: result.stats
+        });
+      } else {
+        setNotificationResult({
+          success: false,
+          type,
+          message: result.error || 'Failed to send notifications'
+        });
+      }
+    } catch (error) {
+      console.error('Error sending manual notification:', error);
+      setNotificationResult({
+        success: false,
+        type,
+        message: 'Network error occurred'
+      });
+    } finally {
+      setNotificationLoading(false);
+      setShowNotificationConfirm(null);
+    }
+  };
+
+  const confirmNotification = (type) => {
+    setShowNotificationConfirm(type);
   };
 
   // Sync products from Shopify
@@ -2306,24 +2363,121 @@ export default function AdminDashboard() {
 
         {/* Check-ins Tab */}
         {activeTab === 'checkins' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-800">📅 Check-ins</h2>
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => exportData(checkinsData, `checkins_${new Date().toISOString().split('T')[0]}.csv`)}
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
-                >
-                  📥 Export CSV
-                </button>
-                <button
-                  onClick={loadCheckinsData}
-                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
-                >
-                  🔄 Refresh
-                </button>
+          <div className="space-y-6">
+            {/* Manual Notification Triggers */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-800">🔔 Manual Notification Triggers</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Send check-in reminder notifications manually. Use with caution - these will send to all eligible users.
+                </p>
+              </div>
+              
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Daily Check-in Notifications */}
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center mb-3">
+                      <div className="bg-blue-100 p-2 rounded-lg mr-3">
+                        <span className="text-xl">🌅</span>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800">Daily Check-in Reminder</h4>
+                        <p className="text-xs text-gray-600">Normally sent at 8 AM PST</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-700 mb-3">
+                      Reminds users to check in and earn their daily points.
+                    </p>
+                    <button
+                      onClick={() => confirmNotification('daily')}
+                      disabled={notificationLoading}
+                      className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                    >
+                      {notificationLoading ? 'Sending...' : 'Send Daily Reminder'}
+                    </button>
+                  </div>
+
+                  {/* Evening Check-in Notifications */}
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center mb-3">
+                      <div className="bg-purple-100 p-2 rounded-lg mr-3">
+                        <span className="text-xl">🌙</span>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800">Evening Check-in Reminder</h4>
+                        <p className="text-xs text-gray-600">Normally sent at 8 PM PST</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-700 mb-3">
+                      Reminds users to complete their evening check-in.
+                    </p>
+                    <button
+                      onClick={() => confirmNotification('evening')}
+                      disabled={notificationLoading}
+                      className="w-full bg-purple-500 hover:bg-purple-600 disabled:bg-purple-300 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                    >
+                      {notificationLoading ? 'Sending...' : 'Send Evening Reminder'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Notification Result */}
+                {notificationResult && (
+                  <div className={`mt-4 p-4 rounded-lg ${
+                    notificationResult.success 
+                      ? 'bg-green-50 border border-green-200' 
+                      : 'bg-red-50 border border-red-200'
+                  }`}>
+                    <div className="flex items-center">
+                      <span className="text-xl mr-3">
+                        {notificationResult.success ? '✅' : '❌'}
+                      </span>
+                      <div>
+                        <h4 className={`font-semibold ${
+                          notificationResult.success ? 'text-green-800' : 'text-red-800'
+                        }`}>
+                          {notificationResult.success ? 'Success!' : 'Error'}
+                        </h4>
+                        <p className={`text-sm ${
+                          notificationResult.success ? 'text-green-700' : 'text-red-700'
+                        }`}>
+                          {notificationResult.message}
+                        </p>
+                        {notificationResult.success && notificationResult.stats && (
+                          <p className="text-sm text-green-600 mt-1">
+                            Sent to {notificationResult.stats.successCount} users
+                            {notificationResult.stats.failureCount > 0 && 
+                              ` (${notificationResult.stats.failureCount} failed)`
+                            }
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* Check-ins Data */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-800">📅 Check-ins Data</h2>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => exportData(checkinsData, `checkins_${new Date().toISOString().split('T')[0]}.csv`)}
+                    className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                  >
+                    📥 Export CSV
+                  </button>
+                  <button
+                    onClick={loadCheckinsData}
+                    className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                  >
+                    🔄 Refresh
+                  </button>
+                </div>
+              </div>
             
             {checkinsLoading ? (
               <div className="p-8 text-center">
@@ -3147,6 +3301,8 @@ export default function AdminDashboard() {
           </div>
         )}
 
+
+
         {/* Chat Eligibility Tab */}
         {activeTab === 'chat' && (
           <div className="bg-white rounded-lg shadow">
@@ -3161,6 +3317,51 @@ export default function AdminDashboard() {
         onClose={closeUserModal}
         userFid={selectedUserFid}
       />
+
+      {/* Notification Confirmation Modal */}
+      {showNotificationConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="bg-yellow-100 p-2 rounded-full mr-3">
+                  <span className="text-2xl">⚠️</span>
+                </div>
+                <h2 className="text-xl font-bold text-gray-800">Confirm Notification Send</h2>
+              </div>
+              
+              <p className="text-gray-700 mb-4">
+                Are you sure you want to send <strong>
+                {showNotificationConfirm === 'daily' ? 'Daily Check-in' : 'Evening Check-in'}
+                </strong> reminders to all eligible users?
+              </p>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Warning:</strong> This will send notifications to all users who have notifications enabled. 
+                  This action cannot be undone.
+                </p>
+              </div>
+              
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowNotificationConfirm(null)}
+                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleManualNotification(showNotificationConfirm)}
+                  disabled={notificationLoading}
+                  className="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white px-4 py-2 rounded-md font-medium"
+                >
+                  {notificationLoading ? 'Sending...' : 'Send Notifications'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Order Edit Modal */}
       {orderEditModalOpen && (
