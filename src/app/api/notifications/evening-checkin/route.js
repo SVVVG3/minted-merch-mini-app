@@ -17,8 +17,12 @@ export async function POST(request) {
     const forceRun = request.headers.get('X-Force-Run') === 'true';
     const githubActions = request.headers.get('X-GitHub-Actions') === 'true';
     
-    // Skip auth check for manual testing or GitHub Actions
-    if (!forceRun && !githubActions) {
+    // Allow Vercel cron requests (they use native headers)
+    const isVercelCron = request.headers.get('user-agent')?.includes('vercel-cron') || 
+                        request.headers.get('x-vercel-cron') === '1';
+    
+    // Skip auth check for manual testing, GitHub Actions, or Vercel cron
+    if (!forceRun && !githubActions && !isVercelCron) {
       if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         console.log('❌ Unauthorized cron job request - missing or invalid CRON_SECRET');
         return Response.json({
@@ -27,6 +31,8 @@ export async function POST(request) {
         }, { status: 401 });
       }
       console.log('✅ CRON_SECRET authorization verified');
+    } else if (isVercelCron) {
+      console.log('✅ Vercel cron job detected via native headers');
     }
     
     // Log cron job execution for debugging
@@ -97,9 +103,13 @@ export async function GET(request) {
     const forceRun = request.headers.get('X-Force-Run') === 'true';
     const githubActions = request.headers.get('X-GitHub-Actions') === 'true';
     
-    // If this is a cron job request (has auth header), execute notifications
-    if (authHeader && !forceRun && !githubActions) {
-      if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    // Allow Vercel cron requests (they use native headers)
+    const isVercelCron = request.headers.get('user-agent')?.includes('vercel-cron') || 
+                        request.headers.get('x-vercel-cron') === '1';
+    
+    // If this is a cron job request (has auth header or Vercel headers), execute notifications
+    if ((authHeader || isVercelCron) && !forceRun && !githubActions) {
+      if (authHeader && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         console.log('❌ Unauthorized evening cron job GET request - invalid CRON_SECRET');
         return Response.json({
           success: false,
@@ -107,7 +117,11 @@ export async function GET(request) {
         }, { status: 401 });
       }
       
-      console.log('✅ CRON_SECRET authorization verified for evening GET request');
+      if (authHeader) {
+        console.log('✅ CRON_SECRET authorization verified for evening GET request');
+      } else if (isVercelCron) {
+        console.log('✅ Vercel cron job detected via native headers for evening GET request');
+      }
       console.log('🌅 Evening check-in reminder API called via GET (Vercel cron job)');
       console.log('📅 Current PST time:', formatPSTTime());
       
