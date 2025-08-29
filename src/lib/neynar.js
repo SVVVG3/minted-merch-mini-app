@@ -101,7 +101,7 @@ export async function sendWelcomeNotificationWithNeynar(targetFid) {
       body: discountCode 
         ? `Get 15% off your first order with code: ${discountCode}`
         : "Discover our exclusive collection of premium merchandise. Start shopping now!",
-      target_url: "https://mintedmerch.vercel.app",
+      target_url: process.env.NEXT_PUBLIC_APP_URL || "https://app.mintedmerch.shop",
       uuid: generateUUID()
     };
 
@@ -344,7 +344,7 @@ export async function sendWelcomeForNewUser(userFid) {
           body: discountCode 
             ? `Get 15% off your first order with code: ${discountCode}`
             : "Discover our exclusive collection of premium merchandise. Start shopping now!",
-          target_url: "https://mintedmerch.vercel.app"
+          target_url: process.env.NEXT_PUBLIC_APP_URL || "https://app.mintedmerch.shop"
         }
     });
 
@@ -395,7 +395,7 @@ export async function sendNotificationToAllUsers(notificationData) {
       notification: {
         title: notificationData.title,
         body: notificationData.body,
-        target_url: notificationData.target_url || "https://mintedmerch.vercel.app"
+        target_url: notificationData.target_url || (process.env.NEXT_PUBLIC_APP_URL || "https://app.mintedmerch.shop")
       }
     });
 
@@ -426,7 +426,7 @@ export async function sendOrderConfirmationNotification(userFid, orderDetails) {
     const notification = {
       title: "📦 Minted Merch Order Confirmed!",
       body: `Your order ${orderDetails.orderId} is confirmed. We'll notify you when it ships!`,
-      target_url: `https://mintedmerch.vercel.app`,
+      target_url: process.env.NEXT_PUBLIC_APP_URL || `https://app.mintedmerch.shop`,
       uuid: generateUUID()
     };
 
@@ -483,7 +483,7 @@ export async function sendPartnerAssignmentNotification(partnerFid, assignmentDe
     const notification = {
       title: "🎯 New Order Assigned to You!",
       body: `Order ${assignmentDetails.orderId} has been assigned to you. Check your partner dashboard to fulfill!`,
-      target_url: `https://mintedmerch.vercel.app/partner`,
+      target_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/partner`,
       uuid: generateUUID()
     };
 
@@ -555,7 +555,7 @@ export async function sendShippingNotification(userFid, shippingDetails) {
     const notification = {
       title: "🚚 Your Order Has Shipped!",
       body: `Order ${shippingDetails.orderId} is on its way!${shippingDetails.trackingNumber ? ` Track: ${shippingDetails.trackingNumber}` : ''}`,
-      target_url: shippingDetails.trackingUrl || `https://mintedmerch.vercel.app`,
+      target_url: shippingDetails.trackingUrl || (process.env.NEXT_PUBLIC_APP_URL || `https://app.mintedmerch.shop`),
       uuid: generateUUID()
     };
 
@@ -647,7 +647,7 @@ export async function sendTestNotification(userFid, message = "Test notification
       notification: {
         title: "🧪 Test Notification",
         body: message,
-        target_url: "https://mintedmerch.vercel.app"
+        target_url: process.env.NEXT_PUBLIC_APP_URL || "https://app.mintedmerch.shop"
       }
     });
 

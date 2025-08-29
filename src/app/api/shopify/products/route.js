@@ -67,7 +67,7 @@ export async function GET(request) {
           // Get user's wallet addresses for token-gating
           // Use proper base URL for server-side requests
           const baseUrl = process.env.NODE_ENV === 'production' 
-            ? 'https://mintedmerch.vercel.app' 
+            ? (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop')
             : 'http://localhost:3000';
           
           console.log(`🔍 Using base URL for token-gated checking: ${baseUrl}`);

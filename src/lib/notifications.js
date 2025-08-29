@@ -99,7 +99,7 @@ export async function createCheckInReminderMessage(userFid) {
     return {
       title: "🎯 Daily Check-in Time",
       body: message,
-      targetUrl: "https://mintedmerch.vercel.app?from=checkin_reminder&t=" + Date.now()
+      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=checkin_reminder&t=${Date.now()}`
     };
 
   } catch (error) {
@@ -107,7 +107,7 @@ export async function createCheckInReminderMessage(userFid) {
     return {
       title: "🎯 Daily Check-in Time",
       body: "Spin the wheel to earn points and be entered into raffles for FREE merch!",
-      targetUrl: "https://mintedmerch.vercel.app?from=checkin_reminder&t=" + Date.now()
+      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=checkin_reminder&t=${Date.now()}`
     };
   }
 }
@@ -278,7 +278,7 @@ export async function createEveningCheckInReminderMessage(userFid) {
     return {
       title: "🌅 Daily Check-in Ending Soon",
       body: message,
-      targetUrl: "https://mintedmerch.vercel.app?from=evening_checkin_reminder&t=" + Date.now()
+      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=evening_checkin_reminder&t=${Date.now()}`
     };
 
   } catch (error) {
@@ -286,7 +286,7 @@ export async function createEveningCheckInReminderMessage(userFid) {
     return {
       title: "🌅 Daily Check-in Ending Soon",
       body: "⏰ Last chance today! Spin the wheel before 8 AM PST to earn points!",
-      targetUrl: "https://mintedmerch.vercel.app?from=evening_checkin_reminder&t=" + Date.now()
+      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=evening_checkin_reminder&t=${Date.now()}`
     };
   }
 }

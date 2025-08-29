@@ -3,7 +3,7 @@ import { HomePage } from '@/components/HomePage';
 
 export async function generateMetadata({ searchParams }) {
   // Fix URL construction to avoid double slashes
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app').replace(/\/$/, '');
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
   
   // Check if this is a check-in share URL
   const isCheckinShare = searchParams?.checkin === 'true';

@@ -5,7 +5,7 @@ export async function generateMetadata({ params }) {
   const { handle } = params;
   
   // Fix URL construction to avoid double slashes
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app').replace(/\/$/, '');
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
   
   try {
     // Fetch actual product data for metadata

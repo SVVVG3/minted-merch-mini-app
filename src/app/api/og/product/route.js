@@ -34,7 +34,7 @@ export async function GET(request) {
     }
     
     // Fetch logo image
-    const logoUrl = 'https://mintedmerch.vercel.app/logo.png';
+    const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
     let logoImageSrc = null;
     try {
       logoImageSrc = await fetchImageAsDataUrl(logoUrl);

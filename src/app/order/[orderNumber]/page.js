@@ -7,7 +7,7 @@ async function getProductImageFromOrderItems(orderData) {
   try {
     if (!orderData?.line_items || orderData.line_items.length === 0) {
       console.log('No line items found in order');
-      return 'https://mintedmerch.vercel.app/logo.png';
+      return `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
     }
 
     const firstItem = orderData.line_items[0];
@@ -100,11 +100,11 @@ export async function generateMetadata({ params, searchParams }) {
     console.log('Order not found in database, using generic fallback for order:', orderNumber);
     orderTotal = 0.00;
     productDescription = '1 item';
-    firstProductImage = 'https://mintedmerch.vercel.app/logo.png';
+    firstProductImage = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
   }
   
   // Fix URL construction to avoid double slashes
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app').replace(/\/$/, '');
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
   
   // Simplified dynamic image URL - let the OG route fetch data from database
   // Use the actual order_id from database if available, otherwise format the orderNumber
