@@ -15,24 +15,21 @@ export async function POST(request) {
     // Check for CRON_SECRET authorization (required by Vercel cron jobs)
     const authHeader = request.headers.get('authorization');
     const forceRun = request.headers.get('X-Force-Run') === 'true';
-    const githubActions = request.headers.get('X-GitHub-Actions') === 'true';
     
-    // Allow Vercel cron requests (they use native headers)
-    const isVercelCron = request.headers.get('user-agent')?.includes('vercel-cron') || 
-                        request.headers.get('x-vercel-cron') === '1';
-    
-    // Skip auth check for manual testing, GitHub Actions, or Vercel cron
-    if (!forceRun && !githubActions && !isVercelCron) {
+    // Skip auth check for manual testing only
+    if (!forceRun) {
       if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         console.log('❌ Unauthorized cron job request - missing or invalid CRON_SECRET');
+        console.log('Auth header:', authHeader);
+        console.log('Expected:', `Bearer ${process.env.CRON_SECRET ? '[SET]' : '[NOT SET]'}`);
         return Response.json({
           success: false,
           error: 'Unauthorized - Invalid CRON_SECRET'
         }, { status: 401 });
       }
       console.log('✅ CRON_SECRET authorization verified');
-    } else if (isVercelCron) {
-      console.log('✅ Vercel cron job detected via native headers');
+    } else {
+      console.log('✅ Manual execution with X-Force-Run header');
     }
     
     // Log cron job execution for debugging
