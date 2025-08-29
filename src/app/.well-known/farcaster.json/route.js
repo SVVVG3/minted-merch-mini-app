@@ -36,9 +36,25 @@ export async function GET(request) {
         "homeUrl": "https://mintedmerch.vercel.app",
         "imageUrl": "https://mintedmerch.vercel.app/og-image.png",
         "buttonTitle": "Shop Now 📦",
+        "subtitle": "Buy merch with USDC on Base",
+        "description": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
+        "primaryCategory": "shopping",
+        "webhookUrl": "https://api.neynar.com/f/app/11f2fe11-b70c-40fa-b653-9770b7588bdf/event",
         "splashImageUrl": "https://mintedmerch.vercel.app/splash.png",
         "splashBackgroundColor": "#000000",
-        "canonicalDomain": "app.mintedmerch.shop"
+        "tagline": "Order merch and more with USDC",
+        "heroImageUrl": "https://mintedmerch.vercel.app/og-image.png",
+        "canonicalDomain": "app.mintedmerch.shop",
+        "tags": [
+          "merch",
+          "apparel",
+          "shopping",
+          "usdc"
+        ],
+        "castShareUrl": "https://mintedmerch.vercel.app",
+        "ogTitle": "Minted Merch",
+        "ogDescription": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
+        "ogImageUrl": "https://mintedmerch.vercel.app/og-image.png"
       }
     };
   } else {
@@ -52,9 +68,25 @@ export async function GET(request) {
         "homeUrl": "https://app.mintedmerch.shop",
         "imageUrl": "https://app.mintedmerch.shop/og-image.png",
         "buttonTitle": "Shop Now 📦",
+        "subtitle": "Buy merch with USDC on Base",
+        "description": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
+        "primaryCategory": "shopping",
+        "webhookUrl": "https://api.neynar.com/f/app/11f2fe11-b70c-40fa-b653-9770b7588bdf/event",
         "splashImageUrl": "https://app.mintedmerch.shop/splash.png",
         "splashBackgroundColor": "#000000",
-        "canonicalDomain": "app.mintedmerch.shop"
+        "tagline": "Order merch and more with USDC",
+        "heroImageUrl": "https://app.mintedmerch.shop/og-image.png",
+        "canonicalDomain": "app.mintedmerch.shop",
+        "tags": [
+          "merch",
+          "apparel",
+          "shopping",
+          "usdc"
+        ],
+        "castShareUrl": "https://app.mintedmerch.shop",
+        "ogTitle": "Minted Merch",
+        "ogDescription": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
+        "ogImageUrl": "https://app.mintedmerch.shop/og-image.png"
       }
     };
   }
