@@ -7,7 +7,7 @@ const ZAPPER_GRAPHQL_ENDPOINT = 'https://public.zapper.xyz/graphql';
 
 // Cache for API responses to minimize calls and costs
 const zapperCache = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes cache for better UX (token balances don't change frequently)
 
 // Request deduplication to prevent simultaneous calls for same data
 const pendingRequests = new Map();
@@ -240,14 +240,14 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
   let totalBalance = 0;
   const balanceResults = [];
 
-  // Check balance for each wallet address with proper error handling and delays
+  // Check balance for each wallet address with optimized delays for better UX
   for (let i = 0; i < walletAddresses.length; i++) {
     const walletAddress = walletAddresses[i];
     
     try {
-      // Add much longer delays between requests to avoid rate limiting
+      // Reduced delays for better user experience - most RPC endpoints can handle faster requests
       if (i > 0) {
-        const delay = Math.min(1000 + (i * 500), 5000); // Progressive delay: 1s, 1.5s, 2s, 2.5s... up to 5s
+        const delay = Math.min(200 + (i * 100), 1000); // Faster delays: 200ms, 300ms, 400ms... up to 1s
         console.log(`⏳ Waiting ${delay}ms before checking next wallet...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
@@ -292,10 +292,10 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
           });
 
           if (response.status === 429) {
-            // Rate limited - try next RPC or wait longer
+            // Rate limited - try next RPC or wait shorter time for better UX
             retryCount++;
             if (retryCount <= maxRetries) {
-              const retryDelay = Math.min(3000 + (retryCount * 2000), 15000); // 3s, 5s, 7s... up to 15s
+              const retryDelay = Math.min(1000 + (retryCount * 500), 5000); // 1s, 1.5s, 2s... up to 5s
               console.log(`⏳ Rate limited on ${currentRpcUrl}, retrying in ${retryDelay}ms (attempt ${retryCount}/${maxRetries})`);
               await new Promise(resolve => setTimeout(resolve, retryDelay));
               continue;
@@ -313,7 +313,7 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
             throw fetchError;
           }
           retryCount++;
-          const retryDelay = Math.min(3000 + (retryCount * 2000), 15000);
+          const retryDelay = Math.min(1000 + (retryCount * 500), 5000);
           console.log(`⏳ Request failed, retrying in ${retryDelay}ms (attempt ${retryCount}/${maxRetries})`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
         }

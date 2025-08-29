@@ -406,7 +406,7 @@ async function checkTokenBalance(discount, userWalletAddresses) {
   
   try {
     // 🔗 DIRECT BLOCKCHAIN RPC ONLY - NO ZAPPER API
-    console.log('🔗 Using direct blockchain RPC for reliable token balance checking');
+    console.log('🔗 Using direct blockchain RPC for reliable token balance checking (with caching for better UX)');
     
     // Import direct blockchain API function
     const { checkTokenBalanceDirectly } = await import('./blockchainAPI.js');

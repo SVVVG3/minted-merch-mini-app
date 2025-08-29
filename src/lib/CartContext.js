@@ -255,7 +255,7 @@ export function CartProvider({ children }) {
         // Add rate limiting to prevent excessive API calls
         const now = Date.now();
         const lastApiCall = sessionStorage.getItem('lastDiscountApiCall');
-        const minInterval = 30000; // Minimum 30 seconds between API calls
+        const minInterval = 15000; // Reduced to 15 seconds for better UX (was 30s)
         
         if (lastApiCall && (now - parseInt(lastApiCall)) < minInterval) {
           console.log('⏸️ Skipping discount evaluation - too soon since last API call');
