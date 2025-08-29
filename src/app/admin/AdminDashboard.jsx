@@ -2614,6 +2614,7 @@ export default function AdminDashboard() {
                 </table>
               </div>
             )}
+            </div>
           </div>
         )}
 
@@ -3310,8 +3311,8 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
-      
-            {/* User Modal */}
+
+      {/* User Modal */}
       <UserModal
         isOpen={userModalOpen}
         onClose={closeUserModal}
