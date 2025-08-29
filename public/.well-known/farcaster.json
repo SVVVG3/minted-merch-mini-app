@@ -19,6 +19,7 @@
     "splashBackgroundColor": "#000000",
     "tagline": "Order merch and more with USDC",
     "heroImageUrl": "https://app.mintedmerch.shop/og-image.png",
+    "canonicalDomain": "app.mintedmerch.shop",
     "tags": [
       "merch",
       "apparel",
