@@ -31,7 +31,7 @@ export async function POST(request) {
     
     // Log cron job execution for debugging
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app'}/api/debug/cron-health-check?job=daily-checkin`, {
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/api/debug/cron-health-check?job=daily-checkin`, {
         method: 'POST'
       });
     } catch (logError) {
@@ -113,7 +113,7 @@ export async function GET(request) {
       
       // Log cron job execution for debugging
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://mintedmerch.vercel.app'}/api/debug/cron-health-check?job=daily-checkin`, {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/api/debug/cron-health-check?job=daily-checkin`, {
           method: 'POST'
         });
       } catch (logError) {
