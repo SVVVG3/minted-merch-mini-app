@@ -1,8 +1,8 @@
 {
   "accountAssociation": {
-    "header": "eyJmaWQiOjQ2NjExMSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweEJiMTRkQjlmNjBlODA2ODQ2MzM1Zjc5NDgxRDk5OGFiYzY2RWZDMjAifQ",
-    "payload": "eyJkb21haW4iOiJhcHAubWludGVkbWVyY2guc2hvcCJ9Cg==",
-    "signature": "ltCGcVtisETUyDnOiW4OOnW2r6GKnBHy3p0Vwu1jJ9dCDYDI5yXukQinQiYtcPFSJvQ3Lv8Ojds7lp64rCR7qxw="
+    "header": "eyJmaWQiOjQ2NjExMSwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDQ0ZDRjNThlZmNCYjQ0NjM5RDY0NDIwMTc1Q2Y1MTlhQTMxOTFhODYifQ",
+    "payload": "eyJkb21haW4iOiJhcHAubWludGVkbWVyY2guc2hvcCJ9",
+    "signature": "MHgzZGEwNjgxZDMyMWM5NTZkMmQzYTAxOWRiZjEwYWU3YzQ5YTEyNTNiYjQxYmYwMjUwNWVmMzFjY2EyMzgyMjQ0Nzk4ZTIwMzNlYThmNWQ5MDdjYjE1NzU3Mjk0MzIwMjVmMDk3OTI0NjRhOGFhOTZlYjU2NDdiMGIwMjI0NmEyNDFi"
   },
   "frame": {
     "version": "1",
