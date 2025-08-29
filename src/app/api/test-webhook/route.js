@@ -34,7 +34,7 @@ export async function POST(request) {
     console.log('Mock event:', JSON.stringify(mockWebhookEvent, null, 2));
 
     // Send the mock event to our webhook endpoint
-    const webhookResponse = await fetch('https://mintedmerch.vercel.app/api/webhook', {
+    const webhookResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/api/webhook`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

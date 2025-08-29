@@ -1,33 +1,33 @@
 {
   "accountAssociation": {
     "header": "eyJmaWQiOjQ2NjExMSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweEJiMTRkQjlmNjBlODA2ODQ2MzM1Zjc5NDgxRDk5OGFiYzY2RWZDMjAifQ",
-    "payload": "eyJkb21haW4iOiJtaW50ZWRtZXJjaC52ZXJjZWwuYXBwIn0",
+    "payload": "eyJkb21haW4iOiJhcHAubWludGVkbWVyY2guc2hvcCJ9Cg==",
     "signature": "ltCGcVtisETUyDnOiW4OOnW2r6GKnBHy3p0Vwu1jJ9dCDYDI5yXukQinQiYtcPFSJvQ3Lv8Ojds7lp64rCR7qxw="
   },
   "frame": {
     "version": "1",
     "name": "Minted Merch",
-    "iconUrl": "https://mintedmerch.vercel.app/logo.png",
-    "homeUrl": "https://mintedmerch.vercel.app",
-    "imageUrl": "https://mintedmerch.vercel.app/og-image.png",
+    "iconUrl": "https://app.mintedmerch.shop/logo.png",
+    "homeUrl": "https://app.mintedmerch.shop",
+    "imageUrl": "https://app.mintedmerch.shop/og-image.png",
     "buttonTitle": "Shop Now 📦",
     "subtitle": "Buy merch with USDC on Base",
     "description": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
     "primaryCategory": "shopping",
     "webhookUrl": "https://api.neynar.com/f/app/11f2fe11-b70c-40fa-b653-9770b7588bdf/event",
-    "splashImageUrl": "https://mintedmerch.vercel.app/splash.png",
+    "splashImageUrl": "https://app.mintedmerch.shop/splash.png",
     "splashBackgroundColor": "#000000",
     "tagline": "Order merch and more with USDC",
-    "heroImageUrl": "https://mintedmerch.vercel.app/og-image.png",
+    "heroImageUrl": "https://app.mintedmerch.shop/og-image.png",
     "tags": [
       "merch",
       "apparel",
       "shopping",
       "usdc"
     ],
-    "castShareUrl": "https://mintedmerch.vercel.app",
+    "castShareUrl": "https://app.mintedmerch.shop",
     "ogTitle": "Minted Merch",
     "ogDescription": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
-    "ogImageUrl": "https://mintedmerch.vercel.app/og-image.png"
+    "ogImageUrl": "https://app.mintedmerch.shop/og-image.png"
   }
 } 

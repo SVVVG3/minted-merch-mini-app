@@ -21,11 +21,11 @@ async function getProductImageFromOrderItems(orderData) {
 
     // Fallback to logo if no image URL is stored
     console.log('No product image URL found, using logo fallback');
-    return 'https://mintedmerch.vercel.app/logo.png';
+    return `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
     
   } catch (error) {
     console.error('Error getting product image from order:', error);
-    return 'https://mintedmerch.vercel.app/logo.png';
+    return `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
   }
 }
 
