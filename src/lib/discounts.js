@@ -830,16 +830,24 @@ export async function getBestAvailableDiscount(fid, scope = 'site_wide', product
     
     if (scope === 'site_wide') {
       // Only include site-wide discounts or discounts with no scope specified (legacy)
+      // CRITICAL FIX: Exclude token-gated discounts - they should only be returned by the token-gated API
       eligibleCodes = eligibleCodes.filter(code => 
-        !code.discount_scope || code.discount_scope === 'site_wide'
+        (!code.discount_scope || code.discount_scope === 'site_wide') &&
+        (!code.gating_type || code.gating_type === 'none')
       );
-      console.log(`🌐 Filtering for site-wide discounts only: ${eligibleCodes.length} eligible`);
+      console.log(`🌐 Filtering for site-wide non-token-gated discounts only: ${eligibleCodes.length} eligible`);
     } else if (scope === 'product') {
       // Include site-wide discounts AND product-specific discounts that match the product IDs
       // productIds should now be Supabase product IDs from our products table
+      // CRITICAL FIX: Exclude token-gated discounts - they should only be returned by the token-gated API
       eligibleCodes = eligibleCodes.filter(code => {
+        // First check if this is a token-gated discount - if so, exclude it
+        if (code.gating_type && code.gating_type !== 'none') {
+          return false; // Token-gated discounts handled separately
+        }
+        
         if (!code.discount_scope || code.discount_scope === 'site_wide') {
-          return true; // Site-wide discounts apply everywhere
+          return true; // Non-token-gated site-wide discounts apply everywhere
         }
         if (code.discount_scope === 'product') {
           // Check against target_product_ids (Supabase product IDs)
