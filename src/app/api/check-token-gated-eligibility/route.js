@@ -35,7 +35,22 @@ export async function POST(request) {
       productIds
     );
 
-    console.log('Eligible token-gated discounts found:', eligibleDiscounts.length);
+    console.log('🔍 DETAILED ELIGIBILITY RESULTS:');
+    console.log('Total eligible discounts found:', eligibleDiscounts.length);
+    
+    if (eligibleDiscounts.length > 0) {
+      console.log('🚨 RETURNING ELIGIBLE DISCOUNTS:');
+      eligibleDiscounts.forEach((discount, index) => {
+        console.log(`${index + 1}. ${discount.code}:`);
+        console.log(`   - Type: ${discount.gating_type}`);
+        console.log(`   - Required: ${discount.required_balance}`);
+        console.log(`   - Contract: ${discount.contract_addresses}`);
+        console.log(`   - Eligibility reason: ${discount.eligibility_details?.reason}`);
+        console.log(`   - Token balance found: ${discount.eligibility_details?.details?.found_balance}`);
+      });
+    } else {
+      console.log('✅ CORRECTLY RETURNING NO ELIGIBLE DISCOUNTS');
+    }
 
     return NextResponse.json({
       success: true,
