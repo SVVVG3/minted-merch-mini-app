@@ -34,6 +34,10 @@ export async function GET(request) {
         "name": "Minted Merch",
         "iconUrl": "https://mintedmerch.vercel.app/logo.png",
         "homeUrl": "https://mintedmerch.vercel.app",
+        "imageUrl": "https://mintedmerch.vercel.app/og-image.png",
+        "buttonTitle": "Shop Now 📦",
+        "splashImageUrl": "https://mintedmerch.vercel.app/splash.png",
+        "splashBackgroundColor": "#000000",
         "canonicalDomain": "app.mintedmerch.shop"
       }
     };
@@ -46,6 +50,10 @@ export async function GET(request) {
         "name": "Minted Merch",
         "iconUrl": "https://app.mintedmerch.shop/logo.png",
         "homeUrl": "https://app.mintedmerch.shop",
+        "imageUrl": "https://app.mintedmerch.shop/og-image.png",
+        "buttonTitle": "Shop Now 📦",
+        "splashImageUrl": "https://app.mintedmerch.shop/splash.png",
+        "splashBackgroundColor": "#000000",
         "canonicalDomain": "app.mintedmerch.shop"
       }
     };
