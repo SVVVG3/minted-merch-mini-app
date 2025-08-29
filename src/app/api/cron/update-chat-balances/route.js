@@ -4,24 +4,22 @@ import { batchCheckEligibility } from '@/lib/chatEligibility';
 
 export async function GET(request) {
   try {
-    // Verify this is a legitimate cron request from Vercel
+    // Check for CRON_SECRET authorization (required by Vercel cron jobs)
     const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
     
-    // Allow Vercel cron requests (they use a different auth mechanism)
-    const isVercelCron = request.headers.get('user-agent')?.includes('vercel-cron') || 
-                        request.headers.get('x-vercel-cron') === '1';
-    
-    if (!isVercelCron && cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      console.log('❌ Unauthorized cron request');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      console.log('❌ Unauthorized cron job request - missing or invalid CRON_SECRET');
+      console.log('Auth header:', authHeader);
+      console.log('Expected:', `Bearer ${process.env.CRON_SECRET ? '[SET]' : '[NOT SET]'}`);
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized - Invalid CRON_SECRET'
+      }, { status: 401 });
     }
+    console.log('✅ CRON_SECRET authorization verified');
 
-    console.log('🕐 Starting nightly chat member balance update...');
+    console.log('🕐 Starting chat member balance update...');
     console.log('📋 Request details:', {
-      userAgent: request.headers.get('user-agent'),
-      vercelCron: request.headers.get('x-vercel-cron'),
-      isVercelCron,
       timestamp: new Date().toISOString()
     });
     const startTime = Date.now();
