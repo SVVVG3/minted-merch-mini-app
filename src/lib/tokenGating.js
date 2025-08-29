@@ -405,37 +405,62 @@ async function checkTokenBalance(discount, userWalletAddresses) {
   console.log('🪙 Checking token balances for contracts:', contractAddresses);
   
   try {
-    // Import blockchain API function dynamically to avoid circular imports
-    const { checkTokenHoldingsWithZapper } = await import('./blockchainAPI.js');
+    // 🔗 DIRECT BLOCKCHAIN RPC ONLY - NO ZAPPER API
+    console.log('🔗 Using direct blockchain RPC for reliable token balance checking');
     
-    const zapperResult = await checkTokenHoldingsWithZapper(
-      userWalletAddresses,
-      contractAddresses,
-      chainIds,
-      requiredBalance
+    // Import direct blockchain API function
+    const { checkTokenBalanceDirectly } = await import('./blockchainAPI.js');
+    
+    // Filter valid Ethereum addresses
+    const validAddresses = userWalletAddresses.filter(addr => 
+      typeof addr === 'string' && addr.startsWith('0x') && addr.length === 42
     );
 
-    const eligible = zapperResult.hasRequiredTokens;
-    const totalFound = zapperResult.totalBalance;
+    if (validAddresses.length === 0) {
+      return {
+        eligible: false,
+        reason: 'No valid wallet addresses found',
+        details: { provided_addresses: userWalletAddresses },
+        blockchainCalls: 0
+      };
+    }
+    
+    // Check token balance directly via RPC
+    const totalBalance = await checkTokenBalanceDirectly(
+      validAddresses,
+      contractAddresses,
+      chainIds[0] || 8453 // Use first chain ID, default to Base
+    );
+
+    const eligible = totalBalance >= requiredBalance;
+
+    console.log('🪙 Direct RPC token balance result:', {
+      eligible,
+      totalBalance,
+      requiredBalance,
+      contractAddresses,
+      chainId: chainIds[0] || 8453,
+      walletCount: validAddresses.length
+    });
 
     return {
       eligible,
       reason: eligible
-        ? `Found ${totalFound} tokens (required: ${requiredBalance})`
-        : `Found ${totalFound} tokens, need ${requiredBalance}`,
+        ? `Found ${totalBalance.toLocaleString()} tokens (required: ${requiredBalance.toLocaleString()})`
+        : `Found ${totalBalance.toLocaleString()} tokens, need ${requiredBalance.toLocaleString()}`,
       details: {
         required_balance: requiredBalance,
-        found_balance: totalFound,
+        found_balance: totalBalance,
         contracts_checked: contractAddresses,
         chains_checked: chainIds,
-        token_details: zapperResult.tokenBalances || [],
-        zapper_result: zapperResult
+        valid_addresses: validAddresses,
+        method: 'direct_rpc'
       },
-      blockchainCalls: zapperResult.apiCalls || 1
+      blockchainCalls: validAddresses.length // One RPC call per address
     };
 
   } catch (error) {
-    console.error('❌ Error checking token balances:', error);
+    console.error('❌ Error checking token balances via direct RPC:', error);
     return {
       eligible: false,
       reason: `Token balance check failed: ${error.message}`,

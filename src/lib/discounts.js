@@ -1,4 +1,6 @@
 import { supabaseAdmin } from './supabase';
+import { checkTokenGatedEligibility } from './tokenGating';
+import { fetchUserWalletData } from './neynar';
 
 /**
  * Check if a code looks like a gift card code (vs discount code)
@@ -749,19 +751,53 @@ export async function getUserAvailableDiscounts(fid, includeUsed = false) {
       };
     }
 
-    // Process and categorize the codes
-    const processedCodes = discountCodes.map(code => {
+    // 🔒 CRITICAL SECURITY FIX: Process and validate token gating for each code
+    const processedCodes = [];
+    
+    // Get user's wallet addresses for token gating validation
+    let userWalletAddresses = [];
+    try {
+      const walletData = await fetchUserWalletData(fid);
+      userWalletAddresses = walletData.walletAddresses || [];
+      console.log('📱 Retrieved wallet addresses for discount validation, FID', fid, ':', userWalletAddresses.length, 'wallets');
+    } catch (error) {
+      console.warn('⚠️ Could not fetch wallet data for discount validation:', error);
+      // Continue without wallet data - non-token-gated discounts will still work
+    }
+    
+    for (const code of discountCodes) {
       const isExpired = code.expires_at && new Date(code.expires_at) < new Date();
-      const isUsable = !code.is_used && !isExpired;
+      let isUsable = !code.is_used && !isExpired;
+      let tokenGatingResult = null;
       
-      return {
+      // 🎫 Check token gating eligibility for token-gated discounts
+      if (isUsable && code.gating_type && code.gating_type !== 'none') {
+        console.log('🎫 Checking token gating for discount:', code.code, 'type:', code.gating_type);
+        
+        try {
+          tokenGatingResult = await checkTokenGatedEligibility(code, fid, userWalletAddresses);
+          
+          if (!tokenGatingResult.eligible) {
+            console.log('❌ User not eligible for token-gated discount:', code.code, '-', tokenGatingResult.reason);
+            isUsable = false; // Mark as not usable due to token gating
+          } else {
+            console.log('✅ User eligible for token-gated discount:', code.code, '-', tokenGatingResult.reason);
+          }
+        } catch (error) {
+          console.error('❌ Error checking token gating for discount:', code.code, error);
+          isUsable = false; // Mark as not usable due to validation error
+        }
+      }
+      
+      processedCodes.push({
         ...code,
         isUsable,
         isExpired,
+        tokenGatingResult,
         displayText: formatDiscountDisplayText(code),
         expirationStatus: getExpirationStatus(code)
-      };
-    });
+      });
+    }
 
     // Separate into categories
     const usableCodes = processedCodes.filter(code => code.isUsable);
