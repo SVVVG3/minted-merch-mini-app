@@ -154,7 +154,7 @@ function applyStreakBonus(basePoints, streak) {
  * @param {number} userFid - Farcaster ID of the user
  * @returns {object} Check-in result with points earned and streak info
  */
-export async function performDailyCheckin(userFid) {
+export async function performDailyCheckin(userFid, txHash = null, skipBlockchainCheck = false) {
   try {
     // Check if user can check in today
     const canCheckin = await canCheckInToday(userFid);
@@ -212,23 +212,33 @@ export async function performDailyCheckin(userFid) {
       };
     }
 
-    // Log the point transaction
+    // Log the point transaction (with optional blockchain data)
     try {
-      await logPointTransaction({
+      const transactionData = {
         userFid: userFid,
         transactionType: 'daily_checkin',
         pointsEarned: finalPoints,
         pointsBefore: userData.total_points,
         pointsAfter: updatedData.total_points,
-        description: `Daily check-in (streak: ${newStreak})`,
+        description: txHash ? `On-chain daily check-in (streak: ${newStreak})` : `Daily check-in (streak: ${newStreak})`,
         referenceId: `checkin-${userFid}-${checkInDay}`,
         metadata: {
           basePoints: basePoints,
           streakBonus: finalPoints - basePoints,
           streak: newStreak,
-          checkInDay: checkInDay
+          checkInDay: checkInDay,
+          onChain: !!txHash,
+          txHash: txHash || null
         }
-      });
+      };
+
+      // Add blockchain-specific fields if transaction hash provided
+      if (txHash) {
+        transactionData.spin_tx_hash = txHash;
+        transactionData.spin_confirmed_at = new Date().toISOString();
+      }
+
+      await logPointTransaction(transactionData);
     } catch (logError) {
       console.error('Error logging check-in transaction:', logError);
       // Don't fail the check-in, just log the error

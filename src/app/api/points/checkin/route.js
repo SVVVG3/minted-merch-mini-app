@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
-    const { userFid, timezone } = await request.json();
+    const { userFid, timezone, txHash, skipBlockchainCheck } = await request.json();
 
     // Validate required parameters
     if (!userFid) {
@@ -14,10 +14,10 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    console.log(`🎯 Daily check-in attempt for FID: ${userFid}, timezone: ${timezone || 'not provided'}`);
+    console.log(`🎯 Daily check-in attempt for FID: ${userFid}, timezone: ${timezone || 'not provided'}, txHash: ${txHash || 'none'}`);
 
-    // Perform daily check-in
-    const result = await performDailyCheckin(userFid);
+    // Perform daily check-in (with optional blockchain transaction hash)
+    const result = await performDailyCheckin(userFid, txHash, skipBlockchainCheck);
 
     if (!result.success) {
       const statusCode = result.alreadyCheckedIn ? 409 : 500;
