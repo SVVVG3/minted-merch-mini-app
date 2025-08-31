@@ -25,6 +25,7 @@
     "@vercel/og": "^0.6.8",
     "bcryptjs": "^3.0.2",
     "dotenv": "^17.2.1",
+    "ethers": "^6.15.0",
     "jsonwebtoken": "^9.0.2",
     "next": "^15.5.2",
     "react": "^19.0.0",

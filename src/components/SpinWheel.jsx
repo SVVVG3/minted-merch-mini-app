@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { getTimeUntilReset } from '@/lib/timezone';
+import { ethers } from 'ethers';
 
 export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const { isInFarcaster, isReady, getFid } = useFarcaster();
+  
   const [isSpinning, setIsSpinning] = useState(false);
   const [spinResult, setSpinResult] = useState(null);
   const [rotation, setRotation] = useState(0);
@@ -17,6 +19,12 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const [wheelGlow, setWheelGlow] = useState(false);
   const [screenShake, setScreenShake] = useState(false);
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  
+  // Blockchain-specific state
+  const [spinMode, setSpinMode] = useState('off-chain'); // 'off-chain' or 'on-chain'
+  const [txStatus, setTxStatus] = useState(null); // 'pending', 'confirmed', 'failed'
+  const [txHash, setTxHash] = useState(null);
+  const [userWalletAddress, setUserWalletAddress] = useState(null);
 
   // Define wheel segments with enhanced visual styling
   const wheelSegments = [
@@ -176,14 +184,136 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     return "💫";
   };
 
-  const handleSpin = async () => {
-    if (!isInFarcaster || !isReady || isSpinning || !canSpin) return;
+  // Get user's wallet address from Farcaster
+  const getUserWalletAddress = async () => {
+    if (!isInFarcaster || !isReady) return null;
+    
+    try {
+      // Get wallet address from Farcaster SDK
+      const context = await sdk.context;
+      if (context?.user?.wallet?.address) {
+        return context.user.wallet.address;
+      }
+      
+      // Fallback: try to get from provider if available
+      if (window.ethereum) {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts && accounts.length > 0) {
+          return accounts[0];
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Failed to get wallet address:', error);
+      return null;
+    }
+  };
 
+  // On-chain spin function
+  const handleOnChainSpin = async () => {
     const userFid = getFid();
     if (!userFid) return;
 
-    // Trigger haptic feedback on button press
-    await triggerHaptic('medium');
+    // Get user's wallet address
+    const walletAddress = await getUserWalletAddress();
+    if (!walletAddress) {
+      console.error('No wallet address available');
+      await handleSpinError(new Error('Wallet not connected. Please ensure your Farcaster wallet is connected.'));
+      return;
+    }
+
+    setUserWalletAddress(walletAddress);
+    setIsSpinning(true);
+    setSpinResult(null);
+    setWheelGlow(true);
+    setTxStatus('pending');
+
+    try {
+      // Step 1: Request spin permit from backend
+      console.log('🎫 Requesting spin permit...');
+      const permitResponse = await fetch('/api/spin-permit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          walletAddress: walletAddress, 
+          fid: userFid 
+        }),
+      });
+
+      const permitData = await permitResponse.json();
+      
+      if (!permitData.success) {
+        throw new Error(permitData.error || 'Failed to get spin permit');
+      }
+
+      console.log('✅ Spin permit received');
+
+      // Step 2: Submit blockchain transaction
+      console.log('⛓️ Submitting blockchain transaction...');
+      
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
+      // Contract ABI for the spin function
+      const contractABI = [
+        "function spin(tuple(address user, uint256 dayStart, uint256 expiresAt, bytes32 nonce) permit, bytes signature, bytes32 anonId)"
+      ];
+      
+      const contract = new ethers.Contract(
+        process.env.NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f',
+        contractABI,
+        signer
+      );
+
+      // Submit transaction
+      const tx = await contract.spin(
+        permitData.permit,
+        permitData.signature,
+        permitData.anonId
+      );
+
+      console.log('📤 Transaction submitted:', tx.hash);
+      setTxHash(tx.hash);
+
+      // Wait for confirmation
+      console.log('⏳ Waiting for confirmation...');
+      const receipt = await tx.wait();
+      console.log('✅ Transaction confirmed:', receipt);
+
+      setTxStatus('confirmed');
+
+      // Step 3: Confirm with backend and get points
+      console.log('🎯 Confirming spin with backend...');
+      const checkinResponse = await fetch('/api/points/checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userFid, 
+          txHash: tx.hash,
+          skipBlockchainCheck: false
+        }),
+      });
+
+      const result = await checkinResponse.json();
+      
+      if (result.success) {
+        await handleSpinSuccess(result);
+      } else {
+        throw new Error(result.error || 'Failed to confirm spin');
+      }
+
+    } catch (error) {
+      console.error('❌ On-chain spin failed:', error);
+      setTxStatus('failed');
+      await handleSpinError(error);
+    }
+  };
+
+  // Off-chain spin function (original logic)
+  const handleOffChainSpin = async () => {
+    const userFid = getFid();
+    if (!userFid) return;
 
     setIsSpinning(true);
     setSpinResult(null);
@@ -193,98 +323,130 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       // Perform check-in
       const response = await fetch('/api/points/checkin', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userFid }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userFid, skipBlockchainCheck: true }),
       });
 
       const result = await response.json();
       
       if (result.success) {
-        const points = result.data.pointsEarned;
-        const basePoints = result.data.basePoints;
-        const streakBonus = result.data.streakBonus;
-        
-        // Calculate which segment the points landed on
-        const targetSegment = wheelSegments.find(
-          segment => basePoints >= segment.min && basePoints <= segment.max
-        );
-        
-        if (targetSegment) {
-          // Calculate target rotation to land on the correct segment
-          const segmentIndex = wheelSegments.indexOf(targetSegment);
-          const segmentAngle = 360 / wheelSegments.length;
-          
-          // Find the center angle of the target segment
-          const segmentCenterAngle = segmentIndex * segmentAngle + (segmentAngle / 2);
-          
-          // The pointer is at the top (12 o'clock = 270 degrees in standard rotation)
-          // To align segment center with pointer, we need to rotate wheel by: (270 - segmentCenterAngle)
-          // This ensures the segment center ends up at the pointer position
-          const pointerAngle = 270; // Top position
-          const rotationNeeded = pointerAngle - segmentCenterAngle;
-          
-          // Add multiple full rotations for effect (4-6 full spins)
-          const fullSpins = Math.floor(Math.random() * 3) + 4;
-          const totalSpins = fullSpins * 360;
-          
-          // Final rotation: current position + full spins + alignment rotation
-          const finalRotation = rotation + totalSpins + rotationNeeded;
-          
-          // Debug logging to verify alignment
-          console.log(`🎯 Spinner Debug:`, {
-            basePoints,
-            targetSegment: targetSegment.label,
-            segmentIndex,
-            segmentCenterAngle: segmentCenterAngle.toFixed(1),
-            rotationNeeded: rotationNeeded.toFixed(1),
-            finalRotation: finalRotation.toFixed(1)
-          });
-          
-          setRotation(finalRotation);
-          
-          // Show result after animation completes
-          setTimeout(async () => {
-            // Trigger result haptic feedback and animations
-            await triggerHaptic('success');
-            setScreenShake(true);
-            setShowConfetti(true);
-            setWheelGlow(false);
-            
-            setTimeout(() => setScreenShake(false), 500);
-            setTimeout(() => setShowConfetti(false), 3000);
-            
-            setSpinResult({
-              pointsEarned: points,
-              basePoints: basePoints,
-              streakBonus: streakBonus,
-              newStreak: result.data.newStreak,
-              totalPoints: result.data.totalPoints,
-              streakBroken: result.data.streakBroken,
-              segment: targetSegment
-            });
-            setIsSpinning(false);
-            setCanSpin(false);
-            
-            // Callback to parent component
-            if (onSpinComplete) {
-              onSpinComplete(result.data);
-            }
-          }, 3500); // Match animation duration
-        }
+        await handleSpinSuccess(result);
       } else {
-        setIsSpinning(false);
-        setWheelGlow(false);
-        // Handle error - maybe user already checked in
-        if (result.alreadyCheckedIn) {
-          setCanSpin(false);
-        }
+        throw new Error(result.error || 'Check-in failed');
       }
+
     } catch (error) {
-      console.error('Error spinning wheel:', error);
-      setIsSpinning(false);
-      setWheelGlow(false);
+      console.error('❌ Off-chain spin failed:', error);
+      await handleSpinError(error);
+    }
+  };
+
+  // Unified spin success handler
+  const handleSpinSuccess = async (result) => {
+    const points = result.data.pointsEarned;
+    const basePoints = result.data.basePoints;
+    const streakBonus = result.data.streakBonus;
+    
+    // Calculate which segment the points landed on
+    const targetSegment = wheelSegments.find(
+      segment => basePoints >= segment.min && basePoints <= segment.max
+    );
+    
+    if (targetSegment) {
+      // Calculate target rotation to land on the correct segment
+      const segmentIndex = wheelSegments.indexOf(targetSegment);
+      const segmentAngle = 360 / wheelSegments.length;
+      
+      // Find the center angle of the target segment
+      const segmentCenterAngle = segmentIndex * segmentAngle + (segmentAngle / 2);
+      
+      // The pointer is at the top (12 o'clock = 270 degrees in standard rotation)
+      const pointerAngle = 270; // Top position
+      const rotationNeeded = pointerAngle - segmentCenterAngle;
+      
+      // Add multiple full rotations for effect (4-6 full spins)
+      const fullSpins = Math.floor(Math.random() * 3) + 4;
+      const totalSpins = fullSpins * 360;
+      
+      // Final rotation: current position + full spins + alignment rotation
+      const finalRotation = rotation + totalSpins + rotationNeeded;
+      
+      // Debug logging to verify alignment
+      console.log(`🎯 Spinner Debug (${spinMode}):`, {
+        basePoints,
+        targetSegment: targetSegment.label,
+        segmentIndex,
+        segmentCenterAngle: segmentCenterAngle.toFixed(1),
+        rotationNeeded: rotationNeeded.toFixed(1),
+        finalRotation: finalRotation.toFixed(1),
+        onChain: spinMode === 'on-chain',
+        txHash: txHash || 'N/A'
+      });
+      
+      setRotation(finalRotation);
+      
+      // Show result after animation completes
+      setTimeout(async () => {
+        // Trigger result haptic feedback and animations
+        await triggerHaptic('success');
+        setScreenShake(true);
+        setShowConfetti(true);
+        setWheelGlow(false);
+        
+        setTimeout(() => setScreenShake(false), 500);
+        setTimeout(() => setShowConfetti(false), 3000);
+        
+        setSpinResult({
+          pointsEarned: points,
+          basePoints: basePoints,
+          streakBonus: streakBonus,
+          newStreak: result.data.newStreak,
+          totalPoints: result.data.totalPoints,
+          streakBroken: result.data.streakBroken,
+          segment: targetSegment,
+          onChain: spinMode === 'on-chain',
+          txHash: txHash
+        });
+        setIsSpinning(false);
+        setCanSpin(false);
+        setTxStatus(null);
+        setTxHash(null);
+        
+        // Callback to parent component
+        if (onSpinComplete) {
+          onSpinComplete(result.data);
+        }
+      }, 3500); // Match animation duration
+    }
+  };
+
+  // Unified error handler
+  const handleSpinError = async (error) => {
+    console.error('Spin error:', error);
+    setIsSpinning(false);
+    setWheelGlow(false);
+    setTxStatus(null);
+    setTxHash(null);
+    
+    // Show error message to user
+    // You could add a toast notification here
+    await triggerHaptic('error');
+  };
+
+  // Main spin handler - routes to on-chain or off-chain
+  const handleSpin = async () => {
+    if (!isInFarcaster || !isReady || isSpinning || !canSpin) return;
+
+    const userFid = getFid();
+    if (!userFid) return;
+
+    // Trigger haptic feedback on button press
+    await triggerHaptic('medium');
+
+    if (spinMode === 'on-chain') {
+      await handleOnChainSpin();
+    } else {
+      await handleOffChainSpin();
     }
   };
 
@@ -617,6 +779,66 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                 </div>
               )}
               
+              {/* Spin Mode Toggle */}
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">Spin Mode</span>
+                  <div className="flex items-center gap-2">
+                    {txStatus === 'pending' && (
+                      <div className="flex items-center gap-2 text-xs text-blue-600">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                        </svg>
+                        Transaction pending...
+                      </div>
+                    )}
+                    {txHash && (
+                      <a 
+                        href={`https://basescan.org/tx/${txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:text-blue-800 underline"
+                      >
+                        View on Basescan
+                      </a>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSpinMode('off-chain')}
+                    disabled={isSpinning}
+                    className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      spinMode === 'off-chain'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    🏃‍♂️ Quick Spin
+                  </button>
+                  <button
+                    onClick={() => setSpinMode('on-chain')}
+                    disabled={isSpinning}
+                    className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      spinMode === 'on-chain'
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    ⛓️ On-Chain Spin
+                  </button>
+                </div>
+                
+                <div className="mt-2 text-xs text-gray-600">
+                  {spinMode === 'off-chain' 
+                    ? '💨 Instant spin with points tracking'
+                    : '🔒 Blockchain-verified spin (requires gas fee)'
+                  }
+                </div>
+              </div>
+              
               {/* Main spin button */}
               <button
                 onClick={handleSpin}
@@ -637,7 +859,9 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                     <span className="animate-bounce">🎰</span>
                   </span>
                 ) : canSpin ? (
-                  <span className="text-lg">🎰 Spin to Check In! 🎯</span>
+                  <span className="text-lg">
+                    {spinMode === 'on-chain' ? '⛓️ Spin On-Chain! 🎯' : '🎰 Spin to Check In! 🎯'}
+                  </span>
                 ) : (
                   <span className="text-lg">✅ Already Checked In Today</span>
                 )}
