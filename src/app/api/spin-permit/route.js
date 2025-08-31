@@ -30,33 +30,37 @@ const TYPES = {
 function getPSTDayStart() {
   const now = new Date();
   
-  // Create a date in PST timezone (UTC-8)
-  // Note: In August, California is in PDT (UTC-7), but we'll use consistent UTC-8
-  const pstOffset = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
-  const pstNow = new Date(now.getTime() - pstOffset);
+  // Use month-based DST detection (same as dashboard)
+  const month = now.getMonth(); // 0-11
+  const isDST = month >= 2 && month <= 10; // March (2) through November (10)
   
-  // Get today's date in PST
-  const year = pstNow.getUTCFullYear();
-  const month = pstNow.getUTCMonth();
-  const date = pstNow.getUTCDate();
-  const hour = pstNow.getUTCHours();
+  // Use correct offset: PDT = UTC-7, PST = UTC-8  
+  const pacificOffset = isDST ? 7 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
+  const pacificNow = new Date(now.getTime() - pacificOffset);
   
-  // Create 8 AM PST today
-  let dayStart = new Date(Date.UTC(year, month, date, 8, 0, 0, 0));
+  // Get today's date in Pacific timezone
+  const year = pacificNow.getUTCFullYear();
+  const month_utc = pacificNow.getUTCMonth();
+  const date = pacificNow.getUTCDate();
+  const hour = pacificNow.getUTCHours();
   
-  // If it's before 8 AM PST, use yesterday's 8 AM PST
+  // Create 8 AM Pacific today
+  let dayStart = new Date(Date.UTC(year, month_utc, date, 8, 0, 0, 0));
+  
+  // If it's before 8 AM Pacific, use yesterday's 8 AM Pacific
   if (hour < 8) {
-    dayStart = new Date(Date.UTC(year, month, date - 1, 8, 0, 0, 0));
+    dayStart = new Date(Date.UTC(year, month_utc, date - 1, 8, 0, 0, 0));
   }
   
   // Convert to UTC and return as Unix timestamp
-  const utcDayStart = new Date(dayStart.getTime() + pstOffset);
+  const utcDayStart = new Date(dayStart.getTime() + pacificOffset);
   
-  console.log('🕐 PST Day Start Calculation:', {
+  console.log('🕐 Pacific Day Start Calculation:', {
     nowUTC: now.toISOString(),
-    nowPST: pstNow.toISOString(),
-    pstHour: hour,
-    dayStartPST: dayStart.toISOString(),
+    nowPacific: pacificNow.toISOString(),
+    pacificHour: hour,
+    timezone: isDST ? 'PDT (UTC-7)' : 'PST (UTC-8)',
+    dayStartPacific: dayStart.toISOString(),
     dayStartUTC: utcDayStart.toISOString(),
     unixTimestamp: Math.floor(utcDayStart.getTime() / 1000)
   });
