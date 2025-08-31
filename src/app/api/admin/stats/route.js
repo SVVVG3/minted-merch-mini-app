@@ -49,13 +49,22 @@ export async function GET(request) {
     const now = new Date();
     
     function getPSTDayStart() {
-      const pstOffset = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
-      const pstNow = new Date(now.getTime() - pstOffset);
+      // Properly handle Pacific timezone (PST/PDT) with Daylight Saving Time
+      // August = PDT (UTC-7), December = PST (UTC-8)
       
-      const year = pstNow.getUTCFullYear();
-      const month = pstNow.getUTCMonth();
-      const date = pstNow.getUTCDate();
-      const hour = pstNow.getUTCHours();
+      // Determine if we're in Daylight Saving Time
+      const january = new Date(now.getFullYear(), 0, 1);
+      const july = new Date(now.getFullYear(), 6, 1);
+      const isDST = now.getTimezoneOffset() < Math.max(january.getTimezoneOffset(), july.getTimezoneOffset());
+      
+      // Use correct offset: PDT = UTC-7, PST = UTC-8
+      const pacificOffset = isDST ? 7 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
+      const pacificNow = new Date(now.getTime() - pacificOffset);
+      
+      const year = pacificNow.getUTCFullYear();
+      const month = pacificNow.getUTCMonth();
+      const date = pacificNow.getUTCDate();
+      const hour = pacificNow.getUTCHours();
       
       let dayStart = new Date(Date.UTC(year, month, date, 8, 0, 0, 0));
       
@@ -63,15 +72,21 @@ export async function GET(request) {
         dayStart = new Date(Date.UTC(year, month, date - 1, 8, 0, 0, 0));
       }
       
-      const utcDayStart = new Date(dayStart.getTime() + pstOffset);
+      const utcDayStart = new Date(dayStart.getTime() + pacificOffset);
       return utcDayStart;
     }
 
     const todayPSTStart = getPSTDayStart();
     
-    console.log('🕐 Check-ins today calculation (8 AM PST reset):');
+    console.log('🕐 Check-ins today calculation (8 AM Pacific reset):');
     console.log('  Current UTC time:', now.toISOString());
-    console.log('  Today PST start (8 AM):', todayPSTStart.toISOString());
+    console.log('  Today Pacific start (8 AM):', todayPSTStart.toISOString());
+    
+    // Determine if we're in DST for logging
+    const january = new Date(now.getFullYear(), 0, 1);
+    const july = new Date(now.getFullYear(), 6, 1);
+    const isDST = now.getTimezoneOffset() < Math.max(january.getTimezoneOffset(), july.getTimezoneOffset());
+    console.log('  Timezone:', isDST ? 'PDT (UTC-7)' : 'PST (UTC-8)');
 
     // Count only COMPLETED check-ins (not pending transactions)
     const { count: checkInsToday, error: checkInsError } = await supabaseAdmin
