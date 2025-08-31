@@ -221,16 +221,27 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           connectors.map(c => ({ name: c.name, id: c.id, type: c.type }))
         );
         
-        // Fallback: try the first connector if it exists
-        if (connectors.length > 0) {
-          console.log('🔄 Using first available connector:', {
-            name: connectors[0].name,
-            id: connectors[0].id,
-            type: connectors[0].type
-          });
-          await connect({ connector: connectors[0] });
+        // Check if we're in Farcaster mobile app vs desktop
+        const isInFarcasterMobile = window?.navigator?.userAgent?.includes('Farcaster') || 
+                                   window?.farcaster || 
+                                   isInFarcaster;
+        
+        if (!isInFarcasterMobile) {
+          console.log('🖥️ Desktop detected - using any available wallet connector');
+          console.log('💡 For best experience, use this in the Farcaster mobile app');
+          // On desktop, use any available connector (like injected wallets)
+          if (connectors.length > 0) {
+            console.log('🔄 Using first available connector for desktop:', {
+              name: connectors[0].name,
+              id: connectors[0].id,
+              type: connectors[0].type
+            });
+            await connect({ connector: connectors[0] });
+          } else {
+            throw new Error('No connectors available');
+          }
         } else {
-          throw new Error('No connectors available');
+          throw new Error('Farcaster connector not found in mobile app');
         }
       } else {
         console.log('🔗 Found Farcaster connector:', {
