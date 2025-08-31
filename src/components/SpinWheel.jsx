@@ -188,7 +188,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
 
   // Connect wallet using Farcaster Mini App connector
   const connectWallet = async () => {
-    console.log('🔗 Connecting wallet...', { isConnected, connectors });
+    console.log('🔗 Connecting wallet...', { isConnected, connectors: connectors.map(c => ({ name: c.name, id: c.id })) });
     
     if (isConnected && address) {
       console.log('✅ Already connected:', address);
@@ -196,14 +196,28 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     }
     
     try {
-      // Find the Farcaster Mini App connector
-      const farcasterConnector = connectors.find(c => c.name === 'Farcaster Mini App');
-      if (!farcasterConnector) {
-        throw new Error('Farcaster Mini App connector not found');
-      }
+      // Find the Farcaster connector (try multiple possible names)
+      const farcasterConnector = connectors.find(c => 
+        c.name === 'Farcaster Mini App' || 
+        c.name === 'farcasterMiniApp' ||
+        c.id === 'farcasterMiniApp' ||
+        c.name.toLowerCase().includes('farcaster')
+      );
       
-      console.log('🔗 Connecting with Farcaster connector...');
-      await connect({ connector: farcasterConnector });
+      if (!farcasterConnector) {
+        console.log('❌ Available connectors:', connectors.map(c => ({ name: c.name, id: c.id })));
+        
+        // Fallback: try the first connector if it exists
+        if (connectors.length > 0) {
+          console.log('🔄 Using first available connector:', connectors[0].name);
+          await connect({ connector: connectors[0] });
+        } else {
+          throw new Error('No connectors available');
+        }
+      } else {
+        console.log('🔗 Connecting with Farcaster connector:', farcasterConnector.name);
+        await connect({ connector: farcasterConnector });
+      }
       
       // Wait a moment for connection to establish
       await new Promise(resolve => setTimeout(resolve, 1000));
