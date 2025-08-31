@@ -6,7 +6,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 import { getTimeUntilReset } from '@/lib/timezone';
 import { ethers } from 'ethers';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { WalletConnection } from './WalletConnection';
+
 
 export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const { isInFarcaster, isReady, getFid } = useFarcaster();
@@ -260,7 +260,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     });
     
     if (!isConnected || !address) {
-      throw new Error('Please connect your wallet first. Scroll down to the wallet connection section.');
+      throw new Error('Wallet not connected. Please refresh the app and try again.');
     }
     
     return address;
@@ -834,9 +834,6 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                   </div>
                 </div>
               )}
-              
-              {/* Wallet Connection */}
-              <WalletConnection />
               
               {/* Main spin button */}
               <button
