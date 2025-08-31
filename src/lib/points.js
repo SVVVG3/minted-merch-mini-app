@@ -234,19 +234,23 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
 
       // For on-chain spins, update the existing pending transaction instead of creating new one
       if (txHash) {
+        console.log('🔍 Looking for pending transaction for user:', userFid, 'with txHash:', txHash);
+        
         // Find and update the pending transaction
         const { data: pendingTx, error: findError } = await supabase
           .from('point_transactions')
-          .select('id')
+          .select('id, created_at, spin_reserved_at, description')
           .eq('user_fid', userFid)
           .eq('transaction_type', 'daily_checkin')
-          .eq('spin_tx_hash', null)
+          .is('spin_tx_hash', null)
           .is('spin_confirmed_at', null)
           .not('spin_reserved_at', 'is', null)
           .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Within last 24 hours
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
+
+        console.log('🔍 Pending transaction search result:', { pendingTx, findError });
 
         if (pendingTx && !findError) {
           console.log('🔄 Updating existing pending transaction:', pendingTx.id);
@@ -272,7 +276,8 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
             console.log('✅ Updated pending transaction with points and confirmation');
           }
         } else {
-          console.log('⚠️ No pending transaction found, creating new one');
+          console.log('⚠️ No pending transaction found, creating new one. FindError:', findError);
+          console.log('🔍 Search criteria was: user_fid =', userFid, 'transaction_type = daily_checkin, spin_tx_hash = null, spin_confirmed_at = null, spin_reserved_at IS NOT NULL');
           transactionData.spin_tx_hash = txHash;
           transactionData.spin_confirmed_at = new Date().toISOString();
           await logPointTransaction(transactionData);
