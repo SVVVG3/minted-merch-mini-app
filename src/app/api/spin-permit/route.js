@@ -29,21 +29,39 @@ const TYPES = {
 // Helper function to get PST day start (8 AM PST/PDT)
 function getPSTDayStart() {
   const now = new Date();
-  const pstOffset = -8; // PST is UTC-8, PDT is UTC-7 (but we'll use -8 for consistency)
   
-  // Convert to PST
-  const pstTime = new Date(now.getTime() + (pstOffset * 60 * 60 * 1000));
+  // Create a date in PST timezone (UTC-8)
+  // Note: In August, California is in PDT (UTC-7), but we'll use consistent UTC-8
+  const pstOffset = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
+  const pstNow = new Date(now.getTime() - pstOffset);
   
-  // Set to 8 AM PST today
-  const dayStart = new Date(pstTime.getFullYear(), pstTime.getMonth(), pstTime.getDate(), 8, 0, 0, 0);
+  // Get today's date in PST
+  const year = pstNow.getUTCFullYear();
+  const month = pstNow.getUTCMonth();
+  const date = pstNow.getUTCDate();
+  const hour = pstNow.getUTCHours();
   
-  // If it's before 8 AM PST today, use yesterday's 8 AM
-  if (pstTime.getHours() < 8) {
-    dayStart.setDate(dayStart.getDate() - 1);
+  // Create 8 AM PST today
+  let dayStart = new Date(Date.UTC(year, month, date, 8, 0, 0, 0));
+  
+  // If it's before 8 AM PST, use yesterday's 8 AM PST
+  if (hour < 8) {
+    dayStart = new Date(Date.UTC(year, month, date - 1, 8, 0, 0, 0));
   }
   
-  // Convert back to UTC timestamp
-  return Math.floor((dayStart.getTime() - (pstOffset * 60 * 60 * 1000)) / 1000);
+  // Convert to UTC and return as Unix timestamp
+  const utcDayStart = new Date(dayStart.getTime() + pstOffset);
+  
+  console.log('🕐 PST Day Start Calculation:', {
+    nowUTC: now.toISOString(),
+    nowPST: pstNow.toISOString(),
+    pstHour: hour,
+    dayStartPST: dayStart.toISOString(),
+    dayStartUTC: utcDayStart.toISOString(),
+    unixTimestamp: Math.floor(utcDayStart.getTime() / 1000)
+  });
+  
+  return Math.floor(utcDayStart.getTime() / 1000);
 }
 
 export async function POST(request) {
@@ -66,7 +84,7 @@ export async function POST(request) {
       dayStart: new Date(dayStart * 1000).toISOString()
     });
 
-    // Check if user has already spun today
+    // Check if user has already spun today (look for on-chain spins specifically)
     const { data: existingSpin, error: checkError } = await supabase
       .from('point_transactions')
       .select('*')
@@ -74,6 +92,17 @@ export async function POST(request) {
       .eq('transaction_type', 'daily_checkin')
       .gte('created_at', new Date(dayStart * 1000).toISOString())
       .single();
+
+    console.log('🔍 Existing spin check:', { 
+      existingSpin: existingSpin ? {
+        id: existingSpin.id,
+        created_at: existingSpin.created_at,
+        spin_reserved_at: existingSpin.spin_reserved_at,
+        spin_confirmed_at: existingSpin.spin_confirmed_at,
+        spin_tx_hash: existingSpin.spin_tx_hash
+      } : null,
+      checkError: checkError?.code
+    });
 
     if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows found
       console.error('Database error:', checkError);
@@ -83,13 +112,30 @@ export async function POST(request) {
       }, { status: 500 });
     }
 
-    if (existingSpin && (existingSpin.spin_reserved_at || existingSpin.spin_confirmed_at)) {
+    // Block if user has ANY check-in today (off-chain OR on-chain)
+    // One spin per day, period - regardless of type
+    if (existingSpin) {
+      console.log('🚫 User already checked in today:', {
+        id: existingSpin.id,
+        created_at: existingSpin.created_at,
+        spin_reserved_at: existingSpin.spin_reserved_at,
+        spin_confirmed_at: existingSpin.spin_confirmed_at,
+        spin_tx_hash: existingSpin.spin_tx_hash,
+        description: existingSpin.description
+      });
       return NextResponse.json({ 
         success: false, 
         error: 'Already spun today',
-        nextSpinAt: new Date((dayStart + 24 * 60 * 60) * 1000).toISOString()
+        nextSpinAt: new Date((dayStart + 24 * 60 * 60) * 1000).toISOString(),
+        debug: {
+          dayStartUTC: new Date(dayStart * 1000).toISOString(),
+          existingCheckin: existingSpin.created_at,
+          isOnChain: !!(existingSpin.spin_reserved_at || existingSpin.spin_confirmed_at)
+        }
       }, { status: 400 });
     }
+
+    console.log('✅ No existing check-in found for today, proceeding with spin permit');
 
     // Generate secure nonce (prevents accidental reuse)
     const backendRandom = crypto.randomBytes(32);
