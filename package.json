@@ -9,7 +9,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy:contract": "node scripts/deploy-spin-registry.js"
   },
   "dependencies": {
     "@cloudflare/workers-types": "^4.20250620.0",
@@ -23,8 +24,9 @@
     "@vercel/kv": "^3.0.0",
     "@vercel/og": "^0.6.8",
     "bcryptjs": "^3.0.2",
+    "dotenv": "^17.2.1",
     "jsonwebtoken": "^9.0.2",
-    "next": "15.3.4",
+    "next": "^15.5.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "viem": "^2.31.4",
@@ -32,6 +34,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "solc": "^0.8.30",
     "tailwindcss": "^4"
   }
 }
