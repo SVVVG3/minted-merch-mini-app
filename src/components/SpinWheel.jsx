@@ -5,12 +5,17 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { getTimeUntilReset } from '@/lib/timezone';
 import { ethers } from 'ethers';
-import { useAccount, useConnect } from 'wagmi';
+import { useAccount, useConnect, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
+import { encodeFunctionData } from 'viem';
 
 export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const { isInFarcaster, isReady, getFid } = useFarcaster();
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
+  const { data: hash, isPending: isTxPending, sendTransaction } = useSendTransaction();
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash,
+  });
   
   const [isSpinning, setIsSpinning] = useState(false);
   const [spinResult, setSpinResult] = useState(null);
@@ -117,6 +122,54 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Handle transaction confirmation
+  useEffect(() => {
+    if (isConfirmed && hash) {
+      console.log('✅ Transaction confirmed:', hash);
+      setTxHash(hash);
+      setTxStatus('confirmed');
+      
+      // Confirm with backend and get points
+      const confirmWithBackend = async () => {
+        try {
+          console.log('🎯 Confirming spin with backend...');
+          const userFid = getFid();
+          
+          const checkinResponse = await fetch('/api/points/checkin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              userFid, 
+              txHash: hash,
+              skipBlockchainCheck: false
+            }),
+          });
+
+          const result = await checkinResponse.json();
+          
+          if (result.success) {
+            await handleSpinSuccess(result);
+          } else {
+            throw new Error(result.error || 'Failed to confirm spin');
+          }
+        } catch (error) {
+          console.error('❌ Backend confirmation failed:', error);
+          await handleSpinError(error);
+        }
+      };
+      
+      confirmWithBackend();
+    }
+  }, [isConfirmed, hash]);
+
+  // Handle transaction pending state
+  useEffect(() => {
+    if (isTxPending) {
+      console.log('⏳ Transaction pending, waiting for user confirmation...');
+      setTxStatus('pending');
+    }
+  }, [isTxPending]);
 
   const loadUserStatus = async (userFid) => {
     try {
@@ -342,73 +395,55 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
 
       console.log('✅ Spin permit received');
 
-      // Step 2: Submit blockchain transaction
-      console.log('⛓️ Submitting blockchain transaction...');
-      
-      // Use Farcaster's Ethereum provider, fallback to window.ethereum for desktop testing
-      let ethereumProvider;
-      try {
-        ethereumProvider = sdk.wallet.getEthereumProvider();
-        console.log('🔗 Using Farcaster Ethereum provider:', !!ethereumProvider);
-      } catch (error) {
-        console.log('⚠️ Farcaster provider not available, falling back to window.ethereum');
-        ethereumProvider = window.ethereum;
-      }
-      
-      if (!ethereumProvider) {
-        throw new Error('No Ethereum provider available');
-      }
-      
-      const provider = new ethers.BrowserProvider(ethereumProvider);
-      const signer = await provider.getSigner();
+      // Step 2: Submit blockchain transaction using Wagmi
+      console.log('⛓️ Submitting blockchain transaction with Wagmi...');
       
       // Contract ABI for the spin function
       const contractABI = [
-        "function spin(tuple(address user, uint256 dayStart, uint256 expiresAt, bytes32 nonce) permit, bytes signature, bytes32 anonId)"
+        {
+          name: 'spin',
+          type: 'function',
+          inputs: [
+            {
+              name: 'permit',
+              type: 'tuple',
+              components: [
+                { name: 'user', type: 'address' },
+                { name: 'dayStart', type: 'uint256' },
+                { name: 'expiresAt', type: 'uint256' },
+                { name: 'nonce', type: 'bytes32' }
+              ]
+            },
+            { name: 'signature', type: 'bytes' },
+            { name: 'anonId', type: 'bytes32' }
+          ],
+          outputs: []
+        }
       ];
       
-      const contract = new ethers.Contract(
-        process.env.NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f',
-        contractABI,
-        signer
-      );
-
-      // Submit transaction
-      const tx = await contract.spin(
-        permitData.permit,
-        permitData.signature,
-        permitData.anonId
-      );
-
-      console.log('📤 Transaction submitted:', tx.hash);
-      setTxHash(tx.hash);
-
-      // Wait for confirmation
-      console.log('⏳ Waiting for confirmation...');
-      const receipt = await tx.wait();
-      console.log('✅ Transaction confirmed:', receipt);
-
-      setTxStatus('confirmed');
-
-      // Step 3: Confirm with backend and get points
-      console.log('🎯 Confirming spin with backend...');
-      const checkinResponse = await fetch('/api/points/checkin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userFid, 
-          txHash: tx.hash,
-          skipBlockchainCheck: false
-        }),
+      // Encode the function call
+      const data = encodeFunctionData({
+        abi: contractABI,
+        functionName: 'spin',
+        args: [
+          permitData.permit,
+          permitData.signature,
+          permitData.anonId
+        ]
       });
 
-      const result = await checkinResponse.json();
-      
-      if (result.success) {
-        await handleSpinSuccess(result);
-      } else {
-        throw new Error(result.error || 'Failed to confirm spin');
-      }
+      console.log('📝 Encoded transaction data:', data);
+      console.log('🎯 Contract address:', process.env.NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f');
+
+      // Send transaction using Wagmi
+      sendTransaction({
+        to: process.env.NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f',
+        data: data
+      });
+
+      console.log('📤 Transaction sent via Wagmi, waiting for user confirmation...');
+
+      // Note: Transaction confirmation will be handled by useEffect watching isConfirmed
 
     } catch (error) {
       console.error('❌ On-chain spin failed:', error);
