@@ -13,7 +13,7 @@ const DOMAIN = {
   name: 'MintedMerchSpins',
   version: '1',
   chainId: 8453, // Base mainnet
-  verifyingContract: process.env.SPIN_REGISTRY_CONTRACT // We'll set this after deployment
+  verifyingContract: process.env.SPIN_REGISTRY_CONTRACT_ADDRESS || process.env.SPIN_REGISTRY_CONTRACT || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f'
 };
 
 // EIP-712 Types
@@ -214,6 +214,7 @@ export async function POST(request) {
     console.log('✅ Signing key found, creating wallet...', { keyType });
     const wallet = new ethers.Wallet(signerKey);
     console.log('🔑 Wallet address:', wallet.address);
+    console.log('🏗️ EIP-712 Domain:', DOMAIN);
     const signature = await wallet.signTypedData(DOMAIN, TYPES, permit);
 
     // Generate anonymous ID for privacy (hash of fid + dayStart + wallet)
