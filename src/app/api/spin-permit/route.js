@@ -110,14 +110,17 @@ export async function POST(request) {
     };
 
     // Sign the permit with backend private key
-    if (!process.env.SPIN_SIGNER_PRIVATE_KEY) {
+    const signerKey = process.env.SPIN_SIGNER_PRIVATE_KEY || process.env.BACKEND_SIGNER_PRIVATE_KEY;
+    if (!signerKey) {
+      console.error('❌ Missing signing key. Need SPIN_SIGNER_PRIVATE_KEY or BACKEND_SIGNER_PRIVATE_KEY');
       return NextResponse.json({ 
         success: false, 
         error: 'Signing key not configured' 
       }, { status: 500 });
     }
 
-    const wallet = new ethers.Wallet(process.env.SPIN_SIGNER_PRIVATE_KEY);
+    console.log('✅ Signing key found, creating wallet...');
+    const wallet = new ethers.Wallet(signerKey);
     const signature = await wallet.signTypedData(DOMAIN, TYPES, permit);
 
     // Generate anonymous ID for privacy (hash of fid + dayStart + wallet)

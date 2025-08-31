@@ -815,7 +815,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                     <span className="animate-bounce">🎰</span>
                   </span>
                 ) : canSpin ? (
-                  <span className="text-lg">Daily Spin ✨</span>
+                  <span className="text-lg">✨ Spin the Wheel ✨</span>
                 ) : (
                   <span className="text-lg">✅ Already Checked In Today</span>
                 )}
