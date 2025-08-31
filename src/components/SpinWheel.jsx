@@ -539,7 +539,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           </h2>
           
           <p className="text-gray-600 mb-3">
-            Spin the wheel to earn points & be entered into raffles for FREE merch!
+            Spin the wheel to earn points & be entered into raffles for FREE merch & gift cards!
           </p>
           
           {userStatus && (
