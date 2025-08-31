@@ -232,13 +232,55 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
         }
       };
 
-      // Add blockchain-specific fields if transaction hash provided
+      // For on-chain spins, update the existing pending transaction instead of creating new one
       if (txHash) {
-        transactionData.spin_tx_hash = txHash;
-        transactionData.spin_confirmed_at = new Date().toISOString();
-      }
+        // Find and update the pending transaction
+        const { data: pendingTx, error: findError } = await supabase
+          .from('point_transactions')
+          .select('id')
+          .eq('user_fid', userFid)
+          .eq('transaction_type', 'daily_checkin')
+          .eq('spin_tx_hash', null)
+          .is('spin_confirmed_at', null)
+          .not('spin_reserved_at', 'is', null)
+          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Within last 24 hours
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
 
-      await logPointTransaction(transactionData);
+        if (pendingTx && !findError) {
+          console.log('🔄 Updating existing pending transaction:', pendingTx.id);
+          // Update the existing pending transaction
+          const { error: updateError } = await supabase
+            .from('point_transactions')
+            .update({
+              points_earned: finalPoints,
+              points_before: userData.total_points,
+              points_after: updatedData.total_points,
+              description: `On-chain daily check-in (streak: ${newStreak})`,
+              spin_tx_hash: txHash,
+              spin_confirmed_at: new Date().toISOString(),
+              metadata: transactionData.metadata
+            })
+            .eq('id', pendingTx.id);
+
+          if (updateError) {
+            console.error('Error updating pending transaction:', updateError);
+            // Fall back to creating new transaction
+            await logPointTransaction(transactionData);
+          } else {
+            console.log('✅ Updated pending transaction with points and confirmation');
+          }
+        } else {
+          console.log('⚠️ No pending transaction found, creating new one');
+          transactionData.spin_tx_hash = txHash;
+          transactionData.spin_confirmed_at = new Date().toISOString();
+          await logPointTransaction(transactionData);
+        }
+      } else {
+        // For off-chain check-ins, create new transaction as usual
+        await logPointTransaction(transactionData);
+      }
     } catch (logError) {
       console.error('Error logging check-in transaction:', logError);
       // Don't fail the check-in, just log the error
