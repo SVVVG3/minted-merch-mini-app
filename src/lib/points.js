@@ -271,6 +271,7 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
               points_before: userData.total_points,
               points_after: updatedData.total_points,
               description: `On-chain daily check-in (streak: ${newStreak})`,
+              reference_id: transactionData.referenceId,
               spin_tx_hash: txHash,
               spin_confirmed_at: new Date().toISOString(),
               metadata: transactionData.metadata
