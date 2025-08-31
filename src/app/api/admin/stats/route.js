@@ -171,7 +171,7 @@ export async function GET(request) {
       .gt('total_spent', 0)
       .limit(5);
 
-    // Get total revenue from orders
+    // Get total revenue from orders (amounts are already in dollars, not cents)
     const { data: revenueData, error: revenueError } = await supabaseAdmin
       .from('orders')
       .select('amount_total')
@@ -179,9 +179,8 @@ export async function GET(request) {
 
     let totalRevenue = 0;
     if (!revenueError && revenueData) {
-      totalRevenue = revenueData.reduce((sum, order) => sum + (order.amount_total || 0), 0);
-      // Convert from cents to dollars
-      totalRevenue = totalRevenue / 100;
+      totalRevenue = revenueData.reduce((sum, order) => sum + (parseFloat(order.amount_total) || 0), 0);
+      // Amounts are already in dollars, no conversion needed
     }
 
     if (revenueError) {
