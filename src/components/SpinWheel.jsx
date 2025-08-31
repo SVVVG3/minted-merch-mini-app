@@ -337,7 +337,21 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       // Step 2: Submit blockchain transaction
       console.log('⛓️ Submitting blockchain transaction...');
       
-      const provider = new ethers.BrowserProvider(window.ethereum);
+      // Use Farcaster's Ethereum provider, fallback to window.ethereum for desktop testing
+      let ethereumProvider;
+      try {
+        ethereumProvider = sdk.wallet.getEthereumProvider();
+        console.log('🔗 Using Farcaster Ethereum provider:', !!ethereumProvider);
+      } catch (error) {
+        console.log('⚠️ Farcaster provider not available, falling back to window.ethereum');
+        ethereumProvider = window.ethereum;
+      }
+      
+      if (!ethereumProvider) {
+        throw new Error('No Ethereum provider available');
+      }
+      
+      const provider = new ethers.BrowserProvider(ethereumProvider);
       const signer = await provider.getSigner();
       
       // Contract ABI for the spin function
