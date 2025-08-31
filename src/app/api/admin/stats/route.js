@@ -46,8 +46,9 @@ export async function GET(request) {
     }
 
     // Get check-ins today using proper 8 AM PST reset logic
+    const now = new Date();
+    
     function getPSTDayStart() {
-      const now = new Date();
       const pstOffset = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
       const pstNow = new Date(now.getTime() - pstOffset);
       
