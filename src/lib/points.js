@@ -254,8 +254,17 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
 
         if (pendingTx && !findError) {
           console.log('🔄 Updating existing pending transaction:', pendingTx.id);
-          // Update the existing pending transaction
-          const { error: updateError } = await supabase
+          console.log('🔧 Update data:', {
+            points_earned: finalPoints,
+            points_before: userData.total_points,
+            points_after: updatedData.total_points,
+            description: `On-chain daily check-in (streak: ${newStreak})`,
+            spin_tx_hash: txHash,
+            spin_confirmed_at: new Date().toISOString()
+          });
+          
+          // Update the existing pending transaction (using supabaseAdmin for permissions)
+          const { error: updateError } = await supabaseAdmin
             .from('point_transactions')
             .update({
               points_earned: finalPoints,
@@ -269,11 +278,28 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
             .eq('id', pendingTx.id);
 
           if (updateError) {
-            console.error('Error updating pending transaction:', updateError);
+            console.error('❌ Error updating pending transaction:', updateError);
             // Fall back to creating new transaction
             await logPointTransaction(transactionData);
           } else {
             console.log('✅ Updated pending transaction with points and confirmation');
+            
+            // Verify the update actually worked
+            const { data: verifyTx, error: verifyError } = await supabaseAdmin
+              .from('point_transactions')
+              .select('points_earned, spin_tx_hash, spin_confirmed_at')
+              .eq('id', pendingTx.id)
+              .single();
+              
+            if (verifyError) {
+              console.error('❌ Error verifying update:', verifyError);
+            } else {
+              console.log('🔍 Verification - Updated transaction now has:', verifyTx);
+              if (verifyTx.points_earned === 0) {
+                console.error('❌ UPDATE FAILED - points still 0, falling back to new transaction');
+                await logPointTransaction(transactionData);
+              }
+            }
           }
         } else {
           console.log('⚠️ No pending transaction found, creating new one. FindError:', findError);
