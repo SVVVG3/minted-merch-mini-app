@@ -188,11 +188,22 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
 
   // Connect wallet using Farcaster Mini App connector
   const connectWallet = async () => {
-    console.log('🔗 Connecting wallet...', { isConnected, connectors: connectors.map(c => ({ name: c.name, id: c.id })) });
+    console.log('🔗 Connecting wallet...', { 
+      isConnected, 
+      address,
+      connectorsLength: connectors?.length || 0,
+      connectors: connectors?.map(c => ({ name: c.name, id: c.id, type: c.type })) || 'No connectors array'
+    });
     
     if (isConnected && address) {
       console.log('✅ Already connected:', address);
       return address;
+    }
+    
+    // Check if connectors array exists and has items
+    if (!connectors || connectors.length === 0) {
+      console.error('❌ No connectors available at all');
+      throw new Error('No wallet connectors available. Wagmi may not be properly initialized.');
     }
     
     try {
@@ -201,32 +212,47 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         c.name === 'Farcaster Mini App' || 
         c.name === 'farcasterMiniApp' ||
         c.id === 'farcasterMiniApp' ||
-        c.name.toLowerCase().includes('farcaster')
+        c.name?.toLowerCase().includes('farcaster') ||
+        c.id?.toLowerCase().includes('farcaster')
       );
       
       if (!farcasterConnector) {
-        console.log('❌ Available connectors:', connectors.map(c => ({ name: c.name, id: c.id })));
+        console.log('❌ No Farcaster connector found. Available connectors:', 
+          connectors.map(c => ({ name: c.name, id: c.id, type: c.type }))
+        );
         
         // Fallback: try the first connector if it exists
         if (connectors.length > 0) {
-          console.log('🔄 Using first available connector:', connectors[0].name);
+          console.log('🔄 Using first available connector:', {
+            name: connectors[0].name,
+            id: connectors[0].id,
+            type: connectors[0].type
+          });
           await connect({ connector: connectors[0] });
         } else {
           throw new Error('No connectors available');
         }
       } else {
-        console.log('🔗 Connecting with Farcaster connector:', farcasterConnector.name);
+        console.log('🔗 Found Farcaster connector:', {
+          name: farcasterConnector.name,
+          id: farcasterConnector.id,
+          type: farcasterConnector.type
+        });
         await connect({ connector: farcasterConnector });
       }
       
       // Wait a moment for connection to establish
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('⏳ Waiting for connection to establish...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Re-check the address after connection attempt
+      console.log('🔍 Checking address after connection attempt:', { address, isConnected });
       
       if (address) {
         console.log('✅ Connected to wallet:', address);
         return address;
       } else {
-        throw new Error('Connection successful but no address available');
+        throw new Error('Connection attempt completed but no address available');
       }
     } catch (error) {
       console.error('❌ Failed to connect wallet:', error);
@@ -256,6 +282,12 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
 
       // Connect wallet using Farcaster Mini App connector
       console.log('🔗 Connecting wallet...');
+      console.log('🔍 Current wallet state before connection:', { 
+        address, 
+        isConnected, 
+        connectors: connectors?.map(c => ({ name: c.name, id: c.id })) || 'No connectors'
+      });
+      
       const walletAddress = await connectWallet();
       if (!walletAddress) {
         console.error('❌ No wallet address available');
