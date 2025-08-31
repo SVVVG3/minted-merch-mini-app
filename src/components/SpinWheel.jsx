@@ -5,9 +5,12 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { getTimeUntilReset } from '@/lib/timezone';
 import { ethers } from 'ethers';
+import { useAccount, useConnect } from 'wagmi';
 
 export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const { isInFarcaster, isReady, getFid } = useFarcaster();
+  const { address, isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
   
   const [isSpinning, setIsSpinning] = useState(false);
   const [spinResult, setSpinResult] = useState(null);
@@ -183,49 +186,70 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     return "💫";
   };
 
-  // Get user's wallet address from Farcaster
-  const getUserWalletAddress = async () => {
-    if (!isInFarcaster || !isReady) return null;
+  // Connect wallet using Farcaster Mini App connector
+  const connectWallet = async () => {
+    console.log('🔗 Connecting wallet...', { isConnected, connectors });
+    
+    if (isConnected && address) {
+      console.log('✅ Already connected:', address);
+      return address;
+    }
     
     try {
-      // Get wallet address from Farcaster SDK
-      const context = await sdk.context;
-      if (context?.user?.wallet?.address) {
-        return context.user.wallet.address;
+      // Find the Farcaster Mini App connector
+      const farcasterConnector = connectors.find(c => c.name === 'Farcaster Mini App');
+      if (!farcasterConnector) {
+        throw new Error('Farcaster Mini App connector not found');
       }
       
-      // Fallback: try to get from provider if available
-      if (window.ethereum) {
-        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        if (accounts && accounts.length > 0) {
-          return accounts[0];
-        }
-      }
+      console.log('🔗 Connecting with Farcaster connector...');
+      await connect({ connector: farcasterConnector });
       
-      return null;
+      // Wait a moment for connection to establish
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (address) {
+        console.log('✅ Connected to wallet:', address);
+        return address;
+      } else {
+        throw new Error('Connection successful but no address available');
+      }
     } catch (error) {
-      console.error('Failed to get wallet address:', error);
-      return null;
+      console.error('❌ Failed to connect wallet:', error);
+      throw error;
     }
   };
 
   // Main spin function (always on-chain)
   const handleSpin = async () => {
-    if (!isInFarcaster || !isReady || isSpinning || !canSpin) return;
-
-    const userFid = getFid();
-    if (!userFid) return;
-
-    // Trigger haptic feedback on button press
-    await triggerHaptic('medium');
-
-    // Get user's wallet address
-    const walletAddress = await getUserWalletAddress();
-    if (!walletAddress) {
-      console.error('No wallet address available');
-      await handleSpinError(new Error('Wallet not connected. Please ensure your Farcaster wallet is connected.'));
+    console.log('🎰 Spin button clicked!', { isInFarcaster, isReady, isSpinning, canSpin });
+    
+    if (!isInFarcaster || !isReady || isSpinning || !canSpin) {
+      console.log('❌ Spin blocked:', { isInFarcaster, isReady, isSpinning, canSpin });
       return;
     }
+
+    const userFid = getFid();
+    console.log('👤 User FID:', userFid);
+    if (!userFid) {
+      console.log('❌ No user FID');
+      return;
+    }
+
+    try {
+      // Trigger haptic feedback on button press
+      await triggerHaptic('medium');
+
+      // Connect wallet using Farcaster Mini App connector
+      console.log('🔗 Connecting wallet...');
+      const walletAddress = await connectWallet();
+      if (!walletAddress) {
+        console.error('❌ No wallet address available');
+        alert('❌ Wallet connection failed. Please try again.');
+        return;
+      }
+
+      console.log('✅ Wallet connected:', walletAddress);
 
     setUserWalletAddress(walletAddress);
     setIsSpinning(true);
@@ -312,7 +336,14 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       setTxStatus('failed');
       await handleSpinError(error);
     }
-  };
+  } catch (error) {
+    console.error('❌ Spin function error:', error);
+    alert(`❌ Error: ${error.message}`);
+    setIsSpinning(false);
+    setWheelGlow(false);
+    setTxStatus(null);
+  }
+};
 
   // Unified spin success handler
   const handleSpinSuccess = async (result) => {
@@ -784,7 +815,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                     <span className="animate-bounce">🎰</span>
                   </span>
                 ) : canSpin ? (
-                  <span className="text-lg">⛓️ Spin On-Chain! 🎯</span>
+                  <span className="text-lg">Daily Spin ✨</span>
                 ) : (
                   <span className="text-lg">✅ Already Checked In Today</span>
                 )}

@@ -1,6 +1,6 @@
 import { http, createConfig } from 'wagmi'
 import { base } from 'wagmi/chains'
-import { farcasterFrame as miniAppConnector } from '@farcaster/frame-wagmi-connector'
+import { farcasterMiniApp as miniAppConnector } from '@farcaster/miniapp-wagmi-connector'
 
 // Wagmi configuration for Farcaster Mini App
 export const config = createConfig({
