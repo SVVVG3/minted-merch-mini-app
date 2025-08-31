@@ -5,14 +5,18 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { getTimeUntilReset } from '@/lib/timezone';
 import { ethers } from 'ethers';
-import { useAccount, useConnect, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
-import { encodeFunctionData } from 'viem';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { WalletConnection } from './WalletConnection';
 
 export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const { isInFarcaster, isReady, getFid } = useFarcaster();
   const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { data: hash, isPending: isTxPending, sendTransaction } = useSendTransaction();
+  const { 
+    writeContract, 
+    data: hash, 
+    isPending: isTxPending,
+    error: writeError 
+  } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
   });
@@ -171,6 +175,14 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     }
   }, [isTxPending]);
 
+  useEffect(() => {
+    if (writeError) {
+      console.error('❌ Transaction write error:', writeError);
+      setTxStatus('failed');
+      handleSpinError(writeError);
+    }
+  }, [writeError]);
+
   const loadUserStatus = async (userFid) => {
     try {
       setIsLoading(true);
@@ -239,173 +251,22 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     return "💫";
   };
 
-  // Connect wallet using Farcaster Mini App connector with improved compatibility
-  const connectWallet = async () => {
-    console.log('🔗 Connecting wallet...', { 
+  // Check if wallet is connected (no manual connection needed)
+  const checkWalletConnection = () => {
+    console.log('🔍 Checking wallet connection:', { 
       isConnected, 
       address,
-      connectorsLength: connectors?.length || 0,
-      connectors: connectors?.map(c => ({ name: c.name, id: c.id, type: c.type })) || 'No connectors array',
-      userAgent: window?.navigator?.userAgent,
       isInFarcaster
     });
     
-    if (isConnected && address) {
-      console.log('✅ Already connected:', address);
-      return address;
+    if (!isConnected || !address) {
+      throw new Error('Please connect your wallet first. Scroll down to the wallet connection section.');
     }
     
-    // Check if connectors array exists and has items
-    if (!connectors || connectors.length === 0) {
-      console.error('❌ No connectors available at all');
-      throw new Error('No wallet connectors available. Wagmi may not be properly initialized.');
-    }
-    
-    try {
-      let selectedConnector = null;
-      
-      // Strategy 1: Try to find the Farcaster Mini App connector first
-      const farcasterConnector = connectors.find(c => 
-        c.name === 'Farcaster Mini App' || 
-        c.name === 'farcasterMiniApp' ||
-        c.id === 'farcasterMiniApp' ||
-        c.name?.toLowerCase().includes('farcaster') ||
-        c.id?.toLowerCase().includes('farcaster')
-      );
-      
-      if (farcasterConnector) {
-        console.log('🎯 Found Farcaster Mini App connector:', {
-          name: farcasterConnector.name,
-          id: farcasterConnector.id,
-          type: farcasterConnector.type
-        });
-        selectedConnector = farcasterConnector;
-      } else {
-        // Strategy 2: If no Farcaster connector, try injected connectors
-        console.log('🔍 No Farcaster Mini App connector found, trying injected connectors...');
-        
-        const injectedConnector = connectors.find(c => 
-          c.type === 'injected' || 
-          c.name?.toLowerCase().includes('injected') ||
-          c.id?.toLowerCase().includes('injected')
-        );
-        
-        if (injectedConnector) {
-          console.log('💉 Found injected connector:', {
-            name: injectedConnector.name,
-            id: injectedConnector.id,
-            type: injectedConnector.type
-          });
-          selectedConnector = injectedConnector;
-        } else {
-          // Strategy 3: Use the first available connector as last resort
-          console.log('🎲 No specific connector found, using first available:', {
-            name: connectors[0].name,
-            id: connectors[0].id,
-            type: connectors[0].type
-          });
-          selectedConnector = connectors[0];
-        }
-      }
-      
-      if (!selectedConnector) {
-        throw new Error('No suitable connector found');
-      }
-      
-      console.log('🚀 Attempting connection with:', {
-        name: selectedConnector.name,
-        id: selectedConnector.id,
-        type: selectedConnector.type
-      });
-      
-      await connect({ connector: selectedConnector });
-      
-      // Wait a moment for connection to establish
-      console.log('⏳ Waiting for connection to establish...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Re-check the address after connection attempt
-      console.log('🔍 Checking address after connection attempt:', { address, isConnected });
-      
-      if (address) {
-        console.log('✅ Connected to wallet:', address);
-        return address;
-      } else {
-        throw new Error('Connection attempt completed but no address available');
-      }
-    } catch (error) {
-      console.error('❌ Failed to connect wallet via Wagmi:', error);
-      console.log('🔧 Debug info:', {
-        availableConnectors: connectors?.map(c => ({ name: c.name, id: c.id, type: c.type })),
-        isInFarcaster,
-        userAgent: window?.navigator?.userAgent,
-        windowEthereum: !!window?.ethereum,
-        windowFarcaster: !!window?.farcaster
-      });
-      
-      // Fallback: Try to get wallet address directly from Farcaster SDK
-      console.log('🔄 Trying Farcaster SDK fallback...');
-      try {
-        // Try to get ethereum provider from Farcaster SDK
-        const ethereumProvider = sdk.wallet?.getEthereumProvider?.() || window.ethereum;
-        if (ethereumProvider) {
-          console.log('🎯 Found ethereum provider, requesting accounts...');
-          const accounts = await ethereumProvider.request({ method: 'eth_accounts' });
-          if (accounts && accounts.length > 0) {
-            console.log('✅ Got wallet address from Farcaster SDK fallback:', accounts[0]);
-            return accounts[0];
-          }
-          
-          // If no accounts, try to request connection
-          console.log('🔗 No accounts found, requesting wallet connection...');
-          const requestedAccounts = await ethereumProvider.request({ method: 'eth_requestAccounts' });
-          if (requestedAccounts && requestedAccounts.length > 0) {
-            console.log('✅ Got wallet address after request:', requestedAccounts[0]);
-            return requestedAccounts[0];
-          }
-        }
-      } catch (fallbackError) {
-        console.error('❌ Farcaster SDK fallback also failed:', fallbackError);
-      }
-      
-      throw new Error(`Wallet connection failed. Wagmi error: ${error.message}. Please try refreshing the app or contact support.`);
-    }
+    return address;
   };
 
-  // Handle transaction success (for fallback method)
-  const handleTransactionSuccess = async (txHash) => {
-    console.log('✅ Transaction confirmed via fallback:', txHash);
-    setTxHash(txHash);
-    setTxStatus('confirmed');
-    
-    // Confirm with backend and get points
-    try {
-      console.log('🎯 Confirming spin with backend...');
-      const userFid = getFid();
-      
-      const checkinResponse = await fetch('/api/points/checkin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userFid,
-          txHash: txHash,
-          skipBlockchainCheck: false
-        })
-      });
-      
-      const checkinResult = await checkinResponse.json();
-      console.log('🎯 Backend confirmation result:', checkinResult);
-      
-      if (checkinResult.success) {
-        await handleSpinSuccess(checkinResult);
-      } else {
-        throw new Error(checkinResult.error || 'Backend confirmation failed');
-      }
-    } catch (error) {
-      console.error('❌ Backend confirmation failed:', error);
-      await handleSpinError(error);
-    }
-  };
+
 
   // Main spin function (always on-chain)
   const handleSpin = async () => {
@@ -427,22 +288,10 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       // Trigger haptic feedback on button press
       await triggerHaptic('medium');
 
-      // Connect wallet using Farcaster Mini App connector
-      console.log('🔗 Connecting wallet...');
-      console.log('🔍 Current wallet state before connection:', { 
-        address, 
-        isConnected, 
-        connectors: connectors?.map(c => ({ name: c.name, id: c.id })) || 'No connectors'
-      });
-      
-      const walletAddress = await connectWallet();
-      if (!walletAddress) {
-        console.error('❌ No wallet address available');
-        alert('❌ Wallet connection failed. Please try again.');
-        return;
-      }
-
-      console.log('✅ Wallet connected:', walletAddress);
+      // Check wallet connection (should already be connected)
+      console.log('🔍 Checking wallet connection...');
+      const walletAddress = checkWalletConnection();
+      console.log('✅ Wallet is connected:', walletAddress);
 
     setUserWalletAddress(walletAddress);
     setIsSpinning(true);
@@ -504,8 +353,12 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         }
       ];
       
-      // Encode the function call
-      const data = encodeFunctionData({
+      console.log('🎯 Contract address:', process.env.NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f');
+
+      // Send transaction using Wagmi writeContract (same as checkout)
+      console.log('📤 Sending spin transaction...');
+      writeContract({
+        address: process.env.NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f',
         abi: contractABI,
         functionName: 'spin',
         args: [
@@ -515,76 +368,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         ]
       });
 
-      console.log('📝 Encoded transaction data:', data);
-      console.log('🎯 Contract address:', process.env.NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f');
-
-      // Try to send transaction using Wagmi first
-      try {
-        console.log('📤 Sending transaction via Wagmi...');
-        sendTransaction({
-          to: process.env.NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f',
-          data: data
-        });
-
-        console.log('📤 Transaction sent via Wagmi, waiting for user confirmation...');
-        // Note: Transaction confirmation will be handled by useEffect watching isConfirmed
-      } catch (wagmiTxError) {
-        console.error('❌ Wagmi transaction failed, trying fallback...', wagmiTxError);
-        
-        // Fallback: Send transaction directly via ethereum provider
-        try {
-          const ethereumProvider = sdk.wallet?.getEthereumProvider?.() || window.ethereum;
-          if (!ethereumProvider) {
-            throw new Error('No ethereum provider available for fallback transaction');
-          }
-          
-          console.log('🔄 Sending transaction via direct ethereum provider...');
-          const txHash = await ethereumProvider.request({
-            method: 'eth_sendTransaction',
-            params: [{
-              to: process.env.NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f',
-              data: data,
-              from: walletAddress
-            }]
-          });
-          
-          console.log('✅ Transaction sent via fallback method:', txHash);
-          setTxHash(txHash);
-          
-          // Wait for transaction confirmation manually
-          const checkTxStatus = async () => {
-            try {
-              const receipt = await ethereumProvider.request({
-                method: 'eth_getTransactionReceipt',
-                params: [txHash]
-              });
-              
-              if (receipt && receipt.status === '0x1') {
-                console.log('✅ Transaction confirmed via fallback:', receipt);
-                // Manually trigger the success flow
-                await handleTransactionSuccess(txHash);
-              } else if (receipt && receipt.status === '0x0') {
-                console.error('❌ Transaction failed:', receipt);
-                setTxStatus('failed');
-                await handleSpinError(new Error('Transaction failed on blockchain'));
-              } else {
-                // Still pending, check again
-                setTimeout(checkTxStatus, 2000);
-              }
-            } catch (receiptError) {
-              console.error('❌ Error checking transaction status:', receiptError);
-              setTimeout(checkTxStatus, 2000);
-            }
-          };
-          
-          // Start checking transaction status
-          setTimeout(checkTxStatus, 2000);
-          
-        } catch (fallbackTxError) {
-          console.error('❌ Fallback transaction also failed:', fallbackTxError);
-          throw new Error(`Transaction failed. Wagmi error: ${wagmiTxError.message}. Fallback error: ${fallbackTxError.message}`);
-        }
-      }
+      console.log('📤 Transaction sent, waiting for user confirmation...');
+      // Note: Transaction confirmation will be handled by useEffect watching isConfirmed
 
     } catch (error) {
       console.error('❌ On-chain spin failed:', error);
@@ -1050,12 +835,15 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                 </div>
               )}
               
+              {/* Wallet Connection */}
+              <WalletConnection />
+              
               {/* Main spin button */}
               <button
                 onClick={handleSpin}
-                disabled={!canSpin || isSpinning}
+                disabled={!canSpin || isSpinning || !isConnected}
                 className={`w-full px-8 py-4 rounded-xl font-bold transition-all duration-200 transform ${
-                  canSpin && !isSpinning
+                  canSpin && !isSpinning && isConnected
                     ? 'bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white shadow-lg hover:shadow-xl hover:scale-105 active:scale-95'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 } ${isSpinning ? 'animate-pulse' : ''}`}
@@ -1069,6 +857,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                     <span className="text-lg">Spinning the wheel...</span>
                     <span className="animate-bounce">🎰</span>
                   </span>
+                ) : !isConnected ? (
+                  <span className="text-lg">🔗 Connect Wallet to Spin</span>
                 ) : canSpin ? (
                   <span className="text-lg">✨ Spin the Wheel ✨</span>
                 ) : (
