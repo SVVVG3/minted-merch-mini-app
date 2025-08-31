@@ -45,29 +45,40 @@ export async function GET(request) {
       console.error('Error fetching active streaks:', streaksError);
     }
 
-    // Get check-ins today (California time)
-    // Calculate today's date in California time (PST/PDT)
-    const now = new Date();
-    const californiaOffset = -8; // UTC-8 for PST (will be -7 for PDT, but we'll use -8 to be safe)
-    const californiaTime = new Date(now.getTime() + (californiaOffset * 60 * 60 * 1000));
-    
-    // Get start of today in California time
-    const startOfTodayCA = new Date(californiaTime.getFullYear(), californiaTime.getMonth(), californiaTime.getDate());
-    
-    // Convert back to UTC for database query
-    const startOfTodayUTC = new Date(startOfTodayCA.getTime() - (californiaOffset * 60 * 60 * 1000));
-    
-    console.log('🕐 Check-ins today calculation:');
-    console.log('  Current UTC time:', now.toISOString());
-    console.log('  California time:', californiaTime.toISOString());
-    console.log('  Start of today CA:', startOfTodayCA.toISOString());
-    console.log('  Start of today UTC:', startOfTodayUTC.toISOString());
+    // Get check-ins today using proper 8 AM PST reset logic
+    function getPSTDayStart() {
+      const now = new Date();
+      const pstOffset = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
+      const pstNow = new Date(now.getTime() - pstOffset);
+      
+      const year = pstNow.getUTCFullYear();
+      const month = pstNow.getUTCMonth();
+      const date = pstNow.getUTCDate();
+      const hour = pstNow.getUTCHours();
+      
+      let dayStart = new Date(Date.UTC(year, month, date, 8, 0, 0, 0));
+      
+      if (hour < 8) {
+        dayStart = new Date(Date.UTC(year, month, date - 1, 8, 0, 0, 0));
+      }
+      
+      const utcDayStart = new Date(dayStart.getTime() + pstOffset);
+      return utcDayStart;
+    }
 
+    const todayPSTStart = getPSTDayStart();
+    
+    console.log('🕐 Check-ins today calculation (8 AM PST reset):');
+    console.log('  Current UTC time:', now.toISOString());
+    console.log('  Today PST start (8 AM):', todayPSTStart.toISOString());
+
+    // Count only COMPLETED check-ins (not pending transactions)
     const { count: checkInsToday, error: checkInsError } = await supabaseAdmin
       .from('point_transactions')
       .select('id', { count: 'exact', head: true })
       .eq('transaction_type', 'daily_checkin')
-      .gte('created_at', startOfTodayUTC.toISOString());
+      .gt('points_earned', 0) // Only count completed check-ins with points
+      .gte('created_at', todayPSTStart.toISOString());
 
     if (checkInsError) {
       console.error('Error fetching check-ins today:', checkInsError);
@@ -159,6 +170,23 @@ export async function GET(request) {
       .gt('total_spent', 0)
       .limit(5);
 
+    // Get total revenue from orders
+    const { data: revenueData, error: revenueError } = await supabaseAdmin
+      .from('orders')
+      .select('amount_total')
+      .not('amount_total', 'is', null);
+
+    let totalRevenue = 0;
+    if (!revenueError && revenueData) {
+      totalRevenue = revenueData.reduce((sum, order) => sum + (order.amount_total || 0), 0);
+      // Convert from cents to dollars
+      totalRevenue = totalRevenue / 100;
+    }
+
+    if (revenueError) {
+      console.error('Error fetching total revenue:', revenueError);
+    }
+
     const stats = {
       totalUsers: totalUsers || 0,
       usersOnLeaderboard: usersOnLeaderboard || 0,
@@ -168,6 +196,7 @@ export async function GET(request) {
       discountsUsed: discountsUsed || 0,
       totalPoints: totalPoints,
       totalOrders: totalOrders || 0,
+      totalRevenue: totalRevenue,
       lastRaffle: lastRaffle,
       topStreaks: topStreaks || [],
       topSpenders: topSpenders || []

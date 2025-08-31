@@ -1200,7 +1200,8 @@ export default function AdminDashboard() {
                 { label: 'Users with Notifications', value: dashboardStats.usersWithNotifications, icon: '🔔' },
                 { label: 'Total Points Awarded', value: dashboardStats.totalPoints?.toLocaleString(), icon: '⭐' },
                 { label: 'Discounts Used', value: dashboardStats.discountsUsed, icon: '🎫' },
-                { label: 'Total Orders', value: dashboardStats.totalOrders, icon: '🛍️' }
+                { label: 'Total Orders', value: dashboardStats.totalOrders, icon: '🛍️' },
+                { label: 'Total Revenue', value: `$${dashboardStats.totalRevenue?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}`, icon: '💰' }
               ].map((stat) => (
                 <div key={stat.label} className="bg-white rounded-lg shadow p-6">
                   <div className="flex items-center">
