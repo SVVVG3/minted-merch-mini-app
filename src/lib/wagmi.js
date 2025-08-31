@@ -1,6 +1,7 @@
 import { http, createConfig } from 'wagmi'
 import { base } from 'wagmi/chains'
 import { farcasterMiniApp as miniAppConnector } from '@farcaster/miniapp-wagmi-connector'
+import { injected } from 'wagmi/connectors'
 
 // Wagmi configuration for Farcaster Mini App
 export const config = createConfig({
@@ -9,7 +10,13 @@ export const config = createConfig({
     [base.id]: http(),
   },
   connectors: [
-    miniAppConnector()
+    miniAppConnector(),
+    // Add injected connector as fallback for different Farcaster clients
+    injected({
+      target: 'farcaster',
+    }),
+    // Generic injected connector for broader compatibility
+    injected()
   ]
 })
 
