@@ -112,27 +112,70 @@ export async function POST(request) {
       }, { status: 500 });
     }
 
-    // Block if user has ANY check-in today (off-chain OR on-chain)
-    // One spin per day, period - regardless of type
+    // Handle existing spins
     if (existingSpin) {
-      console.log('🚫 User already checked in today:', {
-        id: existingSpin.id,
-        created_at: existingSpin.created_at,
-        spin_reserved_at: existingSpin.spin_reserved_at,
-        spin_confirmed_at: existingSpin.spin_confirmed_at,
-        spin_tx_hash: existingSpin.spin_tx_hash,
-        description: existingSpin.description
-      });
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Already spun today',
-        nextSpinAt: new Date((dayStart + 24 * 60 * 60) * 1000).toISOString(),
-        debug: {
-          dayStartUTC: new Date(dayStart * 1000).toISOString(),
-          existingCheckin: existingSpin.created_at,
-          isOnChain: !!(existingSpin.spin_reserved_at || existingSpin.spin_confirmed_at)
+      // If there's a confirmed spin (completed), block
+      if (existingSpin.spin_confirmed_at && existingSpin.spin_tx_hash) {
+        console.log('🚫 User has completed spin today:', {
+          id: existingSpin.id,
+          created_at: existingSpin.created_at,
+          spin_confirmed_at: existingSpin.spin_confirmed_at,
+          spin_tx_hash: existingSpin.spin_tx_hash
+        });
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Already spun today',
+          nextSpinAt: new Date((dayStart + 24 * 60 * 60) * 1000).toISOString()
+        }, { status: 400 });
+      }
+      
+      // If there's a reserved spin that's expired (>5 minutes old), clean it up
+      if (existingSpin.spin_reserved_at && !existingSpin.spin_confirmed_at) {
+        const reservedTime = new Date(existingSpin.spin_reserved_at).getTime();
+        const now = Date.now();
+        const fiveMinutes = 5 * 60 * 1000;
+        
+        if (now - reservedTime > fiveMinutes) {
+          console.log('🧹 Cleaning up expired spin reservation:', {
+            id: existingSpin.id,
+            reservedAt: existingSpin.spin_reserved_at,
+            ageMinutes: Math.floor((now - reservedTime) / (60 * 1000))
+          });
+          
+          // Delete the expired reservation
+          await supabase
+            .from('point_transactions')
+            .delete()
+            .eq('id', existingSpin.id);
+            
+          console.log('✅ Expired reservation cleaned up, proceeding with new spin');
+        } else {
+          console.log('⏳ Recent spin reservation still pending:', {
+            id: existingSpin.id,
+            reservedAt: existingSpin.spin_reserved_at,
+            ageMinutes: Math.floor((now - reservedTime) / (60 * 1000))
+          });
+          return NextResponse.json({ 
+            success: false, 
+            error: 'Spin already in progress, please wait',
+            nextSpinAt: new Date((dayStart + 24 * 60 * 60) * 1000).toISOString()
+          }, { status: 400 });
         }
-      }, { status: 400 });
+      }
+      
+      // If there's a regular off-chain check-in, block (one per day rule)
+      if (!existingSpin.spin_reserved_at && !existingSpin.spin_confirmed_at) {
+        console.log('🚫 User has off-chain check-in today:', {
+          id: existingSpin.id,
+          created_at: existingSpin.created_at,
+          description: existingSpin.description
+        });
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Already checked in today (off-chain)',
+          nextSpinAt: new Date((dayStart + 24 * 60 * 60) * 1000).toISOString()
+        }, { status: 400 });
+      }
     }
 
     console.log('✅ No existing check-in found for today, proceeding with spin permit');
