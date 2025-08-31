@@ -129,13 +129,13 @@ export async function POST(request) {
         }, { status: 400 });
       }
       
-      // If there's a reserved spin that's expired (>2 minutes old), clean it up
+      // If there's a reserved spin that's expired (>1 minute old), clean it up
       if (existingSpin.spin_reserved_at && !existingSpin.spin_confirmed_at) {
         const reservedTime = new Date(existingSpin.spin_reserved_at).getTime();
         const now = Date.now();
-        const twoMinutes = 2 * 60 * 1000;
+        const oneMinute = 1 * 60 * 1000;
         
-        if (now - reservedTime > twoMinutes) {
+        if (now - reservedTime > oneMinute) {
           console.log('🧹 Cleaning up expired spin reservation:', {
             id: existingSpin.id,
             reservedAt: existingSpin.spin_reserved_at,
@@ -158,9 +158,9 @@ export async function POST(request) {
           });
           return NextResponse.json({ 
             success: false, 
-            error: 'Spin already in progress, please wait 2 minutes',
+            error: 'Spin already in progress, please wait 1 minute',
             nextSpinAt: new Date((dayStart + 24 * 60 * 60) * 1000).toISOString(),
-            retryAfter: new Date(reservedTime + twoMinutes).toISOString()
+            retryAfter: new Date(reservedTime + oneMinute).toISOString()
           }, { status: 400 });
         }
       }

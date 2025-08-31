@@ -329,6 +329,14 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       const permitData = await permitResponse.json();
       
       if (!permitData.success) {
+        console.log('❌ Spin permit failed:', permitData);
+        
+        // If it's a "spin in progress" error, show helpful message
+        if (permitData.error?.includes('already in progress')) {
+          const retryTime = permitData.retryAfter ? new Date(permitData.retryAfter).toLocaleTimeString() : 'in 1 minute';
+          throw new Error(`Spin already in progress. Please try again at ${retryTime}`);
+        }
+        
         throw new Error(permitData.error || 'Failed to get spin permit');
       }
 
