@@ -1173,20 +1173,7 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <div className="flex items-center space-x-6">
-                  <h2 className="text-lg font-semibold text-gray-800">📊 Dashboard</h2>
-                  {dashboardStats && (
-                    <div className="flex items-center bg-green-50 px-3 py-1 rounded-md">
-                      <span className="text-xl mr-2">💰</span>
-                      <div>
-                        <div className="text-lg font-bold text-green-700">
-                          ${dashboardStats.totalRevenue?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
-                        </div>
-                        <div className="text-xs text-green-600">Total Revenue</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <h2 className="text-lg font-semibold text-gray-800">📊 Dashboard</h2>
                 <div className="flex space-x-3">
                   <button
                     onClick={() => copyToClipboard(`${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/`, 'main-page-url')}
@@ -1668,7 +1655,20 @@ export default function AdminDashboard() {
         {activeTab === 'orders' && (
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-800">All Orders</h2>
+              <div className="flex items-center space-x-6">
+                <h2 className="text-lg font-semibold text-gray-800">All Orders</h2>
+                {dashboardStats && (
+                  <div className="flex items-center bg-green-50 px-3 py-1 rounded-md">
+                    <span className="text-xl mr-2">💰</span>
+                    <div>
+                      <div className="text-lg font-bold text-green-700">
+                        ${dashboardStats.totalRevenue?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                      </div>
+                      <div className="text-xs text-green-600">Total Revenue</div>
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="flex space-x-3">
                 <button
                   onClick={() => exportData(ordersData, `orders_${new Date().toISOString().split('T')[0]}.csv`)}
