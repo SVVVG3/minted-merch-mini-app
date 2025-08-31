@@ -21,7 +21,6 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
   
   // Blockchain-specific state
-  const [spinMode, setSpinMode] = useState('off-chain'); // 'off-chain' or 'on-chain'
   const [txStatus, setTxStatus] = useState(null); // 'pending', 'confirmed', 'failed'
   const [txHash, setTxHash] = useState(null);
   const [userWalletAddress, setUserWalletAddress] = useState(null);
@@ -210,10 +209,15 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     }
   };
 
-  // On-chain spin function
-  const handleOnChainSpin = async () => {
+  // Main spin function (always on-chain)
+  const handleSpin = async () => {
+    if (!isInFarcaster || !isReady || isSpinning || !canSpin) return;
+
     const userFid = getFid();
     if (!userFid) return;
+
+    // Trigger haptic feedback on button press
+    await triggerHaptic('medium');
 
     // Get user's wallet address
     const walletAddress = await getUserWalletAddress();
@@ -310,37 +314,6 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     }
   };
 
-  // Off-chain spin function (original logic)
-  const handleOffChainSpin = async () => {
-    const userFid = getFid();
-    if (!userFid) return;
-
-    setIsSpinning(true);
-    setSpinResult(null);
-    setWheelGlow(true);
-
-    try {
-      // Perform check-in
-      const response = await fetch('/api/points/checkin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userFid, skipBlockchainCheck: true }),
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        await handleSpinSuccess(result);
-      } else {
-        throw new Error(result.error || 'Check-in failed');
-      }
-
-    } catch (error) {
-      console.error('❌ Off-chain spin failed:', error);
-      await handleSpinError(error);
-    }
-  };
-
   // Unified spin success handler
   const handleSpinSuccess = async (result) => {
     const points = result.data.pointsEarned;
@@ -372,14 +345,14 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       const finalRotation = rotation + totalSpins + rotationNeeded;
       
       // Debug logging to verify alignment
-      console.log(`🎯 Spinner Debug (${spinMode}):`, {
+      console.log(`🎯 Spinner Debug (on-chain):`, {
         basePoints,
         targetSegment: targetSegment.label,
         segmentIndex,
         segmentCenterAngle: segmentCenterAngle.toFixed(1),
         rotationNeeded: rotationNeeded.toFixed(1),
         finalRotation: finalRotation.toFixed(1),
-        onChain: spinMode === 'on-chain',
+        onChain: true,
         txHash: txHash || 'N/A'
       });
       
@@ -404,7 +377,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           totalPoints: result.data.totalPoints,
           streakBroken: result.data.streakBroken,
           segment: targetSegment,
-          onChain: spinMode === 'on-chain',
+          onChain: true,
           txHash: txHash
         });
         setIsSpinning(false);
@@ -433,22 +406,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     await triggerHaptic('error');
   };
 
-  // Main spin handler - routes to on-chain or off-chain
-  const handleSpin = async () => {
-    if (!isInFarcaster || !isReady || isSpinning || !canSpin) return;
 
-    const userFid = getFid();
-    if (!userFid) return;
-
-    // Trigger haptic feedback on button press
-    await triggerHaptic('medium');
-
-    if (spinMode === 'on-chain') {
-      await handleOnChainSpin();
-    } else {
-      await handleOffChainSpin();
-    }
-  };
 
   const resetWheel = () => {
     setSpinResult(null);
@@ -779,18 +737,17 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                 </div>
               )}
               
-              {/* Spin Mode Toggle */}
-              <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Spin Mode</span>
-                  <div className="flex items-center gap-2">
+              {/* Transaction Status */}
+              {(txStatus === 'pending' || txHash) && (
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between">
                     {txStatus === 'pending' && (
-                      <div className="flex items-center gap-2 text-xs text-blue-600">
+                      <div className="flex items-center gap-2 text-sm text-blue-700">
                         <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                         </svg>
-                        Transaction pending...
+                        Confirming on-chain transaction...
                       </div>
                     )}
                     {txHash && (
@@ -798,46 +755,14 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                         href={`https://basescan.org/tx/${txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        className="text-sm text-blue-600 hover:text-blue-800 underline font-medium"
                       >
-                        View on Basescan
+                        🔗 View Transaction on Basescan
                       </a>
                     )}
                   </div>
                 </div>
-                
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setSpinMode('off-chain')}
-                    disabled={isSpinning}
-                    className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      spinMode === 'off-chain'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    🏃‍♂️ Quick Spin
-                  </button>
-                  <button
-                    onClick={() => setSpinMode('on-chain')}
-                    disabled={isSpinning}
-                    className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      spinMode === 'on-chain'
-                        ? 'bg-purple-500 text-white'
-                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    ⛓️ On-Chain Spin
-                  </button>
-                </div>
-                
-                <div className="mt-2 text-xs text-gray-600">
-                  {spinMode === 'off-chain' 
-                    ? '💨 Instant spin with points tracking'
-                    : '🔒 Blockchain-verified spin (requires gas fee)'
-                  }
-                </div>
-              </div>
+              )}
               
               {/* Main spin button */}
               <button
@@ -859,9 +784,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                     <span className="animate-bounce">🎰</span>
                   </span>
                 ) : canSpin ? (
-                  <span className="text-lg">
-                    {spinMode === 'on-chain' ? '⛓️ Spin On-Chain! 🎯' : '🎰 Spin to Check In! 🎯'}
-                  </span>
+                  <span className="text-lg">⛓️ Spin On-Chain! 🎯</span>
                 ) : (
                   <span className="text-lg">✅ Already Checked In Today</span>
                 )}
