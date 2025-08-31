@@ -2475,7 +2475,25 @@ export default function AdminDashboard() {
             {/* Check-ins Data */}
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-gray-800">📅 Check-ins Data</h2>
+                <div className="flex items-center space-x-6">
+                  <h2 className="text-lg font-semibold text-gray-800">📅 Check-ins Data</h2>
+                  <div className="flex items-center bg-gray-50 px-3 py-1 rounded-md">
+                    <span className="text-sm mr-2">⛓️ Contract:</span>
+                    <code className="text-xs font-mono text-gray-600 mr-2">
+                      {process.env.NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f'}
+                    </code>
+                    <button
+                      onClick={() => copyToClipboard(
+                        process.env.NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f',
+                        'contract-address'
+                      )}
+                      className="text-blue-500 hover:text-blue-700 text-xs px-2 py-1 rounded"
+                      title="Copy contract address"
+                    >
+                      {copiedButtons.has('contract-address') ? '✅' : '📋'}
+                    </button>
+                  </div>
+                </div>
                 <div className="flex space-x-3">
                   <button
                     onClick={() => exportData(checkinsData, `checkins_${new Date().toISOString().split('T')[0]}.csv`)}
