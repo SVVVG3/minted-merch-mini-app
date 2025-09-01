@@ -31,13 +31,13 @@ export async function POST(request) {
     console.log('👤 Current user status:', {
       fid: userData.user_fid,
       total_points: userData.total_points,
-      current_streak: userData.current_streak,
+      current_streak: userData.checkin_streak,
       last_checkin_date: userData.last_checkin_date
     });
 
     // Calculate points (base 10 + streak bonus)
     const basePoints = 10;
-    const streakBonus = Math.min(userData.current_streak, 10); // Max 10 bonus
+    const streakBonus = Math.min(userData.checkin_streak, 10); // Max 10 bonus
     const totalPoints = basePoints + streakBonus;
     const newTotalPoints = userData.total_points + totalPoints;
 
@@ -48,7 +48,7 @@ export async function POST(request) {
       points_earned: totalPoints,
       points_before: userData.total_points,
       points_after: newTotalPoints,
-      description: `On-chain daily check-in (streak: ${userData.current_streak + 1}) - MANUAL RECOVERY`,
+      description: `On-chain daily check-in (streak: ${userData.checkin_streak + 1}) - MANUAL RECOVERY`,
       reference_id: `manual_recovery_${Date.now()}`,
       spin_tx_hash: txHash,
       spin_confirmed_at: new Date().toISOString(),
@@ -75,14 +75,14 @@ export async function POST(request) {
     }
 
     // Update user's leaderboard entry
-    const newStreak = userData.current_streak + 1;
+    const newStreak = userData.checkin_streak + 1;
     const today = dayStart ? new Date(dayStart).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
 
     const { data: updatedUser, error: updateError } = await supabaseAdmin
       .from('user_leaderboard')
       .update({
         total_points: newTotalPoints,
-        current_streak: newStreak,
+        checkin_streak: newStreak,
         last_checkin_date: today,
         updated_at: new Date().toISOString()
       })
