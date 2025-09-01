@@ -88,13 +88,14 @@ export async function POST(request) {
       dayStart: new Date(dayStart * 1000).toISOString()
     });
 
-    // Check if user has already spun today (look for on-chain spins specifically)
+    // Check if user has already completed a spin today (only confirmed spins count)
     const { data: existingSpin, error: checkError } = await supabase
       .from('point_transactions')
       .select('*')
       .eq('user_fid', fid)
       .eq('transaction_type', 'daily_checkin')
       .gte('created_at', new Date(dayStart * 1000).toISOString())
+      .gt('points_earned', 0) // Only count completed spins with points
       .single();
 
     console.log('🔍 Existing spin check:', { 
@@ -116,75 +117,21 @@ export async function POST(request) {
       }, { status: 500 });
     }
 
-    // Handle existing spins
+    // Handle existing completed spins (we only query for completed spins with points > 0 now)
     if (existingSpin) {
-      // If there's a confirmed spin (completed), block
-      if (existingSpin.spin_confirmed_at && existingSpin.spin_tx_hash) {
-        console.log('🚫 User has completed spin today:', {
-          id: existingSpin.id,
-          created_at: existingSpin.created_at,
-          spin_confirmed_at: existingSpin.spin_confirmed_at,
-          spin_tx_hash: existingSpin.spin_tx_hash
-        });
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Already spun today',
-          nextSpinAt: new Date((dayStart + 24 * 60 * 60) * 1000).toISOString()
-        }, { status: 400 });
-      }
-      
-      // If there's a reserved spin that's expired (>1 minute old), clean it up
-      if (existingSpin.spin_reserved_at && !existingSpin.spin_confirmed_at) {
-        const reservedTime = new Date(existingSpin.spin_reserved_at).getTime();
-        const now = Date.now();
-        const oneMinute = 1 * 60 * 1000;
-        
-        if (now - reservedTime > oneMinute) {
-          console.log('🧹 Cleaning up expired spin reservation:', {
-            id: existingSpin.id,
-            reservedAt: existingSpin.spin_reserved_at,
-            ageMinutes: Math.floor((now - reservedTime) / (60 * 1000))
-          });
-          
-          // Delete the expired reservation
-          await supabase
-            .from('point_transactions')
-            .delete()
-            .eq('id', existingSpin.id);
-            
-          console.log('✅ Expired reservation cleaned up, proceeding with new spin');
-        } else {
-          console.log('⏳ Recent spin reservation still pending:', {
-            id: existingSpin.id,
-            reservedAt: existingSpin.spin_reserved_at,
-            ageMinutes: Math.floor((now - reservedTime) / (60 * 1000)),
-            ageSeconds: Math.floor((now - reservedTime) / 1000)
-          });
-          return NextResponse.json({ 
-            success: false, 
-            error: 'Spin already in progress, please wait 1 minute',
-            nextSpinAt: new Date((dayStart + 24 * 60 * 60) * 1000).toISOString(),
-            retryAfter: new Date(reservedTime + oneMinute).toISOString()
-          }, { status: 400 });
-        }
-      }
-      
-      // If there's a regular off-chain check-in, block (one per day rule)
-      if (!existingSpin.spin_reserved_at && !existingSpin.spin_confirmed_at) {
-        console.log('🚫 User has off-chain check-in today:', {
-          id: existingSpin.id,
-          created_at: existingSpin.created_at,
-          description: existingSpin.description
-        });
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Already checked in today (off-chain)',
-          nextSpinAt: new Date((dayStart + 24 * 60 * 60) * 1000).toISOString()
-        }, { status: 400 });
-      }
+      console.log('🚫 User has already completed spin today:', {
+        id: existingSpin.id,
+        created_at: existingSpin.created_at,
+        points_earned: existingSpin.points_earned
+      });
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Already spun today',
+        nextSpinAt: new Date((dayStart + 24 * 60 * 60) * 1000).toISOString()
+      }, { status: 400 });
     }
 
-    console.log('✅ No existing check-in found for today, proceeding with spin permit');
+    console.log('✅ No completed check-in found for today, proceeding with spin permit');
 
     // Generate secure nonce (prevents accidental reuse)
     const backendRandom = crypto.randomBytes(32);
@@ -229,28 +176,9 @@ export async function POST(request) {
       )
     );
 
-    // Reserve the spin in database (create a pending transaction record)
-    const { error: reserveError } = await supabase
-      .from('point_transactions')
-      .insert({
-        user_fid: fid,
-        transaction_type: 'daily_checkin',
-        points_earned: 0, // Will be updated after successful blockchain transaction
-        points_before: 0, // Will be updated after successful blockchain transaction
-        points_after: 0,  // Will be updated after successful blockchain transaction
-        description: 'Pending on-chain spin transaction',
-        spin_reserved_at: new Date().toISOString(),
-        spin_nonce: nonce,
-        wallet_address: walletAddress
-      });
-
-    if (reserveError) {
-      console.error('Failed to reserve spin:', reserveError);
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Failed to reserve spin' 
-      }, { status: 500 });
-    }
+    // NOTE: We no longer create a database entry here to prevent stuck pending states
+    // The database entry will be created only when the transaction is confirmed
+    // in the /api/points/checkin endpoint after successful blockchain submission
 
     console.log('✅ Spin permit issued:', {
       fid,
