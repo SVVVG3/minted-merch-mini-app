@@ -16,21 +16,20 @@ export function FarcasterHeader() {
     return null;
   }
 
-  // Handle swap token click
-  const handleSwapClick = async () => {
+  // Handle coin mini app click
+  const handleCoinClick = async () => {
     try {
-      const result = await sdk.actions.swapToken({
-        buyToken: 'eip155:8453/erc20:0x774EAeFE73Df7959496Ac92a77279A8D7d690b07', // $mintedmerch token on Base
-        sellToken: 'eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
+      const result = await sdk.actions.openUrl({
+        url: 'https://coin.mintedmerch.shop/'
       });
       
       if (result.success) {
-        console.log('Swap completed:', result.swap);
+        console.log('Coin mini app opened successfully');
       } else {
-        console.log('Swap failed or cancelled:', result.reason);
+        console.log('Failed to open coin mini app:', result.reason);
       }
     } catch (error) {
-      console.error('Error opening swap:', error);
+      console.error('Error opening coin mini app:', error);
     }
   };
 
@@ -48,7 +47,7 @@ export function FarcasterHeader() {
           <span>
             Hey, {user.displayName || user.username} - {' '}
             <button 
-              onClick={handleSwapClick}
+              onClick={handleCoinClick}
               className="underline hover:text-green-200 transition-colors font-medium"
             >
               $mintedmerch

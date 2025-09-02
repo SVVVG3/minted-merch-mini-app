@@ -85,14 +85,21 @@ export function PriceTicker() {
     return numChange >= 0 ? 'text-[#3eb489]' : 'text-red-600';
   };
 
-  // Handle click to view token in Farcaster
-  const handleTokenClick = async () => {
+  // Handle click to open swap
+  const handleSwapClick = async () => {
     try {
-      await sdk.actions.viewToken({
-        token: `eip155:8453/erc20:${MINTEDMERCH_TOKEN_ADDRESS}`
+      const result = await sdk.actions.swapToken({
+        buyToken: `eip155:8453/erc20:${MINTEDMERCH_TOKEN_ADDRESS}`, // $mintedmerch token on Base
+        sellToken: 'eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
       });
+      
+      if (result.success) {
+        console.log('Swap completed:', result.swap);
+      } else {
+        console.log('Swap failed or cancelled:', result.reason);
+      }
     } catch (error) {
-      console.error('Error opening token view:', error);
+      console.error('Error opening swap:', error);
     }
   };
 
@@ -124,7 +131,7 @@ export function PriceTicker() {
   return (
     <div 
       className="bg-black text-white py-1 px-4 text-xs overflow-hidden relative cursor-pointer"
-      onClick={handleTokenClick}
+      onClick={handleSwapClick}
     >
       <div className="animate-scroll flex items-center whitespace-nowrap">
         {/* Create the ticker content */}
