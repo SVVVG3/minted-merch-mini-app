@@ -86,7 +86,10 @@ export async function GET(request) {
         "castShareUrl": "https://app.mintedmerch.shop",
         "ogTitle": "Minted Merch",
         "ogDescription": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
-        "ogImageUrl": "https://app.mintedmerch.shop/og-image.png"
+        "ogImageUrl": "https://app.mintedmerch.shop/og-image.png",
+        "baseBuilder": {
+          "allowedAddresses": ["0x4271D6aaF81fbd351B2C72076d716074465135e8"]
+        }
       }
     };
   }
