@@ -19,17 +19,12 @@ export function FarcasterHeader() {
   // Handle coin mini app click
   const handleCoinClick = async () => {
     try {
-      const result = await sdk.actions.openUrl({
+      await sdk.actions.openMiniApp({
         url: 'https://coin.mintedmerch.shop/'
       });
-      
-      if (result.success) {
-        console.log('Coin mini app opened successfully');
-      } else {
-        console.log('Failed to open coin mini app:', result.reason);
-      }
+      console.log('Coin mini app opened successfully - current app will close');
     } catch (error) {
-      console.error('Error opening coin mini app:', error);
+      console.error('Failed to open coin mini app:', error);
     }
   };
 
