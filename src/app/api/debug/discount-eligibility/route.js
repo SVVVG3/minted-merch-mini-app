@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { checkTokenGatedEligibility } from '@/lib/tokenGating';
-import { fetchUserWalletData } from '@/lib/auth';
+import { fetchUserWalletData } from '@/lib/walletUtils';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -24,7 +24,7 @@ export async function GET(request) {
     let userWalletAddresses = [];
     try {
       const walletData = await fetchUserWalletData(fid);
-      userWalletAddresses = walletData.walletAddresses || [];
+      userWalletAddresses = walletData?.all_wallet_addresses || [];
       console.log('📱 User has', userWalletAddresses.length, 'wallet addresses');
     } catch (error) {
       console.error('❌ Failed to fetch wallet data:', error);
