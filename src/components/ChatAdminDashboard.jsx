@@ -86,6 +86,44 @@ export function ChatAdminDashboard() {
     }
   };
 
+  const exportChatData = () => {
+    if (!eligibilityData || eligibilityData.length === 0) {
+      alert('No chat data to export');
+      return;
+    }
+
+    // Prepare data for CSV export
+    const csvData = eligibilityData.map(member => ({
+      FID: member.fid,
+      Username: member.username || '',
+      'Display Name': member.displayName || '',
+      'Token Balance': member.tokenBalance || 0,
+      Eligible: member.eligible ? 'Yes' : 'No',
+      'Required Balance': member.requiredBalance || 50000000,
+      'Wallet Count': member.walletCount || 0,
+      'Last Balance Check': member.lastChecked || 'Never',
+      'Balance Check Status': member.balanceCheckStatus || 'pending'
+    }));
+
+    // Convert to CSV
+    const headers = Object.keys(csvData[0]).join(',');
+    const rows = csvData.map(row => 
+      Object.values(row).map(value => 
+        typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+      ).join(',')
+    );
+    const csv = [headers, ...rows].join('\n');
+    
+    // Download CSV
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat_members_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   const updateAllBalances = async () => {
     setIsLoading(true);
     
@@ -417,7 +455,16 @@ export function ChatAdminDashboard() {
 
         {summary && (
           <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Summary</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">Summary</h3>
+              <button
+                onClick={exportChatData}
+                disabled={!eligibilityData || eligibilityData.length === 0}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                📥 Export CSV
+              </button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <div className="text-2xl font-bold text-blue-600">{summary.totalMembers || 0}</div>

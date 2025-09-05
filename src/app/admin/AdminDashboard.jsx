@@ -1634,7 +1634,7 @@ export default function AdminDashboard() {
                               className="text-gray-500 hover:text-gray-700 cursor-pointer"
                               onClick={() => openUserModal(user.user_fid)}
                             >
-                              @{user.username || user.display_name?.toLowerCase().replace(/[^a-z0-9]/g, '') || `user${user.user_fid}`}
+                              @{user.username || 'unknown'}
                             </div>
                           </div>
                         </div>
