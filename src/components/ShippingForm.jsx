@@ -359,6 +359,7 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     { code: 'MX', name: 'Mexico' },
     { code: 'NL', name: 'Netherlands' },
     { code: 'NZ', name: 'New Zealand' },
+    { code: 'NG', name: 'Nigeria' },
     { code: 'NO', name: 'Norway' },
     { code: 'PL', name: 'Poland' },
     { code: 'PT', name: 'Portugal' },
