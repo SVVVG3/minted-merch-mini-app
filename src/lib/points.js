@@ -465,7 +465,6 @@ export async function getLeaderboard(limit = 10, category = 'points') {
       .from('user_leaderboard')
       .select(`
         user_fid, 
-        username, 
         total_points, 
         checkin_streak, 
         last_checkin_date, 
@@ -474,9 +473,10 @@ export async function getLeaderboard(limit = 10, category = 'points') {
         points_from_purchases, 
         points_from_checkins, 
         created_at,
-        profiles!inner (
+        profiles (
           display_name,
-          pfp_url
+          pfp_url,
+          username
         )
       `)
       .limit(limit);
@@ -519,7 +519,9 @@ export async function getLeaderboard(limit = 10, category = 'points') {
     // Add category-specific display information and flatten profile data
     const enhancedData = (data || []).map((user, index) => ({
       ...user,
-      display_name: user.profiles?.display_name || user.username,
+      // Use profile data with proper fallbacks
+      display_name: user.profiles?.display_name || `User ${user.user_fid}`,
+      username: user.profiles?.username || null,
       pfp_url: user.profiles?.pfp_url || null,
       rank: index + 1,
       category: category
