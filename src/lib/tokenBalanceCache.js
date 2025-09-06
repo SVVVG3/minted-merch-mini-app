@@ -29,7 +29,10 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
           baseChainId
         );
         
-        finalBalance = balanceResult.totalBalance || 0;
+        // The blockchain API returns balance in tokens (divided by 10^18)
+        // We need to store it in wei (multiply by 10^18) for precision
+        const tokensBalance = balanceResult.totalBalance || 0;
+        finalBalance = Math.floor(tokensBalance * Math.pow(10, 18)); // Convert back to wei for storage
         console.log(`✅ Fetched balance: ${finalBalance} tokens`);
       } catch (error) {
         console.error('❌ Error fetching token balance:', error);
@@ -244,14 +247,16 @@ export async function getTokenHoldersLeaderboard(limit = 50) {
 
 /**
  * Format token balance for display (convert from wei to readable format)
- * @param {number} balance - Balance in wei
+ * @param {number|string} balance - Balance in wei (stored as BIGINT)
  * @returns {string} Formatted balance
  */
 function formatTokenBalance(balance) {
   if (!balance || balance === 0) return '0';
   
   // Convert from wei (18 decimals) to readable format
-  const tokenAmount = balance / Math.pow(10, 18);
+  // Handle both number and string inputs (BIGINT comes as string from DB)
+  const balanceWei = typeof balance === 'string' ? parseFloat(balance) : balance;
+  const tokenAmount = balanceWei / Math.pow(10, 18);
   
   if (tokenAmount >= 1000000) {
     return `${(tokenAmount / 1000000).toFixed(1)}M`;

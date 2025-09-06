@@ -465,11 +465,18 @@ async function checkTokenBalance(discount, userWalletAddresses, fid = null) {
       blockchainCalls = validAddresses.length;
     }
 
-    const eligible = totalBalance >= requiredBalance;
+    // Convert cached balance from wei to tokens for comparison
+    // (cached balance is stored in wei, required balance is in tokens)
+    const totalBalanceInTokens = method.includes('cached') ? 
+      totalBalance / Math.pow(10, 18) : 
+      totalBalance; // Direct RPC already returns tokens
+    
+    const eligible = totalBalanceInTokens >= requiredBalance;
 
     console.log('🪙 Token balance eligibility result:', {
       eligible,
       totalBalance,
+      totalBalanceInTokens,
       requiredBalance,
       contractAddresses,
       chainId: chainIds[0] || 8453,
@@ -481,11 +488,12 @@ async function checkTokenBalance(discount, userWalletAddresses, fid = null) {
     return {
       eligible,
       reason: eligible
-        ? `Found ${totalBalance.toLocaleString()} tokens (required: ${requiredBalance.toLocaleString()})`
-        : `Found ${totalBalance.toLocaleString()} tokens, need ${requiredBalance.toLocaleString()}`,
+        ? `Found ${totalBalanceInTokens.toLocaleString()} tokens (required: ${requiredBalance.toLocaleString()})`
+        : `Found ${totalBalanceInTokens.toLocaleString()} tokens, need ${requiredBalance.toLocaleString()}`,
       details: {
         required_balance: requiredBalance,
-        found_balance: totalBalance,
+        found_balance: totalBalanceInTokens,
+        found_balance_wei: totalBalance,
         contracts_checked: contractAddresses,
         chains_checked: chainIds,
         valid_addresses: validAddresses,
