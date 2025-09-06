@@ -63,7 +63,7 @@ export function ProductCard({ product }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col h-full">
       {/* Product Image and Link */}
       <Link href={`/product/${product.handle}`} className="block" onClick={handleProductNavigation}>
         <div className="aspect-square relative">
@@ -75,9 +75,9 @@ export function ProductCard({ product }) {
         </div>
       </Link>
       
-      {/* Product Info */}
-      <div className="p-3">
-        <Link href={`/product/${product.handle}`} className="block" onClick={handleProductNavigation}>
+      {/* Product Info - flex-grow pushes button to bottom */}
+      <div className="p-3 flex flex-col flex-grow">
+        <Link href={`/product/${product.handle}`} className="block flex-grow" onClick={handleProductNavigation}>
           <h3 className="text-sm font-medium text-gray-900 line-clamp-2 hover:text-blue-600 transition-colors">
             {product.title}
           </h3>
@@ -86,7 +86,7 @@ export function ProductCard({ product }) {
           </p>
         </Link>
         
-        {/* Add to Cart or Select Size Button */}
+        {/* Add to Cart or Select Size Button - positioned at bottom */}
         <div className="mt-2">
           {defaultVariant && defaultVariant.availableForSale ? (
             hasMultipleVariants ? (
