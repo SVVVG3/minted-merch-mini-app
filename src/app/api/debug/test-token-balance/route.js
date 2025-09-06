@@ -69,7 +69,7 @@ export async function GET(request) {
 
         // If force refresh or balance is different, update cache
         if (forceRefresh || directBalance !== profile.token_balance) {
-          console.log('💾 Updating cached balance...');
+          console.log(`💾 Updating cached balance with ${directBalance} tokens...`);
           const updateResult = await updateUserTokenBalance(fid, ethAddresses, directBalance);
           result.cacheUpdateResult = updateResult;
           result.newCachedBalance = directBalance;

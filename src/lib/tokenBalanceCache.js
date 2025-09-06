@@ -14,29 +14,47 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
     console.log(`💰 Updating token balance for FID ${fid} with ${walletAddresses.length} wallets`);
 
     let finalBalance = tokenBalance;
+    
+    // If tokenBalance is provided, convert from tokens to wei for storage
+    if (tokenBalance !== null) {
+      finalBalance = Math.floor(tokenBalance * Math.pow(10, 18));
+      console.log(`🔄 Converting provided balance ${tokenBalance} tokens to ${finalBalance} wei`);
+    }
 
     // If balance not provided, fetch it from blockchain
     if (finalBalance === null && walletAddresses.length > 0) {
       console.log('🔍 Fetching token balance from blockchain...');
       
-      const mintedMerchContract = '0x774EAeFE73Df7959496Ac92a77279A8D7d690b07';
-      const baseChainId = 8453;
+      // Filter to only Ethereum addresses (0x format, 42 chars)
+      const ethAddresses = walletAddresses.filter(addr => 
+        typeof addr === 'string' && addr.startsWith('0x') && addr.length === 42
+      );
       
-      try {
-        const balanceResult = await checkTokenBalanceDirectly(
-          walletAddresses,
-          [mintedMerchContract],
-          baseChainId
-        );
+      console.log(`🔗 Filtered ${walletAddresses.length} addresses to ${ethAddresses.length} Ethereum addresses`);
+      
+      if (ethAddresses.length === 0) {
+        console.log('❌ No valid Ethereum addresses found');
+        finalBalance = 0;
+      } else {
+        const mintedMerchContract = '0x774EAeFE73Df7959496Ac92a77279A8D7d690b07';
+        const baseChainId = 8453;
+        
+        try {
+          const balanceResult = await checkTokenBalanceDirectly(
+            ethAddresses,
+            [mintedMerchContract],
+            baseChainId
+          );
         
         // The blockchain API returns balance in tokens (divided by 10^18)
         // We need to store it in wei (multiply by 10^18) for precision
         const tokensBalance = balanceResult.totalBalance || 0;
         finalBalance = Math.floor(tokensBalance * Math.pow(10, 18)); // Convert back to wei for storage
-        console.log(`✅ Fetched balance: ${finalBalance} tokens`);
-      } catch (error) {
-        console.error('❌ Error fetching token balance:', error);
-        finalBalance = 0; // Default to 0 if fetch fails
+          console.log(`✅ Fetched balance: ${finalBalance} wei (${tokensBalance} tokens)`);
+        } catch (error) {
+          console.error('❌ Error fetching token balance:', error);
+          finalBalance = 0; // Default to 0 if fetch fails
+        }
       }
     } else if (finalBalance === null) {
       finalBalance = 0; // No wallets, set to 0
