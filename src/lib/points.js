@@ -40,10 +40,20 @@ export async function getUserLeaderboardData(userFid) {
  */
 export async function initializeUserLeaderboard(userFid) {
   try {
+    // First, get the username from the profiles table
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('username')
+      .eq('fid', userFid)
+      .single();
+
+    const username = profile?.username || null;
+
     const { data, error } = await supabaseAdmin
       .from('user_leaderboard')
       .insert({
         user_fid: userFid,
+        username: username,
         total_points: 0,
         checkin_streak: 0,
         last_checkin_date: null,
@@ -60,7 +70,7 @@ export async function initializeUserLeaderboard(userFid) {
       return null;
     }
 
-    console.log(`Initialized leaderboard for user ${userFid}`);
+    console.log(`Initialized leaderboard for user ${userFid} with username: ${username}`);
     return data;
   } catch (error) {
     console.error('Error in initializeUserLeaderboard:', error);
@@ -652,11 +662,19 @@ export async function syncPurchaseTracking(userFid = null) {
       let leaderboardError = null;
 
       if (!existingUser) {
+        // Get username from profiles table
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('username')
+          .eq('fid', userFidNum)
+          .single();
+
         // Create new leaderboard entry for users who have orders but haven't checked in
         const { error } = await supabaseAdmin
           .from('user_leaderboard')
           .insert({
             user_fid: userFidNum,
+            username: profile?.username || null,
             total_points: pointsFromPurchases, // Start with purchase points
             checkin_streak: 0,
             last_checkin_date: null,

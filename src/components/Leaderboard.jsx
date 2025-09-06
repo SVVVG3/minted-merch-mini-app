@@ -142,11 +142,11 @@ export function Leaderboard({ isVisible = true }) {
     // First try to get from Neynar profile data
     const profile = userProfiles[userFid];
     if (profile) {
-      return profile.display_name || profile.username || `User ${userFid}`;
+      return profile.username || profile.display_name || `User ${userFid}`;
     }
     
     // Fallback to data from leaderboard API
-    return user.display_name || user.username || `User ${userFid}`;
+    return user.username || user.display_name || `User ${userFid}`;
   };
 
   const getUserAvatar = (user) => {
