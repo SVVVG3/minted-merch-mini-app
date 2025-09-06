@@ -1,6 +1,7 @@
 // Token balance caching system for profiles table
 import { supabaseAdmin } from './supabase';
 import { checkTokenBalanceDirectly } from './blockchainAPI';
+import { updateChatMemberBalance } from './chatMemberDatabase';
 
 /**
  * Update user's token balance in profiles table
@@ -98,6 +99,20 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
     }
 
     console.log(`✅ Updated token balance for FID ${fid}: ${finalBalance} tokens`);
+    
+    // Also update chat member database if user is a chat member
+    try {
+      // Convert back to tokens for chat member database (it expects tokens, not wei)
+      const tokensBalance = typeof finalBalance === 'string' ? 
+        parseFloat(finalBalance) / Math.pow(10, 18) : 
+        finalBalance / Math.pow(10, 18);
+      
+      await updateChatMemberBalance(fid, tokensBalance, 'success');
+      console.log(`💬 Also updated chat member balance for FID ${fid}: ${tokensBalance} tokens`);
+    } catch (chatError) {
+      // Don't fail the main operation if chat member update fails
+      console.warn(`⚠️ Could not update chat member balance for FID ${fid}:`, chatError.message);
+    }
     
     return {
       success: true,

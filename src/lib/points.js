@@ -476,7 +476,8 @@ export async function getLeaderboard(limit = 10, category = 'points') {
         profiles (
           display_name,
           pfp_url,
-          username
+          username,
+          token_balance
         )
       `)
       .limit(limit);
@@ -523,6 +524,7 @@ export async function getLeaderboard(limit = 10, category = 'points') {
       display_name: user.profiles?.display_name || `User ${user.user_fid}`,
       username: user.profiles?.username || null,
       pfp_url: user.profiles?.pfp_url || null,
+      token_balance: user.profiles?.token_balance || 0,
       rank: index + 1,
       category: category
     }));
