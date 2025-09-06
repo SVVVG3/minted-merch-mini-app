@@ -12,6 +12,7 @@ export function ChatAdminDashboard() {
   const [usernameSearch, setUsernameSearch] = useState('');
   const [isAddingMembers, setIsAddingMembers] = useState(false);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  const [updatingUsers, setUpdatingUsers] = useState(new Set());
 
   // Load existing chat members when component mounts
   useEffect(() => {
@@ -154,6 +155,48 @@ export function ChatAdminDashboard() {
       alert('Error updating balances: ' + error.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const updateIndividualBalance = async (fid, username) => {
+    // Add user to updating set
+    setUpdatingUsers(prev => new Set(prev).add(fid));
+    
+    try {
+      console.log(`🔄 Updating balance for individual user FID: ${fid} (${username})`);
+      
+      const response = await fetch('/api/admin/update-individual-balance', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ fid })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log(`✅ Successfully updated balance for ${username}: ${result.tokenBalance} tokens`);
+        
+        // Refresh the display to show updated balance
+        await loadChatMembers();
+        
+        // Show success message
+        alert(`✅ Updated balance for ${username}!\n\nNew Balance: ${result.tokenBalance.toLocaleString()} tokens\nEligible: ${result.eligible ? 'Yes' : 'No'}`);
+      } else {
+        throw new Error(result.error || 'Failed to update balance');
+      }
+
+    } catch (error) {
+      console.error(`❌ Error updating balance for ${username}:`, error);
+      alert(`Error updating balance for ${username}: ${error.message}`);
+    } finally {
+      // Remove user from updating set
+      setUpdatingUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fid);
+        return newSet;
+      });
     }
   };
 
@@ -572,8 +615,15 @@ export function ChatAdminDashboard() {
                           )}
                         </div>
                         
-                        {/* Remove Button */}
-                        <div className="flex-shrink-0">
+                        {/* Action Buttons */}
+                        <div className="flex-shrink-0 flex flex-col space-y-2">
+                          <button
+                            onClick={() => updateIndividualBalance(user.fid, user.username || user.displayName || `User ${user.fid}`)}
+                            disabled={updatingUsers.has(user.fid)}
+                            className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                          >
+                            {updatingUsers.has(user.fid) ? 'Updating...' : '🔄 Update'}
+                          </button>
                           <button
                             onClick={() => removeChatMember(user.fid, user.username || user.displayName)}
                             className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
@@ -654,9 +704,15 @@ export function ChatAdminDashboard() {
                         )}
                       </div>
                       
-                      {/* Status Icon */}
+                      {/* Update Button */}
                       <div className="flex-shrink-0">
-                        <div className="text-green-500 text-xl">✅</div>
+                        <button
+                          onClick={() => updateIndividualBalance(user.fid, user.username || user.displayName || `User ${user.fid}`)}
+                          disabled={updatingUsers.has(user.fid)}
+                          className="bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                        >
+                          {updatingUsers.has(user.fid) ? 'Updating...' : '🔄 Update'}
+                        </button>
                       </div>
                     </div>
                   </div>
