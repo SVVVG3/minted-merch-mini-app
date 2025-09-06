@@ -8,7 +8,15 @@ export async function POST(request) {
     // Get eligible users based on filters
     let query = supabaseAdmin
       .from('user_leaderboard')
-      .select('user_fid, username, total_points, checkin_streak, points_from_purchases, total_orders')
+      .select(`
+        user_fid, 
+        username, 
+        total_points, 
+        checkin_streak, 
+        points_from_purchases, 
+        total_orders,
+        profiles!inner(token_balance)
+      `)
       .order('total_points', { ascending: false });
 
     // Apply filters
@@ -32,6 +40,18 @@ export async function POST(request) {
     }
 
     let filteredUsers = eligibleUsers || [];
+
+    // Apply token balance filter (client-side since it's from joined table)
+    if (filters.minTokenBalance > 0) {
+      filteredUsers = filteredUsers.filter(user => {
+        const tokenBalance = user.profiles?.token_balance || 0;
+        // Convert from wei to tokens for comparison
+        const tokenAmount = typeof tokenBalance === 'string' ? 
+          parseFloat(tokenBalance) / Math.pow(10, 18) : 
+          tokenBalance / Math.pow(10, 18);
+        return tokenAmount >= filters.minTokenBalance;
+      });
+    }
 
     // Exclude previous winners if filter is enabled
     if (filters.excludePreviousWinners) {

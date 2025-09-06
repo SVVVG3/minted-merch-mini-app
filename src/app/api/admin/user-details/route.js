@@ -179,6 +179,10 @@ export async function GET(request) {
       notification_status_updated_at: profile.notification_status_updated_at,
       notification_status_source: profile.notification_status_source,
 
+      // Token holdings
+      token_balance: profile.token_balance,
+      token_balance_updated_at: profile.token_balance_updated_at,
+
       // Leaderboard stats
       leaderboard: leaderboard || {
         total_points: 0,

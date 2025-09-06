@@ -21,6 +21,7 @@ export default function AdminDashboard() {
     minPoints: 0,
     minStreak: 0,
     minPurchasePoints: 0,
+    minTokenBalance: 0,
     excludePreviousWinners: true
   });
   const [raffleResults, setRaffleResults] = useState([]);
@@ -210,6 +211,25 @@ export default function AdminDashboard() {
     setSelectedUserFid(null);
   };
 
+  // Format token balance for display
+  const formatTokenBalance = (balance) => {
+    if (!balance || balance === 0) return '0';
+    
+    // Convert from wei to tokens (divide by 10^18)
+    const balanceWei = typeof balance === 'string' ? parseFloat(balance) : balance;
+    const tokenAmount = balanceWei / Math.pow(10, 18);
+    
+    if (tokenAmount >= 1000000) {
+      return `${(tokenAmount / 1000000).toFixed(1)}M`;
+    } else if (tokenAmount >= 1000) {
+      return `${(tokenAmount / 1000).toFixed(1)}K`;
+    } else if (tokenAmount >= 1) {
+      return tokenAmount.toFixed(2);
+    } else {
+      return tokenAmount.toFixed(6);
+    }
+  };
+
   // Order edit modal functions
   const openOrderEditModal = (order) => {
     setSelectedOrder(order);
@@ -352,6 +372,10 @@ export default function AdminDashboard() {
     
     if (filters.minPurchasePoints > 0) {
       criteria.push(`${filters.minPurchasePoints}+ purchase points`);
+    }
+    
+    if (filters.minTokenBalance > 0) {
+      criteria.push(`${filters.minTokenBalance.toLocaleString()}+ tokens`);
     }
     
     if (criteria.length === 0) {
@@ -1383,21 +1407,27 @@ export default function AdminDashboard() {
                       </th>
                       <th 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleUsersSort('email')}
-                      >
-                        Email {usersSortField === 'email' && (usersSortDirection === 'asc' ? '↑' : '↓')}
-                      </th>
-                      <th 
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleUsersSort('x_username')}
                       >
                         X Username {usersSortField === 'x_username' && (usersSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                       <th 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleUsersSort('token_balance')}
+                      >
+                        Token Holdings {usersSortField === 'token_balance' && (usersSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleUsersSort('bankr_club_member')}
                       >
                         Bankr Club {usersSortField === 'bankr_club_member' && (usersSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleUsersSort('email')}
+                      >
+                        Email {usersSortField === 'email' && (usersSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                       <th 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -1479,18 +1509,16 @@ export default function AdminDashboard() {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {user.email ? (
-                            <span className="text-green-600">{user.email}</span>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {user.x_username ? (
                             <span className="text-blue-600">@{user.x_username}</span>
                           ) : (
                             <span className="text-gray-400">—</span>
                           )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="font-medium text-yellow-600">
+                            {formatTokenBalance(user.token_balance)}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {user.bankr_club_member ? (
@@ -1501,6 +1529,13 @@ export default function AdminDashboard() {
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                               ✗ Not Member
                             </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {user.email ? (
+                            <span className="text-green-600">{user.email}</span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -1579,6 +1614,12 @@ export default function AdminDashboard() {
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('token_balance')}
+                    >
+                      Holdings {sortField === 'token_balance' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('total_orders')}
                     >
                       Orders {sortField === 'total_orders' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -1642,6 +1683,11 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.total_points?.toLocaleString()}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.checkin_streak}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.points_from_purchases || 0}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <span className="font-medium text-yellow-600">
+                          {formatTokenBalance(user.token_balance)}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.total_orders || 0}</td>
                     </tr>
                   ))}
@@ -2710,6 +2756,20 @@ export default function AdminDashboard() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
                     />
                     <p className="text-xs text-gray-500 mt-1">Filter users by points from purchases</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      💰 Minimum Token Holdings
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="e.g., 1000000 (0 = no minimum)"
+                      value={raffleFilters.minTokenBalance}
+                      onChange={(e) => setRaffleFilters(prev => ({ ...prev, minTokenBalance: parseInt(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Filter users by $MINTEDMERCH token balance</p>
                   </div>
                   
                   <div className="flex items-center">

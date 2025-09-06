@@ -53,6 +53,24 @@ export default function UserModal({ isOpen, onClose, userFid }) {
     }).format(amount);
   };
 
+  const formatTokenBalance = (balance) => {
+    if (!balance || balance === 0) return '0';
+    
+    // Convert from wei to tokens (divide by 10^18)
+    const balanceWei = typeof balance === 'string' ? parseFloat(balance) : balance;
+    const tokenAmount = balanceWei / Math.pow(10, 18);
+    
+    if (tokenAmount >= 1000000) {
+      return `${(tokenAmount / 1000000).toFixed(1)}M`;
+    } else if (tokenAmount >= 1000) {
+      return `${(tokenAmount / 1000).toFixed(1)}K`;
+    } else if (tokenAmount >= 1) {
+      return tokenAmount.toFixed(2);
+    } else {
+      return tokenAmount.toFixed(6);
+    }
+  };
+
   const truncateAddress = (address) => {
     if (!address) return 'N/A';
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -237,7 +255,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                   </div>
 
                   {/* Quick Stats - Updated to include streak */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <div className="bg-blue-50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-blue-600">
                         {userData.leaderboard.total_points.toLocaleString()}
@@ -261,6 +279,12 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                         {userData.leaderboard.checkin_streak}
                       </div>
                       <div className="text-sm text-orange-600">Day Streak</div>
+                    </div>
+                    <div className="bg-yellow-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-yellow-600">
+                        {formatTokenBalance(userData.token_balance)}
+                      </div>
+                      <div className="text-sm text-yellow-600">$MINTEDMERCH</div>
                     </div>
                   </div>
                 </div>
