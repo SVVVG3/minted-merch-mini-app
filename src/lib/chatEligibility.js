@@ -2,6 +2,7 @@
 
 import { checkTokenBalanceDirectly } from './blockchainAPI';
 import { updateChatMemberBalance } from './chatMemberDatabase';
+import { updateUserTokenBalance } from './tokenBalanceCache';
 
 const MINTEDMERCH_TOKEN_ADDRESS = '0x774EAeFE73Df7959496Ac92a77279A8D7d690b07';
 const BASE_CHAIN_ID = 8453;
@@ -10,9 +11,10 @@ const REQUIRED_TOKENS = 50000000; // 50M tokens
 /**
  * Check if a user is eligible for the token-gated chat
  * @param {Array} walletAddresses - User's wallet addresses
+ * @param {number} fid - User's Farcaster ID (optional, for caching)
  * @returns {Promise<Object>} Eligibility result
  */
-export async function checkChatEligibility(walletAddresses) {
+export async function checkChatEligibility(walletAddresses, fid = null) {
   try {
     console.log('🎫 Checking chat eligibility for wallets:', walletAddresses);
     
@@ -36,6 +38,17 @@ export async function checkChatEligibility(walletAddresses) {
       [MINTEDMERCH_TOKEN_ADDRESS],
       BASE_CHAIN_ID
     );
+
+    // Update token balance cache if FID is provided
+    if (fid && tokenBalance > 0) {
+      try {
+        console.log(`💾 Updating token balance cache for FID ${fid}: ${tokenBalance} tokens`);
+        await updateUserTokenBalance(fid, validAddresses, tokenBalance);
+      } catch (cacheError) {
+        console.warn(`⚠️ Failed to update token balance cache for FID ${fid}:`, cacheError.message);
+        // Don't fail the eligibility check if cache update fails
+      }
+    }
 
     const eligible = tokenBalance >= REQUIRED_TOKENS;
     
@@ -91,7 +104,7 @@ export async function batchCheckEligibility(users) {
         await new Promise(resolve => setTimeout(resolve, delay));
       }
       
-      const eligibility = await checkChatEligibility(user.walletAddresses || []);
+      const eligibility = await checkChatEligibility(user.walletAddresses || [], user.fid);
       
       // Store token balance in database for caching
       await updateChatMemberBalance(user.fid, eligibility.tokenBalance, 'success');
@@ -140,7 +153,7 @@ export async function batchCheckEligibility(users) {
  */
 export async function generateChatInvitation(userFid, walletAddresses, existingEligibility = null) {
   // Use existing eligibility result if provided, otherwise check again
-  const eligibility = existingEligibility || await checkChatEligibility(walletAddresses);
+  const eligibility = existingEligibility || await checkChatEligibility(walletAddresses, userFid);
   
   if (!eligibility.eligible) {
     return {

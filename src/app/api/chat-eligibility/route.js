@@ -14,7 +14,7 @@ export async function POST(request) {
 
     switch (action) {
       case 'check':
-        const eligibility = await checkChatEligibility(walletAddresses);
+        const eligibility = await checkChatEligibility(walletAddresses, fid);
         return NextResponse.json({
           success: true,
           eligibility
@@ -67,7 +67,7 @@ export async function GET(request) {
     }
 
     // Check eligibility
-    const eligibility = await checkChatEligibility(walletData.walletAddresses || []);
+    const eligibility = await checkChatEligibility(walletData.walletAddresses || [], parseInt(fid));
     
     return NextResponse.json({
       success: true,

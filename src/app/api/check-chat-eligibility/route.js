@@ -61,8 +61,8 @@ export async function POST(request) {
 
     console.log(`💰 Found ${validWallets.length} wallet addresses for FID ${fid}`);
 
-    // Step 3: Check token eligibility
-    const eligibility = await checkChatEligibility(validWallets);
+    // Step 3: Check token eligibility (and update cache)
+    const eligibility = await checkChatEligibility(validWallets, fid);
 
     if (!eligibility.eligible) {
       console.log('❌ User not eligible for chat:', eligibility.message);
