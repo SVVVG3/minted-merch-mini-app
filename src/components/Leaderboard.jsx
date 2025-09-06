@@ -9,7 +9,7 @@ export function Leaderboard({ isVisible = true }) {
   const [userPosition, setUserPosition] = useState(null);
   const [userProfiles, setUserProfiles] = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  const [category, setCategory] = useState('points');
+  const [category, setCategory] = useState('holders');
   const [error, setError] = useState(null);
 
   const currentUserFid = isInFarcaster && isReady ? getFid() : null;
@@ -102,7 +102,7 @@ export function Leaderboard({ isVisible = true }) {
       case 'points': return 'Points';
       case 'streaks': return 'Streaks';
       case 'purchases': return 'Purchases';
-      case 'holders': return 'Token Holders';
+      case 'holders': return '$mintedmerch Holders';
       default: return 'Points';
     }
   };
@@ -136,19 +136,26 @@ export function Leaderboard({ isVisible = true }) {
   };
 
   const getUserDisplayName = (user) => {
+    // Get the correct FID field based on category
+    const userFid = category === 'holders' ? user.fid : user.user_fid;
+    
     // First try to get from Neynar profile data
-    const profile = userProfiles[user.user_fid];
+    const profile = userProfiles[userFid];
     if (profile) {
-      return profile.display_name || profile.username || `User ${user.user_fid}`;
+      return profile.display_name || profile.username || `User ${userFid}`;
     }
     
     // Fallback to data from leaderboard API
-    return user.display_name || user.username || `User ${user.user_fid}`;
+    return user.display_name || user.username || `User ${userFid}`;
   };
 
   const getUserAvatar = (user) => {
-    const profile = userProfiles[user.user_fid];
-    return profile?.avatar_url || null;
+    // Get the correct FID field based on category
+    const userFid = category === 'holders' ? user.fid : user.user_fid;
+    const profile = userProfiles[userFid];
+    
+    // Try profile avatar first, then fallback to pfp_url from token holders API
+    return profile?.avatar_url || user.pfp_url || null;
   };
 
   if (!isVisible) return null;
@@ -159,21 +166,23 @@ export function Leaderboard({ isVisible = true }) {
       <div className="border-b border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">🏆 Leaderboard</h2>
         
-        {/* Category Filters */}
-        <div className="flex gap-2 overflow-x-auto">
-          {['points', 'streaks', 'purchases', 'holders'].map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                category === cat
-                  ? 'bg-[#3eb489] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {formatCategory(cat)}
-            </button>
-          ))}
+        {/* Category Dropdown */}
+        <div className="relative">
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent appearance-none cursor-pointer"
+          >
+            <option value="holders">$mintedmerch Holders</option>
+            <option value="purchases">Purchases</option>
+            <option value="points">Points</option>
+            <option value="streaks">Streaks</option>
+          </select>
+          <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </div>
       </div>
 
@@ -262,7 +271,6 @@ export function Leaderboard({ isVisible = true }) {
                       {category === 'points' && 'points'}
                       {category === 'streaks' && (userPosition.checkin_streak === 1 ? 'day' : 'days')}
                       {category === 'purchases' && 'points'}
-                      {category === 'holders' && '$MINTEDMERCH'}
                     </div>
                   </div>
                 </div>
@@ -339,7 +347,6 @@ export function Leaderboard({ isVisible = true }) {
                       {category === 'points' && 'points'}
                       {category === 'streaks' && (user.checkin_streak === 1 ? 'day' : 'days')}
                       {category === 'purchases' && 'points'}
-                      {category === 'holders' && '$MINTEDMERCH'}
                     </div>
                   </div>
                 </div>
