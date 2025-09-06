@@ -17,7 +17,15 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
     
     // If tokenBalance is provided, convert from tokens to wei for storage
     if (tokenBalance !== null) {
-      finalBalance = Math.floor(tokenBalance * Math.pow(10, 18));
+      // Convert to string to avoid scientific notation, then to BigInt for precision
+      const tokensStr = tokenBalance.toString();
+      const [integerPart, decimalPart = ''] = tokensStr.split('.');
+      
+      // Pad decimal part to 18 digits (wei precision)
+      const paddedDecimal = (decimalPart + '000000000000000000').slice(0, 18);
+      const weiStr = integerPart + paddedDecimal;
+      
+      finalBalance = weiStr;
       console.log(`🔄 Converting provided balance ${tokenBalance} tokens to ${finalBalance} wei`);
     }
 
@@ -49,7 +57,16 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
         // The blockchain API returns balance in tokens (divided by 10^18)
         // We need to store it in wei (multiply by 10^18) for precision
         const tokensBalance = balanceResult.totalBalance || 0;
-        finalBalance = Math.floor(tokensBalance * Math.pow(10, 18)); // Convert back to wei for storage
+        
+        // Convert to string to avoid scientific notation
+        const tokensStr = tokensBalance.toString();
+        const [integerPart, decimalPart = ''] = tokensStr.split('.');
+        
+        // Pad decimal part to 18 digits (wei precision)
+        const paddedDecimal = (decimalPart + '000000000000000000').slice(0, 18);
+        const weiStr = integerPart + paddedDecimal;
+        
+        finalBalance = weiStr;
           console.log(`✅ Fetched balance: ${finalBalance} wei (${tokensBalance} tokens)`);
         } catch (error) {
           console.error('❌ Error fetching token balance:', error);
