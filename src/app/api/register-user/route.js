@@ -160,6 +160,42 @@ export async function POST(request) {
 
     console.log('User profile created/updated:', profile);
 
+    // Update user's token balance in background (don't block registration)
+    if (walletData?.all_wallet_addresses?.length > 0) {
+      console.log('💰 Updating token balance for user in background...');
+      // Import and call token balance update function
+      try {
+        const { refreshUserTokenBalance } = await import('@/lib/tokenBalanceCache');
+        refreshUserTokenBalance(fid, walletData.all_wallet_addresses)
+          .then(result => {
+            if (result.success) {
+              console.log(`✅ Token balance updated for FID ${fid}: ${result.balance} tokens`);
+            } else {
+              console.warn(`⚠️ Failed to update token balance for FID ${fid}:`, result.error);
+            }
+          })
+          .catch(error => {
+            console.error(`❌ Error updating token balance for FID ${fid}:`, error);
+          });
+      } catch (error) {
+        console.error('❌ Error importing token balance cache:', error);
+      }
+    } else {
+      console.log('💰 No wallet addresses found, setting token balance to 0');
+      try {
+        const { updateUserTokenBalance } = await import('@/lib/tokenBalanceCache');
+        updateUserTokenBalance(fid, [], 0)
+          .then(result => {
+            console.log(`✅ Token balance set to 0 for FID ${fid} (no wallets)`);
+          })
+          .catch(error => {
+            console.error(`❌ Error setting token balance to 0 for FID ${fid}:`, error);
+          });
+      } catch (error) {
+        console.error('❌ Error importing token balance cache:', error);
+      }
+    }
+
     // Generate welcome discount code for new users (regardless of notification status)
     let discountCode = null;
     try {

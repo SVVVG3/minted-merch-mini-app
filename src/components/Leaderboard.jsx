@@ -37,19 +37,33 @@ export function Leaderboard({ isVisible = true }) {
         params.append('userFid', currentUserFid);
       }
 
-      const response = await fetch(`/api/points/leaderboard?${params}`);
+      // Use different API endpoint for token holders
+      const apiEndpoint = category === 'holders' 
+        ? '/api/token-holders-leaderboard' 
+        : '/api/points/leaderboard';
+      
+      const response = await fetch(`${apiEndpoint}?${params}`);
       const result = await response.json();
 
       if (result.success) {
-        const leaderboard = result.data.leaderboard || [];
-        const userPos = result.data.userPosition || null;
+        let leaderboard, userPos;
+        
+        if (category === 'holders') {
+          // Token holders API has different response format
+          leaderboard = result.leaderboard || [];
+          userPos = null; // Token holders doesn't have user position lookup yet
+        } else {
+          // Regular leaderboard API
+          leaderboard = result.data.leaderboard || [];
+          userPos = result.data.userPosition || null;
+        }
         
         setLeaderboardData(leaderboard);
         setUserPosition(userPos);
 
         // Fetch user profiles for the leaderboard
         const allFids = [...new Set([
-          ...leaderboard.map(user => user.user_fid),
+          ...leaderboard.map(user => category === 'holders' ? user.fid : user.user_fid),
           ...(userPos && userPos.position > 50 ? [userPos.user_fid] : [])
         ])];
 
@@ -88,6 +102,7 @@ export function Leaderboard({ isVisible = true }) {
       case 'points': return 'Points';
       case 'streaks': return 'Streaks';
       case 'purchases': return 'Purchases';
+      case 'holders': return 'Token Holders';
       default: return 'Points';
     }
   };
@@ -145,8 +160,8 @@ export function Leaderboard({ isVisible = true }) {
         <h2 className="text-2xl font-bold text-gray-800 mb-4">🏆 Leaderboard</h2>
         
         {/* Category Filters */}
-        <div className="flex gap-2">
-          {['points', 'streaks', 'purchases'].map((cat) => (
+        <div className="flex gap-2 overflow-x-auto">
+          {['points', 'streaks', 'purchases', 'holders'].map((cat) => (
             <button
               key={cat}
               onClick={() => setCategory(cat)}
@@ -241,11 +256,13 @@ export function Leaderboard({ isVisible = true }) {
                       {category === 'points' && userPosition.total_points}
                       {category === 'streaks' && userPosition.checkin_streak}
                       {category === 'purchases' && userPosition.pointsFromPurchases}
+                      {category === 'holders' && userPosition.token_balance_formatted}
                     </div>
                     <div className="text-sm text-gray-500">
                       {category === 'points' && 'points'}
                       {category === 'streaks' && (userPosition.checkin_streak === 1 ? 'day' : 'days')}
                       {category === 'purchases' && 'points'}
+                      {category === 'holders' && '$MINTEDMERCH'}
                     </div>
                   </div>
                 </div>
@@ -255,11 +272,12 @@ export function Leaderboard({ isVisible = true }) {
             {/* Top Rankings */}
             {leaderboardData.map((user, index) => {
               const position = index + 1;
-              const isCurrentUser = currentUserFid && user.user_fid === currentUserFid;
+              const userFid = category === 'holders' ? user.fid : user.user_fid;
+              const isCurrentUser = currentUserFid && userFid === currentUserFid;
               
               return (
                 <div
-                  key={user.user_fid}
+                  key={userFid}
                   className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
                     isCurrentUser 
                       ? 'bg-green-50 border-green-200 ring-2 ring-green-100' 
@@ -315,11 +333,13 @@ export function Leaderboard({ isVisible = true }) {
                       {category === 'points' && user.total_points.toLocaleString()}
                       {category === 'streaks' && user.checkin_streak}
                       {category === 'purchases' && (user.points_from_purchases || 0).toLocaleString()}
+                      {category === 'holders' && user.token_balance_formatted}
                     </div>
                     <div className="text-sm text-gray-500">
                       {category === 'points' && 'points'}
                       {category === 'streaks' && (user.checkin_streak === 1 ? 'day' : 'days')}
                       {category === 'purchases' && 'points'}
+                      {category === 'holders' && '$MINTEDMERCH'}
                     </div>
                   </div>
                 </div>

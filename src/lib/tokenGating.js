@@ -127,7 +127,7 @@ export async function checkTokenGatedEligibility(discount, fid, userWalletAddres
         break;
         
       case 'token_balance':
-        result = await checkTokenBalance(discount, userWalletAddresses);
+        result = await checkTokenBalance(discount, userWalletAddresses, fid);
         blockchainCallsCount = result.blockchainCalls || 0;
         break;
         
@@ -373,9 +373,9 @@ async function checkNftHolding(discount, userWalletAddresses) {
 }
 
 /**
- * Check token balance eligibility using Zapper API
+ * Check token balance eligibility using cached balance from profiles table
  */
-async function checkTokenBalance(discount, userWalletAddresses) {
+async function checkTokenBalance(discount, userWalletAddresses, fid = null) {
   const contractAddresses = discount.contract_addresses || [];
   const requiredBalance = parseFloat(discount.required_balance) || 1;
   
@@ -405,42 +405,77 @@ async function checkTokenBalance(discount, userWalletAddresses) {
   console.log('🪙 Checking token balances for contracts:', contractAddresses);
   
   try {
-    // 🔗 DIRECT BLOCKCHAIN RPC ONLY - NO ZAPPER API
-    console.log('🔗 Using direct blockchain RPC for reliable token balance checking (with caching for better UX)');
+    // 🔗 USE CACHED BALANCE FROM PROFILES TABLE FOR BETTER PERFORMANCE
+    console.log('💾 Using cached token balance from profiles table for better UX');
     
-    // Import direct blockchain API function
-    const { checkTokenBalanceDirectly } = await import('./blockchainAPI.js');
+    // Import token balance cache functions
+    const { refreshUserTokenBalance, getCachedTokenBalance } = await import('./tokenBalanceCache.js');
     
     // Filter valid Ethereum addresses
     const validAddresses = userWalletAddresses.filter(addr => 
       typeof addr === 'string' && addr.startsWith('0x') && addr.length === 42
     );
 
-    if (validAddresses.length === 0) {
+    if (validAddresses.length === 0 && !fid) {
       return {
         eligible: false,
-        reason: 'No valid wallet addresses found',
+        reason: 'No valid wallet addresses or FID found',
         details: { provided_addresses: userWalletAddresses },
         blockchainCalls: 0
       };
     }
     
-    // Check token balance directly via RPC
-    const totalBalance = await checkTokenBalanceDirectly(
-      validAddresses,
-      contractAddresses,
-      chainIds[0] || 8453 // Use first chain ID, default to Base
-    );
+    let totalBalance = 0;
+    let blockchainCalls = 0;
+    let method = 'cached';
+
+    // If FID is provided, try to get cached balance first
+    if (fid) {
+      console.log(`💾 Checking cached balance for FID ${fid}`);
+      const balanceResult = await refreshUserTokenBalance(fid, validAddresses);
+      
+      if (balanceResult.success) {
+        totalBalance = balanceResult.balance || 0;
+        method = balanceResult.fromCache ? 'cached' : 'fresh_fetch';
+        blockchainCalls = balanceResult.fromCache ? 0 : validAddresses.length;
+        
+        console.log(`💰 Token balance for FID ${fid}: ${totalBalance} (${method})`);
+      } else {
+        console.warn(`⚠️ Failed to get cached balance for FID ${fid}, falling back to direct RPC`);
+        // Fall back to direct RPC check
+        const { checkTokenBalanceDirectly } = await import('./blockchainAPI.js');
+        totalBalance = await checkTokenBalanceDirectly(
+          validAddresses,
+          contractAddresses,
+          chainIds[0] || 8453
+        );
+        method = 'direct_rpc_fallback';
+        blockchainCalls = validAddresses.length;
+      }
+    } else {
+      // No FID provided, use direct RPC check
+      console.log('🔗 No FID provided, using direct RPC check');
+      const { checkTokenBalanceDirectly } = await import('./blockchainAPI.js');
+      totalBalance = await checkTokenBalanceDirectly(
+        validAddresses,
+        contractAddresses,
+        chainIds[0] || 8453
+      );
+      method = 'direct_rpc';
+      blockchainCalls = validAddresses.length;
+    }
 
     const eligible = totalBalance >= requiredBalance;
 
-    console.log('🪙 Direct RPC token balance result:', {
+    console.log('🪙 Token balance eligibility result:', {
       eligible,
       totalBalance,
       requiredBalance,
       contractAddresses,
       chainId: chainIds[0] || 8453,
-      walletCount: validAddresses.length
+      walletCount: validAddresses.length,
+      method,
+      fid
     });
 
     return {
@@ -454,9 +489,10 @@ async function checkTokenBalance(discount, userWalletAddresses) {
         contracts_checked: contractAddresses,
         chains_checked: chainIds,
         valid_addresses: validAddresses,
-        method: 'direct_rpc'
+        method,
+        fid
       },
-      blockchainCalls: validAddresses.length // One RPC call per address
+      blockchainCalls
     };
 
   } catch (error) {
@@ -498,7 +534,7 @@ async function checkCombinedGating(discount, fid, userWalletAddresses) {
   }
 
   if (gatingConfig.require_token_balance) {
-    const tokenResult = await checkTokenBalance(discount, userWalletAddresses);
+    const tokenResult = await checkTokenBalance(discount, userWalletAddresses, fid);
     results.push(tokenResult);
     totalBlockchainCalls += tokenResult.blockchainCalls || 0;
   }
