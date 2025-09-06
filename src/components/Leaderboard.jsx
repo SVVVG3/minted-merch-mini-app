@@ -245,7 +245,7 @@ export function Leaderboard({ isVisible = true }) {
                     </div>
                     
                     <div>
-                      <div className="font-medium text-gray-800">You</div>
+                      <div className="text-sm font-medium text-gray-800">You</div>
                       <div className="text-sm text-gray-500">
                         {category === 'purchases' ? (
                           <span>{userPosition.totalOrders || 0} orders</span>
@@ -317,7 +317,7 @@ export function Leaderboard({ isVisible = true }) {
                     
                     {/* User Info */}
                     <div>
-                      <div className={`font-medium ${isCurrentUser ? 'text-green-800' : 'text-gray-800'}`}>
+                      <div className={`text-sm font-medium ${isCurrentUser ? 'text-green-800' : 'text-gray-800'}`}>
                         {isCurrentUser ? 'You' : getUserDisplayName(user)}
                       </div>
                       <div className="text-sm text-gray-500">
