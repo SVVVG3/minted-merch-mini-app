@@ -249,7 +249,7 @@ export function Leaderboard({ isVisible = true }) {
                       <div className="text-sm text-gray-500">
                         {category === 'purchases' ? (
                           <span>{userPosition.totalOrders || 0} orders</span>
-                        ) : userPosition.checkin_streak > 0 ? (
+                        ) : (userPosition.checkin_streak || 0) > 0 ? (
                           <span className="flex items-center gap-1">
                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
                               <path d="M5.52.359A.5.5 0 0 1 6 0h4a.5.5 0 0 1 .474.658L8.694 6H12.5a.5.5 0 0 1 .395.807l-7 9a.5.5 0 0 1-.873-.454L6.823 9.5H3.5a.5.5 0 0 1-.48-.641l2.5-8.5z"/>
@@ -262,14 +262,14 @@ export function Leaderboard({ isVisible = true }) {
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-green-600">
-                      {category === 'points' && userPosition.total_points}
-                      {category === 'streaks' && userPosition.checkin_streak}
-                      {category === 'purchases' && userPosition.pointsFromPurchases}
+                      {category === 'points' && (userPosition.total_points || 0).toLocaleString()}
+                      {category === 'streaks' && (userPosition.checkin_streak || 0)}
+                      {category === 'purchases' && (userPosition.pointsFromPurchases || 0).toLocaleString()}
                       {category === 'holders' && userPosition.token_balance_formatted}
                     </div>
                     <div className="text-sm text-gray-500">
                       {category === 'points' && 'points'}
-                      {category === 'streaks' && (userPosition.checkin_streak === 1 ? 'day' : 'days')}
+                      {category === 'streaks' && ((userPosition.checkin_streak || 0) === 1 ? 'day' : 'days')}
                       {category === 'purchases' && 'points'}
                     </div>
                   </div>
@@ -323,7 +323,7 @@ export function Leaderboard({ isVisible = true }) {
                       <div className="text-sm text-gray-500">
                         {category === 'purchases' ? (
                           <span>{user.total_orders || 0} orders</span>
-                        ) : user.checkin_streak > 0 ? (
+                        ) : (user.checkin_streak || 0) > 0 ? (
                           <span className="flex items-center gap-1">
                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
                               <path d="M5.52.359A.5.5 0 0 1 6 0h4a.5.5 0 0 1 .474.658L8.694 6H12.5a.5.5 0 0 1 .395.807l-7 9a.5.5 0 0 1-.873-.454L6.823 9.5H3.5a.5.5 0 0 1-.48-.641l2.5-8.5z"/>
@@ -338,14 +338,14 @@ export function Leaderboard({ isVisible = true }) {
                   {/* Category-specific Display */}
                   <div className="text-right">
                     <div className={`font-bold ${isCurrentUser ? 'text-green-600' : 'text-gray-800'}`}>
-                      {category === 'points' && user.total_points.toLocaleString()}
-                      {category === 'streaks' && user.checkin_streak}
+                      {category === 'points' && (user.total_points || 0).toLocaleString()}
+                      {category === 'streaks' && (user.checkin_streak || 0)}
                       {category === 'purchases' && (user.points_from_purchases || 0).toLocaleString()}
                       {category === 'holders' && user.token_balance_formatted}
                     </div>
                     <div className="text-sm text-gray-500">
                       {category === 'points' && 'points'}
-                      {category === 'streaks' && (user.checkin_streak === 1 ? 'day' : 'days')}
+                      {category === 'streaks' && ((user.checkin_streak || 0) === 1 ? 'day' : 'days')}
                       {category === 'purchases' && 'points'}
                     </div>
                   </div>
