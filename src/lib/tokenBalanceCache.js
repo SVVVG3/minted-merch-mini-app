@@ -199,12 +199,13 @@ export async function refreshUserTokenBalance(fid, walletAddresses = []) {
     // Get current cached balance
     const cachedResult = await getCachedTokenBalance(fid);
     
-    // If cache is fresh (less than 10 minutes old), return cached value
-    const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
-    if (cachedResult.success && cachedResult.updated_at) {
+    // If cache is fresh (less than 2 minutes old) AND has a non-zero balance, return cached value
+    // We use 2 minutes instead of 10 to avoid stale data issues during concurrent requests
+    const twoMinutesAgo = Date.now() - (2 * 60 * 1000);
+    if (cachedResult.success && cachedResult.updated_at && cachedResult.balance > 0) {
       const cacheTime = new Date(cachedResult.updated_at).getTime();
-      if (cacheTime > tenMinutesAgo) {
-        console.log(`💾 Using fresh cached balance for FID ${fid}: ${cachedResult.balance}`);
+      if (cacheTime > twoMinutesAgo) {
+        console.log(`💾 Using fresh cached balance for FID ${fid}: ${cachedResult.balance} (non-zero, recent)`);
         return {
           success: true,
           balance: cachedResult.balance,
@@ -212,6 +213,11 @@ export async function refreshUserTokenBalance(fid, walletAddresses = []) {
           updated_at: cachedResult.updated_at
         };
       }
+    }
+    
+    // If cached balance is 0 or stale, always do a fresh check to avoid false negatives
+    if (cachedResult.success && (cachedResult.balance === 0 || cachedResult.balance === '0')) {
+      console.log(`🔄 Cached balance is 0 for FID ${fid} - forcing fresh check to avoid false negatives`);
     }
 
     // Cache is stale or doesn't exist, fetch fresh balance
