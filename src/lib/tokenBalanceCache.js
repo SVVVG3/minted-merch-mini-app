@@ -199,9 +199,9 @@ export async function getCachedTokenBalance(fid) {
  * @param {Array} walletAddresses - User's wallet addresses
  * @returns {Promise<Object>} Result with balance and update status
  */
-export async function refreshUserTokenBalance(fid, walletAddresses = [], forceRefresh = false) {
+export async function refreshUserTokenBalance(fid, walletAddresses = [], forceRefresh = false, cacheOnly = false) {
   try {
-    console.log(`🔄 Refreshing token balance for FID ${fid}`);
+    console.log(`🔄 Refreshing token balance for FID ${fid}${cacheOnly ? ' (cache-only mode)' : ''}`);
 
     // Get current cached balance
     const cachedResult = await getCachedTokenBalance(fid);
@@ -211,6 +211,26 @@ export async function refreshUserTokenBalance(fid, walletAddresses = [], forceRe
       updated_at: cachedResult.updated_at,
       age_seconds: cachedResult.updated_at ? Math.round((Date.now() - new Date(cachedResult.updated_at).getTime()) / 1000) : 'never'
     });
+    
+    // If cache-only mode, return cached result (even if stale) or failure
+    if (cacheOnly) {
+      if (cachedResult.success && cachedResult.balance !== null) {
+        console.log(`🏪 Cache-only mode: Returning cached balance for FID ${fid}: ${cachedResult.balance}`);
+        return {
+          success: true,
+          balance: cachedResult.balance,
+          fromCache: true,
+          updated_at: cachedResult.updated_at
+        };
+      } else {
+        console.log(`🏪 Cache-only mode: No cached balance found for FID ${fid}`);
+        return {
+          success: false,
+          error: 'No cached balance available',
+          fromCache: true
+        };
+      }
+    }
     
     // Skip cache if force refresh is requested (e.g., when user opens app)
     if (forceRefresh) {

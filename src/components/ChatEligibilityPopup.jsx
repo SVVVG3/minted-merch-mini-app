@@ -17,6 +17,11 @@ export function ChatEligibilityPopup() {
         userFid: user?.fid,
         dismissed: sessionStorage.getItem(`chat-popup-dismissed-${user?.fid}`)
       });
+
+      // CRITICAL: Wait for HomePage token eligibility check to complete first
+      // This ensures the cache is populated before we check it
+      console.log('⏳ Waiting 3 seconds for HomePage token eligibility to complete...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
       // Only check if user is in Farcaster and has an FID
       if (!isInFarcaster || !user?.fid) {

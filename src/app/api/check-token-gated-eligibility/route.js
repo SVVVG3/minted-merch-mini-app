@@ -8,7 +8,7 @@ import { deduplicateRequest } from '@/lib/requestDeduplication';
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { fid, walletAddresses, scope = 'site_wide', productIds = [] } = body;
+    const { fid, walletAddresses, scope = 'site_wide', productIds = [], useCacheOnly = false } = body;
 
     if (!fid) {
       return NextResponse.json({
@@ -29,10 +29,10 @@ export async function POST(request) {
     console.log('Scope:', scope, 'Product IDs:', productIds);
 
     // Use request deduplication to prevent concurrent calls for same user
-    const deduplicationKey = `token-eligibility-${fid}-${scope}`;
+    const deduplicationKey = `token-eligibility-${fid}-${scope}${useCacheOnly ? '-cache' : ''}`;
     const eligibleDiscounts = await deduplicateRequest(
       deduplicationKey,
-      () => getEligibleAutoApplyDiscounts(fid, walletAddresses, scope, productIds),
+      () => getEligibleAutoApplyDiscounts(fid, walletAddresses, scope, productIds, useCacheOnly),
       30000 // Cache for 30 seconds
     );
 

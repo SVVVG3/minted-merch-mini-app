@@ -127,7 +127,7 @@ export async function checkTokenGatedEligibility(discount, fid, userWalletAddres
         break;
         
       case 'token_balance':
-        result = await checkTokenBalance(discount, userWalletAddresses, fid);
+        result = await checkTokenBalance(discount, userWalletAddresses, fid, useCacheOnly);
         blockchainCallsCount = result.blockchainCalls || 0;
         break;
         
@@ -375,7 +375,7 @@ async function checkNftHolding(discount, userWalletAddresses) {
 /**
  * Check token balance eligibility using cached balance from profiles table
  */
-async function checkTokenBalance(discount, userWalletAddresses, fid = null) {
+async function checkTokenBalance(discount, userWalletAddresses, fid = null, useCacheOnly = false) {
   const contractAddresses = discount.contract_addresses || [];
   const requiredBalance = parseFloat(discount.required_balance) || 1;
   
@@ -431,8 +431,8 @@ async function checkTokenBalance(discount, userWalletAddresses, fid = null) {
 
     // If FID is provided, try to get cached balance first
     if (fid) {
-      console.log(`💾 Checking cached balance for FID ${fid}`);
-      const balanceResult = await refreshUserTokenBalance(fid, validAddresses);
+      console.log(`💾 Checking cached balance for FID ${fid}${useCacheOnly ? ' (cache-only mode)' : ''}`);
+      const balanceResult = await refreshUserTokenBalance(fid, validAddresses, false, useCacheOnly);
       
       if (balanceResult.success) {
         totalBalance = balanceResult.balance || 0;
@@ -440,6 +440,11 @@ async function checkTokenBalance(discount, userWalletAddresses, fid = null) {
         blockchainCalls = balanceResult.fromCache ? 0 : validAddresses.length;
         
         console.log(`💰 Token balance for FID ${fid}: ${totalBalance} (${method})`);
+      } else if (useCacheOnly) {
+        console.log(`🏪 Cache-only mode: No cached balance found for FID ${fid}, returning 0`);
+        totalBalance = 0;
+        method = 'cache_only_miss';
+        blockchainCalls = 0;
       } else {
         console.warn(`⚠️ Failed to get cached balance for FID ${fid}, falling back to direct RPC`);
         // Fall back to direct RPC check
@@ -737,7 +742,7 @@ async function logEligibilityCheck(discountCodeId, fid, walletAddress, result, m
  * @param {Array} productIds - Product IDs for product-specific discounts
  * @returns {Promise<Array>} Array of eligible auto-apply discounts
  */
-export async function getEligibleAutoApplyDiscounts(fid, userWalletAddresses = [], productScope = 'site_wide', productIds = []) {
+export async function getEligibleAutoApplyDiscounts(fid, userWalletAddresses = [], productScope = 'site_wide', productIds = [], useCacheOnly = false) {
   try {
     console.log('🎯 Getting eligible auto-apply discounts for FID:', fid);
 
