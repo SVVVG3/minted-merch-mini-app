@@ -43,23 +43,22 @@ export function ChatEligibilityPopup() {
           return;
         }
 
-        // Check token gating eligibility (this will also grant MERCH-MOGULS if eligible)
-        // Use 'all' scope to match HomePage.jsx and avoid duplicate calls
-        const eligibilityResponse = await fetch('/api/check-token-gated-eligibility', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fid: user.fid,
-            walletAddresses: userWalletAddresses,
-            scope: 'all' // Changed from 'site_wide' to match HomePage.jsx
-          })
-        });
-
-        const eligibilityData = await eligibilityResponse.json();
+        // Check cached token balance from HomePage.jsx (which runs first)
+        console.log('💬 ChatEligibilityPopup checking cache from HomePage.jsx...');
+        const cacheCheckResponse = await fetch(`/api/debug/test-token-balance?fid=${user.fid}&cacheOnly=true`);
+        const cacheData = await cacheCheckResponse.json();
         
-        // If user is eligible for MERCH-MOGULS (≥50M tokens), show chat popup
-        const hasMerchMogulsDiscount = eligibilityData.success && 
-          eligibilityData.eligibleDiscounts?.some(d => d.code === 'MERCH-MOGULS');
+        let hasMerchMogulsDiscount = false;
+        
+        if (cacheData.success && cacheData.balance) {
+          // Convert cached balance from wei to tokens
+          const tokenBalance = parseFloat(cacheData.balance) / Math.pow(10, 18);
+          hasMerchMogulsDiscount = tokenBalance >= 50000000; // 50M tokens required
+          
+          console.log(`💬 Using cached balance: ${tokenBalance.toLocaleString()} tokens (eligible: ${hasMerchMogulsDiscount})`);
+        } else {
+          console.log('💬 No cached balance found - user likely not eligible');
+        }
 
         if (hasMerchMogulsDiscount) {
           // Check if already a chat member to avoid duplicate invites
@@ -72,14 +71,12 @@ export function ChatEligibilityPopup() {
           const chatResult = await chatCheckResponse.json();
           
           if (chatResult.success && chatResult.shouldShowInvite) {
-            // Extract token balance from eligibility results for display
-            const tokenBalance = eligibilityData.eligibleDiscounts
-              ?.find(d => d.code === 'MERCH-MOGULS')?.eligibility_details?.details?.found_balance || 0;
+            // Use cached token balance for display
+            const tokenBalance = parseFloat(cacheData.balance) / Math.pow(10, 18);
             
             setEligibilityData({
               ...chatResult,
-              tokenBalance: typeof tokenBalance === 'string' ? 
-                parseFloat(tokenBalance) / Math.pow(10, 18) : tokenBalance
+              tokenBalance: tokenBalance
             });
             setShowPopup(true);
           }

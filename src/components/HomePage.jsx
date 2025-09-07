@@ -303,6 +303,7 @@ export function HomePage({ collection, products }) {
       // Priority 2: Check for token-gated auto-apply discounts via API
       else {
         console.log('🔍 Checking for token-gated auto-apply discounts...');
+        console.log('🕐 HomePage.jsx token check starting - no pending discount found');
         
         try {
           // Get user's wallet addresses for token-gating via API
@@ -323,10 +324,13 @@ export function HomePage({ collection, products }) {
               
               // First check if we have fresh cached data to avoid duplicate RPC calls
               console.log('🔍 Checking for cached token balance before making API call...');
-              const cacheCheckResponse = await fetch(`/api/debug/test-token-balance?fid=${fid}`);
-              const cacheData = await cacheCheckResponse.json();
               
-              if (cacheData.success && cacheData.fromCache && cacheData.ageSeconds < 120) {
+              // Check cache directly without triggering any API calls
+              try {
+                const cacheCheckResponse = await fetch(`/api/debug/test-token-balance?fid=${fid}&cacheOnly=true`);
+                const cacheData = await cacheCheckResponse.json();
+                
+                if (cacheData.success && cacheData.fromCache && cacheData.ageSeconds < 120) {
                 console.log(`💾 Using cached balance from chat eligibility check (${cacheData.ageSeconds}s old) - skipping duplicate API call`);
                 
                 // Determine eligibility based on cached balance
@@ -357,21 +361,22 @@ export function HomePage({ collection, products }) {
                 }
               } else {
                 console.log('🔄 No fresh cache available - proceeding with API call');
+                console.log('🏠 HomePage.jsx making token eligibility call (runs first, populates cache)');
                 
                 // Check for eligible token-gated discounts via API (all scopes)
                 const eligibilityResponse = await fetch('/api/check-token-gated-eligibility', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  fid,
-                  walletAddresses: userWalletAddresses,
-                  scope: 'all', // Check all discount scopes, not just site-wide
-                  productIds: [] // Empty for now, could be populated for specific products
-                })
-              });
-              
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    fid,
+                    walletAddresses: userWalletAddresses,
+                    scope: 'all', // Check all discount scopes, not just site-wide
+                    productIds: [] // Empty for now, could be populated for specific products
+                  })
+                });
+                
                 const eligibilityData = await eligibilityResponse.json();
                 
                 if (eligibilityData.success) {
@@ -396,7 +401,40 @@ export function HomePage({ collection, products }) {
                 } else {
                   console.log('❌ Token-gating eligibility check failed:', eligibilityData.error);
                 }
-              } // Close the else block for cache check
+              }
+              } catch (cacheError) {
+                console.log('⚠️ Cache check failed, proceeding with API call anyway:', cacheError.message);
+                
+                // Fallback: make API call even if cache check failed
+                const eligibilityResponse = await fetch('/api/check-token-gated-eligibility', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    fid,
+                    walletAddresses: userWalletAddresses,
+                    scope: 'all',
+                    productIds: []
+                  })
+                });
+                
+                const eligibilityData = await eligibilityResponse.json();
+                
+                if (eligibilityData.success && eligibilityData.eligibleDiscounts?.length > 0) {
+                  const topDiscount = eligibilityData.eligibleDiscounts[0];
+                  activeDiscount = {
+                    code: topDiscount.code,
+                    source: 'token_gated',
+                    gating_type: topDiscount.gating_type,
+                    priority_level: topDiscount.priority_level,
+                    discount_description: topDiscount.discount_description,
+                    displayText: formatDiscountText(topDiscount),
+                    isUsable: true
+                  };
+                  discountSource = 'token_gated';
+                }
+              } // Close the try block for cache check
             } else {
               console.log('❌ No wallet addresses found for token-gating');
             }
