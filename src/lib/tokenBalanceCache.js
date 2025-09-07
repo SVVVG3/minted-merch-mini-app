@@ -199,13 +199,13 @@ export async function refreshUserTokenBalance(fid, walletAddresses = []) {
     // Get current cached balance
     const cachedResult = await getCachedTokenBalance(fid);
     
-    // If cache is fresh (less than 2 minutes old) AND has a non-zero balance, return cached value
-    // We use 2 minutes instead of 10 to avoid stale data issues during concurrent requests
-    const twoMinutesAgo = Date.now() - (2 * 60 * 1000);
-    if (cachedResult.success && cachedResult.updated_at && cachedResult.balance > 0) {
+    // If cache is fresh (less than 30 seconds old), return cached value regardless of amount
+    // This prevents concurrent RPC calls from interfering with each other
+    const thirtySecondsAgo = Date.now() - (30 * 1000);
+    if (cachedResult.success && cachedResult.updated_at) {
       const cacheTime = new Date(cachedResult.updated_at).getTime();
-      if (cacheTime > twoMinutesAgo) {
-        console.log(`💾 Using fresh cached balance for FID ${fid}: ${cachedResult.balance} (non-zero, recent)`);
+      if (cacheTime > thirtySecondsAgo) {
+        console.log(`💾 Using very fresh cached balance for FID ${fid}: ${cachedResult.balance} (updated ${Math.round((Date.now() - cacheTime) / 1000)}s ago)`);
         return {
           success: true,
           balance: cachedResult.balance,
@@ -215,9 +215,24 @@ export async function refreshUserTokenBalance(fid, walletAddresses = []) {
       }
     }
     
-    // If cached balance is 0 or stale, always do a fresh check to avoid false negatives
+    // For older cache, only trust non-zero balances (avoid false negatives from stale 0 balances)
+    const twoMinutesAgo = Date.now() - (2 * 60 * 1000);
+    if (cachedResult.success && cachedResult.updated_at && cachedResult.balance > 0) {
+      const cacheTime = new Date(cachedResult.updated_at).getTime();
+      if (cacheTime > twoMinutesAgo) {
+        console.log(`💾 Using cached non-zero balance for FID ${fid}: ${cachedResult.balance} (${Math.round((Date.now() - cacheTime) / 1000)}s old)`);
+        return {
+          success: true,
+          balance: cachedResult.balance,
+          fromCache: true,
+          updated_at: cachedResult.updated_at
+        };
+      }
+    }
+    
+    // If cached balance is 0 and older than 30 seconds, do a fresh check to avoid false negatives
     if (cachedResult.success && (cachedResult.balance === 0 || cachedResult.balance === '0')) {
-      console.log(`🔄 Cached balance is 0 for FID ${fid} - forcing fresh check to avoid false negatives`);
+      console.log(`🔄 Cached balance is 0 for FID ${fid} and older than 30s - forcing fresh check to avoid false negatives`);
     }
 
     // Cache is stale or doesn't exist, fetch fresh balance
