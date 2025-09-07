@@ -100,8 +100,8 @@ export async function GET(request) {
       }
     }
 
-    // Test the refresh function
-    if (!forceRefresh) {
+    // Test the refresh function (only if not cache-only mode)
+    if (!forceRefresh && !cacheOnly) {
       console.log('🔄 Testing refresh function...');
       try {
         const refreshResult = await refreshUserTokenBalance(fid, walletAddresses);
@@ -110,6 +110,8 @@ export async function GET(request) {
         console.error('❌ Refresh function failed:', error);
         result.refreshError = error.message;
       }
+    } else if (cacheOnly) {
+      console.log('⏭️ Skipping refresh function test - cache-only mode');
     }
 
     return NextResponse.json(result);
