@@ -26,22 +26,66 @@ export function ChatEligibilityPopup() {
       setIsChecking(true);
 
       try {
-        // Check if user is eligible for chat and not already a member
-        const response = await fetch('/api/check-chat-eligibility', {
+        // Use token gating system to check eligibility (single source of truth)
+        // If user has ≥50M tokens for MERCH-MOGULS, they're eligible for chat
+        const walletResponse = await fetch(`/api/user-wallet-data?fid=${user.fid}`);
+        const walletData = await walletResponse.json();
+        
+        if (!walletData.success) {
+          console.log('❌ Could not fetch wallet data for chat eligibility');
+          return;
+        }
+
+        const userWalletAddresses = walletData.walletData?.all_wallet_addresses || [];
+        
+        if (userWalletAddresses.length === 0) {
+          console.log('❌ No wallet addresses found for chat eligibility');
+          return;
+        }
+
+        // Check token gating eligibility (this will also grant MERCH-MOGULS if eligible)
+        const eligibilityResponse = await fetch('/api/check-token-gated-eligibility', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fid: user.fid })
+          body: JSON.stringify({
+            fid: user.fid,
+            walletAddresses: userWalletAddresses,
+            scope: 'site_wide'
+          })
         });
 
-        const result = await response.json();
+        const eligibilityData = await eligibilityResponse.json();
+        
+        // If user is eligible for MERCH-MOGULS (≥50M tokens), show chat popup
+        const hasMerchMogulsDiscount = eligibilityData.success && 
+          eligibilityData.eligibleDiscounts?.some(d => d.code === 'MERCH-MOGULS');
 
-        if (result.success && result.shouldShowInvite) {
-          setEligibilityData(result);
-          setShowPopup(true);
+        if (hasMerchMogulsDiscount) {
+          // Check if already a chat member to avoid duplicate invites
+          const chatCheckResponse = await fetch('/api/check-chat-eligibility', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fid: user.fid, skipTokenCheck: true })
+          });
+
+          const chatResult = await chatCheckResponse.json();
+          
+          if (chatResult.success && chatResult.shouldShowInvite) {
+            // Extract token balance from eligibility results for display
+            const tokenBalance = eligibilityData.eligibleDiscounts
+              ?.find(d => d.code === 'MERCH-MOGULS')?.eligibility_details?.details?.found_balance || 0;
+            
+            setEligibilityData({
+              ...chatResult,
+              tokenBalance: typeof tokenBalance === 'string' ? 
+                parseFloat(tokenBalance) / Math.pow(10, 18) : tokenBalance
+            });
+            setShowPopup(true);
+          }
         }
 
       } catch (error) {
-        console.error('❌ Error checking chat eligibility for popup:', error);
+        console.error('❌ Error checking token gating eligibility for chat popup:', error);
       } finally {
         setIsChecking(false);
       }
@@ -135,7 +179,7 @@ export function ChatEligibilityPopup() {
           </p>
           
           {/* Token Balance Display */}
-          {eligibilityData?.tokenBalance && (
+          {eligibilityData?.tokenBalance &&
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-green-700">Your Balance:</span>

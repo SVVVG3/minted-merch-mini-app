@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request) {
   try {
-    const { fid } = await request.json();
+    const { fid, skipTokenCheck = false } = await request.json();
 
     if (!fid) {
       return NextResponse.json({
@@ -61,20 +61,24 @@ export async function POST(request) {
 
     console.log(`💰 Found ${validWallets.length} wallet addresses for FID ${fid}`);
 
-    // Step 3: Check token eligibility (and update cache)
-    const eligibility = await checkChatEligibility(validWallets, fid);
+    // Step 3: Check token eligibility (skip if requested - used when token gating already checked)
+    if (!skipTokenCheck) {
+      const eligibility = await checkChatEligibility(validWallets, fid);
 
-    if (!eligibility.eligible) {
-      console.log('❌ User not eligible for chat:', eligibility.message);
-      return NextResponse.json({
-        success: true,
-        shouldShowInvite: false,
-        reason: 'Not eligible - insufficient tokens',
-        tokenBalance: eligibility.tokenBalance
-      });
+      if (!eligibility.eligible) {
+        console.log('❌ User not eligible for chat:', eligibility.message);
+        return NextResponse.json({
+          success: true,
+          shouldShowInvite: false,
+          reason: 'Not eligible - insufficient tokens',
+          tokenBalance: eligibility.tokenBalance
+        });
+      }
+
+      console.log('✅ User is eligible for chat!');
+    } else {
+      console.log('⏭️ Skipping token check - eligibility already verified by token gating');
     }
-
-    console.log('✅ User is eligible for chat!');
 
     // Step 4: Check if already a chat member
     const { data: existingMember, error: memberError } = await supabaseAdmin
