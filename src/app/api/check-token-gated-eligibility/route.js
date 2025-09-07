@@ -29,7 +29,9 @@ export async function POST(request) {
     console.log('Scope:', scope, 'Product IDs:', productIds);
 
     // Use request deduplication to prevent concurrent calls for same user
-    const deduplicationKey = `token-eligibility-${fid}-${scope}${useCacheOnly ? '-cache' : ''}`;
+    // Include productIds in key to ensure different products get different results
+    const productKey = productIds && productIds.length > 0 ? `-products-${productIds.sort().join(',')}` : '';
+    const deduplicationKey = `token-eligibility-${fid}-${scope}${productKey}${useCacheOnly ? '-cache' : ''}`;
     const eligibleDiscounts = await deduplicateRequest(
       deduplicationKey,
       () => getEligibleAutoApplyDiscounts(fid, walletAddresses, scope, productIds, useCacheOnly),
