@@ -710,7 +710,10 @@ async function logEligibilityCheck(discountCodeId, fid, walletAddress, result, m
         wallet_address: walletAddress,
         is_eligible: result.eligible,
         eligibility_reason: result.reason,
-        token_balance_found: result.details?.found_balance,
+        token_balance_found: result.details?.found_balance ? 
+          (typeof result.details.found_balance === 'string' && result.details.found_balance.length > 18 ? 
+            Number(result.details.found_balance) / Math.pow(10, 18) : 
+            result.details.found_balance) : null,
         contracts_checked: result.details?.contracts_checked || [],
         check_duration_ms: metadata.duration,
         blockchain_calls_made: metadata.blockchainCalls || 0,
