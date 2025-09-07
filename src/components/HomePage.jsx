@@ -316,9 +316,10 @@ export function HomePage({ collection, products }) {
             console.log('User wallet addresses for token-gating:', userWalletAddresses);
             
             if (userWalletAddresses.length > 0) {
-              // Small delay to allow chat eligibility check to complete and populate cache
+              // Longer delay to allow chat eligibility check to complete and commit to database
               // This prevents concurrent RPC calls that cause rate limiting
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              console.log('⏳ Waiting for chat eligibility to complete before checking token gating...');
+              await new Promise(resolve => setTimeout(resolve, 3000));
               
               // Check for eligible token-gated discounts via API (all scopes)
               const eligibilityResponse = await fetch('/api/check-token-gated-eligibility', {

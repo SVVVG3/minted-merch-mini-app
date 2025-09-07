@@ -57,7 +57,7 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
         
         // The blockchain API returns balance in tokens (divided by 10^18)
         // We need to store it in wei (multiply by 10^18) for precision
-        const tokensBalance = balanceResult.totalBalance || 0;
+        const tokensBalance = balanceResult || 0;
         
         // Convert to string to avoid scientific notation
         const tokensStr = tokensBalance.toString();
@@ -198,6 +198,12 @@ export async function refreshUserTokenBalance(fid, walletAddresses = []) {
 
     // Get current cached balance
     const cachedResult = await getCachedTokenBalance(fid);
+    console.log(`🔍 Cache lookup result for FID ${fid}:`, {
+      success: cachedResult.success,
+      balance: cachedResult.balance,
+      updated_at: cachedResult.updated_at,
+      age_seconds: cachedResult.updated_at ? Math.round((Date.now() - new Date(cachedResult.updated_at).getTime()) / 1000) : 'never'
+    });
     
     // If cache is fresh (less than 30 seconds old), return cached value regardless of amount
     // This prevents concurrent RPC calls from interfering with each other
