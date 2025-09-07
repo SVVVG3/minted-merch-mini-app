@@ -62,8 +62,10 @@ export async function POST(request) {
     console.log(`💰 Found ${validWallets.length} wallet addresses for FID ${fid}`);
 
     // Step 3: Check token eligibility (skip if requested - used when token gating already checked)
+    let eligibility = null;
+    
     if (!skipTokenCheck) {
-      const eligibility = await checkChatEligibility(validWallets, fid);
+      eligibility = await checkChatEligibility(validWallets, fid);
 
       if (!eligibility.eligible) {
         console.log('❌ User not eligible for chat:', eligibility.message);
@@ -78,6 +80,12 @@ export async function POST(request) {
       console.log('✅ User is eligible for chat!');
     } else {
       console.log('⏭️ Skipping token check - eligibility already verified by token gating');
+      // Create a minimal eligibility object for skipped checks
+      eligibility = {
+        eligible: true,
+        tokenBalance: 0, // Will be populated from token gating results
+        message: 'Eligibility verified by token gating'
+      };
     }
 
     // Step 4: Check if already a chat member

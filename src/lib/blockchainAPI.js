@@ -227,7 +227,9 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
   };
 
   const availableRpcs = rpcUrls[chainId] || rpcUrls[8453];
-  let rpcUrl = availableRpcs[0]; // Start with first RPC
+  // Rotate through RPC endpoints to distribute load
+  const rpcIndex = Date.now() % availableRpcs.length;
+  let rpcUrl = availableRpcs[rpcIndex];
   const contractAddress = contractAddresses[0]; // Focus on the first contract (mintedmerch)
 
   console.log('🔗 Checking token balance via RPC:', {
@@ -245,9 +247,9 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
     const walletAddress = walletAddresses[i];
     
     try {
-      // Reduced delays for better user experience - most RPC endpoints can handle faster requests
+      // Increased delays to prevent rate limiting - RPC endpoints are hitting limits
       if (i > 0) {
-        const delay = Math.min(200 + (i * 100), 1000); // Faster delays: 200ms, 300ms, 400ms... up to 1s
+        const delay = Math.min(1000 + (i * 500), 3000); // Longer delays: 1s, 1.5s, 2s... up to 3s
         console.log(`⏳ Waiting ${delay}ms before checking next wallet...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
@@ -295,7 +297,7 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
             // Rate limited - try next RPC or wait shorter time for better UX
             retryCount++;
             if (retryCount <= maxRetries) {
-              const retryDelay = Math.min(1000 + (retryCount * 500), 5000); // 1s, 1.5s, 2s... up to 5s
+              const retryDelay = Math.min(2000 + (retryCount * 1000), 8000); // 2s, 3s, 4s... up to 8s
               console.log(`⏳ Rate limited on ${currentRpcUrl}, retrying in ${retryDelay}ms (attempt ${retryCount}/${maxRetries})`);
               await new Promise(resolve => setTimeout(resolve, retryDelay));
               continue;
