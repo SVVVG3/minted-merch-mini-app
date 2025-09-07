@@ -2,6 +2,7 @@
 import { supabaseAdmin } from './supabase';
 import { checkTokenBalanceDirectly } from './blockchainAPI';
 import { updateChatMemberBalance } from './chatMemberDatabase';
+import { deduplicateRequest } from './requestDeduplication';
 
 /**
  * Update user's token balance in profiles table
@@ -11,8 +12,14 @@ import { updateChatMemberBalance } from './chatMemberDatabase';
  * @returns {Promise<Object>} Result with success status and balance
  */
 export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBalance = null) {
-  try {
-    console.log(`💰 Updating token balance for FID ${fid} with ${walletAddresses.length} wallets`);
+  // Use request deduplication to prevent concurrent balance updates for same user
+  const deduplicationKey = `update-token-balance-${fid}`;
+  
+  return await deduplicateRequest(
+    deduplicationKey,
+    async () => {
+      try {
+        console.log(`💰 Updating token balance for FID ${fid} with ${walletAddresses.length} wallets`);
 
     let finalBalance = tokenBalance;
     
@@ -128,14 +135,17 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
       data
     };
 
-  } catch (error) {
-    console.error(`❌ Error in updateUserTokenBalance for FID ${fid}:`, error);
-    return {
-      success: false,
-      error: error.message,
-      balance: 0
-    };
-  }
+      } catch (error) {
+        console.error(`❌ Error in updateUserTokenBalance for FID ${fid}:`, error);
+        return {
+          success: false,
+          error: error.message,
+          balance: 0
+        };
+      }
+    },
+    10000 // Cache for 10 seconds to prevent rapid duplicate calls
+  );
 }
 
 /**
