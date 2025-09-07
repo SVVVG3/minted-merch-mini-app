@@ -179,7 +179,7 @@ export function ChatEligibilityPopup() {
           </p>
           
           {/* Token Balance Display */}
-          {eligibilityData?.tokenBalance &&
+          {eligibilityData?.tokenBalance && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-green-700">Your Balance:</span>
