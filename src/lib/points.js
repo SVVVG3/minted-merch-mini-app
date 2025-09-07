@@ -471,6 +471,8 @@ export async function addPurchasePoints(userFid, orderTotal, orderId) {
  */
 export async function getLeaderboard(limit = 10, category = 'points') {
   try {
+    console.log(`🔍 getLeaderboard called with limit: ${limit}, category: ${category}`);
+    
     let query = supabaseAdmin
       .from('user_leaderboard')
       .select(`
@@ -525,6 +527,12 @@ export async function getLeaderboard(limit = 10, category = 'points') {
     if (error) {
       console.error('Error fetching leaderboard:', error);
       return [];
+    }
+
+    console.log(`📊 getLeaderboard returned ${data?.length || 0} users for limit ${limit}`);
+    
+    if (data?.length === 1000) {
+      console.warn('⚠️ Exactly 1000 results returned - possible limit issue!');
     }
 
     // Add category-specific display information and flatten profile data
