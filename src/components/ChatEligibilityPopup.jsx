@@ -12,14 +12,22 @@ export function ChatEligibilityPopup() {
 
   useEffect(() => {
     const checkEligibilityAndMembership = async () => {
+      console.log('💬 ChatEligibilityPopup.checkEligibilityAndMembership starting...', {
+        isInFarcaster,
+        userFid: user?.fid,
+        dismissed: sessionStorage.getItem(`chat-popup-dismissed-${user?.fid}`)
+      });
+      
       // Only check if user is in Farcaster and has an FID
       if (!isInFarcaster || !user?.fid) {
+        console.log('💬 Skipping chat eligibility - not in Farcaster or no FID');
         return;
       }
 
       // Don't show if already dismissed in this session
       const dismissed = sessionStorage.getItem(`chat-popup-dismissed-${user.fid}`);
       if (dismissed) {
+        console.log('💬 Skipping chat eligibility - popup already dismissed this session');
         return;
       }
 

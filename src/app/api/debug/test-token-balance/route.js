@@ -8,6 +8,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const fid = parseInt(searchParams.get('fid'));
     const forceRefresh = searchParams.get('force') === 'true';
+    const cacheOnly = searchParams.get('cacheOnly') === 'true';
 
     if (!fid) {
       return NextResponse.json({
@@ -53,6 +54,22 @@ export async function GET(request) {
       result.error = 'No valid Ethereum addresses found';
       result.directBalance = 0;
       result.success = false;
+    } else if (cacheOnly) {
+      // Only return cached data, don't make any blockchain calls
+      console.log('💾 Cache-only mode - returning cached balance without blockchain calls');
+      
+      if (profile.token_balance && profile.token_balance_updated_at) {
+        const ageSeconds = Math.round((Date.now() - new Date(profile.token_balance_updated_at).getTime()) / 1000);
+        result.success = true;
+        result.balance = profile.token_balance;
+        result.fromCache = true;
+        result.ageSeconds = ageSeconds;
+        result.updated_at = profile.token_balance_updated_at;
+      } else {
+        result.success = false;
+        result.error = 'No cached balance available';
+        result.fromCache = false;
+      }
     } else {
       // Test direct blockchain call
       console.log('🔗 Testing direct blockchain call...');
