@@ -100,18 +100,24 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
 
     console.log(`✅ Updated token balance for FID ${fid}: ${finalBalance} tokens`);
     
-    // Also update chat member database if user is a chat member
-    try {
-      // Convert back to tokens for chat member database (it expects tokens, not wei)
-      const tokensBalance = typeof finalBalance === 'string' ? 
-        parseFloat(finalBalance) / Math.pow(10, 18) : 
-        finalBalance / Math.pow(10, 18);
-      
-      await updateChatMemberBalance(fid, tokensBalance, 'success');
-      console.log(`💬 Also updated chat member balance for FID ${fid}: ${tokensBalance} tokens`);
-    } catch (chatError) {
-      // Don't fail the main operation if chat member update fails
-      console.warn(`⚠️ Could not update chat member balance for FID ${fid}:`, chatError.message);
+    // Only update chat member database if user has enough tokens for chat eligibility
+    // This prevents unnecessary updates for users who aren't chat members
+    const tokensBalance = typeof finalBalance === 'string' ?
+      parseFloat(finalBalance) / Math.pow(10, 18) :
+      finalBalance / Math.pow(10, 18);
+    
+    const CHAT_ELIGIBILITY_THRESHOLD = 50000000; // 50M tokens required for chat
+    
+    if (tokensBalance >= CHAT_ELIGIBILITY_THRESHOLD) {
+      try {
+        await updateChatMemberBalance(fid, tokensBalance, 'success');
+        console.log(`💬 Also updated chat member balance for FID ${fid}: ${tokensBalance} tokens`);
+      } catch (chatError) {
+        // Only log warning for users who should be eligible but update failed
+        console.warn(`⚠️ Could not update chat member balance for eligible user FID ${fid}:`, chatError.message);
+      }
+    } else {
+      console.log(`ℹ️ FID ${fid} has ${tokensBalance} tokens (below 50M threshold) - skipping chat member update`);
     }
     
     return {
@@ -221,7 +227,7 @@ export async function refreshUserTokenBalance(fid, walletAddresses = []) {
       }
     }
     
-    // For older cache, only trust non-zero balances (avoid false negatives from stale 0 balances)
+    // For older cache, trust non-zero balances for longer (2 minutes)
     const twoMinutesAgo = Date.now() - (2 * 60 * 1000);
     if (cachedResult.success && cachedResult.updated_at && cachedResult.balance > 0) {
       const cacheTime = new Date(cachedResult.updated_at).getTime();
