@@ -44,13 +44,14 @@ export function ChatEligibilityPopup() {
         }
 
         // Check token gating eligibility (this will also grant MERCH-MOGULS if eligible)
+        // Use 'all' scope to match HomePage.jsx and avoid duplicate calls
         const eligibilityResponse = await fetch('/api/check-token-gated-eligibility', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             fid: user.fid,
             walletAddresses: userWalletAddresses,
-            scope: 'site_wide'
+            scope: 'all' // Changed from 'site_wide' to match HomePage.jsx
           })
         });
 
