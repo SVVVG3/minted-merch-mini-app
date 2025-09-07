@@ -51,21 +51,32 @@ export function ChatEligibilityPopup() {
           return;
         }
 
-        // Check cached token balance from HomePage.jsx (which runs first)
-        console.log('💬 ChatEligibilityPopup checking cache from HomePage.jsx...');
-        const cacheCheckResponse = await fetch(`/api/debug/test-token-balance?fid=${user.fid}&cacheOnly=true`);
-        const cacheData = await cacheCheckResponse.json();
+        // Check cached token balance directly from Supabase (no API calls)
+        console.log('💬 ChatEligibilityPopup checking cached balance from Supabase...');
         
         let hasMerchMogulsDiscount = false;
+        let cachedTokenBalance = 0;
         
-        if (cacheData.success && cacheData.balance) {
-          // Convert cached balance from wei to tokens
-          const tokenBalance = parseFloat(cacheData.balance) / Math.pow(10, 18);
-          hasMerchMogulsDiscount = tokenBalance >= 50000000; // 50M tokens required
+        try {
+          // Get cached balance directly from database
+          const profileResponse = await fetch('/api/user-profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fid: user.fid })
+          });
+          const profileData = await profileResponse.json();
           
-          console.log(`💬 Using cached balance: ${tokenBalance.toLocaleString()} tokens (eligible: ${hasMerchMogulsDiscount})`);
-        } else {
-          console.log('💬 No cached balance found - user likely not eligible');
+          if (profileData.success && profileData.data?.token_balance) {
+            // Convert cached balance from wei to tokens
+            cachedTokenBalance = parseFloat(profileData.data.token_balance) / Math.pow(10, 18);
+            hasMerchMogulsDiscount = cachedTokenBalance >= 50000000; // 50M tokens required
+            
+            console.log(`💬 Using cached balance: ${cachedTokenBalance.toLocaleString()} tokens (eligible: ${hasMerchMogulsDiscount})`);
+          } else {
+            console.log('💬 No cached balance found - user likely not eligible');
+          }
+        } catch (error) {
+          console.log('💬 Error checking cached balance:', error.message);
         }
 
         if (hasMerchMogulsDiscount) {
@@ -80,11 +91,9 @@ export function ChatEligibilityPopup() {
           
           if (chatResult.success && chatResult.shouldShowInvite) {
             // Use cached token balance for display
-            const tokenBalance = parseFloat(cacheData.balance) / Math.pow(10, 18);
-            
             setEligibilityData({
               ...chatResult,
-              tokenBalance: tokenBalance
+              tokenBalance: cachedTokenBalance
             });
             setShowPopup(true);
           }
