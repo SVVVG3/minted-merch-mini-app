@@ -98,10 +98,8 @@ export async function GET(request) {
           // Always check token-gated discounts (FID-based discounts work without wallets)
           console.log(`🔍 Checking token-gated discounts for FID ${userFid} with ${userWalletAddresses.length} wallet addresses`);
           
-          // Check for all token-gated discounts using CACHED balance (no fresh blockchain calls)
-          // HomePage.jsx already populated the cache, so we use that for better performance
-          console.log('🏪 Products API using cached token balance to avoid duplicate RPC calls');
-          
+          // Check for all token-gated discounts (both product-specific and site-wide)
+          // Use normal mode (not cache-only) to ensure product-specific discounts work correctly
           const tokenGatedResponse = await fetch(`${baseUrl}/api/check-token-gated-eligibility`, {
             method: 'POST',
             headers: {
@@ -111,8 +109,7 @@ export async function GET(request) {
               fid: userFid,
               walletAddresses: userWalletAddresses,
               productIds: [supabaseId],
-              scope: 'all',
-              useCacheOnly: true // NEW FLAG: Use cached balance only, no fresh fetch
+              scope: 'all'
             })
           });
               
