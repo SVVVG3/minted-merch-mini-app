@@ -473,7 +473,50 @@ export async function getLeaderboard(limit = 10, category = 'points') {
   try {
     console.log(`🔍 getLeaderboard called with limit: ${limit}, category: ${category}`);
     
-    // If limit > 1000, we need to use pagination due to Supabase's 1000 row limit
+    // For admin dashboard (large limits), we need to include both high-point users AND token holders
+    const isAdminRequest = limit > 1000;
+    
+    if (isAdminRequest) {
+      console.log(`🏆 Admin request detected - fetching comprehensive dataset including token holders`);
+      
+      // Get top users by points AND significant token holders
+      const [pointsUsers, tokenHolders] = await Promise.all([
+        // Top 1000 users by points (existing logic)
+        getTopUsersByPoints(1000, category),
+        // Top token holders (regardless of points)
+        getTopTokenHolders(1000)
+      ]);
+      
+      // Combine and deduplicate by user_fid
+      const combinedUsers = new Map();
+      
+      // Add points-based users first
+      pointsUsers.forEach(user => {
+        combinedUsers.set(user.user_fid, user);
+      });
+      
+      // Add token holders (will overwrite if same user, keeping token data)
+      tokenHolders.forEach(user => {
+        if (!combinedUsers.has(user.user_fid)) {
+          combinedUsers.set(user.user_fid, user);
+        }
+      });
+      
+      const allUsers = Array.from(combinedUsers.values());
+      console.log(`🔗 Combined ${pointsUsers.length} points users + ${tokenHolders.length} token holders = ${allUsers.length} unique users`);
+      
+      // Sort the combined results by the requested category
+      const sortedUsers = sortUsersByCategory(allUsers, category);
+      
+      // Return up to the requested limit
+      const finalUsers = sortedUsers.slice(0, limit);
+      
+      console.log(`📊 getLeaderboard returned ${finalUsers.length} users for admin request`);
+      
+      return enhanceUserData(finalUsers, category);
+    }
+    
+    // Original logic for smaller requests
     const SUPABASE_MAX_LIMIT = 1000;
     const needsPagination = limit > SUPABASE_MAX_LIMIT;
     
@@ -985,4 +1028,187 @@ export async function getUserPointTransactionStats(userFid) {
       bonusTransactions: 0
     };
   }
+}
+
+/**
+ * Get top users by points (helper for admin leaderboard)
+ */
+async function getTopUsersByPoints(limit, category) {
+  let query = supabaseAdmin
+    .from('user_leaderboard')
+    .select(`
+      user_fid, 
+      total_points, 
+      checkin_streak, 
+      last_checkin_date, 
+      total_orders, 
+      total_spent, 
+      points_from_purchases, 
+      points_from_checkins, 
+      created_at,
+      profiles (
+        display_name,
+        pfp_url,
+        username,
+        token_balance
+      )
+    `)
+    .limit(limit);
+
+  // Sort based on category
+  switch (category) {
+    case 'points':
+      query = query.order('total_points', { ascending: false });
+      break;
+    case 'streaks':
+      query = query
+        .order('checkin_streak', { ascending: false })
+        .order('total_points', { ascending: false });
+      break;
+    case 'purchases':
+      query = query
+        .gt('total_orders', 0)
+        .order('points_from_purchases', { ascending: false })
+        .order('total_orders', { ascending: false });
+      break;
+    case 'spending':
+      query = query
+        .order('total_spent', { ascending: false })
+        .order('total_orders', { ascending: false });
+      break;
+    default:
+      query = query.order('total_points', { ascending: false });
+  }
+
+  const { data, error } = await query;
+  
+  if (error) {
+    console.error('Error fetching top users by points:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Get top token holders (helper for admin leaderboard)
+ */
+async function getTopTokenHolders(limit) {
+  // Get users with significant token balances from profiles table
+  const { data: tokenHolders, error: tokenError } = await supabaseAdmin
+    .from('profiles')
+    .select(`
+      fid,
+      username,
+      display_name,
+      pfp_url,
+      token_balance,
+      token_balance_updated_at
+    `)
+    .gt('token_balance', 0)
+    .order('token_balance', { ascending: false })
+    .limit(limit);
+
+  if (tokenError) {
+    console.error('Error fetching token holders:', tokenError);
+    return [];
+  }
+
+  // Convert to leaderboard format and get their points data
+  const tokenHolderFids = tokenHolders.map(holder => holder.fid);
+  
+  const { data: pointsData, error: pointsError } = await supabaseAdmin
+    .from('user_leaderboard')
+    .select(`
+      user_fid,
+      total_points,
+      checkin_streak,
+      last_checkin_date,
+      total_orders,
+      total_spent,
+      points_from_purchases,
+      points_from_checkins,
+      created_at
+    `)
+    .in('user_fid', tokenHolderFids);
+
+  if (pointsError) {
+    console.error('Error fetching points data for token holders:', pointsError);
+  }
+
+  // Create a map of points data by fid
+  const pointsMap = new Map();
+  (pointsData || []).forEach(user => {
+    pointsMap.set(user.user_fid, user);
+  });
+
+  // Combine token holder data with points data
+  return tokenHolders.map(holder => {
+    const pointsInfo = pointsMap.get(holder.fid) || {
+      user_fid: holder.fid,
+      total_points: 0,
+      checkin_streak: 0,
+      last_checkin_date: null,
+      total_orders: 0,
+      total_spent: 0,
+      points_from_purchases: 0,
+      points_from_checkins: 0,
+      created_at: new Date().toISOString()
+    };
+
+    return {
+      ...pointsInfo,
+      user_fid: holder.fid,
+      profiles: {
+        display_name: holder.display_name,
+        pfp_url: holder.pfp_url,
+        username: holder.username,
+        token_balance: holder.token_balance
+      }
+    };
+  });
+}
+
+/**
+ * Sort users by category (helper for admin leaderboard)
+ */
+function sortUsersByCategory(users, category) {
+  return users.sort((a, b) => {
+    switch (category) {
+      case 'points':
+        return (b.total_points || 0) - (a.total_points || 0);
+      case 'streaks':
+        if ((b.checkin_streak || 0) !== (a.checkin_streak || 0)) {
+          return (b.checkin_streak || 0) - (a.checkin_streak || 0);
+        }
+        return (b.total_points || 0) - (a.total_points || 0);
+      case 'purchases':
+        if ((b.points_from_purchases || 0) !== (a.points_from_purchases || 0)) {
+          return (b.points_from_purchases || 0) - (a.points_from_purchases || 0);
+        }
+        return (b.total_orders || 0) - (a.total_orders || 0);
+      case 'spending':
+        if ((b.total_spent || 0) !== (a.total_spent || 0)) {
+          return (b.total_spent || 0) - (a.total_spent || 0);
+        }
+        return (b.total_orders || 0) - (a.total_orders || 0);
+      default:
+        return (b.total_points || 0) - (a.total_points || 0);
+    }
+  });
+}
+
+/**
+ * Enhance user data with display information (helper for admin leaderboard)
+ */
+function enhanceUserData(users, category) {
+  return users.map((user, index) => ({
+    ...user,
+    display_name: user.profiles?.display_name || `User ${user.user_fid}`,
+    username: user.profiles?.username || null,
+    pfp_url: user.profiles?.pfp_url || null,
+    token_balance: user.profiles?.token_balance || 0,
+    rank: index + 1,
+    category: category
+  }));
 } 
