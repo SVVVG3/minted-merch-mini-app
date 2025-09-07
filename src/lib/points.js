@@ -473,70 +473,162 @@ export async function getLeaderboard(limit = 10, category = 'points') {
   try {
     console.log(`🔍 getLeaderboard called with limit: ${limit}, category: ${category}`);
     
-    let query = supabaseAdmin
-      .from('user_leaderboard')
-      .select(`
-        user_fid, 
-        total_points, 
-        checkin_streak, 
-        last_checkin_date, 
-        total_orders, 
-        total_spent, 
-        points_from_purchases, 
-        points_from_checkins, 
-        created_at,
-        profiles (
-          display_name,
-          pfp_url,
-          username,
-          token_balance
-        )
-      `)
-      .limit(limit);
-
-    // Sort based on category
-    switch (category) {
-      case 'points':
-        query = query.order('total_points', { ascending: false });
-        break;
-      case 'streaks':
-        query = query
-          .order('checkin_streak', { ascending: false })
-          .order('total_points', { ascending: false }); // Secondary sort by points
-        break;
-      case 'purchases':
-        // Filter to only show users who have made purchases, then sort by points from purchases
-        query = query
-          .gt('total_orders', 0)
-          .order('points_from_purchases', { ascending: false })
-          .order('total_orders', { ascending: false });
-        break;
-      case 'spending':
-        // Sort by total amount spent
-        query = query
-          .order('total_spent', { ascending: false })
-          .order('total_orders', { ascending: false }); // Secondary sort by order count
-        break;
-      default:
-        console.warn(`Category '${category}' not recognized, using 'points'`);
-        query = query.order('total_points', { ascending: false });
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Error fetching leaderboard:', error);
-      return [];
-    }
-
-    console.log(`📊 getLeaderboard returned ${data?.length || 0} users for limit ${limit}`);
+    // If limit > 1000, we need to use pagination due to Supabase's 1000 row limit
+    const SUPABASE_MAX_LIMIT = 1000;
+    const needsPagination = limit > SUPABASE_MAX_LIMIT;
     
-    if (data?.length === 1000) {
-      console.warn('⚠️ Exactly 1000 results returned - possible limit issue!');
+    let allData = [];
+    
+    if (needsPagination) {
+      console.log(`📄 Using pagination for limit ${limit} (fetching in chunks of ${SUPABASE_MAX_LIMIT})`);
+      
+      let offset = 0;
+      let hasMore = true;
+      
+      while (hasMore && allData.length < limit) {
+        const currentLimit = Math.min(SUPABASE_MAX_LIMIT, limit - allData.length);
+        
+        let query = supabaseAdmin
+          .from('user_leaderboard')
+          .select(`
+            user_fid, 
+            total_points, 
+            checkin_streak, 
+            last_checkin_date, 
+            total_orders, 
+            total_spent, 
+            points_from_purchases, 
+            points_from_checkins, 
+            created_at,
+            profiles (
+              display_name,
+              pfp_url,
+              username,
+              token_balance
+            )
+          `)
+          .range(offset, offset + currentLimit - 1);
+
+        // Sort based on category for this chunk
+        switch (category) {
+          case 'points':
+            query = query.order('total_points', { ascending: false });
+            break;
+          case 'streaks':
+            query = query
+              .order('checkin_streak', { ascending: false })
+              .order('total_points', { ascending: false }); // Secondary sort by points
+            break;
+          case 'purchases':
+            // Filter to only show users who have made purchases, then sort by points from purchases
+            query = query
+              .gt('total_orders', 0)
+              .order('points_from_purchases', { ascending: false })
+              .order('total_orders', { ascending: false });
+            break;
+          case 'spending':
+            // Sort by total amount spent
+            query = query
+              .order('total_spent', { ascending: false })
+              .order('total_orders', { ascending: false }); // Secondary sort by order count
+            break;
+          default:
+            console.warn(`Category '${category}' not recognized, using 'points'`);
+            query = query.order('total_points', { ascending: false });
+        }
+
+        const { data: chunkData, error } = await query;
+
+        if (error) {
+          console.error('Error fetching leaderboard chunk:', error);
+          break;
+        }
+
+        if (!chunkData || chunkData.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        allData.push(...chunkData);
+        offset += currentLimit;
+        
+        console.log(`📄 Fetched chunk: ${chunkData.length} users (total so far: ${allData.length})`);
+        
+        // If we got less than requested, we've reached the end
+        if (chunkData.length < currentLimit) {
+          hasMore = false;
+        }
+      }
+      
+    } else {
+      // Single request for limits <= 1000
+      let query = supabaseAdmin
+        .from('user_leaderboard')
+        .select(`
+          user_fid, 
+          total_points, 
+          checkin_streak, 
+          last_checkin_date, 
+          total_orders, 
+          total_spent, 
+          points_from_purchases, 
+          points_from_checkins, 
+          created_at,
+          profiles (
+            display_name,
+            pfp_url,
+            username,
+            token_balance
+          )
+        `)
+        .limit(limit);
+
+      // Sort based on category
+      switch (category) {
+        case 'points':
+          query = query.order('total_points', { ascending: false });
+          break;
+        case 'streaks':
+          query = query
+            .order('checkin_streak', { ascending: false })
+            .order('total_points', { ascending: false }); // Secondary sort by points
+          break;
+        case 'purchases':
+          // Filter to only show users who have made purchases, then sort by points from purchases
+          query = query
+            .gt('total_orders', 0)
+            .order('points_from_purchases', { ascending: false })
+            .order('total_orders', { ascending: false });
+          break;
+        case 'spending':
+          // Sort by total amount spent
+          query = query
+            .order('total_spent', { ascending: false })
+            .order('total_orders', { ascending: false }); // Secondary sort by order count
+          break;
+        default:
+          console.warn(`Category '${category}' not recognized, using 'points'`);
+          query = query.order('total_points', { ascending: false });
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching leaderboard:', error);
+        return [];
+      }
+
+      allData = data || [];
+    }
+
+    console.log(`📊 getLeaderboard returned ${allData.length} users for limit ${limit}`);
+    
+    if (allData.length === 1000 && limit > 1000) {
+      console.warn('⚠️ Exactly 1000 results returned but more requested - possible limit issue!');
     }
 
     // Add category-specific display information and flatten profile data
-    const enhancedData = (data || []).map((user, index) => ({
+    const enhancedData = allData.map((user, index) => ({
       ...user,
       // Use profile data with proper fallbacks
       display_name: user.profiles?.display_name || `User ${user.user_fid}`,
