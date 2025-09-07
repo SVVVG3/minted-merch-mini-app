@@ -83,7 +83,7 @@ export async function getProductIdByHandle(handle) {
  * @param {Object} options - Additional options
  * @returns {Promise<Object>} Eligibility result
  */
-export async function checkTokenGatedEligibility(discount, fid, userWalletAddresses = [], options = {}) {
+export async function checkTokenGatedEligibility(discount, fid, userWalletAddresses = [], options = {}, useCacheOnly = false) {
   const startTime = Date.now();
   let blockchainCallsCount = 0;
   
@@ -799,7 +799,7 @@ export async function getEligibleAutoApplyDiscounts(fid, userWalletAddresses = [
       }
 
       // Check token-gating eligibility
-      const eligibility = await checkTokenGatedEligibility(discount, fid, userWalletAddresses);
+      const eligibility = await checkTokenGatedEligibility(discount, fid, userWalletAddresses, {}, useCacheOnly);
       
       if (eligibility.eligible) {
         eligibleDiscounts.push({
