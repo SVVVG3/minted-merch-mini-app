@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { checkTokenBalanceDirectly } from '@/lib/blockchainAPI';
 import { refreshUserTokenBalance, updateUserTokenBalance } from '@/lib/tokenBalanceCache';
 import { supabaseAdmin } from '@/lib/supabase';
+import { deduplicateRequest } from '@/lib/requestDeduplication';
 
 export async function GET(request) {
   try {
@@ -19,6 +20,32 @@ export async function GET(request) {
 
     console.log(`🔍 Testing token balance for FID ${fid} (force: ${forceRefresh})`);
 
+    // Use request deduplication for non-cache-only calls
+    if (!cacheOnly) {
+      const deduplicationKey = `debug-token-balance-${fid}`;
+      return await deduplicateRequest(
+        deduplicationKey,
+        async () => {
+          // Make the actual request without deduplication
+          return await makeTokenBalanceRequest(fid, forceRefresh, cacheOnly);
+        },
+        15000 // Cache for 15 seconds (shorter for debug)
+      );
+    }
+
+    // For cache-only requests, proceed directly
+    return await makeTokenBalanceRequest(fid, forceRefresh, cacheOnly);
+  } catch (error) {
+    console.error('❌ Debug test failed:', error);
+    return NextResponse.json({
+      success: false,
+      error: error.message
+    }, { status: 500 });
+  }
+}
+
+async function makeTokenBalanceRequest(fid, forceRefresh, cacheOnly) {
+  try {
     // Get user's wallet addresses from database
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
@@ -117,7 +144,7 @@ export async function GET(request) {
     return NextResponse.json(result);
 
   } catch (error) {
-    console.error('❌ Debug test failed:', error);
+    console.error('❌ makeTokenBalanceRequest failed:', error);
     return NextResponse.json({
       success: false,
       error: error.message,

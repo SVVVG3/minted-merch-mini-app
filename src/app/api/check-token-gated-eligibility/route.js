@@ -3,6 +3,7 @@
 
 import { NextResponse } from 'next/server';
 import { getEligibleAutoApplyDiscounts } from '@/lib/tokenGating';
+import { deduplicateRequest } from '@/lib/requestDeduplication';
 
 export async function POST(request) {
   try {
@@ -27,12 +28,12 @@ export async function POST(request) {
     console.log('Wallet addresses:', walletAddresses);
     console.log('Scope:', scope, 'Product IDs:', productIds);
 
-    // Check for eligible token-gated discounts using server-side function
-    const eligibleDiscounts = await getEligibleAutoApplyDiscounts(
-      fid, 
-      walletAddresses, 
-      scope, 
-      productIds
+    // Use request deduplication to prevent concurrent calls for same user
+    const deduplicationKey = `token-eligibility-${fid}-${scope}`;
+    const eligibleDiscounts = await deduplicateRequest(
+      deduplicationKey,
+      () => getEligibleAutoApplyDiscounts(fid, walletAddresses, scope, productIds),
+      30000 // Cache for 30 seconds
     );
 
     console.log('🔍 DETAILED ELIGIBILITY RESULTS:');
