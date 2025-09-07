@@ -319,10 +319,47 @@ export function HomePage({ collection, products }) {
               // Extended delay to allow chat eligibility check to complete and commit to database
               // This prevents concurrent RPC calls that cause rate limiting
               console.log('⏳ Waiting for chat eligibility to complete before checking token gating...');
-              await new Promise(resolve => setTimeout(resolve, 5000));
+              await new Promise(resolve => setTimeout(resolve, 8000)); // Increased to 8s to ensure cache is fresh
               
-              // Check for eligible token-gated discounts via API (all scopes)
-              const eligibilityResponse = await fetch('/api/check-token-gated-eligibility', {
+              // First check if we have fresh cached data to avoid duplicate RPC calls
+              console.log('🔍 Checking for cached token balance before making API call...');
+              const cacheCheckResponse = await fetch(`/api/debug/test-token-balance?fid=${fid}`);
+              const cacheData = await cacheCheckResponse.json();
+              
+              if (cacheData.success && cacheData.fromCache && cacheData.ageSeconds < 120) {
+                console.log(`💾 Using cached balance from chat eligibility check (${cacheData.ageSeconds}s old) - skipping duplicate API call`);
+                
+                // Determine eligibility based on cached balance
+                const tokenBalance = parseFloat(cacheData.balance) / Math.pow(10, 18);
+                if (tokenBalance >= 50000000) {
+                  const eligibleTokenGatedDiscounts = [{
+                    code: 'MERCH-MOGULS',
+                    gating_type: 'token_balance',
+                    priority_level: 1,
+                    discount_description: '15% off site-wide for $MINTEDMERCH holders',
+                    discount_percentage: 15
+                  }];
+                  
+                  console.log('✅ Using cached eligibility - user has MERCH-MOGULS discount');
+                  const topDiscount = eligibleTokenGatedDiscounts[0];
+                  activeDiscount = {
+                    code: topDiscount.code,
+                    source: 'token_gated',
+                    gating_type: topDiscount.gating_type,
+                    priority_level: topDiscount.priority_level,
+                    discount_description: topDiscount.discount_description,
+                    displayText: formatDiscountText(topDiscount),
+                    isUsable: true
+                  };
+                  discountSource = 'token_gated';
+                } else {
+                  console.log('❌ Cached balance shows user not eligible for token-gated discounts');
+                }
+              } else {
+                console.log('🔄 No fresh cache available - proceeding with API call');
+                
+                // Check for eligible token-gated discounts via API (all scopes)
+                const eligibilityResponse = await fetch('/api/check-token-gated-eligibility', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -335,30 +372,31 @@ export function HomePage({ collection, products }) {
                 })
               });
               
-              const eligibilityData = await eligibilityResponse.json();
-              
-              if (eligibilityData.success) {
-                eligibleTokenGatedDiscounts = eligibilityData.eligibleDiscounts || [];
-                console.log('Eligible token-gated discounts:', eligibleTokenGatedDiscounts);
+                const eligibilityData = await eligibilityResponse.json();
                 
-                // Use the highest priority token-gated discount if available
-                if (eligibleTokenGatedDiscounts.length > 0) {
-                  const topDiscount = eligibleTokenGatedDiscounts[0]; // Already sorted by priority
-                  activeDiscount = {
-                    code: topDiscount.code,
-                    source: 'token_gated',
-                    gating_type: topDiscount.gating_type,
-                    priority_level: topDiscount.priority_level,
-                    discount_description: topDiscount.discount_description,
-                    displayText: formatDiscountText(topDiscount),
-                    isUsable: true
-                  };
-                  discountSource = 'token_gated';
-                  console.log('🎫 Using token-gated discount:', topDiscount.code, 'Type:', topDiscount.gating_type);
+                if (eligibilityData.success) {
+                  eligibleTokenGatedDiscounts = eligibilityData.eligibleDiscounts || [];
+                  console.log('Eligible token-gated discounts:', eligibleTokenGatedDiscounts);
+                  
+                  // Use the highest priority token-gated discount if available
+                  if (eligibleTokenGatedDiscounts.length > 0) {
+                    const topDiscount = eligibleTokenGatedDiscounts[0]; // Already sorted by priority
+                    activeDiscount = {
+                      code: topDiscount.code,
+                      source: 'token_gated',
+                      gating_type: topDiscount.gating_type,
+                      priority_level: topDiscount.priority_level,
+                      discount_description: topDiscount.discount_description,
+                      displayText: formatDiscountText(topDiscount),
+                      isUsable: true
+                    };
+                    discountSource = 'token_gated';
+                    console.log('🎫 Using token-gated discount:', topDiscount.code, 'Type:', topDiscount.gating_type);
+                  }
+                } else {
+                  console.log('❌ Token-gating eligibility check failed:', eligibilityData.error);
                 }
-              } else {
-                console.log('❌ Token-gating eligibility check failed:', eligibilityData.error);
-              }
+              } // Close the else block for cache check
             } else {
               console.log('❌ No wallet addresses found for token-gating');
             }
