@@ -1,8 +1,7 @@
 // Token-gated chat eligibility system for $mintedmerch holders
 
-import { checkTokenBalanceDirectly } from './blockchainAPI';
 import { updateChatMemberBalance } from './chatMemberDatabase';
-import { updateUserTokenBalance } from './tokenBalanceCache';
+import { refreshUserTokenBalance } from './tokenBalanceCache';
 
 const MINTEDMERCH_TOKEN_ADDRESS = '0x774EAeFE73Df7959496Ac92a77279A8D7d690b07';
 const BASE_CHAIN_ID = 8453;
@@ -32,22 +31,25 @@ export async function checkChatEligibility(walletAddresses, fid = null) {
       };
     }
 
-    // Check token balance using direct blockchain RPC
-    const tokenBalance = await checkTokenBalanceDirectly(
-      validAddresses,
-      [MINTEDMERCH_TOKEN_ADDRESS],
-      BASE_CHAIN_ID
-    );
-
-    // Update token balance cache if FID is provided
-    if (fid && tokenBalance > 0) {
-      try {
-        console.log(`💾 Updating token balance cache for FID ${fid}: ${tokenBalance} tokens`);
-        await updateUserTokenBalance(fid, validAddresses, tokenBalance);
-      } catch (cacheError) {
-        console.warn(`⚠️ Failed to update token balance cache for FID ${fid}:`, cacheError.message);
-        // Don't fail the eligibility check if cache update fails
+    // Chat eligibility always does fresh check (it runs first when user opens app)
+    // This ensures we have the most up-to-date balance and populates cache for token gating
+    let tokenBalance = 0;
+    
+    if (fid) {
+      // Force fresh check to get latest balance and update cache for token gating
+      const balanceResult = await refreshUserTokenBalance(fid, validAddresses, true);
+      if (balanceResult.success) {
+        // Convert from wei to tokens for comparison
+        tokenBalance = typeof balanceResult.balance === 'string' ?
+          parseFloat(balanceResult.balance) / Math.pow(10, 18) :
+          balanceResult.balance / Math.pow(10, 18);
+        
+        console.log(`💾 Chat eligibility got ${balanceResult.fromCache ? 'cached' : 'fresh'} balance for FID ${fid}: ${tokenBalance} tokens`);
+      } else {
+        console.warn(`⚠️ Could not get token balance for FID ${fid}:`, balanceResult.error);
       }
+    } else {
+      console.warn('⚠️ No FID provided for chat eligibility - cannot check balance');
     }
 
     const eligible = tokenBalance >= REQUIRED_TOKENS;

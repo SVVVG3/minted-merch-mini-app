@@ -198,7 +198,7 @@ export async function getCachedTokenBalance(fid) {
  * @param {Array} walletAddresses - User's wallet addresses
  * @returns {Promise<Object>} Result with balance and update status
  */
-export async function refreshUserTokenBalance(fid, walletAddresses = []) {
+export async function refreshUserTokenBalance(fid, walletAddresses = [], forceRefresh = false) {
   try {
     console.log(`🔄 Refreshing token balance for FID ${fid}`);
 
@@ -211,19 +211,24 @@ export async function refreshUserTokenBalance(fid, walletAddresses = []) {
       age_seconds: cachedResult.updated_at ? Math.round((Date.now() - new Date(cachedResult.updated_at).getTime()) / 1000) : 'never'
     });
     
-    // If cache is fresh (less than 30 seconds old), return cached value regardless of amount
-    // This prevents concurrent RPC calls from interfering with each other
-    const thirtySecondsAgo = Date.now() - (30 * 1000);
-    if (cachedResult.success && cachedResult.updated_at) {
-      const cacheTime = new Date(cachedResult.updated_at).getTime();
-      if (cacheTime > thirtySecondsAgo) {
-        console.log(`💾 Using very fresh cached balance for FID ${fid}: ${cachedResult.balance} (updated ${Math.round((Date.now() - cacheTime) / 1000)}s ago)`);
-        return {
-          success: true,
-          balance: cachedResult.balance,
-          fromCache: true,
-          updated_at: cachedResult.updated_at
-        };
+    // Skip cache if force refresh is requested (e.g., when user opens app)
+    if (forceRefresh) {
+      console.log(`🔄 Force refresh requested for FID ${fid} - skipping cache`);
+    } else {
+      // If cache is fresh (less than 30 seconds old), return cached value regardless of amount
+      // This prevents concurrent RPC calls from interfering with each other
+      const thirtySecondsAgo = Date.now() - (30 * 1000);
+      if (cachedResult.success && cachedResult.updated_at) {
+        const cacheTime = new Date(cachedResult.updated_at).getTime();
+        if (cacheTime > thirtySecondsAgo) {
+          console.log(`💾 Using very fresh cached balance for FID ${fid}: ${cachedResult.balance} (updated ${Math.round((Date.now() - cacheTime) / 1000)}s ago)`);
+          return {
+            success: true,
+            balance: cachedResult.balance,
+            fromCache: true,
+            updated_at: cachedResult.updated_at
+          };
+        }
       }
     }
     
