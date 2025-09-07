@@ -99,6 +99,7 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
     }
 
     console.log(`✅ Updated token balance for FID ${fid}: ${finalBalance} tokens`);
+    console.log(`📅 Cache timestamp: ${data.token_balance_updated_at}`);
     
     // Only update chat member database if user has enough tokens for chat eligibility
     // This prevents unnecessary updates for users who aren't chat members
@@ -215,19 +216,21 @@ export async function refreshUserTokenBalance(fid, walletAddresses = [], forceRe
     if (forceRefresh) {
       console.log(`🔄 Force refresh requested for FID ${fid} - skipping cache`);
     } else {
-      // If cache is fresh (less than 30 seconds old), return cached value regardless of amount
-      // This prevents concurrent RPC calls from interfering with each other
-      const thirtySecondsAgo = Date.now() - (30 * 1000);
+      // If cache is fresh (less than 60 seconds old), return cached value regardless of amount
+      // Extended window to ensure token gating uses chat eligibility's fresh data
+      const sixtySecondsAgo = Date.now() - (60 * 1000);
       if (cachedResult.success && cachedResult.updated_at) {
         const cacheTime = new Date(cachedResult.updated_at).getTime();
-        if (cacheTime > thirtySecondsAgo) {
-          console.log(`💾 Using very fresh cached balance for FID ${fid}: ${cachedResult.balance} (updated ${Math.round((Date.now() - cacheTime) / 1000)}s ago)`);
+        if (cacheTime > sixtySecondsAgo) {
+          console.log(`💾 Using fresh cached balance for FID ${fid}: ${cachedResult.balance} (updated ${Math.round((Date.now() - cacheTime) / 1000)}s ago)`);
           return {
             success: true,
             balance: cachedResult.balance,
             fromCache: true,
             updated_at: cachedResult.updated_at
           };
+        } else {
+          console.log(`⏰ Cache is ${Math.round((Date.now() - cacheTime) / 1000)}s old (older than 60s) - will fetch fresh`);
         }
       }
     }
