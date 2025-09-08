@@ -221,11 +221,12 @@ export async function POST(request) {
       let allWalletAddresses = [...(walletData.all_wallet_addresses || [])];
       
       // Add ALL Bankr wallet addresses to the main wallet list for token gating
+      // Add primary addresses first
       if (bankrMembershipData.bankr_evm_address) {
         const bankrEvm = bankrMembershipData.bankr_evm_address.toLowerCase();
         if (!allWalletAddresses.includes(bankrEvm)) {
           allWalletAddresses.push(bankrEvm);
-          console.log('💳 Added Bankr EVM address to all_wallet_addresses:', bankrMembershipData.bankr_evm_address);
+          console.log('💳 Added primary Bankr EVM address to all_wallet_addresses:', bankrMembershipData.bankr_evm_address);
         }
       }
       
@@ -233,13 +234,30 @@ export async function POST(request) {
         const bankrSol = bankrMembershipData.bankr_solana_address.toLowerCase();
         if (!allWalletAddresses.includes(bankrSol)) {
           allWalletAddresses.push(bankrSol);
-          console.log('💳 Added Bankr Solana address to all_wallet_addresses:', bankrMembershipData.bankr_solana_address);
+          console.log('💳 Added primary Bankr Solana address to all_wallet_addresses:', bankrMembershipData.bankr_solana_address);
         }
       }
       
-      // TODO: Add additional Bankr addresses from X account if different
-      // For now, we're only storing primary addresses, but we could extend this
-      // to store all discovered addresses from both Farcaster and X accounts
+      // Add ALL additional Bankr addresses from both Farcaster and X accounts
+      if (hasAnyWalletData) {
+        // Add all EVM addresses from combined data
+        allBankrWalletData.combinedAddresses.evmAddresses.forEach(evmAddr => {
+          const evmLower = evmAddr.toLowerCase();
+          if (!allWalletAddresses.includes(evmLower)) {
+            allWalletAddresses.push(evmLower);
+            console.log('💳 Added additional Bankr EVM address to all_wallet_addresses:', evmAddr);
+          }
+        });
+        
+        // Add all Solana addresses from combined data
+        allBankrWalletData.combinedAddresses.solanaAddresses.forEach(solAddr => {
+          const solLower = solAddr.toLowerCase();
+          if (!allWalletAddresses.includes(solLower)) {
+            allWalletAddresses.push(solLower);
+            console.log('💳 Added additional Bankr Solana address to all_wallet_addresses:', solAddr);
+          }
+        });
+      }
       
       profileData.all_wallet_addresses = allWalletAddresses;
       profileData.wallet_data_updated_at = walletData.wallet_data_updated_at;
