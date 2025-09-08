@@ -463,9 +463,14 @@ function formatTokenBalance(balance) {
   const balanceWei = typeof balance === 'string' ? parseFloat(balance) : balance;
   const tokenAmount = balanceWei / Math.pow(10, 18);
   
-  if (tokenAmount >= 1000000) {
+  if (tokenAmount >= 1000000000) {
+    // Show billions (B) for amounts >= 1 billion
+    return `${(tokenAmount / 1000000000).toFixed(3)}B`;
+  } else if (tokenAmount >= 1000000) {
+    // Show millions (M) for amounts >= 1 million
     return `${(tokenAmount / 1000000).toFixed(1)}M`;
   } else if (tokenAmount >= 1000) {
+    // Show thousands (K) for amounts >= 1 thousand
     return `${(tokenAmount / 1000).toFixed(1)}K`;
   } else if (tokenAmount >= 1) {
     return tokenAmount.toFixed(2);
