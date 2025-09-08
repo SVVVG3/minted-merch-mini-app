@@ -1,6 +1,7 @@
 // Wallet address utility functions for extracting and formatting wallet data
 
 import { neynarClient, isNeynarAvailable } from './neynar';
+import { supabaseAdmin } from './supabase';
 
 /**
  * Extract wallet data from a Neynar user response
@@ -145,6 +146,140 @@ export function isUserWalletAddress(userWalletAddresses, targetAddress) {
   }
   
   return userWalletAddresses.includes(targetAddress.toLowerCase());
+}
+
+/**
+ * Fetch comprehensive wallet data from database (includes Bankr addresses)
+ * @param {number} fid - User's Farcaster ID
+ * @returns {Object|null} Complete wallet data from database or null if failed
+ */
+export async function fetchUserWalletDataFromDatabase(fid) {
+  try {
+    console.log('🏦 Fetching comprehensive wallet data from database for FID:', fid);
+    
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select(`
+        fid,
+        username,
+        display_name,
+        custody_address,
+        verified_eth_addresses,
+        verified_sol_addresses,
+        primary_eth_address,
+        primary_sol_address,
+        all_wallet_addresses,
+        wallet_data_updated_at,
+        bankr_account_id,
+        bankr_evm_address,
+        bankr_solana_address,
+        bankr_wallet_data_updated_at,
+        x_username
+      `)
+      .eq('fid', parseInt(fid))
+      .single();
+
+    if (profileError) {
+      console.error('❌ Error fetching profile from database:', profileError);
+      return null;
+    }
+
+    if (!profile) {
+      console.log('❌ No profile found in database for FID:', fid);
+      return null;
+    }
+
+    // Extract all wallet addresses from profile (including Bankr addresses)
+    const allWalletAddresses = [];
+    
+    // Add custody address
+    if (profile.custody_address) {
+      allWalletAddresses.push(profile.custody_address.toLowerCase());
+    }
+    
+    // Add verified ETH addresses from Neynar
+    if (profile.verified_eth_addresses && Array.isArray(profile.verified_eth_addresses)) {
+      profile.verified_eth_addresses.forEach(addr => {
+        if (addr && !allWalletAddresses.includes(addr.toLowerCase())) {
+          allWalletAddresses.push(addr.toLowerCase());
+        }
+      });
+    }
+    
+    // Add verified SOL addresses from Neynar
+    if (profile.verified_sol_addresses && Array.isArray(profile.verified_sol_addresses)) {
+      profile.verified_sol_addresses.forEach(addr => {
+        if (addr && !allWalletAddresses.includes(addr.toLowerCase())) {
+          allWalletAddresses.push(addr.toLowerCase());
+        }
+      });
+    }
+    
+    // Add all wallet addresses from Neynar
+    if (profile.all_wallet_addresses && Array.isArray(profile.all_wallet_addresses)) {
+      profile.all_wallet_addresses.forEach(addr => {
+        if (addr && !allWalletAddresses.includes(addr.toLowerCase())) {
+          allWalletAddresses.push(addr.toLowerCase());
+        }
+      });
+    }
+
+    // 🆕 ADD BANKR WALLET ADDRESSES
+    if (profile.bankr_evm_address) {
+      const bankrEvm = profile.bankr_evm_address.toLowerCase();
+      if (!allWalletAddresses.includes(bankrEvm)) {
+        allWalletAddresses.push(bankrEvm);
+        console.log('💳 Added Bankr EVM address:', profile.bankr_evm_address);
+      }
+    }
+    
+    if (profile.bankr_solana_address) {
+      const bankrSol = profile.bankr_solana_address.toLowerCase();
+      if (!allWalletAddresses.includes(bankrSol)) {
+        allWalletAddresses.push(bankrSol);
+        console.log('💳 Added Bankr Solana address:', profile.bankr_solana_address);
+      }
+    }
+
+    // Create comprehensive wallet data object
+    const walletData = {
+      fid: profile.fid,
+      username: profile.username,
+      display_name: profile.display_name,
+      custody_address: profile.custody_address,
+      verified_eth_addresses: profile.verified_eth_addresses || [],
+      verified_sol_addresses: profile.verified_sol_addresses || [],
+      primary_eth_address: profile.primary_eth_address,
+      primary_sol_address: profile.primary_sol_address,
+      all_wallet_addresses: allWalletAddresses,
+      wallet_data_updated_at: profile.wallet_data_updated_at,
+      // Bankr wallet data
+      bankr_account_id: profile.bankr_account_id,
+      bankr_evm_address: profile.bankr_evm_address,
+      bankr_solana_address: profile.bankr_solana_address,
+      bankr_wallet_data_updated_at: profile.bankr_wallet_data_updated_at,
+      x_username: profile.x_username
+    };
+
+    console.log('🏦 Comprehensive wallet data retrieved:', {
+      fid: profile.fid,
+      username: profile.username,
+      total_addresses: allWalletAddresses.length,
+      custody_address: !!profile.custody_address,
+      verified_eth_count: profile.verified_eth_addresses?.length || 0,
+      verified_sol_count: profile.verified_sol_addresses?.length || 0,
+      bankr_evm: !!profile.bankr_evm_address,
+      bankr_solana: !!profile.bankr_solana_address,
+      bankr_account_id: !!profile.bankr_account_id,
+      x_username: profile.x_username
+    });
+
+    return walletData;
+
+  } catch (error) {
+    console.error('❌ Error fetching wallet data from database:', error);
+    return null;
+  }
 }
 
 /**

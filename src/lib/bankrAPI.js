@@ -323,6 +323,77 @@ export async function checkCombinedBankrMembership(farcasterUsername, xUsername 
 }
 
 /**
+ * Enhanced Bankr wallet data fetching with full wallet address details
+ * @param {string} username - The username to lookup
+ * @param {'twitter' | 'farcaster'} platform - The platform type
+ * @returns {Promise<Object|null>} Full Bankr response with wallet addresses
+ */
+export async function getBankrWalletData(username, platform) {
+  try {
+    console.log(`💳 Fetching enhanced Bankr wallet data for ${platform}/${username}`);
+
+    const result = await bankrAPIRequest(username, platform, { 
+      includeWalletAddresses: true,
+      timeout: BANKR_API_TIMEOUT 
+    });
+    
+    if (!result.success || !result.found) {
+      console.log(`💳 No Bankr wallet data found for ${platform}/${username}`);
+      return null;
+    }
+
+    // Enhanced response structure matching your interface
+    const walletData = {
+      username: result.data.username || username,
+      platform: platform,
+      accountId: result.data.accountId,
+      evmAddress: result.data.evmAddress,
+      solanaAddress: result.data.solanaAddress,
+      bankrClub: result.data.bankrClub === true,
+      hasWallets: result.data.hasWallets === true,
+      // Additional fields that might be useful
+      verified: result.data.verified || false,
+      createdAt: result.data.createdAt,
+      updatedAt: result.data.updatedAt
+    };
+
+    console.log(`💳 Enhanced Bankr wallet data retrieved:`, {
+      username: walletData.username,
+      platform: walletData.platform,
+      accountId: walletData.accountId,
+      hasEVM: !!walletData.evmAddress,
+      hasSolana: !!walletData.solanaAddress,
+      bankrClub: walletData.bankrClub,
+      hasWallets: walletData.hasWallets
+    });
+
+    return walletData;
+
+  } catch (error) {
+    console.error(`💳 Error fetching enhanced Bankr wallet data for ${platform}/${username}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Convenience function to get Bankr wallet data for Farcaster users
+ * @param {string} username - The Farcaster username
+ * @returns {Promise<Object|null>} Bankr wallet data or null
+ */
+export async function getBankrDataForFarcasterUser(username) {
+  return getBankrWalletData(username, 'farcaster');
+}
+
+/**
+ * Convenience function to get Bankr wallet data for X/Twitter users
+ * @param {string} username - The X/Twitter username
+ * @returns {Promise<Object|null>} Bankr wallet data or null
+ */
+export async function getBankrDataForXUser(username) {
+  return getBankrWalletData(username, 'twitter');
+}
+
+/**
  * Test the Bankr API connection and rate limiting
  * @param {Object} options - Test configuration
  * @returns {Promise<Object>} Test results

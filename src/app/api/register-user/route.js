@@ -49,45 +49,67 @@ export async function POST(request) {
       // Enhanced Bankr Club membership checking for BOTH platforms
       let isBankrMember = false;
       let membershipSource = null;
+      let bankrWalletData = null;
       
-      // 1. Check Farcaster username first (existing flow)
+      // 1. Check Farcaster username first with enhanced wallet data
       console.log('🔮 Checking Bankr Club via Farcaster username:', username);
-      const farcasterBankrResult = await checkBankrClubMembership(username);
-      console.log('Farcaster Bankr result:', {
-        success: farcasterBankrResult.success,
-        found: farcasterBankrResult.found,
-        isMember: farcasterBankrResult.isMember
-      });
+      const { getBankrDataForFarcasterUser } = await import('@/lib/bankrAPI');
+      const farcasterWalletData = await getBankrDataForFarcasterUser(username);
+      
+      if (farcasterWalletData) {
+        console.log('💳 Farcaster Bankr wallet data:', {
+          accountId: farcasterWalletData.accountId,
+          hasEVM: !!farcasterWalletData.evmAddress,
+          hasSolana: !!farcasterWalletData.solanaAddress,
+          bankrClub: farcasterWalletData.bankrClub
+        });
 
-      if (farcasterBankrResult.success && farcasterBankrResult.isMember) {
-        isBankrMember = true;
-        membershipSource = 'farcaster';
-        console.log('✅ User is Bankr Club member via Farcaster username');
+        if (farcasterWalletData.bankrClub) {
+          isBankrMember = true;
+          membershipSource = 'farcaster';
+          bankrWalletData = farcasterWalletData;
+          console.log('✅ User is Bankr Club member via Farcaster username');
+        }
+      } else {
+        console.log('💳 No Farcaster Bankr wallet data found');
       }
 
       // 2. If no membership via Farcaster AND we have X username, check X as well
       if (!isBankrMember && walletData?.x_username) {
         console.log('🐦 Checking Bankr Club via X username:', walletData.x_username);
         
-        // Import the X lookup function from bankrAPI
-        const { lookupUserByXUsername } = await import('@/lib/bankrAPI');
-        const xBankrResult = await lookupUserByXUsername(walletData.x_username);
+        const { getBankrDataForXUser } = await import('@/lib/bankrAPI');
+        const xWalletData = await getBankrDataForXUser(walletData.x_username);
         
-        console.log('X Bankr result:', {
-          success: xBankrResult.success,
-          found: xBankrResult.found,
-          isMember: xBankrResult.isBankrClubMember
-        });
+        if (xWalletData) {
+          console.log('💳 X Bankr wallet data:', {
+            accountId: xWalletData.accountId,
+            hasEVM: !!xWalletData.evmAddress,
+            hasSolana: !!xWalletData.solanaAddress,
+            bankrClub: xWalletData.bankrClub
+          });
 
-        if (xBankrResult.success && xBankrResult.isBankrClubMember) {
-          isBankrMember = true;
-          membershipSource = 'x';
-          console.log('✅ User is Bankr Club member via X username');
+          if (xWalletData.bankrClub) {
+            isBankrMember = true;
+            membershipSource = 'x';
+            bankrWalletData = xWalletData;
+            console.log('✅ User is Bankr Club member via X username');
+          }
+        } else {
+          console.log('💳 No X Bankr wallet data found');
         }
       }
 
-      // Update membership data with final result
+      // Update membership data with final result and wallet addresses
       bankrMembershipData.bankr_club_member = isBankrMember;
+      
+      // Store Bankr wallet addresses if found
+      if (bankrWalletData) {
+        bankrMembershipData.bankr_account_id = bankrWalletData.accountId || null;
+        bankrMembershipData.bankr_evm_address = bankrWalletData.evmAddress || null;
+        bankrMembershipData.bankr_solana_address = bankrWalletData.solanaAddress || null;
+        bankrMembershipData.bankr_wallet_data_updated_at = new Date().toISOString();
+      }
       
       console.log('🎯 Final Bankr Club membership status:', {
         username: username,

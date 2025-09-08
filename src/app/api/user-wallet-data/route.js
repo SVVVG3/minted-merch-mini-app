@@ -2,7 +2,7 @@
 // This avoids importing Node.js packages in the browser
 
 import { NextResponse } from 'next/server';
-import { fetchUserWalletData } from '@/lib/walletUtils';
+import { fetchUserWalletData, fetchUserWalletDataFromDatabase } from '@/lib/walletUtils';
 import { setUserContext } from '@/lib/auth';
 
 export async function GET(request) {
@@ -20,8 +20,8 @@ export async function GET(request) {
     // 🔒 SECURITY: Set user context for RLS policies
     await setUserContext(parseInt(fid));
 
-    // Fetch wallet data using server-side function
-    const walletData = await fetchUserWalletData(parseInt(fid));
+    // Fetch comprehensive wallet data from database (includes Bankr addresses)
+    const walletData = await fetchUserWalletDataFromDatabase(parseInt(fid));
 
     if (!walletData) {
       return NextResponse.json({
