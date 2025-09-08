@@ -80,10 +80,15 @@ export function HomePage({ collection, products }) {
     const userFid = getFid();
     if (!userFid) return;
 
-    // Prevent multiple registrations
-    const hasRegistered = sessionStorage.getItem(`user_registered_${userFid}`);
-    if (hasRegistered) {
-      console.log('User already registered in this session, loading discounts only');
+    // Prevent multiple registrations with more robust checking
+    const sessionKey = `user_registered_${userFid}`;
+    const hasRegistered = sessionStorage.getItem(sessionKey);
+    const lastRegistration = localStorage.getItem(`last_registration_${userFid}`);
+    const now = Date.now();
+    
+    // Skip if registered in this session or within last 5 minutes
+    if (hasRegistered || (lastRegistration && (now - parseInt(lastRegistration)) < 5 * 60 * 1000)) {
+      console.log('User already registered recently, loading discounts only');
       loadUserDiscounts(userFid);
       return;
     }
@@ -141,6 +146,7 @@ export function HomePage({ collection, products }) {
           
           // Mark as registered to prevent multiple calls
           sessionStorage.setItem(`user_registered_${userFid}`, 'true');
+          localStorage.setItem(`last_registration_${userFid}`, Date.now().toString());
           
           if (result.welcomeNotificationSent) {
             console.log('🎉 Welcome notification sent to new user!');

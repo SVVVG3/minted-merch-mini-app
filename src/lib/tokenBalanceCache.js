@@ -206,7 +206,7 @@ export async function getCachedTokenBalance(fid) {
 /**
  * Update token balance for user when they open the app
  * @param {number} fid - User's Farcaster ID
- * @param {Array} walletAddresses - User's wallet addresses
+ * @param {Array} walletAddresses - User's wallet addresses (optional - will fetch from DB if not provided)
  * @returns {Promise<Object>} Result with balance and update status
  */
 export async function refreshUserTokenBalance(fid, walletAddresses = [], forceRefresh = false, cacheOnly = false) {
@@ -296,6 +296,31 @@ export async function refreshUserTokenBalance(fid, walletAddresses = [], forceRe
           fromCache: true,
           updated_at: cachedResult.updated_at
         };
+      }
+    }
+
+    // If no wallet addresses provided, fetch from database
+    if (!walletAddresses || walletAddresses.length === 0) {
+      console.log(`📋 No wallet addresses provided, fetching from database for FID ${fid}`);
+      try {
+        const { data: profile, error } = await supabaseAdmin
+          .from('profiles')
+          .select('all_wallet_addresses')
+          .eq('fid', fid)
+          .single();
+        
+        if (error) {
+          console.error(`❌ Error fetching wallet addresses for FID ${fid}:`, error);
+          walletAddresses = [];
+        } else {
+          walletAddresses = Array.isArray(profile.all_wallet_addresses) 
+            ? profile.all_wallet_addresses 
+            : JSON.parse(profile.all_wallet_addresses || '[]');
+          console.log(`📋 Fetched ${walletAddresses.length} wallet addresses from database for FID ${fid}`);
+        }
+      } catch (error) {
+        console.error(`❌ Error parsing wallet addresses for FID ${fid}:`, error);
+        walletAddresses = [];
       }
     }
 
