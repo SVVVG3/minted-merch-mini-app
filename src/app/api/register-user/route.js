@@ -239,7 +239,7 @@ export async function POST(request) {
       }
       
       // Add ALL additional Bankr addresses from both Farcaster and X accounts
-      if (hasAnyWalletData) {
+      if (allBankrWalletData && (allBankrWalletData.farcaster || allBankrWalletData.x)) {
         // Add all EVM addresses from combined data
         allBankrWalletData.combinedAddresses.evmAddresses.forEach(evmAddr => {
           const evmLower = evmAddr.toLowerCase();
