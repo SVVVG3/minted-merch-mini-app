@@ -17,6 +17,16 @@ export async function GET(request) {
   try {
     console.log('📊 Admin fetching dashboard stats');
 
+    // Get Merch Moguls count (users with 50M+ $MINTEDMERCH tokens)
+    const { count: merchMoguls, error: merchMogulsError } = await supabaseAdmin
+      .from('profiles')
+      .select('fid', { count: 'exact', head: true })
+      .gte('token_balance', '50000000000000000000000000'); // 50M tokens in wei
+
+    if (merchMogulsError) {
+      console.error('Error fetching Merch Moguls count:', merchMogulsError);
+    }
+
     // Get total users from profiles table
     const { count: totalUsers, error: totalUsersError } = await supabaseAdmin
       .from('profiles')
@@ -208,6 +218,7 @@ export async function GET(request) {
       totalPoints: totalPoints,
       totalOrders: totalOrders || 0,
       totalRevenue: totalRevenue,
+      merchMoguls: merchMoguls || 0,
       lastRaffle: lastRaffle,
       topStreaks: topStreaks || [],
       topSpenders: topSpenders || []

@@ -1198,19 +1198,29 @@ export default function AdminDashboard() {
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h2 className="text-lg font-semibold text-gray-800">📊 Dashboard</h2>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => copyToClipboard(`${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/`, 'main-page-url')}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm"
-                  >
-                    {copiedButtons.has('main-page-url') ? '✅ Copied!' : '🔗 Copy Main Page URL'}
-                  </button>
-                  <button
-                    onClick={loadDashboardData}
-                    className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
-                  >
-                    🔄 Refresh
-                  </button>
+                <div className="flex items-center space-x-4">
+                  {/* Merch Moguls Stat */}
+                  {dashboardStats && (
+                    <div className="flex items-center bg-purple-100 px-3 py-2 rounded-md">
+                      <span className="text-purple-600 font-medium text-sm">
+                        💎 Merch Moguls: <span className="font-bold">{dashboardStats.merchMoguls || 0}</span>
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => copyToClipboard(`${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/`, 'main-page-url')}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm"
+                    >
+                      {copiedButtons.has('main-page-url') ? '✅ Copied!' : '🔗 Copy Main Page URL'}
+                    </button>
+                    <button
+                      onClick={loadDashboardData}
+                      className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                    >
+                      🔄 Refresh
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
