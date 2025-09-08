@@ -370,6 +370,52 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                       </div>
                     </div>
                   </div>
+
+                  {/* Bankr Wallet Addresses */}
+                  {(userData.walletAddresses.bankr_evm_address || userData.walletAddresses.bankr_solana_address) && (
+                    <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                      <div className="flex items-center mb-3">
+                        <h4 className="font-medium text-purple-800">🏦 Bankr Wallet Addresses</h4>
+                        {userData.walletAddresses.bankr_account_id && (
+                          <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                            ID: {userData.walletAddresses.bankr_account_id}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {userData.walletAddresses.bankr_evm_address && (
+                          <div>
+                            <div className="text-xs text-purple-600 mb-1 font-medium">Bankr EVM Address</div>
+                            <div className="flex items-center">
+                              <div className="font-mono text-sm bg-white p-2 rounded border border-purple-200 flex-1">
+                                {userData.walletAddresses.bankr_evm_address}
+                              </div>
+                              <CopyButton text={userData.walletAddresses.bankr_evm_address} label="Bankr EVM address" />
+                            </div>
+                          </div>
+                        )}
+                        
+                        {userData.walletAddresses.bankr_solana_address && (
+                          <div>
+                            <div className="text-xs text-purple-600 mb-1 font-medium">Bankr Solana Address</div>
+                            <div className="flex items-center">
+                              <div className="font-mono text-sm bg-white p-2 rounded border border-purple-200 flex-1">
+                                {userData.walletAddresses.bankr_solana_address}
+                              </div>
+                              <CopyButton text={userData.walletAddresses.bankr_solana_address} label="Bankr Solana address" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {userData.walletAddresses.bankr_wallet_data_updated_at && (
+                        <div className="text-xs text-purple-600 mt-2">
+                          Last updated: {formatDate(userData.walletAddresses.bankr_wallet_data_updated_at)}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

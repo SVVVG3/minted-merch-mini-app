@@ -143,7 +143,12 @@ export async function GET(request) {
       verified_sol: [],
       primary_eth: profile.primary_eth_address,
       primary_sol: profile.primary_sol_address,
-      all_addresses: []
+      all_addresses: [],
+      // Bankr wallet addresses
+      bankr_account_id: profile.bankr_account_id,
+      bankr_evm_address: profile.bankr_evm_address,
+      bankr_solana_address: profile.bankr_solana_address,
+      bankr_wallet_data_updated_at: profile.bankr_wallet_data_updated_at
     };
 
     try {
