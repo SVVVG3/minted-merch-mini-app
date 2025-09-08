@@ -45,19 +45,21 @@ export async function POST(request) {
       bankr_membership_updated_at: new Date().toISOString()
     };
 
+    // Initialize Bankr wallet data outside try block for broader scope
+    let allBankrWalletData = {
+      farcaster: null,
+      x: null,
+      combinedAddresses: {
+        evmAddresses: [],
+        solanaAddresses: [],
+        accountIds: []
+      }
+    };
+
     try {
       // Enhanced Bankr Club membership checking for BOTH platforms
       let isBankrMember = false;
       let membershipSource = null;
-      let allBankrWalletData = {
-        farcaster: null,
-        x: null,
-        combinedAddresses: {
-          evmAddresses: [],
-          solanaAddresses: [],
-          accountIds: []
-        }
-      };
       
       // 1. Check Farcaster username first with enhanced wallet data
       console.log('🔮 Checking Bankr Club via Farcaster username:', username);
