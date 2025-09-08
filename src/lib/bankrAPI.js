@@ -324,6 +324,7 @@ export async function checkCombinedBankrMembership(farcasterUsername, xUsername 
 
 /**
  * Enhanced Bankr wallet data fetching with full wallet address details
+ * Uses direct fetch to get actual wallet addresses (evmAddress, solanaAddress)
  * @param {string} username - The username to lookup
  * @param {'twitter' | 'farcaster'} platform - The platform type
  * @returns {Promise<Object|null>} Full Bankr response with wallet addresses
@@ -332,29 +333,42 @@ export async function getBankrWalletData(username, platform) {
   try {
     console.log(`💳 Fetching enhanced Bankr wallet data for ${platform}/${username}`);
 
-    const result = await bankrAPIRequest(username, platform, { 
-      includeWalletAddresses: true,
-      timeout: BANKR_API_TIMEOUT 
-    });
-    
-    if (!result.success || !result.found) {
-      console.log(`💳 No Bankr wallet data found for ${platform}/${username}`);
-      return null;
+    // Use direct fetch approach to get actual wallet addresses
+    const response = await fetch(
+      `https://api-staging.bankr.bot/public/wallet?username=${encodeURIComponent(username)}&platform=${platform}`,
+      {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'MintedMerch/1.0'
+        },
+        timeout: BANKR_API_TIMEOUT
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.log(`💳 No Bankr wallet data found for ${platform}/${username} (404)`);
+        return null; // User not found, which is expected for many users
+      }
+      throw new Error(`Bankr API error: ${response.status}`);
     }
 
+    const data = await response.json();
+    
     // Enhanced response structure matching your interface
     const walletData = {
-      username: result.data.username || username,
-      platform: platform,
-      accountId: result.data.accountId,
-      evmAddress: result.data.evmAddress,
-      solanaAddress: result.data.solanaAddress,
-      bankrClub: result.data.bankrClub === true,
-      hasWallets: result.data.hasWallets === true,
+      username: data.username || username,
+      platform: data.platform || platform,
+      accountId: data.accountId,
+      evmAddress: data.evmAddress,
+      solanaAddress: data.solanaAddress,
+      bankrClub: data.bankrClub === true,
+      hasWallets: !!(data.evmAddress || data.solanaAddress),
       // Additional fields that might be useful
-      verified: result.data.verified || false,
-      createdAt: result.data.createdAt,
-      updatedAt: result.data.updatedAt
+      verified: data.verified || false,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt
     };
 
     console.log(`💳 Enhanced Bankr wallet data retrieved:`, {
@@ -364,7 +378,9 @@ export async function getBankrWalletData(username, platform) {
       hasEVM: !!walletData.evmAddress,
       hasSolana: !!walletData.solanaAddress,
       bankrClub: walletData.bankrClub,
-      hasWallets: walletData.hasWallets
+      hasWallets: walletData.hasWallets,
+      evmAddress: walletData.evmAddress ? `${walletData.evmAddress.substring(0, 6)}...${walletData.evmAddress.substring(38)}` : null,
+      solanaAddress: walletData.solanaAddress ? `${walletData.solanaAddress.substring(0, 6)}...${walletData.solanaAddress.substring(38)}` : null
     });
 
     return walletData;
