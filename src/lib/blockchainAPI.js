@@ -216,11 +216,14 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
   const rpcUrls = {
     1: ['https://eth.llamarpc.com', 'https://ethereum.publicnode.com'],
     8453: [
-      'https://mainnet.base.org',
-      'https://base.llamarpc.com', 
-      'https://base.publicnode.com',
-      'https://1rpc.io/base',
-      'https://base-rpc.publicnode.com'
+      'https://base.publicnode.com',      // Most reliable public endpoint
+      'https://mainnet.base.org',         // Official Base endpoint
+      'https://base.llamarpc.com',        // LlamaRPC endpoint
+      'https://1rpc.io/base',             // 1RPC endpoint
+      'https://base-rpc.publicnode.com',  // Alternative public node
+      'https://base.blockpi.network/v1/rpc/public', // BlockPI endpoint
+      'https://base.meowrpc.com',         // MeowRPC endpoint
+      'https://rpc.notadegen.com/base'    // NotADegen endpoint
     ],
     137: ['https://polygon.llamarpc.com', 'https://polygon.publicnode.com'],
     42161: ['https://arb1.arbitrum.io/rpc', 'https://arbitrum.publicnode.com']
@@ -259,20 +262,25 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
       
       console.log(`🔍 Checking wallet ${i + 1}/${walletAddresses.length}: ${walletAddress}`);
       
-      // Retry logic with multiple RPC endpoints
+      // ENHANCED RETRY LOGIC: Exponential backoff with multiple RPC endpoints
       let response;
       let retryCount = 0;
-      const maxRetries = availableRpcs.length * 2; // Try each RPC twice
+      const maxRetries = availableRpcs.length * 3; // Try each RPC 3 times for critical reliability
+      let lastError;
       
       while (retryCount <= maxRetries) {
         try {
           // Cycle through different RPC endpoints on retries
-          const currentRpcIndex = Math.floor(retryCount / 2) % availableRpcs.length;
+          const currentRpcIndex = retryCount % availableRpcs.length;
           const currentRpcUrl = availableRpcs[currentRpcIndex];
           
           if (retryCount > 0) {
-            console.log(`🔄 Trying RPC endpoint ${currentRpcIndex + 1}/${availableRpcs.length}: ${currentRpcUrl}`);
+            console.log(`🔄 Retry ${retryCount}/${maxRetries}: Trying RPC endpoint ${currentRpcIndex + 1}/${availableRpcs.length}: ${currentRpcUrl}`);
           }
+          
+          // Add timeout to prevent hanging requests
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
           
           response = await fetch(currentRpcUrl, {
             method: 'POST',
@@ -290,15 +298,20 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
                 'latest'
               ],
               id: Date.now() + i + retryCount // Unique ID for each request
-            })
+            }),
+            signal: controller.signal
           });
+          
+          clearTimeout(timeoutId);
 
           if (response.status === 429) {
-            // Rate limited - try next RPC or wait shorter time for better UX
+            // Rate limited - exponential backoff with jitter
             retryCount++;
             if (retryCount <= maxRetries) {
-              const retryDelay = Math.min(2000 + (retryCount * 1000), 8000); // 2s, 3s, 4s... up to 8s
-              console.log(`⏳ Rate limited on ${currentRpcUrl}, retrying in ${retryDelay}ms (attempt ${retryCount}/${maxRetries})`);
+              const baseDelay = Math.pow(2, Math.min(retryCount, 6)) * 1000; // 2s, 4s, 8s, 16s, 32s, 64s max
+              const jitter = Math.random() * 1000; // Add 0-1s random jitter
+              const retryDelay = Math.min(baseDelay + jitter, 30000); // Cap at 30s
+              console.log(`⏳ Rate limited on ${currentRpcUrl}, retrying in ${Math.round(retryDelay)}ms (exponential backoff)`);
               await new Promise(resolve => setTimeout(resolve, retryDelay));
               continue;
             }
@@ -311,12 +324,19 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
           break; // Success, exit retry loop
           
         } catch (fetchError) {
+          lastError = fetchError;
+          
           if (retryCount >= maxRetries) {
-            throw fetchError;
+            console.error(`🚨 EXHAUSTED ALL RETRIES for ${walletAddress}: ${fetchError.message}`);
+            throw new Error(`Failed after ${maxRetries} retries across ${availableRpcs.length} RPC endpoints: ${fetchError.message}`);
           }
+          
           retryCount++;
-          const retryDelay = Math.min(1000 + (retryCount * 500), 5000);
-          console.log(`⏳ Request failed, retrying in ${retryDelay}ms (attempt ${retryCount}/${maxRetries})`);
+          // Exponential backoff for network errors too
+          const baseDelay = Math.pow(2, Math.min(retryCount, 5)) * 500; // 1s, 2s, 4s, 8s, 16s
+          const jitter = Math.random() * 500; // Add 0-0.5s jitter
+          const retryDelay = Math.min(baseDelay + jitter, 15000); // Cap at 15s
+          console.log(`⏳ Network error on ${availableRpcs[retryCount % availableRpcs.length]}, retrying in ${Math.round(retryDelay)}ms (attempt ${retryCount}/${maxRetries})`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
         }
       }
@@ -348,14 +368,25 @@ export async function checkTokenBalanceDirectly(walletAddresses, contractAddress
       });
       
     } catch (error) {
-      console.error(`❌ Error checking balance for ${walletAddress}:`, error);
+      console.error(`❌ CRITICAL: Failed to check balance for ${walletAddress}:`, error);
       balanceResults.push({
         wallet: walletAddress,
         balance: 0,
         success: false,
         error: error.message
       });
-      // Continue with other addresses
+      
+      // FAIL-SAFE: If we have critical failures, we cannot make reliable eligibility decisions
+      const failedWallets = balanceResults.filter(r => !r.success);
+      const totalWallets = walletAddresses.length;
+      const failureRate = failedWallets.length / totalWallets;
+      
+      // If more than 20% of wallets fail, this is unreliable data
+      if (failureRate > 0.2) {
+        console.error(`🚨 FAIL-SAFE TRIGGERED: ${failedWallets.length}/${totalWallets} wallets failed (${Math.round(failureRate * 100)}% failure rate)`);
+        console.error(`🚨 Cannot make reliable eligibility decisions with ${Math.round(failureRate * 100)}% wallet failures`);
+        throw new Error(`Token balance check failed: ${failedWallets.length}/${totalWallets} wallets failed. Failure rate too high for reliable eligibility decision.`);
+      }
     }
   }
 

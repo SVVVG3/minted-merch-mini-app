@@ -77,8 +77,30 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
         finalBalance = weiStr;
           console.log(`✅ Fetched balance: ${finalBalance} wei (${tokensBalance} tokens)`);
         } catch (error) {
-          console.error('❌ Error fetching token balance:', error);
-          finalBalance = 0; // Default to 0 if fetch fails
+          console.error('❌ CRITICAL: Token balance fetch failed:', error);
+          
+          // Check if this is a fail-safe error (too many wallet failures)
+          if (error.message.includes('Failure rate too high')) {
+            console.error('🚨 FAIL-SAFE: Cannot make reliable eligibility decisions');
+            // Re-throw the error to prevent using unreliable data
+            throw new Error(`Token balance check unreliable: ${error.message}`);
+          }
+          
+          // For other errors (network issues, etc.), try to use cached balance
+          console.log('🔄 Attempting to use cached balance as fallback...');
+          try {
+            const cachedResult = await getCachedTokenBalance(fid);
+            if (cachedResult.success && cachedResult.balance > 0) {
+              finalBalance = cachedResult.balance;
+              console.log(`✅ Using cached balance: ${finalBalance} wei`);
+            } else {
+              console.warn('❌ No cached balance available, defaulting to 0');
+              finalBalance = 0;
+            }
+          } catch (cacheError) {
+            console.error('❌ Cache fallback also failed:', cacheError);
+            finalBalance = 0;
+          }
         }
       }
     } else if (finalBalance === null) {
