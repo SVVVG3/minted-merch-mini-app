@@ -47,8 +47,6 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
       );
       
       console.log(`🔗 Filtered ${walletAddresses.length} addresses to ${ethAddresses.length} Ethereum addresses`);
-      console.log('🔍 Input addresses:', walletAddresses);
-      console.log('✅ Filtered Ethereum addresses:', ethAddresses);
       
       if (ethAddresses.length === 0) {
         console.log('❌ No valid Ethereum addresses found');
