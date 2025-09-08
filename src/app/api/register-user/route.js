@@ -109,6 +109,14 @@ export async function POST(request) {
         bankrMembershipData.bankr_evm_address = bankrWalletData.evmAddress || null;
         bankrMembershipData.bankr_solana_address = bankrWalletData.solanaAddress || null;
         bankrMembershipData.bankr_wallet_data_updated_at = new Date().toISOString();
+        
+        console.log('💳 Storing Bankr wallet addresses in database:', {
+          accountId: bankrMembershipData.bankr_account_id,
+          evmAddress: bankrMembershipData.bankr_evm_address ? `${bankrMembershipData.bankr_evm_address.substring(0, 6)}...${bankrMembershipData.bankr_evm_address.substring(38)}` : null,
+          solanaAddress: bankrMembershipData.bankr_solana_address ? `${bankrMembershipData.bankr_solana_address.substring(0, 6)}...${bankrMembershipData.bankr_solana_address.substring(38)}` : null
+        });
+      } else {
+        console.log('💳 No Bankr wallet data found to store');
       }
       
       console.log('🎯 Final Bankr Club membership status:', {
@@ -118,6 +126,8 @@ export async function POST(request) {
         source: membershipSource || 'not_found',
         checked_platforms: membershipSource ? [membershipSource] : ['farcaster', walletData?.x_username ? 'x' : null].filter(Boolean)
       });
+
+      console.log('💾 Final bankrMembershipData to be stored:', bankrMembershipData);
         
     } catch (bankrError) {
       console.error('Error checking Bankr Club membership:', bankrError);
