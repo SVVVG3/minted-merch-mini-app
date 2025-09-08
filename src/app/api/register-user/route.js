@@ -216,8 +216,36 @@ export async function POST(request) {
       profileData.verified_sol_addresses = walletData.verified_sol_addresses;
       profileData.primary_eth_address = walletData.primary_eth_address;
       profileData.primary_sol_address = walletData.primary_sol_address;
-      profileData.all_wallet_addresses = walletData.all_wallet_addresses;
+      
+      // Start with Neynar wallet addresses
+      let allWalletAddresses = [...(walletData.all_wallet_addresses || [])];
+      
+      // Add ALL Bankr wallet addresses to the main wallet list for token gating
+      if (bankrMembershipData.bankr_evm_address) {
+        const bankrEvm = bankrMembershipData.bankr_evm_address.toLowerCase();
+        if (!allWalletAddresses.includes(bankrEvm)) {
+          allWalletAddresses.push(bankrEvm);
+          console.log('💳 Added Bankr EVM address to all_wallet_addresses:', bankrMembershipData.bankr_evm_address);
+        }
+      }
+      
+      if (bankrMembershipData.bankr_solana_address) {
+        const bankrSol = bankrMembershipData.bankr_solana_address.toLowerCase();
+        if (!allWalletAddresses.includes(bankrSol)) {
+          allWalletAddresses.push(bankrSol);
+          console.log('💳 Added Bankr Solana address to all_wallet_addresses:', bankrMembershipData.bankr_solana_address);
+        }
+      }
+      
+      // TODO: Add additional Bankr addresses from X account if different
+      // For now, we're only storing primary addresses, but we could extend this
+      // to store all discovered addresses from both Farcaster and X accounts
+      
+      profileData.all_wallet_addresses = allWalletAddresses;
       profileData.wallet_data_updated_at = walletData.wallet_data_updated_at;
+      
+      console.log(`💼 Total wallet addresses for token gating: ${allWalletAddresses.length} (${walletData.all_wallet_addresses?.length || 0} Neynar + ${allWalletAddresses.length - (walletData.all_wallet_addresses?.length || 0)} Bankr)`);
+      
       // UPDATED: Store X username from wallet data (overrides the earlier assignment)
       if (walletData.x_username) {
         profileData.x_username = walletData.x_username;
