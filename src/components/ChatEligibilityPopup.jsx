@@ -17,11 +17,6 @@ export function ChatEligibilityPopup() {
         userFid: user?.fid,
         dismissed: sessionStorage.getItem(`chat-popup-dismissed-${user?.fid}`)
       });
-
-      // CRITICAL: Wait for HomePage token eligibility check to complete first
-      // This ensures the cache is populated before we check it
-      console.log('⏳ Waiting 3 seconds for HomePage token eligibility to complete...');
-      await new Promise(resolve => setTimeout(resolve, 3000));
       
       // Only check if user is in Farcaster and has an FID
       if (!isInFarcaster || !user?.fid) {
@@ -41,20 +36,7 @@ export function ChatEligibilityPopup() {
       try {
         // Use token gating system to check eligibility (single source of truth)
         // If user has ≥50M tokens for MERCH-MOGULS, they're eligible for chat
-        const walletResponse = await fetch(`/api/user-wallet-data?fid=${user.fid}`);
-        const walletData = await walletResponse.json();
-        
-        if (!walletData.success) {
-          console.log('❌ Could not fetch wallet data for chat eligibility');
-          return;
-        }
-
-        const userWalletAddresses = walletData.walletData?.all_wallet_addresses || [];
-        
-        if (userWalletAddresses.length === 0) {
-          console.log('❌ No wallet addresses found for chat eligibility');
-          return;
-        }
+        // No need to fetch wallet addresses separately - the API will handle it internally
 
         // Check cached token balance directly from Supabase (no API calls)
         console.log('💬 ChatEligibilityPopup checking cached balance from Supabase...');

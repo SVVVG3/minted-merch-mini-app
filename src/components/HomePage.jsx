@@ -80,8 +80,11 @@ export function HomePage({ collection, products }) {
     
     // Skip if registered in this session or within last 5 minutes
     if (hasRegistered || (lastRegistration && (now - parseInt(lastRegistration)) < 5 * 60 * 1000)) {
-      console.log('User already registered recently, loading discounts only');
-      loadUserDiscounts(userFid);
+      console.log('User already registered recently, loading discounts with delay to ensure data consistency');
+      // Add a small delay to ensure any background registration processes complete
+      setTimeout(() => {
+        loadUserDiscounts(userFid);
+      }, 2000); // 2 second delay
       return;
     }
 
