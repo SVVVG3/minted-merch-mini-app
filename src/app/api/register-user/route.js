@@ -49,14 +49,24 @@ export async function POST(request) {
       // Enhanced Bankr Club membership checking for BOTH platforms
       let isBankrMember = false;
       let membershipSource = null;
-      let bankrWalletData = null;
+      let allBankrWalletData = {
+        farcaster: null,
+        x: null,
+        combinedAddresses: {
+          evmAddresses: [],
+          solanaAddresses: [],
+          accountIds: []
+        }
+      };
       
       // 1. Check Farcaster username first with enhanced wallet data
       console.log('🔮 Checking Bankr Club via Farcaster username:', username);
-      const { getBankrDataForFarcasterUser } = await import('@/lib/bankrAPI');
+      const { getBankrDataForFarcasterUser, getBankrDataForXUser } = await import('@/lib/bankrAPI');
       const farcasterWalletData = await getBankrDataForFarcasterUser(username);
       
       if (farcasterWalletData) {
+        allBankrWalletData.farcaster = farcasterWalletData;
+        
         console.log('💳 Farcaster Bankr wallet data:', {
           accountId: farcasterWalletData.accountId,
           hasEVM: !!farcasterWalletData.evmAddress,
@@ -64,24 +74,35 @@ export async function POST(request) {
           bankrClub: farcasterWalletData.bankrClub
         });
 
+        // Add Farcaster addresses to combined list
+        if (farcasterWalletData.evmAddress) {
+          allBankrWalletData.combinedAddresses.evmAddresses.push(farcasterWalletData.evmAddress);
+        }
+        if (farcasterWalletData.solanaAddress) {
+          allBankrWalletData.combinedAddresses.solanaAddresses.push(farcasterWalletData.solanaAddress);
+        }
+        if (farcasterWalletData.accountId) {
+          allBankrWalletData.combinedAddresses.accountIds.push(farcasterWalletData.accountId);
+        }
+
         if (farcasterWalletData.bankrClub) {
           isBankrMember = true;
           membershipSource = 'farcaster';
-          bankrWalletData = farcasterWalletData;
           console.log('✅ User is Bankr Club member via Farcaster username');
         }
       } else {
         console.log('💳 No Farcaster Bankr wallet data found');
       }
 
-      // 2. If no membership via Farcaster AND we have X username, check X as well
-      if (!isBankrMember && walletData?.x_username) {
+      // 2. ALWAYS check X username if available (regardless of Farcaster membership)
+      if (walletData?.x_username) {
         console.log('🐦 Checking Bankr Club via X username:', walletData.x_username);
         
-        const { getBankrDataForXUser } = await import('@/lib/bankrAPI');
         const xWalletData = await getBankrDataForXUser(walletData.x_username);
         
         if (xWalletData) {
+          allBankrWalletData.x = xWalletData;
+          
           console.log('💳 X Bankr wallet data:', {
             accountId: xWalletData.accountId,
             hasEVM: !!xWalletData.evmAddress,
@@ -89,10 +110,20 @@ export async function POST(request) {
             bankrClub: xWalletData.bankrClub
           });
 
-          if (xWalletData.bankrClub) {
+          // Add X addresses to combined list
+          if (xWalletData.evmAddress && !allBankrWalletData.combinedAddresses.evmAddresses.includes(xWalletData.evmAddress)) {
+            allBankrWalletData.combinedAddresses.evmAddresses.push(xWalletData.evmAddress);
+          }
+          if (xWalletData.solanaAddress && !allBankrWalletData.combinedAddresses.solanaAddresses.includes(xWalletData.solanaAddress)) {
+            allBankrWalletData.combinedAddresses.solanaAddresses.push(xWalletData.solanaAddress);
+          }
+          if (xWalletData.accountId && !allBankrWalletData.combinedAddresses.accountIds.includes(xWalletData.accountId)) {
+            allBankrWalletData.combinedAddresses.accountIds.push(xWalletData.accountId);
+          }
+
+          if (xWalletData.bankrClub && !isBankrMember) {
             isBankrMember = true;
             membershipSource = 'x';
-            bankrWalletData = xWalletData;
             console.log('✅ User is Bankr Club member via X username');
           }
         } else {
@@ -103,17 +134,29 @@ export async function POST(request) {
       // Update membership data with final result and wallet addresses
       bankrMembershipData.bankr_club_member = isBankrMember;
       
-      // Store Bankr wallet addresses if found
-      if (bankrWalletData) {
-        bankrMembershipData.bankr_account_id = bankrWalletData.accountId || null;
-        bankrMembershipData.bankr_evm_address = bankrWalletData.evmAddress || null;
-        bankrMembershipData.bankr_solana_address = bankrWalletData.solanaAddress || null;
+      // Store combined Bankr wallet addresses (prioritize primary source)
+      const primaryData = membershipSource === 'farcaster' ? allBankrWalletData.farcaster : allBankrWalletData.x;
+      const hasAnyWalletData = allBankrWalletData.farcaster || allBankrWalletData.x;
+      
+      if (hasAnyWalletData) {
+        // Use primary account ID, or first available
+        bankrMembershipData.bankr_account_id = primaryData?.accountId || allBankrWalletData.combinedAddresses.accountIds[0] || null;
+        
+        // Use primary EVM address, or first available
+        bankrMembershipData.bankr_evm_address = primaryData?.evmAddress || allBankrWalletData.combinedAddresses.evmAddresses[0] || null;
+        
+        // Use primary Solana address, or first available  
+        bankrMembershipData.bankr_solana_address = primaryData?.solanaAddress || allBankrWalletData.combinedAddresses.solanaAddresses[0] || null;
+        
         bankrMembershipData.bankr_wallet_data_updated_at = new Date().toISOString();
         
-        console.log('💳 Storing Bankr wallet addresses in database:', {
+        console.log('💳 Storing combined Bankr wallet addresses in database:', {
           accountId: bankrMembershipData.bankr_account_id,
           evmAddress: bankrMembershipData.bankr_evm_address ? `${bankrMembershipData.bankr_evm_address.substring(0, 6)}...${bankrMembershipData.bankr_evm_address.substring(38)}` : null,
-          solanaAddress: bankrMembershipData.bankr_solana_address ? `${bankrMembershipData.bankr_solana_address.substring(0, 6)}...${bankrMembershipData.bankr_solana_address.substring(38)}` : null
+          solanaAddress: bankrMembershipData.bankr_solana_address ? `${bankrMembershipData.bankr_solana_address.substring(0, 6)}...${bankrMembershipData.bankr_solana_address.substring(38)}` : null,
+          totalEVMAddresses: allBankrWalletData.combinedAddresses.evmAddresses.length,
+          totalSolanaAddresses: allBankrWalletData.combinedAddresses.solanaAddresses.length,
+          sources: [allBankrWalletData.farcaster ? 'farcaster' : null, allBankrWalletData.x ? 'x' : null].filter(Boolean)
         });
       } else {
         console.log('💳 No Bankr wallet data found to store');
@@ -156,6 +199,11 @@ export async function POST(request) {
       bankr_club_member: bankrMembershipData.bankr_club_member,
       x_username: bankrMembershipData.x_username,
       bankr_membership_updated_at: bankrMembershipData.bankr_membership_updated_at,
+      // Add Bankr wallet address data
+      bankr_account_id: bankrMembershipData.bankr_account_id || null,
+      bankr_evm_address: bankrMembershipData.bankr_evm_address || null,
+      bankr_solana_address: bankrMembershipData.bankr_solana_address || null,
+      bankr_wallet_data_updated_at: bankrMembershipData.bankr_wallet_data_updated_at || null,
       // Add email field (will be populated later from order data via triggers)
       email: null, // Will be updated automatically when user places orders
       email_updated_at: null
