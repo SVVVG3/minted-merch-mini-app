@@ -61,6 +61,13 @@ export default function AdminDashboard() {
   // User modal state
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [selectedUserFid, setSelectedUserFid] = useState(null);
+
+  // Admin Tools state
+  const [resetSpinFid, setResetSpinFid] = useState('');
+  const [resetSpinReason, setResetSpinReason] = useState('');
+  const [resetSpinNote, setResetSpinNote] = useState('');
+  const [resetSpinLoading, setResetSpinLoading] = useState(false);
+  const [resetSpinResult, setResetSpinResult] = useState(null);
   
   // Order edit modal state
   const [orderEditModalOpen, setOrderEditModalOpen] = useState(false);
@@ -209,6 +216,49 @@ export default function AdminDashboard() {
   const closeUserModal = () => {
     setUserModalOpen(false);
     setSelectedUserFid(null);
+  };
+
+  // Admin Tools functions
+  const handleResetDailySpin = async () => {
+    if (!resetSpinFid.trim()) {
+      setResetSpinResult({ success: false, error: 'Please enter a FID' });
+      return;
+    }
+
+    setResetSpinLoading(true);
+    setResetSpinResult(null);
+
+    try {
+      const response = await fetch('/api/admin/reset-daily-spin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fid: parseInt(resetSpinFid),
+          reason: resetSpinReason.trim() || 'State mismatch between contract and database',
+          adminNote: resetSpinNote.trim() || 'Manual reset by admin'
+        })
+      });
+
+      const result = await response.json();
+      setResetSpinResult(result);
+
+      if (result.success) {
+        // Clear form on success
+        setResetSpinFid('');
+        setResetSpinReason('');
+        setResetSpinNote('');
+      }
+    } catch (error) {
+      console.error('Reset daily spin error:', error);
+      setResetSpinResult({ 
+        success: false, 
+        error: 'Network error. Please try again.' 
+      });
+    } finally {
+      setResetSpinLoading(false);
+    }
   };
 
   // Format token balance for display
@@ -1174,7 +1224,8 @@ export default function AdminDashboard() {
                 { key: 'leaderboard', label: '🏆 Leaderboard' },
                 { key: 'checkins', label: '📅 Check-ins' },
                 { key: 'raffle', label: '🎲 Raffle Tool' },
-                { key: 'past-raffles', label: '📚 Past Raffles' }
+                { key: 'past-raffles', label: '📚 Past Raffles' },
+                { key: 'tools', label: '🔧 Admin Tools' }
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -3409,6 +3460,163 @@ export default function AdminDashboard() {
         {activeTab === 'chat' && (
           <div className="bg-white rounded-lg shadow">
             <ChatAdminDashboard />
+          </div>
+        )}
+
+        {/* Admin Tools Tab */}
+        {activeTab === 'tools' && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">🔧 Admin Tools</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Emergency tools for fixing edge cases and system issues
+              </p>
+            </div>
+            
+            <div className="p-6 space-y-8">
+              {/* Daily Spin Reset Tool */}
+              <div className="border border-yellow-200 rounded-lg p-6 bg-yellow-50">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <h4 className="text-sm font-medium text-yellow-800">
+                      ⚠️ Manual Daily Check-In Tool
+                    </h4>
+                    <div className="mt-2 text-sm text-yellow-700">
+                      <p>
+                        <strong>Use Case:</strong> When a user gets "Already spun this app-day" error but has no database record since the daily reset.
+                      </p>
+                      <p className="mt-1">
+                        <strong>What it does:</strong> Performs a complete daily check-in with proper points, streak continuation, and leaderboard updates.
+                      </p>
+                    </div>
+                    
+                    <div className="mt-4 space-y-4">
+                      <div>
+                        <label htmlFor="resetSpinFid" className="block text-sm font-medium text-gray-700">
+                          User FID <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          id="resetSpinFid"
+                          value={resetSpinFid}
+                          onChange={(e) => setResetSpinFid(e.target.value)}
+                          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#3eb489] focus:border-[#3eb489] sm:text-sm"
+                          placeholder="e.g. 458045"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="resetSpinReason" className="block text-sm font-medium text-gray-700">
+                          Reason
+                        </label>
+                        <input
+                          type="text"
+                          id="resetSpinReason"
+                          value={resetSpinReason}
+                          onChange={(e) => setResetSpinReason(e.target.value)}
+                          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#3eb489] focus:border-[#3eb489] sm:text-sm"
+                          placeholder="State mismatch between contract and database"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="resetSpinNote" className="block text-sm font-medium text-gray-700">
+                          Admin Note
+                        </label>
+                        <textarea
+                          id="resetSpinNote"
+                          rows={2}
+                          value={resetSpinNote}
+                          onChange={(e) => setResetSpinNote(e.target.value)}
+                          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#3eb489] focus:border-[#3eb489] sm:text-sm"
+                          placeholder="Additional context about why this reset was needed..."
+                        />
+                      </div>
+                      
+                      <button
+                        onClick={handleResetDailySpin}
+                        disabled={resetSpinLoading || !resetSpinFid.trim()}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {resetSpinLoading ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Processing...
+                          </>
+                        ) : (
+                          '✅ Complete Daily Check-In'
+                        )}
+                      </button>
+                    </div>
+                    
+                    {/* Result Display */}
+                    {resetSpinResult && (
+                      <div className={`mt-4 p-3 rounded-md ${
+                        resetSpinResult.success 
+                          ? 'bg-green-50 border border-green-200' 
+                          : 'bg-red-50 border border-red-200'
+                      }`}>
+                        <div className="flex">
+                          <div className="flex-shrink-0">
+                            {resetSpinResult.success ? (
+                              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                            ) : (
+                              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="ml-3">
+                            <h4 className={`text-sm font-medium ${
+                              resetSpinResult.success ? 'text-green-800' : 'text-red-800'
+                            }`}>
+                              {resetSpinResult.success ? '✅ Check-In Completed' : '❌ Check-In Failed'}
+                            </h4>
+                            <div className={`mt-1 text-sm ${
+                              resetSpinResult.success ? 'text-green-700' : 'text-red-700'
+                            }`}>
+                              {resetSpinResult.success ? (
+                                <div>
+                                  <p>{resetSpinResult.message}</p>
+                                  {resetSpinResult.transaction && (
+                                    <div className="mt-2 space-y-1">
+                                      <p><strong>Points Earned:</strong> {resetSpinResult.transaction.points_earned}</p>
+                                      <p><strong>Current Streak:</strong> {resetSpinResult.transaction.streak} days</p>
+                                      <p><strong>Total Points:</strong> {resetSpinResult.user?.total_points}</p>
+                                      <p className="font-mono text-xs text-gray-600">
+                                        Transaction ID: {resetSpinResult.transaction.id}
+                                      </p>
+                                    </div>
+                                  )}
+                                  <p className="mt-2 text-sm">{resetSpinResult.note}</p>
+                                </div>
+                              ) : (
+                                <p>{resetSpinResult.error}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Future tools can be added here */}
+              <div className="text-center py-8 text-gray-500">
+                <p>More admin tools will be added here as needed.</p>
+              </div>
+            </div>
           </div>
         )}
       </div>
