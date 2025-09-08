@@ -299,29 +299,33 @@ export async function refreshUserTokenBalance(fid, walletAddresses = [], forceRe
       }
     }
 
-    // If no wallet addresses provided, fetch from database
-    if (!walletAddresses || walletAddresses.length === 0) {
-      console.log(`📋 No wallet addresses provided, fetching from database for FID ${fid}`);
-      try {
-        const { data: profile, error } = await supabaseAdmin
-          .from('profiles')
-          .select('all_wallet_addresses')
-          .eq('fid', fid)
-          .single();
+    // Always fetch wallet addresses from database to ensure we have ALL addresses (including Bankr)
+    // This prevents issues where only filtered addresses are passed from token gating calls
+    console.log(`📋 Fetching ALL wallet addresses from database for FID ${fid} (passed: ${walletAddresses.length})`);
+    try {
+      const { data: profile, error } = await supabaseAdmin
+        .from('profiles')
+        .select('all_wallet_addresses')
+        .eq('fid', fid)
+        .single();
+      
+      if (error) {
+        console.error(`❌ Error fetching wallet addresses for FID ${fid}:`, error);
+        // Fall back to passed addresses if database fetch fails
+        console.log(`🔄 Falling back to ${walletAddresses.length} passed addresses`);
+      } else {
+        const dbAddresses = Array.isArray(profile.all_wallet_addresses) 
+          ? profile.all_wallet_addresses 
+          : JSON.parse(profile.all_wallet_addresses || '[]');
+        console.log(`📋 Database has ${dbAddresses.length} addresses, passed had ${walletAddresses.length} addresses`);
         
-        if (error) {
-          console.error(`❌ Error fetching wallet addresses for FID ${fid}:`, error);
-          walletAddresses = [];
-        } else {
-          walletAddresses = Array.isArray(profile.all_wallet_addresses) 
-            ? profile.all_wallet_addresses 
-            : JSON.parse(profile.all_wallet_addresses || '[]');
-          console.log(`📋 Fetched ${walletAddresses.length} wallet addresses from database for FID ${fid}`);
-        }
-      } catch (error) {
-        console.error(`❌ Error parsing wallet addresses for FID ${fid}:`, error);
-        walletAddresses = [];
+        // Use database addresses as they include ALL addresses (Neynar + Bankr)
+        walletAddresses = dbAddresses;
+        console.log(`✅ Using ${walletAddresses.length} wallet addresses from database for comprehensive token check`);
       }
+    } catch (error) {
+      console.error(`❌ Error parsing wallet addresses for FID ${fid}:`, error);
+      console.log(`🔄 Falling back to ${walletAddresses.length} passed addresses`);
     }
 
     // Cache is stale or doesn't exist, fetch fresh balance

@@ -57,12 +57,18 @@ export async function deduplicateRequest(key, requestFn, cacheTtl = 30000) {
 }
 
 /**
- * Clear cached result for a key
- * @param {string} key - Key to clear
+ * Clear cached result for a specific key (useful when we know data has changed)
+ * @param {string} key - The key to clear from cache
  */
 export function clearCachedResult(key) {
-  requestResults.delete(key);
-  console.log(`🗑️ Cleared cached result for ${key}`);
+  if (requestResults.has(key)) {
+    requestResults.delete(key);
+    console.log(`🗑️ Cleared cached result for key: ${key}`);
+  }
+  if (pendingRequests.has(key)) {
+    pendingRequests.delete(key);
+    console.log(`🗑️ Cleared pending request for key: ${key}`);
+  }
 }
 
 /**
