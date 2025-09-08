@@ -1257,6 +1257,15 @@ export default function AdminDashboard() {
                       </span>
                     </div>
                   )}
+                  
+                  {/* Holders of 1M+ Stat */}
+                  {dashboardStats && (
+                    <div className="flex items-center bg-blue-100 px-3 py-2 rounded-md">
+                      <span className="text-blue-600 font-medium text-sm">
+                        🏆 Holders of 1M+: <span className="font-bold">{dashboardStats.holdersOneMillion || 0}</span>
+                      </span>
+                    </div>
+                  )}
                   <div className="flex space-x-3">
                     <button
                       onClick={() => copyToClipboard(`${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/`, 'main-page-url')}

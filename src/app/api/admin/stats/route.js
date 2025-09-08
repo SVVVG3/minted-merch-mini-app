@@ -27,6 +27,16 @@ export async function GET(request) {
       console.error('Error fetching Merch Moguls count:', merchMogulsError);
     }
 
+    // Get holders of 1M+ $MINTEDMERCH tokens
+    const { count: holdersOneMillion, error: holdersOnMillionError } = await supabaseAdmin
+      .from('profiles')
+      .select('fid', { count: 'exact', head: true })
+      .gte('token_balance', '1000000000000000000000000'); // 1M tokens in wei
+
+    if (holdersOnMillionError) {
+      console.error('Error fetching 1M+ holders count:', holdersOnMillionError);
+    }
+
     // Get total users from profiles table
     const { count: totalUsers, error: totalUsersError } = await supabaseAdmin
       .from('profiles')
@@ -219,6 +229,7 @@ export async function GET(request) {
       totalOrders: totalOrders || 0,
       totalRevenue: totalRevenue,
       merchMoguls: merchMoguls || 0,
+      holdersOneMillion: holdersOneMillion || 0,
       lastRaffle: lastRaffle,
       topStreaks: topStreaks || [],
       topSpenders: topSpenders || []
