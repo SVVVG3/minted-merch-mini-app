@@ -60,7 +60,7 @@ export async function POST(request) {
       success: true,
       eligibleDiscounts,
       fid,
-      walletAddressCount: walletAddresses.length,
+      walletAddressCount: userWalletAddresses.length,
       scope,
       productIds
     });

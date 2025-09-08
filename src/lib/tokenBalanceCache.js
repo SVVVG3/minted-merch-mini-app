@@ -341,9 +341,28 @@ export async function refreshUserTokenBalance(fid, walletAddresses = [], forceRe
           : JSON.parse(profile.all_wallet_addresses || '[]');
         console.log(`📋 Database has ${dbAddresses.length} addresses, passed had ${walletAddresses.length} addresses`);
         
-        // Use database addresses as they include ALL addresses (Neynar + Bankr)
-        walletAddresses = dbAddresses;
-        console.log(`✅ Using ${walletAddresses.length} wallet addresses from database for comprehensive token check`);
+        // 🚨 CRITICAL: Handle new users with no wallet addresses in database yet
+        if (dbAddresses.length === 0 && walletAddresses.length === 0) {
+          console.log(`🆕 NEW USER: No wallet addresses in database for FID ${fid}, fetching from Neynar...`);
+          try {
+            const { fetchUserWalletData } = await import('./walletUtils.js');
+            const freshWalletData = await fetchUserWalletData(fid);
+            if (freshWalletData && freshWalletData.all_wallet_addresses) {
+              walletAddresses = freshWalletData.all_wallet_addresses;
+              console.log(`✅ Fetched ${walletAddresses.length} wallet addresses from Neynar for new user`);
+            } else {
+              console.log(`❌ Could not fetch wallet addresses from Neynar for FID ${fid}`);
+              walletAddresses = [];
+            }
+          } catch (neynarError) {
+            console.error(`❌ Error fetching wallet addresses from Neynar for FID ${fid}:`, neynarError);
+            walletAddresses = [];
+          }
+        } else {
+          // Use database addresses as they include ALL addresses (Neynar + Bankr)
+          walletAddresses = dbAddresses;
+          console.log(`✅ Using ${walletAddresses.length} wallet addresses from database for comprehensive token check`);
+        }
       }
     } catch (error) {
       console.error(`❌ Error parsing wallet addresses for FID ${fid}:`, error);
