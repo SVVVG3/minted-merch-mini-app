@@ -394,10 +394,10 @@ async function checkTokenBalance(discount, userWalletAddresses, fid = null, useC
     };
   }
 
-  if (userWalletAddresses.length === 0) {
+  if (userWalletAddresses.length === 0 && !fid) {
     return {
       eligible: false,
-      reason: 'No wallet addresses provided',
+      reason: 'No wallet addresses or FID provided - cannot check token balance',
       details: {}
     };
   }
@@ -411,11 +411,12 @@ async function checkTokenBalance(discount, userWalletAddresses, fid = null, useC
     // Import token balance cache functions
     const { refreshUserTokenBalance, getCachedTokenBalance } = await import('./tokenBalanceCache.js');
     
-    // Filter valid Ethereum addresses
+    // Filter valid Ethereum addresses (if any provided)
     const validAddresses = userWalletAddresses.filter(addr => 
       typeof addr === 'string' && addr.startsWith('0x') && addr.length === 42
     );
 
+    // If no valid addresses and no FID, we can't check anything
     if (validAddresses.length === 0 && !fid) {
       return {
         eligible: false,
@@ -423,6 +424,11 @@ async function checkTokenBalance(discount, userWalletAddresses, fid = null, useC
         details: { provided_addresses: userWalletAddresses },
         blockchainCalls: 0
       };
+    }
+
+    // If FID is provided but no wallet addresses, refreshUserTokenBalance will fetch them from database
+    if (validAddresses.length === 0 && fid) {
+      console.log(`📋 No wallet addresses provided, but FID ${fid} available - will fetch from database`);
     }
     
     let totalBalance = 0;

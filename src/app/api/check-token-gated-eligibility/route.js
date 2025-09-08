@@ -17,15 +17,16 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    if (!walletAddresses || !Array.isArray(walletAddresses)) {
-      return NextResponse.json({
-        success: false,
-        error: 'walletAddresses array is required'
-      }, { status: 400 });
+    // walletAddresses is now optional - will be fetched internally if not provided
+    let userWalletAddresses = walletAddresses;
+    
+    if (!userWalletAddresses || !Array.isArray(userWalletAddresses) || userWalletAddresses.length === 0) {
+      console.log('📋 No wallet addresses provided, will fetch internally from user profile');
+      userWalletAddresses = []; // Will be fetched by tokenGating.js
     }
 
     console.log('🎫 Checking token-gated eligibility for FID:', fid);
-    console.log('Wallet addresses:', walletAddresses);
+    console.log('Wallet addresses:', userWalletAddresses);
     console.log('Scope:', scope, 'Product IDs:', productIds);
 
     // Use request deduplication to prevent concurrent calls for same user
@@ -34,7 +35,7 @@ export async function POST(request) {
     const deduplicationKey = `token-eligibility-${fid}-${scope}${productKey}${useCacheOnly ? '-cache' : ''}`;
     const eligibleDiscounts = await deduplicateRequest(
       deduplicationKey,
-      () => getEligibleAutoApplyDiscounts(fid, walletAddresses, scope, productIds, useCacheOnly),
+      () => getEligibleAutoApplyDiscounts(fid, userWalletAddresses, scope, productIds, useCacheOnly),
       30000 // Cache for 30 seconds
     );
 
