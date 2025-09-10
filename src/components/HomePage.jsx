@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { ProductGrid } from './ProductGrid';
 import { Cart } from './Cart';
-import { OrderHistory } from './OrderHistory';
 import { CheckInButton } from './CheckInButton';
 import { LeaderboardButton } from './LeaderboardButton';
 import { InfoButton } from './InfoButton';
@@ -20,7 +19,6 @@ export function HomePage({ collection, products }) {
   const { itemCount, cartTotal } = useCart();
   const { isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user, context, hasNotifications, getNotificationDetails } = useFarcaster();
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false);
   const [notificationContext, setNotificationContext] = useState(null);
   const [userDiscounts, setUserDiscounts] = useState({
     isLoading: true,
@@ -444,22 +442,6 @@ export function HomePage({ collection, products }) {
   
   const closeCart = () => setIsCartOpen(false);
   
-  const openOrderHistory = async () => {
-    // Add haptic feedback for order history selection
-    try {
-      const capabilities = await sdk.getCapabilities();
-      if (capabilities.includes('haptics.selectionChanged')) {
-        await sdk.haptics.selectionChanged();
-      }
-    } catch (error) {
-      // Haptics not available, continue without feedback
-      console.log('Haptics not available:', error);
-    }
-    
-    setIsOrderHistoryOpen(true);
-  };
-  
-  const closeOrderHistory = () => setIsOrderHistoryOpen(false);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -484,16 +466,32 @@ export function HomePage({ collection, products }) {
             {/* Leaderboard Button - Only show in Farcaster */}
             {isInFarcaster && <LeaderboardButton />}
             
-            {/* Order History Button - Only show in Farcaster */}
-            {isInFarcaster && (
+            {/* Profile Picture - Only show in Farcaster */}
+            {isInFarcaster && user?.pfpUrl && (
               <button
-                onClick={openOrderHistory}
-                className="flex items-center justify-center w-12 h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-                title="Order History"
+                onClick={async () => {
+                  // Add haptic feedback for profile picture selection
+                  try {
+                    const capabilities = await sdk.getCapabilities();
+                    if (capabilities.includes('haptics.selectionChanged')) {
+                      await sdk.haptics.selectionChanged();
+                    }
+                  } catch (error) {
+                    console.log('Haptics not available:', error);
+                  }
+                  
+                  // Trigger profile modal (we'll need to add this functionality)
+                  const event = new CustomEvent('openProfileModal');
+                  window.dispatchEvent(event);
+                }}
+                className="flex items-center justify-center w-12 h-12 rounded-lg transition-all hover:ring-2 hover:ring-[#3eb489] hover:ring-opacity-50"
+                title="Profile"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
+                <img 
+                  src={user.pfpUrl} 
+                  alt={user.displayName || user.username}
+                  className="w-10 h-10 rounded-full border-2 border-gray-200"
+                />
               </button>
             )}
             
@@ -527,8 +525,6 @@ export function HomePage({ collection, products }) {
       {/* Cart Sidebar */}
       <Cart isOpen={isCartOpen} onClose={closeCart} />
       
-      {/* Order History Modal */}
-      <OrderHistory isOpen={isOrderHistoryOpen} onClose={closeOrderHistory} />
     </div>
   );
 } 

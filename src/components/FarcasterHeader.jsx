@@ -37,6 +37,7 @@ export function FarcasterHeader() {
     getWalletAddress();
   }, [isInFarcaster, user]);
 
+
   // Don't render anything while loading
   if (isLoading) {
     return null;
@@ -138,34 +139,38 @@ export function FarcasterHeader() {
     }
   };
 
+  // Listen for profile modal trigger from white header
+  useEffect(() => {
+    const handleOpenProfileModal = () => {
+      handleProfileClick();
+    };
+
+    window.addEventListener('openProfileModal', handleOpenProfileModal);
+    return () => {
+      window.removeEventListener('openProfileModal', handleOpenProfileModal);
+    };
+  }, []);
+
   return (
     <div className="bg-[#3eb489] text-white px-4 py-2 text-xs">
       <div className="flex items-center justify-between">
-        <div className="flex-1 text-center">
-          <div className="space-y-0.5">
-            <div>
-              Hold 1M+ {' '}
-              <button 
-                onClick={handleCoinClick}
-                className="underline hover:text-green-200 transition-colors font-medium"
-              >
-                $mintedmerch
-              </button>
-              {' '}to qualify for random raffles!
-            </div>
-            <div>
-              Hold 50M+ to become a Merch Mogul 🤌
+          <div className="text-center">
+            <div className="space-y-0.5">
+              <div>
+                Hold 1M+ {' '}
+                <button 
+                  onClick={handleCoinClick}
+                  className="underline hover:text-green-200 transition-colors font-medium"
+                >
+                  $mintedmerch
+                </button>
+                {' '}to qualify for random raffles!
+              </div>
+              <div>
+                Hold 50M+ to become a Merch Mogul 🤌
+              </div>
             </div>
           </div>
-        </div>
-        {user.pfpUrl && (
-          <img 
-            src={user.pfpUrl} 
-            alt={user.displayName || user.username}
-            className="w-9 h-9 rounded-full cursor-pointer border-2 border-white hover:ring-2 hover:ring-white hover:ring-opacity-50 transition-all"
-            onClick={handleProfileClick}
-          />
-        )}
       </div>
       
       {/* Profile Modal */}
@@ -292,7 +297,7 @@ export function FarcasterHeader() {
                       </div>
                       <div>
                         <h4 className="font-bold text-blue-800">Connected Wallet</h4>
-                        <p className="text-xs text-blue-600">For merch purchases & $mintedmerch buys</p>
+                        <p className="text-xs text-blue-600">Merch purchases & $mintedmerch buys</p>
                       </div>
                     </div>
                     
@@ -347,7 +352,7 @@ export function FarcasterHeader() {
                         </div>
                       </div>
                       <div className="bg-white/50 rounded-lg p-3">
-                        <p className="text-purple-700 font-medium mb-2">You hold 50M+ $mintedmerch & have access to:</p>
+                        <p className="text-purple-700 font-medium mb-2">You have access to:</p>
                         <div className="text-sm text-purple-700">
                           <div className="flex flex-wrap items-center gap-1">
                             <span>• 15% off store wide</span>
@@ -449,7 +454,15 @@ export function FarcasterHeader() {
                             <div key={order.id || order.order_id} className="bg-white/60 rounded-lg p-3 border border-orange-100">
                               <div className="flex justify-between items-start mb-2">
                                 <div>
-                                  <p className="font-semibold text-orange-800 text-sm">Order #{cleanOrderId}</p>
+                                  <button
+                                    className="font-semibold text-orange-800 text-sm hover:text-orange-600 underline cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.location.href = `/order/${cleanOrderId}`;
+                                    }}
+                                  >
+                                    Order #{cleanOrderId}
+                                  </button>
                                   <p className="text-xs text-orange-600">{new Date(order.created_at || order.createdAt).toLocaleDateString()}</p>
                                 </div>
                                 <div className="text-right">
@@ -500,6 +513,35 @@ export function FarcasterHeader() {
                                       }).join(', ')} and {(order.lineItems || order.items).length - 2} more)
                                     </span>
                                   )}
+                                </div>
+                              )}
+                              
+                              {/* Transaction Link */}
+                              {order.transaction_hash && (
+                                <div className="mt-2 pt-2 border-t border-orange-200">
+                                  <button
+                                    className="text-xs text-orange-600 hover:text-orange-800 underline"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      try {
+                                        const baseScanUrl = `https://basescan.org/tx/${order.transaction_hash}`;
+                                        await sdk.actions.openUrl(baseScanUrl);
+                                      } catch (error) {
+                                        console.log('SDK openUrl failed, trying fallback:', error);
+                                        try {
+                                          if (window.open) {
+                                            window.open(baseScanUrl, '_blank', 'noopener,noreferrer');
+                                          } else {
+                                            window.location.href = baseScanUrl;
+                                          }
+                                        } catch (fallbackError) {
+                                          console.error('All methods failed to open transaction link:', fallbackError);
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    Tx: {order.transaction_hash.slice(0, 10)}...{order.transaction_hash.slice(-6)}
+                                  </button>
                                 </div>
                               )}
                             </div>
