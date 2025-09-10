@@ -6,6 +6,7 @@ import { Cart } from './Cart';
 import { CheckInButton } from './CheckInButton';
 import { LeaderboardButton } from './LeaderboardButton';
 import { InfoButton } from './InfoButton';
+import { ProfileModal } from './ProfileModal';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
@@ -19,6 +20,7 @@ export function HomePage({ collection, products }) {
   const { itemCount, cartTotal } = useCart();
   const { isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user, context, hasNotifications, getNotificationDetails } = useFarcaster();
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [notificationContext, setNotificationContext] = useState(null);
   const [userDiscounts, setUserDiscounts] = useState({
     isLoading: true,
@@ -480,9 +482,8 @@ export function HomePage({ collection, products }) {
                     console.log('Haptics not available:', error);
                   }
                   
-                  // Trigger profile modal (we'll need to add this functionality)
-                  const event = new CustomEvent('openProfileModal');
-                  window.dispatchEvent(event);
+                  // Open profile modal directly
+                  setIsProfileModalOpen(true);
                 }}
                 className="flex items-center justify-center w-12 h-12 rounded-lg transition-all hover:ring-2 hover:ring-[#3eb489] hover:ring-opacity-50"
                 title="Profile"
@@ -524,6 +525,12 @@ export function HomePage({ collection, products }) {
       
       {/* Cart Sidebar */}
       <Cart isOpen={isCartOpen} onClose={closeCart} />
+      
+      {/* Profile Modal */}
+      <ProfileModal 
+        isOpen={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
+      />
       
     </div>
   );
