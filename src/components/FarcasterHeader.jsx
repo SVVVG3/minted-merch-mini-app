@@ -214,28 +214,36 @@ export function FarcasterHeader() {
                 <div className="p-6 space-y-6">
                   {/* Token Holdings Card */}
                   <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5 shadow-sm">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                          💎
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-green-800">$MINTEDMERCH Holdings</h4>
-                          <p className="text-xs text-green-600">
-                            {(() => {
-                              if (!profileData.all_wallet_addresses) return '';
-                              if (Array.isArray(profileData.all_wallet_addresses)) {
-                                return `${profileData.all_wallet_addresses.length} wallets tracked`;
-                              }
-                              try {
-                                const wallets = JSON.parse(profileData.all_wallet_addresses);
-                                return `${wallets.length} wallets tracked`;
-                              } catch (e) {
-                                return '';
-                              }
-                            })()}
-                          </p>
-                        </div>
+                    <div className="flex items-center space-x-2 mb-3">
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        💎
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-green-800">$MINTEDMERCH Holdings</h4>
+                        <p className="text-xs text-green-600">
+                          {(() => {
+                            if (!profileData.all_wallet_addresses) return '';
+                            if (Array.isArray(profileData.all_wallet_addresses)) {
+                              return `${profileData.all_wallet_addresses.length} wallets tracked`;
+                            }
+                            try {
+                              const wallets = JSON.parse(profileData.all_wallet_addresses);
+                              return `${wallets.length} wallets tracked`;
+                            } catch (e) {
+                              return '';
+                            }
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="text-3xl font-bold text-green-700">
+                        {profileData.token_balance ? 
+                          `${(parseFloat(profileData.token_balance) / Math.pow(10, 18) / 1000000).toFixed(1)}M` : 
+                          '0'
+                        }
+                        <span className="text-lg font-normal text-green-600 ml-1">tokens</span>
                       </div>
                       <button
                         onClick={async () => {
@@ -263,22 +271,14 @@ export function FarcasterHeader() {
                             console.error('Error opening swap:', error);
                           }
                         }}
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full text-sm font-semibold transition-all hover:scale-105 shadow-md"
+                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-full text-xs font-semibold transition-all hover:scale-105 shadow-md"
                       >
                         Buy More
                       </button>
                     </div>
                     
-                    <div className="text-3xl font-bold text-green-700 mb-2">
-                      {profileData.token_balance ? 
-                        `${(parseFloat(profileData.token_balance) / Math.pow(10, 18) / 1000000).toFixed(1)}M` : 
-                        '0'
-                      }
-                      <span className="text-lg font-normal text-green-600 ml-1">tokens</span>
-                    </div>
-                    
                     {profileData.token_balance_updated_at && (
-                      <p className="text-xs text-green-600">
+                      <p className="text-xs text-green-600 mt-2">
                         Last updated: {new Date(profileData.token_balance_updated_at).toLocaleString()}
                       </p>
                     )}
@@ -292,7 +292,7 @@ export function FarcasterHeader() {
                       </div>
                       <div>
                         <h4 className="font-bold text-blue-800">Connected Wallet</h4>
-                        <p className="text-xs text-blue-600">For purchases & payments</p>
+                        <p className="text-xs text-blue-600">For merch purchases & $mintedmerch buys</p>
                       </div>
                     </div>
                     
@@ -343,27 +343,17 @@ export function FarcasterHeader() {
                         </div>
                         <div>
                           <h4 className="font-bold text-purple-800">Merch Mogul Status</h4>
-                          <p className="text-xs text-purple-600">Elite member benefits</p>
+                          <p className="text-xs text-purple-600">Holding 50M+ $mintedmerch</p>
                         </div>
                       </div>
                       <div className="bg-white/50 rounded-lg p-3">
-                        <p className="text-purple-700 font-medium mb-2">You have access to:</p>
-                        <div className="grid grid-cols-2 gap-2 text-sm text-purple-700">
-                          <div className="flex items-center space-x-1">
-                            <span className="text-purple-500">•</span>
-                            <span>15% off store wide</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span className="text-purple-500">•</span>
-                            <span>Exclusive collabs</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span className="text-purple-500">•</span>
-                            <span>Custom merch</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span className="text-purple-500">•</span>
-                            <span>Group chat access</span>
+                        <p className="text-purple-700 font-medium mb-2">You hold 50M+ $mintedmerch & have access to:</p>
+                        <div className="text-sm text-purple-700">
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span>• 15% off store wide</span>
+                            <span>• Exclusive collaborations</span>
+                            <span>• Custom merch orders</span>
+                            <span>• Merch Moguls group chat</span>
                           </div>
                         </div>
                       </div>
@@ -436,32 +426,85 @@ export function FarcasterHeader() {
                       </div>
                     ) : orders.length > 0 ? (
                       <div className="space-y-3 max-h-80 overflow-y-auto">
-                        {orders.map((order) => (
-                          <div key={order.id} className="bg-white/60 rounded-lg p-3 border border-orange-100">
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <p className="font-semibold text-orange-800 text-sm">Order #{order.orderNumber}</p>
-                                <p className="text-xs text-orange-600">{new Date(order.createdAt).toLocaleDateString()}</p>
+                        {orders.map((order) => {
+                          // Clean order ID for display (remove # if present)
+                          const cleanOrderId = order.order_id?.replace('#', '') || order.orderId?.replace('#', '') || order.orderNumber || 'Unknown';
+                          
+                          // Helper function to format status
+                          const formatStatus = (status) => {
+                            if (!status) return 'Unknown';
+                            const statusMap = {
+                              'pending': 'Pending',
+                              'paid': 'Confirmed', 
+                              'processing': 'Processing',
+                              'shipped': 'Shipped',
+                              'delivered': 'Delivered',
+                              'cancelled': 'Cancelled',
+                              'refunded': 'Refunded'
+                            };
+                            return statusMap[status.toLowerCase()] || status.charAt(0).toUpperCase() + status.slice(1);
+                          };
+                          
+                          return (
+                            <div key={order.id || order.order_id} className="bg-white/60 rounded-lg p-3 border border-orange-100">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <p className="font-semibold text-orange-800 text-sm">Order #{cleanOrderId}</p>
+                                  <p className="text-xs text-orange-600">{new Date(order.created_at || order.createdAt).toLocaleDateString()}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-bold text-orange-700">${parseFloat(order.amount_total || order.totalAmount || 0).toFixed(2)} {order.currency || 'USDC'}</p>
+                                  <span className={`text-xs px-2 py-1 rounded-full inline-block ${
+                                    formatStatus(order.status) === 'Confirmed' || formatStatus(order.status) === 'confirmed' 
+                                      ? 'bg-green-100 text-green-800'
+                                      : formatStatus(order.status) === 'Shipped' || formatStatus(order.status) === 'shipped'
+                                      ? 'bg-blue-100 text-blue-800' 
+                                      : formatStatus(order.status) === 'Delivered' || formatStatus(order.status) === 'delivered'
+                                      ? 'bg-purple-100 text-purple-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                  }`}>
+                                    {formatStatus(order.status)}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="text-right">
-                                <p className="font-bold text-orange-700">${order.totalAmount}</p>
-                                <span className={`text-xs px-2 py-1 rounded-full ${
-                                  order.status === 'shipped' ? 'bg-green-100 text-green-700' :
-                                  order.status === 'processing' ? 'bg-blue-100 text-blue-700' :
-                                  'bg-gray-100 text-gray-700'
-                                }`}>
-                                  {order.status || 'Pending'}
-                                </span>
-                              </div>
+                              
+                              {/* Order Items Preview */}
+                              {(order.lineItems || order.items) && (order.lineItems || order.items).length > 0 && (
+                                <div className="text-xs text-orange-700">
+                                  {(order.lineItems || order.items).length === 1 
+                                    ? `1 item`
+                                    : `${(order.lineItems || order.items).length} items`
+                                  }
+                                  {(order.lineItems || order.items).length <= 3 ? (
+                                    <span className="ml-1">
+                                      ({(order.lineItems || order.items).map((item, idx) => {
+                                        // Use the enriched title from the API
+                                        let itemName = item.title || 'Unknown Item';
+                                        
+                                        // Include variant info if available
+                                        if (item.variant && item.variant !== 'Default Title') {
+                                          itemName += ` (${item.variant})`;
+                                        }
+                                        
+                                        return itemName;
+                                      }).join(', ')})
+                                    </span>
+                                  ) : (
+                                    <span className="ml-1">
+                                      ({(order.lineItems || order.items).slice(0, 2).map((item, idx) => {
+                                        let itemName = item.title || 'Unknown Item';
+                                        if (item.variant && item.variant !== 'Default Title') {
+                                          itemName += ` (${item.variant})`;
+                                        }
+                                        return itemName;
+                                      }).join(', ')} and {(order.lineItems || order.items).length - 2} more)
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                            {order.items && order.items.length > 0 && (
-                              <p className="text-xs text-orange-700">
-                                {order.items.length} item{order.items.length > 1 ? 's' : ''}: {order.items[0]?.title}
-                                {order.items.length > 1 && ` +${order.items.length - 1} more`}
-                              </p>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="text-center py-6">
