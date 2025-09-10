@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
 
@@ -14,6 +14,7 @@ export function FarcasterHeader() {
   const [orders, setOrders] = useState([]);
   const [orderStats, setOrderStats] = useState({ totalOrders: 0, totalSpent: 0 });
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const handleProfileClickRef = useRef();
 
   // Get wallet address from Farcaster SDK
   useEffect(() => {
@@ -139,17 +140,22 @@ export function FarcasterHeader() {
     }
   };
 
+  // Store the profile click handler in a ref to avoid dependency issues
+  handleProfileClickRef.current = handleProfileClick;
+
   // Listen for profile modal trigger from white header
   useEffect(() => {
     const handleOpenProfileModal = () => {
-      handleProfileClick();
+      if (handleProfileClickRef.current) {
+        handleProfileClickRef.current();
+      }
     };
 
     window.addEventListener('openProfileModal', handleOpenProfileModal);
     return () => {
       window.removeEventListener('openProfileModal', handleOpenProfileModal);
     };
-  }, []);
+  }, []); // Empty dependency array is safe now
 
   return (
     <div className="bg-[#3eb489] text-white px-4 py-2 text-xs">
