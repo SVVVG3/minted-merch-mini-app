@@ -51,7 +51,7 @@ export function FarcasterHeader() {
       
       const data = await response.json();
       if (data.success) {
-        setProfileData(data.profile);
+        setProfileData(data.data);
       }
     } catch (error) {
       console.error('Error fetching profile data:', error);
@@ -61,24 +61,25 @@ export function FarcasterHeader() {
   };
 
   return (
-    <div className="bg-[#3eb489] text-white px-4 py-2 text-sm">
+    <div className="bg-[#3eb489] text-white px-4 py-2 text-xs">
       <div className="flex items-center justify-between">
         <div className="flex-1 text-center">
           <span>
+            Hold 50M+ {' '}
             <button 
               onClick={handleCoinClick}
               className="underline hover:text-green-200 transition-colors font-medium"
             >
               $mintedmerch
             </button>
-            {' '}is LIVE - Hold 50M+ to become a Merch Mogul!
+            {' '}to become a Merch Mogul!
           </span>
         </div>
         {user.pfpUrl && (
           <img 
             src={user.pfpUrl} 
             alt={user.displayName || user.username}
-            className="w-6 h-6 rounded-full cursor-pointer hover:ring-2 hover:ring-white hover:ring-opacity-50 transition-all"
+            className="w-9 h-9 rounded-full cursor-pointer hover:ring-2 hover:ring-white hover:ring-opacity-50 transition-all"
             onClick={handleProfileClick}
           />
         )}

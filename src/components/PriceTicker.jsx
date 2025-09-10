@@ -135,10 +135,10 @@ export function PriceTicker() {
       onClick={handleSwapClick}
     >
       <div className="animate-scroll flex items-center whitespace-nowrap">
-        {/* Create the ticker content */}
+        {/* Create the ticker content - duplicate sets for seamless scrolling */}
         {[...Array(2)].map((_, setIndex) => (
           <div key={setIndex} className="flex items-center">
-            {[...Array(10)].map((_, index) => (
+            {[...Array(15)].map((_, index) => (
               <div key={`${setIndex}-${index}`} className="flex items-center space-x-3 flex-shrink-0 mr-8">
                 <span className="font-semibold text-[#3eb489]">$MINTEDMERCH</span>
                 <span className="text-white">{formatPrice(priceUsd)}</span>
