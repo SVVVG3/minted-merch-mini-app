@@ -231,7 +231,7 @@ export function FarcasterHeader() {
                           // Open swap functionality
                           try {
                             const result = await sdk.actions.swapToken({
-                              buyToken: `eip155:8453/erc20:0x4ed4e862860bed51a9570b96d89af5e1b0efefed`, // $mintedmerch token on Base
+                              buyToken: `eip155:8453/erc20:0x774EAeFE73Df7959496Ac92a77279A8D7d690b07`, // $mintedmerch token on Base
                               sellToken: 'eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
                             });
                             
