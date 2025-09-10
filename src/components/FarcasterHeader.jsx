@@ -71,12 +71,12 @@ export function FarcasterHeader() {
   };
 
   // Load order history
-  const loadOrderHistory = useCallback(async () => {
+  const loadOrderHistory = async () => {
     if (!user?.fid) return;
     
     setOrdersLoading(true);
     try {
-      const response = await fetch(`/api/user-orders?fid=${user.fid}&limit=10&includeArchived=true`);
+      const response = await fetch(`/api/user-orders?fid=${user.fid}&includeArchived=true`);
       if (response.ok) {
         const data = await response.json();
         if (data.orders && Array.isArray(data.orders)) {
@@ -92,7 +92,7 @@ export function FarcasterHeader() {
     } finally {
       setOrdersLoading(false);
     }
-  }, [user?.fid]);
+  };
 
   // Handle profile modal opening
   const handleProfileClick = async () => {
@@ -435,8 +435,8 @@ export function FarcasterHeader() {
                         <p className="text-orange-600 text-sm">Loading orders...</p>
                       </div>
                     ) : orders.length > 0 ? (
-                      <div className="space-y-3 max-h-60 overflow-y-auto">
-                        {orders.slice(0, 5).map((order) => (
+                      <div className="space-y-3 max-h-80 overflow-y-auto">
+                        {orders.map((order) => (
                           <div key={order.id} className="bg-white/60 rounded-lg p-3 border border-orange-100">
                             <div className="flex justify-between items-start mb-2">
                               <div>
@@ -462,11 +462,6 @@ export function FarcasterHeader() {
                             )}
                           </div>
                         ))}
-                        {orders.length > 5 && (
-                          <div className="text-center pt-2">
-                            <p className="text-xs text-orange-600">Showing 5 of {orders.length} orders</p>
-                          </div>
-                        )}
                       </div>
                     ) : (
                       <div className="text-center py-6">
