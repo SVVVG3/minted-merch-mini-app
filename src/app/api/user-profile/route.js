@@ -12,10 +12,10 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Get user profile with cached token balance
+    // Get user profile with cached token balance and wallet addresses
     const { data: profile, error } = await supabaseAdmin
       .from('profiles')
-      .select('fid, token_balance, token_balance_updated_at')
+      .select('fid, token_balance, token_balance_updated_at, all_wallet_addresses')
       .eq('fid', fid)
       .single();
 

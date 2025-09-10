@@ -65,14 +65,14 @@ export function FarcasterHeader() {
       <div className="flex items-center justify-between">
         <div className="flex-1 text-center">
           <span>
-            Hold 50M+ {' '}
+            Hold 1M+ {' '}
             <button 
               onClick={handleCoinClick}
               className="underline hover:text-green-200 transition-colors font-medium"
             >
               $mintedmerch
             </button>
-            {' '}to become a Merch Mogul!
+            {' '}to qualify for random raffles & hold 50M+ to become a Merch Mogul!
           </span>
         </div>
         {user.pfpUrl && (
@@ -91,8 +91,7 @@ export function FarcasterHeader() {
           <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-800">Your Profile</h2>
+              <div className="flex items-center justify-end mb-4">
                 <button
                   onClick={() => setShowProfileModal(false)}
                   className="text-gray-400 hover:text-gray-600 text-2xl"
@@ -128,7 +127,14 @@ export function FarcasterHeader() {
                   {/* Token Holdings */}
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                     <h4 className="font-semibold text-green-800 mb-2">
-                      💎 $MINTEDMERCH Holdings
+                      💎 $MINTEDMERCH Holdings {profileData.all_wallet_addresses && (() => {
+                        try {
+                          const wallets = JSON.parse(profileData.all_wallet_addresses);
+                          return `(${wallets.length} wallets)`;
+                        } catch (e) {
+                          return '';
+                        }
+                      })()}
                     </h4>
                     <div className="text-2xl font-bold text-green-700">
                       {profileData.token_balance ? 
@@ -169,10 +175,10 @@ export function FarcasterHeader() {
                   {profileData.token_balance && parseFloat(profileData.token_balance) >= 50000000 * Math.pow(10, 18) && (
                     <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                       <h4 className="font-semibold text-purple-800 mb-2">
-                        👑 Merch Mogul Status
+                        🤌 Merch Mogul Status
                       </h4>
                       <p className="text-purple-700">
-                        🎉 You're a Merch Mogul! Enjoy 15% off store-wide and exclusive chat access.
+                        You hold 50M+ $mintedmerch! Enjoy 15% off store wide, exclusive collaborations, custom merch orders, and access to the Merch Moguls group chat.
                       </p>
                     </div>
                   )}

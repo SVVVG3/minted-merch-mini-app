@@ -88,19 +88,20 @@ body {
 }
 
 /* Price ticker scrolling animation */
-@keyframes scroll-ticker {
-  from {
-    transform: translateX(0%);
+@keyframes ticker-scroll {
+  0% {
+    transform: translateX(0);
   }
-  to {
-    transform: translateX(-50%);
+  100% {
+    transform: translateX(-100%);
   }
 }
 
-.animate-scroll {
-  animation: scroll-ticker 30s linear infinite;
+.ticker-scroll {
+  animation: ticker-scroll 60s linear infinite;
+  width: max-content;
 }
 
-.animate-scroll:hover {
+.ticker-scroll:hover {
   animation-play-state: paused;
 }

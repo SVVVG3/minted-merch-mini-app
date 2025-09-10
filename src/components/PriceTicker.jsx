@@ -129,45 +129,46 @@ export function PriceTicker() {
   const marketCap = tokenData.marketCap;
   const liquidity = tokenData.liquidity?.usd;
 
+  // Create ticker content
+  const tickerContent = (
+    <div className="flex items-center space-x-8 flex-shrink-0">
+      <span className="font-semibold text-[#3eb489]">$MINTEDMERCH</span>
+      <span className="text-white">{formatPrice(priceUsd)}</span>
+      <span className={getChangeColor(hourlyChange)}>
+        {formatPercentage(hourlyChange)}
+      </span>
+      
+      {marketCap && (
+        <>
+          <span className="text-gray-400">MC:</span>
+          <span className="text-white">${parseFloat(marketCap).toLocaleString()}</span>
+        </>
+      )}
+      
+      {liquidity && (
+        <>
+          <span className="text-gray-400">Liquidity:</span>
+          <span className="text-white">${parseFloat(liquidity).toLocaleString()}</span>
+        </>
+      )}
+      
+      <span className="text-yellow-400 font-semibold">Tap Here To Buy</span>
+    </div>
+  );
+
   return (
     <div 
       className="bg-black text-white py-1 px-4 text-xs overflow-hidden relative cursor-pointer"
       onClick={handleSwapClick}
     >
-      <div className="animate-scroll flex items-center whitespace-nowrap">
-        {/* Create the ticker content - duplicate sets for seamless scrolling */}
-        {[...Array(2)].map((_, setIndex) => (
-          <div key={setIndex} className="flex items-center">
-            {[...Array(15)].map((_, index) => (
-              <div key={`${setIndex}-${index}`} className="flex items-center space-x-3 flex-shrink-0 mr-8">
-                <span className="font-semibold text-[#3eb489]">$MINTEDMERCH</span>
-                <span className="text-white">{formatPrice(priceUsd)}</span>
-                <span className={getChangeColor(hourlyChange)}>
-                  {formatPercentage(hourlyChange)}
-                </span>
-                
-                {marketCap && (
-                  <>
-                    <span className="text-gray-400">MC:</span>
-                    <span className="text-white">${parseFloat(marketCap).toLocaleString()}</span>
-                  </>
-                )}
-                
-                {liquidity && (
-                  <>
-                    <span className="text-gray-400">Liquidity:</span>
-                    <span className="text-white">${parseFloat(liquidity).toLocaleString()}</span>
-                  </>
-                )}
-                
-                <span className="text-yellow-400 font-semibold">Tap Here To Buy</span>
-              </div>
-            ))}
+      <div className="ticker-scroll flex items-center whitespace-nowrap">
+        {/* Repeat the content multiple times for seamless scrolling */}
+        {[...Array(20)].map((_, index) => (
+          <div key={index} className="flex items-center mr-8">
+            {tickerContent}
           </div>
         ))}
       </div>
-      
-
     </div>
   );
 }
