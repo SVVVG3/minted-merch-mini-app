@@ -132,7 +132,7 @@ export function FarcasterHeader() {
           <img 
             src={user.pfpUrl} 
             alt={user.displayName || user.username}
-            className="w-9 h-9 rounded-full cursor-pointer hover:ring-2 hover:ring-white hover:ring-opacity-50 transition-all"
+            className="w-9 h-9 rounded-full cursor-pointer border-2 border-white hover:ring-2 hover:ring-white hover:ring-opacity-50 transition-all"
             onClick={handleProfileClick}
           />
         )}
