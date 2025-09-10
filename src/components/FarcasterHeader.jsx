@@ -237,7 +237,7 @@ export function FarcasterHeader() {
                   </div>
                   
                   {/* Merch Mogul Status */}
-                  {profileData.token_balance && parseFloat(profileData.token_balance) >= 50000000 * Math.pow(10, 18) && (
+                  {profileData.token_balance && parseFloat(profileData.token_balance) >= 50000000 * Math.pow(10, 18) ? (
                     <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                       <h4 className="font-semibold text-purple-800 mb-2">
                         🤌 Merch Mogul Status
@@ -250,6 +250,27 @@ export function FarcasterHeader() {
                           <li>Custom merch orders</li>
                           <li>Merch Moguls group chat</li>
                         </ul>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-gray-800 mb-2">
+                        🎯 Become a Merch Mogul
+                      </h4>
+                      <div className="text-gray-700">
+                        <p className="mb-2">Hold 50M+ $mintedmerch to unlock:</p>
+                        <ul className="list-disc list-inside space-y-1 text-sm">
+                          <li>15% off store wide</li>
+                          <li>Exclusive collaborations</li>
+                          <li>Custom merch orders</li>
+                          <li>Merch Moguls group chat</li>
+                        </ul>
+                        <p className="text-xs text-gray-600 mt-2">
+                          Current holdings: {profileData.token_balance ? 
+                            `${(parseFloat(profileData.token_balance) / Math.pow(10, 18) / 1000000).toFixed(1)}M tokens` : 
+                            '0 tokens'
+                          }
+                        </p>
                       </div>
                     </div>
                   )}

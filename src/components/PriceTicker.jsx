@@ -131,7 +131,7 @@ export function PriceTicker() {
 
   // Create ticker content
   const tickerContent = (
-    <div className="flex items-center space-x-8 flex-shrink-0">
+    <div className="flex items-center space-x-4 flex-shrink-0">
       <span className="font-semibold text-[#3eb489]">$MINTEDMERCH</span>
       <span className="text-white">
         <span className="text-gray-400">Price: </span>{formatPrice(priceUsd)}
@@ -164,7 +164,7 @@ export function PriceTicker() {
       <div className="ticker-scroll flex items-center whitespace-nowrap">
         {/* Repeat the content multiple times for seamless scrolling */}
         {[...Array(20)].map((_, index) => (
-          <div key={index} className="flex items-center mr-8">
+          <div key={index} className="flex items-center mr-4">
             {tickerContent}
           </div>
         ))}
