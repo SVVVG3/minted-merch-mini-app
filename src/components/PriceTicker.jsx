@@ -127,6 +127,7 @@ export function PriceTicker() {
   const hourlyChange = tokenData.priceChange?.h1;
   const volume24h = tokenData.volume?.h24;
   const marketCap = tokenData.marketCap;
+  const liquidity = tokenData.liquidity?.usd;
 
   return (
     <div 
@@ -151,6 +152,15 @@ export function PriceTicker() {
                     <span className="text-white">${parseFloat(marketCap).toLocaleString()}</span>
                   </>
                 )}
+                
+                {liquidity && (
+                  <>
+                    <span className="text-gray-400">Liquidity:</span>
+                    <span className="text-white">${parseFloat(liquidity).toLocaleString()}</span>
+                  </>
+                )}
+                
+                <span className="text-yellow-400 font-semibold">Tap Here To Buy</span>
               </div>
             ))}
           </div>
