@@ -209,11 +209,45 @@ export function FarcasterHeader() {
                         }
                       })()}
                     </h4>
-                    <div className="text-2xl font-bold text-green-700">
-                      {profileData.token_balance ? 
-                        `${(parseFloat(profileData.token_balance) / Math.pow(10, 18) / 1000000).toFixed(1)}M tokens` : 
-                        '0 tokens'
-                      }
+                    <div className="flex items-center justify-between">
+                      <div className="text-2xl font-bold text-green-700">
+                        {profileData.token_balance ? 
+                          `${(parseFloat(profileData.token_balance) / Math.pow(10, 18) / 1000000).toFixed(1)}M tokens` : 
+                          '0 tokens'
+                        }
+                      </div>
+                      <button
+                        onClick={async () => {
+                          // Add haptic feedback for buy action
+                          try {
+                            const capabilities = await sdk.getCapabilities();
+                            if (capabilities.includes('haptics.selectionChanged')) {
+                              await sdk.haptics.selectionChanged();
+                            }
+                          } catch (error) {
+                            console.log('Haptics not available:', error);
+                          }
+                          
+                          // Open swap functionality
+                          try {
+                            const result = await sdk.actions.swapToken({
+                              buyToken: `eip155:8453/erc20:0x4ed4e862860bed51a9570b96d89af5e1b0efefed`, // $mintedmerch token on Base
+                              sellToken: 'eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
+                            });
+                            
+                            if (result.success) {
+                              console.log('Swap completed:', result.swap);
+                            } else {
+                              console.log('Swap failed or cancelled:', result.reason);
+                            }
+                          } catch (error) {
+                            console.error('Error opening swap:', error);
+                          }
+                        }}
+                        className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-full transition-colors font-medium"
+                      >
+                        Buy
+                      </button>
                     </div>
                     {profileData.token_balance_updated_at && (
                       <p className="text-xs text-green-600 mt-1">
