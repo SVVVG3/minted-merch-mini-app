@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { useAccount } from 'wagmi';
 
 export function FarcasterHeader() {
   const { user, isLoading, isInFarcaster } = useFarcaster();
+  const { address: connectedWallet, isConnected } = useAccount();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileData, setProfileData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -50,7 +52,9 @@ export function FarcasterHeader() {
       });
       
       const data = await response.json();
+      console.log('Profile data received:', data);
       if (data.success) {
+        console.log('Profile data.data:', data.data);
         setProfileData(data.data);
       }
     } catch (error) {
@@ -64,16 +68,21 @@ export function FarcasterHeader() {
     <div className="bg-[#3eb489] text-white px-4 py-2 text-xs">
       <div className="flex items-center justify-between">
         <div className="flex-1 text-center">
-          <span>
-            Hold 1M+ {' '}
-            <button 
-              onClick={handleCoinClick}
-              className="underline hover:text-green-200 transition-colors font-medium"
-            >
-              $mintedmerch
-            </button>
-            {' '}to qualify for random raffles & hold 50M+ to become a Merch Mogul!
-          </span>
+          <div className="space-y-0.5">
+            <div>
+              Hold 1M+ {' '}
+              <button 
+                onClick={handleCoinClick}
+                className="underline hover:text-green-200 transition-colors font-medium"
+              >
+                $mintedmerch
+              </button>
+              {' '}to qualify for random raffles!
+            </div>
+            <div>
+              Hold 50M+ to become a Merch Mogul
+            </div>
+          </div>
         </div>
         {user.pfpUrl && (
           <img 
@@ -129,9 +138,12 @@ export function FarcasterHeader() {
                     <h4 className="font-semibold text-green-800 mb-2">
                       💎 $MINTEDMERCH Holdings {profileData.all_wallet_addresses && (() => {
                         try {
+                          console.log('all_wallet_addresses raw:', profileData.all_wallet_addresses);
                           const wallets = JSON.parse(profileData.all_wallet_addresses);
+                          console.log('Parsed wallets:', wallets);
                           return `(${wallets.length} wallets)`;
                         } catch (e) {
+                          console.error('Error parsing wallet addresses:', e);
                           return '';
                         }
                       })()}
@@ -154,13 +166,13 @@ export function FarcasterHeader() {
                     <h4 className="font-semibold text-blue-800 mb-2">
                       💳 Connected Wallet (for payments)
                     </h4>
-                    {user.wallet?.address ? (
+                    {isConnected && connectedWallet ? (
                       <div>
                         <p className="font-mono text-sm text-blue-700 break-all">
-                          {user.wallet.address}
+                          {connectedWallet}
                         </p>
                         <button
-                          onClick={() => navigator.clipboard.writeText(user.wallet.address)}
+                          onClick={() => navigator.clipboard.writeText(connectedWallet)}
                           className="text-xs text-blue-600 hover:text-blue-800 mt-1"
                         >
                           📋 Copy Address
@@ -177,9 +189,15 @@ export function FarcasterHeader() {
                       <h4 className="font-semibold text-purple-800 mb-2">
                         🤌 Merch Mogul Status
                       </h4>
-                      <p className="text-purple-700">
-                        You hold 50M+ $mintedmerch! Enjoy 15% off store wide, exclusive collaborations, custom merch orders, and access to the Merch Moguls group chat.
-                      </p>
+                      <div className="text-purple-700">
+                        <p className="mb-2">You hold 50M+ $mintedmerch & have access to:</p>
+                        <ul className="list-disc list-inside space-y-1 text-sm">
+                          <li>15% off store wide</li>
+                          <li>Exclusive collaborations</li>
+                          <li>Custom merch orders</li>
+                          <li>Merch Moguls group chat</li>
+                        </ul>
+                      </div>
                     </div>
                   )}
                 </div>

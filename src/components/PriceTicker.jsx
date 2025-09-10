@@ -139,17 +139,15 @@ export function PriceTicker() {
       </span>
       
       {marketCap && (
-        <>
-          <span className="text-gray-400">MC:</span>
-          <span className="text-white">${parseFloat(marketCap).toLocaleString()}</span>
-        </>
+        <span className="text-white">
+          <span className="text-gray-400">MC: </span>${parseFloat(marketCap).toLocaleString()}
+        </span>
       )}
       
       {liquidity && (
-        <>
-          <span className="text-gray-400">Liquidity:</span>
-          <span className="text-white">${parseFloat(liquidity).toLocaleString()}</span>
-        </>
+        <span className="text-white">
+          <span className="text-gray-400">Liquidity: </span>${parseFloat(liquidity).toLocaleString()}
+        </span>
       )}
       
       <span className="text-yellow-400 font-semibold">Tap Here To Buy</span>
