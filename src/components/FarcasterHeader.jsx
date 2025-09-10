@@ -46,6 +46,17 @@ export function FarcasterHeader() {
 
   // Handle coin mini app click
   const handleCoinClick = async () => {
+    // Add haptic feedback for coin link selection
+    try {
+      const capabilities = await sdk.getCapabilities();
+      if (capabilities.includes('haptics.selectionChanged')) {
+        await sdk.haptics.selectionChanged();
+      }
+    } catch (error) {
+      // Haptics not available, continue without feedback
+      console.log('Haptics not available:', error);
+    }
+    
     try {
       await sdk.actions.openMiniApp({
         url: 'https://coin.mintedmerch.shop/'
@@ -58,6 +69,17 @@ export function FarcasterHeader() {
 
   // Handle profile modal opening
   const handleProfileClick = async () => {
+    // Add haptic feedback for profile picture selection
+    try {
+      const capabilities = await sdk.getCapabilities();
+      if (capabilities.includes('haptics.selectionChanged')) {
+        await sdk.haptics.selectionChanged();
+      }
+    } catch (error) {
+      // Haptics not available, continue without feedback
+      console.log('Haptics not available:', error);
+    }
+    
     setShowProfileModal(true);
     setProfileLoading(true);
     
@@ -212,6 +234,17 @@ export function FarcasterHeader() {
                         </p>
                         <button
                           onClick={async () => {
+                            // Add haptic feedback for copy action
+                            try {
+                              const capabilities = await sdk.getCapabilities();
+                              if (capabilities.includes('haptics.impactOccurred')) {
+                                await sdk.haptics.impactOccurred('light');
+                              }
+                            } catch (error) {
+                              // Haptics not available, continue without feedback
+                              console.log('Haptics not available:', error);
+                            }
+                            
                             try {
                               await navigator.clipboard.writeText(connectedWallet);
                               setCopySuccess(true);
