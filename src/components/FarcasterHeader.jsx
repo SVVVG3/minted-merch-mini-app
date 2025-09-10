@@ -10,6 +10,7 @@ export function FarcasterHeader() {
   const [profileData, setProfileData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [connectedWallet, setConnectedWallet] = useState(null);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   // Get wallet address from Farcaster SDK
   useEffect(() => {
@@ -141,7 +142,10 @@ export function FarcasterHeader() {
                 
                 {/* Close Button */}
                 <button
-                  onClick={() => setShowProfileModal(false)}
+                  onClick={() => {
+                    setShowProfileModal(false);
+                    setCopySuccess(false); // Reset copy state when closing
+                  }}
                   className="text-gray-400 hover:text-gray-600 text-2xl"
                 >
                   ×
@@ -163,8 +167,16 @@ export function FarcasterHeader() {
                           console.log('No all_wallet_addresses found in profileData:', profileData);
                           return '';
                         }
+                        
+                        // Check if it's already an array (which it is!)
+                        if (Array.isArray(profileData.all_wallet_addresses)) {
+                          console.log('all_wallet_addresses is array:', profileData.all_wallet_addresses, 'Length:', profileData.all_wallet_addresses.length);
+                          return `(${profileData.all_wallet_addresses.length} wallets)`;
+                        }
+                        
+                        // Fallback: try to parse as JSON string
                         try {
-                          console.log('all_wallet_addresses raw:', profileData.all_wallet_addresses);
+                          console.log('all_wallet_addresses raw (not array):', profileData.all_wallet_addresses);
                           const wallets = JSON.parse(profileData.all_wallet_addresses);
                           console.log('Parsed wallets:', wallets, 'Length:', wallets.length);
                           return `(${wallets.length} wallets)`;
@@ -199,14 +211,24 @@ export function FarcasterHeader() {
                           {`${connectedWallet.slice(0, 6)}...${connectedWallet.slice(-4)}`}
                         </p>
                         <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(connectedWallet);
-                            // Optional: Add visual feedback
-                            console.log('Wallet address copied:', connectedWallet);
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(connectedWallet);
+                              setCopySuccess(true);
+                              console.log('Wallet address copied:', connectedWallet);
+                              // Reset after 2 seconds
+                              setTimeout(() => setCopySuccess(false), 2000);
+                            } catch (error) {
+                              console.error('Failed to copy:', error);
+                            }
                           }}
-                          className="text-xs text-blue-600 hover:text-blue-800 ml-2 px-2 py-1 border border-blue-300 rounded hover:bg-blue-100 transition-colors"
+                          className={`text-xs ml-2 px-2 py-1 border rounded transition-all duration-200 ${
+                            copySuccess 
+                              ? 'text-green-600 border-green-300 bg-green-100' 
+                              : 'text-blue-600 hover:text-blue-800 border-blue-300 hover:bg-blue-100'
+                          }`}
                         >
-                          📋 Copy Address
+                          {copySuccess ? '✅ Copied!' : '📋 Copy Address'}
                         </button>
                       </div>
                     ) : (
