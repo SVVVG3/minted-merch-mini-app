@@ -1,16 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
-import { useAccount } from 'wagmi';
 
 export function FarcasterHeader() {
   const { user, isLoading, isInFarcaster } = useFarcaster();
-  const { address: connectedWallet, isConnected } = useAccount();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileData, setProfileData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [connectedWallet, setConnectedWallet] = useState(null);
+
+  // Get wallet address from Farcaster SDK
+  useEffect(() => {
+    async function getWalletAddress() {
+      if (isInFarcaster && user) {
+        try {
+          const provider = await sdk.wallet.getEthereumProvider();
+          if (provider) {
+            // Request accounts from the provider
+            const accounts = await provider.request({ method: 'eth_accounts' });
+            if (accounts && accounts.length > 0) {
+              setConnectedWallet(accounts[0]);
+            }
+          }
+        } catch (error) {
+          console.log('Error getting wallet address:', error);
+        }
+      }
+    }
+
+    getWalletAddress();
+  }, [isInFarcaster, user]);
 
   // Don't render anything while loading
   if (isLoading) {
@@ -166,7 +187,7 @@ export function FarcasterHeader() {
                     <h4 className="font-semibold text-blue-800 mb-2">
                       💳 Connected Wallet (for payments)
                     </h4>
-                    {isConnected && connectedWallet ? (
+                    {connectedWallet ? (
                       <div>
                         <p className="font-mono text-sm text-blue-700 break-all">
                           {connectedWallet}
