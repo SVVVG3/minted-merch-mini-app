@@ -152,7 +152,7 @@ export function PriceTicker() {
         </span>
       )}
       
-      <span className="text-yellow-400 font-semibold">Tap Here To Buy</span>
+      <span className="text-green-400 font-semibold">Tap Here To Buy</span>
     </div>
   );
 
