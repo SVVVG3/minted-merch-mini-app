@@ -133,9 +133,11 @@ export function PriceTicker() {
   const tickerContent = (
     <div className="flex items-center space-x-8 flex-shrink-0">
       <span className="font-semibold text-[#3eb489]">$MINTEDMERCH</span>
-      <span className="text-white">{formatPrice(priceUsd)}</span>
+      <span className="text-white">
+        <span className="text-gray-400">Price: </span>{formatPrice(priceUsd)}
+      </span>
       <span className={getChangeColor(hourlyChange)}>
-        {formatPercentage(hourlyChange)}
+        <span className="text-gray-400">1H: </span>{formatPercentage(hourlyChange)}
       </span>
       
       {marketCap && (

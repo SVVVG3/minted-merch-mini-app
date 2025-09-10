@@ -101,7 +101,7 @@ export function FarcasterHeader() {
               {' '}to qualify for random raffles!
             </div>
             <div>
-              Hold 50M+ to become a Merch Mogul
+              Hold 50M+ to become a Merch Mogul 🤌
             </div>
           </div>
         </div>
@@ -120,31 +120,32 @@ export function FarcasterHeader() {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              {/* Header */}
-              <div className="flex items-center justify-end mb-4">
+              {/* Header with User Info */}
+              <div className="flex items-center justify-between mb-6">
+                {/* User Info */}
+                <div className="flex items-center space-x-3">
+                  {user.pfpUrl && (
+                    <img 
+                      src={user.pfpUrl} 
+                      alt={user.displayName || user.username}
+                      className="w-12 h-12 rounded-full"
+                    />
+                  )}
+                  <div>
+                    <h3 className="font-semibold text-gray-800">
+                      {user.displayName || user.username}
+                    </h3>
+                    <p className="text-sm text-gray-600">FID: {user.fid}</p>
+                  </div>
+                </div>
+                
+                {/* Close Button */}
                 <button
                   onClick={() => setShowProfileModal(false)}
                   className="text-gray-400 hover:text-gray-600 text-2xl"
                 >
                   ×
                 </button>
-              </div>
-              
-              {/* User Info */}
-              <div className="flex items-center space-x-3 mb-6">
-                {user.pfpUrl && (
-                  <img 
-                    src={user.pfpUrl} 
-                    alt={user.displayName || user.username}
-                    className="w-12 h-12 rounded-full"
-                  />
-                )}
-                <div>
-                  <h3 className="font-semibold text-gray-800">
-                    {user.displayName || user.username}
-                  </h3>
-                  <p className="text-sm text-gray-600">FID: {user.fid}</p>
-                </div>
               </div>
               
               {profileLoading ? (
@@ -157,14 +158,19 @@ export function FarcasterHeader() {
                   {/* Token Holdings */}
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                     <h4 className="font-semibold text-green-800 mb-2">
-                      💎 $MINTEDMERCH Holdings {profileData.all_wallet_addresses && (() => {
+                      💎 $MINTEDMERCH Holdings {(() => {
+                        if (!profileData.all_wallet_addresses) {
+                          console.log('No all_wallet_addresses found in profileData:', profileData);
+                          return '';
+                        }
                         try {
                           console.log('all_wallet_addresses raw:', profileData.all_wallet_addresses);
                           const wallets = JSON.parse(profileData.all_wallet_addresses);
-                          console.log('Parsed wallets:', wallets);
+                          console.log('Parsed wallets:', wallets, 'Length:', wallets.length);
                           return `(${wallets.length} wallets)`;
                         } catch (e) {
                           console.error('Error parsing wallet addresses:', e);
+                          console.log('Raw data type:', typeof profileData.all_wallet_addresses);
                           return '';
                         }
                       })()}
@@ -185,16 +191,20 @@ export function FarcasterHeader() {
                   {/* Connected Wallet */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h4 className="font-semibold text-blue-800 mb-2">
-                      💳 Connected Wallet (for payments)
+                      💳 Connected Wallet (for purchases)
                     </h4>
                     {connectedWallet ? (
-                      <div>
-                        <p className="font-mono text-sm text-blue-700 break-all">
-                          {connectedWallet}
+                      <div className="flex items-center justify-between">
+                        <p className="font-mono text-sm text-blue-700">
+                          {`${connectedWallet.slice(0, 6)}...${connectedWallet.slice(-4)}`}
                         </p>
                         <button
-                          onClick={() => navigator.clipboard.writeText(connectedWallet)}
-                          className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                          onClick={() => {
+                            navigator.clipboard.writeText(connectedWallet);
+                            // Optional: Add visual feedback
+                            console.log('Wallet address copied:', connectedWallet);
+                          }}
+                          className="text-xs text-blue-600 hover:text-blue-800 ml-2 px-2 py-1 border border-blue-300 rounded hover:bg-blue-100 transition-colors"
                         >
                           📋 Copy Address
                         </button>
