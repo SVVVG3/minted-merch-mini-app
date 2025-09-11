@@ -462,11 +462,11 @@ export function HomePage({ collection, products }) {
             {/* Check-in Button - Only show in Farcaster */}
             {isInFarcaster && <CheckInButton />}
             
-            {/* Info Button - Show for everyone, positioned between check-in and leaderboard */}
-            <InfoButton />
-            
             {/* Leaderboard Button - Only show in Farcaster */}
             {isInFarcaster && <LeaderboardButton />}
+            
+            {/* Info Button - Show for everyone, positioned after leaderboard */}
+            <InfoButton />
             
             {/* Cart Button */}
             <button
@@ -511,7 +511,7 @@ export function HomePage({ collection, products }) {
                 <img 
                   src={user.pfpUrl} 
                   alt={user.displayName || user.username}
-                  className="w-10 h-10 rounded-full border-2 border-gray-200"
+                  className="w-12 h-12 rounded-full border-2 border-[#3eb489]"
                 />
               </button>
             )}
