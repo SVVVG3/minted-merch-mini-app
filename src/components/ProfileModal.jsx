@@ -245,26 +245,13 @@ export function ProfileModal({ isOpen, onClose }) {
                   </div>
                   <div className="bg-white/50 rounded-lg p-3">
                     <p className="text-gray-700 font-medium mb-2">Hold 50M+ tokens to unlock:</p>
-                    <div className="grid grid-cols-2 gap-2 text-sm text-gray-700 mb-3">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-gray-500">•</span>
-                        <span>15% off store wide</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <span className="text-gray-500">•</span>
-                        <span>Exclusive collaborations</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <span className="text-gray-500">•</span>
-                        <span>Custom merch orders</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <span className="text-gray-500">•</span>
-                        <span>Merch Moguls group chat</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <span className="text-gray-500">•</span>
-                        <span>... and more!</span>
+                    <div className="text-sm text-gray-700 mb-3">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span>• 15% off store wide</span>
+                        <span>• Exclusive collaborations</span>
+                        <span>• Custom merch orders</span>
+                        <span>• Merch Moguls group chat</span>
+                        <span>• ... and more!</span>
                       </div>
                     </div>
                     <div className="text-xs text-gray-600 bg-gray-100 rounded-lg p-2">
