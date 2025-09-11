@@ -58,9 +58,9 @@ export function InfoModal({ isOpen, onClose }) {
 
   return (
     <div 
-      className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-20 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4"
+      style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', width: '100vw', height: '100vh' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
-      style={{ width: '100vw', height: '100vh' }}
     >
       <div
         ref={modalRef}
