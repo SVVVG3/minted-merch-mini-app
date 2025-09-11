@@ -207,6 +207,76 @@ export function ProfileModal({ isOpen, onClose }) {
                 )}
               </div>
               
+              {/* Status Card */}
+              {profileData.token_balance && parseFloat(profileData.token_balance) >= 50000000 * Math.pow(10, 18) ? (
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-5 shadow-sm">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                      🤌
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-purple-800">Merch Mogul Status</h4>
+                      <p className="text-xs text-purple-600">Holding 50M+ $mintedmerch</p>
+                    </div>
+                  </div>
+                  <div className="bg-white/50 rounded-lg p-3">
+                    <p className="text-purple-700 font-medium mb-2">You have access to:</p>
+                    <div className="text-sm text-purple-700">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span>• 15% off store wide</span>
+                        <span>• Exclusive collaborations</span>
+                        <span>• Custom merch orders</span>
+                        <span>• Merch Moguls group chat</span>
+                        <span>• ... and more!</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-5 shadow-sm">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                      🎯
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-800">Become a Merch Mogul</h4>
+                      <p className="text-xs text-gray-600">Unlock exclusive benefits</p>
+                    </div>
+                  </div>
+                  <div className="bg-white/50 rounded-lg p-3">
+                    <p className="text-gray-700 font-medium mb-2">Hold 50M+ tokens to unlock:</p>
+                    <div className="grid grid-cols-2 gap-2 text-sm text-gray-700 mb-3">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-gray-500">•</span>
+                        <span>15% off store wide</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-gray-500">•</span>
+                        <span>Exclusive collaborations</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-gray-500">•</span>
+                        <span>Custom merch orders</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-gray-500">•</span>
+                        <span>Merch Moguls group chat</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-gray-500">•</span>
+                        <span>... and more!</span>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-600 bg-gray-100 rounded-lg p-2">
+                      Current: {profileData.token_balance ? 
+                        `${(parseFloat(profileData.token_balance) / Math.pow(10, 18) / 1000000).toFixed(1)}M tokens` : 
+                        '0 tokens'
+                      }
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Connected Wallet Card */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5 shadow-sm">
                 <div className="flex items-center space-x-2 mb-3">
@@ -256,71 +326,6 @@ export function ProfileModal({ isOpen, onClose }) {
                   <p className="text-blue-600 text-center py-2">No wallet connected</p>
                 )}
               </div>
-              
-              {/* Status Card */}
-              {profileData.token_balance && parseFloat(profileData.token_balance) >= 50000000 * Math.pow(10, 18) ? (
-                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-5 shadow-sm">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                      🤌
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-purple-800">Merch Mogul Status</h4>
-                      <p className="text-xs text-purple-600">Holding 50M+ $mintedmerch</p>
-                    </div>
-                  </div>
-                  <div className="bg-white/50 rounded-lg p-3">
-                    <p className="text-purple-700 font-medium mb-2">You have access to:</p>
-                    <div className="text-sm text-purple-700">
-                      <div className="flex flex-wrap items-center gap-1">
-                        <span>• 15% off store wide</span>
-                        <span>• Exclusive collaborations</span>
-                        <span>• Custom merch orders</span>
-                        <span>• Merch Moguls group chat</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-5 shadow-sm">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                      🎯
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-gray-800">Become a Merch Mogul</h4>
-                      <p className="text-xs text-gray-600">Unlock exclusive benefits</p>
-                    </div>
-                  </div>
-                  <div className="bg-white/50 rounded-lg p-3">
-                    <p className="text-gray-700 font-medium mb-2">Hold 50M+ tokens to unlock:</p>
-                    <div className="grid grid-cols-2 gap-2 text-sm text-gray-700 mb-3">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-gray-500">•</span>
-                        <span>15% off store wide</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <span className="text-gray-500">•</span>
-                        <span>Exclusive collabs</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <span className="text-gray-500">•</span>
-                        <span>Custom merch</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <span className="text-gray-500">•</span>
-                        <span>Group chat access</span>
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-600 bg-gray-100 rounded-lg p-2">
-                      Current: {profileData.token_balance ? 
-                        `${(parseFloat(profileData.token_balance) / Math.pow(10, 18) / 1000000).toFixed(1)}M tokens` : 
-                        '0 tokens'
-                      }
-                    </div>
-                  </div>
-                </div>
-              )}
               
               {/* Order History Section */}
               <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-5 shadow-sm">
