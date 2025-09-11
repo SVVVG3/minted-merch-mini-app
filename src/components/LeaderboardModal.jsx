@@ -37,7 +37,7 @@ export function LeaderboardModal({ isOpen, onClose }) {
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-20 flex items-center justify-center z-50 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
       style={{ width: '100vw', height: '100vh' }}
     >
