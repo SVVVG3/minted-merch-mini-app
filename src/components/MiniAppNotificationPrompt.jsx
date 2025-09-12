@@ -68,8 +68,8 @@ export function MiniAppNotificationPrompt({ onClose, orderNumber }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-white bg-opacity-10 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-2xl drop-shadow-2xl max-w-md w-full p-6">
         <div className="text-center">
           {/* Success Icon */}
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">

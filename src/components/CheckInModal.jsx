@@ -67,12 +67,12 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Overlay Background */}
       <div 
-        className="fixed inset-0 bg-white bg-opacity-10 transition-opacity"
+        className="fixed inset-0 transition-opacity"
         onClick={handleOverlayClick}
       />
       
       {/* Modal Content Container with proper sizing */}
-      <div className="relative z-10 w-full max-w-md max-h-[90vh] flex flex-col">
+      <div className="relative z-10 w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl drop-shadow-2xl">
         {/* Close Button */}
         <button
           onClick={handleClose}

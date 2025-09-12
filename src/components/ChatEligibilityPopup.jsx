@@ -149,8 +149,8 @@ export function ChatEligibilityPopup() {
   }
 
   return (
-    <div className="fixed inset-0 bg-white bg-opacity-10 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-2xl drop-shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
