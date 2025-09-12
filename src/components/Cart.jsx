@@ -122,8 +122,7 @@ export function Cart({ isOpen, onClose }) {
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-30 z-40"
-        style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+        className="fixed inset-0 bg-gray-900 bg-opacity-40 z-40"
         onClick={onClose}
       />
       
