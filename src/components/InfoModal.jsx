@@ -58,7 +58,7 @@ export function InfoModal({ isOpen, onClose }) {
 
   return (
     <div 
-      className="fixed inset-0 bg-gray-900 bg-opacity-40 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-white bg-opacity-10 flex items-center justify-center z-50 p-4"
       style={{ width: '100vw', height: '100vh' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >

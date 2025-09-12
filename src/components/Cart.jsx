@@ -122,7 +122,7 @@ export function Cart({ isOpen, onClose }) {
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-gray-900 bg-opacity-40 z-40"
+        className="fixed inset-0 bg-white bg-opacity-10 z-40"
         onClick={onClose}
       />
       
