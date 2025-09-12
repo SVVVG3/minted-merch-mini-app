@@ -1031,6 +1031,69 @@ export async function getUserPointTransactionStats(userFid) {
 }
 
 /**
+ * Get today's check-in result for sharing
+ * @param {number} userFid - User's Farcaster ID
+ * @returns {Promise<Object>} Today's check-in result or null if not found
+ */
+export async function getTodaysCheckInResult(userFid) {
+  try {
+    const checkInDay = getCurrentCheckInDay();
+    
+    // Get today's check-in transaction
+    const { data: transaction, error } = await supabaseAdmin
+      .from('point_transactions')
+      .select('*')
+      .eq('user_fid', userFid)
+      .eq('transaction_type', 'daily_checkin')
+      .gte('created_at', `${checkInDay}T00:00:00.000Z`)
+      .lt('created_at', `${checkInDay}T23:59:59.999Z`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching today\'s check-in result:', error);
+      return null;
+    }
+
+    if (!transaction) {
+      return null;
+    }
+
+    // Get current user data for total points and streak
+    const userData = await getUserLeaderboardData(userFid);
+    if (!userData) {
+      return null;
+    }
+
+    // Parse the description to extract base points and streak bonus
+    const description = transaction.description || '';
+    let basePoints = transaction.points_earned;
+    let streakBonus = 0;
+
+    // Try to extract base and bonus from description
+    const bonusMatch = description.match(/\+(\d+) streak bonus/);
+    if (bonusMatch) {
+      streakBonus = parseInt(bonusMatch[1]);
+      basePoints = transaction.points_earned - streakBonus;
+    }
+
+    return {
+      pointsEarned: transaction.points_earned,
+      basePoints: basePoints,
+      streakBonus: streakBonus,
+      newStreak: userData.checkin_streak,
+      totalPoints: userData.total_points,
+      checkinDate: checkInDay
+    };
+
+  } catch (error) {
+    console.error('Error in getTodaysCheckInResult:', error);
+    return null;
+  }
+}
+
+/**
  * Get top users by points (helper for admin leaderboard)
  */
 async function getTopUsersByPoints(limit, category) {

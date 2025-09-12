@@ -1,5 +1,5 @@
 // API endpoint for daily check-ins
-import { performDailyCheckin, canCheckInToday, getUserLeaderboardData } from '../../../../lib/points.js';
+import { performDailyCheckin, canCheckInToday, getUserLeaderboardData, getTodaysCheckInResult } from '../../../../lib/points.js';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -68,6 +68,12 @@ export async function GET(request) {
     // Check if user can check in today
     const canCheckin = await canCheckInToday(fid);
     const userData = await getUserLeaderboardData(fid);
+    
+    // Get today's check-in result if user already checked in
+    let todaysResult = null;
+    if (!canCheckin) {
+      todaysResult = await getTodaysCheckInResult(fid);
+    }
 
     return Response.json({
       success: true,
@@ -75,7 +81,8 @@ export async function GET(request) {
         canCheckInToday: canCheckin,
         totalPoints: userData?.total_points || 0,
         checkinStreak: userData?.checkin_streak || 0,
-        lastCheckinDate: userData?.last_checkin_date || null
+        lastCheckinDate: userData?.last_checkin_date || null,
+        todaysResult: todaysResult
       }
     }, { status: 200 });
 
