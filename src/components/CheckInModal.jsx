@@ -72,14 +72,14 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
       />
       
       {/* Modal Content Container with proper sizing */}
-      <div className="relative z-10 w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl drop-shadow-2xl">
+      <div className="relative z-10 w-full max-w-md max-h-[90vh] flex flex-col" style={{ filter: 'drop-shadow(0 25px 50px rgba(0, 0, 0, 0.5)) drop-shadow(0 10px 25px rgba(0, 0, 0, 0.3))' }}>
         {/* Close Button */}
         <button
           onClick={handleClose}
-          className="absolute -top-4 -right-4 z-20 bg-white hover:bg-gray-100 rounded-full p-2 shadow-lg transition-colors"
+          className="absolute -top-4 -right-4 z-20 w-8 h-8 bg-white hover:bg-gray-100 rounded-full flex items-center justify-center shadow-lg transition-colors"
           title="Close"
         >
-          <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>

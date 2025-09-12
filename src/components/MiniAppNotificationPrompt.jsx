@@ -69,7 +69,7 @@ export function MiniAppNotificationPrompt({ onClose, orderNumber }) {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl drop-shadow-2xl max-w-md w-full p-6">
+      <div className="bg-white rounded-lg max-w-md w-full p-6" style={{ boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.05), 0 10px 25px rgba(0, 0, 0, 0.3)' }}>
         <div className="text-center">
           {/* Success Icon */}
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
