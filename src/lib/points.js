@@ -1066,16 +1066,18 @@ export async function getTodaysCheckInResult(userFid) {
       return null;
     }
 
-    // Parse the description to extract base points and streak bonus
-    const description = transaction.description || '';
+    // Extract base points and streak bonus from metadata
     let basePoints = transaction.points_earned;
     let streakBonus = 0;
 
-    // Try to extract base and bonus from description
-    const bonusMatch = description.match(/\+(\d+) streak bonus/);
-    if (bonusMatch) {
-      streakBonus = parseInt(bonusMatch[1]);
-      basePoints = transaction.points_earned - streakBonus;
+    // Check if metadata contains the breakdown
+    if (transaction.metadata && typeof transaction.metadata === 'object') {
+      if (transaction.metadata.basePoints !== undefined) {
+        basePoints = transaction.metadata.basePoints;
+      }
+      if (transaction.metadata.streakBonus !== undefined) {
+        streakBonus = transaction.metadata.streakBonus;
+      }
     }
 
     return {
