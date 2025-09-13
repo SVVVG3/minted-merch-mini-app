@@ -48,8 +48,9 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   ];
 
   // Share check-in result function
-  const handleShareCheckIn = async () => {
-    if (!isInFarcaster || !spinResult) return;
+  const handleShareCheckIn = async (resultToShare = null) => {
+    const shareResult = resultToShare || spinResult;
+    if (!isInFarcaster || !shareResult) return;
 
     // Add haptic feedback for share action
     await triggerHaptic('medium');
@@ -59,23 +60,23 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       const baseUrl = window.location.origin;
       const shareParams = new URLSearchParams({
         checkin: 'true',
-        points: spinResult.pointsEarned.toString(),
-        streak: spinResult.newStreak.toString(),
-        total: spinResult.totalPoints.toString(),
-        base: spinResult.basePoints.toString(),
-        bonus: spinResult.streakBonus.toString(),
+        points: shareResult.pointsEarned.toString(),
+        streak: shareResult.newStreak.toString(),
+        total: shareResult.totalPoints.toString(),
+        base: shareResult.basePoints.toString(),
+        bonus: shareResult.streakBonus.toString(),
         t: Date.now().toString() // Cache busting
       });
       
       const shareUrl = `${baseUrl}?${shareParams.toString()}`;
       
       // Create share text
-      const streakEmoji = spinResult.newStreak >= 30 ? "👑" : 
-                        spinResult.newStreak >= 14 ? "🔥" : 
-                        spinResult.newStreak >= 7 ? "⚡" : 
-                        spinResult.newStreak >= 3 ? "🌟" : "💫";
+      const streakEmoji = shareResult.newStreak >= 30 ? "👑" : 
+                        shareResult.newStreak >= 14 ? "🔥" : 
+                        shareResult.newStreak >= 7 ? "⚡" : 
+                        shareResult.newStreak >= 3 ? "🌟" : "💫";
       
-      const shareText = `🎯 Daily check-in complete!\n\n+${spinResult.pointsEarned} points earned! ${spinResult.streakBonus > 0 ? `(${spinResult.basePoints} base + ${spinResult.streakBonus} streak bonus)` : ''}\n\n${streakEmoji} ${spinResult.newStreak} day streak • 💎 ${spinResult.totalPoints} total points\n\nKeep your streak going on /mintedmerch! 🎰`;
+      const shareText = `🎯 Daily check-in complete!\n\n+${shareResult.pointsEarned} points earned! (${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${shareResult.totalPoints} total points\n\nKeep your streak going on /mintedmerch! 🎰`;
 
       // Use the Farcaster SDK composeCast action
       const { sdk } = await import('../lib/frame');
@@ -193,9 +194,11 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         setUserStatus(result.data);
         setCanSpin(result.data.canCheckInToday);
         
-        // If user already checked in today and we have today's result, set it for sharing
+        // If user already checked in today and we have today's result, store it for sharing
+        // but don't set spinResult to avoid showing the post-spin UI
         if (!result.data.canCheckInToday && result.data.todaysResult) {
-          setSpinResult(result.data.todaysResult);
+          // Store today's result for sharing but don't trigger spinResult display
+          window.todaysSpinResult = result.data.todaysResult;
         }
       }
     } catch (error) {
@@ -588,6 +591,20 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           )}
         </div>
 
+        {/* Today's Result Banner for users who already checked in */}
+        {!canSpin && window.todaysSpinResult && (
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 mb-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600 mb-1">
+                Today's Result: +{window.todaysSpinResult.pointsEarned} Points! 🎉
+              </div>
+              <div className="text-sm text-gray-600">
+                {getStreakEmoji(window.todaysSpinResult.newStreak)} {window.todaysSpinResult.newStreak} day streak • 💎 {window.todaysSpinResult.totalPoints} total points
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Enhanced Spin Wheel */}
         <div className="relative mb-4 sm:mb-6">
           {/* Glow effect during spin */}
@@ -864,20 +881,23 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                 ) : canSpin ? (
                   <span className="text-lg">✨ Spin the Wheel ✨</span>
                 ) : (
-                  <span className="text-lg">✅ Already Checked In Today</span>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-lg">✅ Already Checked In Today</span>
+                    <span className="text-sm text-gray-500">Come back tomorrow for your next spin!</span>
+                  </div>
                 )}
               </button>
               
               {/* Share button for users who already checked in today */}
-              {!canSpin && spinResult && (
+              {!canSpin && window.todaysSpinResult && (
                 <button
-                  onClick={handleShareCheckIn}
+                  onClick={() => handleShareCheckIn(window.todaysSpinResult)}
                   className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
                     <path d="M257.778 155.556H742.222V844.445H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.445H257.778V155.556Z"/>
                     <path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.445H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/>
-                    <path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.445H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/>
+                    <path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.445H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C888.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/>
                   </svg>
                   <span>Share My Daily Spin</span>
                 </button>
