@@ -72,7 +72,7 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
       />
       
       {/* Modal Content Container with proper sizing */}
-      <div className="relative z-10 w-full max-w-md max-h-[90vh] flex flex-col" style={{ filter: 'drop-shadow(0 50px 100px rgba(0, 0, 0, 0.8)) drop-shadow(0 20px 50px rgba(0, 0, 0, 0.6)) drop-shadow(0 10px 30px rgba(0, 0, 0, 0.4))' }}>
+      <div className="relative z-10 w-full max-w-md max-h-[90vh] flex flex-col bg-white rounded-2xl" style={{ boxShadow: '0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4)' }}>
         {/* Close Button */}
         <button
           onClick={handleClose}
