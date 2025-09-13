@@ -591,6 +591,17 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           )}
         </div>
 
+        {/* Today's Result Banner for users who already checked in */}
+        {!canSpin && window.todaysSpinResult && (
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 mb-4">
+            <div className="text-center">
+              <div className="text-lg font-bold text-green-600">
+                Today's Result: +{window.todaysSpinResult.pointsEarned} Points! 🎉
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Share button for users who already checked in today */}
         {!canSpin && window.todaysSpinResult && (
           <button
@@ -604,17 +615,6 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
             </svg>
             <span>Share My Daily Spin</span>
           </button>
-        )}
-
-        {/* Today's Result Banner for users who already checked in */}
-        {!canSpin && window.todaysSpinResult && (
-          <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 mb-4">
-            <div className="text-center">
-              <div className="text-xl font-bold text-green-600">
-                Today's Result: +{window.todaysSpinResult.pointsEarned} Points! 🎉
-              </div>
-            </div>
-          </div>
         )}
 
         {/* Live countdown for return users */}
