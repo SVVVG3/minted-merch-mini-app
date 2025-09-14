@@ -649,7 +649,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           <div className="space-y-4 w-full mb-6">
             {/* Share Button - First in results section */}
             <button
-              onClick={handleShareCheckIn}
+              onClick={() => handleShareCheckIn(spinResult)}
               className="w-full bg-[#8A63D2] hover:bg-[#7C5BC7] text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
             >
               {/* Official Farcaster Logo */}
