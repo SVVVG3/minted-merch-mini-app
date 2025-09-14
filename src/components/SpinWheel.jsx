@@ -79,7 +79,6 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       const shareText = `🎯 Daily check-in complete!\n\n+${shareResult.pointsEarned} points earned! (${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${shareResult.totalPoints} total points\n\nKeep your streak going on /mintedmerch! 🎰`;
 
       // Use the Farcaster SDK composeCast action
-      const { sdk } = await import('../lib/frame');
       const result = await sdk.actions.composeCast({
         text: shareText,
         embeds: [shareUrl],
@@ -645,6 +644,80 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           </div>
         )}
 
+        {/* Results Section - Show at top when spinResult exists */}
+        {spinResult && (
+          <div className="space-y-4 w-full mb-6">
+            {/* Share Button - First in results section */}
+            <button
+              onClick={handleShareCheckIn}
+              className="w-full bg-[#8A63D2] hover:bg-[#7C5BC7] text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+            >
+              {/* Official Farcaster Logo */}
+              <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
+                <path d="M257.778 155.556H742.222V844.445H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.445H257.778V155.556Z"/>
+                <path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.445H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/>
+                <path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.445H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/>
+              </svg>
+              <span>Share My Daily Spin</span>
+            </button>
+
+            {/* Enhanced Result Display */}
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 sm:p-6 transform animate-pulse">
+              <div className="text-center">
+                {/* Big celebration for the points */}
+                <div className="text-4xl sm:text-5xl font-black bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-3 animate-bounce">
+                  +{spinResult.pointsEarned} Points! 🎉
+                </div>
+                
+                {/* Points breakdown */}
+                {spinResult.streakBonus > 0 && (
+                  <div className="bg-yellow-100 rounded-lg p-3 mb-3">
+                    <div className="text-sm text-yellow-800 font-medium">
+                      🎯 Base: {spinResult.basePoints} + 🔥 Streak Bonus: {spinResult.streakBonus}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Streak celebration */}
+                <div className="text-lg font-bold text-gray-800 mb-2">
+                  {getStreakEmoji(spinResult.newStreak)} {spinResult.newStreak} Day Streak!
+                </div>
+                
+                {/* Total points */}
+                <div className="text-sm text-gray-600 mb-3">
+                  Total Points: <span className="font-bold text-blue-600">{spinResult.totalPoints}</span>
+                </div>
+                
+                {/* Motivational message */}
+                <div className="bg-blue-100 rounded-lg p-3 mb-4">
+                  <div className="text-sm font-medium text-blue-800">
+                    {spinResult.newStreak === 1 ? 
+                      "🌟 Great start! Return at 8 AM PST for your next reward!" :
+                      `⚡ Amazing! Come back at 8 AM PST to reach ${spinResult.newStreak + 1} days!`
+                    }
+                  </div>
+                </div>
+                
+                {spinResult.streakBroken && (
+                  <div className="bg-orange-100 border border-orange-200 rounded-lg p-3 mb-4">
+                    <div className="text-sm text-orange-700 font-medium">
+                      🔄 Streak was reset - but you're back on track! Keep it going!
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Close Button */}
+            <button
+              onClick={resetWheel}
+              className="w-full px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl font-medium transition-all duration-200 transform hover:scale-105 active:scale-95"
+            >
+              ✨ Awesome! See you tomorrow!
+            </button>
+          </div>
+        )}
+
         {/* Enhanced Spin Wheel */}
         <div className="relative mb-4 sm:mb-6">
           {/* Glow effect during spin */}
@@ -783,75 +856,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
               Loading your progress...
             </div>
           ) : spinResult ? (
-            <div className="space-y-4 w-full">
-              {/* Share Button - First in results section */}
-              <button
-                onClick={handleShareCheckIn}
-                className="w-full bg-[#8A63D2] hover:bg-[#7C5BC7] text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
-              >
-                {/* Official Farcaster Logo */}
-                <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
-                  <path d="M257.778 155.556H742.222V844.445H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.445H257.778V155.556Z"/>
-                  <path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.445H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/>
-                  <path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.445H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/>
-                </svg>
-                <span>Share My Daily Spin</span>
-              </button>
-
-              {/* Enhanced Result Display */}
-              <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 sm:p-6 transform animate-pulse">
-                <div className="text-center">
-                  {/* Big celebration for the points */}
-                  <div className="text-4xl sm:text-5xl font-black bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-3 animate-bounce">
-                    +{spinResult.pointsEarned} Points! 🎉
-                  </div>
-                  
-                  {/* Points breakdown */}
-                  {spinResult.streakBonus > 0 && (
-                    <div className="bg-yellow-100 rounded-lg p-3 mb-3">
-                      <div className="text-sm text-yellow-800 font-medium">
-                        🎯 Base: {spinResult.basePoints} + 🔥 Streak Bonus: {spinResult.streakBonus}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Streak celebration */}
-                  <div className="text-lg font-bold text-gray-800 mb-2">
-                    {getStreakEmoji(spinResult.newStreak)} {spinResult.newStreak} Day Streak!
-                  </div>
-                  
-                  {/* Total points */}
-                  <div className="text-sm text-gray-600 mb-3">
-                    Total Points: <span className="font-bold text-blue-600">{spinResult.totalPoints}</span>
-                  </div>
-                  
-                  {/* Motivational message */}
-                  <div className="bg-blue-100 rounded-lg p-3 mb-4">
-                    <div className="text-sm font-medium text-blue-800">
-                      {spinResult.newStreak === 1 ? 
-                        "🌟 Great start! Return at 8 AM PST for your next reward!" :
-                        `⚡ Amazing! Come back at 8 AM PST to reach ${spinResult.newStreak + 1} days!`
-                      }
-                    </div>
-                  </div>
-                  
-                  {spinResult.streakBroken && (
-                    <div className="bg-orange-100 border border-orange-200 rounded-lg p-3 mb-4">
-                      <div className="text-sm text-orange-700 font-medium">
-                        🔄 Streak was reset - but you're back on track! Keep it going!
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Close Button */}
-              <button
-                onClick={resetWheel}
-                className="w-full px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl font-medium transition-all duration-200 transform hover:scale-105 active:scale-95"
-              >
-                ✨ Awesome! See you tomorrow!
-              </button>
+            <div className="text-center">
+              <span className="text-lg text-gray-500">🎉 Spin complete! Check results above.</span>
             </div>
           ) : (
             <div className="w-full space-y-3">
