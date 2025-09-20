@@ -4,10 +4,12 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit')) || 100;
+    const requestedLimit = parseInt(searchParams.get('limit')) || 100;
+    // Cap the limit at 5000 for performance, but allow higher than 1000
+    const limit = Math.min(requestedLimit, 5000);
     const sortBy = searchParams.get('sortBy') || 'total_points';
     
-    console.log(`🌐 External API: Fetching leaderboard data - limit: ${limit}, sortBy: ${sortBy}`);
+    console.log(`🌐 External API: Fetching leaderboard data - requested: ${requestedLimit}, using: ${limit}, sortBy: ${sortBy}`);
 
     // Get leaderboard data with wallet addresses
     let query = supabaseAdmin
@@ -78,12 +80,14 @@ export async function GET(request) {
       .filter(entry => entry !== null) // Remove entries without wallet addresses
       .map((entry, index) => ({ ...entry, rank: index + 1 })); // Re-rank after filtering
 
-    console.log(`✅ External API: Successfully formatted ${formattedData.length} leaderboard entries`);
+    console.log(`✅ External API: Successfully formatted ${formattedData.length} leaderboard entries (requested: ${requestedLimit}, fetched: ${leaderboardData.length})`);
 
     return NextResponse.json({
       success: true,
       data: formattedData,
       total: formattedData.length,
+      requested: requestedLimit,
+      fetched: leaderboardData.length,
       sortedBy: sortBy,
       // Metadata for external apps
       metadata: {
