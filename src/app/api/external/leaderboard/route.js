@@ -12,37 +12,112 @@ export async function GET(request) {
     console.log(`🌐 External API: Fetching leaderboard data - requested: ${requestedLimit}, using: ${limit}, sortBy: ${sortBy}`);
 
     // Get leaderboard data with wallet addresses
-    let query = supabaseAdmin
-      .from('user_leaderboard')
-      .select(`
-        *,
-        profiles!inner(
-          primary_eth_address,
-          bankr_evm_address,
-          custody_address
-        )
-      `)
-      .limit(limit);
+    // Note: Supabase has a hard 1000 row limit per query, so we need pagination for larger requests
+    const SUPABASE_MAX_LIMIT = 1000;
+    const needsPagination = limit > SUPABASE_MAX_LIMIT;
+    
+    let allData = [];
+    let error = null;
+    
+    if (needsPagination) {
+      console.log(`📄 Using pagination for limit ${limit} (fetching in chunks of ${SUPABASE_MAX_LIMIT})`);
+      
+      let offset = 0;
+      let hasMore = true;
+      
+      while (hasMore && allData.length < limit) {
+        const currentLimit = Math.min(SUPABASE_MAX_LIMIT, limit - allData.length);
+        
+        let query = supabaseAdmin
+          .from('user_leaderboard')
+          .select(`
+            *,
+            profiles!inner(
+              primary_eth_address,
+              bankr_evm_address,
+              custody_address
+            )
+          `)
+          .range(offset, offset + currentLimit - 1);
 
-    // Sort based on requested field
-    switch (sortBy) {
-      case 'total_points':
-        query = query.order('total_points', { ascending: false });
-        break;
-      case 'checkin_streak':
-        query = query.order('checkin_streak', { ascending: false });
-        break;
-      case 'points_from_purchases':
-        query = query.order('points_from_purchases', { ascending: false });
-        break;
-      case 'total_orders':
-        query = query.order('total_orders', { ascending: false });
-        break;
-      default:
-        query = query.order('total_points', { ascending: false });
+        // Sort based on requested field
+        switch (sortBy) {
+          case 'total_points':
+            query = query.order('total_points', { ascending: false });
+            break;
+          case 'checkin_streak':
+            query = query.order('checkin_streak', { ascending: false });
+            break;
+          case 'points_from_purchases':
+            query = query.order('points_from_purchases', { ascending: false });
+            break;
+          case 'total_orders':
+            query = query.order('total_orders', { ascending: false });
+            break;
+          default:
+            query = query.order('total_points', { ascending: false });
+        }
+
+        const { data: chunkData, error: chunkError } = await query;
+        
+        if (chunkError) {
+          error = chunkError;
+          break;
+        }
+        
+        if (!chunkData || chunkData.length === 0) {
+          hasMore = false;
+          break;
+        }
+        
+        allData.push(...chunkData);
+        offset += currentLimit;
+        
+        // If we got less than requested, we've reached the end
+        if (chunkData.length < currentLimit) {
+          hasMore = false;
+        }
+        
+        console.log(`📄 Fetched chunk: ${chunkData.length} entries, total so far: ${allData.length}`);
+      }
+    } else {
+      // Single query for smaller requests
+      let query = supabaseAdmin
+        .from('user_leaderboard')
+        .select(`
+          *,
+          profiles!inner(
+            primary_eth_address,
+            bankr_evm_address,
+            custody_address
+          )
+        `)
+        .limit(limit);
+
+      // Sort based on requested field
+      switch (sortBy) {
+        case 'total_points':
+          query = query.order('total_points', { ascending: false });
+          break;
+        case 'checkin_streak':
+          query = query.order('checkin_streak', { ascending: false });
+          break;
+        case 'points_from_purchases':
+          query = query.order('points_from_purchases', { ascending: false });
+          break;
+        case 'total_orders':
+          query = query.order('total_orders', { ascending: false });
+          break;
+        default:
+          query = query.order('total_points', { ascending: false });
+      }
+
+      const { data, error: queryError } = await query;
+      allData = data || [];
+      error = queryError;
     }
 
-    const { data: leaderboardData, error } = await query;
+    const leaderboardData = allData;
 
     if (error) {
       console.error('Error fetching external leaderboard:', error);
