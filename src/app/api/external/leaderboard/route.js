@@ -14,9 +14,12 @@ export async function GET(request) {
       .from('user_leaderboard')
       .select(`
         *,
-        profiles!inner(wallet_address)
+        profiles!inner(
+          primary_eth_address,
+          bankr_evm_address,
+          custody_address
+        )
       `)
-      .not('profiles.wallet_address', 'is', null) // Only users with wallet addresses
       .limit(limit);
 
     // Sort based on requested field
@@ -48,17 +51,32 @@ export async function GET(request) {
     }
 
     // Format data for external consumption with address and score fields
-    const formattedData = leaderboardData.map((entry, index) => ({
-      address: entry.profiles?.wallet_address,
-      score: entry.total_points,
-      rank: index + 1,
-      // Additional fields that might be useful
-      fid: entry.user_fid,
-      username: entry.username,
-      streak: entry.checkin_streak,
-      purchases: entry.total_orders,
-      purchasePoints: entry.points_from_purchases
-    }));
+    const formattedData = leaderboardData
+      .map((entry, index) => {
+        // Get the best available wallet address (prioritize primary_eth_address, then bankr_evm_address, then custody_address)
+        const walletAddress = entry.profiles?.primary_eth_address || 
+                             entry.profiles?.bankr_evm_address || 
+                             entry.profiles?.custody_address;
+        
+        // Only include users with wallet addresses
+        if (!walletAddress) {
+          return null;
+        }
+        
+        return {
+          address: walletAddress,
+          score: entry.total_points,
+          rank: index + 1,
+          // Additional fields that might be useful
+          fid: entry.user_fid,
+          username: entry.username,
+          streak: entry.checkin_streak,
+          purchases: entry.total_orders,
+          purchasePoints: entry.points_from_purchases
+        };
+      })
+      .filter(entry => entry !== null) // Remove entries without wallet addresses
+      .map((entry, index) => ({ ...entry, rank: index + 1 })); // Re-rank after filtering
 
     console.log(`✅ External API: Successfully formatted ${formattedData.length} leaderboard entries`);
 
