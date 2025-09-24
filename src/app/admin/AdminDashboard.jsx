@@ -184,7 +184,7 @@ export default function AdminDashboard() {
   const loadDashboardData = async () => {
     try {
       const [leaderboardRes, statsRes, ordersRes, productsRes] = await Promise.all([
-        fetch('/api/points/leaderboard?limit=2000'),
+        fetch('/api/admin/leaderboard?limit=10000'),
         fetch('/api/admin/stats'),
         fetch('/api/admin/orders'),
         fetch('/api/products')
@@ -195,7 +195,7 @@ export default function AdminDashboard() {
       const orders = await ordersRes.json();
       const products = await productsRes.json();
       
-      setLeaderboardData(leaderboard.data?.leaderboard || []);
+      setLeaderboardData(leaderboard.data || []);
       setDashboardStats(stats.data);
       setOrdersData(orders.data || []);
       setProductsData(products.products || []);
