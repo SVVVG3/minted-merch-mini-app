@@ -150,14 +150,46 @@ export async function GET(request) {
     }
 
     // Get total points awarded across all users
-    const { data: pointsData, error: pointsError } = await supabaseAdmin
-      .from('user_leaderboard')
-      .select('total_points');
-
+    // Use pagination to ensure we get ALL users, not just the first 1000
     let totalPoints = 0;
-    if (!pointsError && pointsData) {
-      totalPoints = pointsData.reduce((sum, user) => sum + (user.total_points || 0), 0);
+    let allPointsData = [];
+    let offset = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+
+    console.log('📊 Fetching total points from all users with pagination...');
+
+    while (hasMore) {
+      const { data: pointsData, error: pointsError } = await supabaseAdmin
+        .from('user_leaderboard')
+        .select('total_points')
+        .range(offset, offset + batchSize - 1);
+
+      if (pointsError) {
+        console.error('Error fetching points data batch:', pointsError);
+        break;
+      }
+
+      if (!pointsData || pointsData.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      allPointsData.push(...pointsData);
+      offset += batchSize;
+
+      console.log(`📊 Fetched batch: ${pointsData.length} users (total so far: ${allPointsData.length})`);
+
+      // If we got less than the batch size, we've reached the end
+      if (pointsData.length < batchSize) {
+        hasMore = false;
+      }
     }
+
+    // Calculate total points from all users
+    totalPoints = allPointsData.reduce((sum, user) => sum + (user.total_points || 0), 0);
+    
+    console.log(`📊 Total points calculation: ${allPointsData.length} users, ${totalPoints.toLocaleString()} total points`);
 
     // Get total orders across all users
     const { count: totalOrders, error: ordersError } = await supabaseAdmin
