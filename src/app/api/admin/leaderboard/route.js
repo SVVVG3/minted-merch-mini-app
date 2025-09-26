@@ -10,7 +10,7 @@ export async function GET(request) {
     console.log(`📊 Admin fetching leaderboard data - limit: ${limit}, sortBy: ${sortBy}`);
 
     // Get all leaderboard data with profile information (images, token holdings, etc.)
-    // Use a very high limit to get all users (Supabase default limit is 1000)
+    // Force high limit to bypass Supabase default 1000 row limit
     let query = supabaseAdmin
       .from('user_leaderboard')
       .select(`
@@ -22,7 +22,7 @@ export async function GET(request) {
           token_balance
         )
       `)
-      .limit(Math.min(limit, 50000)); // Cap at 50k to prevent issues
+      .limit(50000); // Force very high limit
 
     // Sort based on requested field
     switch (sortBy) {
@@ -42,6 +42,7 @@ export async function GET(request) {
         query = query.order('total_points', { ascending: false });
     }
 
+    // Execute the query with high limit
     const { data: leaderboardData, error } = await query;
 
     if (error) {
@@ -52,15 +53,19 @@ export async function GET(request) {
       );
     }
 
+    console.log(`📊 Successfully fetched ${leaderboardData?.length || 0} leaderboard entries`);
+
     // Transform the data to flatten profile information and add token holdings
-    const transformedData = leaderboardData.map(entry => {
+    const transformedData = leaderboardData.map((entry, index) => {
       const profile = entry.profiles || {};
       
-      // Convert token balance from wei to tokens for display
+      // Keep token balance in wei format (as expected by frontend formatTokenBalance function)
       const tokenBalanceWei = profile.token_balance || 0;
-      const tokenBalanceTokens = tokenBalanceWei / Math.pow(10, 18);
       
-      // Token holdings are working correctly - debug logging removed
+      // Debug first few entries
+      if (index < 5) {
+        console.log(`🔍 Entry ${index}: FID ${entry.user_fid}, profile:`, profile, 'tokenBalance:', tokenBalanceWei);
+      }
       
       return {
         ...entry,
@@ -68,7 +73,7 @@ export async function GET(request) {
         username: profile.username || entry.username,
         display_name: profile.display_name || entry.display_name,
         pfp_url: profile.pfp_url,
-        token_holdings: Math.round(tokenBalanceTokens), // Round to whole numbers for display
+        token_balance: tokenBalanceWei, // Keep in wei format for frontend formatTokenBalance function
         // Remove the nested profiles object
         profiles: undefined
       };
