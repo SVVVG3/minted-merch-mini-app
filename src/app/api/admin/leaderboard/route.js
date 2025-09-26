@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit')) || 100;
+    const limit = parseInt(searchParams.get('limit')) || 1000;
     const sortBy = searchParams.get('sortBy') || 'total_points';
     
     console.log(`📊 Admin fetching leaderboard data - limit: ${limit}, sortBy: ${sortBy}`);
@@ -59,13 +59,20 @@ export async function GET(request) {
       const tokenBalanceWei = profile.token_balance || 0;
       const tokenBalanceTokens = tokenBalanceWei / Math.pow(10, 18);
       
+      // Debug logging for first few entries
+      if (entry.user_fid <= 196041) {
+        console.log(`🔍 Debug FID ${entry.user_fid}: tokenBalanceWei=${tokenBalanceWei}, tokenBalanceTokens=${tokenBalanceTokens}, profile=`, profile);
+      }
+      
       return {
         ...entry,
         // Use profile data if available, fallback to leaderboard data
         username: profile.username || entry.username,
         display_name: profile.display_name || entry.display_name,
         pfp_url: profile.pfp_url,
-        token_holdings: tokenBalanceTokens,
+        token_holdings: Math.round(tokenBalanceTokens), // Round to whole numbers for display
+        // Keep raw token balance for debugging
+        raw_token_balance: tokenBalanceWei,
         // Remove the nested profiles object
         profiles: undefined
       };
