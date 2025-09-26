@@ -272,15 +272,29 @@ export async function updateChatMemberBalance(fid, tokenBalance, status = 'succe
   try {
     console.log(`💰 Updating token balance for FID ${fid}: ${tokenBalance} tokens (status: ${status})`);
     
+    // Determine eligibility based on 50M token threshold
+    const CHAT_ELIGIBILITY_THRESHOLD = 50000000; // 50M tokens
+    const isEligible = tokenBalance >= CHAT_ELIGIBILITY_THRESHOLD;
+    
+    console.log(`🎫 FID ${fid} eligibility: ${isEligible ? 'ELIGIBLE' : 'INELIGIBLE'} (${tokenBalance.toLocaleString()} tokens)`);
+    
+    const updateData = {
+      token_balance: tokenBalance,
+      last_balance_check: new Date().toISOString(),
+      balance_check_status: status
+    };
+    
+    // If user becomes ineligible, mark them as inactive
+    if (!isEligible && status === 'success') {
+      updateData.is_active = false;
+      updateData.removed_at = new Date().toISOString();
+      console.log(`❌ FID ${fid} marked as INACTIVE due to insufficient tokens (${tokenBalance.toLocaleString()} < ${CHAT_ELIGIBILITY_THRESHOLD.toLocaleString()})`);
+    }
+    
     const { data, error } = await supabaseAdmin
       .from('chat_members')
-      .update({
-        token_balance: tokenBalance,
-        last_balance_check: new Date().toISOString(),
-        balance_check_status: status
-      })
+      .update(updateData)
       .eq('fid', fid)
-      .eq('is_active', true)
       .select();
 
     if (error) {
@@ -288,16 +302,18 @@ export async function updateChatMemberBalance(fid, tokenBalance, status = 'succe
     }
 
     if (!data || data.length === 0) {
-      throw new Error(`No active chat member found with FID: ${fid}`);
+      throw new Error(`No chat member found with FID: ${fid}`);
     }
 
-    console.log(`✅ Updated token balance for ${data[0].username || fid}: ${tokenBalance} tokens`);
+    console.log(`✅ Updated token balance for ${data[0].username || fid}: ${tokenBalance} tokens (active: ${data[0].is_active})`);
     
     return {
       success: true,
       fid,
       tokenBalance,
       status,
+      isEligible,
+      isActive: data[0].is_active,
       updatedAt: new Date().toISOString()
     };
 
