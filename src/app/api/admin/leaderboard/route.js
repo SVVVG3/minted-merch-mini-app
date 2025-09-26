@@ -4,12 +4,13 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit')) || 1000;
+    const limit = parseInt(searchParams.get('limit')) || 10000;
     const sortBy = searchParams.get('sortBy') || 'total_points';
     
     console.log(`📊 Admin fetching leaderboard data - limit: ${limit}, sortBy: ${sortBy}`);
 
     // Get all leaderboard data with profile information (images, token holdings, etc.)
+    // Use a very high limit to get all users (Supabase default limit is 1000)
     let query = supabaseAdmin
       .from('user_leaderboard')
       .select(`
@@ -21,7 +22,7 @@ export async function GET(request) {
           token_balance
         )
       `)
-      .limit(limit);
+      .limit(Math.min(limit, 50000)); // Cap at 50k to prevent issues
 
     // Sort based on requested field
     switch (sortBy) {
@@ -59,10 +60,7 @@ export async function GET(request) {
       const tokenBalanceWei = profile.token_balance || 0;
       const tokenBalanceTokens = tokenBalanceWei / Math.pow(10, 18);
       
-      // Debug logging for first few entries
-      if (entry.user_fid <= 196041) {
-        console.log(`🔍 Debug FID ${entry.user_fid}: tokenBalanceWei=${tokenBalanceWei}, tokenBalanceTokens=${tokenBalanceTokens}, profile=`, profile);
-      }
+      // Token holdings are working correctly - debug logging removed
       
       return {
         ...entry,
@@ -71,8 +69,6 @@ export async function GET(request) {
         display_name: profile.display_name || entry.display_name,
         pfp_url: profile.pfp_url,
         token_holdings: Math.round(tokenBalanceTokens), // Round to whole numbers for display
-        // Keep raw token balance for debugging
-        raw_token_balance: tokenBalanceWei,
         // Remove the nested profiles object
         profiles: undefined
       };
