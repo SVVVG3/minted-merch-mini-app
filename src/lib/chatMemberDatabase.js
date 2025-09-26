@@ -284,11 +284,10 @@ export async function updateChatMemberBalance(fid, tokenBalance, status = 'succe
       balance_check_status: status
     };
     
-    // If user becomes ineligible, mark them as inactive
+    // Note: We don't automatically mark users as inactive here
+    // Instead, let them appear in "Members Requiring Removal" section for manual admin action
     if (!isEligible && status === 'success') {
-      updateData.is_active = false;
-      updateData.removed_at = new Date().toISOString();
-      console.log(`❌ FID ${fid} marked as INACTIVE due to insufficient tokens (${tokenBalance.toLocaleString()} < ${CHAT_ELIGIBILITY_THRESHOLD.toLocaleString()})`);
+      console.log(`⚠️ FID ${fid} is INELIGIBLE due to insufficient tokens (${tokenBalance.toLocaleString()} < ${CHAT_ELIGIBILITY_THRESHOLD.toLocaleString()}) - will appear in removal section`);
     }
     
     const { data, error } = await supabaseAdmin
