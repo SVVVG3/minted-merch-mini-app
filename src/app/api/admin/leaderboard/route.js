@@ -9,9 +9,14 @@ export async function GET(request) {
     
     console.log(`📊 Admin fetching leaderboard data - limit: ${limit}, sortBy: ${sortBy}`);
 
-    // Get all leaderboard data with profile information (images, token holdings, etc.)
-    // Force high limit to bypass Supabase default 1000 row limit
-    let query = supabaseAdmin
+    // Supabase enforces 1000 row limit regardless of .limit() - use real pagination
+    let allData = [];
+    let currentPage = 0;
+    const pageSize = 1000;
+    let hasMoreData = true;
+
+    // Build base query
+    let baseQuery = supabaseAdmin
       .from('user_leaderboard')
       .select(`
         *,
@@ -21,39 +26,57 @@ export async function GET(request) {
           pfp_url,
           token_balance
         )
-      `)
-      .limit(50000); // Force very high limit
+      `);
 
-    // Sort based on requested field
+    // Add sorting
     switch (sortBy) {
       case 'total_points':
-        query = query.order('total_points', { ascending: false });
+        baseQuery = baseQuery.order('total_points', { ascending: false });
         break;
       case 'checkin_streak':
-        query = query.order('checkin_streak', { ascending: false });
+        baseQuery = baseQuery.order('checkin_streak', { ascending: false });
         break;
       case 'points_from_purchases':
-        query = query.order('points_from_purchases', { ascending: false });
+        baseQuery = baseQuery.order('points_from_purchases', { ascending: false });
         break;
       case 'total_orders':
-        query = query.order('total_orders', { ascending: false });
+        baseQuery = baseQuery.order('total_orders', { ascending: false });
         break;
       default:
-        query = query.order('total_points', { ascending: false });
+        baseQuery = baseQuery.order('total_points', { ascending: false });
     }
 
-    // Execute the query with high limit
-    const { data: leaderboardData, error } = await query;
+    // Fetch all pages
+    while (hasMoreData) {
+      const startRange = currentPage * pageSize;
+      const endRange = startRange + pageSize - 1;
+      
+      console.log(`📊 Fetching page ${currentPage + 1}: rows ${startRange} to ${endRange}`);
+      
+      const { data: pageData, error } = await baseQuery.range(startRange, endRange);
 
-    if (error) {
-      console.error('Error fetching admin leaderboard:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch leaderboard data' },
-        { status: 500 }
-      );
+      if (error) {
+        console.error('Error fetching admin leaderboard page:', error);
+        return NextResponse.json(
+          { success: false, error: 'Failed to fetch leaderboard data' },
+          { status: 500 }
+        );
+      }
+
+      if (pageData && pageData.length > 0) {
+        allData = allData.concat(pageData);
+        console.log(`📊 Page ${currentPage + 1}: fetched ${pageData.length} entries, total: ${allData.length}`);
+        
+        // If we got less than pageSize, we've reached the end
+        hasMoreData = pageData.length === pageSize;
+        currentPage++;
+      } else {
+        hasMoreData = false;
+      }
     }
 
-    console.log(`📊 Successfully fetched ${leaderboardData?.length || 0} leaderboard entries`);
+    const leaderboardData = allData;
+    console.log(`📊 ✅ Successfully fetched ALL ${leaderboardData.length} leaderboard entries using pagination`);
 
     // Transform the data to flatten profile information and add token holdings
     const transformedData = leaderboardData.map((entry, index) => {
