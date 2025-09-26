@@ -9,10 +9,18 @@ export async function GET(request) {
     
     console.log(`📊 Admin fetching leaderboard data - limit: ${limit}, sortBy: ${sortBy}`);
 
-    // Get all leaderboard data with usernames
+    // Get all leaderboard data with profile information (images, token holdings, etc.)
     let query = supabaseAdmin
       .from('user_leaderboard')
-      .select('*')
+      .select(`
+        *,
+        profiles!user_fid (
+          username,
+          display_name,
+          pfp_url,
+          token_balance
+        )
+      `)
       .limit(limit);
 
     // Sort based on requested field
@@ -43,12 +51,32 @@ export async function GET(request) {
       );
     }
 
-    console.log(`✅ Successfully fetched ${leaderboardData.length} leaderboard entries`);
+    // Transform the data to flatten profile information and add token holdings
+    const transformedData = leaderboardData.map(entry => {
+      const profile = entry.profiles || {};
+      
+      // Convert token balance from wei to tokens for display
+      const tokenBalanceWei = profile.token_balance || 0;
+      const tokenBalanceTokens = tokenBalanceWei / Math.pow(10, 18);
+      
+      return {
+        ...entry,
+        // Use profile data if available, fallback to leaderboard data
+        username: profile.username || entry.username,
+        display_name: profile.display_name || entry.display_name,
+        pfp_url: profile.pfp_url,
+        token_holdings: tokenBalanceTokens,
+        // Remove the nested profiles object
+        profiles: undefined
+      };
+    });
+
+    console.log(`✅ Successfully fetched ${transformedData.length} leaderboard entries with profile data`);
 
     return NextResponse.json({
       success: true,
-      data: leaderboardData,
-      total: leaderboardData.length,
+      data: transformedData,
+      total: transformedData.length,
       sortedBy: sortBy
     });
 
