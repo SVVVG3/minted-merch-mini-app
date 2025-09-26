@@ -130,24 +130,24 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
     console.log(`✅ Updated token balance for FID ${fid}: ${finalBalance} tokens`);
     console.log(`📅 Cache timestamp: ${data.token_balance_updated_at}`);
     
-    // Only update chat member database if user has enough tokens for chat eligibility
-    // This prevents unnecessary updates for users who aren't chat members
+    // Always update chat member database to handle eligibility changes
+    // This ensures users are marked as inactive when they drop below threshold
     const tokensBalance = typeof finalBalance === 'string' ?
       parseFloat(finalBalance) / Math.pow(10, 18) :
       finalBalance / Math.pow(10, 18);
     
     const CHAT_ELIGIBILITY_THRESHOLD = 50000000; // 50M tokens required for chat
     
-    if (tokensBalance >= CHAT_ELIGIBILITY_THRESHOLD) {
-      try {
-        await updateChatMemberBalance(fid, tokensBalance, 'success');
-        console.log(`💬 Also updated chat member balance for FID ${fid}: ${tokensBalance} tokens`);
-      } catch (chatError) {
-        // Only log warning for users who should be eligible but update failed
-        console.warn(`⚠️ Could not update chat member balance for eligible user FID ${fid}:`, chatError.message);
+    try {
+      await updateChatMemberBalance(fid, tokensBalance, 'success');
+      if (tokensBalance >= CHAT_ELIGIBILITY_THRESHOLD) {
+        console.log(`💬 Updated chat member balance for FID ${fid}: ${tokensBalance} tokens (eligible)`);
+      } else {
+        console.log(`💬 Updated chat member balance for FID ${fid}: ${tokensBalance} tokens (ineligible - will be marked inactive)`);
       }
-    } else {
-      console.log(`ℹ️ FID ${fid} has ${tokensBalance} tokens (below 50M threshold) - skipping chat member update`);
+    } catch (chatError) {
+      // Log warning for any update failures
+      console.warn(`⚠️ Could not update chat member balance for FID ${fid}:`, chatError.message);
     }
     
     return {
