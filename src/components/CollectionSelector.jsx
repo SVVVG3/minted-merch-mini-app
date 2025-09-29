@@ -23,7 +23,12 @@ export function CollectionSelector({ selectedCollection, onCollectionChange, cla
         const collectionsData = await response.json();
         console.log('Fetched collections:', collectionsData);
         
-        setCollections(collectionsData || []);
+        // Sort collections alphabetically by title
+        const sortedCollections = (collectionsData || []).sort((a, b) => 
+          a.title.localeCompare(b.title)
+        );
+        
+        setCollections(sortedCollections);
       } catch (err) {
         console.error('Error fetching collections:', err);
         setError(err.message);
@@ -85,11 +90,20 @@ export function CollectionSelector({ selectedCollection, onCollectionChange, cla
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <span className="text-sm font-medium text-gray-900 truncate">
-          {currentCollection?.title || 'Select Collection'}
-        </span>
+        <div className="flex items-center space-x-2 flex-1 min-w-0">
+          {currentCollection?.image?.url && (
+            <img
+              src={currentCollection.image.url}
+              alt={currentCollection.image.altText || currentCollection.title}
+              className="w-5 h-5 rounded object-cover flex-shrink-0"
+            />
+          )}
+          <span className="text-sm font-medium text-gray-900 truncate">
+            {currentCollection?.title || 'Select Collection'}
+          </span>
+        </div>
         <svg
-          className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-gray-500 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -118,12 +132,16 @@ export function CollectionSelector({ selectedCollection, onCollectionChange, cla
                 role="option"
                 aria-selected={currentCollection?.id === collection.id}
               >
-                <div className="truncate">{collection.title}</div>
-                {collection.handle && (
-                  <div className="text-xs text-gray-500 truncate">
-                    {collection.handle}
-                  </div>
-                )}
+                <div className="flex items-center space-x-2">
+                  {collection.image?.url && (
+                    <img
+                      src={collection.image.url}
+                      alt={collection.image.altText || collection.title}
+                      className="w-6 h-6 rounded object-cover flex-shrink-0"
+                    />
+                  )}
+                  <div className="truncate font-medium">{collection.title}</div>
+                </div>
               </button>
             ))
           )}

@@ -29,13 +29,17 @@ async function shopifyFetch(query, variables = {}) {
 export async function getCollections() {
   const query = `
     query {
-      collections(first: 10) {
+      collections(first: 20) {
         edges {
           node {
             id
             title
             handle
             updatedAt
+            image {
+              url
+              altText
+            }
           }
         }
       }
