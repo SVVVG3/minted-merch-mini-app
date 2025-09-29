@@ -5,6 +5,71 @@ export async function generateMetadata({ searchParams }) {
   // Fix URL construction to avoid double slashes
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
   
+  // Check if this is a collection share URL
+  const sharedCollectionHandle = searchParams?.collection;
+  
+  if (sharedCollectionHandle) {
+    try {
+      // Fetch collection data for metadata
+      const collection = await getCollectionByHandle(sharedCollectionHandle);
+      
+      if (collection) {
+        const title = collection.title || sharedCollectionHandle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const description = collection.description || `Shop the ${title} collection with USDC on Base blockchain. Crypto merch with instant payments.`;
+        const imageUrl = collection.image?.url;
+        
+        // Build OG image URL with collection data
+        const ogParams = new URLSearchParams({
+          handle: sharedCollectionHandle,
+          title,
+        });
+        
+        // Add collection image if available
+        if (imageUrl) {
+          ogParams.append('image', imageUrl);
+        }
+        
+        // Add description if available
+        if (collection.description) {
+          ogParams.append('description', collection.description);
+        }
+        
+        const dynamicImageUrl = `${baseUrl}/api/og/collection?${ogParams.toString()}`;
+        
+        // Create frame embed with dynamic collection image
+        const frame = {
+          version: "next",
+          imageUrl: dynamicImageUrl,
+          button: {
+            title: `Shop ${title} 🛍️`,
+            action: {
+              type: "launch_frame",
+              url: `${baseUrl}/?collection=${sharedCollectionHandle}`,
+              name: "Minted Merch Shop",
+              splashImageUrl: `${baseUrl}/splash.png`,
+              splashBackgroundColor: "#000000"
+            }
+          }
+        };
+
+        return {
+          title: `${title} Collection - Minted Merch Shop`,
+          description,
+          openGraph: {
+            title: `${title} Collection - Minted Merch Shop`,
+            description,
+            images: [dynamicImageUrl],
+          },
+          other: {
+            'fc:frame': JSON.stringify(frame),
+          },
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching collection for metadata:', error);
+    }
+  }
+  
   // Check if this is a check-in share URL
   const isCheckinShare = searchParams?.checkin === 'true';
   
