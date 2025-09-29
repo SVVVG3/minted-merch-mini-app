@@ -41,7 +41,7 @@ export async function generateMetadata({ searchParams }) {
           version: "next",
           imageUrl: dynamicImageUrl,
           button: {
-            title: `Shop ${title} 🛍️`,
+            title: `Shop ${title} 📦`,
             action: {
               type: "launch_frame",
               url: `${baseUrl}/?collection=${sharedCollectionHandle}`,

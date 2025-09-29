@@ -28,7 +28,9 @@ export async function GET(request) {
     // Fetch and convert collection image if provided
     let collectionImageSrc = null;
     if (imageUrl) {
+      console.log('Fetching collection image:', imageUrl);
       collectionImageSrc = await fetchImageAsDataUrl(imageUrl);
+      console.log('Collection image fetch result:', collectionImageSrc ? 'SUCCESS' : 'FAILED');
     }
     
     // Fetch logo image
@@ -94,6 +96,16 @@ export async function GET(request) {
                     objectFit: 'cover',
                   }}
                 />
+              ) : logoImageSrc ? (
+                <img
+                  src={logoImageSrc}
+                  alt="Minted Merch"
+                  style={{
+                    width: '300px',
+                    height: '300px',
+                    objectFit: 'contain',
+                  }}
+                />
               ) : (
                 <div
                   style={{
@@ -104,7 +116,7 @@ export async function GET(request) {
                     color: '#3eb489',
                   }}
                 >
-                  <div style={{ fontSize: 120, marginBottom: 20 }}>🛍️</div>
+                  <div style={{ fontSize: 120, marginBottom: 20 }}>📦</div>
                   <div style={{ fontSize: 32, textAlign: 'center' }}>Collection</div>
                 </div>
               )}
@@ -230,7 +242,7 @@ export async function GET(request) {
             fontFamily: 'Arial, sans-serif',
           }}
         >
-          <div style={{ fontSize: 100, color: '#3eb489' }}>🛍️</div>
+          <div style={{ fontSize: 100, color: '#3eb489' }}>📦</div>
           <div style={{ fontSize: 48, marginTop: 20, color: '#3eb489' }}>Minted Merch</div>
           <div style={{ fontSize: 32, color: '#3eb489', marginTop: 20 }}>Shop collections with USDC!</div>
           <div style={{ fontSize: 24, color: '#888', marginTop: 20 }}>Error loading collection details</div>
