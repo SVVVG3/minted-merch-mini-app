@@ -86,7 +86,7 @@ export function CollectionSelector({ selectedCollection, onCollectionChange, cla
       {/* Dropdown Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between w-full h-10 px-3 bg-white border border-gray-300 rounded-lg hover:border-[#3eb489] focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:ring-opacity-50 transition-colors"
+        className="flex items-center justify-between w-full h-10 px-3 bg-white border border-white rounded-lg hover:border-gray-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 transition-colors shadow-sm"
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
@@ -124,10 +124,10 @@ export function CollectionSelector({ selectedCollection, onCollectionChange, cla
               <button
                 key={collection.id}
                 onClick={() => handleCollectionSelect(collection)}
-                className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors ${
+                className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors border-l-4 ${
                   currentCollection?.id === collection.id
-                    ? 'bg-[#3eb489] bg-opacity-10 text-[#3eb489] font-medium'
-                    : 'text-gray-900'
+                    ? 'border-l-[#3eb489] bg-gray-50 text-[#3eb489] font-medium'
+                    : 'border-l-transparent text-gray-900'
                 }`}
                 role="option"
                 aria-selected={currentCollection?.id === collection.id}

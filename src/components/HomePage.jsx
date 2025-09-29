@@ -571,7 +571,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       </header>
       
       {/* Collection Selector Section */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
+      <div className="bg-[#3eb489] px-4 py-3">
         <div className="flex justify-center">
           <div className="w-full max-w-xs">
             <CollectionSelector
