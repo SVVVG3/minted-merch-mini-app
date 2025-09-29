@@ -2,18 +2,19 @@ import { getCollectionByHandle, getCollections } from '@/lib/shopify';
 import { HomePage } from '@/components/HomePage';
 
 export async function generateMetadata({ searchParams }) {
-  // In Next.js App Router, searchParams might be a Promise
-  const resolvedSearchParams = await Promise.resolve(searchParams);
-  console.log('🔍 generateMetadata called with searchParams:', resolvedSearchParams);
+  console.log('🔍 generateMetadata called with searchParams:', searchParams);
+  console.log('🔍 searchParams type:', typeof searchParams);
+  console.log('🔍 searchParams keys:', Object.keys(searchParams || {}));
   
   // Fix URL construction to avoid double slashes
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
   
   // Check if this is a collection share URL
-  const sharedCollectionHandle = resolvedSearchParams?.collection;
-  const cacheBust = resolvedSearchParams?.t;
+  const sharedCollectionHandle = searchParams?.collection;
+  const cacheBust = searchParams?.t;
   
   console.log('📋 Collection handle from URL:', sharedCollectionHandle);
+  console.log('📋 Cache bust from URL:', cacheBust);
   
   if (sharedCollectionHandle) {
     try {
@@ -87,16 +88,16 @@ export async function generateMetadata({ searchParams }) {
   }
   
   // Check if this is a check-in share URL
-  const isCheckinShare = resolvedSearchParams?.checkin === 'true';
+  const isCheckinShare = searchParams?.checkin === 'true';
   
   if (isCheckinShare) {
     // Extract check-in data from URL parameters
-    const points = parseInt(resolvedSearchParams.points || '30');
-    const streak = parseInt(resolvedSearchParams.streak || '1');
-    const totalPoints = parseInt(resolvedSearchParams.total || '100');
-    const basePoints = parseInt(resolvedSearchParams.base || '30');
-    const streakBonus = parseInt(resolvedSearchParams.bonus || '0');
-    const cacheBust = resolvedSearchParams.t;
+    const points = parseInt(searchParams.points || '30');
+    const streak = parseInt(searchParams.streak || '1');
+    const totalPoints = parseInt(searchParams.total || '100');
+    const basePoints = parseInt(searchParams.base || '30');
+    const streakBonus = parseInt(searchParams.bonus || '0');
+    const cacheBust = searchParams.t;
     
     console.log('=== Check-in Share Metadata Generation ===');
     console.log('Check-in data:', { points, streak, totalPoints, basePoints, streakBonus });
