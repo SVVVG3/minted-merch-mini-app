@@ -2,12 +2,16 @@ import { getCollectionByHandle, getCollections } from '@/lib/shopify';
 import { HomePage } from '@/components/HomePage';
 
 export async function generateMetadata({ searchParams }) {
+  console.log('🔍 generateMetadata called with searchParams:', searchParams);
+  
   // Fix URL construction to avoid double slashes
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
   
   // Check if this is a collection share URL
   const sharedCollectionHandle = searchParams?.collection;
   const cacheBust = searchParams?.t;
+  
+  console.log('📋 Collection handle from URL:', sharedCollectionHandle);
   
   if (sharedCollectionHandle) {
     try {

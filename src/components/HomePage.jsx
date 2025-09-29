@@ -89,6 +89,9 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       const collectionUrl = `${window.location.origin}/?collection=${selectedCollection.handle}&t=${Date.now()}`;
       const shareText = `Check out the ${selectedCollection.title} collection on @mintedmerch!\n\nShop & pay with USDC on Base 🟦`;
       
+      console.log('🔗 Sharing collection URL:', collectionUrl);
+      console.log('📝 Share text:', shareText);
+      
       // Use the Farcaster SDK composeCast action with collection URL
       const { sdk } = await import('../lib/frame');
       const result = await sdk.actions.composeCast({
