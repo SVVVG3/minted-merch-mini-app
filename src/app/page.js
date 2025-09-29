@@ -7,6 +7,7 @@ export async function generateMetadata({ searchParams }) {
   
   // Check if this is a collection share URL
   const sharedCollectionHandle = searchParams?.collection;
+  const cacheBust = searchParams?.t;
   
   if (sharedCollectionHandle) {
     try {
@@ -33,6 +34,9 @@ export async function generateMetadata({ searchParams }) {
         if (collection.description) {
           ogParams.append('description', collection.description);
         }
+        
+        // Add cache-busting parameter (use existing or create new)
+        ogParams.append('t', cacheBust || Date.now().toString());
         
         const dynamicImageUrl = `${baseUrl}/api/og/collection?${ogParams.toString()}`;
         

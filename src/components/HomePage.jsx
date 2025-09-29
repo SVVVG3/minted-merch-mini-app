@@ -85,8 +85,8 @@ export function HomePage({ collection: initialCollection, products: initialProdu
     if (!selectedCollection || !isInFarcaster) return;
 
     try {
-      // Create collection URL - we'll use the current page with a collection parameter
-      const collectionUrl = `${window.location.origin}/?collection=${selectedCollection.handle}`;
+      // Create collection URL with cache-busting parameter for fresh OG images
+      const collectionUrl = `${window.location.origin}/?collection=${selectedCollection.handle}&t=${Date.now()}`;
       const shareText = `Check out the ${selectedCollection.title} collection on @mintedmerch!\n\nShop & pay with USDC on Base 🟦`;
       
       // Use the Farcaster SDK composeCast action with collection URL
@@ -101,7 +101,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       console.error('Error sharing collection:', error);
       // Fallback to copying link
       try {
-        const collectionUrl = `${window.location.origin}/?collection=${selectedCollection.handle}`;
+        const collectionUrl = `${window.location.origin}/?collection=${selectedCollection.handle}&t=${Date.now()}`;
         await navigator.clipboard.writeText(collectionUrl);
         alert('Collection link copied to clipboard!');
       } catch (err) {
