@@ -83,6 +83,8 @@ export default function AdminDashboard() {
   const [showCreateDiscount, setShowCreateDiscount] = useState(false);
   const [productsData, setProductsData] = useState([]);
   const [productsSyncLoading, setProductsSyncLoading] = useState(false);
+  const [collectionsData, setCollectionsData] = useState([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(false);
   const [copiedButtons, setCopiedButtons] = useState(new Set());
   const [showEditDiscount, setShowEditDiscount] = useState(false);
   const [editingDiscount, setEditingDiscount] = useState(null);
@@ -183,22 +185,25 @@ export default function AdminDashboard() {
 
   const loadDashboardData = async () => {
     try {
-      const [leaderboardRes, statsRes, ordersRes, productsRes] = await Promise.all([
+      const [leaderboardRes, statsRes, ordersRes, productsRes, collectionsRes] = await Promise.all([
         fetch('/api/admin/leaderboard?limit=10000'),
         fetch('/api/admin/stats'),
         fetch('/api/admin/orders'),
-        fetch('/api/products')
+        fetch('/api/products'),
+        fetch('/api/shopify/collections')
       ]);
       
       const leaderboard = await leaderboardRes.json();
       const stats = await statsRes.json();
       const orders = await ordersRes.json();
       const products = await productsRes.json();
+      const collections = await collectionsRes.json();
       
       setLeaderboardData(leaderboard.data || []);
       setDashboardStats(stats.data);
       setOrdersData(orders.data || []);
       setProductsData(products.products || []);
+      setCollectionsData(collections || []);
       
       // Load discounts separately with pagination
       await loadDiscounts(1, 50);
@@ -1034,6 +1039,31 @@ export default function AdminDashboard() {
     }
   };
 
+  // Sync collections from Shopify
+  const syncCollections = async () => {
+    setCollectionsLoading(true);
+    try {
+      console.log('🔄 Starting collections sync...');
+      
+      const response = await fetch('/api/shopify/collections');
+      
+      if (response.ok) {
+        const collections = await response.json();
+        setCollectionsData(collections || []);
+        console.log('✅ Collections sync completed:', collections.length, 'collections loaded');
+        alert(`Collections sync completed! ${collections.length} collections loaded.`);
+      } else {
+        console.error('❌ Collections sync failed');
+        alert('Collections sync failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Error syncing collections:', error);
+      alert('Collections sync failed. Please try again.');
+    } finally {
+      setCollectionsLoading(false);
+    }
+  };
+
   // Helper functions for discount display
   const getDiscountFids = (discount) => {
     // Read from the single fid column, not whitelisted_fids array
@@ -1401,6 +1431,65 @@ export default function AdminDashboard() {
                         className="w-full bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-2 rounded-md text-sm font-medium"
                       >
                         {copiedButtons.has(`product-${product.id}`) ? '✅ Copied!' : '📋 Copy Product URL'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Collections Section */}
+            <div className="bg-white rounded-lg shadow p-6 mt-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">📁 Collections</h3>
+                <button
+                  onClick={syncCollections}
+                  disabled={collectionsLoading}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {collectionsLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Syncing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🔄</span>
+                      <span>Sync from Shopify</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              {collectionsData.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-4">📁</div>
+                  <div className="text-gray-500">No collections found</div>
+                  <p className="text-sm text-gray-400 mt-2">Click "Sync from Shopify" to load collections</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {collectionsData.map((collection) => (
+                    <div key={collection.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-center mb-3">
+                        {collection.image?.url && (
+                          <img 
+                            src={collection.image.url} 
+                            alt={collection.image.altText || collection.title}
+                            className="w-12 h-12 object-cover rounded-lg mr-3"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900 text-sm line-clamp-2">{collection.title}</h4>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Handle: {collection.handle}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => copyToClipboard(`${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/?collection=${collection.handle}`, `collection-${collection.id}`)}
+                        className="w-full bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-2 rounded-md text-sm font-medium"
+                      >
+                        {copiedButtons.has(`collection-${collection.id}`) ? '✅ Copied!' : '📋 Copy Collection URL'}
                       </button>
                     </div>
                   ))}
