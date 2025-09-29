@@ -7,6 +7,7 @@ import { CheckInButton } from './CheckInButton';
 import { LeaderboardButton } from './LeaderboardButton';
 import { InfoButton } from './InfoButton';
 import { ProfileModal } from './ProfileModal';
+import { CollectionSelector } from './CollectionSelector';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
@@ -16,7 +17,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 // import { getEligibleAutoApplyDiscounts } from '@/lib/tokenGating';
 // import { fetchUserWalletData } from '@/lib/walletUtils';
 
-export function HomePage({ collection, products }) {
+export function HomePage({ collection: initialCollection, products: initialProducts }) {
   const { itemCount, cartTotal } = useCart();
   const { isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user, context, hasNotifications, getNotificationDetails } = useFarcaster();
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -28,6 +29,56 @@ export function HomePage({ collection, products }) {
     availableDiscounts: [],
     error: null
   });
+
+  // Collection and product state management
+  const [selectedCollection, setSelectedCollection] = useState(initialCollection);
+  const [products, setProducts] = useState(initialProducts || []);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [productsError, setProductsError] = useState(null);
+
+  // Function to fetch products for a specific collection
+  const fetchProductsForCollection = async (collection) => {
+    if (!collection?.handle) {
+      console.error('No collection handle provided');
+      return;
+    }
+
+    try {
+      setIsLoadingProducts(true);
+      setProductsError(null);
+      
+      console.log(`🛍️ Fetching products for collection: ${collection.title} (${collection.handle})`);
+      
+      const response = await fetch(`/api/shopify/collections?handle=${collection.handle}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch collection products: ${response.status}`);
+      }
+      
+      const collectionData = await response.json();
+      
+      if (collectionData && collectionData.products) {
+        const fetchedProducts = collectionData.products.edges.map(edge => edge.node);
+        setProducts(fetchedProducts);
+        console.log(`✅ Loaded ${fetchedProducts.length} products for collection: ${collection.title}`);
+      } else {
+        setProducts([]);
+        console.log(`⚠️ No products found for collection: ${collection.title}`);
+      }
+    } catch (error) {
+      console.error('Error fetching products for collection:', error);
+      setProductsError(error.message);
+      setProducts([]);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  // Handle collection change
+  const handleCollectionChange = (collection) => {
+    console.log(`🔄 Collection changed to: ${collection.title} (${collection.handle})`);
+    setSelectedCollection(collection);
+    fetchProductsForCollection(collection);
+  };
 
   // URL Parameter Detection - Detect notification clicks and discount codes
   useEffect(() => {
@@ -458,6 +509,15 @@ export function HomePage({ collection, products }) {
             />
           </div>
           
+          {/* Collection Selector - Centered */}
+          <div className="flex-1 max-w-xs mx-2">
+            <CollectionSelector
+              selectedCollection={selectedCollection}
+              onCollectionChange={handleCollectionChange}
+              className="w-full"
+            />
+          </div>
+          
           <div className="flex items-center space-x-2">
             {/* Check-in Button - Only show in Farcaster */}
             {isInFarcaster && <CheckInButton />}
@@ -520,7 +580,41 @@ export function HomePage({ collection, products }) {
       </header>
       
       <main>
-        <ProductGrid products={products} />
+        {/* Loading State */}
+        {isLoadingProducts && (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489] mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading products...</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Error State */}
+        {productsError && !isLoadingProducts && (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="text-red-500 mb-2">
+                <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p className="text-red-600 font-medium">Error loading products</p>
+              <p className="text-gray-600 text-sm mt-1">{productsError}</p>
+              <button
+                onClick={() => selectedCollection && fetchProductsForCollection(selectedCollection)}
+                className="mt-3 px-4 py-2 bg-[#3eb489] text-white rounded-lg hover:bg-[#359970] transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Products Grid */}
+        {!isLoadingProducts && !productsError && (
+          <ProductGrid products={products} />
+        )}
       </main>
       
       {/* Cart Sidebar */}
