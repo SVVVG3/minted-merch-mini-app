@@ -80,9 +80,48 @@ export function HomePage({ collection: initialCollection, products: initialProdu
     fetchProductsForCollection(collection);
   };
 
-  // URL Parameter Detection - Detect notification clicks and discount codes
+  // Share collection function
+  const handleShareCollection = async () => {
+    if (!selectedCollection || !isInFarcaster) return;
+
+    try {
+      // Create collection URL - we'll use the current page with a collection parameter
+      const collectionUrl = `${window.location.origin}/?collection=${selectedCollection.handle}`;
+      const shareText = `Check out the ${selectedCollection.title} collection on /mintedmerch!\n\nShop & pay with USDC on Base 🔵`;
+      
+      // Use the Farcaster SDK composeCast action with collection URL
+      const { sdk } = await import('../lib/frame');
+      const result = await sdk.actions.composeCast({
+        text: shareText,
+        embeds: [collectionUrl],
+      });
+      
+      console.log('Collection cast composed:', result);
+    } catch (error) {
+      console.error('Error sharing collection:', error);
+      // Fallback to copying link
+      try {
+        const collectionUrl = `${window.location.origin}/?collection=${selectedCollection.handle}`;
+        await navigator.clipboard.writeText(collectionUrl);
+        alert('Collection link copied to clipboard!');
+      } catch (err) {
+        console.log('Error copying to clipboard:', err);
+      }
+    }
+  };
+
+  // URL Parameter Detection - Detect notification clicks, discount codes, and collection sharing
   useEffect(() => {
     console.log('🔍 === URL PARAMETER DETECTION ===');
+    
+    // Check for shared collection parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedCollectionHandle = urlParams.get('collection');
+    
+    if (sharedCollectionHandle && !selectedCollection) {
+      console.log('🔗 Shared collection detected:', sharedCollectionHandle);
+      // We'll handle this after collections are loaded
+    }
     
     // Extract URL parameters for notification detection
     const params = extractNotificationParams();
@@ -307,6 +346,44 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       sessionStorage.removeItem(`monitoring_${userFid}`);
     };
   }, [isInFarcaster, isReady]); // Removed unstable dependencies
+
+  // Handle shared collection URL parameter
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedCollectionHandle = urlParams.get('collection');
+    
+    if (sharedCollectionHandle && !isLoadingProducts && !selectedCollection) {
+      console.log('🔗 Processing shared collection:', sharedCollectionHandle);
+      
+      // Find the collection by handle from the CollectionSelector's loaded collections
+      const checkForCollection = async () => {
+        try {
+          const response = await fetch('/api/shopify/collections');
+          if (response.ok) {
+            const collections = await response.json();
+            const targetCollection = collections.find(c => c.handle === sharedCollectionHandle);
+            
+            if (targetCollection) {
+              console.log('✅ Found shared collection:', targetCollection.title);
+              setSelectedCollection(targetCollection);
+              fetchProductsForCollection(targetCollection);
+              
+              // Clean up URL parameter
+              const newUrl = new URL(window.location);
+              newUrl.searchParams.delete('collection');
+              window.history.replaceState({}, '', newUrl);
+            } else {
+              console.log('⚠️ Shared collection not found:', sharedCollectionHandle);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading shared collection:', error);
+        }
+      };
+      
+      checkForCollection();
+    }
+  }, [isLoadingProducts, selectedCollection]);
 
   // Load user's available discount codes (only for users with notifications enabled)
   const loadUserDiscounts = async (fid) => {
@@ -572,7 +649,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       
       {/* Collection Selector Section */}
       <div className="bg-[#3eb489] px-4 py-3">
-        <div className="flex justify-center">
+        <div className="flex justify-center items-center gap-3">
           <div className="w-full max-w-xs">
             <CollectionSelector
               selectedCollection={selectedCollection}
@@ -580,6 +657,21 @@ export function HomePage({ collection: initialCollection, products: initialProdu
               className="w-full"
             />
           </div>
+          
+          {/* Share Collection Button - Only show in Farcaster */}
+          {isInFarcaster && selectedCollection && (
+            <button
+              onClick={handleShareCollection}
+              className="flex items-center justify-center w-12 h-12 bg-[#8A63D2] hover:bg-[#7C5BC7] text-white rounded-lg transition-colors flex-shrink-0"
+              title="Share Collection on Farcaster"
+            >
+              {/* Official Farcaster Logo */}
+              <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
+                <path d="M257.778 155.556H742.222V844.444H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.444H257.778V155.556Z"/>
+                <path d="M128.889 253.333L157.778 351.111H182.222V746.667C182.222 790.498 218.058 826.333 261.889 826.333H738.111C781.942 826.333 817.778 790.498 817.778 746.667V351.111H842.222L871.111 253.333H128.889Z"/>
+              </svg>
+            </button>
+          )}
         </div>
       </div>
       

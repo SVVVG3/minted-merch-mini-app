@@ -23,10 +23,15 @@ export function CollectionSelector({ selectedCollection, onCollectionChange, cla
         const collectionsData = await response.json();
         console.log('Fetched collections:', collectionsData);
         
-        // Sort collections alphabetically by title
-        const sortedCollections = (collectionsData || []).sort((a, b) => 
-          a.title.localeCompare(b.title)
-        );
+        // Sort collections with "All Products" first, then alphabetically
+        const sortedCollections = (collectionsData || []).sort((a, b) => {
+          // "All Products" always comes first
+          if (a.title === 'All Products') return -1;
+          if (b.title === 'All Products') return 1;
+          
+          // Then sort alphabetically
+          return a.title.localeCompare(b.title);
+        });
         
         setCollections(sortedCollections);
       } catch (err) {
