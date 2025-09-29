@@ -509,15 +509,6 @@ export function HomePage({ collection: initialCollection, products: initialProdu
             />
           </div>
           
-          {/* Collection Selector - Centered */}
-          <div className="flex-1 max-w-xs mx-2">
-            <CollectionSelector
-              selectedCollection={selectedCollection}
-              onCollectionChange={handleCollectionChange}
-              className="w-full"
-            />
-          </div>
-          
           <div className="flex items-center space-x-2">
             {/* Check-in Button - Only show in Farcaster */}
             {isInFarcaster && <CheckInButton />}
@@ -578,6 +569,17 @@ export function HomePage({ collection: initialCollection, products: initialProdu
           </div>
         </div>
       </header>
+      
+      {/* Collection Selector Section */}
+      <div className="bg-white border-b border-gray-200 px-4 py-3">
+        <div className="max-w-xs">
+          <CollectionSelector
+            selectedCollection={selectedCollection}
+            onCollectionChange={handleCollectionChange}
+            className="w-full"
+          />
+        </div>
+      </div>
       
       <main>
         {/* Loading State */}
