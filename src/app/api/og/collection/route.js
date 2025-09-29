@@ -3,16 +3,23 @@ import { ImageResponse } from 'next/og';
 // Helper function to fetch and convert image to data URL
 async function fetchImageAsDataUrl(imageUrl) {
   try {
+    console.log('Attempting to fetch image:', imageUrl);
     const response = await fetch(imageUrl);
+    console.log('Image fetch response status:', response.status);
+    console.log('Image fetch response headers:', Object.fromEntries(response.headers.entries()));
+    
     if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
     
     const arrayBuffer = await response.arrayBuffer();
+    console.log('Image arrayBuffer size:', arrayBuffer.byteLength);
+    
     const base64 = Buffer.from(arrayBuffer).toString('base64');
     const contentType = response.headers.get('content-type') || 'image/jpeg';
+    console.log('Image converted to base64, content-type:', contentType);
     
     return `data:${contentType};base64,${base64}`;
   } catch (error) {
-    console.error('Error fetching image:', error);
+    console.error('Error fetching image:', imageUrl, error);
     return null;
   }
 }
