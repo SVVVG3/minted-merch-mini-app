@@ -58,6 +58,10 @@ export async function getCollectionByHandle(handle) {
         title
         handle
         description
+        image {
+          url
+          altText
+        }
         products(first: 50) {
           edges {
             node {
