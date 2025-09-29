@@ -19,6 +19,11 @@ export async function generateMetadata({ searchParams }) {
         const description = collection.description || `Shop the ${title} collection with USDC on Base blockchain. Crypto merch with instant payments.`;
         const imageUrl = collection.image?.url;
         
+        console.log('=== Collection Metadata Debug ===');
+        console.log('Collection:', collection.title);
+        console.log('Collection image object:', collection.image);
+        console.log('Image URL extracted:', imageUrl);
+        
         // Build OG image URL with collection data
         const ogParams = new URLSearchParams({
           handle: sharedCollectionHandle,
@@ -39,6 +44,7 @@ export async function generateMetadata({ searchParams }) {
         ogParams.append('t', cacheBust || Date.now().toString());
         
         const dynamicImageUrl = `${baseUrl}/api/og/collection?${ogParams.toString()}`;
+        console.log('OG Image URL:', dynamicImageUrl);
         
         // Create frame embed with dynamic collection image
         const frame = {
