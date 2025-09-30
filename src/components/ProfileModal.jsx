@@ -14,6 +14,30 @@ export function ProfileModal({ isOpen, onClose }) {
   const [orderStats, setOrderStats] = useState({ totalOrders: 0, totalSpent: 0 });
   const [ordersLoading, setOrdersLoading] = useState(false);
 
+  // Format token balance with proper B/M/K suffixes
+  const formatTokenBalance = (balance) => {
+    if (!balance || balance === 0) return '0';
+    
+    // Convert from wei (18 decimals) to readable format
+    const balanceWei = typeof balance === 'string' ? parseFloat(balance) : balance;
+    const tokenAmount = balanceWei / Math.pow(10, 18);
+    
+    if (tokenAmount >= 1000000000) {
+      // Show billions (B) for amounts >= 1 billion
+      return `${(tokenAmount / 1000000000).toFixed(3)}B`;
+    } else if (tokenAmount >= 1000000) {
+      // Show millions (M) for amounts >= 1 million
+      return `${(tokenAmount / 1000000).toFixed(1)}M`;
+    } else if (tokenAmount >= 1000) {
+      // Show thousands (K) for amounts >= 1 thousand
+      return `${(tokenAmount / 1000).toFixed(1)}K`;
+    } else if (tokenAmount >= 1) {
+      return tokenAmount.toFixed(2);
+    } else {
+      return tokenAmount.toFixed(6);
+    }
+  };
+
   // Get wallet address from Farcaster SDK
   useEffect(() => {
     async function getWalletAddress() {
@@ -164,10 +188,7 @@ export function ProfileModal({ isOpen, onClose }) {
                 
                 <div className="flex items-center justify-between">
                   <div className="text-3xl font-bold text-green-700">
-                    {profileData.token_balance ? 
-                      `${(parseFloat(profileData.token_balance) / Math.pow(10, 18) / 1000000).toFixed(1)}M` : 
-                      '0'
-                    }
+                    {formatTokenBalance(profileData.token_balance)}
                     <span className="text-lg font-normal text-green-600 ml-1">tokens</span>
                   </div>
                   <button
@@ -258,7 +279,7 @@ export function ProfileModal({ isOpen, onClose }) {
                     </div>
                     <div className="text-xs text-gray-600 bg-gray-100 rounded-lg p-2">
                       Current: {profileData.token_balance ? 
-                        `${(parseFloat(profileData.token_balance) / Math.pow(10, 18) / 1000000).toFixed(1)}M tokens` : 
+                        `${formatTokenBalance(profileData.token_balance)} tokens` : 
                         '0 tokens'
                       }
                     </div>
