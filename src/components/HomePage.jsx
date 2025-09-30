@@ -579,7 +579,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="px-2 py-3 flex items-center justify-between">
+        <div className="px-2 py-1.5 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center pr-2">
             <img 
@@ -651,7 +651,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       </header>
       
       {/* Collection Selector Section */}
-      <div className="bg-[#3eb489] px-4 py-3">
+      <div className="bg-[#3eb489] px-4 py-1.5">
         <div className="flex justify-center items-center gap-3">
           <div className="w-full max-w-xs">
             <CollectionSelector
