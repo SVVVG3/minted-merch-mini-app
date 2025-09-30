@@ -304,6 +304,13 @@ export function ProductDetail({
         />
 
         <div className="p-4 space-y-6">
+          <VariantSelector
+            variants={product.variants?.edges}
+            selectedVariant={selectedVariant}
+            onVariantChange={onVariantChange}
+            productDiscount={productDiscount}
+          />
+
           <div>
             <h2 className="text-xl font-semibold text-gray-900">{product.title}</h2>
             
@@ -465,13 +472,6 @@ export function ProductDetail({
               </p>
             )}
           </div>
-
-          <VariantSelector
-            variants={product.variants?.edges}
-            selectedVariant={selectedVariant}
-            onVariantChange={onVariantChange}
-            productDiscount={productDiscount}
-          />
 
           {product.description && (
             <div className="bg-white rounded-lg p-6 shadow-sm border">
