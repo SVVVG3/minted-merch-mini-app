@@ -45,6 +45,7 @@ export async function GET(request) {
     const multiplier = searchParams.get('multiplier') || '1';
     const tier = searchParams.get('tier') || 'none';
     const category = searchParams.get('category') || 'points';
+    const profileImage = searchParams.get('profileImage') || null;
 
     // Format points with commas
     const formattedPoints = parseInt(points).toLocaleString();
@@ -77,6 +78,10 @@ export async function GET(request) {
     // Get multiplier info
     const multiplierDisplay = multiplier > 1 ? `${multiplier}x` : '';
     const multiplierEmoji = tier === 'legendary' ? '🏆' : tier === 'elite' ? '⭐' : '';
+
+    // Fetch profile image and logo
+    const profileImageData = profileImage ? await fetchImageAsDataUrl(profileImage) : null;
+    const logoImageData = await fetchImageAsDataUrl('https://mintedmerch.vercel.app/MintedMerchHeaderLogo.png');
 
     return new ImageResponse(
       (
@@ -120,18 +125,32 @@ export async function GET(request) {
                 overflow: 'hidden',
               }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#3eb489',
-                }}
-              >
-                <div style={{ fontSize: 120, marginBottom: 20, display: 'flex' }}>🏆</div>
-                <div style={{ fontSize: 32, textAlign: 'center', display: 'flex' }}>#{positionText}</div>
-              </div>
+              {profileImageData ? (
+                <img
+                  src={profileImageData}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    borderRadius: '17px',
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: '#3eb489',
+                    fontSize: 120,
+                    color: 'white',
+                  }}
+                >
+                  {username.charAt(0).toUpperCase()}
+                </div>
+              )}
             </div>
 
             <div
@@ -155,6 +174,18 @@ export async function GET(request) {
                 }}
               >
                 {username}
+              </div>
+
+              <div
+                style={{
+                  fontSize: 40,
+                  color: '#3eb489',
+                  textAlign: 'left',
+                  display: 'flex',
+                  fontWeight: 'bold',
+                }}
+              >
+                #{positionText}
               </div>
 
               <div
@@ -189,10 +220,31 @@ export async function GET(request) {
                   display: 'flex',
                 }}
               >
-                {multiplierDisplay ? `${multiplierDisplay} ${multiplierEmoji} Multiplier` : 'Minted Merch'}
+                {multiplierDisplay ? `${multiplierDisplay} ${multiplierEmoji} Multiplier` : ''}
               </div>
             </div>
           </div>
+          
+          {/* Logo in bottom right corner */}
+          {logoImageData && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '30px',
+                right: '30px',
+                display: 'flex',
+              }}
+            >
+              <img
+                src={logoImageData}
+                style={{
+                  width: '120px',
+                  height: 'auto',
+                  opacity: 0.8,
+                }}
+              />
+            </div>
+          )}
         </div>
       ),
       {
