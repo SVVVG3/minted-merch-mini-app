@@ -81,7 +81,8 @@ export async function GET(request) {
 
     // Fetch profile image and logo
     const profileImageData = profileImage ? await fetchImageAsDataUrl(profileImage) : null;
-    const logoImageData = await fetchImageAsDataUrl('https://mintedmerch.vercel.app/MintedMerchHeaderLogo.png');
+    const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
+    const logoImageData = await fetchImageAsDataUrl(logoUrl);
 
     return new ImageResponse(
       (
@@ -185,7 +186,7 @@ export async function GET(request) {
                   fontWeight: 'bold',
                 }}
               >
-                #{positionText}
+                #{positionText} place
               </div>
 
               <div
@@ -197,18 +198,7 @@ export async function GET(request) {
                   display: 'flex',
                 }}
               >
-                {formattedPoints} points in {categoryName}
-              </div>
-
-              <div
-                style={{
-                  fontSize: 32,
-                  color: '#888888',
-                  textAlign: 'left',
-                  display: 'flex',
-                }}
-              >
-                Leaderboard Position
+                {formattedPoints} points
               </div>
 
               <div
@@ -225,22 +215,30 @@ export async function GET(request) {
             </div>
           </div>
           
-          {/* Logo in bottom right corner */}
+          {/* Logo in Bottom Right Corner */}
           {logoImageData && (
             <div
               style={{
                 position: 'absolute',
                 bottom: '30px',
                 right: '30px',
+                width: '160px',
+                height: '160px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid rgba(255, 255, 255, 0.2)',
               }}
             >
               <img
                 src={logoImageData}
+                alt="Minted Merch"
                 style={{
                   width: '120px',
-                  height: 'auto',
-                  opacity: 0.8,
+                  height: '120px',
+                  objectFit: 'contain',
                 }}
               />
             </div>
