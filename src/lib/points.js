@@ -479,43 +479,150 @@ export async function getLeaderboard(limit = 10, category = 'points') {
     const isAdminRequest = limit > 1000;
     
     if (isAdminRequest || needsLargerDataset) {
-      console.log(`🏆 ${isAdminRequest ? 'Admin request' : 'Mini app request'} detected - fetching comprehensive dataset including token holders`);
+      console.log(`🏆 ${isAdminRequest ? 'Admin request' : 'Mini app request'} detected - using comprehensive pagination like admin dashboard`);
       
-      // Get top users by points AND significant token holders
-      const [pointsUsers, tokenHolders] = await Promise.all([
-        // Top 1000 users by points (existing logic)
-        getTopUsersByPoints(1000, category),
-        // Top token holders (regardless of points)
-        getTopTokenHolders(1000)
-      ]);
-      
-      // Combine and deduplicate by user_fid
-      const combinedUsers = new Map();
-      
-      // Add points-based users first
-      pointsUsers.forEach(user => {
-        combinedUsers.set(user.user_fid, user);
+      // Use the same pagination approach as admin dashboard to get ALL users
+      let allData = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      let hasMoreData = true;
+
+      // Build base query (same as admin dashboard)
+      let baseQuery = supabaseAdmin
+        .from('user_leaderboard')
+        .select(`
+          *,
+          profiles!user_fid (
+            username,
+            display_name,
+            pfp_url,
+            token_balance
+          )
+        `);
+
+      // Add sorting based on category
+      switch (category) {
+        case 'points':
+          baseQuery = baseQuery.order('total_points', { ascending: false });
+          break;
+        case 'streaks':
+          baseQuery = baseQuery.order('checkin_streak', { ascending: false });
+          break;
+        case 'purchases':
+          baseQuery = baseQuery
+            .gt('total_orders', 0)
+            .order('points_from_purchases', { ascending: false });
+          break;
+        case 'spending':
+          baseQuery = baseQuery.order('total_spent', { ascending: false });
+          break;
+        default:
+          baseQuery = baseQuery.order('total_points', { ascending: false });
+      }
+
+      // Fetch all pages (same logic as admin dashboard)
+      while (hasMoreData) {
+        const startRange = currentPage * pageSize;
+        const endRange = startRange + pageSize - 1;
+        
+        const { data: pageData, error } = await baseQuery.range(startRange, endRange);
+
+        if (error) {
+          console.error('Error fetching leaderboard page:', error);
+          break;
+        }
+
+        if (!pageData || pageData.length === 0) {
+          hasMoreData = false;
+          break;
+        }
+
+        allData.push(...pageData);
+        currentPage++;
+
+        // If we got less than pageSize, we've reached the end
+        if (pageData.length < pageSize) {
+          hasMoreData = false;
+        }
+
+        // For mini app, we can limit total fetch to reasonable amount
+        if (!isAdminRequest && allData.length >= 10000) {
+          console.log(`📊 Mini app: Fetched ${allData.length} users, stopping for performance`);
+          hasMoreData = false;
+        }
+      }
+
+      console.log(`📊 Fetched ${allData.length} total users using pagination`);
+
+      // Apply token multipliers to all users (same as admin dashboard logic)
+      const transformedData = allData.map((entry) => {
+        const profile = entry.profiles || {};
+        const tokenBalanceWei = profile.token_balance || 0;
+        const basePoints = entry.total_points || 0;
+        const basePurchasePoints = entry.points_from_purchases || 0;
+        
+        // Apply token multiplier to total points AND purchase points
+        const multiplierResult = applyTokenMultiplier(basePoints, tokenBalanceWei);
+        const purchaseMultiplierResult = applyTokenMultiplier(basePurchasePoints, tokenBalanceWei);
+        
+        return {
+          ...entry,
+          // Use profile data with proper fallbacks
+          display_name: profile.display_name || entry.display_name || `User ${entry.user_fid}`,
+          username: profile.username || entry.username || null,
+          pfp_url: profile.pfp_url || null,
+          token_balance: tokenBalanceWei,
+          // Store both original and multiplied points
+          base_points: basePoints,
+          total_points: multiplierResult.multipliedPoints,
+          // Store both original and multiplied purchase points
+          base_points_from_purchases: basePurchasePoints,
+          points_from_purchases: purchaseMultiplierResult.multipliedPoints,
+          token_multiplier: multiplierResult.multiplier,
+          token_tier: multiplierResult.tier,
+          category: category,
+          // Remove the nested profiles object
+          profiles: undefined
+        };
       });
-      
-      // Add token holders (will overwrite if same user, keeping token data)
-      tokenHolders.forEach(user => {
-        if (!combinedUsers.has(user.user_fid)) {
-          combinedUsers.set(user.user_fid, user);
+
+      // Re-sort by the category after applying multipliers (since multipliers can change rankings)
+      const sortedData = transformedData.sort((a, b) => {
+        switch (category) {
+          case 'points':
+            return (b.total_points || 0) - (a.total_points || 0);
+          case 'streaks':
+            if ((b.checkin_streak || 0) !== (a.checkin_streak || 0)) {
+              return (b.checkin_streak || 0) - (a.checkin_streak || 0);
+            }
+            return (b.total_points || 0) - (a.total_points || 0);
+          case 'purchases':
+            if ((b.points_from_purchases || 0) !== (a.points_from_purchases || 0)) {
+              return (b.points_from_purchases || 0) - (a.points_from_purchases || 0);
+            }
+            return (b.total_orders || 0) - (a.total_orders || 0);
+          case 'spending':
+            if ((b.total_spent || 0) !== (a.total_spent || 0)) {
+              return (b.total_spent || 0) - (a.total_spent || 0);
+            }
+            return (b.total_orders || 0) - (a.total_orders || 0);
+          default:
+            return (b.total_points || 0) - (a.total_points || 0);
         }
       });
-      
-      const allUsers = Array.from(combinedUsers.values());
-      console.log(`🔗 Combined ${pointsUsers.length} points users + ${tokenHolders.length} token holders = ${allUsers.length} unique users`);
-      
-      // Sort the combined results by the requested category
-      const sortedUsers = sortUsersByCategory(allUsers, category);
-      
+
+      // Add final rankings after re-sorting
+      const finalData = sortedData.map((user, index) => ({
+        ...user,
+        rank: index + 1
+      }));
+
       // Return up to the requested limit
-      const finalUsers = sortedUsers.slice(0, limit);
+      const finalUsers = finalData.slice(0, limit);
       
-      console.log(`📊 getLeaderboard returned ${finalUsers.length} users for ${isAdminRequest ? 'admin' : 'mini app'} request`);
+      console.log(`📊 getLeaderboard returned ${finalUsers.length} users for ${isAdminRequest ? 'admin' : 'mini app'} request with accurate global rankings`);
       
-      return enhanceUserData(finalUsers, category);
+      return finalUsers;
     }
     
     // Original logic for smaller requests
