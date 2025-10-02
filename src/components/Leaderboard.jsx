@@ -64,8 +64,8 @@ export function Leaderboard({ isVisible = true }) {
       const positionText = getPositionSuffix(position);
       const multiplierText = multiplier > 1 ? ` (${multiplier}x ${tier === 'legendary' ? '🏆' : '⭐'})` : '';
       
-      // Build Mini App leaderboard URL with cache busting (same pattern as collections)
-      const leaderboardUrl = `${window.location.origin}/leaderboard?category=${category}&user=${currentUserFid}&t=${Date.now()}`;
+      // Build Mini App leaderboard URL using root path pattern (same as collections)
+      const leaderboardUrl = `${window.location.origin}/?leaderboard=${category}&user=${currentUserFid}&t=${Date.now()}`;
       
       // Create share text similar to collection/product pattern
       const shareText = userPosition 
@@ -118,8 +118,8 @@ export function Leaderboard({ isVisible = true }) {
       console.error('Error sharing leaderboard position:', error);
       // Fallback to copying link
       try {
-        const leaderboardUrl = `${window.location.origin}/leaderboard?category=${category}&user=${currentUserFid}&t=${Date.now()}`;
-        await navigator.clipboard.writeText(leaderboardUrl);
+        const fallbackUrl = `${window.location.origin}/?leaderboard=${category}&user=${currentUserFid}&t=${Date.now()}`;
+        await navigator.clipboard.writeText(fallbackUrl);
         alert('Link copied to clipboard!');
       } catch (err) {
         console.log('Error copying to clipboard:', err);
