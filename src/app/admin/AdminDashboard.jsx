@@ -186,7 +186,7 @@ export default function AdminDashboard() {
   const loadDashboardData = async () => {
     try {
       const [leaderboardRes, statsRes, ordersRes, productsRes, collectionsRes] = await Promise.all([
-        fetch('/api/admin/leaderboard?limit=10000'),
+        fetch(`/api/admin/leaderboard?limit=10000&sortBy=${sortField}`),
         fetch('/api/admin/stats'),
         fetch('/api/admin/orders'),
         fetch('/api/products'),
@@ -699,8 +699,19 @@ export default function AdminDashboard() {
     }
   }, [activeTab]);
 
+  // Function to reload leaderboard data with current sort
+  const reloadLeaderboardData = async (newSortField = sortField) => {
+    try {
+      const leaderboardRes = await fetch(`/api/admin/leaderboard?limit=10000&sortBy=${newSortField}`);
+      const leaderboard = await leaderboardRes.json();
+      setLeaderboardData(leaderboard.data || []);
+    } catch (error) {
+      console.error('Failed to reload leaderboard data:', error);
+    }
+  };
+
   // Leaderboard sorting function
-  const handleSort = (field) => {
+  const handleSort = async (field) => {
     if (sortField === field) {
       // Toggle direction if same field
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -708,6 +719,8 @@ export default function AdminDashboard() {
       // New field, default to descending
       setSortField(field);
       setSortDirection('desc');
+      // Reload data with new sort field to get correct dataset (profiles vs user_leaderboard)
+      await reloadLeaderboardData(field);
     }
   };
 
