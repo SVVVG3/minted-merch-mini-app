@@ -674,9 +674,11 @@ export async function getLeaderboard(limit = 10, category = 'points') {
     const enhancedData = allData.map((user) => {
       const tokenBalance = user.profiles?.token_balance || 0;
       const basePoints = user.total_points || 0;
+      const basePurchasePoints = user.points_from_purchases || 0;
       
-      // Apply token multiplier to total points
+      // Apply token multiplier to total points AND purchase points
       const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
+      const purchaseMultiplierResult = applyTokenMultiplier(basePurchasePoints, tokenBalance);
       
       return {
         ...user,
@@ -688,6 +690,9 @@ export async function getLeaderboard(limit = 10, category = 'points') {
         // Store both original and multiplied points
         base_points: basePoints,
         total_points: multiplierResult.multipliedPoints,
+        // Store both original and multiplied purchase points
+        base_points_from_purchases: basePurchasePoints,
+        points_from_purchases: purchaseMultiplierResult.multipliedPoints,
         token_multiplier: multiplierResult.multiplier,
         token_tier: multiplierResult.tier,
         category: category
@@ -742,6 +747,7 @@ export async function getUserLeaderboardPosition(userFid) {
         basePoints: 0,
         tokenMultiplier: 1,
         tokenTier: 'none',
+        checkin_streak: 0, // Add this for streak leaderboard component
         streak: 0,
         totalOrders: 0,
         totalSpent: 0,
@@ -771,6 +777,7 @@ export async function getUserLeaderboardPosition(userFid) {
       basePoints: basePoints,
       tokenMultiplier: multiplierResult.multiplier,
       tokenTier: multiplierResult.tier,
+      checkin_streak: userData.checkin_streak, // Add this for streak leaderboard component
       streak: userData.checkin_streak,
       lastCheckin: userData.last_checkin_date,
       totalOrders: userData.total_orders || 0,
@@ -786,6 +793,7 @@ export async function getUserLeaderboardPosition(userFid) {
       basePoints: 0,
       tokenMultiplier: 1,
       tokenTier: 'none',
+      checkin_streak: 0, // Add this for streak leaderboard component
       streak: 0,
       totalOrders: 0,
       totalSpent: 0,
