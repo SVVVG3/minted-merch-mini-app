@@ -264,8 +264,7 @@ export async function GET(request) {
                   fontWeight: '600',
                 }}
               >
-                <span>{multiplierDisplay}</span>
-                <span>{multiplierEmoji}</span>
+                {multiplierDisplay} {multiplierEmoji}
               </div>
             )}
           </div>
