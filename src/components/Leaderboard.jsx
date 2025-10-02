@@ -9,7 +9,7 @@ export function Leaderboard({ isVisible = true }) {
   const [userPosition, setUserPosition] = useState(null);
   const [userProfiles, setUserProfiles] = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  const [category, setCategory] = useState('holders');
+  const [category, setCategory] = useState('points');
   const [error, setError] = useState(null);
 
   const currentUserFid = isInFarcaster && isReady ? getFid() : null;
@@ -158,6 +158,23 @@ export function Leaderboard({ isVisible = true }) {
     return profile?.avatar_url || user.pfp_url || null;
   };
 
+  // Helper function to check if user has 50M+ tokens (Merch Mogul status)
+  const isMerchMogul = (user) => {
+    // Get token balance from different possible sources
+    let tokenBalance = 0;
+    
+    if (user.token_balance) {
+      tokenBalance = parseFloat(user.token_balance);
+    } else if (user.profiles?.token_balance) {
+      tokenBalance = parseFloat(user.profiles.token_balance);
+    } else if (user.profile?.token_balance) {
+      tokenBalance = parseFloat(user.profile.token_balance);
+    }
+    
+    // Check if balance is 50M or more (50,000,000)
+    return tokenBalance >= 50000000;
+  };
+
   if (!isVisible) return null;
 
   return (
@@ -173,9 +190,9 @@ export function Leaderboard({ isVisible = true }) {
             onChange={(e) => setCategory(e.target.value)}
             className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent appearance-none cursor-pointer"
           >
+            <option value="points">Points</option>
             <option value="holders">$mintedmerch Holders</option>
             <option value="purchases">Purchases</option>
-            <option value="points">Points</option>
             <option value="streaks">Streaks</option>
           </select>
           <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
@@ -257,6 +274,19 @@ export function Leaderboard({ isVisible = true }) {
                             {userPosition.checkin_streak}
                           </span>
                         ) : null}
+                        
+                        {/* Merch Mogul Badge for current user if they have 50M+ tokens */}
+                        {isMerchMogul(userPosition) && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <img 
+                              src="/MerchMogulBadge.png" 
+                              alt="Merch Mogul" 
+                              className="w-4 h-4"
+                              title="Merch Mogul - 50M+ $MINTEDMERCH holder"
+                            />
+                            <span className="text-xs font-medium text-purple-600">Merch Mogul</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -331,6 +361,19 @@ export function Leaderboard({ isVisible = true }) {
                             {user.checkin_streak} day streak
                           </span>
                         ) : null}
+                        
+                        {/* Merch Mogul Badge for users with 50M+ tokens */}
+                        {isMerchMogul(user) && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <img 
+                              src="/MerchMogulBadge.png" 
+                              alt="Merch Mogul" 
+                              className="w-4 h-4"
+                              title="Merch Mogul - 50M+ $MINTEDMERCH holder"
+                            />
+                            <span className="text-xs font-medium text-purple-600">Merch Mogul</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
