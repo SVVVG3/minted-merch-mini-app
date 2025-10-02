@@ -192,19 +192,6 @@ export async function GET(request) {
             >
               <div
                 style={{
-                  fontSize: 64,
-                  fontWeight: 'bold',
-                  color: '#3eb489',
-                  lineHeight: 1.1,
-                  textAlign: 'left',
-                  display: 'flex',
-                }}
-              >
-                {username}
-              </div>
-
-              <div
-                style={{
                   fontSize: 40,
                   color: '#3eb489',
                   textAlign: 'left',

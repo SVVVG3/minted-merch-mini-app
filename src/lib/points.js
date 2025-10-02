@@ -1320,9 +1320,12 @@ export function calculateTokenMultiplier(tokenBalanceWei) {
   // Convert from wei to tokens (divide by 10^18)
   const tokenBalance = parseFloat(tokenBalanceWei) / 1000000000000000000;
 
-  if (tokenBalance >= 200000000) {
-    // 200M+ tokens = 5x multiplier
+  if (tokenBalance >= 1000000000) {
+    // 1B+ tokens = 5x multiplier
     return { multiplier: 5, tier: 'legendary' };
+  } else if (tokenBalance >= 200000000) {
+    // 200M+ tokens = 3x multiplier
+    return { multiplier: 3, tier: 'elite' };
   } else if (tokenBalance >= 50000000) {
     // 50M+ tokens = 2x multiplier
     return { multiplier: 2, tier: 'elite' };
