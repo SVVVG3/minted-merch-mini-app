@@ -358,8 +358,8 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
  */
 export async function addPurchasePoints(userFid, orderTotal, orderId) {
   try {
-    // Calculate points: 500% of order total (minimum 10 points)
-    const points = Math.max(Math.floor(orderTotal * 5.0), 10);
+    // Calculate points: 10000% (100x) of order total (minimum 10 points)
+    const points = Math.max(Math.floor(orderTotal * 100.0), 10);
 
     // Get or create user data
     let userData = await getUserLeaderboardData(userFid);
@@ -428,12 +428,12 @@ export async function addPurchasePoints(userFid, orderTotal, orderId) {
         pointsEarned: points,
         pointsBefore: userData.total_points,
         pointsAfter: updatedData.total_points,
-        description: `Purchase order (500% of $${orderTotal.toFixed(2)})`,
+        description: `Purchase order (10000% of $${orderTotal.toFixed(2)})`,
         referenceId: orderId,
         metadata: {
           orderTotal: orderTotal,
           orderId: orderId,
-          pointsMultiplier: 5.0
+          pointsMultiplier: 100.0
         }
       });
     } catch (logError) {
@@ -792,8 +792,8 @@ export async function syncPurchaseTracking(userFid = null) {
     for (const [fid, stats] of Object.entries(userOrderStats)) {
       const userFidNum = parseInt(fid);
       
-      // Calculate points from purchases (500% of total spent)
-      const pointsFromPurchases = Math.floor(stats.totalSpent * 5.0);
+      // Calculate points from purchases (10000% of total spent)
+      const pointsFromPurchases = Math.floor(stats.totalSpent * 100.0);
 
       // Check if user exists in leaderboard, if not create them
       const { data: existingUser } = await supabaseAdmin
