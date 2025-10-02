@@ -88,26 +88,107 @@ export async function GET(request) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#3eb489',
+            backgroundColor: '#000000',
+            backgroundImage: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%)',
             color: 'white',
             fontFamily: 'Arial, sans-serif',
-            padding: '60px',
+            position: 'relative',
           }}
         >
-          <div style={{ fontSize: 72, fontWeight: 'bold', marginBottom: '20px' }}>
-            🏆 #{positionText}
-          </div>
-          <div style={{ fontSize: 48, fontWeight: 'bold', marginBottom: '20px' }}>
-            {username}
-          </div>
-          <div style={{ fontSize: 32, marginBottom: '20px', opacity: 0.9 }}>
-            {formattedPoints} points in {categoryName}
-          </div>
-          {multiplierDisplay && (
-            <div style={{ fontSize: 24, fontWeight: '600', backgroundColor: 'rgba(255,255,255,0.2)', padding: '12px 24px', borderRadius: '12px' }}>
-              {multiplierDisplay} {multiplierEmoji}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              height: '100%',
+              padding: '60px',
+              gap: '60px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '400px',
+                height: '400px',
+                borderRadius: '20px',
+                backgroundColor: 'rgba(62, 180, 137, 0.1)',
+                border: '3px solid rgba(62, 180, 137, 0.3)',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#3eb489',
+                }}
+              >
+                <div style={{ fontSize: 120, marginBottom: 20 }}>🏆</div>
+                <div style={{ fontSize: 32, textAlign: 'center' }}>#{positionText}</div>
+              </div>
             </div>
-          )}
+
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                justifyContent: 'center',
+                maxWidth: '500px',
+                gap: '20px',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 64,
+                  fontWeight: 'bold',
+                  color: '#3eb489',
+                  lineHeight: 1.1,
+                  textAlign: 'left',
+                }}
+              >
+                {username}
+              </div>
+
+              <div
+                style={{
+                  fontSize: 28,
+                  color: '#cccccc',
+                  lineHeight: 1.3,
+                  textAlign: 'left',
+                }}
+              >
+                {formattedPoints} points in {categoryName}
+              </div>
+
+              <div
+                style={{
+                  fontSize: 32,
+                  color: '#888888',
+                  textAlign: 'left',
+                }}
+              >
+                Leaderboard Position
+              </div>
+
+              <div
+                style={{
+                  fontSize: 24,
+                  color: '#3eb489',
+                  textAlign: 'left',
+                  marginTop: '20px',
+                }}
+              >
+                {multiplierDisplay ? `${multiplierDisplay} ${multiplierEmoji} Multiplier` : 'Minted Merch'}
+              </div>
+            </div>
+          </div>
         </div>
       ),
       {
