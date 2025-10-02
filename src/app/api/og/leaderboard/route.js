@@ -46,6 +46,8 @@ export async function GET(request) {
     const tier = searchParams.get('tier') || 'none';
     const category = searchParams.get('category') || 'points';
     const profileImage = searchParams.get('pfp') || null;
+    
+    console.log('🎯 OG Image params received:', { position, points, username, multiplier, tier, category, profileImage });
 
     // Format points with commas
     const formattedPoints = parseInt(points).toLocaleString();
@@ -228,7 +230,7 @@ export async function GET(request) {
               style={{
                 position: 'absolute',
                 bottom: '20px',
-                right: '80px',
+                right: '150px',
                 width: '120px',
                 height: '120px',
                 borderRadius: '12px',

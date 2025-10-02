@@ -82,6 +82,8 @@ export async function generateMetadata({ searchParams }) {
     const userPositionData = await getUserLeaderboardPosition(parseInt(userFid));
     const position = userPositionData.position || 1;
     
+    console.log('🎯 Leaderboard page position calculation:', { userFid, userPositionData, position });
+    
     const username = userData.profiles?.display_name || userData.profiles?.username || `User ${userFid}`;
     const pfpUrl = userData.profiles?.pfp_url;
 
