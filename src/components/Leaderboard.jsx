@@ -25,23 +25,40 @@ export function Leaderboard({ isVisible = true }) {
       // Use userPosition if available, otherwise create fallback data
       let position, points, multiplier, tier, username;
       
-      console.log('🔍 Share position debug:', { userPosition, currentUserFid });
+      console.log('🔍 Share position debug:', { userPosition, currentUserFid, leaderboardData });
       
-      if (userPosition) {
-        position = userPosition.position || '?';
+      if (userPosition && userPosition.position) {
+        position = userPosition.position;
         points = userPosition.totalPoints || 0;
         multiplier = userPosition.tokenMultiplier || 1;
         tier = userPosition.tokenTier || 'none';
         username = userPosition.username || userProfile.username || `User ${currentUserFid}`;
         console.log('✅ Using userPosition data:', { position, points, multiplier, tier, username });
       } else {
-        // Fallback when userPosition is not loaded yet
-        position = '?';
-        points = 0;
-        multiplier = 1;
-        tier = 'none';
-        username = userProfile.username || `User ${currentUserFid}`;
-        console.log('⚠️ Using fallback data - userPosition not available');
+        // Try to find position in leaderboard data as fallback
+        const userInLeaderboard = leaderboardData.find(user => 
+          (category === 'holders' ? user.fid : user.user_fid) === parseInt(currentUserFid)
+        );
+        
+        if (userInLeaderboard) {
+          const userIndex = leaderboardData.findIndex(user => 
+            (category === 'holders' ? user.fid : user.user_fid) === parseInt(currentUserFid)
+          );
+          position = userIndex + 1;
+          points = userInLeaderboard.total_points || 0;
+          multiplier = userInLeaderboard.token_multiplier || 1;
+          tier = userInLeaderboard.token_tier || 'none';
+          username = userProfile.username || userInLeaderboard.username || `User ${currentUserFid}`;
+          console.log('✅ Using leaderboard data as fallback:', { position, points, multiplier, tier, username });
+        } else {
+          // Final fallback when user not found anywhere
+          position = '?';
+          points = 0;
+          multiplier = 1;
+          tier = 'none';
+          username = userProfile.username || `User ${currentUserFid}`;
+          console.log('⚠️ Using final fallback - user not found in leaderboard');
+        }
       }
 
       const categoryNames = {

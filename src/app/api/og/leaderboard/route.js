@@ -83,10 +83,10 @@ export async function GET(request) {
     const profileImageData = profileImage ? await fetchImageAsDataUrl(profileImage) : null;
     const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
     console.log('🖼️ Fetching logo from:', logoUrl);
-    let logoImageData = null;
+    let logoImageSrc = null;
     try {
-      logoImageData = await fetchImageAsDataUrl(logoUrl);
-      console.log('✅ Logo fetch result:', logoImageData ? 'SUCCESS' : 'FAILED');
+      logoImageSrc = await fetchImageAsDataUrl(logoUrl);
+      console.log('✅ Logo fetch result:', logoImageSrc ? 'SUCCESS' : 'FAILED');
     } catch (error) {
       console.error('❌ Error fetching logo:', error);
     }
@@ -222,44 +222,34 @@ export async function GET(request) {
             </div>
           </div>
           
-          {/* Logo in Bottom Right Corner - Always show container for debugging */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '15px',
-              right: '15px',
-              width: '100px',
-              height: '100px',
-              borderRadius: '10px',
-              backgroundColor: logoImageData ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 0, 0, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: logoImageData ? '2px solid rgba(255, 255, 255, 0.2)' : 'none',
-            }}
-          >
-            {logoImageData ? (
+          {/* Logo in Bottom Right Corner */}
+          {logoImageSrc && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '20px',
+                right: '20px',
+                width: '120px',
+                height: '120px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid rgba(255, 255, 255, 0.2)',
+              }}
+            >
               <img
-                src={logoImageData}
+                src={logoImageSrc}
                 alt="Minted Merch"
                 style={{
-                  width: '75px',
-                  height: '75px',
+                  width: '90px',
+                  height: '90px',
                   objectFit: 'contain',
                 }}
               />
-            ) : (
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: 'white',
-                  textAlign: 'center',
-                }}
-              >
-                NO LOGO
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       ),
       {
