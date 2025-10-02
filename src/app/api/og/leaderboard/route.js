@@ -38,60 +38,6 @@ async function fetchImageAsDataUrl(imageUrl) {
 
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const position = searchParams.get('position') || '?';
-    const points = searchParams.get('points') || '0';
-    const username = searchParams.get('username') || 'Anonymous';
-    const pfpUrl = searchParams.get('pfp');
-    const multiplier = searchParams.get('multiplier') || '1';
-    const tier = searchParams.get('tier') || 'none';
-    const category = searchParams.get('category') || 'points';
-
-    console.log('🏆 Generating leaderboard OG image with params:', {
-      position,
-      points,
-      username,
-      pfpUrl,
-      multiplier,
-      tier,
-      category
-    });
-
-    // Skip image fetching for now to test if 9MB GIF is causing issues
-    let userImageDataUrl = null;
-
-    // Format points with commas
-    const formattedPoints = parseInt(points).toLocaleString();
-    
-    // Get multiplier display info
-    const multiplierDisplay = multiplier > 1 ? `${multiplier}x` : '';
-    const multiplierEmoji = tier === 'legendary' ? '🏆' : tier === 'elite' ? '⭐' : '';
-    
-    // Get position suffix
-    const getPositionSuffix = (pos) => {
-      const num = parseInt(pos);
-      if (isNaN(num)) return pos;
-      const lastDigit = num % 10;
-      const lastTwoDigits = num % 100;
-      
-      if (lastTwoDigits >= 11 && lastTwoDigits <= 13) return `${num}th`;
-      if (lastDigit === 1) return `${num}st`;
-      if (lastDigit === 2) return `${num}nd`;
-      if (lastDigit === 3) return `${num}rd`;
-      return `${num}th`;
-    };
-
-    const positionText = getPositionSuffix(position);
-    
-    // Get category display name
-    const categoryNames = {
-      'points': 'Points',
-      'streaks': 'Streaks', 
-      'purchases': 'Purchases',
-      'holders': '$MINTEDMERCH Holders'
-    };
-    const categoryName = categoryNames[category] || 'Points';
-
     return new ImageResponse(
       (
         <div
@@ -99,117 +45,15 @@ export async function GET(request) {
             width: '100%',
             height: '100%',
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#000000',
-            backgroundImage: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%)',
+            backgroundColor: '#3eb489',
             color: 'white',
-            fontFamily: 'Arial, sans-serif',
-            position: 'relative',
+            fontSize: 48,
+            fontWeight: 'bold',
           }}
         >
-          {/* Main Content Container */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '100%',
-              height: '100%',
-              padding: '60px',
-              gap: '60px',
-            }}
-          >
-            {/* Collection Image */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '400px',
-                height: '400px',
-                borderRadius: '20px',
-                backgroundColor: 'rgba(62, 180, 137, 0.1)',
-                border: '3px solid rgba(62, 180, 137, 0.3)',
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#3eb489',
-                }}
-              >
-                <div style={{ fontSize: 120, marginBottom: 20 }}>🏆</div>
-                <div style={{ fontSize: 32, textAlign: 'center' }}>Leaderboard</div>
-              </div>
-            </div>
-
-            {/* Text Content */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                justifyContent: 'center',
-                maxWidth: '500px',
-                gap: '20px',
-              }}
-            >
-              {/* Position */}
-              <div
-                style={{
-                  fontSize: 64,
-                  fontWeight: 'bold',
-                  color: '#3eb489',
-                  lineHeight: 1.1,
-                  textAlign: 'left',
-                }}
-              >
-                #{positionText}
-              </div>
-
-              {/* Username */}
-              <div
-                style={{
-                  fontSize: 28,
-                  color: '#cccccc',
-                  lineHeight: 1.3,
-                  textAlign: 'left',
-                }}
-              >
-                {username} - {formattedPoints} points
-              </div>
-
-              {/* Category */}
-              <div
-                style={{
-                  fontSize: 32,
-                  color: '#888888',
-                  textAlign: 'left',
-                }}
-              >
-                {categoryName}
-              </div>
-
-              {/* Multiplier */}
-              <div
-                style={{
-                  fontSize: 24,
-                  color: '#3eb489',
-                  textAlign: 'left',
-                  marginTop: '20px',
-                }}
-              >
-                {multiplierDisplay ? `${multiplierDisplay} ${multiplierEmoji}` : 'Minted Merch Leaderboard'}
-              </div>
-            </div>
-          </div>
+          🏆 Leaderboard Test
         </div>
       ),
       {
