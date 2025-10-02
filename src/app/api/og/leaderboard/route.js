@@ -129,8 +129,8 @@ export async function GET(request) {
                   color: '#3eb489',
                 }}
               >
-                <div style={{ fontSize: 120, marginBottom: 20 }}>🏆</div>
-                <div style={{ fontSize: 32, textAlign: 'center' }}>#{positionText}</div>
+                <div style={{ fontSize: 120, marginBottom: 20, display: 'flex' }}>🏆</div>
+                <div style={{ fontSize: 32, textAlign: 'center', display: 'flex' }}>#{positionText}</div>
               </div>
             </div>
 
@@ -151,6 +151,7 @@ export async function GET(request) {
                   color: '#3eb489',
                   lineHeight: 1.1,
                   textAlign: 'left',
+                  display: 'flex',
                 }}
               >
                 {username}
@@ -162,6 +163,7 @@ export async function GET(request) {
                   color: '#cccccc',
                   lineHeight: 1.3,
                   textAlign: 'left',
+                  display: 'flex',
                 }}
               >
                 {formattedPoints} points in {categoryName}
@@ -172,6 +174,7 @@ export async function GET(request) {
                   fontSize: 32,
                   color: '#888888',
                   textAlign: 'left',
+                  display: 'flex',
                 }}
               >
                 Leaderboard Position
@@ -183,6 +186,7 @@ export async function GET(request) {
                   color: '#3eb489',
                   textAlign: 'left',
                   marginTop: '20px',
+                  display: 'flex',
                 }}
               >
                 {multiplierDisplay ? `${multiplierDisplay} ${multiplierEmoji} Multiplier` : 'Minted Merch'}
@@ -219,6 +223,7 @@ export async function GET(request) {
             style={{
               fontSize: '72px',
               marginBottom: '20px',
+              display: 'flex',
             }}
           >
             🏆
@@ -229,6 +234,7 @@ export async function GET(request) {
               fontWeight: 'bold',
               color: 'white',
               textAlign: 'center',
+              display: 'flex',
             }}
           >
             Minted Merch Leaderboard
@@ -239,6 +245,7 @@ export async function GET(request) {
               color: 'rgba(255, 255, 255, 0.8)',
               textAlign: 'center',
               marginTop: '20px',
+              display: 'flex',
             }}
           >
             Shop & pay with USDC on Base 🟦
