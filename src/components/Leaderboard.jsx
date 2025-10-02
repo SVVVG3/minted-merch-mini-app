@@ -277,14 +277,13 @@ export function Leaderboard({ isVisible = true }) {
                         
                         {/* Merch Mogul Badge for current user if they have 50M+ tokens */}
                         {isMerchMogul(userPosition) && (
-                          <div className="flex items-center gap-1 mt-1">
+                          <div className="flex items-center mt-1">
                             <img 
                               src="/MerchMogulBadge.png" 
                               alt="Merch Mogul" 
-                              className="w-4 h-4"
+                              className="w-5 h-1.5"
                               title="Merch Mogul - 50M+ $MINTEDMERCH holder"
                             />
-                            <span className="text-xs font-medium text-purple-600">Merch Mogul</span>
                           </div>
                         )}
                       </div>
@@ -364,14 +363,13 @@ export function Leaderboard({ isVisible = true }) {
                         
                         {/* Merch Mogul Badge for users with 50M+ tokens */}
                         {isMerchMogul(user) && (
-                          <div className="flex items-center gap-1 mt-1">
+                          <div className="flex items-center mt-1">
                             <img 
                               src="/MerchMogulBadge.png" 
                               alt="Merch Mogul" 
-                              className="w-4 h-4"
+                              className="w-5 h-1.5"
                               title="Merch Mogul - 50M+ $MINTEDMERCH holder"
                             />
-                            <span className="text-xs font-medium text-purple-600">Merch Mogul</span>
                           </div>
                         )}
                       </div>
