@@ -16,22 +16,32 @@ export function Leaderboard({ isVisible = true }) {
 
   // Handle sharing leaderboard position
   const handleSharePosition = async () => {
-    if (!userPosition) return;
+    if (!currentUserFid) return;
 
     try {
       // Get user profile data
       const userProfile = userProfiles[currentUserFid] || {};
-      const username = userPosition.username || userProfile.username || `User ${currentUserFid}`;
-      const pfpUrl = userProfile.pfp_url;
-
-      // Build leaderboard URL with cache busting
-      const leaderboardUrl = `${window.location.origin}/leaderboard?category=${category}&user=${currentUserFid}&t=${Date.now()}`;
       
-      // Build share text
-      const position = userPosition.position || '?';
-      const points = userPosition.totalPoints || 0;
-      const multiplier = userPosition.tokenMultiplier || 1;
-      const tier = userPosition.tokenTier || 'none';
+      // Use userPosition if available, otherwise create fallback data
+      let position, points, multiplier, tier, username;
+      
+      if (userPosition) {
+        position = userPosition.position || '?';
+        points = userPosition.totalPoints || 0;
+        multiplier = userPosition.tokenMultiplier || 1;
+        tier = userPosition.tokenTier || 'none';
+        username = userPosition.username || userProfile.username || `User ${currentUserFid}`;
+      } else {
+        // Fallback when userPosition is not loaded yet
+        position = '?';
+        points = 0;
+        multiplier = 1;
+        tier = 'none';
+        username = userProfile.username || `User ${currentUserFid}`;
+      }
+
+      // Build Mini App leaderboard URL (following the same pattern as collections/products)
+      const leaderboardUrl = `${window.location.origin}/leaderboard?category=${category}&user=${currentUserFid}&t=${Date.now()}`;
       
       const categoryNames = {
         'points': 'Points',
@@ -57,7 +67,10 @@ export function Leaderboard({ isVisible = true }) {
       const positionText = getPositionSuffix(position);
       const multiplierText = multiplier > 1 ? ` (${multiplier}x ${tier === 'legendary' ? '🏆' : '⭐'})` : '';
       
-      const shareText = `I'm ranked #${positionText} on the @mintedmerch ${categoryName} leaderboard with ${points.toLocaleString()} points${multiplierText}! 🏆\n\nShop & earn points: ${leaderboardUrl} 🟦`;
+      // Create share text similar to collection/product pattern
+      const shareText = userPosition 
+        ? `I'm ranked #${positionText} on the @mintedmerch ${categoryName} leaderboard with ${points.toLocaleString()} points${multiplierText}! 🏆\n\nShop & earn points on /mintedmerch! 🟦`
+        : `Check out my position on the @mintedmerch ${categoryName} leaderboard!\n\nShop & earn points on /mintedmerch! 🟦`;
 
       console.log('🔗 Sharing leaderboard position:', { leaderboardUrl, shareText });
 
@@ -85,7 +98,7 @@ export function Leaderboard({ isVisible = true }) {
         return;
       }
 
-      // Use Farcaster SDK to compose cast
+      // Use Farcaster SDK to compose cast (same pattern as collections/products)
       const { sdk } = await import('@/lib/frame');
       
       // Add haptic feedback if supported
@@ -93,10 +106,12 @@ export function Leaderboard({ isVisible = true }) {
         sdk.haptics.impact({ style: 'medium' });
       }
 
-      await sdk.actions.composeCast({
+      const result = await sdk.actions.composeCast({
         text: shareText,
-        embeds: [leaderboardUrl]
+        embeds: [leaderboardUrl] // This creates the Mini App embed
       });
+
+      console.log('Leaderboard cast composed with Mini App embed:', result);
 
     } catch (error) {
       console.error('Error sharing leaderboard position:', error);
@@ -281,14 +296,14 @@ export function Leaderboard({ isVisible = true }) {
     <div className="bg-white rounded-lg shadow-lg max-w-2xl mx-auto">
       {/* Header */}
       <div className="border-b border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-800">🏆 Leaderboard</h2>
+        <div className="flex items-center mb-4">
+          <h2 className="text-2xl font-bold text-gray-800 flex-1">🏆 Leaderboard</h2>
           
-          {/* Share Button */}
-          {userPosition && (
+          {/* Share Button - Always show for logged in users */}
+          {currentUserFid && (
             <button
               onClick={handleSharePosition}
-              className="flex items-center justify-center w-12 h-12 bg-[#8A63D2] hover:bg-[#7C5BC7] text-white rounded-lg transition-colors"
+              className="flex items-center justify-center w-12 h-12 bg-[#8A63D2] hover:bg-[#7C5BC7] text-white rounded-lg transition-colors mr-4"
               title="Share your leaderboard position"
             >
               {/* Official Farcaster Logo */}
