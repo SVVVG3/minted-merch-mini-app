@@ -214,14 +214,24 @@ export async function POST(request) {
       
       if (validationResult.success && validationResult.isValid) {
         // Calculate actual discount amount server-side
-        const discountCalc = calculateDiscountAmount(subtotalPrice, validationResult.discountCode);
+        // Format discount code object for calculateDiscountAmount function
+        const formattedDiscountCode = {
+          ...validationResult.discountCode,
+          isValid: true, // This is required by calculateDiscountAmount
+          discountType: validationResult.discountCode.discount_type,
+          discountValue: validationResult.discountCode.discount_value,
+          minimumOrderAmount: validationResult.discountCode.minimum_order_amount,
+          freeShipping: validationResult.discountCode.free_shipping || false
+        };
+        
+        const discountCalc = calculateDiscountAmount(subtotalPrice, formattedDiscountCode);
         validatedDiscountAmount = discountCalc.discountAmount;
         
         console.log(`✅ [${requestId}] Discount validated:`, {
           clientAmount: discountAmount,
           serverAmount: validatedDiscountAmount,
-          discountType: validationResult.discountCode.discountType,
-          discountValue: validationResult.discountCode.discountValue
+          discountType: validationResult.discountCode.discount_type,
+          discountValue: validationResult.discountCode.discount_value
         });
         
         // SECURITY: Reject if client amount doesn't match server calculation
