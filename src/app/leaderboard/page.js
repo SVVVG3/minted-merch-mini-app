@@ -77,12 +77,19 @@ export async function generateMetadata({ searchParams }) {
     const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
 
     // Get user's position by counting users with higher multiplied points
-    // Calculate user's position using the accurate method that considers all users
-    const { getUserLeaderboardPosition } = await import('@/lib/points');
-    const userPositionData = await getUserLeaderboardPosition(parseInt(userFid));
-    const position = userPositionData.position || 1;
+    // Use the same logic as admin dashboard to get accurate position
+    // Fetch all leaderboard data and apply multipliers (same as admin dashboard)
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'https://app.mintedmerch.shop'}/api/admin/leaderboard?limit=10000&sortBy=total_points`);
+    const adminData = await response.json();
     
-    console.log('🎯 Leaderboard page position calculation:', { userFid, userPositionData, position });
+    // Find user's position in the admin leaderboard data
+    let position = 1;
+    if (adminData.success && adminData.data) {
+      const userIndex = adminData.data.findIndex(user => user.user_fid === parseInt(userFid));
+      position = userIndex >= 0 ? userIndex + 1 : 1;
+    }
+    
+    console.log('🎯 Leaderboard page position calculation using admin data:', { userFid, position, totalUsers: adminData.data?.length });
     
     const username = userData.profiles?.display_name || userData.profiles?.username || `User ${userFid}`;
     const pfpUrl = userData.profiles?.pfp_url;
