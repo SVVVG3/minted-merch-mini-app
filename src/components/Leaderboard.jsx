@@ -161,17 +161,20 @@ export function Leaderboard({ isVisible = true }) {
   // Helper function to check if user has 50M+ tokens (Merch Mogul status)
   const isMerchMogul = (user) => {
     // Get token balance from different possible sources
-    let tokenBalance = 0;
+    let tokenBalanceWei = 0;
     
     if (user.token_balance) {
-      tokenBalance = parseFloat(user.token_balance);
+      tokenBalanceWei = parseFloat(user.token_balance);
     } else if (user.profiles?.token_balance) {
-      tokenBalance = parseFloat(user.profiles.token_balance);
+      tokenBalanceWei = parseFloat(user.profiles.token_balance);
     } else if (user.profile?.token_balance) {
-      tokenBalance = parseFloat(user.profile.token_balance);
+      tokenBalanceWei = parseFloat(user.profile.token_balance);
     }
     
-    // Check if balance is 50M or more (50,000,000)
+    // Convert from wei to tokens (divide by 10^18)
+    const tokenBalance = tokenBalanceWei / 1000000000000000000;
+    
+    // Check if balance is 50M or more tokens (50,000,000)
     return tokenBalance >= 50000000;
   };
 
@@ -281,7 +284,7 @@ export function Leaderboard({ isVisible = true }) {
                             <img 
                               src="/MerchMogulBadge.png" 
                               alt="Merch Mogul" 
-                              className="w-5 h-1.5"
+                              className="w-16 h-4"
                               title="Merch Mogul - 50M+ $MINTEDMERCH holder"
                             />
                           </div>
@@ -367,7 +370,7 @@ export function Leaderboard({ isVisible = true }) {
                             <img 
                               src="/MerchMogulBadge.png" 
                               alt="Merch Mogul" 
-                              className="w-5 h-1.5"
+                              className="w-16 h-4"
                               title="Merch Mogul - 50M+ $MINTEDMERCH holder"
                             />
                           </div>
