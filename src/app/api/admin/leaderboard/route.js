@@ -78,16 +78,23 @@ export async function GET(request) {
     const leaderboardData = allData;
     console.log(`📊 ✅ Successfully fetched ALL ${leaderboardData.length} leaderboard entries using pagination`);
 
-    // Transform the data to flatten profile information and add token holdings
+    // Import multiplier functions
+    const { applyTokenMultiplier } = await import('@/lib/points');
+    
+    // Transform the data to flatten profile information, add token holdings, and apply multipliers
     const transformedData = leaderboardData.map((entry, index) => {
       const profile = entry.profiles || {};
       
       // Keep token balance in wei format (as expected by frontend formatTokenBalance function)
       const tokenBalanceWei = profile.token_balance || 0;
+      const basePoints = entry.total_points || 0;
+      
+      // Apply token multiplier to total points
+      const multiplierResult = applyTokenMultiplier(basePoints, tokenBalanceWei);
       
       // Debug first few entries
       if (index < 5) {
-        console.log(`🔍 Entry ${index}: FID ${entry.user_fid}, profile:`, profile, 'tokenBalance:', tokenBalanceWei);
+        console.log(`🔍 Entry ${index}: FID ${entry.user_fid}, profile:`, profile, 'tokenBalance:', tokenBalanceWei, 'multiplier:', multiplierResult.multiplier);
       }
       
       return {
@@ -97,17 +104,41 @@ export async function GET(request) {
         display_name: profile.display_name || entry.display_name,
         pfp_url: profile.pfp_url,
         token_balance: tokenBalanceWei, // Keep in wei format for frontend formatTokenBalance function
+        // Store both original and multiplied points
+        base_points: basePoints,
+        total_points: multiplierResult.multipliedPoints,
+        token_multiplier: multiplierResult.multiplier,
+        token_tier: multiplierResult.tier,
         // Remove the nested profiles object
         profiles: undefined
       };
     });
 
-    console.log(`✅ Successfully fetched ${transformedData.length} leaderboard entries with profile data`);
+    // Re-sort the data after applying multipliers (since multipliers can change rankings)
+    const sortedData = transformedData.sort((a, b) => {
+      switch (sortBy) {
+        case 'total_points':
+          return (b.total_points || 0) - (a.total_points || 0);
+        case 'checkin_streak':
+          if ((b.checkin_streak || 0) !== (a.checkin_streak || 0)) {
+            return (b.checkin_streak || 0) - (a.checkin_streak || 0);
+          }
+          return (b.total_points || 0) - (a.total_points || 0);
+        case 'points_from_purchases':
+          return (b.points_from_purchases || 0) - (a.points_from_purchases || 0);
+        case 'total_orders':
+          return (b.total_orders || 0) - (a.total_orders || 0);
+        default:
+          return (b.total_points || 0) - (a.total_points || 0);
+      }
+    });
+
+    console.log(`✅ Successfully fetched and sorted ${sortedData.length} leaderboard entries with multipliers applied`);
 
     return NextResponse.json({
       success: true,
-      data: transformedData,
-      total: transformedData.length,
+      data: sortedData,
+      total: sortedData.length,
       sortedBy: sortBy
     });
 

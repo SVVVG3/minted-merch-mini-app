@@ -670,19 +670,42 @@ export async function getLeaderboard(limit = 10, category = 'points') {
       console.warn('⚠️ Exactly 1000 results returned but more requested - possible limit issue!');
     }
 
-    // Add category-specific display information and flatten profile data
-    const enhancedData = allData.map((user, index) => ({
+    // Add category-specific display information, flatten profile data, and apply token multipliers
+    const enhancedData = allData.map((user) => {
+      const tokenBalance = user.profiles?.token_balance || 0;
+      const basePoints = user.total_points || 0;
+      
+      // Apply token multiplier to total points
+      const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
+      
+      return {
+        ...user,
+        // Use profile data with proper fallbacks
+        display_name: user.profiles?.display_name || `User ${user.user_fid}`,
+        username: user.profiles?.username || null,
+        pfp_url: user.profiles?.pfp_url || null,
+        token_balance: tokenBalance,
+        // Store both original and multiplied points
+        base_points: basePoints,
+        total_points: multiplierResult.multipliedPoints,
+        token_multiplier: multiplierResult.multiplier,
+        token_tier: multiplierResult.tier,
+        category: category
+      };
+    });
+
+    // Re-sort by the category after applying multipliers (since multipliers can change rankings)
+    const sortedData = sortUsersByCategory(enhancedData, category);
+    
+    // Add final rankings after re-sorting
+    const finalData = sortedData.map((user, index) => ({
       ...user,
-      // Use profile data with proper fallbacks
-      display_name: user.profiles?.display_name || `User ${user.user_fid}`,
-      username: user.profiles?.username || null,
-      pfp_url: user.profiles?.pfp_url || null,
-      token_balance: user.profiles?.token_balance || 0,
-      rank: index + 1,
-      category: category
+      rank: index + 1
     }));
 
-    return enhancedData;
+    console.log(`🎯 Applied token multipliers and re-sorted ${finalData.length} users`);
+    
+    return finalData;
   } catch (error) {
     console.error('Error in getLeaderboard:', error);
     return [];
@@ -690,18 +713,35 @@ export async function getLeaderboard(limit = 10, category = 'points') {
 }
 
 /**
- * Get user's leaderboard position
+ * Get user's leaderboard position (with token multipliers applied)
  * @param {number} userFid - Farcaster ID of the user
  * @returns {object} User's position and stats
  */
 export async function getUserLeaderboardPosition(userFid) {
   try {
-    // Get user's current points
-    const userData = await getUserLeaderboardData(userFid);
+    // Get user's current points and profile data
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('user_leaderboard')
+      .select(`
+        *,
+        profiles!user_fid (
+          token_balance
+        )
+      `)
+      .eq('user_fid', userFid)
+      .single();
+
+    if (userError && userError.code !== 'PGRST116') {
+      console.error('Error fetching user leaderboard position:', userError);
+    }
+
     if (!userData) {
       return {
         position: null,
         totalPoints: 0,
+        basePoints: 0,
+        tokenMultiplier: 1,
+        tokenTier: 'none',
         streak: 0,
         totalOrders: 0,
         totalSpent: 0,
@@ -709,27 +749,28 @@ export async function getUserLeaderboardPosition(userFid) {
       };
     }
 
-    // Count users with more points
-    const { count, error } = await supabaseAdmin
-      .from('user_leaderboard')
-      .select('user_fid', { count: 'exact' })
-      .gt('total_points', userData.total_points);
+    // Apply token multiplier to user's points
+    const tokenBalance = userData.profiles?.token_balance || 0;
+    const basePoints = userData.total_points || 0;
+    const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
 
-    if (error) {
-      console.error('Error calculating leaderboard position:', error);
-      return {
-        position: null,
-        totalPoints: userData.total_points,
-        streak: userData.checkin_streak,
-        totalOrders: userData.total_orders || 0,
-        totalSpent: userData.total_spent || 0,
-        pointsFromPurchases: userData.points_from_purchases || 0
-      };
+    // To calculate position accurately, we need to get all users, apply multipliers, and count
+    // This is expensive but necessary for accurate positioning with dynamic multipliers
+    const allUsersData = await getLeaderboard(10000, 'points'); // Get top users with multipliers applied
+    
+    // Find user's position in the multiplied leaderboard
+    let position = null;
+    const userEntry = allUsersData.find(user => user.user_fid === userFid);
+    if (userEntry) {
+      position = userEntry.rank;
     }
 
     return {
-      position: count + 1, // Position is count + 1 (1st place, 2nd place, etc.)
-      totalPoints: userData.total_points,
+      position: position,
+      totalPoints: multiplierResult.multipliedPoints,
+      basePoints: basePoints,
+      tokenMultiplier: multiplierResult.multiplier,
+      tokenTier: multiplierResult.tier,
       streak: userData.checkin_streak,
       lastCheckin: userData.last_checkin_date,
       totalOrders: userData.total_orders || 0,
@@ -742,6 +783,9 @@ export async function getUserLeaderboardPosition(userFid) {
     return {
       position: null,
       totalPoints: 0,
+      basePoints: 0,
+      tokenMultiplier: 1,
+      tokenTier: 'none',
       streak: 0,
       totalOrders: 0,
       totalSpent: 0,
@@ -1264,16 +1308,71 @@ function sortUsersByCategory(users, category) {
 }
 
 /**
- * Enhance user data with display information (helper for admin leaderboard)
+ * Calculate token holding multiplier based on $MINTEDMERCH holdings
+ * @param {string|number} tokenBalanceWei - Token balance in wei (smallest unit)
+ * @returns {object} Multiplier information { multiplier: number, tier: string }
+ */
+export function calculateTokenMultiplier(tokenBalanceWei) {
+  if (!tokenBalanceWei) {
+    return { multiplier: 1, tier: 'none' };
+  }
+
+  // Convert from wei to tokens (divide by 10^18)
+  const tokenBalance = parseFloat(tokenBalanceWei) / 1000000000000000000;
+
+  if (tokenBalance >= 200000000) {
+    // 200M+ tokens = 5x multiplier
+    return { multiplier: 5, tier: 'legendary' };
+  } else if (tokenBalance >= 50000000) {
+    // 50M+ tokens = 2x multiplier
+    return { multiplier: 2, tier: 'elite' };
+  } else {
+    // Less than 50M = no multiplier
+    return { multiplier: 1, tier: 'none' };
+  }
+}
+
+/**
+ * Apply token holding multiplier to user's total points
+ * @param {number} basePoints - Base total points before multiplier
+ * @param {string|number} tokenBalanceWei - Token balance in wei
+ * @returns {object} { multipliedPoints: number, multiplier: number, tier: string }
+ */
+export function applyTokenMultiplier(basePoints, tokenBalanceWei) {
+  const multiplierInfo = calculateTokenMultiplier(tokenBalanceWei);
+  const multipliedPoints = Math.floor(basePoints * multiplierInfo.multiplier);
+  
+  return {
+    multipliedPoints,
+    multiplier: multiplierInfo.multiplier,
+    tier: multiplierInfo.tier
+  };
+}
+
+/**
+ * Enhance user data with display information and token multipliers (helper for admin leaderboard)
  */
 function enhanceUserData(users, category) {
-  return users.map((user, index) => ({
-    ...user,
-    display_name: user.profiles?.display_name || `User ${user.user_fid}`,
-    username: user.profiles?.username || null,
-    pfp_url: user.profiles?.pfp_url || null,
-    token_balance: user.profiles?.token_balance || 0,
-    rank: index + 1,
-    category: category
-  }));
+  return users.map((user, index) => {
+    const tokenBalance = user.profiles?.token_balance || 0;
+    const basePoints = user.total_points || 0;
+    
+    // Apply token multiplier to total points
+    const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
+    
+    return {
+      ...user,
+      display_name: user.profiles?.display_name || `User ${user.user_fid}`,
+      username: user.profiles?.username || null,
+      pfp_url: user.profiles?.pfp_url || null,
+      token_balance: tokenBalance,
+      // Store both original and multiplied points
+      base_points: basePoints,
+      total_points: multiplierResult.multipliedPoints,
+      token_multiplier: multiplierResult.multiplier,
+      token_tier: multiplierResult.tier,
+      rank: index + 1,
+      category: category
+    };
+  });
 } 

@@ -300,7 +300,20 @@ export function Leaderboard({ isVisible = true }) {
                       {category === 'holders' && userPosition.token_balance_formatted}
                     </div>
                     <div className="text-sm text-gray-500">
-                      {category === 'points' && 'points'}
+                      {category === 'points' && (
+                        <div className="flex flex-col items-end">
+                          <span>points</span>
+                          {userPosition.tokenMultiplier && userPosition.tokenMultiplier > 1 && (
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                              userPosition.tokenMultiplier === 5 
+                                ? 'bg-purple-100 text-purple-700' 
+                                : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              {userPosition.tokenMultiplier}x {userPosition.tokenTier === 'legendary' ? '🏆' : '⭐'}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {category === 'streaks' && ((userPosition.checkin_streak || 0) === 1 ? 'day' : 'days')}
                       {category === 'purchases' && 'points'}
                     </div>
@@ -388,7 +401,20 @@ export function Leaderboard({ isVisible = true }) {
                       {category === 'holders' && user.token_balance_formatted}
                     </div>
                     <div className="text-sm text-gray-500">
-                      {category === 'points' && 'points'}
+                      {category === 'points' && (
+                        <div className="flex flex-col items-end">
+                          <span>points</span>
+                          {user.token_multiplier && user.token_multiplier > 1 && (
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                              user.token_multiplier === 5 
+                                ? 'bg-purple-100 text-purple-700' 
+                                : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              {user.token_multiplier}x {user.token_tier === 'legendary' ? '🏆' : '⭐'}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {category === 'streaks' && ((user.checkin_streak || 0) === 1 ? 'day' : 'days')}
                       {category === 'purchases' && 'points'}
                     </div>
