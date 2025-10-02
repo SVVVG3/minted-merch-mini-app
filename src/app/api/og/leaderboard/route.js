@@ -228,7 +228,7 @@ export async function GET(request) {
               style={{
                 position: 'absolute',
                 bottom: '20px',
-                right: '20px',
+                right: '80px',
                 width: '120px',
                 height: '120px',
                 borderRadius: '12px',

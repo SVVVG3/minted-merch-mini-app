@@ -77,13 +77,10 @@ export async function generateMetadata({ searchParams }) {
     const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
 
     // Get user's position by counting users with higher multiplied points
-    // This is a simplified approach - in production you might want to cache this
-    const { count: higherRankedCount } = await supabaseAdmin
-      .from('user_leaderboard')
-      .select('user_fid', { count: 'exact' })
-      .gt('total_points', basePoints); // Simplified - doesn't account for multipliers of others
-
-    const position = (higherRankedCount || 0) + 1;
+    // Calculate user's position using the same accurate method as the leaderboard API
+    const { getUserLeaderboardPosition } = await import('@/lib/points');
+    const userPositionData = await getUserLeaderboardPosition(parseInt(userFid));
+    const position = userPositionData.position || 1;
     
     const username = userData.profiles?.display_name || userData.profiles?.username || `User ${userFid}`;
     const pfpUrl = userData.profiles?.pfp_url;
