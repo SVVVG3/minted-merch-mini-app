@@ -222,23 +222,23 @@ export async function GET(request) {
             </div>
           </div>
           
-          {/* Logo in Bottom Right Corner */}
-          {logoImageData ? (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '15px',
-                right: '15px',
-                width: '100px',
-                height: '100px',
-                borderRadius: '10px',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px solid rgba(255, 255, 255, 0.2)',
-              }}
-            >
+          {/* Logo in Bottom Right Corner - Always show container for debugging */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '15px',
+              right: '15px',
+              width: '100px',
+              height: '100px',
+              borderRadius: '10px',
+              backgroundColor: logoImageData ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 0, 0, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: logoImageData ? '2px solid rgba(255, 255, 255, 0.2)' : 'none',
+            }}
+          >
+            {logoImageData ? (
               <img
                 src={logoImageData}
                 alt="Minted Merch"
@@ -248,26 +248,18 @@ export async function GET(request) {
                   objectFit: 'contain',
                 }}
               />
-            </div>
-          ) : (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '15px',
-                right: '15px',
-                width: '100px',
-                height: '100px',
-                backgroundColor: 'rgba(255, 0, 0, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '12px',
-                color: 'white',
-              }}
-            >
-              NO LOGO
-            </div>
-          )}
+            ) : (
+              <div
+                style={{
+                  fontSize: '12px',
+                  color: 'white',
+                  textAlign: 'center',
+                }}
+              >
+                NO LOGO
+              </div>
+            )}
+          </div>
         </div>
       ),
       {

@@ -25,12 +25,15 @@ export function Leaderboard({ isVisible = true }) {
       // Use userPosition if available, otherwise create fallback data
       let position, points, multiplier, tier, username;
       
+      console.log('🔍 Share position debug:', { userPosition, currentUserFid });
+      
       if (userPosition) {
         position = userPosition.position || '?';
         points = userPosition.totalPoints || 0;
         multiplier = userPosition.tokenMultiplier || 1;
         tier = userPosition.tokenTier || 'none';
         username = userPosition.username || userProfile.username || `User ${currentUserFid}`;
+        console.log('✅ Using userPosition data:', { position, points, multiplier, tier, username });
       } else {
         // Fallback when userPosition is not loaded yet
         position = '?';
@@ -38,6 +41,7 @@ export function Leaderboard({ isVisible = true }) {
         multiplier = 1;
         tier = 'none';
         username = userProfile.username || `User ${currentUserFid}`;
+        console.log('⚠️ Using fallback data - userPosition not available');
       }
 
       const categoryNames = {
