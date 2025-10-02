@@ -45,7 +45,7 @@ export async function GET(request) {
     const multiplier = searchParams.get('multiplier') || '1';
     const tier = searchParams.get('tier') || 'none';
     const category = searchParams.get('category') || 'points';
-    const profileImage = searchParams.get('profileImage') || null;
+    const profileImage = searchParams.get('pfp') || null;
 
     // Format points with commas
     const formattedPoints = parseInt(points).toLocaleString();
@@ -220,10 +220,10 @@ export async function GET(request) {
             <div
               style={{
                 position: 'absolute',
-                bottom: '30px',
-                right: '30px',
-                width: '160px',
-                height: '160px',
+                bottom: '20px',
+                right: '20px',
+                width: '120px',
+                height: '120px',
                 borderRadius: '12px',
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 display: 'flex',
@@ -236,8 +236,8 @@ export async function GET(request) {
                 src={logoImageData}
                 alt="Minted Merch"
                 style={{
-                  width: '120px',
-                  height: '120px',
+                  width: '90px',
+                  height: '90px',
                   objectFit: 'contain',
                 }}
               />
