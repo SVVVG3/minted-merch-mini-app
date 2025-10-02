@@ -59,8 +59,12 @@ export async function generateMetadata({ searchParams }) {
       .eq('user_fid', parseInt(userFid))
       .single();
 
+    console.log('🔍 User data query result:', { userData, userError });
+    console.log('🔍 User FID being queried:', parseInt(userFid));
+
     if (userError || !userData) {
       console.error('❌ Error fetching user data:', userError);
+      console.log('❌ No user data found for FID:', userFid);
       return {
         title: 'Minted Merch Leaderboard',
         description: 'Check out the leaderboard on Minted Merch!',
@@ -84,6 +88,10 @@ export async function generateMetadata({ searchParams }) {
     const username = userData.profiles?.display_name || userData.profiles?.username || `User ${userFid}`;
     const pfpUrl = userData.profiles?.pfp_url;
 
+    console.log('🔍 Profile data extracted:', { username, pfpUrl, tokenBalance });
+    console.log('🔍 Multiplier result:', multiplierResult);
+    console.log('🔍 Position calculated:', position);
+
     // Build dynamic OG image URL
     const ogImageParams = new URLSearchParams({
       position: position.toString(),
@@ -97,7 +105,12 @@ export async function generateMetadata({ searchParams }) {
 
     if (pfpUrl) {
       ogImageParams.append('pfp', pfpUrl);
+      console.log('✅ Added pfp URL to OG params:', pfpUrl);
+    } else {
+      console.log('⚠️ No pfp URL available for user');
     }
+
+    console.log('🔍 Final OG image params:', ogImageParams.toString());
 
     const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
     const dynamicImageUrl = `${baseUrl}/api/og/leaderboard?${ogImageParams}`;
