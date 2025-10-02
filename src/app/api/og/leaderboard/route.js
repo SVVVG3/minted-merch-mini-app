@@ -57,11 +57,8 @@ export async function GET(request) {
       category
     });
 
-    // Fetch user profile image if available
+    // Skip image fetching for now to test if 9MB GIF is causing issues
     let userImageDataUrl = null;
-    if (pfpUrl) {
-      userImageDataUrl = await fetchImageAsDataUrl(pfpUrl);
-    }
 
     // Format points with commas
     const formattedPoints = parseInt(points).toLocaleString();
