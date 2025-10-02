@@ -77,7 +77,7 @@ export async function generateMetadata({ searchParams }) {
     const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
 
     // Get user's position by counting users with higher multiplied points
-    // Calculate user's position using the same accurate method as the leaderboard API
+    // Calculate user's position using the accurate method that considers all users
     const { getUserLeaderboardPosition } = await import('@/lib/points');
     const userPositionData = await getUserLeaderboardPosition(parseInt(userFid));
     const position = userPositionData.position || 1;

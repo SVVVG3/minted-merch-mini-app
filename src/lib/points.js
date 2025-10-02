@@ -756,7 +756,7 @@ export async function getUserLeaderboardPosition(userFid) {
 
     // To calculate position accurately, we need to get all users, apply multipliers, and count
     // This is expensive but necessary for accurate positioning with dynamic multipliers
-    const allUsersData = await getLeaderboard(10000, 'points'); // Get top users with multipliers applied
+    const allUsersData = await getLeaderboard(50000, 'points'); // Get ALL users with multipliers applied (increased limit)
     
     // Find user's position in the multiplied leaderboard
     let position = null;
