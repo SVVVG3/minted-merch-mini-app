@@ -11,37 +11,10 @@ export async function generateMetadata({ searchParams }) {
   
   // Check if this is a collection share URL
   const sharedCollectionHandle = searchParams?.collection;
-  const sharedLeaderboardCategory = searchParams?.leaderboard;
-  const sharedUserFid = searchParams?.user;
   const cacheBust = searchParams?.t;
   
   console.log('📋 Collection handle from URL:', sharedCollectionHandle);
-  console.log('🏆 Leaderboard category from URL:', sharedLeaderboardCategory);
-  console.log('👤 User FID from URL:', sharedUserFid);
   console.log('📋 Cache bust from URL:', cacheBust);
-  
-  // Handle leaderboard sharing (redirect to leaderboard page)
-  if (sharedLeaderboardCategory && sharedUserFid) {
-    try {
-      // Import the leaderboard metadata function
-      const { generateMetadata: generateLeaderboardMetadata } = await import('./leaderboard/page.js');
-      
-      // Create searchParams object for leaderboard page
-      const leaderboardSearchParams = {
-        category: sharedLeaderboardCategory,
-        user: sharedUserFid,
-        t: cacheBust
-      };
-      
-      console.log('🔄 Redirecting to leaderboard metadata with params:', leaderboardSearchParams);
-      
-      // Generate leaderboard metadata
-      return await generateLeaderboardMetadata({ searchParams: leaderboardSearchParams });
-    } catch (error) {
-      console.error('❌ Error generating leaderboard metadata:', error);
-      // Fall through to default metadata
-    }
-  }
   
   if (sharedCollectionHandle) {
     try {

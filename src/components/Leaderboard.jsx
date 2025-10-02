@@ -64,14 +64,12 @@ export function Leaderboard({ isVisible = true }) {
       const positionText = getPositionSuffix(position);
       const multiplierText = multiplier > 1 ? ` (${multiplier}x ${tier === 'legendary' ? '🏆' : '⭐'})` : '';
       
-      // Build Mini App leaderboard URL using root path pattern (same as collections)
-      const leaderboardUrl = `${window.location.origin}/?leaderboard=${category}&user=${currentUserFid}&t=${Date.now()}`;
-      
-      // Create share text similar to collection/product pattern
+      // Create leaderboard URL with cache-busting parameter for fresh OG images (EXACT same pattern as collections)
+      const leaderboardUrl = `${window.location.origin}/leaderboard?category=${category}&user=${currentUserFid}&t=${Date.now()}`;
       const shareText = userPosition 
         ? `I'm ranked #${positionText} on the @mintedmerch ${categoryName} leaderboard with ${points.toLocaleString()} points${multiplierText}! 🏆\n\nShop & earn points on /mintedmerch! 🟦`
         : `Check out my position on the @mintedmerch ${categoryName} leaderboard!\n\nShop & earn points on /mintedmerch! 🟦`;
-
+      
       console.log('🔗 Sharing leaderboard URL:', leaderboardUrl);
       console.log('📝 Share text:', shareText);
 
@@ -99,26 +97,20 @@ export function Leaderboard({ isVisible = true }) {
         return;
       }
 
-      // Use Farcaster SDK to compose cast (same pattern as collections/products)
-      const { sdk } = await import('@/lib/frame');
-      
-      // Add haptic feedback if supported
-      if (sdk.getCapabilities && sdk.getCapabilities().haptics) {
-        sdk.haptics.impact({ style: 'medium' });
-      }
-
+      // Use the Farcaster SDK composeCast action with leaderboard URL (EXACT same as collections)
+      const { sdk } = await import('../lib/frame');
       const result = await sdk.actions.composeCast({
         text: shareText,
-        embeds: [leaderboardUrl] // This creates the Mini App embed
+        embeds: [leaderboardUrl],
       });
-
-      console.log('Leaderboard cast composed with Mini App embed:', result);
+      
+      console.log('Leaderboard cast composed:', result);
 
     } catch (error) {
       console.error('Error sharing leaderboard position:', error);
       // Fallback to copying link
       try {
-        const fallbackUrl = `${window.location.origin}/?leaderboard=${category}&user=${currentUserFid}&t=${Date.now()}`;
+        const fallbackUrl = `${window.location.origin}/leaderboard?category=${category}&user=${currentUserFid}&t=${Date.now()}`;
         await navigator.clipboard.writeText(fallbackUrl);
         alert('Link copied to clipboard!');
       } catch (err) {
