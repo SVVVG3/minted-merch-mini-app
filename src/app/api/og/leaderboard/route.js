@@ -109,8 +109,8 @@ export async function GET(request) {
               justifyContent: 'center',
               width: '100%',
               height: '100%',
-              padding: '60px',
-              gap: '60px',
+              padding: '40px',
+              gap: '40px',
             }}
           >
             <div
@@ -118,8 +118,8 @@ export async function GET(request) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '400px',
-                height: '400px',
+                width: '300px',
+                height: '300px',
                 borderRadius: '20px',
                 backgroundColor: 'rgba(62, 180, 137, 0.1)',
                 border: '3px solid rgba(62, 180, 137, 0.3)',
@@ -160,8 +160,8 @@ export async function GET(request) {
                 flexDirection: 'column',
                 alignItems: 'flex-start',
                 justifyContent: 'center',
-                maxWidth: '500px',
-                gap: '20px',
+                maxWidth: '600px',
+                gap: '15px',
               }}
             >
               <div
@@ -220,11 +220,11 @@ export async function GET(request) {
             <div
               style={{
                 position: 'absolute',
-                bottom: '20px',
-                right: '20px',
-                width: '120px',
-                height: '120px',
-                borderRadius: '12px',
+                bottom: '15px',
+                right: '15px',
+                width: '100px',
+                height: '100px',
+                borderRadius: '10px',
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 display: 'flex',
                 alignItems: 'center',
@@ -236,8 +236,8 @@ export async function GET(request) {
                 src={logoImageData}
                 alt="Minted Merch"
                 style={{
-                  width: '90px',
-                  height: '90px',
+                  width: '75px',
+                  height: '75px',
                   objectFit: 'contain',
                 }}
               />
