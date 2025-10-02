@@ -122,7 +122,7 @@ export async function GET(request) {
               gap: '60px',
             }}
           >
-            {/* User Avatar */}
+            {/* Collection Image */}
             <div
               style={{
                 display: 'flex',
@@ -136,30 +136,18 @@ export async function GET(request) {
                 overflow: 'hidden',
               }}
             >
-              {userImageDataUrl ? (
-                <img
-                  src={userImageDataUrl}
-                  alt={username}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#3eb489',
-                  }}
-                >
-                  <div style={{ fontSize: 120, marginBottom: 20 }}>👤</div>
-                  <div style={{ fontSize: 32, textAlign: 'center' }}>User</div>
-                </div>
-              )}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#3eb489',
+                }}
+              >
+                <div style={{ fontSize: 120, marginBottom: 20 }}>🏆</div>
+                <div style={{ fontSize: 32, textAlign: 'center' }}>Leaderboard</div>
+              </div>
             </div>
 
             {/* Text Content */}
@@ -169,56 +157,56 @@ export async function GET(request) {
                 flexDirection: 'column',
                 alignItems: 'flex-start',
                 justifyContent: 'center',
-                maxWidth: '600px',
+                maxWidth: '500px',
+                gap: '20px',
               }}
             >
+              {/* Position */}
               <div
                 style={{
-                  fontSize: '72px',
+                  fontSize: 64,
                   fontWeight: 'bold',
                   color: '#3eb489',
-                  marginBottom: '20px',
-                  lineHeight: 1,
+                  lineHeight: 1.1,
+                  textAlign: 'left',
                 }}
               >
                 #{positionText}
               </div>
-              
+
+              {/* Username */}
               <div
                 style={{
-                  fontSize: '48px',
-                  fontWeight: 'bold',
-                  color: 'white',
-                  marginBottom: '20px',
-                  lineHeight: 1.2,
-                }}
-              >
-                {username}
-              </div>
-              
-              <div
-                style={{
-                  fontSize: '32px',
+                  fontSize: 28,
                   color: '#cccccc',
-                  marginBottom: '20px',
-                  lineHeight: 1.2,
+                  lineHeight: 1.3,
+                  textAlign: 'left',
                 }}
               >
-                {formattedPoints} points in {categoryName}
+                {username} - {formattedPoints} points
               </div>
-              
+
+              {/* Category */}
               <div
                 style={{
-                  fontSize: '24px',
-                  fontWeight: '600',
-                  color: tier === 'legendary' ? '#7c3aed' : '#2563eb',
-                  backgroundColor: tier === 'legendary' ? '#f3e8ff' : '#dbeafe',
-                  padding: '12px 24px',
-                  borderRadius: '12px',
-                  display: multiplierDisplay ? 'block' : 'none',
+                  fontSize: 32,
+                  color: '#888888',
+                  textAlign: 'left',
                 }}
               >
-                {multiplierDisplay} {multiplierEmoji}
+                {categoryName}
+              </div>
+
+              {/* Multiplier */}
+              <div
+                style={{
+                  fontSize: 24,
+                  color: '#3eb489',
+                  textAlign: 'left',
+                  marginTop: '20px',
+                }}
+              >
+                {multiplierDisplay ? `${multiplierDisplay} ${multiplierEmoji}` : 'Minted Merch Leaderboard'}
               </div>
             </div>
           </div>
