@@ -99,76 +99,130 @@ export async function GET(request) {
       (
         <div
           style={{
-            height: '100%',
             width: '100%',
+            height: '100%',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#3eb489',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
+            backgroundColor: '#000000',
+            backgroundImage: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%)',
+            color: 'white',
+            fontFamily: 'Arial, sans-serif',
+            position: 'relative',
           }}
         >
+          {/* Main Content Container */}
           <div
             style={{
               display: 'flex',
-              flexDirection: 'column',
+              flexDirection: 'row',
               alignItems: 'center',
-              backgroundColor: 'white',
-              borderRadius: '24px',
+              justifyContent: 'center',
+              width: '100%',
+              height: '100%',
               padding: '60px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              maxWidth: '800px',
-              width: '90%',
+              gap: '60px',
             }}
           >
+            {/* User Avatar */}
             <div
               style={{
-                fontSize: '36px',
-                fontWeight: 'bold',
-                color: '#1f2937',
-                marginBottom: '20px',
-                textAlign: 'center',
-              }}
-            >
-              {username}
-            </div>
-
-            <div
-              style={{
-                fontSize: '72px',
-                fontWeight: 'bold',
-                color: '#3eb489',
-                marginBottom: '10px',
-                textAlign: 'center',
-              }}
-            >
-              #{positionText}
-            </div>
-
-            <div
-              style={{
-                fontSize: '24px',
-                color: '#6b7280',
-                marginBottom: '30px',
-                textAlign: 'center',
-              }}
-            >
-              {categoryName} • {formattedPoints} points
-            </div>
-
-            <div
-              style={{
-                fontSize: '20px',
-                fontWeight: '600',
-                color: tier === 'legendary' ? '#7c3aed' : '#2563eb',
-                backgroundColor: tier === 'legendary' ? '#f3e8ff' : '#dbeafe',
-                padding: '12px 24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '400px',
+                height: '400px',
                 borderRadius: '20px',
-                display: multiplierDisplay ? 'block' : 'none',
+                backgroundColor: 'rgba(62, 180, 137, 0.1)',
+                border: '3px solid rgba(62, 180, 137, 0.3)',
+                overflow: 'hidden',
               }}
             >
-              {multiplierDisplay} {multiplierEmoji}
+              {userImageDataUrl ? (
+                <img
+                  src={userImageDataUrl}
+                  alt={username}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#3eb489',
+                  }}
+                >
+                  <div style={{ fontSize: 120, marginBottom: 20 }}>👤</div>
+                  <div style={{ fontSize: 32, textAlign: 'center' }}>User</div>
+                </div>
+              )}
+            </div>
+
+            {/* Text Content */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                justifyContent: 'center',
+                maxWidth: '600px',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '72px',
+                  fontWeight: 'bold',
+                  color: '#3eb489',
+                  marginBottom: '20px',
+                  lineHeight: 1,
+                }}
+              >
+                #{positionText}
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '48px',
+                  fontWeight: 'bold',
+                  color: 'white',
+                  marginBottom: '20px',
+                  lineHeight: 1.2,
+                }}
+              >
+                {username}
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '32px',
+                  color: '#cccccc',
+                  marginBottom: '20px',
+                  lineHeight: 1.2,
+                }}
+              >
+                {formattedPoints} points in {categoryName}
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '24px',
+                  fontWeight: '600',
+                  color: tier === 'legendary' ? '#7c3aed' : '#2563eb',
+                  backgroundColor: tier === 'legendary' ? '#f3e8ff' : '#dbeafe',
+                  padding: '12px 24px',
+                  borderRadius: '12px',
+                  display: multiplierDisplay ? 'block' : 'none',
+                }}
+              >
+                {multiplierDisplay} {multiplierEmoji}
+              </div>
             </div>
           </div>
         </div>
