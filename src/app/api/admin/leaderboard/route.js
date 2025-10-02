@@ -15,18 +15,49 @@ export async function GET(request) {
     const pageSize = 1000;
     let hasMoreData = true;
 
-    // Build base query
-    let baseQuery = supabaseAdmin
-      .from('user_leaderboard')
-      .select(`
-        *,
-        profiles!user_fid (
+    // Build base query - use profiles table for holdings, user_leaderboard for everything else
+    let baseQuery;
+    let isHoldingsQuery = false;
+    
+    if (sortBy === 'token_balance' || sortBy === 'holdings') {
+      // For holdings, query profiles table to get ALL token holders (not just active users)
+      isHoldingsQuery = true;
+      baseQuery = supabaseAdmin
+        .from('profiles')
+        .select(`
+          fid,
           username,
           display_name,
           pfp_url,
-          token_balance
-        )
-      `);
+          token_balance,
+          token_balance_updated_at,
+          user_leaderboard!fid (
+            user_fid,
+            total_points,
+            checkin_streak,
+            last_checkin_date,
+            total_orders,
+            total_spent,
+            points_from_purchases,
+            points_from_checkins,
+            created_at
+          )
+        `)
+        .gt('token_balance', 0); // Only show users with tokens
+    } else {
+      // For other sorts, use user_leaderboard table
+      baseQuery = supabaseAdmin
+        .from('user_leaderboard')
+        .select(`
+          *,
+          profiles!user_fid (
+            username,
+            display_name,
+            pfp_url,
+            token_balance
+          )
+        `);
+    }
 
     // Add sorting
     switch (sortBy) {
@@ -42,8 +73,16 @@ export async function GET(request) {
       case 'total_orders':
         baseQuery = baseQuery.order('total_orders', { ascending: false });
         break;
+      case 'token_balance':
+      case 'holdings':
+        baseQuery = baseQuery.order('token_balance', { ascending: false });
+        break;
       default:
-        baseQuery = baseQuery.order('total_points', { ascending: false });
+        if (isHoldingsQuery) {
+          baseQuery = baseQuery.order('token_balance', { ascending: false });
+        } else {
+          baseQuery = baseQuery.order('total_points', { ascending: false });
+        }
     }
 
     // Fetch all pages
@@ -83,34 +122,57 @@ export async function GET(request) {
     
     // Transform the data to flatten profile information, add token holdings, and apply multipliers
     const transformedData = leaderboardData.map((entry, index) => {
-      const profile = entry.profiles || {};
+      let profile, leaderboardInfo, tokenBalanceWei, basePoints, userFid;
       
-      // Keep token balance in wei format (as expected by frontend formatTokenBalance function)
-      const tokenBalanceWei = profile.token_balance || 0;
-      const basePoints = entry.total_points || 0;
+      if (isHoldingsQuery) {
+        // Data from profiles table
+        profile = entry;
+        leaderboardInfo = entry.user_leaderboard?.[0] || {};
+        tokenBalanceWei = entry.token_balance || 0;
+        basePoints = leaderboardInfo.total_points || 0;
+        userFid = entry.fid;
+      } else {
+        // Data from user_leaderboard table
+        profile = entry.profiles || {};
+        leaderboardInfo = entry;
+        tokenBalanceWei = profile.token_balance || 0;
+        basePoints = entry.total_points || 0;
+        userFid = entry.user_fid;
+      }
       
       // Apply token multiplier to total points
       const multiplierResult = applyTokenMultiplier(basePoints, tokenBalanceWei);
       
       // Debug first few entries
       if (index < 5) {
-        console.log(`🔍 Entry ${index}: FID ${entry.user_fid}, profile:`, profile, 'tokenBalance:', tokenBalanceWei, 'multiplier:', multiplierResult.multiplier);
+        console.log(`🔍 Entry ${index}: FID ${userFid}, isHoldingsQuery: ${isHoldingsQuery}, tokenBalance:`, tokenBalanceWei, 'multiplier:', multiplierResult.multiplier);
       }
       
       return {
-        ...entry,
-        // Use profile data if available, fallback to leaderboard data
-        username: profile.username || entry.username,
-        display_name: profile.display_name || entry.display_name,
+        // Normalize the data structure
+        user_fid: userFid,
+        fid: userFid, // For compatibility
+        username: profile.username || leaderboardInfo.username,
+        display_name: profile.display_name || leaderboardInfo.display_name,
         pfp_url: profile.pfp_url,
-        token_balance: tokenBalanceWei, // Keep in wei format for frontend formatTokenBalance function
-        // Store both original and multiplied points
-        base_points: basePoints,
+        token_balance: tokenBalanceWei,
+        token_balance_updated_at: profile.token_balance_updated_at,
+        // Leaderboard stats (may be 0 for users who haven't engaged)
         total_points: multiplierResult.multipliedPoints,
+        base_points: basePoints,
+        checkin_streak: leaderboardInfo.checkin_streak || 0,
+        last_checkin_date: leaderboardInfo.last_checkin_date,
+        total_orders: leaderboardInfo.total_orders || 0,
+        total_spent: leaderboardInfo.total_spent || 0,
+        points_from_purchases: leaderboardInfo.points_from_purchases || 0,
+        points_from_checkins: leaderboardInfo.points_from_checkins || 0,
+        created_at: leaderboardInfo.created_at,
+        // Token multiplier info
         token_multiplier: multiplierResult.multiplier,
         token_tier: multiplierResult.tier,
-        // Remove the nested profiles object
-        profiles: undefined
+        // Remove nested objects
+        profiles: undefined,
+        user_leaderboard: undefined
       };
     });
 
@@ -128,8 +190,15 @@ export async function GET(request) {
           return (b.points_from_purchases || 0) - (a.points_from_purchases || 0);
         case 'total_orders':
           return (b.total_orders || 0) - (a.total_orders || 0);
+        case 'token_balance':
+        case 'holdings':
+          return (parseFloat(b.token_balance || 0)) - (parseFloat(a.token_balance || 0));
         default:
-          return (b.total_points || 0) - (a.total_points || 0);
+          if (isHoldingsQuery) {
+            return (parseFloat(b.token_balance || 0)) - (parseFloat(a.token_balance || 0));
+          } else {
+            return (b.total_points || 0) - (a.total_points || 0);
+          }
       }
     });
 
