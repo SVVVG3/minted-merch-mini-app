@@ -250,23 +250,21 @@ export async function GET(request) {
             </div>
 
             {/* Multiplier Badge */}
-            {multiplierDisplay && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  backgroundColor: tier === 'legendary' ? '#f3e8ff' : '#dbeafe',
-                  color: tier === 'legendary' ? '#7c3aed' : '#2563eb',
-                  padding: '12px 24px',
-                  borderRadius: '20px',
-                  fontSize: '20px',
-                  fontWeight: '600',
-                }}
-              >
-                {multiplierDisplay} {multiplierEmoji}
-              </div>
-            )}
+            <div
+              style={{
+                display: multiplierDisplay ? 'flex' : 'none',
+                alignItems: 'center',
+                gap: '10px',
+                backgroundColor: tier === 'legendary' ? '#f3e8ff' : '#dbeafe',
+                color: tier === 'legendary' ? '#7c3aed' : '#2563eb',
+                padding: '12px 24px',
+                borderRadius: '20px',
+                fontSize: '20px',
+                fontWeight: '600',
+              }}
+            >
+              {multiplierDisplay} {multiplierEmoji}
+            </div>
           </div>
 
           {/* Footer */}
