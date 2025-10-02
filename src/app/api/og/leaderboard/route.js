@@ -105,32 +105,10 @@ export async function GET(request) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#f8fafc',
-            backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            backgroundColor: '#3eb489',
             fontFamily: 'system-ui, -apple-system, sans-serif',
           }}
         >
-          {/* Header */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: '40px',
-            }}
-          >
-            <div
-              style={{
-                fontSize: '48px',
-                fontWeight: 'bold',
-                color: 'white',
-                textAlign: 'center',
-              }}
-            >
-              🏆 Minted Merch Leaderboard
-            </div>
-          </div>
-
-          {/* Main Content */}
           <div
             style={{
               display: 'flex',
@@ -144,46 +122,6 @@ export async function GET(request) {
               width: '90%',
             }}
           >
-            {/* User Avatar */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '30px',
-              }}
-            >
-              {userImageDataUrl ? (
-                <img
-                  src={userImageDataUrl}
-                  style={{
-                    width: '120px',
-                    height: '120px',
-                    borderRadius: '60px',
-                    border: '6px solid #3eb489',
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: '120px',
-                    height: '120px',
-                    borderRadius: '60px',
-                    backgroundColor: '#e5e7eb',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '48px',
-                    color: '#6b7280',
-                    border: '6px solid #3eb489',
-                  }}
-                >
-                  👤
-                </div>
-              )}
-            </div>
-
-            {/* Username */}
             <div
               style={{
                 fontSize: '36px',
@@ -196,7 +134,6 @@ export async function GET(request) {
               {username}
             </div>
 
-            {/* Position */}
             <div
               style={{
                 fontSize: '72px',
@@ -209,7 +146,6 @@ export async function GET(request) {
               #{positionText}
             </div>
 
-            {/* Category */}
             <div
               style={{
                 fontSize: '24px',
@@ -218,65 +154,22 @@ export async function GET(request) {
                 textAlign: 'center',
               }}
             >
-              in {categoryName}
+              {categoryName} • {formattedPoints} points
             </div>
 
-            {/* Points */}
             <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '15px',
-                marginBottom: '20px',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '48px',
-                  fontWeight: 'bold',
-                  color: '#1f2937',
-                }}
-              >
-                {formattedPoints}
-              </div>
-              <div
-                style={{
-                  fontSize: '24px',
-                  color: '#6b7280',
-                }}
-              >
-                points
-              </div>
-            </div>
-
-            {/* Multiplier Badge */}
-            <div
-              style={{
-                display: multiplierDisplay ? 'flex' : 'none',
-                alignItems: 'center',
-                gap: '10px',
-                backgroundColor: tier === 'legendary' ? '#f3e8ff' : '#dbeafe',
-                color: tier === 'legendary' ? '#7c3aed' : '#2563eb',
-                padding: '12px 24px',
-                borderRadius: '20px',
                 fontSize: '20px',
                 fontWeight: '600',
+                color: tier === 'legendary' ? '#7c3aed' : '#2563eb',
+                backgroundColor: tier === 'legendary' ? '#f3e8ff' : '#dbeafe',
+                padding: '12px 24px',
+                borderRadius: '20px',
+                display: multiplierDisplay ? 'block' : 'none',
               }}
             >
               {multiplierDisplay} {multiplierEmoji}
             </div>
-          </div>
-
-          {/* Footer */}
-          <div
-            style={{
-              marginTop: '40px',
-              fontSize: '20px',
-              color: 'rgba(255, 255, 255, 0.8)',
-              textAlign: 'center',
-            }}
-          >
-            Shop & pay with USDC on Base 🟦
           </div>
         </div>
       ),
