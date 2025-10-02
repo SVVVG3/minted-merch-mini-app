@@ -26,11 +26,20 @@ export async function generateMetadata({ searchParams }) {
           images: ['/api/og/leaderboard?title=Leaderboard&category=' + category + '&t=' + cacheBust],
         },
         other: {
-          'fc:frame': 'vNext',
-          'fc:frame:image': `${process.env.NEXT_PUBLIC_BASE_URL}/api/og/leaderboard?title=Leaderboard&category=${category}&t=${cacheBust}`,
-          'fc:frame:button:1': `View ${category === 'points' ? 'Points' : category === 'holders' ? 'Holders' : category === 'purchases' ? 'Purchases' : 'Streaks'} Leaderboard 🏆`,
-          'fc:frame:button:1:action': 'link',
-          'fc:frame:button:1:target': `${process.env.NEXT_PUBLIC_BASE_URL}`,
+          'fc:frame': JSON.stringify({
+            version: "next",
+            imageUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/og/leaderboard?title=Leaderboard&category=${category}&t=${cacheBust}`,
+            button: {
+              title: `View ${category === 'points' ? 'Points' : category === 'holders' ? 'Holders' : category === 'purchases' ? 'Purchases' : 'Streaks'} Leaderboard 🏆`,
+              action: {
+                type: "launch_frame",
+                url: process.env.NEXT_PUBLIC_BASE_URL || 'https://app.mintedmerch.shop',
+                name: "Minted Merch Shop",
+                splashImageUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/splash.png`,
+                splashBackgroundColor: "#000000"
+              }
+            }
+          }),
         },
       };
     }
@@ -90,7 +99,8 @@ export async function generateMetadata({ searchParams }) {
       ogImageParams.append('pfp', pfpUrl);
     }
 
-    const dynamicImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og/leaderboard?${ogImageParams}`;
+    const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
+    const dynamicImageUrl = `${baseUrl}/api/og/leaderboard?${ogImageParams}`;
     
     console.log('🖼️ Dynamic OG image URL:', dynamicImageUrl);
 
@@ -118,20 +128,48 @@ export async function generateMetadata({ searchParams }) {
     const positionText = getPositionSuffix(position);
     const multiplierText = multiplierResult.multiplier > 1 ? ` (${multiplierResult.multiplier}x)` : '';
 
+    // Create Mini App frame embed (same format as products/collections)
+    const frame = {
+      version: "next",
+      imageUrl: dynamicImageUrl,
+      button: {
+        title: `View Leaderboard 🏆`,
+        action: {
+          type: "launch_frame",
+          url: baseUrl,
+          name: "Minted Merch Shop",
+          splashImageUrl: `${baseUrl}/splash.png`,
+          splashBackgroundColor: "#000000"
+        }
+      }
+    };
+
     return {
       title: `${username} - #${positionText} on Minted Merch Leaderboard`,
       description: `${username} is ranked #${positionText} in ${categoryName} with ${multiplierResult.multipliedPoints.toLocaleString()} points${multiplierText}!`,
+      metadataBase: new URL(baseUrl),
+      other: {
+        'fc:frame': JSON.stringify(frame),
+      },
       openGraph: {
         title: `${username} - #${positionText} on Minted Merch Leaderboard 🏆`,
         description: `${username} is ranked #${positionText} in ${categoryName} with ${multiplierResult.multipliedPoints.toLocaleString()} points${multiplierText}!`,
-        images: [dynamicImageUrl],
+        siteName: 'Minted Merch Shop',
+        images: [
+          {
+            url: dynamicImageUrl,
+            width: 1200,
+            height: 800,
+            alt: `${username} - #${positionText} on Minted Merch Leaderboard`,
+          },
+        ],
+        type: 'website',
       },
-      other: {
-        'fc:frame': 'vNext',
-        'fc:frame:image': dynamicImageUrl,
-        'fc:frame:button:1': `View Leaderboard 🏆`,
-        'fc:frame:button:1:action': 'link',
-        'fc:frame:button:1:target': `${process.env.NEXT_PUBLIC_BASE_URL}`,
+      twitter: {
+        card: 'summary_large_image',
+        title: `${username} - #${positionText} on Minted Merch Leaderboard 🏆`,
+        description: `${username} is ranked #${positionText} in ${categoryName} with ${multiplierResult.multipliedPoints.toLocaleString()} points${multiplierText}!`,
+        images: [dynamicImageUrl],
       },
     };
 
