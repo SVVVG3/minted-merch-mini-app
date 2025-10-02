@@ -195,7 +195,72 @@ export async function POST(request) {
 
     // Calculate totals with discount OUTSIDE retry loops - shared by both Shopify and Supabase
     const subtotalPrice = parseFloat(checkout.subtotal.amount);
-    const discountAmountValue = discountAmount ? parseFloat(discountAmount) : 0;
+    
+    // 🔒 SECURITY FIX: Server-side discount validation - NEVER trust client discount amount
+    let validatedDiscountAmount = 0;
+    if (appliedDiscount && appliedDiscount.code) {
+      console.log(`🔒 [${requestId}] Validating discount server-side:`, {
+        clientDiscountAmount: discountAmount,
+        discountCode: appliedDiscount.code,
+        subtotal: subtotalPrice
+      });
+      
+      // Import discount validation
+      const { validateDiscountForOrder } = await import('@/lib/orders');
+      const { calculateDiscountAmount } = await import('@/lib/discounts');
+      
+      // Validate discount code server-side
+      const validationResult = await validateDiscountForOrder(appliedDiscount.code, fidInt, subtotalPrice, cartItems);
+      
+      if (validationResult.success && validationResult.isValid) {
+        // Calculate actual discount amount server-side
+        const discountCalc = calculateDiscountAmount(subtotalPrice, validationResult.discountCode);
+        validatedDiscountAmount = discountCalc.discountAmount;
+        
+        console.log(`✅ [${requestId}] Discount validated:`, {
+          clientAmount: discountAmount,
+          serverAmount: validatedDiscountAmount,
+          discountType: validationResult.discountCode.discountType,
+          discountValue: validationResult.discountCode.discountValue
+        });
+        
+        // SECURITY: Reject if client amount doesn't match server calculation
+        const clientAmount = discountAmount ? parseFloat(discountAmount) : 0;
+        const { validateDiscountAmount, logSecurityEvent } = await import('@/lib/security');
+        
+        if (!validateDiscountAmount(clientAmount, validatedDiscountAmount)) {
+          const securityDetails = {
+            clientAmount: clientAmount,
+            serverAmount: validatedDiscountAmount,
+            difference: Math.abs(clientAmount - validatedDiscountAmount),
+            discountCode: appliedDiscount.code,
+            requestId: requestId,
+            userAgent: request.headers.get('user-agent'),
+            timestamp: new Date().toISOString()
+          };
+          
+          // Log security event
+          await logSecurityEvent('discount_manipulation', securityDetails, fidInt, request);
+          
+          console.error(`🚨 [${requestId}] SECURITY ALERT: Discount manipulation detected!`, securityDetails);
+          
+          return NextResponse.json({
+            error: 'Discount validation failed. Please refresh and try again.',
+            requestId: requestId,
+            step: 'discount_validation'
+          }, { status: 400 });
+        }
+      } else {
+        console.error(`❌ [${requestId}] Discount validation failed:`, validationResult.error);
+        return NextResponse.json({
+          error: 'Invalid discount code',
+          requestId: requestId,
+          step: 'discount_validation'
+        }, { status: 400 });
+      }
+    }
+    
+    const discountAmountValue = validatedDiscountAmount;
     
     // CRITICAL FIX: Ensure subtotal never goes negative
     const subtotalAfterDiscount = Math.max(0, subtotalPrice - discountAmountValue);
