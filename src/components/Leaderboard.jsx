@@ -16,7 +16,7 @@ export function Leaderboard({ isVisible = true }) {
 
   // Handle sharing leaderboard position
   const handleSharePosition = async () => {
-    if (!userPosition || !isInFarcaster) return;
+    if (!userPosition) return;
 
     try {
       // Get user profile data
@@ -61,6 +61,30 @@ export function Leaderboard({ isVisible = true }) {
 
       console.log('🔗 Sharing leaderboard position:', { leaderboardUrl, shareText });
 
+      if (!isInFarcaster) {
+        // Fallback for non-Farcaster environments
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: `My Leaderboard Position - Minted Merch`,
+              text: shareText,
+              url: leaderboardUrl,
+            });
+          } catch (err) {
+            console.log('Error sharing:', err);
+          }
+        } else {
+          // Copy link to clipboard
+          try {
+            await navigator.clipboard.writeText(`${shareText}\n\n${leaderboardUrl}`);
+            alert('Share text copied to clipboard!');
+          } catch (err) {
+            console.log('Error copying to clipboard:', err);
+          }
+        }
+        return;
+      }
+
       // Use Farcaster SDK to compose cast
       const { sdk } = await import('@/lib/frame');
       
@@ -76,6 +100,14 @@ export function Leaderboard({ isVisible = true }) {
 
     } catch (error) {
       console.error('Error sharing leaderboard position:', error);
+      // Fallback to copying link
+      try {
+        const leaderboardUrl = `${window.location.origin}/leaderboard?category=${category}&user=${currentUserFid}&t=${Date.now()}`;
+        await navigator.clipboard.writeText(leaderboardUrl);
+        alert('Link copied to clipboard!');
+      } catch (err) {
+        console.log('Error copying to clipboard:', err);
+      }
     }
   };
 
@@ -253,11 +285,11 @@ export function Leaderboard({ isVisible = true }) {
           <h2 className="text-2xl font-bold text-gray-800">🏆 Leaderboard</h2>
           
           {/* Share Button */}
-          {userPosition && isInFarcaster && (
+          {userPosition && (
             <button
               onClick={handleSharePosition}
               className="flex items-center justify-center w-12 h-12 bg-[#8A63D2] hover:bg-[#7C5BC7] text-white rounded-lg transition-colors"
-              title="Share your leaderboard position on Farcaster"
+              title="Share your leaderboard position"
             >
               {/* Official Farcaster Logo */}
               <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
