@@ -82,7 +82,14 @@ export async function GET(request) {
     // Fetch profile image and logo
     const profileImageData = profileImage ? await fetchImageAsDataUrl(profileImage) : null;
     const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
-    const logoImageData = await fetchImageAsDataUrl(logoUrl);
+    console.log('🖼️ Fetching logo from:', logoUrl);
+    let logoImageData = null;
+    try {
+      logoImageData = await fetchImageAsDataUrl(logoUrl);
+      console.log('✅ Logo fetch result:', logoImageData ? 'SUCCESS' : 'FAILED');
+    } catch (error) {
+      console.error('❌ Error fetching logo:', error);
+    }
 
     return new ImageResponse(
       (
@@ -216,7 +223,7 @@ export async function GET(request) {
           </div>
           
           {/* Logo in Bottom Right Corner */}
-          {logoImageData && (
+          {logoImageData ? (
             <div
               style={{
                 position: 'absolute',
@@ -241,6 +248,24 @@ export async function GET(request) {
                   objectFit: 'contain',
                 }}
               />
+            </div>
+          ) : (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '15px',
+                right: '15px',
+                width: '100px',
+                height: '100px',
+                backgroundColor: 'rgba(255, 0, 0, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                color: 'white',
+              }}
+            >
+              NO LOGO
             </div>
           )}
         </div>

@@ -67,8 +67,8 @@ export function Leaderboard({ isVisible = true }) {
       // Create leaderboard URL with cache-busting parameter for fresh OG images (EXACT same pattern as collections)
       const leaderboardUrl = `${window.location.origin}/leaderboard?category=${category}&user=${currentUserFid}&t=${Date.now()}`;
       const shareText = userPosition 
-        ? `I'm currently ranked ${positionText} on the $mintedmerch mini app leaderboard!\n\nShop using USDC & spin the wheel daily (for free) to earn points on /mintedmerch!`
-        : `I'm currently ranked ${positionText} on the $mintedmerch mini app leaderboard!\n\nShop using USDC & spin the wheel daily (for free) to earn points on /mintedmerch!`;
+        ? `I'm currently ranked ${positionText} place on the @mintedmerch mini app leaderboard!\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`
+        : `I'm currently ranked ${positionText} place on the @mintedmerch mini app leaderboard!\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
       
       console.log('🔗 Sharing leaderboard URL:', leaderboardUrl);
       console.log('📝 Share text:', shareText);
