@@ -473,11 +473,13 @@ export async function getLeaderboard(limit = 10, category = 'points') {
   try {
     console.log(`🔍 getLeaderboard called with limit: ${limit}, category: ${category}`);
     
-    // For admin dashboard (large limits), we need to include both high-point users AND token holders
+    // For accurate rankings with token multipliers, we need to fetch more users than requested
+    // because someone with lower base points but high multiplier might rank higher
+    const needsLargerDataset = limit <= 1000;
     const isAdminRequest = limit > 1000;
     
-    if (isAdminRequest) {
-      console.log(`🏆 Admin request detected - fetching comprehensive dataset including token holders`);
+    if (isAdminRequest || needsLargerDataset) {
+      console.log(`🏆 ${isAdminRequest ? 'Admin request' : 'Mini app request'} detected - fetching comprehensive dataset including token holders`);
       
       // Get top users by points AND significant token holders
       const [pointsUsers, tokenHolders] = await Promise.all([
@@ -511,7 +513,7 @@ export async function getLeaderboard(limit = 10, category = 'points') {
       // Return up to the requested limit
       const finalUsers = sortedUsers.slice(0, limit);
       
-      console.log(`📊 getLeaderboard returned ${finalUsers.length} users for admin request`);
+      console.log(`📊 getLeaderboard returned ${finalUsers.length} users for ${isAdminRequest ? 'admin' : 'mini app'} request`);
       
       return enhanceUserData(finalUsers, category);
     }
