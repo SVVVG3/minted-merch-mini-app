@@ -14,6 +14,71 @@ export function Leaderboard({ isVisible = true }) {
 
   const currentUserFid = isInFarcaster && isReady ? getFid() : null;
 
+  // Handle sharing leaderboard position
+  const handleSharePosition = async () => {
+    if (!userPosition || !isInFarcaster) return;
+
+    try {
+      // Get user profile data
+      const userProfile = userProfiles[currentUserFid] || {};
+      const username = userPosition.username || userProfile.username || `User ${currentUserFid}`;
+      const pfpUrl = userProfile.pfp_url;
+
+      // Build leaderboard URL with cache busting
+      const leaderboardUrl = `${window.location.origin}/leaderboard?category=${category}&user=${currentUserFid}&t=${Date.now()}`;
+      
+      // Build share text
+      const position = userPosition.position || '?';
+      const points = userPosition.totalPoints || 0;
+      const multiplier = userPosition.tokenMultiplier || 1;
+      const tier = userPosition.tokenTier || 'none';
+      
+      const categoryNames = {
+        'points': 'Points',
+        'streaks': 'Streaks', 
+        'purchases': 'Purchases',
+        'holders': '$MINTEDMERCH Holders'
+      };
+      const categoryName = categoryNames[category] || 'Points';
+      
+      const getPositionSuffix = (pos) => {
+        const num = parseInt(pos);
+        if (isNaN(num)) return pos;
+        const lastDigit = num % 10;
+        const lastTwoDigits = num % 100;
+        
+        if (lastTwoDigits >= 11 && lastTwoDigits <= 13) return `${num}th`;
+        if (lastDigit === 1) return `${num}st`;
+        if (lastDigit === 2) return `${num}nd`;
+        if (lastDigit === 3) return `${num}rd`;
+        return `${num}th`;
+      };
+
+      const positionText = getPositionSuffix(position);
+      const multiplierText = multiplier > 1 ? ` (${multiplier}x ${tier === 'legendary' ? '🏆' : '⭐'})` : '';
+      
+      const shareText = `I'm ranked #${positionText} on the @mintedmerch ${categoryName} leaderboard with ${points.toLocaleString()} points${multiplierText}! 🏆\n\nShop & earn points: ${leaderboardUrl} 🟦`;
+
+      console.log('🔗 Sharing leaderboard position:', { leaderboardUrl, shareText });
+
+      // Use Farcaster SDK to compose cast
+      const { sdk } = await import('@/lib/frame');
+      
+      // Add haptic feedback if supported
+      if (sdk.getCapabilities && sdk.getCapabilities().haptics) {
+        sdk.haptics.impact({ style: 'medium' });
+      }
+
+      await sdk.actions.composeCast({
+        text: shareText,
+        embeds: [leaderboardUrl]
+      });
+
+    } catch (error) {
+      console.error('Error sharing leaderboard position:', error);
+    }
+  };
+
   // Load leaderboard data
   useEffect(() => {
     if (isVisible) {
@@ -184,7 +249,25 @@ export function Leaderboard({ isVisible = true }) {
     <div className="bg-white rounded-lg shadow-lg max-w-2xl mx-auto">
       {/* Header */}
       <div className="border-b border-gray-200 p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">🏆 Leaderboard</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-gray-800">🏆 Leaderboard</h2>
+          
+          {/* Share Button */}
+          {userPosition && isInFarcaster && (
+            <button
+              onClick={handleSharePosition}
+              className="flex items-center justify-center w-12 h-12 bg-[#8A63D2] hover:bg-[#7C5BC7] text-white rounded-lg transition-colors"
+              title="Share your leaderboard position on Farcaster"
+            >
+              {/* Official Farcaster Logo */}
+              <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
+                <path d="M257.778 155.556H742.222V844.445H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.445H257.778V155.556Z"/>
+                <path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.445H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/>
+                <path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.445H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/>
+              </svg>
+            </button>
+          )}
+        </div>
         
         {/* Category Dropdown */}
         <div className="relative">
