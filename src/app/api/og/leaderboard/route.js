@@ -93,6 +93,23 @@ export async function GET(request) {
       console.error('❌ Error fetching logo:', error);
     }
 
+    // Check if user is a Merch Mogul (50M+ tokens) and fetch badge
+    const tokenBalanceWei = parseFloat(searchParams.get('tokenBalance') || '0');
+    const tokenBalance = tokenBalanceWei / 1000000000000000000; // Convert from wei to tokens
+    const isMerchMogul = tokenBalance >= 50000000; // 50M+ tokens
+    
+    let merchMogulBadgeData = null;
+    if (isMerchMogul) {
+      const badgeUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/MerchMogulBadge.png`;
+      console.log('🏆 Fetching Merch Mogul badge from:', badgeUrl);
+      try {
+        merchMogulBadgeData = await fetchImageAsDataUrl(badgeUrl);
+        console.log('✅ Merch Mogul badge fetch result:', merchMogulBadgeData ? 'SUCCESS' : 'FAILED');
+      } catch (error) {
+        console.error('❌ Error fetching Merch Mogul badge:', error);
+      }
+    }
+
     return new ImageResponse(
       (
         <div
@@ -209,6 +226,26 @@ export async function GET(request) {
               >
                 {formattedPoints} points
               </div>
+
+              {/* Merch Mogul Badge */}
+              {merchMogulBadgeData && (
+                <div
+                  style={{
+                    marginTop: '15px',
+                    display: 'flex',
+                  }}
+                >
+                  <img
+                    src={merchMogulBadgeData}
+                    alt="Merch Mogul"
+                    style={{
+                      width: '120px',
+                      height: '30px',
+                      objectFit: 'contain',
+                    }}
+                  />
+                </div>
+              )}
 
               <div
                 style={{

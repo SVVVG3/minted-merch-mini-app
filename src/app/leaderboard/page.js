@@ -106,6 +106,7 @@ export async function generateMetadata({ searchParams }) {
       category: category,
       multiplier: multiplierResult.multiplier.toString(),
       tier: multiplierResult.tier,
+      tokenBalance: tokenBalance.toString(),
       t: cacheBust.toString()
     });
 
