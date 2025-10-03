@@ -63,10 +63,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         ? shareResult.pointsEarned * userStatus.tokenMultiplier
         : shareResult.pointsEarned;
       
-      // Apply multiplier to total points for OG image
-      const multipliedTotalForOG = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
-        ? Math.floor((shareResult.totalPoints - shareResult.pointsEarned) * userStatus.tokenMultiplier) + shareResult.pointsEarned
-        : shareResult.totalPoints;
+      // Use the current total points for OG image (matches leaderboard)
+      const multipliedTotalForOG = userStatus?.totalPoints || shareResult.totalPoints;
       
       const shareParams = new URLSearchParams({
         checkin: 'true',
@@ -88,11 +86,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                         shareResult.newStreak >= 7 ? "⚡" : 
                         shareResult.newStreak >= 3 ? "🌟" : "💫";
       
-      // Apply multiplier to total points for share text if user has multiplier
-      // Note: earned points from today's spin should NOT be multiplied, only the total accumulated points
-      const multipliedTotalPoints = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
-        ? Math.floor((shareResult.totalPoints - shareResult.pointsEarned) * userStatus.tokenMultiplier) + shareResult.pointsEarned
-        : shareResult.totalPoints;
+      // Use the current total points from userStatus (which already includes multiplier from leaderboard)
+      const multipliedTotalPoints = userStatus?.totalPoints || shareResult.totalPoints;
       
       const multiplierText = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
         ? ` (${userStatus.tokenMultiplier}x ${userStatus.tokenTier === 'legendary' ? '🏆' : '⭐'} multiplier)`
