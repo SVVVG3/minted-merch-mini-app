@@ -65,7 +65,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       
       const shareParams = new URLSearchParams({
         checkin: 'true',
-        points: shareResult.pointsEarned.toString(),
+        points: multipliedEarnedPoints.toString(), // Use multiplied earned points
         streak: shareResult.newStreak.toString(),
         total: multipliedTotalForOG.toString(), // Use multiplied total
         base: shareResult.basePoints.toString(),
@@ -93,7 +93,12 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         ? ` (${userStatus.tokenMultiplier}x ${userStatus.tokenTier === 'legendary' ? '🏆' : '⭐'} multiplier)`
         : '';
       
-      const shareText = `🎯 Daily check-in complete!\n\n+${shareResult.pointsEarned} points earned! (${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${multipliedTotalPoints.toLocaleString()} total points\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
+      // Calculate multiplied earned points for display
+      const multipliedEarnedPoints = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
+        ? shareResult.pointsEarned * userStatus.tokenMultiplier
+        : shareResult.pointsEarned;
+      
+      const shareText = `🎯 Daily check-in complete!\n\n+${multipliedEarnedPoints.toLocaleString()} points earned! (${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''}${userStatus?.tokenMultiplier > 1 ? ` × ${userStatus.tokenMultiplier}x multiplier` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${multipliedTotalPoints.toLocaleString()} total points\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
 
       // Use the Farcaster SDK composeCast action
       const result = await sdk.actions.composeCast({
@@ -563,7 +568,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           </h2>
           
           <p className="text-gray-600 mb-3">
-            Spin the wheel to earn points & be entered into raffles for FREE merch & gift cards!
+            Spin the wheel to earn points & be entered into raffles for $mintedmerch, gift cards, & FREE merch!
           </p>
           
           {userStatus && (
@@ -634,7 +639,9 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 mb-4">
             <div className="text-center">
               <div className="text-lg font-bold text-green-600">
-                Today's Result: +{window.todaysSpinResult.pointsEarned} Points! 🎉
+                Today's Result: +{userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
+                  ? (window.todaysSpinResult.pointsEarned * userStatus.tokenMultiplier).toLocaleString()
+                  : window.todaysSpinResult.pointsEarned} Points! 🎉
               </div>
             </div>
           </div>

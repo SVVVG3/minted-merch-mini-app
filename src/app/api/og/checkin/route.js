@@ -173,8 +173,8 @@ export async function GET(request) {
                     src={merchMogulBadgeData}
                     alt="Merch Mogul"
                     style={{
-                      width: '120px',
-                      height: '30px',
+                      width: '180px', // Increased by 50% from 120px
+                      height: '45px', // Increased by 50% from 30px
                       objectFit: 'contain',
                     }}
                   />
