@@ -84,6 +84,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                         shareResult.newStreak >= 3 ? "🌟" : "💫";
       
       // Apply multiplier to total points for share text if user has multiplier
+      // Note: earned points from today's spin should NOT be multiplied, only the total accumulated points
       const multipliedTotalPoints = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
         ? Math.floor((shareResult.totalPoints - shareResult.pointsEarned) * userStatus.tokenMultiplier) + shareResult.pointsEarned
         : shareResult.totalPoints;
@@ -569,13 +570,15 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
             <div className="space-y-2">
               {/* Points and streak display */}
               <div className="flex justify-center gap-4">
-                <div className="bg-blue-100 px-3 py-1 rounded-full flex items-center gap-1">
-                  <span className="text-sm">
-                    💎 <span className="font-semibold text-blue-700">{userStatus.totalPoints?.toLocaleString()}</span> pts
-                  </span>
-                  {/* Holdings multiplier badge */}
+                <div className="flex items-center gap-2">
+                  <div className="bg-blue-100 px-3 py-1 rounded-full">
+                    <span className="text-sm">
+                      💎 <span className="font-semibold text-blue-700">{userStatus.totalPoints?.toLocaleString()}</span> pts
+                    </span>
+                  </div>
+                  {/* Holdings multiplier badge - outside the bubble */}
                   {userStatus.tokenMultiplier && userStatus.tokenMultiplier > 1 && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ml-1 ${
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
                       userStatus.tokenMultiplier === 5 
                         ? 'bg-purple-100 text-purple-700' 
                         : 'bg-blue-100 text-blue-700'
@@ -584,13 +587,15 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                     </span>
                   )}
                 </div>
-                <div className="bg-green-100 px-3 py-1 rounded-full flex items-center gap-1">
-                  <span className="text-sm">
-                    {getStreakEmoji(userStatus.checkinStreak)} <span className="font-semibold text-green-700">{userStatus.checkinStreak}</span> day{userStatus.checkinStreak !== 1 ? 's' : ''}
-                  </span>
-                  {/* Streak bonus multiplier badge - show for streaks 3+ days */}
+                <div className="flex items-center gap-2">
+                  <div className="bg-green-100 px-3 py-1 rounded-full">
+                    <span className="text-sm">
+                      {getStreakEmoji(userStatus.checkinStreak)} <span className="font-semibold text-green-700">{userStatus.checkinStreak}</span> day{userStatus.checkinStreak !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  {/* Streak bonus multiplier badge - outside the bubble */}
                   {userStatus.checkinStreak >= 3 && (
-                    <span className="text-xs px-1.5 py-0.5 rounded-full font-medium ml-1 bg-yellow-100 text-yellow-700">
+                    <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-yellow-100 text-yellow-700">
                       +{Math.floor(userStatus.checkinStreak / 3) * 5}% 🔥
                     </span>
                   )}

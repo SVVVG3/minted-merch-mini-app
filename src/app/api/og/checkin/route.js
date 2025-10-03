@@ -29,6 +29,9 @@ export async function GET(request) {
     
     console.log('🎯 Check-in OG params:', { points, streak, totalPoints, multiplier, tier });
     
+    // Check if user is a Merch Mogul (50M+ tokens) based on multiplier
+    const isMerchMogul = multiplier >= 2; // 2x+ multiplier means 50M+ tokens
+    
     // Fetch logo image
     const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
     let logoImageSrc = null;
@@ -38,7 +41,20 @@ export async function GET(request) {
       console.error('Error fetching logo:', error);
     }
     
-    // Create static strings for JSX to avoid interpolation issues
+    // Fetch Merch Mogul badge if applicable
+    let merchMogulBadgeData = null;
+    if (isMerchMogul) {
+      const badgeUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/MerchMogulBadge.png`;
+      console.log('🏆 Fetching Merch Mogul badge from:', badgeUrl);
+      try {
+        merchMogulBadgeData = await fetchImageAsDataUrl(badgeUrl);
+        console.log('✅ Merch Mogul badge fetch result:', merchMogulBadgeData ? 'SUCCESS' : 'FAILED');
+      } catch (error) {
+        console.error('❌ Error fetching Merch Mogul badge:', error);
+      }
+    }
+    
+    // Create static strings for JSX to avoid interpolation issues (increase text size by 50%)
     const pointsText = `Earned ${points} points! 🎉`;
     const streakText = `${streak} day streak 🔥`;
     const totalText = `💎 ${parseInt(totalPoints).toLocaleString()} Total Points`;
@@ -126,7 +142,7 @@ export async function GET(request) {
               
               <div
                 style={{
-                  fontSize: '36px',
+                  fontSize: '54px', // Increased by 50% from 36px
                   color: 'white',
                   marginBottom: '25px',
                   lineHeight: '1.3',
@@ -137,12 +153,32 @@ export async function GET(request) {
               
               <div
                 style={{
-                  fontSize: '28px',
-                  color: '#3eb489',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '15px',
                   marginBottom: '20px',
                 }}
               >
-                {streakText}
+                <div
+                  style={{
+                    fontSize: '42px', // Increased by 50% from 28px
+                    color: '#3eb489',
+                  }}
+                >
+                  {streakText}
+                </div>
+                {/* Merch Mogul badge next to streak */}
+                {merchMogulBadgeData && (
+                  <img
+                    src={merchMogulBadgeData}
+                    alt="Merch Mogul"
+                    style={{
+                      width: '120px',
+                      height: '30px',
+                      objectFit: 'contain',
+                    }}
+                  />
+                )}
               </div>
               
               <div
@@ -154,7 +190,7 @@ export async function GET(request) {
               >
                 <div
                   style={{
-                    fontSize: '24px',
+                    fontSize: '36px', // Increased by 50% from 24px
                     color: '#888',
                   }}
                 >
@@ -164,11 +200,11 @@ export async function GET(request) {
                 {multiplierText && (
                   <div
                     style={{
-                      fontSize: '18px',
+                      fontSize: '27px', // Increased by 50% from 18px
                       color: multiplier === 5 ? '#8b5cf6' : '#3b82f6',
                       backgroundColor: multiplier === 5 ? '#f3e8ff' : '#dbeafe',
-                      padding: '8px 12px',
-                      borderRadius: '20px',
+                      padding: '12px 18px', // Increased padding proportionally
+                      borderRadius: '30px', // Increased border radius proportionally
                       fontWeight: 'bold',
                     }}
                   >
