@@ -1085,7 +1085,7 @@ Transaction Hash: ${transactionHash}`;
                     </div>
 
                     {/* Shipping Methods */}
-                    {cart.checkout?.shippingRates && (
+                    {cart.checkout?.shippingRates && cart.checkout.shippingRates.length > 0 ? (
                       <div>
                         <h4 className="font-medium text-sm mb-2">Select Shipping Method</h4>
                         <div className="space-y-2">
@@ -1116,6 +1116,21 @@ Transaction Hash: ${transactionHash}`;
                               </div>
                             </label>
                           ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                        <div className="text-orange-800 text-sm font-medium mb-2">No Shipping Methods Available</div>
+                        <div className="text-orange-700 text-xs mb-3">
+                          We're unable to calculate shipping to your location at this time. This may be due to:
+                        </div>
+                        <ul className="text-orange-700 text-xs space-y-1 mb-3 ml-4">
+                          <li>• Shipping restrictions to your country/region</li>
+                          <li>• Temporary service unavailability</li>
+                          <li>• Address validation issues</li>
+                        </ul>
+                        <div className="text-orange-700 text-xs">
+                          Please try a different address or contact support for assistance.
                         </div>
                       </div>
                     )}
@@ -1188,14 +1203,23 @@ Transaction Hash: ${transactionHash}`;
                     )}
                   </div>
 
-                  {/* Continue to Payment Button */}
-                  <button
-                    onClick={handleContinueToPayment}
-                    disabled={!cart.selectedShipping}
-                    className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
-                  >
-                    Continue to Payment
-                  </button>
+                  {/* Continue to Payment Button or Back Button */}
+                  {cart.checkout?.shippingRates && cart.checkout.shippingRates.length > 0 ? (
+                    <button
+                      onClick={handleContinueToPayment}
+                      disabled={!cart.selectedShipping}
+                      className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                    >
+                      Continue to Payment
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleBackToShipping}
+                      className="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                    >
+                      ← Back to Shipping Address
+                    </button>
+                  )}
                 </>
               )}
 
