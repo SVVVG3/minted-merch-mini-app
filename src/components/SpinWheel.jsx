@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
-// SDK will be imported dynamically in handleShareCheckIn function
+import { sdk } from '@farcaster/miniapp-sdk';
 import { getTimeUntilReset } from '@/lib/timezone';
 import { ethers } from 'ethers';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
@@ -50,12 +50,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   // Share check-in result function
   const handleShareCheckIn = async (resultToShare = null) => {
     const shareResult = resultToShare || spinResult;
-    console.log('🎯 Starting handleShareCheckIn:', { isInFarcaster, shareResult });
-    
-    if (!isInFarcaster || !shareResult) {
-      console.log('❌ Share blocked:', { isInFarcaster, shareResult });
-      return;
-    }
+    if (!isInFarcaster || !shareResult) return;
 
     // Add haptic feedback for share action
     await triggerHaptic('medium');
@@ -105,21 +100,15 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       
       const shareText = `🎯 Daily check-in complete!\n\n+${multipliedEarnedPoints.toLocaleString()} points earned! (${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''}${userStatus?.tokenMultiplier > 1 ? ` × ${userStatus.tokenMultiplier}x multiplier` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${multipliedTotalPoints.toLocaleString()} total points\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
 
-      // Use the Farcaster SDK composeCast action (with dynamic import)
-      console.log('🔄 Attempting dynamic SDK import...');
-      const { sdk } = await import('../lib/frame');
-      console.log('✅ SDK imported successfully:', !!sdk);
-      
-      console.log('🎬 Calling composeCast with:', { shareText, shareUrl });
+      // Use the Farcaster SDK composeCast action
       const result = await sdk.actions.composeCast({
         text: shareText,
         embeds: [shareUrl],
       });
       
-      console.log('✅ Check-in cast composed successfully:', result);
+      console.log('Check-in cast composed:', result);
     } catch (error) {
-      console.error('❌ Error sharing check-in:', error);
-      console.error('❌ Error details:', error.message, error.stack);
+      console.error('Error sharing check-in:', error);
       // Fallback to copying link
       try {
         await navigator.clipboard.writeText(window.location.href);
@@ -245,8 +234,6 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     if (!isInFarcaster) return;
     
     try {
-      // Use dynamic import for SDK
-      const { sdk } = await import('../lib/frame');
       const capabilities = await sdk.getCapabilities();
       
       switch (type) {
