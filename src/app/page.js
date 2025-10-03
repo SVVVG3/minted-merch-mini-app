@@ -102,13 +102,19 @@ export async function generateMetadata({ searchParams }) {
     console.log('=== Check-in Share Metadata Generation ===');
     console.log('Check-in data:', { points, streak, totalPoints, basePoints, streakBonus });
     
+    // Extract multiplier information from URL parameters
+    const multiplier = parseFloat(searchParams.multiplier || '1');
+    const tier = searchParams.tier || 'none';
+    
     // Create dynamic OG image URL with check-in data
     const imageParams = new URLSearchParams({
       points: points.toString(),
       streak: streak.toString(),
       total: totalPoints.toString(),
       base: basePoints.toString(),
-      bonus: streakBonus.toString()
+      bonus: streakBonus.toString(),
+      multiplier: multiplier.toString(),
+      tier: tier
     });
     
     // Add cache-busting parameter if provided

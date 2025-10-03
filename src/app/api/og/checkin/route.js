@@ -24,6 +24,10 @@ export async function GET(request) {
     const points = searchParams.get('points') || '50';
     const streak = searchParams.get('streak') || '1';
     const totalPoints = searchParams.get('total') || '50';
+    const multiplier = parseFloat(searchParams.get('multiplier') || '1');
+    const tier = searchParams.get('tier') || 'none';
+    
+    console.log('🎯 Check-in OG params:', { points, streak, totalPoints, multiplier, tier });
     
     // Fetch logo image
     const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
@@ -37,7 +41,8 @@ export async function GET(request) {
     // Create static strings for JSX to avoid interpolation issues
     const pointsText = `Earned ${points} points! 🎉`;
     const streakText = `${streak} day streak 🔥`;
-    const totalText = `💎 ${totalPoints} Total Points`;
+    const totalText = `💎 ${parseInt(totalPoints).toLocaleString()} Total Points`;
+    const multiplierText = multiplier > 1 ? `${multiplier}x ${tier === 'legendary' ? '🏆' : '⭐'}` : null;
     
     return new ImageResponse(
       (
@@ -142,11 +147,34 @@ export async function GET(request) {
               
               <div
                 style={{
-                  fontSize: '24px',
-                  color: '#888',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '15px',
                 }}
               >
-                {totalText}
+                <div
+                  style={{
+                    fontSize: '24px',
+                    color: '#888',
+                  }}
+                >
+                  {totalText}
+                </div>
+                {/* Multiplier badge */}
+                {multiplierText && (
+                  <div
+                    style={{
+                      fontSize: '18px',
+                      color: multiplier === 5 ? '#8b5cf6' : '#3b82f6',
+                      backgroundColor: multiplier === 5 ? '#f3e8ff' : '#dbeafe',
+                      padding: '8px 12px',
+                      borderRadius: '20px',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {multiplierText}
+                  </div>
+                )}
               </div>
             </div>
           </div>

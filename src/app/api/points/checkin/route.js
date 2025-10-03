@@ -1,5 +1,5 @@
 // API endpoint for daily check-ins
-import { performDailyCheckin, canCheckInToday, getUserLeaderboardData, getTodaysCheckInResult } from '../../../../lib/points.js';
+import { performDailyCheckin, canCheckInToday, getUserLeaderboardData, getUserLeaderboardPosition, getTodaysCheckInResult } from '../../../../lib/points.js';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -67,7 +67,9 @@ export async function GET(request) {
 
     // Check if user can check in today
     const canCheckin = await canCheckInToday(fid);
-    const userData = await getUserLeaderboardData(fid);
+    
+    // Get user's leaderboard position with multipliers applied
+    const userPosition = await getUserLeaderboardPosition(fid);
     
     // Get today's check-in result if user already checked in
     let todaysResult = null;
@@ -79,9 +81,12 @@ export async function GET(request) {
       success: true,
       data: {
         canCheckInToday: canCheckin,
-        totalPoints: userData?.total_points || 0,
-        checkinStreak: userData?.checkin_streak || 0,
-        lastCheckinDate: userData?.last_checkin_date || null,
+        totalPoints: userPosition.totalPoints || 0, // Now using multiplied points
+        basePoints: userPosition.basePoints || 0, // Also include base points
+        tokenMultiplier: userPosition.tokenMultiplier || 1,
+        tokenTier: userPosition.tokenTier || 'none',
+        checkinStreak: userPosition.streak || 0,
+        lastCheckinDate: userPosition.lastCheckin || null,
         todaysResult: todaysResult
       }
     }, { status: 200 });

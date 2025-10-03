@@ -58,13 +58,20 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     try {
       // Create dynamic OG image URL with check-in data
       const baseUrl = window.location.origin;
+      // Apply multiplier to total points for OG image
+      const multipliedTotalForOG = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
+        ? Math.floor((shareResult.totalPoints - shareResult.pointsEarned) * userStatus.tokenMultiplier) + shareResult.pointsEarned
+        : shareResult.totalPoints;
+      
       const shareParams = new URLSearchParams({
         checkin: 'true',
         points: shareResult.pointsEarned.toString(),
         streak: shareResult.newStreak.toString(),
-        total: shareResult.totalPoints.toString(),
+        total: multipliedTotalForOG.toString(), // Use multiplied total
         base: shareResult.basePoints.toString(),
         bonus: shareResult.streakBonus.toString(),
+        multiplier: (userStatus?.tokenMultiplier || 1).toString(),
+        tier: userStatus?.tokenTier || 'none',
         t: Date.now().toString() // Cache busting
       });
       
@@ -76,7 +83,16 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                         shareResult.newStreak >= 7 ? "⚡" : 
                         shareResult.newStreak >= 3 ? "🌟" : "💫";
       
-      const shareText = `🎯 Daily check-in complete!\n\n+${shareResult.pointsEarned} points earned! (${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${shareResult.totalPoints} total points\n\nKeep your streak going on /mintedmerch! 🎰`;
+      // Apply multiplier to total points for share text if user has multiplier
+      const multipliedTotalPoints = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
+        ? Math.floor((shareResult.totalPoints - shareResult.pointsEarned) * userStatus.tokenMultiplier) + shareResult.pointsEarned
+        : shareResult.totalPoints;
+      
+      const multiplierText = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
+        ? ` (${userStatus.tokenMultiplier}x ${userStatus.tokenTier === 'legendary' ? '🏆' : '⭐'} multiplier)`
+        : '';
+      
+      const shareText = `🎯 Daily check-in complete!\n\n+${shareResult.pointsEarned} points earned! (${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${multipliedTotalPoints.toLocaleString()} total points${multiplierText}\n\nKeep your streak going on /mintedmerch! 🎰`;
 
       // Use the Farcaster SDK composeCast action
       const result = await sdk.actions.composeCast({
@@ -553,15 +569,31 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
             <div className="space-y-2">
               {/* Points and streak display */}
               <div className="flex justify-center gap-4">
-                <div className="bg-blue-100 px-3 py-1 rounded-full">
+                <div className="bg-blue-100 px-3 py-1 rounded-full flex items-center gap-1">
                   <span className="text-sm">
-                    💎 <span className="font-semibold text-blue-700">{userStatus.totalPoints}</span> pts
+                    💎 <span className="font-semibold text-blue-700">{userStatus.totalPoints?.toLocaleString()}</span> pts
                   </span>
+                  {/* Holdings multiplier badge */}
+                  {userStatus.tokenMultiplier && userStatus.tokenMultiplier > 1 && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ml-1 ${
+                      userStatus.tokenMultiplier === 5 
+                        ? 'bg-purple-100 text-purple-700' 
+                        : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {userStatus.tokenMultiplier}x {userStatus.tokenTier === 'legendary' ? '🏆' : '⭐'}
+                    </span>
+                  )}
                 </div>
-                <div className="bg-green-100 px-3 py-1 rounded-full">
+                <div className="bg-green-100 px-3 py-1 rounded-full flex items-center gap-1">
                   <span className="text-sm">
                     {getStreakEmoji(userStatus.checkinStreak)} <span className="font-semibold text-green-700">{userStatus.checkinStreak}</span> day{userStatus.checkinStreak !== 1 ? 's' : ''}
                   </span>
+                  {/* Streak bonus multiplier badge - show for streaks 3+ days */}
+                  {userStatus.checkinStreak >= 3 && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full font-medium ml-1 bg-yellow-100 text-yellow-700">
+                      +{Math.floor(userStatus.checkinStreak / 3) * 5}% 🔥
+                    </span>
+                  )}
                 </div>
               </div>
               
@@ -684,8 +716,18 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                 </div>
                 
                 {/* Total points */}
-                <div className="text-sm text-gray-600 mb-3">
-                  Total Points: <span className="font-bold text-blue-600">{spinResult.totalPoints}</span>
+                <div className="text-sm text-gray-600 mb-3 flex items-center justify-center gap-2">
+                  <span>Total Points: <span className="font-bold text-blue-600">{spinResult.totalPoints?.toLocaleString()}</span></span>
+                  {/* Holdings multiplier badge in result */}
+                  {userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                      userStatus.tokenMultiplier === 5 
+                        ? 'bg-purple-100 text-purple-700' 
+                        : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {userStatus.tokenMultiplier}x {userStatus.tokenTier === 'legendary' ? '🏆' : '⭐'}
+                    </span>
+                  )}
                 </div>
                 
                 {/* Motivational message */}
