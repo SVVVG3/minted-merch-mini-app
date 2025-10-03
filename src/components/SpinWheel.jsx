@@ -102,12 +102,14 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
 
       // Use the Farcaster SDK composeCast action (EXACT same as leaderboard)
       const { sdk } = await import('../lib/frame');
+      console.log('🎬 About to call composeCast with:', { shareText: shareText.substring(0, 100) + '...', shareUrl });
+      
       const result = await sdk.actions.composeCast({
         text: shareText,
         embeds: [shareUrl],
       });
       
-      console.log('Check-in cast composed:', result);
+      console.log('✅ Check-in cast composed:', result);
     } catch (error) {
       console.error('Error sharing check-in:', error);
       // Fallback to copying link
