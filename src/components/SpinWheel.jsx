@@ -93,7 +93,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         ? ` (${userStatus.tokenMultiplier}x ${userStatus.tokenTier === 'legendary' ? '🏆' : '⭐'} multiplier)`
         : '';
       
-      const shareText = `🎯 Daily check-in complete!\n\n+${multipliedEarnedPoints.toLocaleString()} points earned! (${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''}${userStatus?.tokenMultiplier > 1 ? ` × ${userStatus.tokenMultiplier}x multiplier` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${multipliedTotalPoints.toLocaleString()} total points\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
+      const shareText = `🎯 Daily check-in complete! +${multipliedEarnedPoints.toLocaleString()} points earned!\n\n(${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''}${userStatus?.tokenMultiplier > 1 ? ` × ${userStatus.tokenMultiplier}x multiplier` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${multipliedTotalPoints.toLocaleString()} total points\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
 
       // Use the Farcaster SDK composeCast action (EXACT same as leaderboard)
       const { sdk } = await import('../lib/frame');
