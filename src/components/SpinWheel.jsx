@@ -58,6 +58,11 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     try {
       // Create dynamic OG image URL with check-in data
       const baseUrl = window.location.origin;
+      // Calculate multiplied earned points first (needed for shareParams)
+      const multipliedEarnedPoints = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
+        ? shareResult.pointsEarned * userStatus.tokenMultiplier
+        : shareResult.pointsEarned;
+      
       // Apply multiplier to total points for OG image
       const multipliedTotalForOG = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
         ? Math.floor((shareResult.totalPoints - shareResult.pointsEarned) * userStatus.tokenMultiplier) + shareResult.pointsEarned
@@ -92,11 +97,6 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       const multiplierText = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
         ? ` (${userStatus.tokenMultiplier}x ${userStatus.tokenTier === 'legendary' ? '🏆' : '⭐'} multiplier)`
         : '';
-      
-      // Calculate multiplied earned points for display
-      const multipliedEarnedPoints = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
-        ? shareResult.pointsEarned * userStatus.tokenMultiplier
-        : shareResult.pointsEarned;
       
       const shareText = `🎯 Daily check-in complete!\n\n+${multipliedEarnedPoints.toLocaleString()} points earned! (${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''}${userStatus?.tokenMultiplier > 1 ? ` × ${userStatus.tokenMultiplier}x multiplier` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${multipliedTotalPoints.toLocaleString()} total points\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
 
