@@ -245,6 +245,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     if (!isInFarcaster) return;
     
     try {
+      // Use dynamic import for SDK
+      const { sdk } = await import('../lib/frame');
       const capabilities = await sdk.getCapabilities();
       
       switch (type) {
