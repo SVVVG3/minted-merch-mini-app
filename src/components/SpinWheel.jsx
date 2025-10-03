@@ -93,7 +93,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         ? ` (${userStatus.tokenMultiplier}x ${userStatus.tokenTier === 'legendary' ? '🏆' : '⭐'} multiplier)`
         : '';
       
-      const shareText = `🎯 Daily check-in complete!\n\n+${shareResult.pointsEarned} points earned! (${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${multipliedTotalPoints.toLocaleString()} total points${multiplierText}\n\nKeep your streak going on /mintedmerch! 🎰`;
+      const shareText = `🎯 Daily check-in complete!\n\n+${shareResult.pointsEarned} points earned! (${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${multipliedTotalPoints.toLocaleString()} total points\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
 
       // Use the Farcaster SDK composeCast action
       const result = await sdk.actions.composeCast({
@@ -569,38 +569,40 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           {userStatus && (
             <div className="space-y-2">
               {/* Points and streak display */}
-              <div className="flex justify-center gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="bg-blue-100 px-3 py-1 rounded-full">
-                    <span className="text-sm">
-                      💎 <span className="font-semibold text-blue-700">{userStatus.totalPoints?.toLocaleString()}</span> pts
-                    </span>
-                  </div>
-                  {/* Holdings multiplier badge - outside the bubble */}
+              <div className="flex justify-center gap-4 mb-3">
+                <div className="bg-blue-100 px-3 py-1 rounded-full">
+                  <span className="text-sm">
+                    💎 <span className="font-semibold text-blue-700">{userStatus.totalPoints?.toLocaleString()}</span> pts
+                  </span>
+                </div>
+                <div className="bg-green-100 px-3 py-1 rounded-full">
+                  <span className="text-sm">
+                    {getStreakEmoji(userStatus.checkinStreak)} <span className="font-semibold text-green-700">{userStatus.checkinStreak}</span> day{userStatus.checkinStreak !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Multiplier badges - centered below bubbles */}
+              {(userStatus.tokenMultiplier > 1 || userStatus.checkinStreak >= 3) && (
+                <div className="flex justify-center gap-2 mb-2">
+                  {/* Holdings multiplier badge */}
                   {userStatus.tokenMultiplier && userStatus.tokenMultiplier > 1 && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                       userStatus.tokenMultiplier === 5 
                         ? 'bg-purple-100 text-purple-700' 
                         : 'bg-blue-100 text-blue-700'
                     }`}>
-                      {userStatus.tokenMultiplier}x {userStatus.tokenTier === 'legendary' ? '🏆' : '⭐'}
+                      {userStatus.tokenMultiplier}x {userStatus.tokenTier === 'legendary' ? '🏆' : '⭐'} Holdings
                     </span>
                   )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="bg-green-100 px-3 py-1 rounded-full">
-                    <span className="text-sm">
-                      {getStreakEmoji(userStatus.checkinStreak)} <span className="font-semibold text-green-700">{userStatus.checkinStreak}</span> day{userStatus.checkinStreak !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  {/* Streak bonus multiplier badge - outside the bubble */}
+                  {/* Streak bonus multiplier badge */}
                   {userStatus.checkinStreak >= 3 && (
-                    <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-yellow-100 text-yellow-700">
-                      +{Math.floor(userStatus.checkinStreak / 3) * 5}% 🔥
+                    <span className="text-xs px-2 py-1 rounded-full font-medium bg-yellow-100 text-yellow-700">
+                      +{Math.floor(userStatus.checkinStreak / 3) * 5}% 🔥 Streak
                     </span>
                   )}
                 </div>
-              </div>
+              )}
               
               {/* Streak message */}
               <div className="text-sm font-medium text-gray-700">

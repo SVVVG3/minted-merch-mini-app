@@ -54,8 +54,8 @@ export async function GET(request) {
       }
     }
     
-    // Create static strings for JSX to avoid interpolation issues (increase text size by 50%)
-    const pointsText = `Earned ${points} points! 🎉`;
+    // Create static strings for JSX to avoid interpolation issues
+    const pointsText = `Earned ${points} points!`; // Removed 🎉 emoji
     const streakText = `${streak} day streak 🔥`;
     const totalText = `💎 ${parseInt(totalPoints).toLocaleString()} Total Points`;
     const multiplierText = multiplier > 1 ? `${multiplier}x ${tier === 'legendary' ? '🏆' : '⭐'}` : null;
@@ -142,7 +142,7 @@ export async function GET(request) {
               
               <div
                 style={{
-                  fontSize: '54px', // Increased by 50% from 36px
+                  fontSize: '42px', // Made smaller (was 54px)
                   color: 'white',
                   marginBottom: '25px',
                   lineHeight: '1.3',
