@@ -50,7 +50,12 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   // Share check-in result function
   const handleShareCheckIn = async (resultToShare = null) => {
     const shareResult = resultToShare || spinResult;
-    if (!isInFarcaster || !shareResult) return;
+    console.log('🎯 Starting handleShareCheckIn:', { isInFarcaster, shareResult });
+    
+    if (!isInFarcaster || !shareResult) {
+      console.log('❌ Share blocked:', { isInFarcaster, shareResult });
+      return;
+    }
 
     // Add haptic feedback for share action
     await triggerHaptic('medium');
@@ -101,15 +106,20 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       const shareText = `🎯 Daily check-in complete!\n\n+${multipliedEarnedPoints.toLocaleString()} points earned! (${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''}${userStatus?.tokenMultiplier > 1 ? ` × ${userStatus.tokenMultiplier}x multiplier` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${multipliedTotalPoints.toLocaleString()} total points\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
 
       // Use the Farcaster SDK composeCast action (with dynamic import)
+      console.log('🔄 Attempting dynamic SDK import...');
       const { sdk } = await import('../lib/frame');
+      console.log('✅ SDK imported successfully:', !!sdk);
+      
+      console.log('🎬 Calling composeCast with:', { shareText, shareUrl });
       const result = await sdk.actions.composeCast({
         text: shareText,
         embeds: [shareUrl],
       });
       
-      console.log('Check-in cast composed:', result);
+      console.log('✅ Check-in cast composed successfully:', result);
     } catch (error) {
-      console.error('Error sharing check-in:', error);
+      console.error('❌ Error sharing check-in:', error);
+      console.error('❌ Error details:', error.message, error.stack);
       // Fallback to copying link
       try {
         await navigator.clipboard.writeText(window.location.href);
