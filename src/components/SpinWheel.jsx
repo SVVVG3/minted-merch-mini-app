@@ -568,7 +568,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           </h2>
           
           <p className="text-gray-600 mb-3">
-            Spin the wheel to earn points & be entered into raffles for $mintedmerch, gift cards, & FREE merch!
+            Spin the wheel to earn points, move up the leaderboard, & be entered into random raffles for $mintedmerch, gift cards, & FREE merch!
           </p>
           
           {userStatus && (
@@ -638,7 +638,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         {!canSpin && window.todaysSpinResult && (
           <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 mb-4">
             <div className="text-center">
-              <div className="text-lg font-bold text-green-600">
+              <div className="text-base font-bold text-green-600">
                 Today's Result: +{userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
                   ? (window.todaysSpinResult.pointsEarned * userStatus.tokenMultiplier).toLocaleString()
                   : window.todaysSpinResult.pointsEarned} Points! 🎉
@@ -926,7 +926,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                       Tomorrow's Potential
                     </div>
                     <div className="text-xs text-purple-600">
-                      Keep your {userStatus.checkinStreak + 1}-day streak going for bonus rewards!
+                      Keep your {userStatus.checkinStreak} day streak going for bonus rewards!
                     </div>
                   </div>
                 </div>
