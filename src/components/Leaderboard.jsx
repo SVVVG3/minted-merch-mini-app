@@ -19,45 +19,67 @@ export function Leaderboard({ isVisible = true }) {
     if (!currentUserFid) return;
 
     try {
-      // Get user profile data
-      const userProfile = userProfiles[currentUserFid] || {};
+      // Always fetch the user's POINTS leaderboard position for sharing, regardless of current category
+      let pointsPosition, points, multiplier, tier, username;
       
-      // Use userPosition if available, otherwise create fallback data
-      let position, points, multiplier, tier, username;
+      console.log('🔍 Share position debug - fetching points position for sharing');
       
-      console.log('🔍 Share position debug:', { userPosition, currentUserFid, leaderboardData });
-      
-      if (userPosition && userPosition.position) {
-        position = userPosition.position;
-        points = userPosition.totalPoints || 0;
-        multiplier = userPosition.tokenMultiplier || 1;
-        tier = userPosition.tokenTier || 'none';
-        username = userPosition.username || userProfile.username || `User ${currentUserFid}`;
-        console.log('✅ Using userPosition data:', { position, points, multiplier, tier, username });
-      } else {
-        // Try to find position in leaderboard data as fallback
-        const userInLeaderboard = leaderboardData.find(user => 
-          (category === 'holders' ? user.fid : user.user_fid) === parseInt(currentUserFid)
-        );
+      try {
+        // Fetch user's points leaderboard position specifically for sharing
+        const pointsParams = new URLSearchParams({
+          limit: '50',
+          category: 'points',
+          userFid: currentUserFid
+        });
         
-        if (userInLeaderboard) {
-          const userIndex = leaderboardData.findIndex(user => 
+        const pointsResponse = await fetch(`/api/points/leaderboard?${pointsParams}`);
+        const pointsResult = await pointsResponse.json();
+        
+        if (pointsResult.success && pointsResult.data.userPosition) {
+          const pointsUserPos = pointsResult.data.userPosition;
+          pointsPosition = pointsUserPos.position;
+          points = pointsUserPos.totalPoints || 0;
+          multiplier = pointsUserPos.tokenMultiplier || 1;
+          tier = pointsUserPos.tokenTier || 'none';
+          username = pointsUserPos.username || userProfiles[currentUserFid]?.username || `User ${currentUserFid}`;
+          console.log('✅ Using points leaderboard position for sharing:', { pointsPosition, points, multiplier, tier, username });
+        } else {
+          throw new Error('Could not fetch points position');
+        }
+      } catch (error) {
+        console.log('⚠️ Could not fetch points position, falling back to current category data');
+        // Fallback to current userPosition if points fetch fails
+        if (userPosition && userPosition.position) {
+          pointsPosition = userPosition.position;
+          points = userPosition.totalPoints || 0;
+          multiplier = userPosition.tokenMultiplier || 1;
+          tier = userPosition.tokenTier || 'none';
+          username = userPosition.username || userProfiles[currentUserFid]?.username || `User ${currentUserFid}`;
+        } else {
+          // Try to find position in leaderboard data as fallback
+          const userInLeaderboard = leaderboardData.find(user => 
             (category === 'holders' ? user.fid : user.user_fid) === parseInt(currentUserFid)
           );
-          position = userIndex + 1;
-          points = userInLeaderboard.total_points || 0;
-          multiplier = userInLeaderboard.token_multiplier || 1;
-          tier = userInLeaderboard.token_tier || 'none';
-          username = userProfile.username || userInLeaderboard.username || `User ${currentUserFid}`;
-          console.log('✅ Using leaderboard data as fallback:', { position, points, multiplier, tier, username });
-        } else {
-          // Final fallback when user not found anywhere
-          position = '?';
-          points = 0;
-          multiplier = 1;
-          tier = 'none';
-          username = userProfile.username || `User ${currentUserFid}`;
-          console.log('⚠️ Using final fallback - user not found in leaderboard');
+          
+          if (userInLeaderboard) {
+            const userIndex = leaderboardData.findIndex(user => 
+              (category === 'holders' ? user.fid : user.user_fid) === parseInt(currentUserFid)
+            );
+            pointsPosition = userIndex + 1;
+            points = userInLeaderboard.total_points || 0;
+            multiplier = userInLeaderboard.token_multiplier || 1;
+            tier = userInLeaderboard.token_tier || 'none';
+            username = userProfiles[currentUserFid]?.username || userInLeaderboard.username || `User ${currentUserFid}`;
+            console.log('✅ Using leaderboard data as fallback:', { pointsPosition, points, multiplier, tier, username });
+          } else {
+            // Final fallback when user not found anywhere
+            pointsPosition = '?';
+            points = 0;
+            multiplier = 1;
+            tier = 'none';
+            username = userProfiles[currentUserFid]?.username || `User ${currentUserFid}`;
+            console.log('⚠️ Using final fallback - user not found in leaderboard');
+          }
         }
       }
 
@@ -82,14 +104,12 @@ export function Leaderboard({ isVisible = true }) {
         return `${num}th`;
       };
 
-      const positionText = getPositionSuffix(position);
+      const positionText = getPositionSuffix(pointsPosition);
       const multiplierText = multiplier > 1 ? ` (${multiplier}x ${tier === 'legendary' ? '🏆' : '⭐'})` : '';
       
-      // Create leaderboard URL with cache-busting parameter for fresh OG images (EXACT same pattern as collections)
-      const leaderboardUrl = `${window.location.origin}/leaderboard?category=${category}&user=${currentUserFid}&t=${Date.now()}`;
-      const shareText = userPosition 
-        ? `I'm currently ranked ${positionText} place on the @mintedmerch mini app leaderboard!\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`
-        : `I'm currently ranked ${positionText} place on the @mintedmerch mini app leaderboard!\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
+      // Always use points category for share URL to show points leaderboard position in OG image
+      const leaderboardUrl = `${window.location.origin}/leaderboard?category=points&user=${currentUserFid}&t=${Date.now()}`;
+      const shareText = `I'm currently ranked ${positionText} place on the @mintedmerch mini app leaderboard!\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
       
       console.log('🔗 Sharing leaderboard URL:', leaderboardUrl);
       console.log('📝 Share text:', shareText);
@@ -131,7 +151,7 @@ export function Leaderboard({ isVisible = true }) {
       console.error('Error sharing leaderboard position:', error);
       // Fallback to copying link
       try {
-        const fallbackUrl = `${window.location.origin}/leaderboard?category=${category}&user=${currentUserFid}&t=${Date.now()}`;
+        const fallbackUrl = `${window.location.origin}/leaderboard?category=points&user=${currentUserFid}&t=${Date.now()}`;
         await navigator.clipboard.writeText(fallbackUrl);
         alert('Link copied to clipboard!');
       } catch (err) {
