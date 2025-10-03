@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
-import { sdk } from '@farcaster/miniapp-sdk';
+// SDK imported dynamically like other working components
 import { getTimeUntilReset } from '@/lib/timezone';
 import { ethers } from 'ethers';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
@@ -100,7 +100,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       
       const shareText = `🎯 Daily check-in complete!\n\n+${multipliedEarnedPoints.toLocaleString()} points earned! (${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''}${userStatus?.tokenMultiplier > 1 ? ` × ${userStatus.tokenMultiplier}x multiplier` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${multipliedTotalPoints.toLocaleString()} total points\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
 
-      // Use the Farcaster SDK composeCast action
+      // Use the Farcaster SDK composeCast action (EXACT same as leaderboard)
+      const { sdk } = await import('../lib/frame');
       const result = await sdk.actions.composeCast({
         text: shareText,
         embeds: [shareUrl],
@@ -234,6 +235,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     if (!isInFarcaster) return;
     
     try {
+      const { sdk } = await import('../lib/frame');
       const capabilities = await sdk.getCapabilities();
       
       switch (type) {
