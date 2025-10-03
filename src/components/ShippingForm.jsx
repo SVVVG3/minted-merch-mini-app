@@ -343,6 +343,7 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     { code: 'AU', name: 'Australia' },
     { code: 'AT', name: 'Austria' },
     { code: 'BE', name: 'Belgium' },
+    { code: 'BR', name: 'Brazil' },
     { code: 'CA', name: 'Canada' },
     { code: 'CZ', name: 'Czechia' },
     { code: 'DK', name: 'Denmark' },
