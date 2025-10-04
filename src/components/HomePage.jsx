@@ -355,6 +355,13 @@ export function HomePage({ collection: initialCollection, products: initialProdu
     const urlParams = new URLSearchParams(window.location.search);
     const sharedCollectionHandle = urlParams.get('collection');
     
+    console.log('🔍 Collection URL parameter check:', {
+      sharedCollectionHandle,
+      isLoadingProducts,
+      selectedCollection: selectedCollection?.title,
+      hasSelectedCollection: !!selectedCollection
+    });
+    
     if (sharedCollectionHandle && !isLoadingProducts && !selectedCollection) {
       console.log('🔗 Processing shared collection:', sharedCollectionHandle);
       
@@ -364,6 +371,8 @@ export function HomePage({ collection: initialCollection, products: initialProdu
           const response = await fetch('/api/shopify/collections');
           if (response.ok) {
             const collections = await response.json();
+            console.log('📋 Available collections:', collections.map(c => ({ handle: c.handle, title: c.title })));
+            
             const targetCollection = collections.find(c => c.handle === sharedCollectionHandle);
             
             if (targetCollection) {
@@ -377,7 +386,10 @@ export function HomePage({ collection: initialCollection, products: initialProdu
               window.history.replaceState({}, '', newUrl);
             } else {
               console.log('⚠️ Shared collection not found:', sharedCollectionHandle);
+              console.log('Available handles:', collections.map(c => c.handle));
             }
+          } else {
+            console.error('❌ Failed to fetch collections:', response.status);
           }
         } catch (error) {
           console.error('Error loading shared collection:', error);

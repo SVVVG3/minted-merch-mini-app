@@ -234,15 +234,22 @@ export async function generateMetadata({ searchParams }) {
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function Page() {
+export default async function Page({ searchParams }) {
   let collection;
   let products = [];
   
   try {
     let targetHandle;
     
-    // Check if TARGET_COLLECTION_HANDLE env variable exists
-    if (process.env.TARGET_COLLECTION_HANDLE) {
+    // Check if there's a collection parameter in the URL (for shared collection links)
+    const sharedCollectionHandle = searchParams?.collection;
+    
+    if (sharedCollectionHandle) {
+      // Use the shared collection from URL parameter
+      targetHandle = sharedCollectionHandle;
+      console.log('🔗 Using shared collection from URL:', targetHandle);
+    } else if (process.env.TARGET_COLLECTION_HANDLE) {
+      // Check if TARGET_COLLECTION_HANDLE env variable exists
       targetHandle = process.env.TARGET_COLLECTION_HANDLE;
     } else {
       // Get all collections and use the first one
