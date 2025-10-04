@@ -54,11 +54,22 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const calculateProductAwareDiscountAmount = () => {
     if (!appliedDiscount) return 0;
     
-    // Use the same logic as CartContext to ensure consistency
-    // The cart subtotal calculation already correctly handles product-specific discounts
-    const discountAmount = cartSubtotal - cartTotal;
+    // Calculate discount amount directly to avoid floating-point errors
+    const subtotal = cart.checkout.subtotal.amount;
+    const discountValue = appliedDiscount.discountValue || appliedDiscount.discount_value;
+    const discountType = appliedDiscount.discountType || appliedDiscount.discount_type;
     
-    console.log(`💰 Discount calculation: Cart subtotal: $${cartSubtotal}, Cart total: $${cartTotal}, Discount amount: $${discountAmount}`);
+    let discountAmount = 0;
+    if (discountType === 'percentage') {
+      discountAmount = (subtotal * discountValue) / 100;
+    } else if (discountType === 'fixed') {
+      discountAmount = Math.min(discountValue, subtotal);
+    }
+    
+    // Round to 2 decimal places to match server calculation
+    discountAmount = Math.round(discountAmount * 100) / 100;
+    
+    console.log(`💰 Discount calculation: Subtotal: $${subtotal}, Discount type: ${discountType}, Discount value: ${discountValue}, Discount amount: $${discountAmount}`);
     
     return discountAmount;
   };

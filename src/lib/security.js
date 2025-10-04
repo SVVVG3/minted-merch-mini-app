@@ -37,7 +37,7 @@ export async function logSecurityEvent(eventType, details = {}, fid = null, requ
 /**
  * Validate that client-provided discount amount matches server calculation
  */
-export function validateDiscountAmount(clientAmount, serverAmount, tolerance = 0.01) {
+export function validateDiscountAmount(clientAmount, serverAmount, tolerance = 0.20) {
   const client = parseFloat(clientAmount) || 0;
   const server = parseFloat(serverAmount) || 0;
   

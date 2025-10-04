@@ -476,6 +476,8 @@ export function CartProvider({ children }) {
                                Array.isArray(safeCart.appliedDiscount.target_products) && 
                                safeCart.appliedDiscount.target_products.length > 0);
     
+    let discountAmount = 0;
+    
     if (isProductSpecific) {
       // Apply discount only to qualifying products
       const targetProducts = Array.isArray(safeCart.appliedDiscount.target_products) ? 
@@ -503,11 +505,14 @@ export function CartProvider({ children }) {
         }
       });
       
-      return qualifyingSubtotal * (discountValue / 100);
+      discountAmount = qualifyingSubtotal * (discountValue / 100);
     } else {
       // Site-wide discount applies to entire cart
-      return cartSubtotal * (discountValue / 100);
+      discountAmount = cartSubtotal * (discountValue / 100);
     }
+    
+    // Round to 2 decimal places to match server calculation
+    return Math.round(discountAmount * 100) / 100;
   };
 
   const cartTotal = (() => {
