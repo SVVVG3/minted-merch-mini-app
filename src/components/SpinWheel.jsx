@@ -59,9 +59,10 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       // Create dynamic OG image URL with check-in data
       const baseUrl = window.location.origin;
       // Calculate multiplied earned points first (needed for shareParams)
-      const multipliedEarnedPoints = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
-        ? shareResult.pointsEarned * userStatus.tokenMultiplier
-        : shareResult.pointsEarned;
+      const multipliedEarnedPoints = shareResult.multipliedPoints || 
+        (userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
+          ? shareResult.pointsEarned * userStatus.tokenMultiplier
+          : shareResult.pointsEarned);
       
       // Use the current total points for OG image (matches leaderboard)
       const multipliedTotalForOG = userStatus?.totalPoints || shareResult.totalPoints;
@@ -468,8 +469,14 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         setTimeout(() => setScreenShake(false), 500);
         setTimeout(() => setShowConfetti(false), 3000);
         
+        // Calculate multiplied points for display
+        const multipliedPoints = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
+          ? points * userStatus.tokenMultiplier
+          : points;
+        
         setSpinResult({
-          pointsEarned: points,
+          pointsEarned: points, // Keep original for breakdown display
+          multipliedPoints: multipliedPoints, // Add multiplied version for main display
           basePoints: basePoints,
           streakBonus: streakBonus,
           newStreak: result.data.newStreak,
@@ -479,6 +486,15 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           onChain: true,
           txHash: txHash
         });
+        
+        // Store today's result for sharing when modal is reopened
+        window.todaysSpinResult = {
+          pointsEarned: points,
+          basePoints: basePoints,
+          streakBonus: streakBonus,
+          newStreak: result.data.newStreak,
+          totalPoints: result.data.totalPoints
+        };
         setIsSpinning(false);
         setCanSpin(false);
         setTxStatus(null);
@@ -711,17 +727,21 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
               <div className="text-center">
                 {/* Big celebration for the points */}
                 <div className="text-4xl sm:text-5xl font-black bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-3 animate-bounce">
-                  +{spinResult.pointsEarned} Points! 🎉
+                  +{spinResult.multipliedPoints || spinResult.pointsEarned} Points! 🎉
                 </div>
                 
                 {/* Points breakdown */}
-                {spinResult.streakBonus > 0 && (
-                  <div className="bg-yellow-100 rounded-lg p-3 mb-3">
-                    <div className="text-sm text-yellow-800 font-medium">
-                      🎯 Base: {spinResult.basePoints} + 🔥 Streak Bonus: {spinResult.streakBonus}
-                    </div>
+                <div className="bg-yellow-100 rounded-lg p-3 mb-3">
+                  <div className="text-sm text-yellow-800 font-medium">
+                    🎯 Base: {spinResult.basePoints}
+                    {spinResult.streakBonus > 0 && ` + 🔥 Streak Bonus: ${spinResult.streakBonus}`}
+                    {userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 && (
+                      <span className="block mt-1">
+                        × {userStatus.tokenMultiplier}x {userStatus.tokenTier === 'legendary' ? '🏆' : '⭐'} Holdings Multiplier
+                      </span>
+                    )}
                   </div>
-                )}
+                </div>
                 
                 {/* Streak celebration */}
                 <div className="text-lg font-bold text-gray-800 mb-2">
