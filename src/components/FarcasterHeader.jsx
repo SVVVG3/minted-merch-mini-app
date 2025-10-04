@@ -45,17 +45,17 @@ export function FarcasterHeader() {
         <div className="text-center">
           <div className="space-y-0.5">
             <div>
-              Hold 1M+ {' '}
+              Spin the wheel daily to qualify for random raffles!
+            </div>
+            <div>
+              Hold 50M+ {' '}
               <button 
                 onClick={handleCoinClick}
                 className="underline hover:text-green-200 transition-colors font-medium"
               >
                 $mintedmerch
               </button>
-              {' '}to qualify for random raffles!
-            </div>
-            <div>
-              Hold 50M+ to become a Merch Mogul 🤌
+              {' '}to become a Merch Mogul 🤌
             </div>
           </div>
         </div>
