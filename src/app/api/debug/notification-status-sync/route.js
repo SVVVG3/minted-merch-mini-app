@@ -8,6 +8,11 @@ export async function POST(request) {
 
     console.log('🔄 Notification Status Sync Started');
     
+    // Add timeout protection
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout after 30 seconds')), 30000);
+    });
+    
     if (syncAll) {
       // Sync all users (use carefully in production)
       console.log('⚠️ Syncing ALL users - this may take a while...');
@@ -25,6 +30,11 @@ export async function POST(request) {
       const results = [];
       for (const profile of profiles) {
         try {
+          // Add delay between API calls to avoid rate limiting
+          if (results.length > 0) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          
           const hasNotifications = await hasNotificationTokenInNeynar(profile.fid);
           
           const { error: updateError } = await supabase
@@ -51,8 +61,15 @@ export async function POST(request) {
           results.push({
             fid: profile.fid,
             username: profile.username,
-            error: error.message
+            error: error.message,
+            skipped: true
           });
+          
+          // If we hit rate limits, break the loop
+          if (error.message.includes('rate limit') || error.message.includes('429')) {
+            console.log('Rate limit hit, stopping sync');
+            break;
+          }
         }
       }
 
