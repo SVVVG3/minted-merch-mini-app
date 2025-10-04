@@ -1206,14 +1206,14 @@ export async function getTodaysCheckInResult(userFid) {
     const currentPST = getCurrentPSTTime();
     console.log(`🔍 Current PST time: ${currentPST.toISOString()}, hour: ${currentPST.getHours()}`);
     
-    // Get today's check-in transaction
+    // Get today's check-in transaction using reference_id instead of created_at
+    // This avoids timezone issues since reference_id contains the correct check-in day
     const { data: transaction, error } = await supabaseAdmin
       .from('point_transactions')
       .select('*')
       .eq('user_fid', userFid)
       .eq('transaction_type', 'daily_checkin')
-      .gte('created_at', `${checkInDay}T00:00:00.000Z`)
-      .lt('created_at', `${checkInDay}T23:59:59.999Z`)
+      .eq('reference_id', `checkin-${userFid}-${checkInDay}`)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
