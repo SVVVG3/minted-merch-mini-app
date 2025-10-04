@@ -74,7 +74,9 @@ export async function GET(request) {
     // Get today's check-in result if user already checked in
     let todaysResult = null;
     if (!canCheckin) {
+      console.log(`🔍 User ${fid} already checked in, fetching today's result...`);
       todaysResult = await getTodaysCheckInResult(fid);
+      console.log(`🔍 Today's result for user ${fid}:`, todaysResult);
     }
 
     return Response.json({

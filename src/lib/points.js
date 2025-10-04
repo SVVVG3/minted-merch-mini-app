@@ -1201,6 +1201,11 @@ export async function getTodaysCheckInResult(userFid) {
     const checkInDay = getCurrentCheckInDay();
     console.log(`🔍 Looking for today's check-in result for user ${userFid}, check-in day: ${checkInDay}`);
     
+    // Also check what the current PST time is for debugging
+    const { getCurrentPSTTime } = await import('./timezone.js');
+    const currentPST = getCurrentPSTTime();
+    console.log(`🔍 Current PST time: ${currentPST.toISOString()}, hour: ${currentPST.getHours()}`);
+    
     // Get today's check-in transaction
     const { data: transaction, error } = await supabaseAdmin
       .from('point_transactions')
@@ -1222,6 +1227,17 @@ export async function getTodaysCheckInResult(userFid) {
 
     if (!transaction) {
       console.log(`⚠️ No transaction found for user ${userFid} on check-in day ${checkInDay}`);
+      
+      // Let's also check for any recent transactions for this user to debug
+      const { data: recentTransactions, error: recentError } = await supabaseAdmin
+        .from('point_transactions')
+        .select('*')
+        .eq('user_fid', userFid)
+        .eq('transaction_type', 'daily_checkin')
+        .order('created_at', { ascending: false })
+        .limit(5);
+        
+      console.log(`🔍 Recent check-in transactions for user ${userFid}:`, recentTransactions);
       return null;
     }
 
