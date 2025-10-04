@@ -658,8 +658,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           )}
         </div>
 
-        {/* Today's Result Banner for users who already checked in */}
-        {!canSpin && window.todaysSpinResult && (
+        {/* Today's Result Banner for users who already checked in (only show if no fresh spin result) */}
+        {!canSpin && window.todaysSpinResult && !spinResult && (
           <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 mb-4">
             <div className="text-center">
               <div className="text-base font-bold text-green-600">
@@ -671,8 +671,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           </div>
         )}
 
-        {/* Share button for users who already checked in today */}
-        {!canSpin && window.todaysSpinResult && (
+        {/* Share button for users who already checked in today (only show if no fresh spin result) */}
+        {!canSpin && window.todaysSpinResult && !spinResult && (
           <button
             onClick={() => handleShareCheckIn(window.todaysSpinResult)}
             className="w-full bg-[#8A63D2] hover:bg-[#7C5BC7] text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 mb-4"
@@ -686,8 +686,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           </button>
         )}
 
-        {/* Live countdown for return users */}
-        {!canSpin && (
+        {/* Live countdown for return users (only show if no fresh spin result) */}
+        {!canSpin && !spinResult && (
           <div className="text-center mb-4">
             <div className="text-xs text-gray-500 mb-2">
               Next spin available in:
@@ -717,6 +717,21 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         {/* Results Section - Show at top when spinResult exists */}
         {spinResult && (
           <div className="space-y-4 w-full mb-6">
+            {/* Today's Result Banner - Dismissible */}
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 relative">
+              <button 
+                onClick={() => {/* TODO: Add dismiss functionality */}}
+                className="absolute top-2 right-2 w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                ×
+              </button>
+              <div className="text-center pr-8">
+                <div className="text-base font-bold text-green-600">
+                  Today's Result: +{spinResult.multipliedPoints || spinResult.pointsEarned} Points! 🎉
+                </div>
+              </div>
+            </div>
+
             {/* Share Button - First in results section */}
             <button
               onClick={() => handleShareCheckIn(spinResult)}
@@ -730,6 +745,33 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
               </svg>
               <span>Share My Daily Spin</span>
             </button>
+
+            {/* Countdown timer in results section */}
+            <div className="text-center mb-4">
+              <div className="text-xs text-gray-500 mb-2">
+                Next spin available in:
+              </div>
+              <div className="bg-gradient-to-r from-blue-100 to-green-100 border border-blue-200 rounded-lg p-3">
+                <div className="flex justify-center items-center gap-1 text-sm font-mono font-semibold text-gray-800">
+                  <div className="bg-white rounded px-2 py-1 min-w-[2.5rem] text-center">
+                    {countdown.hours.toString().padStart(2, '0')}
+                  </div>
+                  <span className="text-gray-500">h</span>
+                  <div className="bg-white rounded px-2 py-1 min-w-[2.5rem] text-center">
+                    {countdown.minutes.toString().padStart(2, '0')}
+                  </div>
+                  <span className="text-gray-500">m</span>
+                  <div className="bg-white rounded px-2 py-1 min-w-[2.5rem] text-center">
+                    {countdown.seconds.toString().padStart(2, '0')}
+                  </div>
+                  <span className="text-gray-500">s</span>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  until 8 AM PST
+                </div>
+              </div>
+            </div>
+
 
             {/* Enhanced Result Display */}
             <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 sm:p-6 transform animate-pulse">
