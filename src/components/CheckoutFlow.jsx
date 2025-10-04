@@ -596,7 +596,8 @@ Transaction Hash: ${transactionHash}`;
 
       const result = await response.json();
 
-      if (result.success) {
+      // Check for both success flag and HTTP status
+      if (result.success && response.ok) {
         console.log('Order created successfully:', result.order.name);
         
         // Calculate final total with discount, gift card, and free shipping
@@ -667,8 +668,19 @@ Transaction Hash: ${transactionHash}`;
       } else {
         console.error('Order creation failed:', result.error);
         console.error('Order creation response:', result);
-        // Still clear cart but show warning
-        alert('Payment successful but order creation failed. Please contact support with your transaction hash: ' + transactionHash);
+        console.error('HTTP status:', response.status);
+        
+        // Show specific error message based on the error type
+        let errorMessage = 'Payment successful but order creation failed.';
+        if (result.error) {
+          errorMessage += `\n\nError: ${result.error}`;
+        }
+        if (result.step) {
+          errorMessage += `\n\nStep: ${result.step}`;
+        }
+        errorMessage += `\n\nPlease contact support with your transaction hash: ${transactionHash}`;
+        
+        alert(errorMessage);
         clearCart();
         setIsCheckoutOpen(false);
         resetPayment();
@@ -677,7 +689,7 @@ Transaction Hash: ${transactionHash}`;
     } catch (error) {
       console.error('Error creating order:', error);
       // Still clear cart but show warning
-      alert('Payment successful but order creation failed. Please contact support with your transaction hash: ' + transactionHash);
+      alert(`Payment successful but order creation failed due to a network error.\n\nError: ${error.message}\n\nPlease contact support with your transaction hash: ${transactionHash}`);
       clearCart();
       setIsCheckoutOpen(false);
       resetPayment();
