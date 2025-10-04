@@ -23,13 +23,21 @@ export function CollectionSelector({ selectedCollection, onCollectionChange, cla
         const collectionsData = await response.json();
         console.log('Fetched collections:', collectionsData);
         
-        // Sort collections with "All Products" first, then alphabetically
+        // Sort collections with "All Products" first, then collections with images in ABC order, then collections without images in ABC order
         const sortedCollections = (collectionsData || []).sort((a, b) => {
           // "All Products" always comes first
           if (a.title === 'All Products') return -1;
           if (b.title === 'All Products') return 1;
           
-          // Then sort alphabetically
+          // Check if collections have images
+          const aHasImage = a.image?.url;
+          const bHasImage = b.image?.url;
+          
+          // Collections with images come before collections without images
+          if (aHasImage && !bHasImage) return -1;
+          if (!aHasImage && bHasImage) return 1;
+          
+          // Within the same group (with/without images), sort alphabetically
           return a.title.localeCompare(b.title);
         });
         
