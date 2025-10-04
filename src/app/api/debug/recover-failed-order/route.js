@@ -133,6 +133,7 @@ export async function POST(request) {
     
     const supabaseOrderData = {
       fid: failedOrderData.fid,
+      orderId: shopifyOrder.name, // This is the key field that was missing!
       shopify_order_id: shopifyOrder.id,
       shopify_order_number: shopifyOrder.name,
       customer_email: failedOrderData.customer.email,
