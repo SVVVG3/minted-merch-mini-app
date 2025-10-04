@@ -216,9 +216,18 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         
         // If user already checked in today and we have today's result, store it for sharing
         // but don't set spinResult to avoid showing the post-spin UI
+        console.log('🔍 User status check:', {
+          canCheckInToday: result.data.canCheckInToday,
+          hasTodaysResult: !!result.data.todaysResult,
+          todaysResult: result.data.todaysResult
+        });
+        
         if (!result.data.canCheckInToday && result.data.todaysResult) {
           // Store today's result for sharing but don't trigger spinResult display
           window.todaysSpinResult = result.data.todaysResult;
+          console.log('✅ Stored today\'s result for sharing:', window.todaysSpinResult);
+        } else if (!result.data.canCheckInToday && !result.data.todaysResult) {
+          console.log('⚠️ User already checked in but no today\'s result found');
         }
       }
     } catch (error) {

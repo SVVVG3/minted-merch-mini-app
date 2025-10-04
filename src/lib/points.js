@@ -1199,6 +1199,7 @@ export async function getUserPointTransactionStats(userFid) {
 export async function getTodaysCheckInResult(userFid) {
   try {
     const checkInDay = getCurrentCheckInDay();
+    console.log(`🔍 Looking for today's check-in result for user ${userFid}, check-in day: ${checkInDay}`);
     
     // Get today's check-in transaction
     const { data: transaction, error } = await supabaseAdmin
@@ -1212,12 +1213,15 @@ export async function getTodaysCheckInResult(userFid) {
       .limit(1)
       .single();
 
+    console.log(`🔍 Transaction query result:`, { transaction, error });
+
     if (error && error.code !== 'PGRST116') {
       console.error('Error fetching today\'s check-in result:', error);
       return null;
     }
 
     if (!transaction) {
+      console.log(`⚠️ No transaction found for user ${userFid} on check-in day ${checkInDay}`);
       return null;
     }
 
@@ -1241,7 +1245,7 @@ export async function getTodaysCheckInResult(userFid) {
       }
     }
 
-    return {
+    const result = {
       pointsEarned: transaction.points_earned,
       basePoints: basePoints,
       streakBonus: streakBonus,
@@ -1249,6 +1253,9 @@ export async function getTodaysCheckInResult(userFid) {
       totalPoints: userData.total_points,
       checkinDate: checkInDay
     };
+    
+    console.log(`✅ Returning today's check-in result for user ${userFid}:`, result);
+    return result;
 
   } catch (error) {
     console.error('Error in getTodaysCheckInResult:', error);
