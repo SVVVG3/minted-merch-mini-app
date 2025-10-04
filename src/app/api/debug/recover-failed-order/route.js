@@ -133,30 +133,34 @@ export async function POST(request) {
     
     const supabaseOrderData = {
       fid: failedOrderData.fid,
-      orderId: shopifyOrder.name, // This is the key field that was missing!
-      shopify_order_id: shopifyOrder.id,
-      shopify_order_number: shopifyOrder.name,
-      customer_email: failedOrderData.customer.email,
-      total_amount: totalPrice,
-      subtotal_amount: subtotal,
-      tax_amount: tax,
-      shipping_amount: shippingPrice,
-      discount_amount: failedOrderData.discountAmount,
-      discount_code: failedOrderData.appliedDiscount?.code || null,
-      transaction_hash: failedOrderData.transactionHash,
-      payment_status: 'paid',
-      fulfillment_status: 'unfulfilled',
+      orderId: shopifyOrder.name, // Required by createOrder function
+      sessionId: null,
+      status: 'paid',
       currency: 'USD',
-      order_items: failedOrderData.cartItems.map(item => ({
-        product_id: item.variant.id,
-        product_title: item.product.title,
+      amountTotal: totalPrice,
+      amountSubtotal: subtotal,
+      amountTax: tax,
+      amountShipping: shippingPrice,
+      discountCode: failedOrderData.appliedDiscount?.code || null,
+      discountAmount: failedOrderData.discountAmount || 0,
+      discountPercentage: null,
+      customerEmail: failedOrderData.customer.email,
+      customerName: `${failedOrderData.shippingAddress.firstName} ${failedOrderData.shippingAddress.lastName}`.trim(),
+      shippingAddress: failedOrderData.shippingAddress,
+      shippingMethod: 'Standard Shipping',
+      shippingCost: shippingPrice,
+      lineItems: failedOrderData.cartItems.map(item => ({
+        id: item.variant.id,
+        title: item.product.title,
         quantity: item.quantity,
         price: item.price,
-        variant_id: item.variant.id,
-        variant_title: null
+        variant: null,
+        imageUrl: null
       })),
-      shipping_address: failedOrderData.shippingAddress,
-      notes: 'RECOVERED ORDER - Originally failed due to emoji in customer address'
+      paymentMethod: 'USDC',
+      paymentStatus: 'completed',
+      paymentIntentId: failedOrderData.transactionHash,
+      giftCards: failedOrderData.giftCards || []
     };
 
     const supabaseResult = await createSupabaseOrder(supabaseOrderData);
