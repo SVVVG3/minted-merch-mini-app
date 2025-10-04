@@ -150,6 +150,18 @@ export function ProductPageClient({ handle }) {
       return;
     }
 
+    // Check if this is a gift card product - if so, don't show discounts
+    const isGiftCard = product.title?.toLowerCase().includes('gift card') || 
+                      product.handle?.includes('gift-card') ||
+                      product.title?.toLowerCase().includes('gift') ||
+                      product.handle?.includes('gift');
+    
+    if (isGiftCard) {
+      console.log('🚫 Product is a gift card - skipping discount check');
+      setDiscountLoading(false);
+      return;
+    }
+
     try {
       setDiscountLoading(true);
       console.log(`🎁 Checking discounts for product: ${product.title} (FID: ${farcasterUser.fid})`);

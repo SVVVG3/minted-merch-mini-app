@@ -130,8 +130,8 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
     console.log(`✅ Updated token balance for FID ${fid}: ${finalBalance} tokens`);
     console.log(`📅 Cache timestamp: ${data.token_balance_updated_at}`);
     
-    // Always update chat member database to handle eligibility changes
-    // This ensures users are marked as inactive when they drop below threshold
+    // Only update chat member database if user is actually a chat member
+    // This prevents errors for users who aren't in the chat_members table
     const tokensBalance = typeof finalBalance === 'string' ?
       parseFloat(finalBalance) / Math.pow(10, 18) :
       finalBalance / Math.pow(10, 18);
@@ -139,11 +139,27 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
     const CHAT_ELIGIBILITY_THRESHOLD = 50000000; // 50M tokens required for chat
     
     try {
-      await updateChatMemberBalance(fid, tokensBalance, 'success');
-      if (tokensBalance >= CHAT_ELIGIBILITY_THRESHOLD) {
-        console.log(`💬 Updated chat member balance for FID ${fid}: ${tokensBalance} tokens (eligible)`);
+      // First check if user is a chat member before attempting to update
+      const { data: chatMember, error: chatMemberError } = await supabaseAdmin
+        .from('chat_members')
+        .select('fid')
+        .eq('fid', fid)
+        .single();
+      
+      if (chatMemberError && chatMemberError.code === 'PGRST116') {
+        // User is not a chat member - this is normal, don't log as error
+        console.log(`ℹ️ FID ${fid} is not a chat member - skipping chat balance update`);
+      } else if (chatMemberError) {
+        // Other database error
+        console.warn(`⚠️ Error checking chat member status for FID ${fid}:`, chatMemberError.message);
       } else {
-        console.log(`💬 Updated chat member balance for FID ${fid}: ${tokensBalance} tokens (ineligible - will be marked inactive)`);
+        // User is a chat member, proceed with balance update
+        await updateChatMemberBalance(fid, tokensBalance, 'success');
+        if (tokensBalance >= CHAT_ELIGIBILITY_THRESHOLD) {
+          console.log(`💬 Updated chat member balance for FID ${fid}: ${tokensBalance} tokens (eligible)`);
+        } else {
+          console.log(`💬 Updated chat member balance for FID ${fid}: ${tokensBalance} tokens (ineligible - will be marked inactive)`);
+        }
       }
     } catch (chatError) {
       // Log warning for any update failures

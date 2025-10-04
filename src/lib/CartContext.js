@@ -548,6 +548,13 @@ export function CartProvider({ children }) {
         return null;
       }
       
+      // Check if cart contains gift cards - if so, don't auto-apply discounts
+      const { cartContainsGiftCards } = await import('./discounts');
+      if (cartContainsGiftCards(safeCart.items)) {
+        console.log('🚫 Cart contains gift cards - skipping auto-discount evaluation');
+        return null;
+      }
+      
       // Get unique product handles and their Supabase IDs
       const uniqueProducts = [];
       const productHandles = [...new Set(safeCart.items.map(item => item.product?.handle).filter(Boolean))];

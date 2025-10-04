@@ -32,6 +32,40 @@ export function DiscountCodeSection({
   const { cart, cartSubtotal, cartTotal, items: cartItems, isEvaluatingDiscount } = useCart();
   const [appliedDiscount, setAppliedDiscount] = useState(null);
   
+  // Check if cart contains gift cards
+  const cartContainsGiftCards = (items) => {
+    if (!items || !Array.isArray(items)) return false;
+    
+    return items.some(item => {
+      const productTitle = item.product?.title || item.title || '';
+      const productHandle = item.product?.handle || '';
+      
+      // Check if product is a gift card
+      return (
+        productTitle.toLowerCase().includes('gift card') ||
+        productHandle.includes('gift-card') ||
+        productTitle.toLowerCase().includes('gift') ||
+        productHandle.includes('gift')
+      );
+    });
+  };
+  
+  // Don't render discount section if cart contains gift cards
+  if (cartContainsGiftCards(cartItems)) {
+    return (
+      <div className="space-y-3 border border-gray-200 rounded-lg p-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium text-gray-900">Discount Code</h3>
+        </div>
+        <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+          <div className="text-sm text-gray-600">
+            💡 Discounts cannot be applied to orders containing gift cards
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   // Use cart's applied discount if available, otherwise use local state
   const effectiveAppliedDiscount = cart.appliedDiscount || appliedDiscount;
   const [tokenGatingInfo, setTokenGatingInfo] = useState(null);
