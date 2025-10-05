@@ -110,8 +110,17 @@ export async function generateMetadata({ params, searchParams }) {
   // Use the actual order_id from database if available, otherwise format the orderNumber
   const displayOrderNumber = orderData?.order_id || (orderNumber.startsWith('#') ? orderNumber : `#${orderNumber}`);
   
+  // Generate product list for OG image
+  const productList = orderData?.line_items?.map(item => {
+    const quantity = item.quantity || 1;
+    const title = item.title || 'Item';
+    return `${quantity}x ${title}`;
+  }).join(', ') || '1 item';
+  
   const imageParams = new URLSearchParams({
-    orderNumber: displayOrderNumber
+    orderNumber: displayOrderNumber,
+    products: productList,
+    total: orderData?.amount_total || '0.00'
   });
   
   // Add first product image if available

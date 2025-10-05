@@ -238,7 +238,7 @@ export async function GET(request) {
                   color: '#3eb489',
                 }}
               >
-                Paid with USDC on Base 🔵
+                Paid with USDC on Base 🟦
               </div>
             </div>
           </div>

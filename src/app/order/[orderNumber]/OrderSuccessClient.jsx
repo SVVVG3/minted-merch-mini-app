@@ -112,7 +112,7 @@ export function OrderSuccessClient({ orderNumber }) {
           const mainProduct = orderData?.line_items?.[0]?.title || 'item';
           await navigator.share({
             title: `Order ${orderNumber} Confirmed - Minted Merch`,
-            text: `🎉 Just bought ${mainProduct} with USDC! Order ${orderNumber} for $${orderData?.amount_total || '0.00'} confirmed ✅ Shop on /mintedmerch - pay on Base 🔵`,
+            text: `Just ordered my new ${mainProduct}! You get 15% off your first order when you add the $mintedmerch mini app! 👀 Shop on /mintedmerch - pay onchain 🟦`,
             url: window.location.href,
           });
         } catch (err) {
@@ -133,7 +133,7 @@ export function OrderSuccessClient({ orderNumber }) {
     // Farcaster sharing using SDK composeCast action
     try {
       const mainProduct = orderData?.line_items?.[0]?.title || 'item';
-      const shareText = `🎉 Just bought ${mainProduct} with USDC!\n\nOrder ${orderNumber} for $${orderData?.amount_total || '0.00'} confirmed ✅\n\nShop on /mintedmerch - pay on Base 🔵`;
+      const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on /mintedmerch - pay onchain 🟦`;
       
       // Use this order page URL for sharing (which has dynamic OG images)
       const orderUrl = window.location.href;

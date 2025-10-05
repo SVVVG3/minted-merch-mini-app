@@ -743,7 +743,7 @@ Transaction Hash: ${transactionHash}`;
           const mainProduct = orderDetails.lineItems?.[0]?.title || orderDetails.lineItems?.[0]?.name || 'item';
           await navigator.share({
             title: `Order ${orderDetails.name} Confirmed - Minted Merch`,
-            text: `🎉 Just ordered my new ${mainProduct}! Order for ${orderDetails.total.amount} USDC confirmed ✅ Shop on /mintedmerch - pay onchain 🔵`,
+            text: `Just ordered my new ${mainProduct}! You get 15% off your first order when you add the $mintedmerch mini app! 👀 Shop on /mintedmerch - pay onchain 🟦`,
             url: `${window.location.origin}/order/${orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name}`,
           });
         } catch (err) {
@@ -768,7 +768,7 @@ Transaction Hash: ${transactionHash}`;
         const orderUrl = `${window.location.origin}/order/${orderNumber}?t=${Date.now()}`;
         // Get the main product name from the order
         const mainProduct = orderDetails.lineItems?.[0]?.title || orderDetails.lineItems?.[0]?.name || 'item';
-        const shareText = `🎉 Just ordered my new ${mainProduct}!\n\nOrder for ${orderDetails.total.amount} USDC confirmed ✅\n\nShop on /mintedmerch - pay onchain 🔵`;
+        const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on /mintedmerch - pay onchain 🟦`;
       
       // Use the Farcaster SDK composeCast action
       const { sdk } = await import('../lib/frame');
