@@ -55,7 +55,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     if (!appliedDiscount) return 0;
     
     // Calculate discount amount directly to avoid floating-point errors
-    const subtotal = cart.checkout.subtotal.amount;
+    const subtotal = cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount : cartSubtotal;
     const discountValue = appliedDiscount.discountValue || appliedDiscount.discount_value;
     const discountType = appliedDiscount.discountType || appliedDiscount.discount_type;
     
@@ -76,7 +76,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
   // Helper function to calculate tax - taxes should be calculated on discounted subtotal (after discount codes, before gift cards)
   const calculateAdjustedTax = () => {
-    if (!cart.checkout || !cart.checkout.tax) return 0;
+    if (!cart.checkout || !cart.checkout.tax || !cart.checkout.subtotal) return 0;
     
     const originalSubtotal = cart.checkout.subtotal.amount;
     const originalTax = cart.checkout.tax.amount;
@@ -608,7 +608,7 @@ Transaction Hash: ${transactionHash}`;
           shippingCost = 0;
         }
         
-        let finalOrderTotal = cart.checkout.subtotal.amount;
+        let finalOrderTotal = cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount : cartSubtotal;
         
         // Apply regular discount
         if (appliedDiscount) {
@@ -1318,7 +1318,7 @@ Transaction Hash: ${transactionHash}`;
                     <div className="border-t pt-2 space-y-1">
                       <div className="flex justify-between text-sm">
                         <span>Subtotal</span>
-                        <span>${cart.checkout ? cart.checkout.subtotal.amount.toFixed(2) : cartSubtotal.toFixed(2)}</span>
+                        <span>${cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount.toFixed(2) : cartSubtotal.toFixed(2)}</span>
                       </div>
                       
                       {/* Discount Line Item */}
