@@ -37,6 +37,8 @@ export async function GET(request) {
     
     console.log('=== OG Order Image Generation ===');
     console.log('Raw params:', { orderNumber, total, products, itemCount, imageUrl, bustCache });
+    console.log('Products parameter:', products);
+    console.log('Products type:', typeof products);
     
     // Fix order number formatting - remove URL encoding and ensure single #
     let displayOrderNumber = decodeURIComponent(orderNumber);
@@ -276,6 +278,11 @@ export async function GET(request) {
       {
         width: 1200,
         height: 800,
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
       },
     );
     
@@ -307,6 +314,11 @@ export async function GET(request) {
       {
         width: 1200,
         height: 800,
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
       },
     );
   }

@@ -115,7 +115,7 @@ export async function generateMetadata({ params, searchParams }) {
     const quantity = item.quantity || 1;
     const title = item.title || 'Item';
     return `${quantity}x ${title}`;
-  }).join(', ') || '1 item';
+  }).join('\n') || '1 item';
   
   const imageParams = new URLSearchParams({
     orderNumber: displayOrderNumber,
