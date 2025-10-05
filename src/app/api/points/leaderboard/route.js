@@ -43,9 +43,9 @@ export async function GET(request) {
     if (userFid) {
       const fid = parseInt(userFid);
       if (!isNaN(fid) && fid > 0) {
-        console.log(`🚨 API CALL: Getting user position for FID ${fid} in category ${category}`);
-        userPosition = await getUserLeaderboardPosition(fid, category);
-        console.log(`🚨 API RESULT: User position result:`, userPosition);
+      console.log(`🚨 API CALL: Getting user position for FID ${fid}`);
+      userPosition = await getUserLeaderboardPosition(fid);
+      console.log(`🚨 API RESULT: User position result:`, userPosition);
       }
     }
 

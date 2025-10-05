@@ -166,9 +166,19 @@ export function Leaderboard({ isVisible = true }) {
   // Load leaderboard data
   useEffect(() => {
     if (isVisible) {
-      loadLeaderboard();
+      // Wait for Farcaster to be ready before loading leaderboard
+      if (isReady) {
+        console.log(`🚨 LEADERBOARD: Farcaster is ready, loading leaderboard. currentUserFid=${currentUserFid}`);
+        loadLeaderboard();
+      } else if (!isInFarcaster) {
+        // Not in Farcaster, load leaderboard without user position
+        console.log(`🚨 LEADERBOARD: Not in Farcaster, loading leaderboard without user position`);
+        loadLeaderboard();
+      } else {
+        console.log(`🚨 LEADERBOARD: Farcaster not ready yet, waiting...`);
+      }
     }
-  }, [category, isVisible]);
+  }, [category, isVisible, isReady, currentUserFid]);
 
   const loadLeaderboard = async () => {
     try {
