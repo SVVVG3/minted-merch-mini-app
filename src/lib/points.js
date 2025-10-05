@@ -891,6 +891,13 @@ export async function getUserLeaderboardPosition(userFid, category = 'points') {
     if (userEntry) {
       position = userEntry.rank;
       console.log(`✅ Found user ${userFid} at position ${position} with ${userEntry.total_points} points (multiplier: ${userEntry.token_multiplier}x)`);
+      console.log(`🔍 DEBUG userEntry:`, {
+        user_fid: userEntry.user_fid,
+        total_points: userEntry.total_points,
+        base_points: userEntry.base_points,
+        token_multiplier: userEntry.token_multiplier,
+        rank: userEntry.rank
+      });
     } else {
       console.log(`❌ User ${userFid} not found in leaderboard data`);
       // Debug: show first few users to see what we have
