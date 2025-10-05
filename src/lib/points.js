@@ -829,9 +829,10 @@ export async function getLeaderboard(limit = 10, category = 'points') {
 /**
  * Get user's leaderboard position (with token multipliers applied)
  * @param {number} userFid - Farcaster ID of the user
+ * @param {string} category - Category to get position for ('points', 'streaks', 'purchases', 'spending')
  * @returns {object} User's position and stats
  */
-export async function getUserLeaderboardPosition(userFid) {
+export async function getUserLeaderboardPosition(userFid, category = 'points') {
   try {
     // Get user's current points and profile data
     const { data: userData, error: userError } = await supabaseAdmin
@@ -839,6 +840,9 @@ export async function getUserLeaderboardPosition(userFid) {
       .select(`
         *,
         profiles!user_fid (
+          username,
+          display_name,
+          pfp_url,
           token_balance
         )
       `)
@@ -852,6 +856,10 @@ export async function getUserLeaderboardPosition(userFid) {
     if (!userData) {
       return {
         position: null,
+        user_fid: userFid,
+        username: null,
+        display_name: `User ${userFid}`,
+        pfp_url: null,
         totalPoints: 0,
         basePoints: 0,
         tokenMultiplier: 1,
@@ -871,7 +879,7 @@ export async function getUserLeaderboardPosition(userFid) {
 
     // To calculate position accurately, we need to get all users, apply multipliers, and count
     // This is expensive but necessary for accurate positioning with dynamic multipliers
-    const allUsersData = await getLeaderboard(50000, 'points'); // Get ALL users with multipliers applied (increased limit)
+    const allUsersData = await getLeaderboard(50000, category); // Get ALL users with multipliers applied for the specific category
     
     // Find user's position in the multiplied leaderboard
     let position = null;
@@ -882,6 +890,10 @@ export async function getUserLeaderboardPosition(userFid) {
 
     return {
       position: position,
+      user_fid: userFid,
+      username: userData.profiles?.username || null,
+      display_name: userData.profiles?.display_name || `User ${userFid}`,
+      pfp_url: userData.profiles?.pfp_url || null,
       totalPoints: multiplierResult.multipliedPoints,
       basePoints: basePoints,
       tokenMultiplier: multiplierResult.multiplier,
@@ -898,6 +910,10 @@ export async function getUserLeaderboardPosition(userFid) {
     console.error('Error in getUserLeaderboardPosition:', error);
     return {
       position: null,
+      user_fid: userFid,
+      username: null,
+      display_name: `User ${userFid}`,
+      pfp_url: null,
       totalPoints: 0,
       basePoints: 0,
       tokenMultiplier: 1,

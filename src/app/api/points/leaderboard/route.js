@@ -43,7 +43,7 @@ export async function GET(request) {
     if (userFid) {
       const fid = parseInt(userFid);
       if (!isNaN(fid) && fid > 0) {
-        userPosition = await getUserLeaderboardPosition(fid);
+        userPosition = await getUserLeaderboardPosition(fid, category);
       }
     }
 
