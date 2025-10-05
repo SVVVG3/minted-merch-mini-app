@@ -116,17 +116,18 @@ export function InfoModal({ isOpen, onClose }) {
 
           {/* Merch Mogul Section */}
           <div className="bg-gradient-to-r from-purple-50 to-green-50 rounded-lg p-4 border border-purple-200">
-            {/* Merch Mogul Meme Image with centered title */}
-            <div className="relative flex justify-center mb-4">
+            {/* Centered title above the image */}
+            <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">
+              Become a Merch Mogul 🤌
+            </h3>
+            
+            {/* Merch Mogul Meme Image */}
+            <div className="flex justify-center mb-4">
               <img 
                 src="/merchmogulmeme.png" 
                 alt="Merch Mogul Meme" 
                 className="w-full max-w-sm h-auto object-contain rounded-lg"
               />
-              {/* Centered title over the image */}
-              <h3 className="absolute top-4 left-1/2 transform -translate-x-1/2 text-lg font-semibold text-white bg-black bg-opacity-50 px-3 py-1 rounded-lg">
-                Become a Merch Mogul 🤌
-              </h3>
             </div>
 
             <div className="space-y-3 text-sm text-gray-700">
