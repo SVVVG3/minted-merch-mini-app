@@ -99,7 +99,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
   // Helper function to calculate final total safely (never negative)
   const calculateFinalTotal = () => {
-    if (!cart.checkout || !cart.selectedShipping) return cartTotal;
+    if (!cart.checkout || !cart.checkout.subtotal || !cart.selectedShipping) return cartTotal;
     
     const subtotal = cart.checkout.subtotal.amount;
     const discount = calculateProductAwareDiscountAmount();
@@ -1085,7 +1085,7 @@ Transaction Hash: ${transactionHash}`;
                     <div className="border-t pt-2">
                       <div className="flex justify-between text-sm">
                         <span>Subtotal</span>
-                        <span>${cart.checkout ? cart.checkout.subtotal.amount.toFixed(2) : cartSubtotal.toFixed(2)}</span>
+                        <span>${cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount.toFixed(2) : cartSubtotal.toFixed(2)}</span>
                       </div>
                       {appliedDiscount && (
                         <div className="flex justify-between text-sm text-green-600">
@@ -1164,7 +1164,7 @@ Transaction Hash: ${transactionHash}`;
                         <div className="space-y-1">
                           <div className="flex justify-between text-sm">
                             <span>Subtotal</span>
-                            <span>${cart.checkout.subtotal.amount.toFixed(2)}</span>
+                            <span>${cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount.toFixed(2) : cartSubtotal.toFixed(2)}</span>
                           </div>
                           {appliedDiscount && (
                             <div className="flex justify-between text-sm text-green-600">
@@ -1196,6 +1196,11 @@ Transaction Hash: ${transactionHash}`;
                             <span>Total</span>
                             <span>
                               ${(() => {
+                                // Safe access to checkout data
+                                if (!cart.checkout || !cart.checkout.subtotal) {
+                                  return cartTotal.toFixed(2);
+                                }
+                                
                                 const subtotal = cart.checkout.subtotal.amount;
                                 const discount = calculateProductAwareDiscountAmount();
                                 const giftCardDiscount = appliedGiftCard?.discount?.discountAmount || 0;

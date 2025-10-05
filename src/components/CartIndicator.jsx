@@ -1,12 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/lib/CartContext';
 import { Cart } from './Cart';
 
 export function CartIndicator() {
   const { itemCount, cartTotal } = useCart();
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [justAddedItem, setJustAddedItem] = useState(false);
+  const [previousItemCount, setPreviousItemCount] = useState(0);
+
+  // Detect when items are added to cart
+  useEffect(() => {
+    if (itemCount > previousItemCount && previousItemCount > 0) {
+      setJustAddedItem(true);
+      setTimeout(() => setJustAddedItem(false), 2000); // Hide after 2 seconds
+    }
+    setPreviousItemCount(itemCount);
+  }, [itemCount, previousItemCount]);
 
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);
@@ -16,7 +27,11 @@ export function CartIndicator() {
       {/* Cart Button */}
       <button
         onClick={openCart}
-        className="fixed top-4 right-4 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg z-30 transition-colors"
+        className={`fixed top-4 right-4 text-white p-3 rounded-full shadow-lg z-30 transition-all duration-300 ${
+          justAddedItem 
+            ? 'bg-green-500 transform scale-110' 
+            : 'bg-blue-600 hover:bg-blue-700'
+        }`}
         title="Open Cart"
       >
         <div className="relative">
@@ -26,7 +41,9 @@ export function CartIndicator() {
           
           {/* Item Count Badge */}
           {itemCount > 0 && (
-            <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+            <div className={`absolute -top-2 -right-2 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center transition-all duration-300 ${
+              justAddedItem ? 'bg-green-600 animate-pulse' : 'bg-red-500'
+            }`}>
               {itemCount > 99 ? '99+' : itemCount}
             </div>
           )}
