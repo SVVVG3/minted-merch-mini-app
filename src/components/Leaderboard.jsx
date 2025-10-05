@@ -13,6 +13,9 @@ export function Leaderboard({ isVisible = true }) {
   const [error, setError] = useState(null);
 
   const currentUserFid = isInFarcaster && isReady ? getFid() : null;
+  
+  // Debug Farcaster connection
+  console.log(`🚨 FARCASTER DEBUG: isInFarcaster=${isInFarcaster}, isReady=${isReady}, getFid()=${getFid()}, currentUserFid=${currentUserFid}`);
 
   // Handle sharing leaderboard position
   const handleSharePosition = async () => {
