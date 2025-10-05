@@ -478,7 +478,7 @@ export function Leaderboard({ isVisible = true }) {
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-green-600">
-                      {category === 'points' && (userPosition.total_points || 0).toLocaleString()}
+                      {category === 'points' && (userPosition.totalPoints || 0).toLocaleString()}
                       {category === 'streaks' && (userPosition.checkin_streak || 0)}
                       {category === 'purchases' && (userPosition.pointsFromPurchases || 0).toLocaleString()}
                       {category === 'holders' && userPosition.token_balance_formatted}
