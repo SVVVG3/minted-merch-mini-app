@@ -30,7 +30,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const orderNumber = searchParams.get('orderNumber') || 'ORDER-123';
     const total = searchParams.get('total') || '0.00';
-    const products = searchParams.get('products') || '1 item';
+    const products = decodeURIComponent(searchParams.get('products') || '1 item');
     const itemCount = parseInt(searchParams.get('itemCount') || '1');
     const imageUrl = searchParams.get('image');
     const bustCache = searchParams.get('t'); // Cache busting parameter
@@ -39,6 +39,9 @@ export async function GET(request) {
     console.log('Raw params:', { orderNumber, total, products, itemCount, imageUrl, bustCache });
     console.log('Products parameter:', products);
     console.log('Products type:', typeof products);
+    console.log('Products length:', products.length);
+    console.log('Products includes newline:', products.includes('\n'));
+    console.log('Products includes comma:', products.includes(','));
     
     // Fix order number formatting - remove URL encoding and ensure single #
     let displayOrderNumber = decodeURIComponent(orderNumber);
