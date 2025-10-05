@@ -145,6 +145,11 @@ export async function GET(request) {
       {
         width: 1200,
         height: 800,
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
       },
     );
     
@@ -176,6 +181,11 @@ export async function GET(request) {
       {
         width: 1200,
         height: 800,
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
       },
     );
   }
