@@ -127,7 +127,7 @@ export async function GET(request) {
                   marginBottom: '20px',
                 }}
               >
-                Pay with USDC on Base 🔵
+                Pay with USDC on Base 🟦
               </div>
               
               <div
@@ -136,7 +136,7 @@ export async function GET(request) {
                   color: '#888',
                 }}
               >
-                Instant payments • Premium quality
+                Hold 50M+ $mintedmerch to become a Merch Mogul & unlock exclusive benefits - including 15% off every order!
               </div>
             </div>
           </div>
