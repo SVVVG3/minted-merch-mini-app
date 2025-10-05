@@ -188,8 +188,10 @@ export function Leaderboard({ isVisible = true }) {
         ? '/api/token-holders-leaderboard' 
         : '/api/points/leaderboard';
       
+      console.log(`🚨 LEADERBOARD: Making API call to ${apiEndpoint} with params:`, params.toString());
       const response = await fetch(`${apiEndpoint}?${params}`);
       const result = await response.json();
+      console.log(`🚨 LEADERBOARD: API response:`, result);
 
       if (result.success) {
         let leaderboard, userPos;
