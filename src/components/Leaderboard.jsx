@@ -197,7 +197,7 @@ export function Leaderboard({ isVisible = true }) {
         if (category === 'holders') {
           // Token holders API has different response format
           leaderboard = result.leaderboard || [];
-          userPos = null; // Token holders doesn't have user position lookup yet
+          userPos = result.userPosition || null; // Now supports user position lookup
         } else {
           // Regular leaderboard API
           leaderboard = result.data.leaderboard || [];
@@ -404,8 +404,8 @@ export function Leaderboard({ isVisible = true }) {
           </div>
         ) : (
           <div className="space-y-3">
-            {/* Current User Position (if not in top list) */}
-            {userPosition && userPosition.position > 50 && (
+            {/* Current User Position (always show if available) */}
+            {userPosition && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
                 <div className="text-sm text-green-600 font-medium mb-2">Your Position</div>
                 <div className="flex items-center justify-between">

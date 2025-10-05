@@ -467,6 +467,58 @@ export async function getTokenHoldersLeaderboard(limit = 50) {
 }
 
 /**
+ * Get user's position in token holders leaderboard
+ * @param {number} userFid - User's Farcaster ID
+ * @returns {Promise<Object|null>} User's position data or null if not found
+ */
+export async function getUserTokenHoldersPosition(userFid) {
+  try {
+    console.log(`📊 Getting token holders position for FID ${userFid}`);
+
+    // First, get the user's token balance
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('profiles')
+      .select('fid, username, display_name, pfp_url, token_balance, token_balance_updated_at')
+      .eq('fid', userFid)
+      .single();
+
+    if (userError || !userData || !userData.token_balance || userData.token_balance <= 0) {
+      console.log(`⚠️ User ${userFid} not found or has no tokens`);
+      return null;
+    }
+
+    // Count how many users have more tokens than this user
+    const { count, error: countError } = await supabaseAdmin
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .gt('token_balance', userData.token_balance);
+
+    if (countError) {
+      throw countError;
+    }
+
+    const position = (count || 0) + 1;
+
+    console.log(`✅ User ${userFid} is ranked #${position} in token holders`);
+
+    return {
+      position,
+      fid: userData.fid,
+      username: userData.username,
+      display_name: userData.display_name,
+      pfp_url: userData.pfp_url,
+      token_balance: userData.token_balance,
+      token_balance_formatted: formatTokenBalance(userData.token_balance),
+      last_updated: userData.token_balance_updated_at
+    };
+
+  } catch (error) {
+    console.error('❌ Error getting user token holders position:', error);
+    return null;
+  }
+}
+
+/**
  * Format token balance for display (convert from wei to readable format)
  * @param {number|string} balance - Balance in wei (stored as BIGINT)
  * @returns {string} Formatted balance
