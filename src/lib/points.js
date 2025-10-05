@@ -876,16 +876,25 @@ export async function getUserLeaderboardPosition(userFid, category = 'points') {
     const tokenBalance = userData.profiles?.token_balance || 0;
     const basePoints = userData.total_points || 0;
     const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
+    
+    console.log(`🔍 User ${userFid} data: basePoints=${basePoints}, tokenBalance=${tokenBalance}, multiplier=${multiplierResult.multiplier}x, multipliedPoints=${multiplierResult.multipliedPoints}`);
 
     // To calculate position accurately, we need to get all users, apply multipliers, and count
     // This is expensive but necessary for accurate positioning with dynamic multipliers
     const allUsersData = await getLeaderboard(50000, category); // Get ALL users with multipliers applied for the specific category
+    
+    console.log(`🔍 getUserLeaderboardPosition: Looking for user ${userFid} in ${allUsersData.length} users for category ${category}`);
     
     // Find user's position in the multiplied leaderboard
     let position = null;
     const userEntry = allUsersData.find(user => user.user_fid === userFid);
     if (userEntry) {
       position = userEntry.rank;
+      console.log(`✅ Found user ${userFid} at position ${position} with ${userEntry.total_points} points (multiplier: ${userEntry.token_multiplier}x)`);
+    } else {
+      console.log(`❌ User ${userFid} not found in leaderboard data`);
+      // Debug: show first few users to see what we have
+      console.log(`🔍 First 5 users in leaderboard:`, allUsersData.slice(0, 5).map(u => ({ fid: u.user_fid, points: u.total_points, multiplier: u.token_multiplier })));
     }
 
     return {
