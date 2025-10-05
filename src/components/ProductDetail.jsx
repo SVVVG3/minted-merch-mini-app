@@ -74,7 +74,7 @@ export function ProductDetail({
         try {
           await navigator.share({
             title: `${product.title} - Minted Merch`,
-            text: `Check out this ${product.title} on /mintedmerch! Order now & pay with USDC on Base 🔵`,
+            text: `Check out this ${product.title} on the $mintedmerch mini app! Order now & pay with USDC on Base 🟦`,
             url: window.location.href,
           });
         } catch (err) {
@@ -96,7 +96,7 @@ export function ProductDetail({
     try {
       // Use the actual product page URL for Mini App embed (which will use dynamic OG images in metadata)
       const productUrl = `${window.location.origin}/product/${handle}`;
-      const shareText = `Check out this ${product.title} on /mintedmerch!\n\nOrder now & pay with USDC on Base 🔵`;
+      const shareText = `Check out this ${product.title} on the $mintedmerch mini app!\n\nOrder now & pay with USDC on Base 🟦`;
       
       // Use the Farcaster SDK composeCast action with Mini App URL
       const { sdk } = await import('../lib/frame');
