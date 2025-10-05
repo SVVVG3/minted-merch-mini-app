@@ -903,7 +903,7 @@ export async function getUserLeaderboardPosition(userFid, category = 'points') {
       username: userData.profiles?.username || null,
       display_name: userData.profiles?.display_name || `User ${userFid}`,
       pfp_url: userData.profiles?.pfp_url || null,
-      totalPoints: multiplierResult.multipliedPoints,
+      totalPoints: userEntry ? userEntry.total_points : multiplierResult.multipliedPoints, // Use the multiplied points from leaderboard
       basePoints: basePoints,
       tokenMultiplier: multiplierResult.multiplier,
       tokenTier: multiplierResult.tier,
