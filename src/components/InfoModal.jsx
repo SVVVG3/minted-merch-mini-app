@@ -92,7 +92,7 @@ export function InfoModal({ isOpen, onClose }) {
             />
             <div>
               <h2 id="info-title" className="text-2xl font-bold text-gray-800">Mini App Guide</h2>
-              <p className="text-sm text-gray-600">Everything you need to know about the Minted Merch mini app</p>
+              <p className="text-sm text-gray-600">Everything you need to know about the Minted Merch mini app!</p>
             </div>
           </div>
         </div>
@@ -106,10 +106,10 @@ export function InfoModal({ isOpen, onClose }) {
               How To Get Started:
             </h3>
             <div className="space-y-2 text-sm text-gray-700">
-              <p>1. <strong>Check-in Daily:</strong> Spin the wheel to start earning points, move up the leaderboard, and be entered into random raffles for FREE merch!</p>
-              <p>2. <strong>Spin The Wheel Often:</strong> Earn streak bonuses at 3, 7, and 30+ days!</p>
+              <p>1. <strong>Check-in Daily:</strong> Spin the wheel to earn points, move up the leaderboard, and be entered into random raffles for $mintedmerch, gift cards, and FREE merch!</p>
+              <p>2. <strong>Spin The Wheel Often:</strong> Earn daily streak bonuses at 3, 7, and 30+ days!</p>
               <p>3. <strong>Buy Your Favorite Merch:</strong> Earn 100 points for every 1 USDC spent.</p>
-              <p>4. <strong>Hold $mintedmerch:</strong> Earn multipliers for holding 50M, 200M, and 1B+ tokens (2x, 3x, 5x)</p>
+              <p>4. <strong>Hold $mintedmerch:</strong> Earn multipliers for holding 50M, 200M, and 1B+ tokens.</p>
               <p>5. <strong>Add The Mini App:</strong> Receive daily check-in reminders, new product alerts, order confirmations, shipping alerts, and 15% off your first order!</p>
             </div>
           </div>
@@ -117,8 +117,8 @@ export function InfoModal({ isOpen, onClose }) {
           {/* Merch Mogul Section */}
           <div className="bg-gradient-to-r from-purple-50 to-green-50 rounded-lg p-4 border border-purple-200">
             <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-              <span>🎉</span>
               Become a Merch Mogul!
+              <span>🤌</span>
             </h3>
             
             {/* Merch Mogul Meme Image */}
@@ -132,17 +132,17 @@ export function InfoModal({ isOpen, onClose }) {
 
             <div className="space-y-3 text-sm text-gray-700">
               <p>
-                🚀 Hold <span className="font-bold text-green-600">50M+ $MINTEDMERCH tokens</span> and become eligible to join the <span className="font-bold text-purple-600">Merch Moguls Group Chat</span>!
+                Hold <span className="font-bold text-green-600">50M+ $MINTEDMERCH tokens</span> and become eligible to join the <span className="font-bold text-purple-600">Merch Moguls Group Chat</span>!
               </p>
               
               {/* Benefits */}
               <div className="bg-white rounded-lg p-3 border border-gray-200">
                 <p className="text-sm font-medium text-gray-700 mb-2">Merch Mogul Benefits:</p>
                 <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• Collab partner access</li>
-                  <li>• Create/order your own custom merch</li>
+                  <li>• Exclusive collab partner access</li>
+                  <li>• Create/order custom merch</li>
                   <li>• 15% off store wide while you hold</li>
-                  <li>• Access to the Merch Moguls group chat</li>
+                  <li>• Merch Moguls group chat access</li>
                 </ul>
               </div>
             </div>
@@ -151,7 +151,7 @@ export function InfoModal({ isOpen, onClose }) {
           {/* Support */}
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
             <p className="text-sm text-gray-600">
-              <strong>Need Help?</strong> Message <button onClick={handleFarcasterProfileClick} className="text-[#8A63D2] hover:underline">@svvvg3.eth</button> on Farcaster!
+              <strong>Need Help/Have Questions?</strong> Message <button onClick={handleFarcasterProfileClick} className="text-[#8A63D2] hover:underline">@svvvg3.eth</button> on Farcaster!
             </p>
           </div>
         </div>
