@@ -881,7 +881,7 @@ export async function getUserLeaderboardPosition(userFid, category = 'points') {
 
     // To get accurate position, we need to get all users and apply multipliers
     // This matches exactly how the leaderboard is calculated
-    const allUsersData = await getLeaderboard(50000, 'points'); // Get ALL users with multipliers applied
+    const allUsersData = await getLeaderboard(50000, category); // Get ALL users with multipliers applied for the specific category
     
     console.log(`🔍 getUserLeaderboardPosition: Looking for user ${userFid} in ${allUsersData.length} users`);
     
@@ -904,13 +904,52 @@ export async function getUserLeaderboardPosition(userFid, category = 'points') {
       console.log(`🔍 First 5 users in leaderboard:`, allUsersData.slice(0, 5).map(u => ({ fid: u.user_fid, points: u.total_points, multiplier: u.token_multiplier })));
     }
 
+    // Return the appropriate points value based on category
+    let displayPoints = 0;
+    if (userEntry) {
+      switch (category) {
+        case 'points':
+          displayPoints = userEntry.total_points;
+          break;
+        case 'purchases':
+          displayPoints = userEntry.points_from_purchases;
+          break;
+        case 'streaks':
+          displayPoints = userEntry.checkin_streak;
+          break;
+        case 'holders':
+          displayPoints = userEntry.token_balance;
+          break;
+        default:
+          displayPoints = userEntry.total_points;
+      }
+    } else {
+      // Fallback to calculated values
+      switch (category) {
+        case 'points':
+          displayPoints = multiplierResult.multipliedPoints;
+          break;
+        case 'purchases':
+          displayPoints = userData.points_from_purchases || 0;
+          break;
+        case 'streaks':
+          displayPoints = userData.checkin_streak || 0;
+          break;
+        case 'holders':
+          displayPoints = userData.profiles?.token_balance || 0;
+          break;
+        default:
+          displayPoints = multiplierResult.multipliedPoints;
+      }
+    }
+
     return {
       position: position,
       user_fid: userFid,
       username: userData.profiles?.username || null,
       display_name: userData.profiles?.display_name || `User ${userFid}`,
       pfp_url: userData.profiles?.pfp_url || null,
-      totalPoints: userEntry ? userEntry.total_points : multiplierResult.multipliedPoints, // Use the multiplied points from leaderboard
+      totalPoints: displayPoints, // Use the appropriate points value for the category
       basePoints: basePoints,
       tokenMultiplier: multiplierResult.multiplier,
       tokenTier: multiplierResult.tier,

@@ -422,7 +422,6 @@ export function Leaderboard({ isVisible = true }) {
             {/* Current User Position (always show if available) */}
             {userPosition && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                <div className="text-sm text-green-600 font-medium mb-2">Your Position</div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex items-center justify-center w-8 h-8 bg-green-100 text-green-700 rounded-full font-semibold text-sm">

@@ -499,6 +499,9 @@ export async function getUserTokenHoldersPosition(userFid) {
 
     const position = (count || 0) + 1;
 
+    console.log(`🔍 DEBUG Token Holders Position: User ${userFid} has ${userData.token_balance} tokens`);
+    console.log(`🔍 DEBUG Token Holders Position: ${count} users have more tokens`);
+    console.log(`🔍 DEBUG Token Holders Position: Calculated position: ${position}`);
     console.log(`✅ User ${userFid} is ranked #${position} in token holders`);
 
     return {
