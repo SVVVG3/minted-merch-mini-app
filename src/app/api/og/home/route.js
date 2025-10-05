@@ -136,7 +136,7 @@ export async function GET(request) {
                   color: '#888',
                 }}
               >
-                Hold 50M+ $mintedmerch to become a Merch Mogul, unlock exclusive benefits, & get 15% off every order!
+                Hold 50M+ $mintedmerch to become a Merch Mogul & unlock exclusive benefits!
               </div>
             </div>
           </div>
