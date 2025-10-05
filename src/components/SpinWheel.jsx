@@ -606,7 +606,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                 </div>
                 <div className="bg-green-100 px-3 py-1 rounded-full">
                   <span className="text-sm">
-                    {getStreakEmoji(userStatus.checkinStreak)} <span className="font-semibold text-green-700">{userStatus.checkinStreak}</span> day{userStatus.checkinStreak !== 1 ? 's' : ''}
+                    {getStreakEmoji(spinResult?.newStreak || userStatus.checkinStreak)} <span className="font-semibold text-green-700">{spinResult?.newStreak || userStatus.checkinStreak}</span> day{(spinResult?.newStreak || userStatus.checkinStreak) !== 1 ? 's' : ''}
                   </span>
                 </div>
               </div>
@@ -717,15 +717,9 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         {/* Results Section - Show at top when spinResult exists */}
         {spinResult && (
           <div className="space-y-4 w-full mb-6">
-            {/* Today's Result Banner - Dismissible */}
-            <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 relative">
-              <button 
-                onClick={() => {/* TODO: Add dismiss functionality */}}
-                className="absolute top-2 right-2 w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center text-gray-600 hover:text-gray-800 transition-colors"
-              >
-                ×
-              </button>
-              <div className="text-center pr-8">
+            {/* Today's Result Banner */}
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4">
+              <div className="text-center">
                 <div className="text-base font-bold text-green-600">
                   Today's Result: +{spinResult.multipliedPoints || spinResult.pointsEarned} Points! 🎉
                 </div>
@@ -778,7 +772,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
               <div className="text-center">
                 {/* Big celebration for the points */}
                 <div className="text-4xl sm:text-5xl font-black bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-3 animate-bounce">
-                  +{spinResult.multipliedPoints || spinResult.pointsEarned} Points! 🎉
+                  +{spinResult.multipliedPoints || spinResult.pointsEarned} Points!
                 </div>
                 
                 {/* Points breakdown */}
