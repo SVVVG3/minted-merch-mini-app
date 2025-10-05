@@ -829,9 +829,10 @@ export async function getLeaderboard(limit = 10, category = 'points') {
 /**
  * Get user's leaderboard position (with token multipliers applied)
  * @param {number} userFid - Farcaster ID of the user
+ * @param {string} category - Category to get position for ('points', 'streaks', 'purchases', 'spending')
  * @returns {object} User's position and stats
  */
-export async function getUserLeaderboardPosition(userFid) {
+export async function getUserLeaderboardPosition(userFid, category = 'points') {
   try {
     // Get user's current points and profile data
     const { data: userData, error: userError } = await supabaseAdmin
@@ -878,35 +879,23 @@ export async function getUserLeaderboardPosition(userFid) {
     
     console.log(`🔍 User ${userFid} data: basePoints=${basePoints}, tokenBalance=${tokenBalance}, multiplier=${multiplierResult.multiplier}x, multipliedPoints=${multiplierResult.multipliedPoints}`);
 
-    // Count users with higher base points (simple approach)
-    const { count, error: countError } = await supabaseAdmin
-      .from('user_leaderboard')
-      .select('*', { count: 'exact', head: true })
-      .gt('total_points', basePoints);
-
-    if (countError) {
-      console.error('Error counting users with higher points:', countError);
-      return {
-        position: null,
-        user_fid: userFid,
-        username: userData.profiles?.username || null,
-        display_name: userData.profiles?.display_name || `User ${userFid}`,
-        pfp_url: userData.profiles?.pfp_url || null,
-        totalPoints: multiplierResult.multipliedPoints,
-        basePoints: basePoints,
-        tokenMultiplier: multiplierResult.multiplier,
-        tokenTier: multiplierResult.tier,
-        checkin_streak: userData.checkin_streak,
-        streak: userData.checkin_streak,
-        lastCheckin: userData.last_checkin_date,
-        totalOrders: userData.total_orders || 0,
-        totalSpent: userData.total_spent || 0,
-        pointsFromPurchases: userData.points_from_purchases || 0
-      };
+    // To get accurate position, we need to get all users and apply multipliers
+    // This matches exactly how the leaderboard is calculated
+    const allUsersData = await getLeaderboard(50000, 'points'); // Get ALL users with multipliers applied
+    
+    console.log(`🔍 getUserLeaderboardPosition: Looking for user ${userFid} in ${allUsersData.length} users`);
+    
+    // Find user's position in the multiplied leaderboard
+    let position = null;
+    const userEntry = allUsersData.find(user => user.user_fid === userFid);
+    if (userEntry) {
+      position = userEntry.rank;
+      console.log(`✅ Found user ${userFid} at position ${position} with ${userEntry.total_points} points (multiplier: ${userEntry.token_multiplier}x)`);
+    } else {
+      console.log(`❌ User ${userFid} not found in leaderboard data`);
+      // Debug: show first few users to see what we have
+      console.log(`🔍 First 5 users in leaderboard:`, allUsersData.slice(0, 5).map(u => ({ fid: u.user_fid, points: u.total_points, multiplier: u.token_multiplier })));
     }
-
-    const position = (count || 0) + 1;
-    console.log(`🔍 User ${userFid} position: ${position} (${count} users have higher points)`);
 
     return {
       position: position,
