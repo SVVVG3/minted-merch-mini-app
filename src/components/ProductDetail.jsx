@@ -524,12 +524,16 @@ export function ProductDetail({
               discountedPrice = Math.max(discountedPrice, 0); // Ensure non-negative
             }
             
+            // Check if this variant is already in cart
+            const currentQuantity = getItemQuantity(product.id, selectedVariant?.id);
+            const quantityText = currentQuantity > 0 ? ` (${currentQuantity} in cart)` : '';
+            
             if (productDiscount && discountedPrice < originalPrice) {
               return discountedPrice === 0 
-                ? 'Add to Cart - FREE' 
-                : `Add to Cart - $${discountedPrice.toFixed(2)}`;
+                ? `Add to Cart - FREE${quantityText}` 
+                : `Add to Cart - $${discountedPrice.toFixed(2)}${quantityText}`;
             } else {
-              return `Add to Cart - $${originalPrice.toFixed(2)}`;
+              return `Add to Cart - $${originalPrice.toFixed(2)}${quantityText}`;
             }
           })() : 'Out of Stock'}
         </button>

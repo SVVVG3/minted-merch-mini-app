@@ -5,7 +5,7 @@ import { useCart } from '@/lib/CartContext';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 export function ProductCard({ product }) {
-  const { addItem, isInCart } = useCart();
+  const { addItem, isInCart, getItemQuantity } = useCart();
   const price = product.priceRange?.minVariantPrice?.amount || '0';
   const imageUrl = product.images?.edges?.[0]?.node?.url || '/placeholder.jpg';
   const imageAlt = product.images?.edges?.[0]?.node?.altText || product.title;
@@ -15,6 +15,7 @@ export function ProductCard({ product }) {
   const defaultVariant = variants[0]?.node;
   const hasMultipleVariants = variants.length > 1;
   const isItemInCart = isInCart(product.id, defaultVariant?.id);
+  const cartQuantity = getItemQuantity(product.id, defaultVariant?.id);
 
   const handleAddToCart = async (e) => {
     e.preventDefault(); // Prevent navigation
@@ -104,7 +105,7 @@ export function ProductCard({ product }) {
                     : 'bg-[#3eb489] text-white hover:bg-[#359970]'
                 }`}
               >
-                {isItemInCart ? '✓ In Cart' : 'Add to Cart'}
+                {isItemInCart ? `✓ In Cart (${cartQuantity})` : 'Add to Cart'}
               </button>
             )
           ) : (
