@@ -27,6 +27,7 @@ export function isGiftCardCode(code) {
     /^[A-Z]+-[A-Z]+-\d+$/,    // Pattern like SAVAGE-TEST-345
     /^[A-Z]+TEST-\d+$/,       // Pattern like SAVAGETEST-345
     /^[A-Z]+-[A-Z0-9]+-[A-Z0-9]+$/, // General pattern: WORD-WORD-ALPHANUMERIC
+    /^[A-Z]+-[A-Z]+$/,        // Pattern like TEST-MEXICO (WORD-WORD)
   ];
   
   // If it matches discount patterns, it's likely a discount code
