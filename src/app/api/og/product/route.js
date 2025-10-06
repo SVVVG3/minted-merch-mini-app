@@ -147,9 +147,20 @@ export async function GET(request) {
                 style={{
                   fontSize: '20px',
                   color: '#888',
+                  marginBottom: '15px',
                 }}
               >
-                Pay with USDC on Base 🔵
+                Pay with USDC on Base 🟦
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '18px',
+                  color: '#3eb489',
+                  fontWeight: 'bold',
+                }}
+              >
+                Hold 50M+ $mintedmerch to become a Merch Mogul & unlock exlusive benefits!
               </div>
             </div>
           </div>
