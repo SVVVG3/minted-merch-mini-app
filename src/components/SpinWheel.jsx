@@ -601,7 +601,12 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
               <div className="flex justify-center gap-4 mb-3">
                 <div className="bg-blue-100 px-3 py-1 rounded-full">
                   <span className="text-sm">
-                    💎 <span className="font-semibold text-blue-700">{userStatus.totalPoints?.toLocaleString()}</span> pts
+                    💎 <span className="font-semibold text-blue-700">
+                      {spinResult ? 
+                        ((spinResult.totalPoints || 0) * (userStatus?.tokenMultiplier || 1)).toLocaleString() : 
+                        (userStatus.totalPoints || 0).toLocaleString()
+                      }
+                    </span> pts
                   </span>
                 </div>
                 <div className="bg-green-100 px-3 py-1 rounded-full">
@@ -795,7 +800,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                 
                 {/* Total points */}
                 <div className="text-sm text-gray-600 mb-3 flex items-center justify-center gap-2">
-                  <span>Total Points: <span className="font-bold text-blue-600">{spinResult.totalPoints?.toLocaleString()}</span></span>
+                  <span>Total Points: <span className="font-bold text-blue-600">{((spinResult.totalPoints || 0) * (userStatus?.tokenMultiplier || 1)).toLocaleString()}</span></span>
                   {/* Holdings multiplier badge in result */}
                   {userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 && (
                     <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
