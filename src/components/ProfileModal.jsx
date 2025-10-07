@@ -230,7 +230,7 @@ export function ProfileModal({ isOpen, onClose }) {
               </div>
               
               {/* Status Card */}
-              {profileData.token_balance && parseFloat(profileData.token_balance) >= 50000000 * Math.pow(10, 18) ? (
+              {profileData.token_balance && parseFloat(profileData.token_balance) >= 50000000 ? (
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-5 shadow-sm">
                   <div className="flex items-center space-x-2 mb-3">
                     <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
