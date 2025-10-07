@@ -56,9 +56,8 @@ export default function UserModal({ isOpen, onClose, userFid }) {
   const formatTokenBalance = (balance) => {
     if (!balance || balance === 0) return '0';
     
-    // Convert from wei to tokens (divide by 10^18)
-    const balanceWei = typeof balance === 'string' ? parseFloat(balance) : balance;
-    const tokenAmount = balanceWei / Math.pow(10, 18);
+    // Balance is now stored in tokens (not wei), so no conversion needed
+    const tokenAmount = typeof balance === 'string' ? parseFloat(balance) : balance;
     
     if (tokenAmount >= 1000000000) {
       // Show billions (B) for amounts >= 1 billion

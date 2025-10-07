@@ -524,17 +524,16 @@ export async function getUserTokenHoldersPosition(userFid) {
 }
 
 /**
- * Format token balance for display (convert from wei to readable format)
- * @param {number|string} balance - Balance in wei (stored as BIGINT)
+ * Format token balance for display (balance is now stored in tokens, not wei)
+ * @param {number|string} balance - Balance in tokens (stored as NUMERIC)
  * @returns {string} Formatted balance
  */
 function formatTokenBalance(balance) {
   if (!balance || balance === 0) return '0';
   
-  // Convert from wei (18 decimals) to readable format
-  // Handle both number and string inputs (BIGINT comes as string from DB)
-  const balanceWei = typeof balance === 'string' ? parseFloat(balance) : balance;
-  const tokenAmount = balanceWei / Math.pow(10, 18);
+  // Balance is now stored in tokens (not wei), so no conversion needed
+  // Handle both number and string inputs
+  const tokenAmount = typeof balance === 'string' ? parseFloat(balance) : balance;
   
   if (tokenAmount >= 1000000000) {
     // Show billions (B) for amounts >= 1 billion

@@ -18,9 +18,8 @@ export function ProfileModal({ isOpen, onClose }) {
   const formatTokenBalance = (balance) => {
     if (!balance || balance === 0) return '0';
     
-    // Convert from wei (18 decimals) to readable format
-    const balanceWei = typeof balance === 'string' ? parseFloat(balance) : balance;
-    const tokenAmount = balanceWei / Math.pow(10, 18);
+    // Balance is now stored in tokens (not wei), so no conversion needed
+    const tokenAmount = typeof balance === 'string' ? parseFloat(balance) : balance;
     
     if (tokenAmount >= 1000000000) {
       // Show billions (B) for amounts >= 1 billion
