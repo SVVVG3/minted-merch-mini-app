@@ -223,22 +223,14 @@ function PartnerDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center space-x-3">
-                          {order.profiles?.pfp_url ? (
-                            <img
-                              src={order.profiles.pfp_url}
-                              alt={order.profiles.username}
-                              className="w-8 h-8 rounded-full"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
-                              <span className="text-xs font-medium text-gray-600">
-                                {order.customer_name?.charAt(0) || '?'}
-                              </span>
-                            </div>
-                          )}
+                          <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                            <span className="text-xs font-medium text-gray-600">
+                              {order.customer_name?.charAt(0) || '?'}
+                            </span>
+                          </div>
                           <div>
                             <div className="font-medium">{order.customer_name}</div>
-                            <div className="text-xs text-gray-500">@{order.profiles?.username}</div>
+                            <div className="text-xs text-gray-500">Customer</div>
                           </div>
                         </div>
                       </td>
@@ -354,14 +346,10 @@ function OrderDetailModal({ order, onClose, onUpdate, updating }) {
           <div className="mb-6">
             <h3 className="text-lg font-semibold mb-3">Customer Information</h3>
             <div className="bg-gray-50 p-4 rounded-md">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <div className="text-sm font-medium text-gray-700">Name</div>
                   <div className="text-sm text-gray-900">{order.customer_name}</div>
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-700">Farcaster</div>
-                  <div className="text-sm text-gray-900">@{order.profiles?.username}</div>
                 </div>
               </div>
             </div>
