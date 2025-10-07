@@ -122,30 +122,30 @@ export async function GET(request) {
     
     // Transform the data to flatten profile information, add token holdings, and apply multipliers
     const transformedData = leaderboardData.map((entry, index) => {
-      let profile, leaderboardInfo, tokenBalanceWei, basePoints, userFid;
+      let profile, leaderboardInfo, tokenBalance, basePoints, userFid;
       
       if (isHoldingsQuery) {
         // Data from profiles table
         profile = entry;
         leaderboardInfo = entry.user_leaderboard?.[0] || {};
-        tokenBalanceWei = entry.token_balance || 0;
+        tokenBalance = entry.token_balance || 0;
         basePoints = leaderboardInfo.total_points || 0;
         userFid = entry.fid;
       } else {
         // Data from user_leaderboard table
         profile = entry.profiles || {};
         leaderboardInfo = entry;
-        tokenBalanceWei = profile.token_balance || 0;
+        tokenBalance = profile.token_balance || 0;
         basePoints = entry.total_points || 0;
         userFid = entry.user_fid;
       }
       
       // Apply token multiplier to total points
-      const multiplierResult = applyTokenMultiplier(basePoints, tokenBalanceWei);
+      const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
       
       // Debug first few entries
       if (index < 5) {
-        console.log(`🔍 Entry ${index}: FID ${userFid}, isHoldingsQuery: ${isHoldingsQuery}, tokenBalance:`, tokenBalanceWei, 'multiplier:', multiplierResult.multiplier);
+        console.log(`🔍 Entry ${index}: FID ${userFid}, isHoldingsQuery: ${isHoldingsQuery}, tokenBalance:`, tokenBalance, 'multiplier:', multiplierResult.multiplier);
       }
       
       return {
@@ -155,7 +155,7 @@ export async function GET(request) {
         username: profile.username || leaderboardInfo.username,
         display_name: profile.display_name || leaderboardInfo.display_name,
         pfp_url: profile.pfp_url,
-        token_balance: tokenBalanceWei,
+        token_balance: tokenBalance,
         token_balance_updated_at: profile.token_balance_updated_at,
         // Leaderboard stats (may be 0 for users who haven't engaged)
         total_points: multiplierResult.multipliedPoints,

@@ -557,13 +557,13 @@ export async function getLeaderboard(limit = 10, category = 'points') {
       // Apply token multipliers to all users (same as admin dashboard logic)
       const transformedData = allData.map((entry) => {
         const profile = entry.profiles || {};
-        const tokenBalanceWei = profile.token_balance || 0;
+        const tokenBalance = profile.token_balance || 0;
         const basePoints = entry.total_points || 0;
         const basePurchasePoints = entry.points_from_purchases || 0;
         
         // Apply token multiplier to total points AND purchase points
-        const multiplierResult = applyTokenMultiplier(basePoints, tokenBalanceWei);
-        const purchaseMultiplierResult = applyTokenMultiplier(basePurchasePoints, tokenBalanceWei);
+        const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
+        const purchaseMultiplierResult = applyTokenMultiplier(basePurchasePoints, tokenBalance);
         
         return {
           ...entry,
@@ -571,7 +571,7 @@ export async function getLeaderboard(limit = 10, category = 'points') {
           display_name: profile.display_name || entry.display_name || `User ${entry.user_fid}`,
           username: profile.username || entry.username || null,
           pfp_url: profile.pfp_url || null,
-          token_balance: tokenBalanceWei,
+          token_balance: tokenBalance,
           // Store both original and multiplied points
           base_points: basePoints,
           total_points: multiplierResult.multipliedPoints,
@@ -1520,24 +1520,24 @@ function sortUsersByCategory(users, category) {
 
 /**
  * Calculate token holding multiplier based on $MINTEDMERCH holdings
- * @param {string|number} tokenBalanceWei - Token balance in wei (smallest unit)
+ * @param {string|number} tokenBalance - Token balance in tokens (not wei)
  * @returns {object} Multiplier information { multiplier: number, tier: string }
  */
-export function calculateTokenMultiplier(tokenBalanceWei) {
-  if (!tokenBalanceWei) {
+export function calculateTokenMultiplier(tokenBalance) {
+  if (!tokenBalance) {
     return { multiplier: 1, tier: 'none' };
   }
 
-  // Convert from wei to tokens (divide by 10^18)
-  const tokenBalance = parseFloat(tokenBalanceWei) / 1000000000000000000;
+  // Balance is now stored in tokens (not wei), so no conversion needed
+  const tokenBalanceNum = parseFloat(tokenBalance);
 
-  if (tokenBalance >= 1000000000) {
+  if (tokenBalanceNum >= 1000000000) {
     // 1B+ tokens = 5x multiplier
     return { multiplier: 5, tier: 'legendary' };
-  } else if (tokenBalance >= 200000000) {
+  } else if (tokenBalanceNum >= 200000000) {
     // 200M+ tokens = 3x multiplier
     return { multiplier: 3, tier: 'elite' };
-  } else if (tokenBalance >= 50000000) {
+  } else if (tokenBalanceNum >= 50000000) {
     // 50M+ tokens = 2x multiplier
     return { multiplier: 2, tier: 'elite' };
   } else {
@@ -1549,11 +1549,11 @@ export function calculateTokenMultiplier(tokenBalanceWei) {
 /**
  * Apply token holding multiplier to user's total points
  * @param {number} basePoints - Base total points before multiplier
- * @param {string|number} tokenBalanceWei - Token balance in wei
+ * @param {string|number} tokenBalance - Token balance in tokens (not wei)
  * @returns {object} { multipliedPoints: number, multiplier: number, tier: string }
  */
-export function applyTokenMultiplier(basePoints, tokenBalanceWei) {
-  const multiplierInfo = calculateTokenMultiplier(tokenBalanceWei);
+export function applyTokenMultiplier(basePoints, tokenBalance) {
+  const multiplierInfo = calculateTokenMultiplier(tokenBalance);
   const multipliedPoints = Math.floor(basePoints * multiplierInfo.multiplier);
   
   return {
