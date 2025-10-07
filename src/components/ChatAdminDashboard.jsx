@@ -56,14 +56,35 @@ export function ChatAdminDashboard() {
 
       // Calculate summary statistics
       const eligibleCount = memberData.filter(m => m.eligible).length;
+      const ineligibleCount = memberData.length - eligibleCount;
       const totalBalance = memberData.reduce((sum, m) => sum + (m.tokenBalance || 0), 0);
       const avgBalance = memberData.length > 0 ? totalBalance / memberData.length : 0;
+
+      console.log('📊 Chat members summary:', {
+        totalMembers: memberData.length,
+        eligibleMembers: eligibleCount,
+        ineligibleMembers: ineligibleCount,
+        averageBalance: avgBalance
+      });
+
+      // Log ineligible members for debugging
+      const ineligibleMembers = memberData.filter(m => !m.eligible);
+      if (ineligibleMembers.length > 0) {
+        console.log('❌ Ineligible members found:', ineligibleMembers.map(m => ({
+          fid: m.fid,
+          username: m.username,
+          tokenBalance: m.tokenBalance,
+          eligible: m.eligible
+        })));
+      } else {
+        console.log('✅ All members are eligible');
+      }
 
       setEligibilityData(memberData);
       setSummary({
         totalMembers: memberData.length,
         eligibleMembers: eligibleCount,
-        ineligibleMembers: memberData.length - eligibleCount,
+        ineligibleMembers: ineligibleCount,
         averageBalance: avgBalance
       });
       
@@ -177,8 +198,14 @@ export function ChatAdminDashboard() {
 
       if (result.success) {
         console.log(`✅ Successfully updated balance for ${username}: ${result.tokenBalance} tokens`);
+        console.log(`🎫 Eligibility status: ${result.eligible ? 'ELIGIBLE' : 'INELIGIBLE'}`);
+        
+        // Add a small delay to ensure database transaction is committed
+        console.log('⏳ Waiting 1 second for database transaction to commit...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Refresh the display to show updated balance
+        console.log('🔄 Refreshing chat members display...');
         await loadChatMembers();
         
         // Show success message
