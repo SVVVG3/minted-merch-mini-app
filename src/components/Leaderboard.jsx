@@ -327,19 +327,17 @@ export function Leaderboard({ isVisible = true }) {
     }
     
     // Fallback: Get token balance from different possible sources
-    let tokenBalanceWei = 0;
+    let tokenBalance = 0;
     
     if (user.token_balance) {
-      tokenBalanceWei = parseFloat(user.token_balance);
+      tokenBalance = parseFloat(user.token_balance);
     } else if (user.profiles?.token_balance) {
-      tokenBalanceWei = parseFloat(user.profiles.token_balance);
+      tokenBalance = parseFloat(user.profiles.token_balance);
     } else if (user.profile?.token_balance) {
-      tokenBalanceWei = parseFloat(user.profile.token_balance);
+      tokenBalance = parseFloat(user.profile.token_balance);
     }
     
-    // Convert from wei to tokens (divide by 10^18)
-    const tokenBalance = tokenBalanceWei / 1000000000000000000;
-    
+    // Balance is now stored in tokens (not wei), so no conversion needed
     // Check if balance is 50M or more tokens (50,000,000)
     return tokenBalance >= 50000000;
   };
