@@ -21,7 +21,7 @@ export async function GET(request) {
     const { count: merchMoguls, error: merchMogulsError } = await supabaseAdmin
       .from('profiles')
       .select('fid', { count: 'exact', head: true })
-      .gte('token_balance', '50000000000000000000000000'); // 50M tokens in wei
+      .gte('token_balance', '50000000'); // 50M tokens (stored as token values, not wei)
 
     if (merchMogulsError) {
       console.error('Error fetching Merch Moguls count:', merchMogulsError);
@@ -31,7 +31,7 @@ export async function GET(request) {
     const { count: holdersOneMillion, error: holdersOnMillionError } = await supabaseAdmin
       .from('profiles')
       .select('fid', { count: 'exact', head: true })
-      .gte('token_balance', '1000000000000000000000000'); // 1M tokens in wei
+      .gte('token_balance', '1000000'); // 1M tokens (stored as token values, not wei)
 
     if (holdersOnMillionError) {
       console.error('Error fetching 1M+ holders count:', holdersOnMillionError);
