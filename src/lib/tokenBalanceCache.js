@@ -107,11 +107,16 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
       finalBalance = 0; // No wallets, set to 0
     }
 
+    // Convert finalBalance from wei to tokens for storage in profiles table
+    const tokensBalance = typeof finalBalance === 'string' ?
+      parseFloat(finalBalance) / Math.pow(10, 18) :
+      finalBalance / Math.pow(10, 18);
+
     // Update the profiles table
     const { data, error } = await supabaseAdmin
       .from('profiles')
       .update({
-        token_balance: finalBalance,
+        token_balance: tokensBalance,
         token_balance_updated_at: new Date().toISOString()
       })
       .eq('fid', fid)
@@ -123,18 +128,15 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
       return {
         success: false,
         error: error.message,
-        balance: finalBalance
+        balance: tokensBalance
       };
     }
 
-    console.log(`✅ Updated token balance for FID ${fid}: ${finalBalance} tokens`);
+    console.log(`✅ Updated token balance for FID ${fid}: ${tokensBalance} tokens`);
     console.log(`📅 Cache timestamp: ${data.token_balance_updated_at}`);
     
     // Only update chat member database if user is actually a chat member
     // This prevents errors for users who aren't in the chat_members table
-    const tokensBalance = typeof finalBalance === 'string' ?
-      parseFloat(finalBalance) / Math.pow(10, 18) :
-      finalBalance / Math.pow(10, 18);
     
     const CHAT_ELIGIBILITY_THRESHOLD = 50000000; // 50M tokens required for chat
     
@@ -168,7 +170,7 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
     
     return {
       success: true,
-      balance: finalBalance,
+      balance: tokensBalance,
       updated_at: data.token_balance_updated_at,
       data
     };
