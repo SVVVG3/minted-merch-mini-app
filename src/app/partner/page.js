@@ -196,7 +196,7 @@ function PartnerDashboard() {
                       Order ID
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Customer
+                      Shipping Address
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
@@ -221,18 +221,21 @@ function PartnerDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {order.order_id}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
-                            <span className="text-xs font-medium text-gray-600">
-                              {order.customer_name?.charAt(0) || '?'}
-                            </span>
-                          </div>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {order.shipping_address ? (
                           <div>
-                            <div className="font-medium">{order.customer_name}</div>
-                            <div className="text-xs text-gray-500">Customer</div>
+                            <div className="font-medium">{order.shipping_address.name}</div>
+                            <div className="text-xs text-gray-500">
+                              {order.shipping_address.address_line_1}
+                              {order.shipping_address.address_line_2 && `, ${order.shipping_address.address_line_2}`}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.postal_code}
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="text-gray-500 text-xs">No address</div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
