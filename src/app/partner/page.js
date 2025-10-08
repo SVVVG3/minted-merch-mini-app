@@ -222,20 +222,30 @@ function PartnerDashboard() {
                         {order.order_id}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        {order.shipping_address ? (
-                          <div>
-                            <div className="font-medium">{order.shipping_address.name}</div>
-                            <div className="text-xs text-gray-500">
-                              {order.shipping_address.address_line_1}
-                              {order.shipping_address.address_line_2 && `, ${order.shipping_address.address_line_2}`}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.postal_code}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-gray-500 text-xs">No address</div>
-                        )}
+                        {(() => {
+                          // Debug: log the shipping address structure
+                          console.log('Shipping address for order', order.order_id, ':', order.shipping_address);
+                          
+                          if (order.shipping_address) {
+                            return (
+                              <div>
+                                <div className="font-medium">{order.shipping_address.name}</div>
+                                <div className="text-xs text-gray-500">
+                                  {order.shipping_address.address_line_1}
+                                  {order.shipping_address.address_line_2 && `, ${order.shipping_address.address_line_2}`}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.postal_code}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {order.shipping_address.country}
+                                </div>
+                              </div>
+                            );
+                          } else {
+                            return <div className="text-gray-500 text-xs">No address</div>;
+                          }
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
@@ -345,18 +355,6 @@ function OrderDetailModal({ order, onClose, onUpdate, updating }) {
             </button>
           </div>
 
-          {/* Customer Info */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3">Customer Information</h3>
-            <div className="bg-gray-50 p-4 rounded-md">
-              <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <div className="text-sm font-medium text-gray-700">Name</div>
-                  <div className="text-sm text-gray-900">{order.customer_name}</div>
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Shipping Address */}
           {order.shipping_address && (
