@@ -56,11 +56,9 @@ export async function POST(request) {
         expiresAt: validationResult.giftCard.expiresAt,
         note: validationResult.giftCard.note
       },
-      discount: {
-        discountAmount: validationResult.discount.discountAmount,
-        remainingBalance: validationResult.discount.remainingBalance,
-        finalTotal: validationResult.discount.finalTotal
-      }
+      // SECURITY: Don't return discount amounts to prevent client-side manipulation
+      // Discount amounts will be calculated server-side during checkout
+      message: `Gift card is valid with $${parseFloat(validationResult.giftCard.balance.amount)} balance`
     });
     
   } catch (error) {

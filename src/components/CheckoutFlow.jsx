@@ -115,11 +115,14 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     // Calculate total before gift card
     let totalBeforeGiftCard = Math.max(0, subtotal - discount + shipping + tax);
     
-    // Apply gift card discount
+    // SECURITY: Gift card discount will be calculated server-side
+    // Frontend only shows that gift card is applied, not the amount
     let giftCardDiscount = 0;
-    if (appliedGiftCard?.discount) {
-      giftCardDiscount = appliedGiftCard.discount.discountAmount;
-      console.log('🎁 Gift card discount applied:', giftCardDiscount);
+    if (appliedGiftCard) {
+      // Estimate gift card discount for display purposes only
+      // Actual amount will be calculated server-side during checkout
+      giftCardDiscount = Math.min(appliedGiftCard.balance, totalBeforeGiftCard);
+      console.log('🎁 Gift card applied (estimated discount):', giftCardDiscount);
     }
     
     // Calculate final total with gift card
@@ -128,7 +131,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
     // Use <= 0.01 to handle floating point precision issues
     const isCartFree = cartTotal <= 0.01;
-    if (finalTotal <= 0.01 && (isCartFree || appliedGiftCard?.discount?.discountAmount > 0)) {
+    if (finalTotal <= 0.01 && (isCartFree || giftCardDiscount > 0)) {
       finalTotal = 0.01;
       console.log('💰 Applied minimum charge of $0.01 for free giveaway order processing');
     }
@@ -565,25 +568,12 @@ Transaction Hash: ${transactionHash}`;
         appliedDiscount: appliedDiscount, // Include discount information from CartContext
         discountAmount: calculateProductAwareDiscountAmount(),
         appliedGiftCard: appliedGiftCard, // Include gift card information (for display)
-        giftCardAmount: appliedGiftCard?.discount?.discountAmount || 0,
-        // Format gift cards array for database tracking
-        giftCards: appliedGiftCard ? (() => {
-          console.log('🔍 DEBUG: Applied gift card structure:', {
-            fullObject: appliedGiftCard,
-            hasCode: !!appliedGiftCard.code,
-            code: appliedGiftCard.code,
-            hasDiscount: !!appliedGiftCard.discount,
-            discountAmount: appliedGiftCard.discount?.discountAmount,
-            hasBalance: !!appliedGiftCard.balance,
-            balanceAmount: appliedGiftCard.balance?.amount
-          });
-          
-          return [{
-            code: appliedGiftCard.code,
-            amountUsed: appliedGiftCard.discount?.discountAmount || 0,
-            balanceAfter: appliedGiftCard.balance?.amount || 0
-          }];
-        })() : []
+        // SECURITY: Gift card amounts will be calculated server-side
+        giftCards: appliedGiftCard ? [{
+          code: appliedGiftCard.code,
+          // Don't send amountUsed - server will calculate this
+          balance: appliedGiftCard.balance
+        }] : []
       };
 
       const response = await fetch('/api/shopify/orders', {
@@ -615,9 +605,11 @@ Transaction Hash: ${transactionHash}`;
           finalOrderTotal -= calculateProductAwareDiscountAmount();
         }
         
-        // Apply gift card discount
-        if (appliedGiftCard?.discount?.discountAmount) {
-          finalOrderTotal -= appliedGiftCard.discount.discountAmount;
+        // SECURITY: Gift card discount will be calculated server-side
+        // Frontend only estimates for display purposes
+        if (appliedGiftCard) {
+          const estimatedGiftCardDiscount = Math.min(appliedGiftCard.balance, finalOrderTotal);
+          finalOrderTotal -= estimatedGiftCardDiscount;
         }
         
         // Add taxes and shipping
@@ -629,7 +621,7 @@ Transaction Hash: ${transactionHash}`;
         // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
         // Use <= 0.01 to handle floating point precision issues
         const isCartFree = cartTotal <= 0.01;
-        if (finalOrderTotal <= 0.01 && (isCartFree || appliedGiftCard?.discount?.discountAmount > 0)) {
+        if (finalOrderTotal <= 0.01 && (isCartFree || (appliedGiftCard && appliedGiftCard.balance > 0))) {
           finalOrderTotal = 0.01;
           console.log('💰 Applied minimum charge of $0.01 for free giveaway order processing');
         }
@@ -1174,8 +1166,8 @@ Transaction Hash: ${transactionHash}`;
                           )}
                           {appliedGiftCard && (
                             <div className="flex justify-between text-sm text-green-600">
-                              <span>Gift Card (${appliedGiftCard.discount.discountAmount.toFixed(2)})</span>
-                              <span>-${appliedGiftCard.discount.discountAmount.toFixed(2)}</span>
+                              <span>Gift Card (${appliedGiftCard.balance.toFixed(2)} balance)</span>
+                              <span>-${giftCardDiscount.toFixed(2)}</span>
                             </div>
                           )}
                           <div className="flex justify-between text-sm">
@@ -1203,7 +1195,7 @@ Transaction Hash: ${transactionHash}`;
                                 
                                 const subtotal = cart.checkout.subtotal.amount;
                                 const discount = calculateProductAwareDiscountAmount();
-                                const giftCardDiscount = appliedGiftCard?.discount?.discountAmount || 0;
+                                const giftCardDiscount = appliedGiftCard ? Math.min(appliedGiftCard.balance, subtotal - discount) : 0;
                                 let shipping = cart.selectedShipping.price.amount;
                                 
                                 // Override shipping to 0 if discount includes free shipping
@@ -1332,8 +1324,8 @@ Transaction Hash: ${transactionHash}`;
                       {/* Gift Card Line Item */}
                       {appliedGiftCard && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Gift Card (${appliedGiftCard.discount.discountAmount.toFixed(2)})</span>
-                          <span>-${appliedGiftCard.discount.discountAmount.toFixed(2)}</span>
+                          <span>Gift Card (${appliedGiftCard.balance.toFixed(2)} balance)</span>
+                          <span>-${giftCardDiscount.toFixed(2)}</span>
                         </div>
                       )}
                       

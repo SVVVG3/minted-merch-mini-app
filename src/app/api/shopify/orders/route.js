@@ -193,121 +193,101 @@ export async function POST(request) {
       );
     }
 
-    // Calculate totals with discount OUTSIDE retry loops - shared by both Shopify and Supabase
-    const subtotalPrice = parseFloat(checkout.subtotal.amount);
+    // 🔒 SECURITY FIX: Server-side payment reconciliation - NEVER trust client calculations
+    console.log(`🔒 [${requestId}] Starting server-side payment reconciliation...`);
     
-    // 🔒 SECURITY FIX: Server-side discount validation - NEVER trust client discount amount
-    let validatedDiscountAmount = 0;
-    if (appliedDiscount && appliedDiscount.code) {
-      console.log(`🔒 [${requestId}] Validating discount server-side:`, {
-        clientDiscountAmount: discountAmount,
-        discountCode: appliedDiscount.code,
-        subtotal: subtotalPrice
-      });
-      
-      // Import discount validation
-      const { validateDiscountForOrder } = await import('@/lib/orders');
-      const { calculateDiscountAmount } = await import('@/lib/discounts');
-      
-      // Validate discount code server-side
-      const validationResult = await validateDiscountForOrder(appliedDiscount.code, fidInt, subtotalPrice, cartItems);
-      
-      if (validationResult.success && validationResult.isValid) {
-        // Calculate actual discount amount server-side
-        // Format discount code object for calculateDiscountAmount function
-        const formattedDiscountCode = {
-          ...validationResult.discountCode,
-          isValid: true, // This is required by calculateDiscountAmount
-          discountType: validationResult.discountCode.discount_type,
-          discountValue: validationResult.discountCode.discount_value,
-          minimumOrderAmount: validationResult.discountCode.minimum_order_amount,
-          freeShipping: validationResult.discountCode.free_shipping || false
-        };
-        
-        const discountCalc = calculateDiscountAmount(subtotalPrice, formattedDiscountCode);
-        validatedDiscountAmount = discountCalc.discountAmount;
-        
-        console.log(`✅ [${requestId}] Discount validated:`, {
-          clientAmount: discountAmount,
-          serverAmount: validatedDiscountAmount,
-          discountType: validationResult.discountCode.discount_type,
-          discountValue: validationResult.discountCode.discount_value
-        });
-        
-        // SECURITY: Reject if client amount doesn't match server calculation
-        const clientAmount = discountAmount ? parseFloat(discountAmount) : 0;
-        const { validateDiscountAmount, logSecurityEvent } = await import('@/lib/security');
-        
-        if (!validateDiscountAmount(clientAmount, validatedDiscountAmount)) {
-          const securityDetails = {
-            clientAmount: clientAmount,
-            serverAmount: validatedDiscountAmount,
-            difference: Math.abs(clientAmount - validatedDiscountAmount),
-            discountCode: appliedDiscount.code,
-            requestId: requestId,
-            userAgent: request.headers.get('user-agent'),
-            timestamp: new Date().toISOString()
-          };
-          
-          // Log security event
-          await logSecurityEvent('discount_manipulation', securityDetails, fidInt, request);
-          
-          console.error(`🚨 [${requestId}] SECURITY ALERT: Discount manipulation detected!`, securityDetails);
-          
-          return NextResponse.json({
-            error: 'Discount validation failed. Please refresh and try again.',
-            requestId: requestId,
-            step: 'discount_validation'
-          }, { status: 400 });
-        }
-      } else {
-        console.error(`❌ [${requestId}] Discount validation failed:`, validationResult.error);
-        return NextResponse.json({
-          error: 'Invalid discount code',
-          requestId: requestId,
-          step: 'discount_validation'
-        }, { status: 400 });
-      }
+    const { 
+      recalculateOrderTotals, 
+      validatePaymentReconciliation, 
+      validateGiftCardsServerSide,
+      logSecurityEvent 
+    } = await import('@/lib/security');
+    
+    // Recalculate ALL totals server-side
+    const serverTotals = await recalculateOrderTotals({
+      cartItems,
+      checkout,
+      selectedShipping,
+      appliedDiscount,
+      giftCards,
+      fid: fidInt
+    });
+    
+    if (!serverTotals.success) {
+      console.error(`❌ [${requestId}] Server-side calculation failed:`, serverTotals.error);
+      return NextResponse.json({
+        error: 'Order calculation failed. Please refresh and try again.',
+        requestId: requestId,
+        step: 'server_calculation'
+      }, { status: 400 });
     }
     
-    const discountAmountValue = validatedDiscountAmount;
+    console.log(`✅ [${requestId}] Server-side totals calculated:`, serverTotals.breakdown);
     
-    // CRITICAL FIX: Ensure subtotal never goes negative
-    const subtotalAfterDiscount = Math.max(0, subtotalPrice - discountAmountValue);
+    // Validate payment reconciliation
+    const reconciliationResult = await validatePaymentReconciliation(
+      {
+        appliedDiscount,
+        giftCards,
+        discountAmount,
+        total: body.total || 0
+      },
+      serverTotals,
+      body.total || 0 // Actual payment received
+    );
     
-    // CRITICAL FIX: Calculate proportional tax based on discounted subtotal
-    const originalTax = parseFloat(checkout.tax.amount);
-    let adjustedTax = 0;
-    
-    if (subtotalAfterDiscount > 0 && originalTax > 0) {
-      // Calculate tax rate from original amounts
-      const taxRate = originalTax / subtotalPrice;
-      // Apply tax rate to discounted subtotal
-      adjustedTax = subtotalAfterDiscount * taxRate;
+    if (!reconciliationResult.success) {
+      const securityDetails = {
+        ...reconciliationResult.details,
+        requestId: requestId,
+        userAgent: request.headers.get('user-agent'),
+        timestamp: new Date().toISOString(),
+        clientOrderData: {
+          hasDiscount: !!appliedDiscount,
+          discountCode: appliedDiscount?.code,
+          discountAmount: discountAmount,
+          giftCardCount: giftCards?.length || 0,
+          clientTotal: body.total || 0
+        },
+        serverTotals: serverTotals.breakdown
+      };
+      
+      // Log security event
+      await logSecurityEvent('payment_manipulation', securityDetails, fidInt, request);
+      
+      console.error(`🚨 [${requestId}] SECURITY ALERT: Payment manipulation detected!`, securityDetails);
+      
+      return NextResponse.json({
+        error: 'Payment validation failed. Please refresh and try again.',
+        requestId: requestId,
+        step: 'payment_reconciliation'
+      }, { status: 400 });
     }
     
-    // Round to 2 decimal places for currency precision
-    adjustedTax = Math.round(adjustedTax * 100) / 100;
+    console.log(`✅ [${requestId}] Payment reconciliation successful`);
     
-    const shippingPrice = parseFloat(selectedShipping.price.amount);
-    const totalPrice = subtotalAfterDiscount + adjustedTax + shippingPrice;
+    // Use server-calculated values
+    const subtotalPrice = serverTotals.subtotal;
+    const discountAmountValue = serverTotals.discountAmount;
+    const giftCardDiscountValue = serverTotals.giftCardDiscount;
     
-    // Apply minimum charge for payment processing (consistent with frontend logic)
-    const finalTotalPrice = totalPrice <= 0.01 ? 0.01 : totalPrice;
+    // Use server-calculated values (already validated and secure)
+    const subtotalAfterDiscount = serverTotals.subtotalAfterDiscount;
+    const adjustedTax = serverTotals.adjustedTax;
+    const shippingPrice = serverTotals.shippingPrice;
+    const finalTotalPrice = serverTotals.finalTotal;
 
-    console.log(`💰 [${requestId}] Discount calculation (shared):`, {
+    console.log(`💰 [${requestId}] Server-calculated totals (validated):`, {
       originalSubtotal: subtotalPrice,
       discountAmount: discountAmountValue,
+      giftCardDiscount: giftCardDiscountValue,
       subtotalAfterDiscount: subtotalAfterDiscount,
-      originalTax: originalTax,
-      taxRate: originalTax > 0 ? ((originalTax / subtotalPrice) * 100).toFixed(4) + '%' : '0%',
       adjustedTax: adjustedTax,
-      taxAdjustment: originalTax - adjustedTax,
       shippingPrice: shippingPrice,
-      finalTotal: totalPrice,
-      finalTotalWithMinCharge: finalTotalPrice,
-      isFullDiscount: subtotalAfterDiscount === 0,
-      minChargeApplied: totalPrice <= 0.01
+      finalTotal: finalTotalPrice,
+      isGiftCardOrder: giftCards?.length > 0,
+      hasDiscount: discountAmountValue > 0,
+      securityValidated: true
     });
 
     // Format line items for Shopify (shared data)
@@ -379,7 +359,7 @@ export async function POST(request) {
             amount: discountAmountValue,
             type: appliedDiscount.discountType
           }] : [],
-          giftCards: giftCards || [] // Pass gift card data to Shopify order creation
+          giftCards: serverTotals.validatedGiftCards || giftCards || [] // Pass validated gift card data
         };
 
         console.log(`📦 [${requestId}] Creating Shopify order (attempt ${shopifyAttempts}) with data:`, {
@@ -475,12 +455,13 @@ export async function POST(request) {
           status: 'paid',
           currency: 'USDC',
           amountTotal: finalTotalPrice,
-          amountSubtotal: subtotalAfterDiscount, // Use the already calculated discounted subtotal
-          amountTax: adjustedTax, // Use the already calculated adjusted tax
-          amountShipping: parseFloat(selectedShipping.price.amount),
+          amountSubtotal: subtotalAfterDiscount, // Use server-calculated discounted subtotal
+          amountTax: adjustedTax, // Use server-calculated adjusted tax
+          amountShipping: shippingPrice, // Use server-calculated shipping (includes free shipping logic)
           discountCode: appliedDiscount?.code || null,
-          discountAmount: discountAmount || 0,
+          discountAmount: discountAmountValue, // Use server-validated discount amount
           discountPercentage: appliedDiscount?.discountValue || null,
+          giftCardTotal: giftCardDiscountValue, // Track gift card discount amount
           customerEmail: customer?.email || shippingAddress.email || '',
           customerName: `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim(),
           shippingAddress: shippingAddress,
@@ -513,7 +494,7 @@ export async function POST(request) {
           paymentMethod: 'USDC',
           paymentStatus: 'completed',
           paymentIntentId: transactionHash,
-          giftCards: giftCards || [] // Include gift card data for database tracking
+          giftCards: serverTotals.validatedGiftCards || giftCards || [] // Include validated gift card data
         };
 
         console.log(`💾 [${requestId}] Creating Supabase order (attempt ${supabaseAttempts}):`, {
@@ -575,7 +556,7 @@ export async function POST(request) {
           appliedDiscount.code, 
           orderIdForTracking,
           fidInt,
-          discountAmount || 0,
+          discountAmountValue, // Use server-validated discount amount
           subtotalPrice // Use original subtotal for discount calculation
         );
         if (markUsedResult.success) {

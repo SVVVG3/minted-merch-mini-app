@@ -36,9 +36,11 @@ export default function GiftCardSection({
       if (result.success && result.isValid) {
         console.log('✅ Gift card validation successful:', result);
         
+        // SECURITY: Only store gift card info, discount will be calculated server-side
         const giftCardData = {
           ...result.giftCard,
-          discount: result.discount
+          code: giftCardCode.trim(), // Store the actual code for server-side validation
+          // Note: discount amounts are no longer returned for security
         };
         
         setAppliedGiftCard(giftCardData);
