@@ -39,10 +39,10 @@ export async function checkChatEligibility(walletAddresses, fid = null) {
       // Force fresh check to get latest balance and update cache for token gating
       const balanceResult = await refreshUserTokenBalance(fid, validAddresses, true);
       if (balanceResult.success) {
-        // Convert from wei to tokens for comparison
+        // Balance is already in tokens format (not wei) from refreshUserTokenBalance
         tokenBalance = typeof balanceResult.balance === 'string' ?
-          parseFloat(balanceResult.balance) / Math.pow(10, 18) :
-          balanceResult.balance / Math.pow(10, 18);
+          parseFloat(balanceResult.balance) :
+          balanceResult.balance;
         
         console.log(`💾 Chat eligibility got ${balanceResult.fromCache ? 'cached' : 'fresh'} balance for FID ${fid}: ${tokenBalance} tokens`);
       } else {
