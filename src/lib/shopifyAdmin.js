@@ -251,6 +251,65 @@ export async function createShopifyOrder(orderData) {
     sanitizedBilling: { firstName: sanitizedBillingAddress.firstName, lastName: sanitizedBillingAddress.lastName }
   });
 
+  // Create transactions outside of the variables object to avoid scope issues
+  const transactions = [];
+  
+  // Calculate USDC payment amount (total minus gift cards)
+  let usdcAmount = totalPrice;
+  let totalGiftCardAmount = 0;
+  
+  // Add gift card transactions if present
+  if (orderData.giftCards && Array.isArray(orderData.giftCards) && orderData.giftCards.length > 0) {
+    orderData.giftCards.forEach(giftCard => {
+      if (parseFloat(giftCard.amountUsed || 0) > 0) {
+        const giftCardAmount = parseFloat(giftCard.amountUsed);
+        totalGiftCardAmount += giftCardAmount;
+        
+        // Add gift card transaction with generic gateway name when code is missing
+        transactions.push({
+          kind: 'SALE',
+          status: 'SUCCESS',
+          amountSet: {
+            shopMoney: {
+              amount: giftCardAmount.toString(),
+              currencyCode: 'USD'
+            }
+          },
+          gateway: giftCard.code ? `Gift Card (${giftCard.code})` : 'Gift Card Payment'
+        });
+      }
+    });
+    
+    // Adjust USDC amount
+    usdcAmount = Math.max(0.01, totalPrice - totalGiftCardAmount); // Minimum $0.01 for processing
+  }
+  
+  // Add USDC transaction for remaining amount
+  if (usdcAmount > 0) {
+    transactions.push({
+      kind: 'SALE',
+      status: 'SUCCESS',
+      amountSet: {
+        shopMoney: {
+          amount: usdcAmount.toString(),
+          currencyCode: 'USD'
+        }
+      },
+      gateway: 'USDC Base Network'
+    });
+  }
+  
+  console.log('💳 Created transactions:', {
+    totalOrderAmount: totalPrice,
+    totalGiftCardAmount,
+    usdcAmount,
+    transactionCount: transactions.length,
+    transactions: transactions.map(t => ({
+      amount: t.amountSet.shopMoney.amount,
+      gateway: t.gateway
+    }))
+  });
+
   const variables = {
     order: {
       lineItems: lineItems.map(item => ({
@@ -326,67 +385,7 @@ export async function createShopifyOrder(orderData) {
         },
         code: shippingLines.code || shippingLines.title
       }] : [],
-      transactions: (() => {
-        const transactions = [];
-        
-        // Calculate USDC payment amount (total minus gift cards)
-        let usdcAmount = totalPrice;
-        let totalGiftCardAmount = 0;
-        
-        // Add gift card transactions if present
-        if (orderData.giftCards && Array.isArray(orderData.giftCards) && orderData.giftCards.length > 0) {
-          orderData.giftCards.forEach(giftCard => {
-            if (parseFloat(giftCard.amountUsed || 0) > 0) {
-              const giftCardAmount = parseFloat(giftCard.amountUsed);
-              totalGiftCardAmount += giftCardAmount;
-              
-              // Add gift card transaction with generic gateway name when code is missing
-              transactions.push({
-                kind: 'SALE',
-                status: 'SUCCESS',
-                amountSet: {
-                  shopMoney: {
-                    amount: giftCardAmount.toString(),
-                    currencyCode: 'USD'
-                  }
-                },
-                gateway: giftCard.code ? `Gift Card (${giftCard.code})` : 'Gift Card Payment'
-              });
-            }
-          });
-          
-          // Adjust USDC amount
-          usdcAmount = Math.max(0.01, totalPrice - totalGiftCardAmount); // Minimum $0.01 for processing
-        }
-        
-        // Add USDC transaction for remaining amount
-        if (usdcAmount > 0) {
-          transactions.push({
-            kind: 'SALE',
-            status: 'SUCCESS',
-            amountSet: {
-              shopMoney: {
-                amount: usdcAmount.toString(),
-                currencyCode: 'USD'
-              }
-            },
-            gateway: 'USDC Base Network'
-          });
-        }
-        
-        console.log('💳 Created transactions:', {
-          totalOrderAmount: totalPrice,
-          totalGiftCardAmount,
-          usdcAmount,
-          transactionCount: transactions.length,
-          transactions: transactions.map(t => ({
-            amount: t.amountSet.shopMoney.amount,
-            gateway: t.gateway
-          }))
-        });
-        
-        return transactions;
-      })()
+      transactions: transactions
     }
   };
 
