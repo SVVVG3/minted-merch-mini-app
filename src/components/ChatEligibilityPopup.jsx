@@ -54,8 +54,8 @@ export function ChatEligibilityPopup() {
           const profileData = await profileResponse.json();
           
           if (profileData.success && profileData.data?.token_balance) {
-            // Convert cached balance from wei to tokens
-            cachedTokenBalance = parseFloat(profileData.data.token_balance) / Math.pow(10, 18);
+            // Database already stores balance in tokens, no conversion needed
+            cachedTokenBalance = parseFloat(profileData.data.token_balance);
             hasMerchMogulsDiscount = cachedTokenBalance >= 50000000; // 50M tokens required
             
             console.log(`💬 Using cached balance: ${cachedTokenBalance.toLocaleString()} tokens (eligible: ${hasMerchMogulsDiscount})`);

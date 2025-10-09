@@ -23,18 +23,10 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
 
     let finalBalance = tokenBalance;
     
-    // If tokenBalance is provided, convert from tokens to wei for storage
+    // If tokenBalance is provided, use it directly (already in tokens)
     if (tokenBalance !== null) {
-      // Convert to string to avoid scientific notation, then to BigInt for precision
-      const tokensStr = tokenBalance.toString();
-      const [integerPart, decimalPart = ''] = tokensStr.split('.');
-      
-      // Pad decimal part to 18 digits (wei precision)
-      const paddedDecimal = (decimalPart + '000000000000000000').slice(0, 18);
-      const weiStr = integerPart + paddedDecimal;
-      
-      finalBalance = weiStr;
-      console.log(`🔄 Converting provided balance ${tokenBalance} tokens to ${finalBalance} wei`);
+      finalBalance = tokenBalance;
+      console.log(`🔄 Using provided balance: ${tokenBalance} tokens`);
     }
 
     // If balance not provided, fetch it from blockchain
@@ -62,20 +54,12 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
             baseChainId
           );
         
-        // The blockchain API returns balance in tokens (divided by 10^18)
-        // We need to store it in wei (multiply by 10^18) for precision
+        // The blockchain API returns balance in tokens (already divided by 10^18)
+        // Store it directly as tokens in the database
         const tokensBalance = balanceResult || 0;
         
-        // Convert to string to avoid scientific notation
-        const tokensStr = tokensBalance.toString();
-        const [integerPart, decimalPart = ''] = tokensStr.split('.');
-        
-        // Pad decimal part to 18 digits (wei precision)
-        const paddedDecimal = (decimalPart + '000000000000000000').slice(0, 18);
-        const weiStr = integerPart + paddedDecimal;
-        
-        finalBalance = weiStr;
-          console.log(`✅ Fetched balance: ${finalBalance} wei (${tokensBalance} tokens)`);
+        finalBalance = tokensBalance;
+        console.log(`✅ Fetched balance: ${tokensBalance} tokens`);
         } catch (error) {
           console.error('❌ CRITICAL: Token balance fetch failed:', error);
           
@@ -107,10 +91,10 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
       finalBalance = 0; // No wallets, set to 0
     }
 
-    // Convert finalBalance from wei to tokens for storage in profiles table
+    // finalBalance is already in tokens, no conversion needed
     const tokensBalance = typeof finalBalance === 'string' ?
-      parseFloat(finalBalance) / Math.pow(10, 18) :
-      finalBalance / Math.pow(10, 18);
+      parseFloat(finalBalance) :
+      finalBalance;
 
     // Update the profiles table
     const { data, error } = await supabaseAdmin
