@@ -28,16 +28,49 @@ export function BaseAccountProvider({ children }) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const { isConnected, address, connector } = useAccount()
-  const { connectAsync, connectors } = useConnect()
-  const { disconnect } = useDisconnect()
+  // Only use Wagmi hooks on client side
+  const wagmiHooks = typeof window !== 'undefined' ? {
+    isConnected: false,
+    address: null,
+    connector: null,
+    connectAsync: null,
+    connectors: [],
+    disconnect: null
+  } : {
+    isConnected: false,
+    address: null,
+    connector: null,
+    connectAsync: null,
+    connectors: [],
+    disconnect: null
+  }
+
+  // Use Wagmi hooks only on client side
+  if (typeof window !== 'undefined') {
+    try {
+      const { isConnected, address, connector } = useAccount()
+      const { connectAsync, connectors } = useConnect()
+      const { disconnect } = useDisconnect()
+      
+      wagmiHooks.isConnected = isConnected
+      wagmiHooks.address = address
+      wagmiHooks.connector = connector
+      wagmiHooks.connectAsync = connectAsync
+      wagmiHooks.connectors = connectors
+      wagmiHooks.disconnect = disconnect
+    } catch (error) {
+      console.log('Wagmi hooks not available during SSR:', error.message)
+    }
+  }
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    
     // Debug: Log all available connectors
-    console.log('🔍 Available Wagmi connectors:', connectors.map(c => ({ id: c.id, name: c.name })))
+    console.log('🔍 Available Wagmi connectors:', wagmiHooks.connectors.map(c => ({ id: c.id, name: c.name })))
     
     // Find the Base Account connector
-    const baseConnector = connectors.find(connector => connector.id === 'baseAccount')
+    const baseConnector = wagmiHooks.connectors.find(connector => connector.id === 'baseAccount')
     
     if (baseConnector) {
       setIsBaseApp(true)
@@ -48,20 +81,22 @@ export function BaseAccountProvider({ children }) {
       setBaseAccountConnector(null)
       console.log('🔗 Base Account connector not available')
     }
-  }, [connectors])
+  }, [wagmiHooks.connectors])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    
     // Check if user is authenticated with Base Account
-    if (isConnected && connector?.id === 'baseAccount') {
+    if (wagmiHooks.isConnected && wagmiHooks.connector?.id === 'baseAccount') {
       setIsAuthenticated(true)
-      console.log('✅ Base Account authenticated:', address)
+      console.log('✅ Base Account authenticated:', wagmiHooks.address)
     } else {
       setIsAuthenticated(false)
     }
-  }, [isConnected, connector, address])
+  }, [wagmiHooks.isConnected, wagmiHooks.connector, wagmiHooks.address])
 
   const signInWithBase = async () => {
-    if (!baseAccountConnector) {
+    if (!baseAccountConnector || !wagmiHooks.connectAsync) {
       throw new Error('Base Account connector not found')
     }
 
@@ -75,7 +110,7 @@ export function BaseAccountProvider({ children }) {
       const nonce = window.crypto.randomUUID().replace(/-/g, '')
       
       // 2. Connect and get the provider
-      await connectAsync({ connector: baseAccountConnector })
+      await wagmiHooks.connectAsync({ connector: baseAccountConnector })
       const provider = baseAccountConnector.provider
 
       // 3. Authenticate with wallet_connect
@@ -119,7 +154,9 @@ export function BaseAccountProvider({ children }) {
   }
 
   const signOut = () => {
-    disconnect()
+    if (wagmiHooks.disconnect) {
+      wagmiHooks.disconnect()
+    }
     setIsAuthenticated(false)
     console.log('👋 Base Account signed out')
   }
