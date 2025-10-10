@@ -293,13 +293,50 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   }, [baseAccountProfile, shippingData]);
 
 
+  const handleBasePay = async () => {
+    if (!hasItems) return;
+    
+    try {
+      console.log('💳 Starting Base Pay flow...');
+      
+      // Calculate total amount
+      const totalAmount = cartTotal;
+      const recipientAddress = '0x8a8c8e8f9a9b9c9d9e9f0a0b0c0d0e0f1a1b1c1d1e'; // Replace with your actual recipient address
+      
+      // Call Base Pay directly - this will collect shipping info via payerInfo
+      const result = await payWithBase(totalAmount, recipientAddress);
+      
+      if (result.success) {
+        console.log('✅ Base Pay successful:', result);
+        
+        // Handle successful payment
+        // You can use result.payerInfo for shipping information
+        if (result.payerInfo) {
+          console.log('📦 Shipping info collected:', result.payerInfo);
+          // Process the order with the collected information
+        }
+        
+        // Clear cart and show success
+        clearCart();
+        // You might want to redirect to a success page or show a success modal
+        
+      } else {
+        console.log('⏳ Payment pending:', result.status);
+        setCheckoutError('Payment is pending. Please wait for confirmation.');
+      }
+      
+    } catch (err) {
+      console.error('❌ Base Pay failed:', err);
+      setCheckoutError(`Base Pay failed: ${err.message}`);
+    }
+  };
+
   const handleCheckout = async () => {
     if (!hasItems) return;
     
     try {
-      // Base Pay works independently - no sign-in required
-      // According to docs: "Any user can pay – works with every Base Account out of the box"
-      console.log('💳 Proceeding directly to Base Pay (no sign-in required)');
+      // Standard checkout flow
+      console.log('🔄 Using standard checkout flow');
       proceedToCheckout();
       
     } catch (err) {
@@ -890,7 +927,7 @@ Transaction Hash: ${transactionHash}`;
               console.log('💳 Showing Base Pay button (works independently)')
               return (
                 <BasePayButton 
-                  onClick={handleCheckout}
+                  onClick={handleBasePay}
                   disabled={!hasItems}
                   className="w-full"
                 />
