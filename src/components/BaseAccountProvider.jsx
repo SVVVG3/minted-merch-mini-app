@@ -113,11 +113,20 @@ export function BaseAccountProvider({ children }) {
     // Check if user is authenticated with Base Account
     if (wagmiHooks.isConnected && wagmiHooks.connector?.id === 'baseAccount') {
       setIsAuthenticated(true)
-      console.log('✅ Base Account authenticated:', wagmiHooks.address)
+      console.log('✅ Base Account authenticated via Wagmi:', wagmiHooks.address)
     } else {
-      setIsAuthenticated(false)
+      // Also check if Base Account is auto-authenticated in Base app
+      // This can happen when Base app automatically connects users
+      if (isBaseApp && baseAccountConnector && wagmiHooks.isConnected) {
+        console.log('🔍 Checking for auto-authentication in Base app...')
+        setIsAuthenticated(true)
+        console.log('✅ Base Account auto-authenticated in Base app:', wagmiHooks.address)
+      } else {
+        setIsAuthenticated(false)
+        console.log('❌ Base Account not authenticated')
+      }
     }
-  }, [wagmiHooks.isConnected, wagmiHooks.connector, wagmiHooks.address])
+  }, [wagmiHooks.isConnected, wagmiHooks.connector, wagmiHooks.address, isBaseApp, baseAccountConnector])
 
   const signInWithBase = async () => {
     if (!baseAccountConnector || !wagmiHooks.connectAsync) {

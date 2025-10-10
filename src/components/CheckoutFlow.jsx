@@ -247,18 +247,25 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     try {
       // Handle Base Account sign-in if needed
       if (isBaseApp && baseAccountConnector && !isAuthenticated) {
+        console.log('🔄 Starting Base Account sign-in flow...');
         try {
           await signInWithBase();
-          console.log('✅ Base Account sign-in successful');
-          // After successful sign-in, proceed to checkout
+          console.log('✅ Base Account sign-in successful, now proceeding to checkout');
+          // Only proceed to checkout after successful authentication
           proceedToCheckout();
         } catch (error) {
-          console.error('Base Account sign-in failed:', error);
-          // Still allow checkout with standard flow
-          proceedToCheckout();
+          console.error('❌ Base Account sign-in failed:', error);
+          // Don't proceed to checkout if sign-in failed
+          setCheckoutError('Base Account sign-in failed. Please try again.');
+          return;
         }
+      } else if (isBaseApp && baseAccountConnector && isAuthenticated) {
+        // Already authenticated with Base Account, proceed directly
+        console.log('✅ Already authenticated with Base Account, proceeding to checkout');
+        proceedToCheckout();
       } else {
-        // Standard checkout flow
+        // Standard checkout flow (not in Base app or no Base Account)
+        console.log('🔄 Using standard checkout flow');
         proceedToCheckout();
       }
       
