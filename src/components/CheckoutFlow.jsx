@@ -843,14 +843,62 @@ Transaction Hash: ${transactionHash}`;
 
       {/* Debug Button - Remove in production */}
       <button
-        onClick={() => {
-          const debug = debugBaseAccount();
-          alert(`Base Account Debug:\n${JSON.stringify(debug, null, 2)}`);
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          try {
+            const debug = debugBaseAccount();
+            alert(`Base Account Debug:\n${JSON.stringify(debug, null, 2)}`);
+          } catch (error) {
+            alert(`Debug Error: ${error.message}`);
+          }
         }}
-        className="w-full mt-2 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+        onTouchStart={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          try {
+            const debug = debugBaseAccount();
+            alert(`Base Account Debug:\n${JSON.stringify(debug, null, 2)}`);
+          } catch (error) {
+            alert(`Debug Error: ${error.message}`);
+          }
+        }}
+        className="w-full mt-2 bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-sm touch-manipulation"
+        style={{ 
+          minHeight: '44px',
+          touchAction: 'manipulation',
+          WebkitTouchCallout: 'none',
+          WebkitUserSelect: 'none',
+          userSelect: 'none'
+        }}
       >
         🔍 Debug Base Account
       </button>
+
+      {/* Alternative Debug Link */}
+      <div 
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          try {
+            const debug = debugBaseAccount();
+            alert(`Base Account Debug:\n${JSON.stringify(debug, null, 2)}`);
+          } catch (error) {
+            alert(`Debug Error: ${error.message}`);
+          }
+        }}
+        className="w-full mt-1 text-center text-blue-500 underline cursor-pointer text-sm py-2"
+        style={{ 
+          minHeight: '44px',
+          touchAction: 'manipulation'
+        }}
+      >
+        Tap here to debug Base Account
+      </div>
 
       {/* Checkout Modal */}
       {isCheckoutOpen && (
