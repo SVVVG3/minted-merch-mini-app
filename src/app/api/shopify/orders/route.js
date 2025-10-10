@@ -372,7 +372,7 @@ export async function POST(request) {
             quantity: item.quantity
           })),
           totalPrice: finalTotalPrice,
-          originalTotalPrice: totalPrice,
+          originalTotalPrice: subtotalPrice,
           subtotalAfterDiscount,
           adjustedTax,
           shippingPrice,
