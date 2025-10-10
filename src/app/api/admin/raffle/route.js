@@ -43,18 +43,32 @@ export async function POST(request) {
 
     // Apply token balance filter (client-side since it's from joined table)
     if (filters.minTokenBalance > 0) {
+      console.log(`🔍 Filtering by token balance >= ${filters.minTokenBalance}`);
+      console.log(`📊 Before token filter: ${filteredUsers.length} users`);
+      
       filteredUsers = filteredUsers.filter(user => {
         const tokenBalance = user.profiles?.token_balance || 0;
         // Token balance is now stored as actual token values (not wei)
         const tokenAmount = typeof tokenBalance === 'string' ? 
           parseFloat(tokenBalance) : 
           tokenBalance;
-        return tokenAmount >= filters.minTokenBalance;
+        const meetsCriteria = tokenAmount >= filters.minTokenBalance;
+        
+        if (!meetsCriteria) {
+          console.log(`❌ User ${user.user_fid} (${user.username}) has ${tokenAmount} tokens (needs ${filters.minTokenBalance})`);
+        }
+        
+        return meetsCriteria;
       });
+      
+      console.log(`📊 After token filter: ${filteredUsers.length} users`);
     }
 
     // Exclude previous winners if filter is enabled
+    console.log(`🚫 Exclude previous winners: ${filters.excludePreviousWinners}`);
     if (filters.excludePreviousWinners) {
+      console.log(`📊 Before excluding previous winners: ${filteredUsers.length} users`);
+      
       // Get all previous winners
       const { data: previousWinners, error: winnersError } = await supabaseAdmin
         .from('raffle_winner_entries')
@@ -65,11 +79,17 @@ export async function POST(request) {
         return NextResponse.json({ success: false, error: 'Failed to fetch previous winners' });
       }
 
+      console.log(`🏆 Found ${previousWinners.length} previous winners`);
+
       // Create a set of previous winner FIDs for fast lookup
       const previousWinnerFids = new Set(previousWinners.map(w => w.user_fid));
       
       // Filter out users who have previously won
       filteredUsers = filteredUsers.filter(user => !previousWinnerFids.has(user.user_fid));
+      
+      console.log(`📊 After excluding previous winners: ${filteredUsers.length} users`);
+    } else {
+      console.log(`✅ Not excluding previous winners - keeping all ${filteredUsers.length} users`);
     }
 
     if (!filteredUsers || filteredUsers.length === 0) {
@@ -88,7 +108,7 @@ export async function POST(request) {
     const raffleTimestamp = new Date().toISOString();
     
     // Generate criteria description
-    const criteriaDescription = generateCriteriaDescription(filters, filteredUsers.length, eligibleUsers.length);
+    const criteriaDescription = generateCriteriaDescription(filters, filteredUsers.length);
 
     // Save raffle metadata
     const { data: raffleData, error: raffleError } = await supabaseAdmin
@@ -135,7 +155,7 @@ export async function POST(request) {
       success: true,
       data: {
         winners,
-        eligibleCount: eligibleUsers.length,
+        eligibleCount: filteredUsers.length,
         raffleId,
         timestamp: raffleTimestamp,
         criteriaDescription
