@@ -5,6 +5,7 @@ import { useCart } from '@/lib/CartContext';
 import { useUSDCPayment } from '@/lib/useUSDCPayment';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { useBaseAccount } from '@/components/BaseAccountProvider';
+import { debugBaseAccount } from '@/lib/baseAccount';
 import { calculateCheckout } from '@/lib/shopify';
 import { sdk } from '@farcaster/miniapp-sdk';
 
@@ -838,6 +839,17 @@ Transaction Hash: ${transactionHash}`;
             return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
           }
         })()}
+      </button>
+
+      {/* Debug Button - Remove in production */}
+      <button
+        onClick={() => {
+          const debug = debugBaseAccount();
+          alert(`Base Account Debug:\n${JSON.stringify(debug, null, 2)}`);
+        }}
+        className="w-full mt-2 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+      >
+        🔍 Debug Base Account
       </button>
 
       {/* Checkout Modal */}

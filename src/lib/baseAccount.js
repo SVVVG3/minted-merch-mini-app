@@ -6,25 +6,12 @@ import { createBaseAccountSDK } from '@base-org/account'
  * while maintaining compatibility with existing Wagmi flow
  */
 
-// Detect if user is in Base app environment
+// Detect if Base Account SDK is available
 export function isBaseAppEnvironment() {
   if (typeof window === 'undefined') return false
   
-  // Check if Base Account SDK is available via window.base API
-  const isBaseApp = !!(window.base && window.base.pay && window.base.getPaymentStatus)
-  
-  // Debug logging
-  console.log('🔍 Base Account Detection:', {
-    hasWindow: typeof window !== 'undefined',
-    hasBase: !!window.base,
-    hasPay: !!(window.base && window.base.pay),
-    hasGetPaymentStatus: !!(window.base && window.base.getPaymentStatus),
-    isBaseApp,
-    userAgent: window.navigator?.userAgent,
-    hostname: window.location?.hostname
-  })
-  
-  return isBaseApp
+  // Check if Base Account SDK is available
+  return !!(window.base && window.base.pay && window.base.getPaymentStatus)
 }
 
 // Get Base Account SDK instance if available
@@ -156,4 +143,26 @@ export async function checkBaseAccountBalance(requiredAmount) {
     console.log('Base Account balance check failed:', error.message)
     return { hasBalance: false, balance: 0 }
   }
+}
+
+// Debug function to check Base Account availability
+export function debugBaseAccount() {
+  if (typeof window === 'undefined') {
+    console.log('🔍 Base Account Debug: Server-side rendering')
+    return { available: false, reason: 'Server-side rendering' }
+  }
+  
+  const debug = {
+    hasWindow: typeof window !== 'undefined',
+    hasBase: !!window.base,
+    hasPay: !!(window.base && window.base.pay),
+    hasGetPaymentStatus: !!(window.base && window.base.getPaymentStatus),
+    available: !!(window.base && window.base.pay && window.base.getPaymentStatus),
+    userAgent: window.navigator?.userAgent,
+    hostname: window.location?.hostname,
+    baseObject: window.base ? Object.keys(window.base) : null
+  }
+  
+  console.log('🔍 Base Account Debug:', debug)
+  return debug
 }
