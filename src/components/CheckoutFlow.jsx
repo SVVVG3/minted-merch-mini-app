@@ -297,8 +297,16 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     if (!hasItems) return;
     
     try {
-      // Handle Base Account sign-in if needed
-      if (isBaseApp && baseAccountSDK && !isAuthenticated) {
+      // Check if we're in Base app (users are already authenticated)
+      const userAgent = window.navigator?.userAgent?.toLowerCase() || ''
+      const isInBaseApp = userAgent.includes('base') || window.location.hostname.includes('base')
+      
+      if (isInBaseApp && baseAccountSDK) {
+        // In Base app, users are already authenticated - skip sign-in and go directly to Base Pay
+        console.log('📱 In Base app - users already authenticated, proceeding to Base Pay');
+        proceedToCheckout();
+      } else if (isBaseApp && baseAccountSDK && !isAuthenticated) {
+        // Not in Base app but Base Account is available - need to sign in
         console.log('🔄 Starting Base Account sign-in flow...');
         console.log('🔍 Debug - isBaseApp:', isBaseApp, 'baseAccountSDK:', !!baseAccountSDK, 'isAuthenticated:', isAuthenticated);
         try {
@@ -905,21 +913,52 @@ Transaction Hash: ${transactionHash}`;
         <div className="w-full space-y-3">
           {/* Base Account Button */}
           <div className="space-y-2">
-            {!isAuthenticated ? (
-              <SignInWithBaseButton 
-                onClick={handleCheckout}
-                disabled={!hasItems}
-                className="w-full"
-              />
-            ) : (
-              <BasePayButton 
-                onClick={handleCheckout}
-                disabled={!hasItems}
-                className="w-full"
-              />
-            )}
+            {(() => {
+              const userAgent = window.navigator?.userAgent?.toLowerCase() || ''
+              const isInBaseApp = userAgent.includes('base') || window.location.hostname.includes('base')
+              
+              if (isInBaseApp) {
+                // In Base app, users are already authenticated - show Base Pay button
+                return (
+                  <BasePayButton 
+                    onClick={handleCheckout}
+                    disabled={!hasItems}
+                    className="w-full"
+                  />
+                )
+              } else if (!isAuthenticated) {
+                // Not in Base app, need to sign in first
+                return (
+                  <SignInWithBaseButton 
+                    onClick={handleCheckout}
+                    disabled={!hasItems}
+                    className="w-full"
+                  />
+                )
+              } else {
+                // Already authenticated outside Base app
+                return (
+                  <BasePayButton 
+                    onClick={handleCheckout}
+                    disabled={!hasItems}
+                    className="w-full"
+                  />
+                )
+              }
+            })()}
             <div className="text-center text-xs text-blue-600">
-              {!isAuthenticated ? 'Sign in for one-tap payments & auto-fill' : 'One-tap payments & auto-filled shipping'}
+              {(() => {
+                const userAgent = window.navigator?.userAgent?.toLowerCase() || ''
+                const isInBaseApp = userAgent.includes('base') || window.location.hostname.includes('base')
+                
+                if (isInBaseApp) {
+                  return 'One-tap payments with Base Pay'
+                } else if (!isAuthenticated) {
+                  return 'Sign in for one-tap payments & auto-fill'
+                } else {
+                  return 'One-tap payments & auto-filled shipping'
+                }
+              })()}
             </div>
           </div>
           
@@ -964,15 +1003,30 @@ Transaction Hash: ${transactionHash}`;
         // Standard Farcaster experience
         <div className="w-full space-y-2">
           
-          <button
-            onClick={handleCheckout}
-            disabled={!hasItems}
-            className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
-          >
-            {(() => {
-              const isCartFree = cartTotal <= 0.01;
-              const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
-              
+        <button
+          onClick={handleCheckout}
+          disabled={!hasItems}
+          className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
+        >
+          {(() => {
+            const userAgent = window.navigator?.userAgent?.toLowerCase() || ''
+            const isInBaseApp = userAgent.includes('base') || window.location.hostname.includes('base')
+            const isCartFree = cartTotal <= 0.01;
+            const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
+
+            if (isInBaseApp && baseAccountSDK) {
+              // In Base app, show Base Pay button
+              if (isFreeWithShipping) {
+                return 'Pay with Base (FREE + $0.01 processing fee)';
+              } else if (appliedDiscount?.freeShipping) {
+                return `Pay with Base (${cartTotal.toFixed(2)} USDC + free shipping)`;
+              } else if (appliedDiscount) {
+                return `Pay with Base (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
+              } else {
+                return `Pay with Base (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
+              }
+            } else {
+              // Standard checkout button
               if (isFreeWithShipping) {
                 return 'Checkout (FREE + $0.01 processing fee)';
               } else if (appliedDiscount?.freeShipping) {
@@ -982,8 +1036,9 @@ Transaction Hash: ${transactionHash}`;
               } else {
                 return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
               }
-            })()}
-          </button>
+            }
+          })()}
+        </button>
         </div>
       )}
 

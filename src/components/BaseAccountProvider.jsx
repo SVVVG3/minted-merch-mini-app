@@ -80,6 +80,14 @@ export function BaseAccountProvider({ children }) {
           return
         }
         
+        // Check if we're in the Base app (users are already authenticated)
+        const isBaseApp = userAgent.includes('base') || window.location.hostname.includes('base')
+        if (isBaseApp) {
+          console.log('📱 Running in Base app - users are already authenticated')
+          setDebugInfo(prev => prev + '\n📱 Base app detected - users already authenticated')
+          // Don't return here - we still want to initialize the SDK for Base Pay
+        }
+        
         // Check for Ethereum provider availability
         const hasEthereum = typeof window.ethereum !== 'undefined'
         const isInIframe = window !== window.top
