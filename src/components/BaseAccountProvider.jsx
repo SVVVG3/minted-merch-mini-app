@@ -39,21 +39,33 @@ export function BaseAccountProvider({ children }) {
         if (typeof window !== 'undefined' && window.base && window.base.pay) {
           setIsBaseApp(true)
           setBaseAccount(window.base)
-          console.log('🚀 Base Account SDK available via CDN')
+          console.log('🚀 Base Account SDK available via CDN:', Object.keys(window.base))
           
           // Check if user is already authenticated
+          // Note: getProfile might not be available or might be named differently
           try {
+            // Try different possible profile methods
+            let profile = null
             if (window.base.getProfile) {
-              const profile = await window.base.getProfile()
-              if (profile) {
-                setBaseProfile(profile)
-                setIsAuthenticated(true)
-                console.log('👤 Base Account profile loaded:', {
-                  hasEmail: !!profile?.email,
-                  hasShippingAddress: !!profile?.shippingAddress,
-                  hasPhone: !!profile?.phone
-                })
-              }
+              profile = await window.base.getProfile()
+            } else if (window.base.profile) {
+              profile = await window.base.profile()
+            } else if (window.base.getUserProfile) {
+              profile = await window.base.getUserProfile()
+            }
+            
+            if (profile) {
+              setBaseProfile(profile)
+              setIsAuthenticated(true)
+              console.log('👤 Base Account profile loaded:', {
+                hasEmail: !!profile?.email,
+                hasShippingAddress: !!profile?.shippingAddress,
+                hasPhone: !!profile?.phone
+              })
+            } else {
+              console.log('👤 No profile found - user not authenticated yet')
+              setBaseProfile(null)
+              setIsAuthenticated(false)
             }
           } catch (profileError) {
             console.log('User not authenticated yet:', profileError.message)
@@ -79,7 +91,22 @@ export function BaseAccountProvider({ children }) {
       }
     }
 
+    // Try to initialize immediately
     initBaseAccount()
+    
+    // Also set up a retry mechanism in case SDK loads after component
+    const retryInterval = setInterval(() => {
+      if (typeof window !== 'undefined' && window.base && window.base.pay && !baseAccount) {
+        console.log('🔄 Retrying Base Account initialization...')
+        initBaseAccount()
+        clearInterval(retryInterval)
+      }
+    }, 1000)
+    
+    // Clear interval after 10 seconds
+    setTimeout(() => clearInterval(retryInterval), 10000)
+    
+    return () => clearInterval(retryInterval)
   }, [])
 
   const signInWithBase = async () => {
@@ -124,8 +151,17 @@ export function BaseAccountProvider({ children }) {
       const { message, signature } = accounts[0].capabilities.signInWithEthereum
 
       // Get profile after authentication
+      // Try different possible profile methods
+      let profile = null
       if (window.base.getProfile) {
-        const profile = await window.base.getProfile()
+        profile = await window.base.getProfile()
+      } else if (window.base.profile) {
+        profile = await window.base.profile()
+      } else if (window.base.getUserProfile) {
+        profile = await window.base.getUserProfile()
+      }
+      
+      if (profile) {
         setBaseProfile(profile)
         setIsAuthenticated(true)
         console.log('✅ Base Account authentication successful:', {
@@ -133,6 +169,12 @@ export function BaseAccountProvider({ children }) {
           hasEmail: !!profile?.email,
           hasShippingAddress: !!profile?.shippingAddress,
           hasPhone: !!profile?.phone
+        })
+      } else {
+        // Even without profile, we can consider them authenticated if they have an address
+        setIsAuthenticated(true)
+        console.log('✅ Base Account authentication successful (no profile available):', {
+          address
         })
       }
 
