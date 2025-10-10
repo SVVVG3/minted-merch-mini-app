@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST(request) {
   try {
+    const supabase = getSupabaseAdmin();
     const { fid, reason = 'Cleanup pending transaction' } = await request.json();
     
     if (!fid) {

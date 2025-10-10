@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { refreshUserTokenBalance } from '@/lib/tokenBalanceCache';
-import { fetchUserWalletData } from '@/lib/neynar';
+import { fetchUserWalletData } from '@/lib/walletUtils';
 
 export async function POST(request) {
   try {

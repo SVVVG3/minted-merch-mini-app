@@ -1,4 +1,4 @@
-import { getProvider } from '@base-org/account'
+import { createBaseAccountSDK } from '@base-org/account'
 
 /**
  * Base Account SDK integration
@@ -18,17 +18,17 @@ export function isBaseAppEnvironment() {
   return isBaseApp
 }
 
-// Get Base Account provider if available
-export async function getBaseAccountProvider() {
+// Get Base Account SDK instance if available
+export async function getBaseAccountSDK() {
   try {
     if (!isBaseAppEnvironment()) {
       return null
     }
     
-    const provider = await getProvider()
-    return provider
+    const sdk = await createBaseAccountSDK()
+    return sdk
   } catch (error) {
-    console.log('Base Account provider not available:', error.message)
+    console.log('Base Account SDK not available:', error.message)
     return null
   }
 }
@@ -36,11 +36,11 @@ export async function getBaseAccountProvider() {
 // Get Base Account instance
 export async function getBaseAccount() {
   try {
-    const provider = await getBaseAccountProvider()
-    if (!provider) return null
+    const sdk = await getBaseAccountSDK()
+    if (!sdk) return null
     
-    const account = await provider.getAccount()
-    return account
+    // The SDK itself is the account instance
+    return sdk
   } catch (error) {
     console.log('Base Account not available:', error.message)
     return null

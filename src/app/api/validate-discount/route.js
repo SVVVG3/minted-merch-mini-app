@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { setUserContext } from '@/lib/auth';
 import { validateDiscountCode, calculateDiscountAmount, isGiftCardCode, validateGiftCardCode, cartContainsGiftCards } from '@/lib/discounts';
 import { checkTokenGatedEligibility } from '@/lib/tokenGating';
-import { fetchUserWalletData } from '@/lib/neynar';
+import { fetchUserWalletData } from '@/lib/walletUtils';
 
 export async function POST(request) {
   try {

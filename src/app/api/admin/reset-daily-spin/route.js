@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getCurrentCheckInDay, calculateStreakPST } from '@/lib/timezone.js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
 
 // Helper functions for calculating check-in points (same logic as points.js)
 function generateRandomCheckinPoints() {
@@ -73,6 +68,7 @@ function getPSTDayStart() {
 
 export async function POST(request) {
   try {
+    const supabase = getSupabaseAdmin();
     const { fid, reason, adminNote } = await request.json();
     
     if (!fid) {

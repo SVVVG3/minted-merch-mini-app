@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/supabase.js';
-import { getUserDataFromNeynar } from '../../../../lib/neynar.js';
+import { fetchBulkUserProfiles } from '../../../../lib/neynar.js';
 import { formatPSTTime } from '../../../../lib/timezone.js';
 
 export async function GET(request) {
@@ -104,7 +104,7 @@ export async function GET(request) {
         console.log(`👤 Creating profile for FID ${fid}...`);
         
         // Fetch user data from Neynar
-        const userData = await getUserDataFromNeynar(fid);
+        const userData = await fetchBulkUserProfiles([fid]);
         
         if (!userData) {
           console.warn(`⚠️ Could not fetch user data for FID ${fid}, creating minimal profile`);

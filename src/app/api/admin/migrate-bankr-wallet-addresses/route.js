@@ -1,22 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-// Use service role client to bypass RLS for admin endpoints
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
-
 export async function POST(request) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     console.log('🔧 Running Bankr wallet addresses migration...');
 
     // Read the migration file
