@@ -1,9 +1,10 @@
 import { http, createConfig } from 'wagmi'
 import { base } from 'wagmi/chains'
 import { farcasterMiniApp as miniAppConnector } from '@farcaster/miniapp-wagmi-connector'
-import { injected, baseAccount } from 'wagmi/connectors'
+import { injected } from 'wagmi/connectors'
 
-// Wagmi configuration for Farcaster Mini App with Base Account support
+// Wagmi configuration for Farcaster Mini App
+// Base Account is handled via SDK directly, not through Wagmi
 const connectors = [
   // Farcaster Mini App connector for Farcaster app users
   miniAppConnector(),
@@ -14,17 +15,6 @@ const connectors = [
   // Generic injected connector for broader compatibility
   injected()
 ]
-
-// Try to add Base Account connector if available
-try {
-  const baseAccountConnector = baseAccount({
-    appName: 'Minted Merch',
-  })
-  connectors.unshift(baseAccountConnector) // Add to beginning
-  console.log('✅ Base Account connector added to Wagmi config')
-} catch (error) {
-  console.log('⚠️ Base Account connector not available:', error.message)
-}
 
 export const config = createConfig({
   chains: [base],

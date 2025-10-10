@@ -16,15 +16,20 @@ import { SignInWithBaseButton, BasePayButton } from './BaseAccountButtons';
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
   const { getFid, isInFarcaster, user, context } = useFarcaster();
-  // Temporarily disable Base Account integration to prevent crashes
-  const isBaseApp = false;
-  const baseAccountConnector = null;
-  const isAuthenticated = false;
-  const isBaseLoading = false;
-  const signInWithBase = null;
-  const baseAccountProfile = null;
-  const fetchBaseAccountProfile = null;
-  const debugInfo = '';
+  // Re-enable Base Account integration with safe defaults
+  const baseAccountContext = useBaseAccount();
+  const { 
+    isBaseApp = false, 
+    baseAccountSDK = null, 
+    isAuthenticated = false, 
+    isLoading: isBaseLoading = false, 
+    signInWithBase = null, 
+    baseAccountProfile = null, 
+    fetchBaseAccountProfile = null, 
+    payWithBase = null,
+    userAddress = null,
+    debugInfo = '' 
+  } = baseAccountContext || {};
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(checkoutData ? true : false);
   const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', 'payment', or 'success'
   const [shippingData, setShippingData] = useState(cart.shipping || null);
@@ -292,7 +297,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     
     try {
       // Handle Base Account sign-in if needed
-      if (isBaseApp && baseAccountConnector && !isAuthenticated) {
+      if (isBaseApp && baseAccountSDK && !isAuthenticated) {
         console.log('🔄 Starting Base Account sign-in flow...');
         try {
           await signInWithBase();
@@ -305,7 +310,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
           setCheckoutError('Base Account sign-in failed. Please try again.');
           return;
         }
-      } else if (isBaseApp && baseAccountConnector && isAuthenticated) {
+      } else if (isBaseApp && baseAccountSDK && isAuthenticated) {
         // Already authenticated with Base Account, proceed directly
         console.log('✅ Already authenticated with Base Account, proceeding to checkout');
         proceedToCheckout();
@@ -891,7 +896,7 @@ Transaction Hash: ${transactionHash}`;
         >
           Connect Wallet to Pay
         </button>
-              ) : isBaseApp && baseAccountConnector ? (
+              ) : isBaseApp && baseAccountSDK ? (
         // Base Account + Standard buttons for Base app users
         <div className="w-full space-y-3">
           {/* Base Account Button */}
@@ -982,24 +987,21 @@ Transaction Hash: ${transactionHash}`;
           e.stopPropagation();
                   try {
                     const baseAccountDebug = {
-                      // Wagmi-based Base Account status
+                      // SDK-based Base Account status
                       isBaseApp,
-                      baseAccountConnector: !!baseAccountConnector,
+                      baseAccountSDK: !!baseAccountSDK,
                       isAuthenticated,
                       isLoading: isBaseLoading,
+                      userAddress,
                       error: error,
                       
                       // Environment info
                       userAgent: window.navigator?.userAgent,
                       hostname: window.location?.hostname,
                       
-                      // Legacy debug info (for comparison)
-                      hasWindowBase: !!(typeof window !== 'undefined' && window.base),
-                      windowBaseKeys: typeof window !== 'undefined' && window.base ? Object.keys(window.base) : null,
-                      
-                      // Wagmi connector info
-                      wagmiConnectors: typeof window !== 'undefined' ? 'Check console for connector list' : 'SSR',
-                      baseAccountStatus: isBaseApp && baseAccountConnector ? 'Available via Wagmi' : 'Not Available'
+                      // SDK info
+                      sdkMethods: baseAccountSDK ? Object.keys(baseAccountSDK) : null,
+                      baseAccountStatus: isBaseApp && baseAccountSDK ? 'Available via SDK' : 'Not Available'
                     };
                     console.log('🔍 Base Account Debug:', baseAccountDebug);
                     // Also log to a visible element for mobile debugging
@@ -1021,24 +1023,21 @@ Transaction Hash: ${transactionHash}`;
           e.stopPropagation();
                   try {
                     const baseAccountDebug = {
-                      // Wagmi-based Base Account status
+                      // SDK-based Base Account status
                       isBaseApp,
-                      baseAccountConnector: !!baseAccountConnector,
+                      baseAccountSDK: !!baseAccountSDK,
                       isAuthenticated,
                       isLoading: isBaseLoading,
+                      userAddress,
                       error: error,
                       
                       // Environment info
                       userAgent: window.navigator?.userAgent,
                       hostname: window.location?.hostname,
                       
-                      // Legacy debug info (for comparison)
-                      hasWindowBase: !!(typeof window !== 'undefined' && window.base),
-                      windowBaseKeys: typeof window !== 'undefined' && window.base ? Object.keys(window.base) : null,
-                      
-                      // Wagmi connector info
-                      wagmiConnectors: typeof window !== 'undefined' ? 'Check console for connector list' : 'SSR',
-                      baseAccountStatus: isBaseApp && baseAccountConnector ? 'Available via Wagmi' : 'Not Available'
+                      // SDK info
+                      sdkMethods: baseAccountSDK ? Object.keys(baseAccountSDK) : null,
+                      baseAccountStatus: isBaseApp && baseAccountSDK ? 'Available via SDK' : 'Not Available'
                     };
                     console.log('🔍 Base Account Debug:', baseAccountDebug);
                     // Also log to a visible element for mobile debugging
@@ -1070,24 +1069,21 @@ Transaction Hash: ${transactionHash}`;
           e.stopPropagation();
                   try {
                     const baseAccountDebug = {
-                      // Wagmi-based Base Account status
+                      // SDK-based Base Account status
                       isBaseApp,
-                      baseAccountConnector: !!baseAccountConnector,
+                      baseAccountSDK: !!baseAccountSDK,
                       isAuthenticated,
                       isLoading: isBaseLoading,
+                      userAddress,
                       error: error,
                       
                       // Environment info
                       userAgent: window.navigator?.userAgent,
                       hostname: window.location?.hostname,
                       
-                      // Legacy debug info (for comparison)
-                      hasWindowBase: !!(typeof window !== 'undefined' && window.base),
-                      windowBaseKeys: typeof window !== 'undefined' && window.base ? Object.keys(window.base) : null,
-                      
-                      // Wagmi connector info
-                      wagmiConnectors: typeof window !== 'undefined' ? 'Check console for connector list' : 'SSR',
-                      baseAccountStatus: isBaseApp && baseAccountConnector ? 'Available via Wagmi' : 'Not Available'
+                      // SDK info
+                      sdkMethods: baseAccountSDK ? Object.keys(baseAccountSDK) : null,
+                      baseAccountStatus: isBaseApp && baseAccountSDK ? 'Available via SDK' : 'Not Available'
                     };
                     console.log('🔍 Base Account Debug:', baseAccountDebug);
                     // Also log to a visible element for mobile debugging
@@ -1125,7 +1121,7 @@ Transaction Hash: ${transactionHash}`;
             {/* Header */}
             <div className="p-4 border-b">
                               {/* Base Account Status */}
-                              {isBaseApp && baseAccountConnector && (
+                              {isBaseApp && baseAccountSDK && (
                         <div className="mb-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
                           <div className="flex items-center space-x-2">
                             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>

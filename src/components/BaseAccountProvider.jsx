@@ -1,20 +1,22 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { useConnect, useAccount, useDisconnect } from 'wagmi'
+import { createBaseAccountSDK } from '@base-org/account'
 
 const BaseAccountContext = createContext({
   isBaseApp: false,
-  baseAccountConnector: null,
+  baseAccountSDK: null,
   isAuthenticated: false,
   isLoading: false,
   error: null,
   preGeneratedNonce: null,
   baseAccountProfile: null,
   debugInfo: '',
+  userAddress: null,
   signInWithBase: null,
   signOut: null,
-  fetchBaseAccountProfile: null
+  fetchBaseAccountProfile: null,
+  payWithBase: null
 })
 
 export function useBaseAccount() {
@@ -23,16 +25,18 @@ export function useBaseAccount() {
     console.warn('useBaseAccount used outside of BaseAccountProvider, returning default values')
     return {
       isBaseApp: false,
-      baseAccountConnector: null,
+      baseAccountSDK: null,
       isAuthenticated: false,
       isLoading: false,
       error: null,
       preGeneratedNonce: null,
       baseAccountProfile: null,
       debugInfo: '',
+      userAddress: null,
       signInWithBase: null,
       signOut: null,
-      fetchBaseAccountProfile: null
+      fetchBaseAccountProfile: null,
+      payWithBase: null
     }
   }
   return context
@@ -40,55 +44,14 @@ export function useBaseAccount() {
 
 export function BaseAccountProvider({ children }) {
   const [isBaseApp, setIsBaseApp] = useState(false)
-  const [baseAccountConnector, setBaseAccountConnector] = useState(null)
+  const [baseAccountSDK, setBaseAccountSDK] = useState(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [preGeneratedNonce, setPreGeneratedNonce] = useState(null)
   const [baseAccountProfile, setBaseAccountProfile] = useState(null)
   const [debugInfo, setDebugInfo] = useState('')
-
-  // Only use Wagmi hooks on client side
-  const wagmiHooks = typeof window !== 'undefined' ? {
-    isConnected: false,
-    address: null,
-    connector: null,
-    connectAsync: null,
-    connectors: [],
-    disconnect: null
-  } : {
-    isConnected: false,
-    address: null,
-    connector: null,
-    connectAsync: null,
-    connectors: [],
-    disconnect: null
-  }
-
-  // Use Wagmi hooks only on client side
-  if (typeof window !== 'undefined') {
-    try {
-      const { isConnected, address, connector } = useAccount()
-      const { connectAsync, connectors } = useConnect()
-      const { disconnect } = useDisconnect()
-      
-      wagmiHooks.isConnected = isConnected
-      wagmiHooks.address = address
-      wagmiHooks.connector = connector
-      wagmiHooks.connectAsync = connectAsync
-      wagmiHooks.connectors = connectors
-      wagmiHooks.disconnect = disconnect
-    } catch (error) {
-      console.log('Wagmi hooks not available during SSR:', error.message)
-      // Set safe defaults to prevent crashes
-      wagmiHooks.isConnected = false
-      wagmiHooks.address = null
-      wagmiHooks.connector = null
-      wagmiHooks.connectAsync = null
-      wagmiHooks.connectors = []
-      wagmiHooks.disconnect = null
-    }
-  }
+  const [userAddress, setUserAddress] = useState(null)
 
   // Pre-generate nonce on component mount to avoid popup blockers
   useEffect(() => {
@@ -100,62 +63,46 @@ export function BaseAccountProvider({ children }) {
     console.log('🔑 Pre-generated nonce for Base Account:', nonce)
   }, [])
 
+  // Initialize Base Account SDK
   useEffect(() => {
     if (typeof window === 'undefined') return
     
-    // Check if we're actually in Base app environment
-    const userAgent = window.navigator?.userAgent?.toLowerCase() || ''
-    const isFarcaster = userAgent.includes('warpcast') || userAgent.includes('farcaster')
-    
-    // Only enable Base Account in Base app, not Farcaster
-    if (isFarcaster) {
-      setIsBaseApp(false)
-      setBaseAccountConnector(null)
-      console.log('🔗 In Farcaster environment, Base Account disabled')
-      return
-    }
-    
-    // Debug: Log all available connectors
-    console.log('🔍 Available Wagmi connectors:', wagmiHooks.connectors.map(c => ({ id: c.id, name: c.name })))
-    
-    // Find the Base Account connector
-    const baseConnector = wagmiHooks.connectors.find(connector => connector.id === 'baseAccount')
-    
-    if (baseConnector) {
-      setIsBaseApp(true)
-      setBaseAccountConnector(baseConnector)
-      console.log('🚀 Base Account connector found:', baseConnector.id)
-    } else {
-      setIsBaseApp(false)
-      setBaseAccountConnector(null)
-      console.log('🔗 Base Account connector not available')
-    }
-  }, [wagmiHooks.connectors])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    
-    // Check if user is authenticated with Base Account
-    if (wagmiHooks.isConnected && wagmiHooks.connector?.id === 'baseAccount') {
-      setIsAuthenticated(true)
-      console.log('✅ Base Account authenticated via Wagmi:', wagmiHooks.address)
-    } else {
-      // Also check if Base Account is auto-authenticated in Base app
-      // This can happen when Base app automatically connects users
-      if (isBaseApp && baseAccountConnector && wagmiHooks.isConnected) {
-        console.log('🔍 Checking for auto-authentication in Base app...')
-        setIsAuthenticated(true)
-        console.log('✅ Base Account auto-authenticated in Base app:', wagmiHooks.address)
-      } else {
-        setIsAuthenticated(false)
-        console.log('❌ Base Account not authenticated')
+    const initializeBaseAccount = async () => {
+      try {
+        // Check if we're in Farcaster (disable Base Account)
+        const userAgent = window.navigator?.userAgent?.toLowerCase() || ''
+        const isFarcaster = userAgent.includes('warpcast') || userAgent.includes('farcaster')
+        
+        if (isFarcaster) {
+          setIsBaseApp(false)
+          setBaseAccountSDK(null)
+          setDebugInfo(prev => prev + '\n🔗 In Farcaster environment, Base Account disabled')
+          return
+        }
+        
+        // Initialize Base Account SDK
+        const sdk = createBaseAccountSDK()
+        const provider = sdk.getProvider()
+        
+        setIsBaseApp(true)
+        setBaseAccountSDK(sdk)
+        setDebugInfo(prev => prev + '\n🚀 Base Account SDK initialized')
+        
+        console.log('✅ Base Account SDK initialized:', sdk)
+      } catch (error) {
+        console.log('Base Account SDK initialization failed:', error.message)
+        setIsBaseApp(false)
+        setBaseAccountSDK(null)
+        setDebugInfo(prev => prev + '\n❌ Base Account SDK failed: ' + error.message)
       }
     }
-  }, [wagmiHooks.isConnected, wagmiHooks.connector, wagmiHooks.address, isBaseApp, baseAccountConnector])
+    
+    initializeBaseAccount()
+  }, [])
 
   const signInWithBase = async () => {
-    if (!baseAccountConnector || !wagmiHooks.connectAsync) {
-      throw new Error('Base Account connector not found')
+    if (!baseAccountSDK) {
+      throw new Error('Base Account SDK not found')
     }
 
     if (!preGeneratedNonce) {
@@ -169,15 +116,19 @@ export function BaseAccountProvider({ children }) {
       console.log('🔄 Starting Base Account sign-in...')
       console.log('🔑 Using pre-generated nonce:', preGeneratedNonce)
       
-      // 1. Connect and get the provider
+      // Get the provider from the SDK
+      const provider = baseAccountSDK.getProvider()
+
+      // 1. Switch to Base Chain
+      console.log('🔗 Switching to Base chain...')
+      await provider.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: '0x2105' }], // Base Mainnet
+      })
+
+      // 2. Connect and authenticate with wallet_connect
       console.log('🔗 Connecting to Base Account...')
-      await wagmiHooks.connectAsync({ connector: baseAccountConnector })
-      const provider = baseAccountConnector.provider
-
-      console.log('✅ Connected to Base Account, starting authentication...')
-
-      // 2. Authenticate with wallet_connect using pre-generated nonce
-      const authResult = await provider.request({
+      const { accounts } = await provider.request({
         method: 'wallet_connect',
         params: [{
           version: '1',
@@ -190,15 +141,18 @@ export function BaseAccountProvider({ children }) {
         }]
       })
 
-      const { accounts } = authResult
-      const { address, capabilities } = accounts[0]
-      const { message, signature } = capabilities.signInWithEthereum
+      const { address } = accounts[0]
+      const { message, signature } = accounts[0].capabilities.signInWithEthereum
 
       console.log('✅ Base Account authentication successful:', {
         address,
         message,
         signature: signature.substring(0, 10) + '...'
       })
+
+      // Set authentication state
+      setIsAuthenticated(true)
+      setUserAddress(address)
 
       // 3. TODO: Verify signature on backend
       // await fetch('/auth/verify', {
@@ -226,60 +180,80 @@ export function BaseAccountProvider({ children }) {
   }
 
   const signOut = () => {
-    if (wagmiHooks.disconnect) {
-      wagmiHooks.disconnect()
-    }
     setIsAuthenticated(false)
     setBaseAccountProfile(null)
+    setUserAddress(null)
     console.log('👋 Base Account signed out')
   }
 
-  // Fetch Base Account profile data
+  // Base Pay function using the official SDK
+  const payWithBase = async (amount, recipient) => {
+    if (!baseAccountSDK) {
+      throw new Error('Base Account SDK not found')
+    }
+
+    try {
+      console.log('💳 Executing Base Pay:', { amount, recipient })
+      
+      // Use the pay function from the SDK
+      const payment = await baseAccountSDK.pay({
+        amount: amount.toString(), // USD amount - SDK quotes equivalent USDC
+        to: recipient,
+        testnet: false // Set to true for testnet
+      })
+      
+      console.log('✅ Base Pay initiated:', payment)
+      
+      // Get payment status
+      const status = await baseAccountSDK.getPaymentStatus({
+        id: payment.id,
+        testnet: false
+      })
+      
+      console.log('✅ Base Pay status:', status)
+      
+      return {
+        success: true,
+        paymentId: payment.id,
+        status: status.status,
+        transactionHash: status.transactionHash || payment.id
+      }
+    } catch (error) {
+      console.error('❌ Base Pay failed:', error)
+      throw error
+    }
+  }
+
+  // Fetch Base Account profile data using payerInfo
   const fetchBaseAccountProfile = async () => {
-    if (!isAuthenticated || !baseAccountConnector) {
-      setDebugInfo(prev => prev + '\n❌ Cannot fetch profile: not authenticated or no connector')
+    if (!isAuthenticated || !baseAccountSDK) {
+      setDebugInfo(prev => prev + '\n❌ Cannot fetch profile: not authenticated or no SDK')
       return null
     }
 
     try {
       setDebugInfo(prev => prev + '\n🔍 Fetching Base Account profile...')
       
-      // Try to get profile from the Base Account connector
-      const provider = baseAccountConnector.provider
+      // Use a dummy payment to collect user info
+      const payment = await baseAccountSDK.pay({
+        amount: '0.01', // Minimal amount
+        to: userAddress, // Pay to self
+        payerInfo: {
+          requests: [
+            { type: 'email' },
+            { type: 'phoneNumber', optional: true },
+            { type: 'physicalAddress', optional: true }
+          ]
+        },
+        testnet: false
+      })
       
-      setDebugInfo(prev => prev + '\n🔍 Provider methods: ' + Object.keys(provider).join(', '))
-      
-      // Try different possible methods for getting profile data
-      const possibleMethods = [
-        'wallet_getProfile',
-        'base_getProfile', 
-        'getProfile',
-        'profile',
-        'wallet_getUserInfo',
-        'base_getUserInfo'
-      ]
-      
-      let profileResult = null
-      for (const method of possibleMethods) {
-        try {
-          setDebugInfo(prev => prev + '\n🔍 Trying method: ' + method)
-          profileResult = await provider.request({
-            method: method,
-            params: []
-          })
-          setDebugInfo(prev => prev + '\n✅ Success with method: ' + method)
-          break
-        } catch (methodError) {
-          setDebugInfo(prev => prev + '\n❌ Method ' + method + ' failed: ' + methodError.message)
-        }
-      }
-      
-      if (profileResult) {
+      if (payment.payerInfoResponses) {
         setDebugInfo(prev => prev + '\n✅ Base Account profile fetched!')
-        setBaseAccountProfile(profileResult)
-        return profileResult
+        setBaseAccountProfile(payment.payerInfoResponses)
+        return payment.payerInfoResponses
       } else {
-        setDebugInfo(prev => prev + '\n❌ No working method found for profile fetching')
+        setDebugInfo(prev => prev + '\n❌ No profile data returned')
         return null
       }
     } catch (error) {
@@ -290,16 +264,18 @@ export function BaseAccountProvider({ children }) {
 
   const value = {
     isBaseApp,
-    baseAccountConnector,
+    baseAccountSDK,
     isAuthenticated,
     isLoading,
     error,
     preGeneratedNonce,
     baseAccountProfile,
     debugInfo,
+    userAddress,
     signInWithBase,
     signOut,
-    fetchBaseAccountProfile
+    fetchBaseAccountProfile,
+    payWithBase
   }
 
   return (

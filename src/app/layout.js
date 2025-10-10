@@ -40,8 +40,7 @@ export default function RootLayout({ children }) {
         <GoogleMapsScript />
         <FrameInit />
         <WagmiProvider>
-          {/* Temporarily disabled BaseAccountProvider to prevent crashes */}
-          {/* <BaseAccountProvider> */}
+          <BaseAccountProvider>
             <CartProvider>
               <div>
                 <PriceTicker />
@@ -51,7 +50,7 @@ export default function RootLayout({ children }) {
                 <ChatEligibilityPopup />
               </div>
             </CartProvider>
-          {/* </BaseAccountProvider> */}
+          </BaseAccountProvider>
         </WagmiProvider>
       </body>
     </html>
