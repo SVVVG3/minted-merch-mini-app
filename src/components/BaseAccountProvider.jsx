@@ -9,6 +9,7 @@ const BaseAccountContext = createContext({
   isAuthenticated: false,
   isLoading: false,
   error: null,
+  preGeneratedNonce: null,
   signInWithBase: null,
   signOut: null
 })
@@ -27,6 +28,7 @@ export function BaseAccountProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [preGeneratedNonce, setPreGeneratedNonce] = useState(null)
 
   // Only use Wagmi hooks on client side
   const wagmiHooks = typeof window !== 'undefined' ? {
@@ -62,6 +64,16 @@ export function BaseAccountProvider({ children }) {
       console.log('Wagmi hooks not available during SSR:', error.message)
     }
   }
+
+  // Pre-generate nonce on component mount to avoid popup blockers
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    
+    // Generate a fresh nonce on page load to avoid popup blockers
+    const nonce = window.crypto.randomUUID().replace(/-/g, '')
+    setPreGeneratedNonce(nonce)
+    console.log('🔑 Pre-generated nonce for Base Account:', nonce)
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -112,30 +124,32 @@ export function BaseAccountProvider({ children }) {
       throw new Error('Base Account connector not found')
     }
 
+    if (!preGeneratedNonce) {
+      throw new Error('Nonce not ready. Please wait a moment and try again.')
+    }
+
     setIsLoading(true)
     setError(null)
 
     try {
       console.log('🔄 Starting Base Account sign-in...')
+      console.log('🔑 Using pre-generated nonce:', preGeneratedNonce)
       
-      // 1. Generate a fresh nonce
-      const nonce = window.crypto.randomUUID().replace(/-/g, '')
-      
-      // 2. Connect and get the provider
+      // 1. Connect and get the provider
       console.log('🔗 Connecting to Base Account...')
       await wagmiHooks.connectAsync({ connector: baseAccountConnector })
       const provider = baseAccountConnector.provider
 
       console.log('✅ Connected to Base Account, starting authentication...')
 
-      // 3. Authenticate with wallet_connect
+      // 2. Authenticate with wallet_connect using pre-generated nonce
       const authResult = await provider.request({
         method: 'wallet_connect',
         params: [{
           version: '1',
           capabilities: {
             signInWithEthereum: { 
-              nonce, 
+              nonce: preGeneratedNonce, 
               chainId: '0x2105' // Base Mainnet - 8453
             }
           }
@@ -152,7 +166,7 @@ export function BaseAccountProvider({ children }) {
         signature: signature.substring(0, 10) + '...'
       })
 
-      // 4. TODO: Verify signature on backend
+      // 3. TODO: Verify signature on backend
       // await fetch('/auth/verify', {
       //   method: 'POST',
       //   headers: { 'Content-Type': 'application/json' },
@@ -191,6 +205,7 @@ export function BaseAccountProvider({ children }) {
     isAuthenticated,
     isLoading,
     error,
+    preGeneratedNonce,
     signInWithBase,
     signOut
   }
