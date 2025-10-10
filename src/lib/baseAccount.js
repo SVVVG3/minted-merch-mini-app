@@ -6,12 +6,14 @@ import { createBaseAccountSDK } from '@base-org/account'
  * while maintaining compatibility with existing Wagmi flow
  */
 
-// Detect if Base Account SDK is available
+// Detect if Base Account SDK is available (works in both Farcaster and Base app)
 export function isBaseAppEnvironment() {
   if (typeof window === 'undefined') return false
   
-  // Check if Base Account SDK is available
-  return !!(window.base && window.base.pay && window.base.getPaymentStatus)
+  // Check if Base Account SDK is available - works in both Farcaster and Base app
+  const hasBaseSDK = !!(window.base && window.base.pay && window.base.getPaymentStatus)
+  
+  return hasBaseSDK
 }
 
 // Get Base Account SDK instance if available
@@ -152,15 +154,26 @@ export function debugBaseAccount() {
     return { available: false, reason: 'Server-side rendering' }
   }
   
+  const userAgent = window.navigator?.userAgent?.toLowerCase() || ''
+  const isFarcaster = userAgent.includes('warpcast') || userAgent.includes('farcaster')
+  const isBaseApp = userAgent.includes('base') || 
+                    window.location?.hostname?.includes('base.app') ||
+                    window.location?.search?.includes('base_app=true')
+  
   const debug = {
     hasWindow: typeof window !== 'undefined',
     hasBase: !!window.base,
     hasPay: !!(window.base && window.base.pay),
     hasGetPaymentStatus: !!(window.base && window.base.getPaymentStatus),
-    available: !!(window.base && window.base.pay && window.base.getPaymentStatus),
     userAgent: window.navigator?.userAgent,
     hostname: window.location?.hostname,
-    baseObject: window.base ? Object.keys(window.base) : null
+    baseObject: window.base ? Object.keys(window.base) : null,
+    environment: {
+      isFarcaster,
+      isBaseApp,
+      detectedEnvironment: isFarcaster ? 'Farcaster' : (isBaseApp ? 'Base App' : 'Unknown')
+    },
+    available: !!(window.base && window.base.pay && window.base.getPaymentStatus)
   }
   
   console.log('🔍 Base Account Debug:', debug)
