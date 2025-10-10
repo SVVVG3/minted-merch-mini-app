@@ -952,8 +952,13 @@ Transaction Hash: ${transactionHash}`;
               />
             )}
             <div className="text-center text-xs text-blue-600">
-              {!isAuthenticated ? 'Sign in for one-tap payments & auto-fill' : 'One-tap payments & auto-filled shipping'}
+              {!isAuthenticated ? 'Sign in for one-tap payments & auto-fill (opens popup)' : 'One-tap payments & auto-filled shipping'}
             </div>
+            {!isAuthenticated && (
+              <div className="text-center text-xs text-gray-500 mt-1">
+                Make sure to allow popups for this site
+              </div>
+            )}
           </div>
           
           {/* Divider */}
@@ -995,26 +1000,38 @@ Transaction Hash: ${transactionHash}`;
         </div>
       ) : (
         // Standard Farcaster experience
-        <button
-          onClick={handleCheckout}
-          disabled={!hasItems}
-          className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
-        >
-          {(() => {
-            const isCartFree = cartTotal <= 0.01;
-            const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
-            
-            if (isFreeWithShipping) {
-              return 'Checkout (FREE + $0.01 processing fee)';
-            } else if (appliedDiscount?.freeShipping) {
-              return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
-            } else if (appliedDiscount) {
-              return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
-            } else {
-              return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
-            }
-          })()}
-        </button>
+        <div className="w-full space-y-2">
+          {/* Base Account not available message */}
+          {!isBaseApp && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+              <div className="text-blue-800 text-sm font-medium mb-1">Base Account Not Available</div>
+              <div className="text-blue-600 text-xs">
+                Base Account requires a wallet extension (like Coinbase Wallet) and popup permissions. Make sure you have a wallet installed and allow popups for this site.
+              </div>
+            </div>
+          )}
+          
+          <button
+            onClick={handleCheckout}
+            disabled={!hasItems}
+            className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
+          >
+            {(() => {
+              const isCartFree = cartTotal <= 0.01;
+              const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
+              
+              if (isFreeWithShipping) {
+                return 'Checkout (FREE + $0.01 processing fee)';
+              } else if (appliedDiscount?.freeShipping) {
+                return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
+              } else if (appliedDiscount) {
+                return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
+              } else {
+                return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
+              }
+            })()}
+          </button>
+        </div>
       )}
 
       {/* Debug Buttons - Remove in production */}

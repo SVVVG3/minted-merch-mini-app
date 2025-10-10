@@ -80,6 +80,24 @@ export function BaseAccountProvider({ children }) {
           return
         }
         
+        // Check for Ethereum provider availability
+        const hasEthereum = typeof window.ethereum !== 'undefined'
+        
+        if (!hasEthereum) {
+          console.log('⚠️ No Ethereum provider detected')
+          setIsBaseApp(false)
+          setBaseAccountSDK(null)
+          setDebugInfo(prev => prev + `\n🔒 No Ethereum provider available`)
+          return
+        }
+        
+        // Note: We allow iframe environments now that we have proper COOP headers
+        const isInIframe = window !== window.top
+        if (isInIframe) {
+          console.log('📱 Running in iframe environment - Base Account should work with proper headers')
+          setDebugInfo(prev => prev + `\n📱 Iframe environment detected - Base Account enabled`)
+        }
+        
         // Initialize Base Account SDK with proper configuration
         const sdk = createBaseAccountSDK({
           appName: 'Minted Merch',
@@ -113,7 +131,14 @@ export function BaseAccountProvider({ children }) {
     try {
       console.log('🔄 Starting Base Account sign-in...')
       
+      // Check if we're in a restricted environment (iframe, CSP, etc.)
+      if (typeof window !== 'undefined' && !window.ethereum) {
+        console.log('⚠️ No window.ethereum detected - may be in restricted environment')
+        throw new Error('Base Account requires access to Ethereum provider. Please ensure you have a wallet extension installed.')
+      }
+      
       // Use the official SDK method for sign-in
+      // This will open a popup to keys.coinbase.com
       await baseAccountSDK.getProvider().request({ method: 'wallet_connect' })
       
       console.log('✅ Base Account sign-in successful')
@@ -126,10 +151,14 @@ export function BaseAccountProvider({ children }) {
       console.error('❌ Base Account sign-in failed:', err)
       
       // Handle specific error cases
-      if (err.message?.includes('popup') || err.message?.includes('window')) {
+      if (err.message?.includes('cross-origin') || err.message?.includes('Blocked a frame')) {
+        setError('Base Account popup was blocked. Please allow popups for this site and try again.')
+      } else if (err.message?.includes('popup') || err.message?.includes('window')) {
         setError('Popup blocked. Please allow popups for this site and try again.')
       } else if (err.message?.includes('User rejected')) {
         setError('Sign-in cancelled by user.')
+      } else if (err.message?.includes('Ethereum provider')) {
+        setError('Base Account requires access to Ethereum provider. Please ensure you have a wallet extension installed.')
       } else {
         setError(err.message || 'Sign in failed')
       }
