@@ -16,7 +16,7 @@ import { SignInWithBaseButton, BasePayButton } from './BaseAccountButtons';
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
   const { getFid, isInFarcaster, user, context } = useFarcaster();
-  const { isBaseApp, baseAccount, baseProfile, isAuthenticated, isLoading: isBaseLoading, signInWithBase } = useBaseAccount();
+  const { isBaseApp, baseAccountConnector, isAuthenticated, isLoading: isBaseLoading, signInWithBase } = useBaseAccount();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(checkoutData ? true : false);
   const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', 'payment', or 'success'
   const [shippingData, setShippingData] = useState(cart.shipping || null);
@@ -246,16 +246,29 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     
     try {
       // Handle Base Account sign-in if needed
-      if (isBaseApp && baseAccount && !isAuthenticated) {
+      if (isBaseApp && baseAccountConnector && !isAuthenticated) {
         try {
           await signInWithBase();
           console.log('✅ Base Account sign-in successful');
+          // After successful sign-in, proceed to checkout
+          proceedToCheckout();
         } catch (error) {
           console.error('Base Account sign-in failed:', error);
           // Still allow checkout with standard flow
+          proceedToCheckout();
         }
+      } else {
+        // Standard checkout flow
+        proceedToCheckout();
       }
       
+    } catch (err) {
+      console.error('Checkout error:', err);
+    }
+  };
+
+  const proceedToCheckout = async () => {
+    try {
       // Add haptic feedback for checkout action
       try {
         const capabilities = await sdk.getCapabilities();
@@ -269,9 +282,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       
       setIsCheckoutOpen(true);
       setCheckoutStep('shipping'); // Start with shipping step
-      
     } catch (err) {
-      console.error('Checkout error:', err);
+      console.error('Proceed to checkout error:', err);
     }
   };
 
@@ -826,7 +838,7 @@ Transaction Hash: ${transactionHash}`;
         >
           Connect Wallet to Pay
         </button>
-      ) : isBaseApp && baseAccount ? (
+              ) : isBaseApp && baseAccountConnector ? (
         // Base Account buttons following brand guidelines
         <div className="w-full space-y-2">
           {!isAuthenticated ? (
@@ -892,7 +904,7 @@ Transaction Hash: ${transactionHash}`;
             const baseAccountDebug = {
               ...debug,
               isBaseApp,
-              baseAccount: !!baseAccount,
+                      baseAccountConnector: !!baseAccountConnector,
               isAuthenticated,
               userAgent: window.navigator?.userAgent,
               hostname: window.location?.hostname,
@@ -922,7 +934,7 @@ Transaction Hash: ${transactionHash}`;
             const baseAccountDebug = {
               ...debug,
               isBaseApp,
-              baseAccount: !!baseAccount,
+                      baseAccountConnector: !!baseAccountConnector,
               isAuthenticated,
               userAgent: window.navigator?.userAgent,
               hostname: window.location?.hostname,
@@ -962,7 +974,7 @@ Transaction Hash: ${transactionHash}`;
             const baseAccountDebug = {
               ...debug,
               isBaseApp,
-              baseAccount: !!baseAccount,
+                      baseAccountConnector: !!baseAccountConnector,
               isAuthenticated,
               userAgent: window.navigator?.userAgent,
               hostname: window.location?.hostname,
@@ -1001,8 +1013,8 @@ Transaction Hash: ${transactionHash}`;
             
             {/* Header */}
             <div className="p-4 border-b">
-                      {/* Base Account Status */}
-                      {isBaseApp && baseAccount && (
+                              {/* Base Account Status */}
+                              {isBaseApp && baseAccountConnector && (
                         <div className="mb-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
                           <div className="flex items-center space-x-2">
                             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>

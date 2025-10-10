@@ -32,41 +32,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <head>
         <link rel="preconnect" href="https://auth.farcaster.xyz" />
-        {/* Conditionally load Base Account SDK only in Base app */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              // Load Base Account SDK - let the SDK itself determine if it should be active
-              if (typeof window !== 'undefined') {
-                const userAgent = window.navigator?.userAgent?.toLowerCase() || '';
-                const isFarcaster = userAgent.includes('warpcast') || userAgent.includes('farcaster');
-                
-                // Load Base Account SDK unless we're definitely in Farcaster
-                if (!isFarcaster) {
-                  const script = document.createElement('script');
-                  script.src = 'https://unpkg.com/@base-org/account/dist/base-account.min.js';
-                  script.async = true;
-                  script.onload = function() {
-                    console.log('🚀 Base Account SDK loaded');
-                    // Check if Base Account is available after loading
-                    if (window.base) {
-                      console.log('✅ Base Account SDK available:', Object.keys(window.base));
-                    } else {
-                      console.log('❌ Base Account SDK not available');
-                    }
-                  };
-                  script.onerror = function() {
-                    console.log('❌ Failed to load Base Account SDK');
-                  };
-                  document.head.appendChild(script);
-                  console.log('🔄 Loading Base Account SDK...');
-                } else {
-                  console.log('🔗 In Farcaster environment, skipping Base Account SDK');
-                }
-              }
-            `
-          }}
-        />
+        {/* Base Account SDK is now loaded via Wagmi connector */}
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
