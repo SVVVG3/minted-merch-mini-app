@@ -26,7 +26,7 @@ export async function POST(request) {
         .gt('token_balance', 0) // Only users with tokens
         .order('token_balance', { ascending: false });
     } else {
-      // For non-token filters, use leaderboard table
+      // For non-token filters, use leaderboard table with pagination to get ALL users
       query = supabaseAdmin
         .from('user_leaderboard')
         .select(`
@@ -56,12 +56,34 @@ export async function POST(request) {
       }
     }
 
-    const { data: eligibleUsers, error } = await query;
-
-    if (error) {
-      console.error('Error fetching eligible users:', error);
-      return NextResponse.json({ success: false, error: 'Failed to fetch eligible users' });
+    // Execute query with pagination to get ALL users (Supabase has 1000 row limit)
+    let eligibleUsers = [];
+    let currentPage = 0;
+    const pageSize = 1000;
+    let hasMoreData = true;
+    
+    console.log(`📊 Fetching all eligible users with pagination...`);
+    
+    while (hasMoreData) {
+      const { data: pageData, error } = await query
+        .range(currentPage * pageSize, (currentPage + 1) * pageSize - 1);
+      
+      if (error) {
+        console.error('Error fetching eligible users:', error);
+        return NextResponse.json({ success: false, error: 'Failed to fetch eligible users' });
+      }
+      
+      if (pageData && pageData.length > 0) {
+        eligibleUsers = eligibleUsers.concat(pageData);
+        console.log(`📄 Fetched page ${currentPage + 1}: ${pageData.length} users (total: ${eligibleUsers.length})`);
+        currentPage++;
+        hasMoreData = pageData.length === pageSize;
+      } else {
+        hasMoreData = false;
+      }
     }
+    
+    console.log(`📊 Total eligible users fetched: ${eligibleUsers.length}`);
 
     let filteredUsers = eligibleUsers || [];
 
