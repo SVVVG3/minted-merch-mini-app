@@ -942,22 +942,6 @@ Transaction Hash: ${transactionHash}`;
             {/* Header */}
             <div className="p-4 border-b">
                               {/* Base Account Status */}
-                              {isBaseApp && baseAccountSDK && (
-                        <div className="mb-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                            <span className="text-sm font-medium text-blue-800">
-                              {isAuthenticated ? 'Base Account Connected' : 'Base Account Available'}
-                            </span>
-                          </div>
-                          <p className="text-xs text-blue-600 mt-1">
-                            {isAuthenticated 
-                              ? 'One-tap payments and auto-filled shipping enabled'
-                              : 'Sign in to enable one-tap payments and auto-filled shipping'
-                            }
-                          </p>
-                        </div>
-                      )}
               
               <div className="flex items-center justify-between">
                 <div>
@@ -1564,13 +1548,23 @@ Transaction Hash: ${transactionHash}`;
                     );
                   })()}
                   
-                  <button
-                    onClick={handlePayment}
-                    disabled={!cart.checkout || !hasSufficientBalance(calculateFinalTotal()) || isPending}
-                    className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
-                  >
-                    {isPending ? 'Processing...' : `Pay ${calculateFinalTotal().toFixed(2)} USDC`}
-                  </button>
+                  {isBaseApp && baseAccountSDK ? (
+                    // Show Base Pay button in Base app
+                    <BasePayButton 
+                      onClick={handlePayment}
+                      disabled={!cart.checkout || !hasSufficientBalance(calculateFinalTotal()) || isPending}
+                      className="w-full"
+                    />
+                  ) : (
+                    // Show standard payment button in other environments
+                    <button
+                      onClick={handlePayment}
+                      disabled={!cart.checkout || !hasSufficientBalance(calculateFinalTotal()) || isPending}
+                      className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                    >
+                      {isPending ? 'Processing...' : `Pay ${calculateFinalTotal().toFixed(2)} USDC`}
+                    </button>
+                  )}
                 </div>
               )}
 
