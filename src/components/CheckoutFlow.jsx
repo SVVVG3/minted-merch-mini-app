@@ -16,17 +16,15 @@ import { SignInWithBaseButton, BasePayButton } from './BaseAccountButtons';
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
   const { getFid, isInFarcaster, user, context } = useFarcaster();
-  const baseAccountContext = useBaseAccount();
-  const { 
-    isBaseApp = false, 
-    baseAccountConnector = null, 
-    isAuthenticated = false, 
-    isLoading: isBaseLoading = false, 
-    signInWithBase = null, 
-    baseAccountProfile = null, 
-    fetchBaseAccountProfile = null, 
-    debugInfo = '' 
-  } = baseAccountContext || {};
+  // Temporarily disable Base Account integration to prevent crashes
+  const isBaseApp = false;
+  const baseAccountConnector = null;
+  const isAuthenticated = false;
+  const isBaseLoading = false;
+  const signInWithBase = null;
+  const baseAccountProfile = null;
+  const fetchBaseAccountProfile = null;
+  const debugInfo = '';
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(checkoutData ? true : false);
   const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', 'payment', or 'success'
   const [shippingData, setShippingData] = useState(cart.shipping || null);
