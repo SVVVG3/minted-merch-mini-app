@@ -1,11 +1,11 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { useConnect, useAccount, useDisconnect } from 'wagmi'
+import { createBaseAccountSDK } from '@base-org/account'
 
 const BaseAccountContext = createContext({
   isBaseApp: false,
-  baseAccountConnector: null,
+  baseAccountSDK: null,
   isAuthenticated: false,
   isLoading: false,
   error: null,
@@ -23,43 +23,84 @@ export function useBaseAccount() {
 
 export function BaseAccountProvider({ children }) {
   const [isBaseApp, setIsBaseApp] = useState(false)
-  const [baseAccountConnector, setBaseAccountConnector] = useState(null)
+  const [baseAccountSDK, setBaseAccountSDK] = useState(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const { isConnected, address, connector } = useAccount()
-  const { connectAsync, connectors } = useConnect()
-  const { disconnect } = useDisconnect()
-
   useEffect(() => {
-    // Find the Base Account connector
-    const baseConnector = connectors.find(connector => connector.id === 'baseAccount')
-    
-    if (baseConnector) {
-      setIsBaseApp(true)
-      setBaseAccountConnector(baseConnector)
-      console.log('🚀 Base Account connector found:', baseConnector.id)
-    } else {
-      setIsBaseApp(false)
-      setBaseAccountConnector(null)
-      console.log('🔗 Base Account connector not available')
-    }
-  }, [connectors])
+    async function initBaseAccount() {
+      try {
+        setIsLoading(true)
+        setError(null)
 
-  useEffect(() => {
-    // Check if user is authenticated with Base Account
-    if (isConnected && connector?.id === 'baseAccount') {
-      setIsAuthenticated(true)
-      console.log('✅ Base Account authenticated:', address)
-    } else {
-      setIsAuthenticated(false)
+        // Check if we're in a Base app environment
+        const userAgent = window.navigator?.userAgent?.toLowerCase() || ''
+        const isFarcaster = userAgent.includes('warpcast') || userAgent.includes('farcaster')
+        
+        if (isFarcaster) {
+          setIsBaseApp(false)
+          setBaseAccountSDK(null)
+          console.log('🔗 In Farcaster environment, Base Account not available')
+          return
+        }
+
+        // Try to create Base Account SDK
+        try {
+          const sdk = await createBaseAccountSDK({
+            appName: 'Minted Merch',
+            appLogoUrl: 'https://app.mintedmerch.shop/logo.png',
+          })
+          
+          setIsBaseApp(true)
+          setBaseAccountSDK(sdk)
+          console.log('🚀 Base Account SDK created successfully')
+          
+          // Check if user is already authenticated
+          try {
+            const profile = await sdk.getProfile()
+            if (profile) {
+              setIsAuthenticated(true)
+              console.log('✅ Base Account profile found (already authenticated):', {
+                hasEmail: !!profile?.email,
+                hasShippingAddress: !!profile?.shippingAddress,
+                hasPhone: !!profile?.phone
+              })
+            } else {
+              setIsAuthenticated(false)
+              console.log('👤 No profile found - user not authenticated yet')
+            }
+          } catch (profileError) {
+            console.log('User not authenticated yet:', profileError.message)
+            setIsAuthenticated(false)
+          }
+          
+        } catch (sdkError) {
+          console.log('Base Account SDK not available:', sdkError.message)
+          setIsBaseApp(false)
+          setBaseAccountSDK(null)
+          setIsAuthenticated(false)
+        }
+
+      } catch (err) {
+        console.error('❌ Base Account initialization failed:', err)
+        setError(err.message)
+        setIsBaseApp(false)
+        setBaseAccountSDK(null)
+        setIsAuthenticated(false)
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }, [isConnected, connector, address])
+
+    if (typeof window !== 'undefined') {
+      initBaseAccount()
+    }
+  }, [])
 
   const signInWithBase = async () => {
-    if (!baseAccountConnector) {
-      throw new Error('Base Account connector not found')
+    if (!baseAccountSDK) {
+      throw new Error('Base Account SDK not available')
     }
 
     setIsLoading(true)
@@ -71,11 +112,16 @@ export function BaseAccountProvider({ children }) {
       // 1. Generate a fresh nonce
       const nonce = window.crypto.randomUUID().replace(/-/g, '')
       
-      // 2. Connect and get the provider
-      await connectAsync({ connector: baseAccountConnector })
-      const provider = baseAccountConnector.provider
+      // 2. Get the provider from the SDK
+      const provider = baseAccountSDK.getProvider()
 
-      // 3. Authenticate with wallet_connect
+      // 3. Switch to Base Chain
+      await provider.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: '0x2105' }], // Base Mainnet
+      })
+
+      // 4. Authenticate with wallet_connect
       const authResult = await provider.request({
         method: 'wallet_connect',
         params: [{
@@ -99,7 +145,26 @@ export function BaseAccountProvider({ children }) {
         signature: signature.substring(0, 10) + '...'
       })
 
-      // 4. TODO: Verify signature on backend
+      // 5. Get profile after authentication
+      try {
+        const profile = await baseAccountSDK.getProfile()
+        if (profile) {
+          setIsAuthenticated(true)
+          console.log('✅ Base Account profile loaded:', {
+            hasEmail: !!profile?.email,
+            hasShippingAddress: !!profile?.shippingAddress,
+            hasPhone: !!profile?.phone
+          })
+        } else {
+          setIsAuthenticated(true) // Still authenticated even without profile
+          console.log('✅ Base Account authenticated (no profile available)')
+        }
+      } catch (profileError) {
+        setIsAuthenticated(true) // Still authenticated even if profile fails
+        console.log('✅ Base Account authenticated (profile unavailable)')
+      }
+
+      // 6. TODO: Verify signature on backend
       // await fetch('/auth/verify', {
       //   method: 'POST',
       //   headers: { 'Content-Type': 'application/json' },
@@ -116,14 +181,13 @@ export function BaseAccountProvider({ children }) {
   }
 
   const signOut = () => {
-    disconnect()
     setIsAuthenticated(false)
     console.log('👋 Base Account signed out')
   }
 
   const value = {
     isBaseApp,
-    baseAccountConnector,
+    baseAccountSDK,
     isAuthenticated,
     isLoading,
     error,

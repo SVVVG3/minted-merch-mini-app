@@ -1,21 +1,17 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getUserLeaderboardData } from '@/lib/points.js';
-
-// Use service role client to bypass RLS for admin endpoints
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
 
 export async function GET(request) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Database not available' 
+      }, { status: 503 });
+    }
+
     console.log('Fetching all check-ins for admin dashboard...');
 
     // Fetch all daily check-ins from point_transactions table with profile info

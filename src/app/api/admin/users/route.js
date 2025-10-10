@@ -1,20 +1,16 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// Use service role client to bypass RLS for admin endpoints
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function GET(request) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Database not available' 
+      }, { status: 503 });
+    }
+
     console.log('Fetching all users for admin dashboard...');
 
     // Fetch all users from profiles table with their orders using service role
@@ -69,6 +65,14 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Database not available' 
+      }, { status: 503 });
+    }
+
     const { action, username } = await request.json();
 
     if (action === 'search_username') {
