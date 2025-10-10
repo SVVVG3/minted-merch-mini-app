@@ -292,6 +292,18 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     }
   }, [baseAccountProfile, shippingData]);
 
+  // Direct Base Account sign-in test function
+  const handleDirectSignIn = async () => {
+    console.log('🧪 Testing direct Base Account sign-in...');
+    try {
+      await signInWithBase();
+      console.log('✅ Direct sign-in successful!');
+    } catch (error) {
+      console.error('❌ Direct sign-in failed:', error);
+      setCheckoutError(`Direct sign-in failed: ${error.message}`);
+    }
+  };
+
   const handleCheckout = async () => {
     if (!hasItems) return;
     
@@ -299,6 +311,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       // Handle Base Account sign-in if needed
       if (isBaseApp && baseAccountSDK && !isAuthenticated) {
         console.log('🔄 Starting Base Account sign-in flow...');
+        console.log('🔍 Debug - isBaseApp:', isBaseApp, 'baseAccountSDK:', !!baseAccountSDK, 'isAuthenticated:', isAuthenticated);
         try {
           await signInWithBase();
           console.log('✅ Base Account sign-in successful, now proceeding to checkout');
@@ -306,8 +319,9 @@ export function CheckoutFlow({ checkoutData, onBack }) {
           proceedToCheckout();
         } catch (error) {
           console.error('❌ Base Account sign-in failed:', error);
+          console.error('❌ Error details:', error.message, error.stack);
           // Don't proceed to checkout if sign-in failed
-          setCheckoutError('Base Account sign-in failed. Please try again.');
+          setCheckoutError(`Base Account sign-in failed: ${error.message}`);
           return;
         }
       } else if (isBaseApp && baseAccountSDK && isAuthenticated) {
@@ -322,6 +336,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       
     } catch (err) {
       console.error('Checkout error:', err);
+      setCheckoutError(`Checkout error: ${err.message}`);
     }
   };
 
@@ -980,87 +995,70 @@ Transaction Hash: ${transactionHash}`;
         </button>
       )}
 
-      {/* Debug Button - Remove in production */}
-      <button
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-                  try {
-                    const baseAccountDebug = {
-                      // SDK-based Base Account status
-                      isBaseApp,
-                      baseAccountSDK: !!baseAccountSDK,
-                      isAuthenticated,
-                      isLoading: isBaseLoading,
-                      userAddress,
-                      error: error,
-                      
-                      // Environment info
-                      userAgent: window.navigator?.userAgent,
-                      hostname: window.location?.hostname,
-                      
-                      // SDK info
-                      sdkMethods: baseAccountSDK ? Object.keys(baseAccountSDK) : null,
-                      baseAccountStatus: isBaseApp && baseAccountSDK ? 'Available via SDK' : 'Not Available'
-                    };
-                    console.log('🔍 Base Account Debug:', baseAccountDebug);
-                    // Also log to a visible element for mobile debugging
-                    const debugDiv = document.getElementById('debug-output');
-                    if (debugDiv) {
-                      debugDiv.innerHTML = `<pre>${JSON.stringify(baseAccountDebug, null, 2)}</pre>`;
-                      debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
+      {/* Debug Buttons - Remove in production */}
+      <div className="w-full mt-2 space-y-2">
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+                    try {
+                      const baseAccountDebug = {
+                        // SDK-based Base Account status
+                        isBaseApp,
+                        baseAccountSDK: !!baseAccountSDK,
+                        isAuthenticated,
+                        isLoading: isBaseLoading,
+                        userAddress,
+                        error: error,
+                        
+                        // Environment info
+                        userAgent: window.navigator?.userAgent,
+                        hostname: window.location?.hostname,
+                        
+                        // SDK info
+                        sdkMethods: baseAccountSDK ? Object.keys(baseAccountSDK) : null,
+                        baseAccountStatus: isBaseApp && baseAccountSDK ? 'Available via SDK' : 'Not Available'
+                      };
+                      console.log('🔍 Base Account Debug:', baseAccountDebug);
+                      // Also log to a visible element for mobile debugging
+                      const debugDiv = document.getElementById('debug-output');
+                      if (debugDiv) {
+                        debugDiv.innerHTML = `<pre>${JSON.stringify(baseAccountDebug, null, 2)}</pre>`;
+                        debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
+                      }
+                    } catch (error) {
+                      console.error('Debug Error:', error);
                     }
-                  } catch (error) {
-                    console.error('Debug Error:', error);
-                  }
-        }}
-        onTouchStart={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        }}
-        onTouchEnd={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-                  try {
-                    const baseAccountDebug = {
-                      // SDK-based Base Account status
-                      isBaseApp,
-                      baseAccountSDK: !!baseAccountSDK,
-                      isAuthenticated,
-                      isLoading: isBaseLoading,
-                      userAddress,
-                      error: error,
-                      
-                      // Environment info
-                      userAgent: window.navigator?.userAgent,
-                      hostname: window.location?.hostname,
-                      
-                      // SDK info
-                      sdkMethods: baseAccountSDK ? Object.keys(baseAccountSDK) : null,
-                      baseAccountStatus: isBaseApp && baseAccountSDK ? 'Available via SDK' : 'Not Available'
-                    };
-                    console.log('🔍 Base Account Debug:', baseAccountDebug);
-                    // Also log to a visible element for mobile debugging
-                    const debugDiv = document.getElementById('debug-output');
-                    if (debugDiv) {
-                      debugDiv.innerHTML = `<pre>${JSON.stringify(baseAccountDebug, null, 2)}</pre>`;
-                      debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
-                    }
-                  } catch (error) {
-                    console.error('Debug Error:', error);
-                  }
-        }}
-        className="w-full mt-2 bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-sm touch-manipulation"
-        style={{ 
-          minHeight: '44px',
-          touchAction: 'manipulation',
-          WebkitTouchCallout: 'none',
-          WebkitUserSelect: 'none',
-          userSelect: 'none'
-        }}
-      >
-        🔍 Debug Base Account
-      </button>
+          }}
+          className="w-full bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-sm touch-manipulation"
+          style={{ 
+            minHeight: '44px',
+            touchAction: 'manipulation',
+            WebkitTouchCallout: 'none',
+            WebkitUserSelect: 'none',
+            userSelect: 'none'
+          }}
+        >
+          🔍 Debug Base Account
+        </button>
+        
+        {/* Test Base Account Sign-in Button */}
+        {isBaseApp && baseAccountSDK && (
+          <button
+            onClick={handleDirectSignIn}
+            className="w-full bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-sm touch-manipulation"
+            style={{ 
+              minHeight: '44px',
+              touchAction: 'manipulation',
+              WebkitTouchCallout: 'none',
+              WebkitUserSelect: 'none',
+              userSelect: 'none'
+            }}
+          >
+            🧪 Test Base Sign-in
+          </button>
+        )}
+      </div>
 
       {/* Alternative Debug Link */}
       <div 
