@@ -11,11 +11,12 @@ import { sdk } from '@farcaster/miniapp-sdk';
 
 import { ShippingForm } from './ShippingForm';
 import GiftCardSection, { GiftCardBalance } from './GiftCardSection';
+import { SignInWithBaseButton, BasePayButton } from './BaseAccountButtons';
 
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
   const { getFid, isInFarcaster, user, context } = useFarcaster();
-  const { isBaseApp, baseAccount, baseProfile, isLoading: isBaseLoading } = useBaseAccount();
+  const { isBaseApp, baseAccount, baseProfile, isAuthenticated, isLoading: isBaseLoading, signInWithBase } = useBaseAccount();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(checkoutData ? true : false);
   const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', 'payment', or 'success'
   const [shippingData, setShippingData] = useState(cart.shipping || null);
@@ -244,6 +245,17 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     if (!hasItems) return;
     
     try {
+      // Handle Base Account sign-in if needed
+      if (isBaseApp && baseAccount && !isAuthenticated) {
+        try {
+          await signInWithBase();
+          console.log('✅ Base Account sign-in successful');
+        } catch (error) {
+          console.error('Base Account sign-in failed:', error);
+          // Still allow checkout with standard flow
+        }
+      }
+      
       // Add haptic feedback for checkout action
       try {
         const capabilities = await sdk.getCapabilities();
@@ -807,39 +819,68 @@ Transaction Hash: ${transactionHash}`;
   return (
     <>
       {/* Checkout Button */}
-      <button
-        onClick={handleCheckout}
-        disabled={!hasItems || !isConnected}
-        className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
-      >
-{!isConnected ? 'Connect Wallet to Pay' : (() => {
-          // Check if cart total is effectively free (considering product-specific discounts)
-          const isCartFree = cartTotal <= 0.01;
-          const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
-          
-          // Base Account enhanced experience
-          if (isBaseApp && baseAccount) {
+      {!isConnected ? (
+        <button
+          disabled
+          className="w-full bg-gray-400 cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg"
+        >
+          Connect Wallet to Pay
+        </button>
+      ) : isBaseApp && baseAccount ? (
+        // Base Account buttons following brand guidelines
+        <div className="w-full space-y-2">
+          {!isAuthenticated ? (
+            <SignInWithBaseButton 
+              onClick={handleCheckout}
+              disabled={!hasItems}
+              className="w-full"
+            />
+          ) : (
+            <BasePayButton 
+              onClick={handleCheckout}
+              disabled={!hasItems}
+              className="w-full"
+            />
+          )}
+          {/* Show pricing info below button */}
+          <div className="text-center text-sm text-gray-600">
+            {(() => {
+              const isCartFree = cartTotal <= 0.01;
+              const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
+              
+              if (isFreeWithShipping) {
+                return 'FREE + $0.01 processing fee';
+              } else if (appliedDiscount?.freeShipping) {
+                return `${cartTotal.toFixed(2)} USDC + free shipping`;
+              } else {
+                return `${cartTotal.toFixed(2)} USDC + shipping & taxes`;
+              }
+            })()}
+          </div>
+        </div>
+      ) : (
+        // Standard Farcaster experience
+        <button
+          onClick={handleCheckout}
+          disabled={!hasItems}
+          className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
+        >
+          {(() => {
+            const isCartFree = cartTotal <= 0.01;
+            const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
+            
             if (isFreeWithShipping) {
-              return '🚀 Pay with Base Account (FREE + $0.01 processing)';
+              return 'Checkout (FREE + $0.01 processing fee)';
             } else if (appliedDiscount?.freeShipping) {
-              return `🚀 Pay with Base Account (${cartTotal.toFixed(2)} USDC + free shipping)`;
+              return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
+            } else if (appliedDiscount) {
+              return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
             } else {
-              return `🚀 Pay with Base Account (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
+              return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
             }
-          }
-          
-          // Standard Farcaster experience
-          if (isFreeWithShipping) {
-            return 'Checkout (FREE + $0.01 processing fee)';
-          } else if (appliedDiscount?.freeShipping) {
-            return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
-          } else if (appliedDiscount) {
-            return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
-          } else {
-            return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
-          }
-        })()}
-      </button>
+          })()}
+        </button>
+      )}
 
       {/* Debug Button - Remove in production */}
       <button
@@ -907,20 +948,23 @@ Transaction Hash: ${transactionHash}`;
             
             {/* Header */}
             <div className="p-4 border-b">
-              {/* Base Account Status */}
-              {isBaseApp && baseAccount && (
-                <div className="mb-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="text-sm font-medium text-blue-800">
-                      Enhanced Base Experience
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-600 mt-1">
-                    One-tap payments and auto-filled shipping available
-                  </p>
-                </div>
-              )}
+                      {/* Base Account Status */}
+                      {isBaseApp && baseAccount && (
+                        <div className="mb-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                            <span className="text-sm font-medium text-blue-800">
+                              {isAuthenticated ? 'Base Account Connected' : 'Base Account Available'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-blue-600 mt-1">
+                            {isAuthenticated 
+                              ? 'One-tap payments and auto-filled shipping enabled'
+                              : 'Sign in to enable one-tap payments and auto-filled shipping'
+                            }
+                          </p>
+                        </div>
+                      )}
               
               <div className="flex items-center justify-between">
                 <div>

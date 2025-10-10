@@ -32,8 +32,30 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <head>
         <link rel="preconnect" href="https://auth.farcaster.xyz" />
-        {/* Base Account SDK - loads window.base API when available */}
-        <script src="https://unpkg.com/@base-org/account/dist/base-account.min.js"></script>
+        {/* Conditionally load Base Account SDK only in Base app */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Only load Base Account SDK if we're in Base app
+              if (typeof window !== 'undefined') {
+                const userAgent = window.navigator?.userAgent?.toLowerCase() || '';
+                const isBaseApp = userAgent.includes('base') || 
+                                  window.location?.hostname?.includes('base.app') ||
+                                  window.location?.search?.includes('base_app=true');
+                
+                if (isBaseApp && !userAgent.includes('warpcast') && !userAgent.includes('farcaster')) {
+                  const script = document.createElement('script');
+                  script.src = 'https://unpkg.com/@base-org/account/dist/base-account.min.js';
+                  script.async = true;
+                  document.head.appendChild(script);
+                  console.log('🚀 Loading Base Account SDK for Base app environment');
+                } else {
+                  console.log('🔗 Not in Base app environment, skipping Base Account SDK');
+                }
+              }
+            `
+          }}
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

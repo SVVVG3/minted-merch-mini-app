@@ -6,14 +6,28 @@ import { createBaseAccountSDK } from '@base-org/account'
  * while maintaining compatibility with existing Wagmi flow
  */
 
-// Detect if Base Account SDK is available (works in both Farcaster and Base app)
+// Detect if user is actually in Base app (not Farcaster)
 export function isBaseAppEnvironment() {
   if (typeof window === 'undefined') return false
   
-  // Check if Base Account SDK is available - works in both Farcaster and Base app
+  // Check user agent to determine actual environment
+  const userAgent = window.navigator?.userAgent?.toLowerCase() || ''
+  
+  // If we're in Farcaster/Warpcast, we're NOT in Base app
+  if (userAgent.includes('warpcast') || userAgent.includes('farcaster')) {
+    return false
+  }
+  
+  // Check if we're actually in Base app environment
+  // Base app should have specific user agent indicators
+  const isBaseApp = userAgent.includes('base') || 
+                    window.location?.hostname?.includes('base.app') ||
+                    window.location?.search?.includes('base_app=true')
+  
+  // Also check if Base Account SDK is available AND we're in Base app
   const hasBaseSDK = !!(window.base && window.base.pay && window.base.getPaymentStatus)
   
-  return hasBaseSDK
+  return isBaseApp && hasBaseSDK
 }
 
 // Get Base Account SDK instance if available
@@ -179,7 +193,7 @@ export function debugBaseAccount() {
       isBaseApp,
       detectedEnvironment: isFarcaster ? 'Farcaster' : (isBaseApp ? 'Base App' : 'Unknown')
     },
-    available: !!(window.base && window.base.pay && window.base.getPaymentStatus),
+    available: !!(window.base && window.base.pay && window.base.getPaymentStatus && isBaseApp && !isFarcaster),
     baseAccountInstance: window.base ? 'Available' : 'Not Available'
   }
   
