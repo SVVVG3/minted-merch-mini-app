@@ -36,21 +36,32 @@ export default function RootLayout({ children }) {
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              // Only load Base Account SDK if we're in Base app
+              // Load Base Account SDK - let the SDK itself determine if it should be active
               if (typeof window !== 'undefined') {
                 const userAgent = window.navigator?.userAgent?.toLowerCase() || '';
-                const isBaseApp = userAgent.includes('base') || 
-                                  window.location?.hostname?.includes('base.app') ||
-                                  window.location?.search?.includes('base_app=true');
+                const isFarcaster = userAgent.includes('warpcast') || userAgent.includes('farcaster');
                 
-                if (isBaseApp && !userAgent.includes('warpcast') && !userAgent.includes('farcaster')) {
+                // Load Base Account SDK unless we're definitely in Farcaster
+                if (!isFarcaster) {
                   const script = document.createElement('script');
                   script.src = 'https://unpkg.com/@base-org/account/dist/base-account.min.js';
                   script.async = true;
+                  script.onload = function() {
+                    console.log('🚀 Base Account SDK loaded');
+                    // Check if Base Account is available after loading
+                    if (window.base) {
+                      console.log('✅ Base Account SDK available:', Object.keys(window.base));
+                    } else {
+                      console.log('❌ Base Account SDK not available');
+                    }
+                  };
+                  script.onerror = function() {
+                    console.log('❌ Failed to load Base Account SDK');
+                  };
                   document.head.appendChild(script);
-                  console.log('🚀 Loading Base Account SDK for Base app environment');
+                  console.log('🔄 Loading Base Account SDK...');
                 } else {
-                  console.log('🔗 Not in Base app environment, skipping Base Account SDK');
+                  console.log('🔗 In Farcaster environment, skipping Base Account SDK');
                 }
               }
             `

@@ -18,23 +18,17 @@ export function isBaseAppEnvironment() {
     return false
   }
   
-  // Check if we're actually in Base app environment
-  // Base app should have specific user agent indicators
-  const isBaseApp = userAgent.includes('base') || 
-                    window.location?.hostname?.includes('base.app') ||
-                    window.location?.search?.includes('base_app=true')
-  
-  // Also check if Base Account SDK is available AND we're in Base app
+  // Check if Base Account SDK is available
   const hasBaseSDK = !!(window.base && window.base.pay && window.base.getPaymentStatus)
   
-  // TEMPORARY: More permissive detection for debugging
-  // If Base SDK is available and we're not in Farcaster, allow it
+  // If Base SDK is available and we're not in Farcaster, allow Base features
+  // The Base Account SDK itself will determine if it should be active
   if (hasBaseSDK && !userAgent.includes('warpcast') && !userAgent.includes('farcaster')) {
-    console.log('🔍 Base Account SDK detected, allowing Base features for debugging')
+    console.log('🔍 Base Account SDK detected, enabling Base features')
     return true
   }
   
-  return isBaseApp && hasBaseSDK
+  return false
 }
 
 // Get Base Account SDK instance if available
