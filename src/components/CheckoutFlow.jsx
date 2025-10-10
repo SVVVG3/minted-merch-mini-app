@@ -26,7 +26,6 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     signInWithBase = null, 
     baseAccountProfile = null, 
     fetchBaseAccountProfile = null, 
-    collectUserData = null,
     payWithBase = null,
     userAddress = null,
     debugInfo = '' 
@@ -293,113 +292,22 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     }
   }, [baseAccountProfile, shippingData]);
 
-  // Function to create order from Base Pay data
-  const createOrderFromBasePay = async (orderData) => {
-    try {
-      console.log('📝 Creating order from Base Pay data:', orderData);
-      
-      // Extract shipping information
-      const { paymentId, amount, items, shippingInfo, recipientAddress } = orderData;
-      
-      // Prepare order data for your backend
-      const orderPayload = {
-        paymentId,
-        amount,
-        items: items.map(item => ({
-          id: item.id,
-          title: item.title,
-          quantity: item.quantity,
-          price: item.price
-        })),
-        shipping: {
-          email: shippingInfo.email,
-          firstName: shippingInfo.name?.firstName || '',
-          lastName: shippingInfo.name?.familyName || '',
-          address1: shippingInfo.physicalAddress?.address1 || '',
-          address2: shippingInfo.physicalAddress?.address2 || '',
-          city: shippingInfo.physicalAddress?.city || '',
-          state: shippingInfo.physicalAddress?.state || '',
-          zip: shippingInfo.physicalAddress?.postalCode || '',
-          country: shippingInfo.physicalAddress?.country || 'US'
-        },
-        paymentMethod: 'base_pay',
-        recipientAddress
-      };
-      
-      // Send to your backend API
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderPayload)
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Order creation failed: ${response.statusText}`);
-      }
-      
-      const orderResult = await response.json();
-      console.log('✅ Order created:', orderResult);
-      
-      return orderResult;
-    } catch (error) {
-      console.error('❌ Order creation error:', error);
-      throw error;
-    }
-  };
 
   const handleBasePay = async () => {
     if (!hasItems) return;
     
     try {
-      console.log('💳 Starting Base Pay flow...');
-      console.log('🔍 Debug - collectUserData function:', typeof collectUserData);
-      console.log('🔍 Debug - baseAccountSDK:', !!baseAccountSDK);
-      
-      if (!collectUserData) {
-        throw new Error('collectUserData function not available');
-      }
-      
-      // Collect user data from Base Account without processing payment
-      const userData = await collectUserData();
-      
-      if (userData.success) {
-        console.log('✅ User data collected:', userData);
-        
-        // Pre-populate shipping form with collected data
-        const shippingInfo = {
-          email: userData.email,
-          firstName: userData.name?.firstName || '',
-          lastName: userData.name?.familyName || '',
-          address1: userData.physicalAddress?.address1 || '',
-          address2: userData.physicalAddress?.address2 || '',
-          city: userData.physicalAddress?.city || '',
-          state: userData.physicalAddress?.state || '',
-          zip: userData.physicalAddress?.postalCode || '',
-          country: userData.physicalAddress?.country || 'US'
-        };
-        
-        console.log('📦 Pre-populating shipping form:', shippingInfo);
-        
-        // Update shipping data
-        setShippingData(shippingInfo);
-        
-        // Open checkout flow for shipping method selection and tax calculation
-        setIsCheckoutOpen(true);
-        setCheckoutStep('shipping');
-        
-        console.log('✅ Checkout flow opened with pre-populated data');
-        
-      } else {
-        throw new Error('Failed to collect user data');
-      }
+      // Simply open the checkout flow - Base Pay will be used at the end
+      console.log('🛒 Opening checkout flow with Base Pay integration');
+      setIsCheckoutOpen(true);
+      setCheckoutStep('shipping');
       
     } catch (err) {
-      console.error('❌ Base Pay data collection failed:', err);
-      setCheckoutError(`Failed to collect shipping information: ${err.message}`);
+      console.error('❌ Failed to open checkout:', err);
+      setCheckoutError(`Failed to open checkout: ${err.message}`);
     }
   };
+
 
   const handleCheckout = async () => {
     if (!hasItems) return;
@@ -992,9 +900,8 @@ Transaction Hash: ${transactionHash}`;
           {/* Base Account Button */}
           <div className="space-y-2">
             {(() => {
-              // Base Pay works independently - no sign-in required
-              // According to docs: "Any user can pay – works with every Base Account out of the box"
-              console.log('💳 Showing Base Pay button (works independently)')
+              // Show Base Pay button in Base app - it will open checkout flow
+              console.log('💳 Showing Base Pay button (opens checkout flow)')
               return (
                 <BasePayButton 
                   onClick={() => {
@@ -1007,7 +914,7 @@ Transaction Hash: ${transactionHash}`;
               )
             })()}
             <div className="text-center text-xs text-blue-600">
-              Auto-fill shipping info with Base Pay
+              Checkout with Base Pay
             </div>
           </div>
           

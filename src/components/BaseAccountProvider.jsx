@@ -227,65 +227,6 @@ export function BaseAccountProvider({ children }) {
     console.log('👋 Base Account signed out')
   }
 
-  // Function to collect user data without payment using dataCallback
-  const collectUserData = async () => {
-    if (!baseAccountSDK) {
-      throw new Error('Base Account SDK not found')
-    }
-
-    try {
-      console.log('📋 Collecting user data from Base Account...')
-      
-      // Use wallet_sendCalls with dataCallback to collect user information
-      const response = await baseAccountSDK.getProvider().request({
-        method: "wallet_sendCalls",
-        params: [{
-          version: "1.0",
-          chainId: '0x2105', // Base Mainnet
-          calls: [
-            // Empty calls array - we're just collecting data, not making transactions
-            {
-              to: '0x0000000000000000000000000000000000000000', // Zero address
-              data: '0x' // Empty data
-            }
-          ],
-          capabilities: {
-            dataCallback: {
-              requests: [
-                { type: 'email', optional: false },
-                { type: 'name', optional: false },
-                { type: 'physicalAddress', optional: false }
-              ]
-            }
-          }
-        }]
-      })
-
-      console.log('✅ User data collected:', response)
-      
-      // Extract the collected information
-      const userData = response.capabilities?.dataCallback?.requestedInfo
-      
-      if (userData) {
-        console.log('📧 Email:', userData.email)
-        console.log('👤 Name:', userData.name)
-        console.log('🏠 Address:', userData.physicalAddress)
-        
-        return {
-          success: true,
-          email: userData.email,
-          name: userData.name,
-          physicalAddress: userData.physicalAddress
-        }
-      } else {
-        throw new Error('No user data collected')
-      }
-
-    } catch (error) {
-      console.error('❌ Failed to collect user data:', error)
-      throw error
-    }
-  }
 
   // Base Pay function using the official SDK with payerInfo
   const payWithBase = async (amount, recipient) => {
@@ -296,35 +237,14 @@ export function BaseAccountProvider({ children }) {
     try {
       console.log('💳 Executing Base Pay:', { amount, recipient })
       
-      // Use the official pay function from the SDK with payerInfo to collect shipping info
+      // Use the official pay function from the SDK - no payerInfo needed since we already have shipping info
       const payment = await pay({
         amount: amount.toString(), // USD amount - SDK quotes equivalent USDC
         to: recipient,
-        payerInfo: {
-          requests: [
-            { type: 'email' },
-            { type: 'name' },
-            { type: 'physicalAddress' } // Required for physical items - no optional flag
-          ]
-        },
         testnet: false // Set to true for testnet
       })
       
       console.log('✅ Base Pay initiated:', payment.id)
-      
-      // Log the collected user information
-      if (payment.payerInfoResponses) {
-        if (payment.payerInfoResponses.email) {
-          console.log(`📧 Email: ${payment.payerInfoResponses.email}`)
-        }
-        if (payment.payerInfoResponses.name) {
-          console.log(`👤 Name: ${payment.payerInfoResponses.name.firstName} ${payment.payerInfoResponses.name.familyName}`)
-        }
-        if (payment.payerInfoResponses.physicalAddress) {
-          const address = payment.payerInfoResponses.physicalAddress
-          console.log(`🏠 Shipping Address: ${address.name.firstName} ${address.name.familyName}, ${address.address1}, ${address.city}, ${address.state} ${address.postalCode}`)
-        }
-      }
       
       // Get payment status
       const { status } = await getPaymentStatus({ 
@@ -338,8 +258,7 @@ export function BaseAccountProvider({ children }) {
         success: true,
         paymentId: payment.id,
         status: status,
-        transactionHash: payment.id, // The payment ID can be used as transaction reference
-        payerInfo: payment.payerInfoResponses
+        transactionHash: payment.id // The payment ID can be used as transaction reference
       }
     } catch (error) {
       console.error('❌ Base Pay failed:', error)
@@ -397,7 +316,6 @@ export function BaseAccountProvider({ children }) {
     userAddress,
     signInWithBase,
     signOut,
-    collectUserData,
     fetchBaseAccountProfile,
     payWithBase
   }
