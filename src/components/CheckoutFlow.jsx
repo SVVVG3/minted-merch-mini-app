@@ -26,6 +26,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     signInWithBase = null, 
     baseAccountProfile = null, 
     fetchBaseAccountProfile = null, 
+    collectUserData = null,
     payWithBase = null,
     userAddress = null,
     debugInfo = '' 
@@ -353,66 +354,50 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     
     try {
       console.log('💳 Starting Base Pay flow...');
-      console.log('🔍 Debug - payWithBase function:', typeof payWithBase);
+      console.log('🔍 Debug - collectUserData function:', typeof collectUserData);
       console.log('🔍 Debug - baseAccountSDK:', !!baseAccountSDK);
-      console.log('🔍 Debug - cartTotal:', cartTotal);
       
-      // Calculate total amount
-      const totalAmount = cartTotal;
-      const recipientAddress = '0xEDb90eF78C78681eE504b9E00950d84443a3E86B'; // Your wallet address
-      
-      if (!payWithBase) {
-        throw new Error('payWithBase function not available');
+      if (!collectUserData) {
+        throw new Error('collectUserData function not available');
       }
       
-      // Call Base Pay with payerInfo to collect shipping information
-      const result = await payWithBase(totalAmount, recipientAddress);
+      // Collect user data from Base Account without processing payment
+      const userData = await collectUserData();
       
-      if (result.success) {
-        console.log('✅ Base Pay successful:', result);
+      if (userData.success) {
+        console.log('✅ User data collected:', userData);
         
-        // Handle successful payment
-        console.log('🎉 Payment completed with ID:', result.paymentId);
+        // Pre-populate shipping form with collected data
+        const shippingInfo = {
+          email: userData.email,
+          firstName: userData.name?.firstName || '',
+          lastName: userData.name?.familyName || '',
+          address1: userData.physicalAddress?.address1 || '',
+          address2: userData.physicalAddress?.address2 || '',
+          city: userData.physicalAddress?.city || '',
+          state: userData.physicalAddress?.state || '',
+          zip: userData.physicalAddress?.postalCode || '',
+          country: userData.physicalAddress?.country || 'US'
+        };
         
-        // Process the order with collected shipping information
-        if (result.payerInfo) {
-          console.log('📦 Processing order with shipping info:', result.payerInfo);
-          
-          // Create order with the collected information
-          try {
-            // You'll need to implement this function to create an order in your system
-            await createOrderFromBasePay({
-              paymentId: result.paymentId,
-              amount: totalAmount,
-              items: cart,
-              shippingInfo: result.payerInfo,
-              recipientAddress: recipientAddress
-            });
-            
-            console.log('✅ Order created successfully');
-          } catch (orderError) {
-            console.error('❌ Failed to create order:', orderError);
-            setCheckoutError('Payment successful but order creation failed. Please contact support.');
-            return;
-          }
-        } else {
-          console.log('❌ No shipping info collected - order cannot be processed');
-          setCheckoutError('Payment successful but shipping information is required for physical items. Please contact support.');
-          return;
-        }
+        console.log('📦 Pre-populating shipping form:', shippingInfo);
         
-        // Clear cart and show success
-        clearCart();
-        // You might want to redirect to a success page or show a success modal
+        // Update shipping data
+        setShippingData(shippingInfo);
+        
+        // Open checkout flow for shipping method selection and tax calculation
+        setIsCheckoutOpen(true);
+        setCheckoutStep('shipping');
+        
+        console.log('✅ Checkout flow opened with pre-populated data');
         
       } else {
-        console.log('⏳ Payment pending:', result.status);
-        setCheckoutError('Payment is pending. Please wait for confirmation.');
+        throw new Error('Failed to collect user data');
       }
       
     } catch (err) {
-      console.error('❌ Base Pay failed:', err);
-      setCheckoutError(`Base Pay failed: ${err.message}`);
+      console.error('❌ Base Pay data collection failed:', err);
+      setCheckoutError(`Failed to collect shipping information: ${err.message}`);
     }
   };
 
@@ -1022,7 +1007,7 @@ Transaction Hash: ${transactionHash}`;
               )
             })()}
             <div className="text-center text-xs text-blue-600">
-              One-tap payments with Base Pay
+              Auto-fill shipping info with Base Pay
             </div>
           </div>
           

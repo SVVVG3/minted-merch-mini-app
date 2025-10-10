@@ -227,6 +227,66 @@ export function BaseAccountProvider({ children }) {
     console.log('👋 Base Account signed out')
   }
 
+  // Function to collect user data without payment using dataCallback
+  const collectUserData = async () => {
+    if (!baseAccountSDK) {
+      throw new Error('Base Account SDK not found')
+    }
+
+    try {
+      console.log('📋 Collecting user data from Base Account...')
+      
+      // Use wallet_sendCalls with dataCallback to collect user information
+      const response = await baseAccountSDK.getProvider().request({
+        method: "wallet_sendCalls",
+        params: [{
+          version: "1.0",
+          chainId: '0x2105', // Base Mainnet
+          calls: [
+            // Empty calls array - we're just collecting data, not making transactions
+            {
+              to: '0x0000000000000000000000000000000000000000', // Zero address
+              data: '0x' // Empty data
+            }
+          ],
+          capabilities: {
+            dataCallback: {
+              requests: [
+                { type: 'email', optional: false },
+                { type: 'name', optional: false },
+                { type: 'physicalAddress', optional: false }
+              ]
+            }
+          }
+        }]
+      })
+
+      console.log('✅ User data collected:', response)
+      
+      // Extract the collected information
+      const userData = response.capabilities?.dataCallback?.requestedInfo
+      
+      if (userData) {
+        console.log('📧 Email:', userData.email)
+        console.log('👤 Name:', userData.name)
+        console.log('🏠 Address:', userData.physicalAddress)
+        
+        return {
+          success: true,
+          email: userData.email,
+          name: userData.name,
+          physicalAddress: userData.physicalAddress
+        }
+      } else {
+        throw new Error('No user data collected')
+      }
+
+    } catch (error) {
+      console.error('❌ Failed to collect user data:', error)
+      throw error
+    }
+  }
+
   // Base Pay function using the official SDK with payerInfo
   const payWithBase = async (amount, recipient) => {
     if (!baseAccountSDK) {
@@ -337,6 +397,7 @@ export function BaseAccountProvider({ children }) {
     userAddress,
     signInWithBase,
     signOut,
+    collectUserData,
     fetchBaseAccountProfile,
     payWithBase
   }
