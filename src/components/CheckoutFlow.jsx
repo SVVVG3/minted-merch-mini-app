@@ -293,20 +293,6 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   }, [baseAccountProfile, shippingData]);
 
 
-  const handleBasePay = async () => {
-    if (!hasItems) return;
-    
-    try {
-      // Simply open the checkout flow - Base Pay will be used at the end
-      console.log('🛒 Opening checkout flow with Base Pay integration');
-      setIsCheckoutOpen(true);
-      setCheckoutStep('shipping');
-      
-    } catch (err) {
-      console.error('❌ Failed to open checkout:', err);
-      setCheckoutError(`Failed to open checkout: ${err.message}`);
-    }
-  };
 
 
   const handleCheckout = async () => {
@@ -895,65 +881,29 @@ Transaction Hash: ${transactionHash}`;
           Connect Wallet to Pay
         </button>
               ) : isBaseApp && baseAccountSDK ? (
-        // Base Account + Standard buttons for Base app users
-        <div className="w-full space-y-3">
-          {/* Base Account Button */}
-          <div className="space-y-2">
-            {(() => {
-              // Show Base Pay button in Base app - it will open checkout flow
-              console.log('💳 Showing Base Pay button (opens checkout flow)')
-              return (
-                <BasePayButton 
-                  onClick={() => {
-                    console.log('🖱️ Base Pay button clicked!');
-                    handleBasePay();
-                  }}
-                  disabled={!hasItems}
-                  className="w-full"
-                />
-              )
-            })()}
-            <div className="text-center text-xs text-blue-600">
-              Checkout with Base Pay
-            </div>
-          </div>
-          
-          {/* Divider */}
-          <div className="flex items-center">
-            <div className="flex-1 border-t border-gray-300"></div>
-            <span className="px-3 text-sm text-gray-500">or</span>
-            <div className="flex-1 border-t border-gray-300"></div>
-          </div>
-          
-          {/* Standard Checkout Button */}
-          <div className="space-y-2">
-            <button
-              onClick={proceedToCheckout}
-              disabled={!hasItems}
-              className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium py-3 px-4 rounded-lg transition-colors"
-            >
-              Checkout with USDC
-            </button>
-            <div className="text-center text-xs text-gray-600">
-              Standard USDC payment flow
-            </div>
-          </div>
-          
-          {/* Show pricing info below both buttons */}
-          <div className="text-center text-sm text-gray-600">
+        // Always show the branded green checkout button in cart
+        <div className="w-full space-y-2">
+          <button
+            onClick={handleCheckout}
+            disabled={!hasItems}
+            className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
+          >
             {(() => {
               const isCartFree = cartTotal <= 0.01;
               const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
-              
+
+              // Standard checkout button
               if (isFreeWithShipping) {
-                return 'FREE + $0.01 processing fee';
+                return 'Checkout (FREE + $0.01 processing fee)';
               } else if (appliedDiscount?.freeShipping) {
-                return `${cartTotal.toFixed(2)} USDC + free shipping`;
+                return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
+              } else if (appliedDiscount) {
+                return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
               } else {
-                return `${cartTotal.toFixed(2)} USDC + shipping & taxes`;
+                return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
               }
             })()}
-          </div>
+          </button>
         </div>
       ) : (
         // Standard Farcaster experience
