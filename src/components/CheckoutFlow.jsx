@@ -16,7 +16,7 @@ import { SignInWithBaseButton, BasePayButton } from './BaseAccountButtons';
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
   const { getFid, isInFarcaster, user, context } = useFarcaster();
-  const { isBaseApp, baseAccountConnector, isAuthenticated, isLoading: isBaseLoading, signInWithBase } = useBaseAccount();
+  const { isBaseApp, baseAccountConnector, isAuthenticated, isLoading: isBaseLoading, signInWithBase, baseAccountProfile, fetchBaseAccountProfile } = useBaseAccount();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(checkoutData ? true : false);
   const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', 'payment', or 'success'
   const [shippingData, setShippingData] = useState(cart.shipping || null);
@@ -240,6 +240,33 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       });
     }
   }, [isDigitalOnlyCart, user, shippingData]);
+
+  // Fetch Base Account profile when authenticated
+  useEffect(() => {
+    if (isAuthenticated && isBaseApp && fetchBaseAccountProfile) {
+      console.log('🔄 Fetching Base Account profile for pre-fill...')
+      fetchBaseAccountProfile()
+    }
+  }, [isAuthenticated, isBaseApp, fetchBaseAccountProfile]);
+
+  // Use Base Account profile data to pre-fill shipping form
+  useEffect(() => {
+    if (baseAccountProfile && baseAccountProfile.shippingAddress && !shippingData) {
+      console.log('📦 Using Base Account profile to pre-fill shipping data:', baseAccountProfile.shippingAddress)
+      
+      setShippingData({
+        firstName: baseAccountProfile.shippingAddress.firstName || '',
+        lastName: baseAccountProfile.shippingAddress.lastName || '',
+        address1: baseAccountProfile.shippingAddress.address1 || '',
+        address2: baseAccountProfile.shippingAddress.address2 || '',
+        city: baseAccountProfile.shippingAddress.city || '',
+        province: baseAccountProfile.shippingAddress.province || '',
+        zip: baseAccountProfile.shippingAddress.zip || '',
+        country: baseAccountProfile.shippingAddress.country || 'US',
+        phone: baseAccountProfile.shippingAddress.phone || ''
+      });
+    }
+  }, [baseAccountProfile, shippingData]);
 
   const handleCheckout = async () => {
     if (!hasItems) return;

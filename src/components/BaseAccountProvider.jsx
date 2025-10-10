@@ -10,8 +10,10 @@ const BaseAccountContext = createContext({
   isLoading: false,
   error: null,
   preGeneratedNonce: null,
+  baseAccountProfile: null,
   signInWithBase: null,
-  signOut: null
+  signOut: null,
+  fetchBaseAccountProfile: null
 })
 
 export function useBaseAccount() {
@@ -29,6 +31,7 @@ export function BaseAccountProvider({ children }) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [preGeneratedNonce, setPreGeneratedNonce] = useState(null)
+  const [baseAccountProfile, setBaseAccountProfile] = useState(null)
 
   // Only use Wagmi hooks on client side
   const wagmiHooks = typeof window !== 'undefined' ? {
@@ -205,7 +208,36 @@ export function BaseAccountProvider({ children }) {
       wagmiHooks.disconnect()
     }
     setIsAuthenticated(false)
+    setBaseAccountProfile(null)
     console.log('👋 Base Account signed out')
+  }
+
+  // Fetch Base Account profile data
+  const fetchBaseAccountProfile = async () => {
+    if (!isAuthenticated || !baseAccountConnector) {
+      console.log('❌ Cannot fetch profile: not authenticated or no connector')
+      return null
+    }
+
+    try {
+      console.log('🔍 Fetching Base Account profile...')
+      
+      // Try to get profile from the Base Account connector
+      const provider = baseAccountConnector.provider
+      
+      // Request profile data from Base Account
+      const profileResult = await provider.request({
+        method: 'wallet_getProfile',
+        params: []
+      })
+
+      console.log('✅ Base Account profile fetched:', profileResult)
+      setBaseAccountProfile(profileResult)
+      return profileResult
+    } catch (error) {
+      console.log('❌ Failed to fetch Base Account profile:', error)
+      return null
+    }
   }
 
   const value = {
@@ -215,8 +247,10 @@ export function BaseAccountProvider({ children }) {
     isLoading,
     error,
     preGeneratedNonce,
+    baseAccountProfile,
     signInWithBase,
-    signOut
+    signOut,
+    fetchBaseAccountProfile
   }
 
   return (
