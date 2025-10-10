@@ -102,6 +102,7 @@ export function BaseAccountProvider({ children }) {
         const sdk = createBaseAccountSDK({
           appName: 'Minted Merch',
           appLogoUrl: 'https://app.mintedmerch.shop/logo.png',
+          appChainIds: ['0x2105'], // Base mainnet chain ID
         })
         
         setIsBaseApp(true)
@@ -137,9 +138,16 @@ export function BaseAccountProvider({ children }) {
         throw new Error('Base Account requires access to Ethereum provider. Please ensure you have a wallet extension installed.')
       }
       
-      // Use the official SDK method for sign-in
+      // Use the proper EIP-1193 method for requesting accounts
       // This will open a popup to keys.coinbase.com
-      await baseAccountSDK.getProvider().request({ method: 'wallet_connect' })
+      const accounts = await baseAccountSDK.getProvider().request({ 
+        method: 'eth_requestAccounts' 
+      })
+      
+      if (accounts && accounts.length > 0) {
+        setUserAddress(accounts[0])
+        console.log('✅ User address obtained:', accounts[0])
+      }
       
       console.log('✅ Base Account sign-in successful')
       
@@ -178,6 +186,10 @@ export function BaseAccountProvider({ children }) {
 
   // Base Pay function using the official SDK
   const payWithBase = async (amount, recipient) => {
+    if (!baseAccountSDK) {
+      throw new Error('Base Account SDK not found')
+    }
+
     try {
       console.log('💳 Executing Base Pay:', { amount, recipient })
       
