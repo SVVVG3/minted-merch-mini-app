@@ -295,7 +295,14 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   // Direct Base Account sign-in test function
   const handleDirectSignIn = async () => {
     console.log('🧪 Testing direct Base Account sign-in...');
+    console.log('🧪 Button clicked - handleDirectSignIn called');
+    console.log('🧪 signInWithBase function:', typeof signInWithBase);
+    console.log('🧪 baseAccountSDK:', baseAccountSDK);
+    
     try {
+      if (!signInWithBase) {
+        throw new Error('signInWithBase function is not available');
+      }
       await signInWithBase();
       console.log('✅ Direct sign-in successful!');
     } catch (error) {
@@ -917,11 +924,26 @@ Transaction Hash: ${transactionHash}`;
           {/* Base Account Button */}
           <div className="space-y-2">
             {!isAuthenticated ? (
-              <SignInWithBaseButton 
-                onClick={handleCheckout}
-                disabled={!hasItems}
-                className="w-full"
-              />
+              <div className="space-y-2">
+                {/* Official Base Account Button */}
+                <SignInWithBaseButton 
+                  onClick={handleCheckout}
+                  disabled={!hasItems}
+                  className="w-full"
+                />
+                {/* Fallback Test Button */}
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🔄 Fallback sign-in button clicked!');
+                    handleCheckout();
+                  }}
+                  className="w-full bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                >
+                  🔄 Fallback Sign-in Test
+                </button>
+              </div>
             ) : (
               <BasePayButton 
                 onClick={handleCheckout}
@@ -1045,7 +1067,23 @@ Transaction Hash: ${transactionHash}`;
         {/* Test Base Account Sign-in Button */}
         {isBaseApp && baseAccountSDK && (
           <button
-            onClick={handleDirectSignIn}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('🧪 Test button clicked!');
+              handleDirectSignIn();
+            }}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('🧪 Test button touch start!');
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('🧪 Test button touch end!');
+              handleDirectSignIn();
+            }}
             className="w-full bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-sm touch-manipulation"
             style={{ 
               minHeight: '44px',
