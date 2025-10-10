@@ -20,7 +20,20 @@ const BaseAccountContext = createContext({
 export function useBaseAccount() {
   const context = useContext(BaseAccountContext)
   if (!context) {
-    throw new Error('useBaseAccount must be used within BaseAccountProvider')
+    console.warn('useBaseAccount used outside of BaseAccountProvider, returning default values')
+    return {
+      isBaseApp: false,
+      baseAccountConnector: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      preGeneratedNonce: null,
+      baseAccountProfile: null,
+      debugInfo: '',
+      signInWithBase: null,
+      signOut: null,
+      fetchBaseAccountProfile: null
+    }
   }
   return context
 }
@@ -67,6 +80,13 @@ export function BaseAccountProvider({ children }) {
       wagmiHooks.disconnect = disconnect
     } catch (error) {
       console.log('Wagmi hooks not available during SSR:', error.message)
+      // Set safe defaults to prevent crashes
+      wagmiHooks.isConnected = false
+      wagmiHooks.address = null
+      wagmiHooks.connector = null
+      wagmiHooks.connectAsync = null
+      wagmiHooks.connectors = []
+      wagmiHooks.disconnect = null
     }
   }
 
