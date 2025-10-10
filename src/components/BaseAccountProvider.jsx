@@ -236,35 +236,14 @@ export function BaseAccountProvider({ children }) {
     try {
       console.log('💳 Executing Base Pay:', { amount, recipient })
       
-      // Use the official pay function from the SDK with payerInfo to collect shipping info
+      // Use the official pay function from the SDK - no payerInfo needed since users already have info in Base Account
       const payment = await pay({
         amount: amount.toString(), // USD amount - SDK quotes equivalent USDC
         to: recipient,
-        payerInfo: {
-          requests: [
-            { type: 'email' },
-            { type: 'name' },
-            { type: 'physicalAddress', optional: true }
-          ]
-        },
         testnet: false // Set to true for testnet
       })
       
       console.log('✅ Base Pay initiated:', payment.id)
-      
-      // Log the collected user information
-      if (payment.payerInfoResponses) {
-        if (payment.payerInfoResponses.email) {
-          console.log(`📧 Email: ${payment.payerInfoResponses.email}`)
-        }
-        if (payment.payerInfoResponses.name) {
-          console.log(`👤 Name: ${payment.payerInfoResponses.name.firstName} ${payment.payerInfoResponses.name.familyName}`)
-        }
-        if (payment.payerInfoResponses.physicalAddress) {
-          const address = payment.payerInfoResponses.physicalAddress
-          console.log(`🏠 Shipping Address: ${address.name.firstName} ${address.name.familyName}, ${address.address1}, ${address.city}, ${address.state} ${address.postalCode}`)
-        }
-      }
       
       // Get payment status
       const { status } = await getPaymentStatus({ 
@@ -278,8 +257,7 @@ export function BaseAccountProvider({ children }) {
         success: true,
         paymentId: payment.id,
         status: status,
-        transactionHash: payment.id, // The payment ID can be used as transaction reference
-        payerInfo: payment.payerInfoResponses
+        transactionHash: payment.id // The payment ID can be used as transaction reference
       }
     } catch (error) {
       console.error('❌ Base Pay failed:', error)

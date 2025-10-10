@@ -298,23 +298,26 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     
     try {
       console.log('💳 Starting Base Pay flow...');
+      console.log('🔍 Debug - payWithBase function:', typeof payWithBase);
+      console.log('🔍 Debug - baseAccountSDK:', !!baseAccountSDK);
+      console.log('🔍 Debug - cartTotal:', cartTotal);
       
       // Calculate total amount
       const totalAmount = cartTotal;
-      const recipientAddress = '0x8a8c8e8f9a9b9c9d9e9f0a0b0c0d0e0f1a1b1c1d1e'; // Replace with your actual recipient address
+      const recipientAddress = '0xEDb90eF78C78681eE504b9E00950d84443a3E86B'; // Your wallet address
       
-      // Call Base Pay directly - this will collect shipping info via payerInfo
+      if (!payWithBase) {
+        throw new Error('payWithBase function not available');
+      }
+      
+      // Call Base Pay directly - users already have shipping info in their Base Account
       const result = await payWithBase(totalAmount, recipientAddress);
       
       if (result.success) {
         console.log('✅ Base Pay successful:', result);
         
         // Handle successful payment
-        // You can use result.payerInfo for shipping information
-        if (result.payerInfo) {
-          console.log('📦 Shipping info collected:', result.payerInfo);
-          // Process the order with the collected information
-        }
+        console.log('🎉 Payment completed with ID:', result.paymentId);
         
         // Clear cart and show success
         clearCart();
@@ -927,7 +930,10 @@ Transaction Hash: ${transactionHash}`;
               console.log('💳 Showing Base Pay button (works independently)')
               return (
                 <BasePayButton 
-                  onClick={handleBasePay}
+                  onClick={() => {
+                    console.log('🖱️ Base Pay button clicked!');
+                    handleBasePay();
+                  }}
                   disabled={!hasItems}
                   className="w-full"
                 />
