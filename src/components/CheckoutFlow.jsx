@@ -889,9 +889,25 @@ Transaction Hash: ${transactionHash}`;
           e.stopPropagation();
           try {
             const debug = debugBaseAccount();
-            alert(`Base Account Debug:\n${JSON.stringify(debug, null, 2)}`);
+            const baseAccountDebug = {
+              ...debug,
+              isBaseApp,
+              baseAccount: !!baseAccount,
+              isAuthenticated,
+              userAgent: window.navigator?.userAgent,
+              hostname: window.location?.hostname,
+              hasWindowBase: !!(typeof window !== 'undefined' && window.base),
+              windowBaseKeys: typeof window !== 'undefined' && window.base ? Object.keys(window.base) : null
+            };
+            console.log('🔍 Base Account Debug:', baseAccountDebug);
+            // Also log to a visible element for mobile debugging
+            const debugDiv = document.getElementById('debug-output');
+            if (debugDiv) {
+              debugDiv.innerHTML = `<pre>${JSON.stringify(baseAccountDebug, null, 2)}</pre>`;
+              debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
+            }
           } catch (error) {
-            alert(`Debug Error: ${error.message}`);
+            console.error('Debug Error:', error);
           }
         }}
         onTouchStart={(e) => {
@@ -903,9 +919,25 @@ Transaction Hash: ${transactionHash}`;
           e.stopPropagation();
           try {
             const debug = debugBaseAccount();
-            alert(`Base Account Debug:\n${JSON.stringify(debug, null, 2)}`);
+            const baseAccountDebug = {
+              ...debug,
+              isBaseApp,
+              baseAccount: !!baseAccount,
+              isAuthenticated,
+              userAgent: window.navigator?.userAgent,
+              hostname: window.location?.hostname,
+              hasWindowBase: !!(typeof window !== 'undefined' && window.base),
+              windowBaseKeys: typeof window !== 'undefined' && window.base ? Object.keys(window.base) : null
+            };
+            console.log('🔍 Base Account Debug:', baseAccountDebug);
+            // Also log to a visible element for mobile debugging
+            const debugDiv = document.getElementById('debug-output');
+            if (debugDiv) {
+              debugDiv.innerHTML = `<pre>${JSON.stringify(baseAccountDebug, null, 2)}</pre>`;
+              debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
+            }
           } catch (error) {
-            alert(`Debug Error: ${error.message}`);
+            console.error('Debug Error:', error);
           }
         }}
         className="w-full mt-2 bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-sm touch-manipulation"
@@ -927,9 +959,25 @@ Transaction Hash: ${transactionHash}`;
           e.stopPropagation();
           try {
             const debug = debugBaseAccount();
-            alert(`Base Account Debug:\n${JSON.stringify(debug, null, 2)}`);
+            const baseAccountDebug = {
+              ...debug,
+              isBaseApp,
+              baseAccount: !!baseAccount,
+              isAuthenticated,
+              userAgent: window.navigator?.userAgent,
+              hostname: window.location?.hostname,
+              hasWindowBase: !!(typeof window !== 'undefined' && window.base),
+              windowBaseKeys: typeof window !== 'undefined' && window.base ? Object.keys(window.base) : null
+            };
+            console.log('🔍 Base Account Debug:', baseAccountDebug);
+            // Also log to a visible element for mobile debugging
+            const debugDiv = document.getElementById('debug-output');
+            if (debugDiv) {
+              debugDiv.innerHTML = `<pre>${JSON.stringify(baseAccountDebug, null, 2)}</pre>`;
+              debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
+            }
           } catch (error) {
-            alert(`Debug Error: ${error.message}`);
+            console.error('Debug Error:', error);
           }
         }}
         className="w-full mt-1 text-center text-blue-500 underline cursor-pointer text-sm py-2"
@@ -939,6 +987,11 @@ Transaction Hash: ${transactionHash}`;
         }}
       >
         Tap here to debug Base Account
+      </div>
+
+      {/* Debug Output Area - Remove in production */}
+      <div id="debug-output" className="w-full mt-2 p-3 bg-gray-100 rounded-lg text-xs font-mono max-h-40 overflow-y-auto" style={{ display: 'none' }}>
+        Debug output will appear here...
       </div>
 
       {/* Checkout Modal */}
