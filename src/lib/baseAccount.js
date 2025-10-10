@@ -10,10 +10,19 @@ import { createBaseAccountSDK } from '@base-org/account'
 export function isBaseAppEnvironment() {
   if (typeof window === 'undefined') return false
   
-  // Check for Base app user agent or hostname
-  const isBaseApp = window.location.hostname.includes('base.app') || 
-                    window.navigator.userAgent.includes('Base') ||
-                    window.location.search.includes('base_app=true')
+  // Check if Base Account SDK is available via window.base API
+  const isBaseApp = !!(window.base && window.base.pay && window.base.getPaymentStatus)
+  
+  // Debug logging
+  console.log('🔍 Base Account Detection:', {
+    hasWindow: typeof window !== 'undefined',
+    hasBase: !!window.base,
+    hasPay: !!(window.base && window.base.pay),
+    hasGetPaymentStatus: !!(window.base && window.base.getPaymentStatus),
+    isBaseApp,
+    userAgent: window.navigator?.userAgent,
+    hostname: window.location?.hostname
+  })
   
   return isBaseApp
 }
@@ -50,30 +59,37 @@ export async function getBaseAccount() {
 // Enhanced payment function using Base Account SDK
 export async function executeBaseAccountPayment(amount, recipient, options = {}) {
   try {
-    const account = await getBaseAccount()
-    if (!account) {
+    if (!isBaseAppEnvironment()) {
       throw new Error('Base Account not available')
     }
     
     console.log('💳 Executing Base Account payment:', {
       amount,
-      recipient,
-      accountAddress: account.address
+      recipient
     })
     
-    // Execute one-tap payment
-    const result = await account.pay({
-      amount: amount.toString(),
-      currency: 'USDC',
-      recipient: recipient,
-      ...options
+    // Execute one-tap payment using window.base API
+    const result = await window.base.pay({
+      amount: amount.toString(), // USD amount - SDK quotes equivalent USDC
+      to: recipient,
+      testnet: false // Set to true for testnet
     })
     
-    console.log('✅ Base Account payment successful:', result)
+    console.log('✅ Base Account payment initiated:', result)
+    
+    // Get payment status
+    const status = await window.base.getPaymentStatus({
+      id: result.id,
+      testnet: false
+    })
+    
+    console.log('✅ Base Account payment status:', status)
+    
     return {
       success: true,
-      transactionHash: result.transactionHash,
-      account: account
+      paymentId: result.id,
+      status: status.status,
+      transactionHash: status.transactionHash || result.id
     }
   } catch (error) {
     console.error('❌ Base Account payment failed:', error)

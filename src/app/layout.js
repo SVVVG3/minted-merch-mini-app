@@ -32,6 +32,8 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <head>
         <link rel="preconnect" href="https://auth.farcaster.xyz" />
+        {/* Base Account SDK - loads window.base API when available */}
+        <script src="https://unpkg.com/@base-org/account/dist/base-account.min.js"></script>
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
