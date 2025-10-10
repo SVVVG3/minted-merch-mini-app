@@ -45,10 +45,10 @@ export async function POST(request) {
     if (filters.minTokenBalance > 0) {
       filteredUsers = filteredUsers.filter(user => {
         const tokenBalance = user.profiles?.token_balance || 0;
-        // Convert from wei to tokens for comparison
+        // Token balance is now stored as actual token values (not wei)
         const tokenAmount = typeof tokenBalance === 'string' ? 
-          parseFloat(tokenBalance) / Math.pow(10, 18) : 
-          tokenBalance / Math.pow(10, 18);
+          parseFloat(tokenBalance) : 
+          tokenBalance;
         return tokenAmount >= filters.minTokenBalance;
       });
     }
