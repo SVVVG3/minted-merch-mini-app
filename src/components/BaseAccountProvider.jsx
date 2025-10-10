@@ -82,6 +82,16 @@ export function BaseAccountProvider({ children }) {
         
         // Check for Ethereum provider availability
         const hasEthereum = typeof window.ethereum !== 'undefined'
+        const isInIframe = window !== window.top
+        
+        // In iframe environments (like Farcaster), Base Account may not work due to cross-origin restrictions
+        if (isInIframe) {
+          console.log('📱 Running in iframe environment - Base Account may be restricted')
+          setIsBaseApp(false)
+          setBaseAccountSDK(null)
+          setDebugInfo(prev => prev + `\n📱 Iframe environment detected - Base Account disabled due to cross-origin restrictions`)
+          return
+        }
         
         if (!hasEthereum) {
           console.log('⚠️ No Ethereum provider detected')
@@ -89,13 +99,6 @@ export function BaseAccountProvider({ children }) {
           setBaseAccountSDK(null)
           setDebugInfo(prev => prev + `\n🔒 No Ethereum provider available`)
           return
-        }
-        
-        // Note: We allow iframe environments now that we have proper COOP headers
-        const isInIframe = window !== window.top
-        if (isInIframe) {
-          console.log('📱 Running in iframe environment - Base Account should work with proper headers')
-          setDebugInfo(prev => prev + `\n📱 Iframe environment detected - Base Account enabled`)
         }
         
         // Initialize Base Account SDK with proper configuration
