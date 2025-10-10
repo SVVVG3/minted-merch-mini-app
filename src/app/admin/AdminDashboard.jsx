@@ -3126,6 +3126,11 @@ export default function AdminDashboard() {
                       <option value={3}>3 Winners</option>
                       <option value={4}>4 Winners</option>
                       <option value={5}>5 Winners</option>
+                      <option value={6}>6 Winners</option>
+                      <option value={7}>7 Winners</option>
+                      <option value={8}>8 Winners</option>
+                      <option value={9}>9 Winners</option>
+                      <option value={10}>10 Winners</option>
                     </select>
                   </div>
 
