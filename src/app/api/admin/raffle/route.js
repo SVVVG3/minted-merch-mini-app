@@ -23,7 +23,7 @@ export async function POST(request) {
             total_orders
           )
         `)
-        .gt('token_balance', 0) // Only users with tokens
+        .gte('token_balance', filters.minTokenBalance) // Only users with enough tokens
         .order('token_balance', { ascending: false });
     } else {
       // For non-token filters, use leaderboard table with pagination to get ALL users
@@ -84,31 +84,18 @@ export async function POST(request) {
     }
     
     console.log(`📊 Total eligible users fetched: ${eligibleUsers.length}`);
+    
+    // Debug: Show sample of fetched data
+    if (eligibleUsers.length > 0) {
+      console.log(`🔍 Sample user data:`, JSON.stringify(eligibleUsers[0], null, 2));
+    }
 
     let filteredUsers = eligibleUsers || [];
 
-    // Apply token balance filter (client-side since it's from joined table)
+    // Token balance filter is already applied at database level for profiles queries
     if (filters.minTokenBalance > 0) {
-      console.log(`🔍 Filtering by token balance >= ${filters.minTokenBalance}`);
-      console.log(`📊 Before token filter: ${filteredUsers.length} users`);
-      
-      filteredUsers = filteredUsers.filter(user => {
-        // Handle different data structures from profiles vs user_leaderboard queries
-        const tokenBalance = user.token_balance || user.profiles?.token_balance || 0;
-        // Token balance is now stored as actual token values (not wei)
-        const tokenAmount = typeof tokenBalance === 'string' ? 
-          parseFloat(tokenBalance) : 
-          tokenBalance;
-        const meetsCriteria = tokenAmount >= filters.minTokenBalance;
-        
-        if (!meetsCriteria) {
-          console.log(`❌ User ${user.user_fid} (${user.username}) has ${tokenAmount} tokens (needs ${filters.minTokenBalance})`);
-        }
-        
-        return meetsCriteria;
-      });
-      
-      console.log(`📊 After token filter: ${filteredUsers.length} users`);
+      console.log(`🔍 Token balance filter (>= ${filters.minTokenBalance}) already applied at database level`);
+      console.log(`📊 Users with sufficient tokens: ${filteredUsers.length}`);
     }
 
     // Apply other filters (client-side for profiles query or when token balance filter is used)
