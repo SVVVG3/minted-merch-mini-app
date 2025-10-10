@@ -11,6 +11,7 @@ const BaseAccountContext = createContext({
   error: null,
   preGeneratedNonce: null,
   baseAccountProfile: null,
+  debugInfo: '',
   signInWithBase: null,
   signOut: null,
   fetchBaseAccountProfile: null
@@ -32,6 +33,7 @@ export function BaseAccountProvider({ children }) {
   const [error, setError] = useState(null)
   const [preGeneratedNonce, setPreGeneratedNonce] = useState(null)
   const [baseAccountProfile, setBaseAccountProfile] = useState(null)
+  const [debugInfo, setDebugInfo] = useState('')
 
   // Only use Wagmi hooks on client side
   const wagmiHooks = typeof window !== 'undefined' ? {
@@ -215,27 +217,53 @@ export function BaseAccountProvider({ children }) {
   // Fetch Base Account profile data
   const fetchBaseAccountProfile = async () => {
     if (!isAuthenticated || !baseAccountConnector) {
-      console.log('❌ Cannot fetch profile: not authenticated or no connector')
+      setDebugInfo(prev => prev + '\n❌ Cannot fetch profile: not authenticated or no connector')
       return null
     }
 
     try {
-      console.log('🔍 Fetching Base Account profile...')
+      setDebugInfo(prev => prev + '\n🔍 Fetching Base Account profile...')
       
       // Try to get profile from the Base Account connector
       const provider = baseAccountConnector.provider
       
-      // Request profile data from Base Account
-      const profileResult = await provider.request({
-        method: 'wallet_getProfile',
-        params: []
-      })
-
-      console.log('✅ Base Account profile fetched:', profileResult)
-      setBaseAccountProfile(profileResult)
-      return profileResult
+      setDebugInfo(prev => prev + '\n🔍 Provider methods: ' + Object.keys(provider).join(', '))
+      
+      // Try different possible methods for getting profile data
+      const possibleMethods = [
+        'wallet_getProfile',
+        'base_getProfile', 
+        'getProfile',
+        'profile',
+        'wallet_getUserInfo',
+        'base_getUserInfo'
+      ]
+      
+      let profileResult = null
+      for (const method of possibleMethods) {
+        try {
+          setDebugInfo(prev => prev + '\n🔍 Trying method: ' + method)
+          profileResult = await provider.request({
+            method: method,
+            params: []
+          })
+          setDebugInfo(prev => prev + '\n✅ Success with method: ' + method)
+          break
+        } catch (methodError) {
+          setDebugInfo(prev => prev + '\n❌ Method ' + method + ' failed: ' + methodError.message)
+        }
+      }
+      
+      if (profileResult) {
+        setDebugInfo(prev => prev + '\n✅ Base Account profile fetched!')
+        setBaseAccountProfile(profileResult)
+        return profileResult
+      } else {
+        setDebugInfo(prev => prev + '\n❌ No working method found for profile fetching')
+        return null
+      }
     } catch (error) {
-      console.log('❌ Failed to fetch Base Account profile:', error)
+      setDebugInfo(prev => prev + '\n❌ Failed to fetch Base Account profile: ' + error.message)
       return null
     }
   }
@@ -248,6 +276,7 @@ export function BaseAccountProvider({ children }) {
     error,
     preGeneratedNonce,
     baseAccountProfile,
+    debugInfo,
     signInWithBase,
     signOut,
     fetchBaseAccountProfile

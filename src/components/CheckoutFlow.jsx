@@ -16,7 +16,7 @@ import { SignInWithBaseButton, BasePayButton } from './BaseAccountButtons';
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
   const { getFid, isInFarcaster, user, context } = useFarcaster();
-  const { isBaseApp, baseAccountConnector, isAuthenticated, isLoading: isBaseLoading, signInWithBase, baseAccountProfile, fetchBaseAccountProfile } = useBaseAccount();
+  const { isBaseApp, baseAccountConnector, isAuthenticated, isLoading: isBaseLoading, signInWithBase, baseAccountProfile, fetchBaseAccountProfile, debugInfo } = useBaseAccount();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(checkoutData ? true : false);
   const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', 'payment', or 'success'
   const [shippingData, setShippingData] = useState(cart.shipping || null);
@@ -25,6 +25,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const [checkoutError, setCheckoutError] = useState(null);
   const [orderDetails, setOrderDetails] = useState(null);
   const [appliedGiftCard, setAppliedGiftCard] = useState(null);
+  const [baseAccountDebugInfo, setBaseAccountDebugInfo] = useState('');
   const buyNowProcessed = useRef(false);
 
   // Helper function to detect if cart contains only digital products
@@ -243,16 +244,24 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
   // Fetch Base Account profile when authenticated
   useEffect(() => {
+    const debugInfo = `Profile useEffect: auth=${isAuthenticated}, base=${isBaseApp}, func=${!!fetchBaseAccountProfile}`
+    setBaseAccountDebugInfo(prev => prev + '\n' + debugInfo)
+    
     if (isAuthenticated && isBaseApp && fetchBaseAccountProfile) {
-      console.log('🔄 Fetching Base Account profile for pre-fill...')
+      setBaseAccountDebugInfo(prev => prev + '\n🔄 Fetching Base Account profile...')
       fetchBaseAccountProfile()
+    } else {
+      setBaseAccountDebugInfo(prev => prev + '\n❌ Not fetching - conditions not met')
     }
   }, [isAuthenticated, isBaseApp, fetchBaseAccountProfile]);
 
   // Use Base Account profile data to pre-fill shipping form
   useEffect(() => {
+    const debugInfo = `Pre-fill useEffect: profile=${!!baseAccountProfile}, address=${!!(baseAccountProfile?.shippingAddress)}, existing=${!!shippingData}`
+    setBaseAccountDebugInfo(prev => prev + '\n' + debugInfo)
+    
     if (baseAccountProfile && baseAccountProfile.shippingAddress && !shippingData) {
-      console.log('📦 Using Base Account profile to pre-fill shipping data:', baseAccountProfile.shippingAddress)
+      setBaseAccountDebugInfo(prev => prev + '\n📦 Using Base Account profile to pre-fill!')
       
       setShippingData({
         firstName: baseAccountProfile.shippingAddress.firstName || '',
@@ -265,6 +274,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         country: baseAccountProfile.shippingAddress.country || 'US',
         phone: baseAccountProfile.shippingAddress.phone || ''
       });
+    } else {
+      setBaseAccountDebugInfo(prev => prev + '\n❌ Not pre-filling - conditions not met')
     }
   }, [baseAccountProfile, shippingData]);
 
@@ -873,22 +884,50 @@ Transaction Hash: ${transactionHash}`;
           Connect Wallet to Pay
         </button>
               ) : isBaseApp && baseAccountConnector ? (
-        // Base Account buttons following brand guidelines
-        <div className="w-full space-y-2">
-          {!isAuthenticated ? (
-            <SignInWithBaseButton 
-              onClick={handleCheckout}
+        // Base Account + Standard buttons for Base app users
+        <div className="w-full space-y-3">
+          {/* Base Account Button */}
+          <div className="space-y-2">
+            {!isAuthenticated ? (
+              <SignInWithBaseButton 
+                onClick={handleCheckout}
+                disabled={!hasItems}
+                className="w-full"
+              />
+            ) : (
+              <BasePayButton 
+                onClick={handleCheckout}
+                disabled={!hasItems}
+                className="w-full"
+              />
+            )}
+            <div className="text-center text-xs text-blue-600">
+              {!isAuthenticated ? 'Sign in for one-tap payments & auto-fill' : 'One-tap payments & auto-filled shipping'}
+            </div>
+          </div>
+          
+          {/* Divider */}
+          <div className="flex items-center">
+            <div className="flex-1 border-t border-gray-300"></div>
+            <span className="px-3 text-sm text-gray-500">or</span>
+            <div className="flex-1 border-t border-gray-300"></div>
+          </div>
+          
+          {/* Standard Checkout Button */}
+          <div className="space-y-2">
+            <button
+              onClick={proceedToCheckout}
               disabled={!hasItems}
-              className="w-full"
-            />
-          ) : (
-            <BasePayButton 
-              onClick={handleCheckout}
-              disabled={!hasItems}
-              className="w-full"
-            />
-          )}
-          {/* Show pricing info below button */}
+              className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+            >
+              Checkout with USDC
+            </button>
+            <div className="text-center text-xs text-gray-600">
+              Standard USDC payment flow
+            </div>
+          </div>
+          
+          {/* Show pricing info below both buttons */}
           <div className="text-center text-sm text-gray-600">
             {(() => {
               const isCartFree = cartTotal <= 0.01;
@@ -1064,7 +1103,10 @@ Transaction Hash: ${transactionHash}`;
 
       {/* Debug Output Area - Remove in production */}
       <div id="debug-output" className="w-full mt-2 p-3 bg-gray-100 rounded-lg text-xs font-mono max-h-40 overflow-y-auto" style={{ display: 'none' }}>
-        Debug output will appear here...
+        <div className="mb-2 font-bold">Base Account Profile Debug:</div>
+        <div className="whitespace-pre-wrap">{debugInfo || 'No debug info yet...'}</div>
+        <div className="mt-2 font-bold">Checkout Debug:</div>
+        <div className="whitespace-pre-wrap">{baseAccountDebugInfo || 'No checkout debug info yet...'}</div>
       </div>
 
       {/* Checkout Modal */}
