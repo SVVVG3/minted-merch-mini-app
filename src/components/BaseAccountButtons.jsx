@@ -1,63 +1,32 @@
 'use client'
 
 import React from 'react'
+import { SignInWithBaseButton as OfficialSignInButton, BasePayButton as OfficialPayButton } from '@base-org/account-ui/react'
 
-// Sign in with Base Button - following official brand guidelines
-export const SignInWithBaseButton = ({ colorScheme = 'light', onClick, disabled = false, className = '' }) => {
-  const isLight = colorScheme === 'light'
-  
+// Re-export the official components with our custom props
+export const SignInWithBaseButton = ({ onClick, disabled = false, className = '', ...props }) => {
   return (
-    <button 
-      type="button" 
+    <OfficialSignInButton 
+      align="center"
+      variant="solid"
+      colorScheme="light"
+      size="medium"
       onClick={onClick}
       disabled={disabled}
-      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg cursor-pointer font-medium text-sm min-w-[180px] h-11 transition-colors ${className}`}
-      style={{
-        backgroundColor: isLight ? '#ffffff' : '#000000',
-        color: isLight ? '#000000' : '#ffffff',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        fontWeight: '500',
-        border: 'none'
-      }}
-    >
-      {/* Base Square Logo */}
-      <div 
-        className="w-4 h-4 rounded-sm flex-shrink-0"
-        style={{
-          backgroundColor: isLight ? '#0000FF' : '#FFFFFF'
-        }}
-      />
-      <span>Sign in with Base</span>
-    </button>
+      className={className}
+      {...props}
+    />
   )
 }
 
-// Base Pay Button - following official brand guidelines
-export const BasePayButton = ({ colorScheme = 'light', onClick, disabled = false, className = '' }) => {
-  const isLight = colorScheme === 'light'
-  
+export const BasePayButton = ({ onClick, disabled = false, className = '', ...props }) => {
   return (
-    <button 
-      type="button" 
+    <OfficialPayButton 
+      colorScheme="light"
       onClick={onClick}
       disabled={disabled}
-      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg cursor-pointer font-medium text-sm min-w-[180px] h-11 transition-colors ${className}`}
-      style={{
-        backgroundColor: isLight ? '#0000FF' : '#ffffff',
-        color: isLight ? '#ffffff' : '#0000FF',
-        border: 'none',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        fontWeight: '500'
-      }}
-    >
-      {/* Base Square Logo */}
-      <div 
-        className="w-4 h-4 rounded-sm flex-shrink-0"
-        style={{
-          backgroundColor: isLight ? '#ffffff' : '#0000FF'
-        }}
-      />
-      <span>Pay with Base</span>
-    </button>
+      className={className}
+      {...props}
+    />
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { createBaseAccountSDK } from '@base-org/account'
+import { createBaseAccountSDK, pay, getPaymentStatus } from '@base-org/account'
 
 const BaseAccountContext = createContext({
   isBaseApp: false,
@@ -80,9 +80,11 @@ export function BaseAccountProvider({ children }) {
           return
         }
         
-        // Initialize Base Account SDK
-        const sdk = createBaseAccountSDK()
-        const provider = sdk.getProvider()
+        // Initialize Base Account SDK with proper configuration
+        const sdk = createBaseAccountSDK({
+          appName: 'Minted Merch',
+          appLogoUrl: 'https://app.mintedmerch.shop/logo.png',
+        })
         
         setIsBaseApp(true)
         setBaseAccountSDK(sdk)
@@ -105,61 +107,20 @@ export function BaseAccountProvider({ children }) {
       throw new Error('Base Account SDK not found')
     }
 
-    if (!preGeneratedNonce) {
-      throw new Error('Nonce not ready. Please wait a moment and try again.')
-    }
-
     setIsLoading(true)
     setError(null)
 
     try {
       console.log('🔄 Starting Base Account sign-in...')
-      console.log('🔑 Using pre-generated nonce:', preGeneratedNonce)
       
-      // Get the provider from the SDK
-      const provider = baseAccountSDK.getProvider()
-
-      // 1. Switch to Base Chain
-      console.log('🔗 Switching to Base chain...')
-      await provider.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: '0x2105' }], // Base Mainnet
-      })
-
-      // 2. Connect and authenticate with wallet_connect
-      console.log('🔗 Connecting to Base Account...')
-      const { accounts } = await provider.request({
-        method: 'wallet_connect',
-        params: [{
-          version: '1',
-          capabilities: {
-            signInWithEthereum: { 
-              nonce: preGeneratedNonce, 
-              chainId: '0x2105' // Base Mainnet - 8453
-            }
-          }
-        }]
-      })
-
-      const { address } = accounts[0]
-      const { message, signature } = accounts[0].capabilities.signInWithEthereum
-
-      console.log('✅ Base Account authentication successful:', {
-        address,
-        message,
-        signature: signature.substring(0, 10) + '...'
-      })
-
+      // Use the official SDK method for sign-in
+      await baseAccountSDK.getProvider().request({ method: 'wallet_connect' })
+      
+      console.log('✅ Base Account sign-in successful')
+      
       // Set authentication state
       setIsAuthenticated(true)
-      setUserAddress(address)
-
-      // 3. TODO: Verify signature on backend
-      // await fetch('/auth/verify', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ address, message, signature })
-      // })
+      // Note: We'll get the user address when they make a payment
 
     } catch (err) {
       console.error('❌ Base Account sign-in failed:', err)
@@ -188,35 +149,31 @@ export function BaseAccountProvider({ children }) {
 
   // Base Pay function using the official SDK
   const payWithBase = async (amount, recipient) => {
-    if (!baseAccountSDK) {
-      throw new Error('Base Account SDK not found')
-    }
-
     try {
       console.log('💳 Executing Base Pay:', { amount, recipient })
       
-      // Use the pay function from the SDK
-      const payment = await baseAccountSDK.pay({
+      // Use the official pay function from the SDK
+      const { id } = await pay({
         amount: amount.toString(), // USD amount - SDK quotes equivalent USDC
         to: recipient,
         testnet: false // Set to true for testnet
       })
       
-      console.log('✅ Base Pay initiated:', payment)
+      console.log('✅ Base Pay initiated:', id)
       
       // Get payment status
-      const status = await baseAccountSDK.getPaymentStatus({
-        id: payment.id,
-        testnet: false
+      const { status } = await getPaymentStatus({ 
+        id: id,
+        testnet: false 
       })
       
       console.log('✅ Base Pay status:', status)
       
       return {
         success: true,
-        paymentId: payment.id,
-        status: status.status,
-        transactionHash: status.transactionHash || payment.id
+        paymentId: id,
+        status: status,
+        transactionHash: id // The payment ID can be used as transaction reference
       }
     } catch (error) {
       console.error('❌ Base Pay failed:', error)

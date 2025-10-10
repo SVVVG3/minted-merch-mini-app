@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@base-org/account": "^2.4.0",
+    "@base-org/account-ui": "^1.0.1",
     "@cloudflare/workers-types": "^4.20250620.0",
     "@farcaster/frame-node": "^0.0.41",
     "@farcaster/frame-sdk": "^0.0.64",
