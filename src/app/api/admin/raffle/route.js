@@ -194,6 +194,15 @@ export async function POST(request) {
       const leaderboardData = winner.user_leaderboard?.[0] || winner.user_leaderboard || winner;
       const userId = winner.user_fid || winner.fid;
       
+      console.log(`🏆 Winner ${index + 1}:`, {
+        username: winner.username,
+        fid: winner.fid,
+        user_fid: winner.user_fid,
+        resolvedUserId: userId,
+        total_points: leaderboardData.total_points,
+        checkin_streak: leaderboardData.checkin_streak
+      });
+      
       return {
         raffle_id: raffleId,
         user_fid: userId,
