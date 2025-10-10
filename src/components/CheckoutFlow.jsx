@@ -899,28 +899,37 @@ Transaction Hash: ${transactionHash}`;
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          try {
-            const debug = debugBaseAccount();
-            const baseAccountDebug = {
-              ...debug,
-              isBaseApp,
+                  try {
+                    const baseAccountDebug = {
+                      // Wagmi-based Base Account status
+                      isBaseApp,
                       baseAccountConnector: !!baseAccountConnector,
-              isAuthenticated,
-              userAgent: window.navigator?.userAgent,
-              hostname: window.location?.hostname,
-              hasWindowBase: !!(typeof window !== 'undefined' && window.base),
-              windowBaseKeys: typeof window !== 'undefined' && window.base ? Object.keys(window.base) : null
-            };
-            console.log('🔍 Base Account Debug:', baseAccountDebug);
-            // Also log to a visible element for mobile debugging
-            const debugDiv = document.getElementById('debug-output');
-            if (debugDiv) {
-              debugDiv.innerHTML = `<pre>${JSON.stringify(baseAccountDebug, null, 2)}</pre>`;
-              debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
-            }
-          } catch (error) {
-            console.error('Debug Error:', error);
-          }
+                      isAuthenticated,
+                      isLoading: isBaseLoading,
+                      error: error,
+                      
+                      // Environment info
+                      userAgent: window.navigator?.userAgent,
+                      hostname: window.location?.hostname,
+                      
+                      // Legacy debug info (for comparison)
+                      hasWindowBase: !!(typeof window !== 'undefined' && window.base),
+                      windowBaseKeys: typeof window !== 'undefined' && window.base ? Object.keys(window.base) : null,
+                      
+                      // Wagmi connector info
+                      wagmiConnectors: typeof window !== 'undefined' ? 'Check console for connector list' : 'SSR',
+                      baseAccountStatus: isBaseApp && baseAccountConnector ? 'Available via Wagmi' : 'Not Available'
+                    };
+                    console.log('🔍 Base Account Debug:', baseAccountDebug);
+                    // Also log to a visible element for mobile debugging
+                    const debugDiv = document.getElementById('debug-output');
+                    if (debugDiv) {
+                      debugDiv.innerHTML = `<pre>${JSON.stringify(baseAccountDebug, null, 2)}</pre>`;
+                      debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
+                    }
+                  } catch (error) {
+                    console.error('Debug Error:', error);
+                  }
         }}
         onTouchStart={(e) => {
           e.preventDefault();
@@ -929,28 +938,37 @@ Transaction Hash: ${transactionHash}`;
         onTouchEnd={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          try {
-            const debug = debugBaseAccount();
-            const baseAccountDebug = {
-              ...debug,
-              isBaseApp,
+                  try {
+                    const baseAccountDebug = {
+                      // Wagmi-based Base Account status
+                      isBaseApp,
                       baseAccountConnector: !!baseAccountConnector,
-              isAuthenticated,
-              userAgent: window.navigator?.userAgent,
-              hostname: window.location?.hostname,
-              hasWindowBase: !!(typeof window !== 'undefined' && window.base),
-              windowBaseKeys: typeof window !== 'undefined' && window.base ? Object.keys(window.base) : null
-            };
-            console.log('🔍 Base Account Debug:', baseAccountDebug);
-            // Also log to a visible element for mobile debugging
-            const debugDiv = document.getElementById('debug-output');
-            if (debugDiv) {
-              debugDiv.innerHTML = `<pre>${JSON.stringify(baseAccountDebug, null, 2)}</pre>`;
-              debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
-            }
-          } catch (error) {
-            console.error('Debug Error:', error);
-          }
+                      isAuthenticated,
+                      isLoading: isBaseLoading,
+                      error: error,
+                      
+                      // Environment info
+                      userAgent: window.navigator?.userAgent,
+                      hostname: window.location?.hostname,
+                      
+                      // Legacy debug info (for comparison)
+                      hasWindowBase: !!(typeof window !== 'undefined' && window.base),
+                      windowBaseKeys: typeof window !== 'undefined' && window.base ? Object.keys(window.base) : null,
+                      
+                      // Wagmi connector info
+                      wagmiConnectors: typeof window !== 'undefined' ? 'Check console for connector list' : 'SSR',
+                      baseAccountStatus: isBaseApp && baseAccountConnector ? 'Available via Wagmi' : 'Not Available'
+                    };
+                    console.log('🔍 Base Account Debug:', baseAccountDebug);
+                    // Also log to a visible element for mobile debugging
+                    const debugDiv = document.getElementById('debug-output');
+                    if (debugDiv) {
+                      debugDiv.innerHTML = `<pre>${JSON.stringify(baseAccountDebug, null, 2)}</pre>`;
+                      debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
+                    }
+                  } catch (error) {
+                    console.error('Debug Error:', error);
+                  }
         }}
         className="w-full mt-2 bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-sm touch-manipulation"
         style={{ 
@@ -969,28 +987,37 @@ Transaction Hash: ${transactionHash}`;
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          try {
-            const debug = debugBaseAccount();
-            const baseAccountDebug = {
-              ...debug,
-              isBaseApp,
+                  try {
+                    const baseAccountDebug = {
+                      // Wagmi-based Base Account status
+                      isBaseApp,
                       baseAccountConnector: !!baseAccountConnector,
-              isAuthenticated,
-              userAgent: window.navigator?.userAgent,
-              hostname: window.location?.hostname,
-              hasWindowBase: !!(typeof window !== 'undefined' && window.base),
-              windowBaseKeys: typeof window !== 'undefined' && window.base ? Object.keys(window.base) : null
-            };
-            console.log('🔍 Base Account Debug:', baseAccountDebug);
-            // Also log to a visible element for mobile debugging
-            const debugDiv = document.getElementById('debug-output');
-            if (debugDiv) {
-              debugDiv.innerHTML = `<pre>${JSON.stringify(baseAccountDebug, null, 2)}</pre>`;
-              debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
-            }
-          } catch (error) {
-            console.error('Debug Error:', error);
-          }
+                      isAuthenticated,
+                      isLoading: isBaseLoading,
+                      error: error,
+                      
+                      // Environment info
+                      userAgent: window.navigator?.userAgent,
+                      hostname: window.location?.hostname,
+                      
+                      // Legacy debug info (for comparison)
+                      hasWindowBase: !!(typeof window !== 'undefined' && window.base),
+                      windowBaseKeys: typeof window !== 'undefined' && window.base ? Object.keys(window.base) : null,
+                      
+                      // Wagmi connector info
+                      wagmiConnectors: typeof window !== 'undefined' ? 'Check console for connector list' : 'SSR',
+                      baseAccountStatus: isBaseApp && baseAccountConnector ? 'Available via Wagmi' : 'Not Available'
+                    };
+                    console.log('🔍 Base Account Debug:', baseAccountDebug);
+                    // Also log to a visible element for mobile debugging
+                    const debugDiv = document.getElementById('debug-output');
+                    if (debugDiv) {
+                      debugDiv.innerHTML = `<pre>${JSON.stringify(baseAccountDebug, null, 2)}</pre>`;
+                      debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
+                    }
+                  } catch (error) {
+                    console.error('Debug Error:', error);
+                  }
         }}
         className="w-full mt-1 text-center text-blue-500 underline cursor-pointer text-sm py-2"
         style={{ 

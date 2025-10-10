@@ -66,6 +66,18 @@ export function BaseAccountProvider({ children }) {
   useEffect(() => {
     if (typeof window === 'undefined') return
     
+    // Check if we're actually in Base app environment
+    const userAgent = window.navigator?.userAgent?.toLowerCase() || ''
+    const isFarcaster = userAgent.includes('warpcast') || userAgent.includes('farcaster')
+    
+    // Only enable Base Account in Base app, not Farcaster
+    if (isFarcaster) {
+      setIsBaseApp(false)
+      setBaseAccountConnector(null)
+      console.log('🔗 In Farcaster environment, Base Account disabled')
+      return
+    }
+    
     // Debug: Log all available connectors
     console.log('🔍 Available Wagmi connectors:', wagmiHooks.connectors.map(c => ({ id: c.id, name: c.name })))
     
@@ -110,8 +122,11 @@ export function BaseAccountProvider({ children }) {
       const nonce = window.crypto.randomUUID().replace(/-/g, '')
       
       // 2. Connect and get the provider
+      console.log('🔗 Connecting to Base Account...')
       await wagmiHooks.connectAsync({ connector: baseAccountConnector })
       const provider = baseAccountConnector.provider
+
+      console.log('✅ Connected to Base Account, starting authentication...')
 
       // 3. Authenticate with wallet_connect
       const authResult = await provider.request({
@@ -146,7 +161,16 @@ export function BaseAccountProvider({ children }) {
 
     } catch (err) {
       console.error('❌ Base Account sign-in failed:', err)
-      setError(err.message || 'Sign in failed')
+      
+      // Handle specific error cases
+      if (err.message?.includes('popup') || err.message?.includes('window')) {
+        setError('Popup blocked. Please allow popups for this site and try again.')
+      } else if (err.message?.includes('User rejected')) {
+        setError('Sign-in cancelled by user.')
+      } else {
+        setError(err.message || 'Sign in failed')
+      }
+      
       throw err
     } finally {
       setIsLoading(false)
