@@ -6,30 +6,54 @@ export async function POST(request) {
     const { numWinners, filters } = await request.json();
     
     // Get eligible users based on filters
-    let query = supabaseAdmin
-      .from('user_leaderboard')
-      .select(`
-        user_fid, 
-        username, 
-        total_points, 
-        checkin_streak, 
-        points_from_purchases, 
-        total_orders,
-        profiles!inner(token_balance)
-      `)
-      .order('total_points', { ascending: false });
+    // For token balance filtering, we need to query ALL users with tokens, not just leaderboard users
+    let query;
+    if (filters.minTokenBalance > 0) {
+      // Query profiles table to get ALL token holders
+      query = supabaseAdmin
+        .from('profiles')
+        .select(`
+          fid as user_fid,
+          username,
+          token_balance,
+          user_leaderboard!fid (
+            total_points,
+            checkin_streak,
+            points_from_purchases,
+            total_orders
+          )
+        `)
+        .gt('token_balance', 0) // Only users with tokens
+        .order('token_balance', { ascending: false });
+    } else {
+      // For non-token filters, use leaderboard table
+      query = supabaseAdmin
+        .from('user_leaderboard')
+        .select(`
+          user_fid, 
+          username, 
+          total_points, 
+          checkin_streak, 
+          points_from_purchases, 
+          total_orders,
+          profiles!inner(token_balance)
+        `)
+        .order('total_points', { ascending: false });
+    }
 
-    // Apply filters
-    if (filters.minPoints > 0) {
-      query = query.gte('total_points', filters.minPoints);
-    }
-    
-    if (filters.minStreak > 0) {
-      query = query.gte('checkin_streak', filters.minStreak);
-    }
-    
-    if (filters.minPurchasePoints > 0) {
-      query = query.gte('points_from_purchases', filters.minPurchasePoints);
+    // Apply filters (only for non-token queries since token queries use profiles table)
+    if (filters.minTokenBalance === 0) {
+      if (filters.minPoints > 0) {
+        query = query.gte('total_points', filters.minPoints);
+      }
+      
+      if (filters.minStreak > 0) {
+        query = query.gte('checkin_streak', filters.minStreak);
+      }
+      
+      if (filters.minPurchasePoints > 0) {
+        query = query.gte('points_from_purchases', filters.minPurchasePoints);
+      }
     }
 
     const { data: eligibleUsers, error } = await query;
@@ -47,7 +71,8 @@ export async function POST(request) {
       console.log(`📊 Before token filter: ${filteredUsers.length} users`);
       
       filteredUsers = filteredUsers.filter(user => {
-        const tokenBalance = user.profiles?.token_balance || 0;
+        // Handle different data structures from profiles vs user_leaderboard queries
+        const tokenBalance = user.token_balance || user.profiles?.token_balance || 0;
         // Token balance is now stored as actual token values (not wei)
         const tokenAmount = typeof tokenBalance === 'string' ? 
           parseFloat(tokenBalance) : 
@@ -62,6 +87,23 @@ export async function POST(request) {
       });
       
       console.log(`📊 After token filter: ${filteredUsers.length} users`);
+    }
+
+    // Apply other filters (client-side for profiles query or when token balance filter is used)
+    if (filters.minTokenBalance > 0 || filters.minPoints > 0 || filters.minStreak > 0 || filters.minPurchasePoints > 0) {
+      filteredUsers = filteredUsers.filter(user => {
+        // Handle different data structures from profiles vs user_leaderboard queries
+        const leaderboardData = user.user_leaderboard?.[0] || user;
+        const totalPoints = leaderboardData.total_points || 0;
+        const streak = leaderboardData.checkin_streak || 0;
+        const purchasePoints = leaderboardData.points_from_purchases || 0;
+        
+        const meetsPoints = filters.minPoints === 0 || totalPoints >= filters.minPoints;
+        const meetsStreak = filters.minStreak === 0 || streak >= filters.minStreak;
+        const meetsPurchasePoints = filters.minPurchasePoints === 0 || purchasePoints >= filters.minPurchasePoints;
+        
+        return meetsPoints && meetsStreak && meetsPurchasePoints;
+      });
     }
 
     // Exclude previous winners if filter is enabled
