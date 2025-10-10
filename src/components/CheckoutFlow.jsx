@@ -297,39 +297,10 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     if (!hasItems) return;
     
     try {
-      // Check if we're in Base app (users are already authenticated)
-      const userAgent = window.navigator?.userAgent?.toLowerCase() || ''
-      const isInBaseApp = userAgent.includes('base') || window.location.hostname.includes('base')
-      
-      if (isInBaseApp && baseAccountSDK) {
-        // In Base app, users are already authenticated - skip sign-in and go directly to Base Pay
-        console.log('📱 In Base app - users already authenticated, proceeding to Base Pay');
-        proceedToCheckout();
-      } else if (isBaseApp && baseAccountSDK && !isAuthenticated) {
-        // Not in Base app but Base Account is available - need to sign in
-        console.log('🔄 Starting Base Account sign-in flow...');
-        console.log('🔍 Debug - isBaseApp:', isBaseApp, 'baseAccountSDK:', !!baseAccountSDK, 'isAuthenticated:', isAuthenticated);
-        try {
-          await signInWithBase();
-          console.log('✅ Base Account sign-in successful, now proceeding to checkout');
-          // Only proceed to checkout after successful authentication
-          proceedToCheckout();
-        } catch (error) {
-          console.error('❌ Base Account sign-in failed:', error);
-          console.error('❌ Error details:', error.message, error.stack);
-          // Don't proceed to checkout if sign-in failed
-          setCheckoutError(`Base Account sign-in failed: ${error.message}`);
-          return;
-        }
-      } else if (isBaseApp && baseAccountSDK && isAuthenticated) {
-        // Already authenticated with Base Account, proceed directly
-        console.log('✅ Already authenticated with Base Account, proceeding to checkout');
-        proceedToCheckout();
-      } else {
-        // Standard checkout flow (not in Base app or no Base Account)
-        console.log('🔄 Using standard checkout flow');
-        proceedToCheckout();
-      }
+      // Base Pay works independently - no sign-in required
+      // According to docs: "Any user can pay – works with every Base Account out of the box"
+      console.log('💳 Proceeding directly to Base Pay (no sign-in required)');
+      proceedToCheckout();
       
     } catch (err) {
       console.error('Checkout error:', err);
@@ -914,51 +885,19 @@ Transaction Hash: ${transactionHash}`;
           {/* Base Account Button */}
           <div className="space-y-2">
             {(() => {
-              const userAgent = window.navigator?.userAgent?.toLowerCase() || ''
-              const isInBaseApp = userAgent.includes('base') || window.location.hostname.includes('base')
-              
-              if (isInBaseApp) {
-                // In Base app, users are already authenticated - show Base Pay button
-                return (
-                  <BasePayButton 
-                    onClick={handleCheckout}
-                    disabled={!hasItems}
-                    className="w-full"
-                  />
-                )
-              } else if (!isAuthenticated) {
-                // Not in Base app, need to sign in first
-                return (
-                  <SignInWithBaseButton 
-                    onClick={handleCheckout}
-                    disabled={!hasItems}
-                    className="w-full"
-                  />
-                )
-              } else {
-                // Already authenticated outside Base app
-                return (
-                  <BasePayButton 
-                    onClick={handleCheckout}
-                    disabled={!hasItems}
-                    className="w-full"
-                  />
-                )
-              }
+              // Base Pay works independently - no sign-in required
+              // According to docs: "Any user can pay – works with every Base Account out of the box"
+              console.log('💳 Showing Base Pay button (works independently)')
+              return (
+                <BasePayButton 
+                  onClick={handleCheckout}
+                  disabled={!hasItems}
+                  className="w-full"
+                />
+              )
             })()}
             <div className="text-center text-xs text-blue-600">
-              {(() => {
-                const userAgent = window.navigator?.userAgent?.toLowerCase() || ''
-                const isInBaseApp = userAgent.includes('base') || window.location.hostname.includes('base')
-                
-                if (isInBaseApp) {
-                  return 'One-tap payments with Base Pay'
-                } else if (!isAuthenticated) {
-                  return 'Sign in for one-tap payments & auto-fill'
-                } else {
-                  return 'One-tap payments & auto-filled shipping'
-                }
-              })()}
+              One-tap payments with Base Pay
             </div>
           </div>
           
@@ -1009,33 +948,18 @@ Transaction Hash: ${transactionHash}`;
           className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
         >
           {(() => {
-            const userAgent = window.navigator?.userAgent?.toLowerCase() || ''
-            const isInBaseApp = userAgent.includes('base') || window.location.hostname.includes('base')
             const isCartFree = cartTotal <= 0.01;
             const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
 
-            if (isInBaseApp && baseAccountSDK) {
-              // In Base app, show Base Pay button
-              if (isFreeWithShipping) {
-                return 'Pay with Base (FREE + $0.01 processing fee)';
-              } else if (appliedDiscount?.freeShipping) {
-                return `Pay with Base (${cartTotal.toFixed(2)} USDC + free shipping)`;
-              } else if (appliedDiscount) {
-                return `Pay with Base (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
-              } else {
-                return `Pay with Base (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
-              }
+            // Standard checkout button
+            if (isFreeWithShipping) {
+              return 'Checkout (FREE + $0.01 processing fee)';
+            } else if (appliedDiscount?.freeShipping) {
+              return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
+            } else if (appliedDiscount) {
+              return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
             } else {
-              // Standard checkout button
-              if (isFreeWithShipping) {
-                return 'Checkout (FREE + $0.01 processing fee)';
-              } else if (appliedDiscount?.freeShipping) {
-                return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
-              } else if (appliedDiscount) {
-                return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
-              } else {
-                return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
-              }
+              return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
             }
           })()}
         </button>
