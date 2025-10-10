@@ -19,6 +19,12 @@ export function isBaseAppEnvironment() {
 // Get Base Account SDK instance if available
 export async function getBaseAccountSDK() {
   try {
+    // If using CDN, window.base is already the SDK instance
+    if (typeof window !== 'undefined' && window.base && window.base.pay) {
+      return window.base // Directly return the global Base Account SDK instance
+    }
+    
+    // Fallback for NPM package usage (if needed in future)
     if (!isBaseAppEnvironment()) {
       return null
     }
@@ -173,7 +179,8 @@ export function debugBaseAccount() {
       isBaseApp,
       detectedEnvironment: isFarcaster ? 'Farcaster' : (isBaseApp ? 'Base App' : 'Unknown')
     },
-    available: !!(window.base && window.base.pay && window.base.getPaymentStatus)
+    available: !!(window.base && window.base.pay && window.base.getPaymentStatus),
+    baseAccountInstance: window.base ? 'Available' : 'Not Available'
   }
   
   console.log('🔍 Base Account Debug:', debug)

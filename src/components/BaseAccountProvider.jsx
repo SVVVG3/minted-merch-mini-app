@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { isBaseAppEnvironment, getBaseAccount, getBaseAccountProfile } from '@/lib/baseAccount'
+import { useAccount, useConnect, useDisconnect } from 'wagmi'
 
 const BaseAccountContext = createContext({
   isBaseApp: false,
@@ -20,66 +20,70 @@ export function useBaseAccount() {
 }
 
 export function BaseAccountProvider({ children }) {
-  const [isBaseApp, setIsBaseApp] = useState(false)
-  const [baseAccount, setBaseAccount] = useState(null)
+  const { address, isConnected, connector } = useAccount()
+  const { connect, connectors } = useConnect()
+  const { disconnect } = useDisconnect()
+  
   const [baseProfile, setBaseProfile] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  // Check if we're using the Base Account connector
+  const isBaseApp = connector?.id === 'baseAccount'
+  const baseAccountConnector = connectors.find(c => c.id === 'baseAccount')
+
   useEffect(() => {
-    async function initializeBaseAccount() {
-      try {
+    async function initBaseProfile() {
+      if (isBaseApp && isConnected && connector) {
         setIsLoading(true)
         setError(null)
-
-        // Check if we're in Base app environment
-        const inBaseApp = isBaseAppEnvironment()
-        setIsBaseApp(inBaseApp)
-
-        if (!inBaseApp) {
-          console.log('🔗 Not in Base app environment, using standard Wagmi flow')
-          setIsLoading(false)
-          return
-        }
-
-        console.log('🚀 Base app environment detected, initializing Base Account...')
-
-        // Get Base Account
-        const account = await getBaseAccount()
-        if (account) {
-          setBaseAccount(account)
-          console.log('✅ Base Account initialized:', account.address)
-
-          // Get profile data
-          const profile = await getBaseAccountProfile()
-          if (profile) {
+        try {
+          console.log('🚀 Base Account connected, getting profile...')
+          
+          // Get profile from Base Account connector
+          if (connector.getProfile) {
+            const profile = await connector.getProfile()
             setBaseProfile(profile)
             console.log('👤 Base Account profile loaded:', {
-              hasEmail: !!profile.email,
-              hasShippingAddress: !!profile.shippingAddress,
-              hasPhone: !!profile.phone
+              hasEmail: !!profile?.email,
+              hasShippingAddress: !!profile?.shippingAddress,
+              hasPhone: !!profile?.phone
             })
           }
-        } else {
-          console.log('⚠️ Base Account not available, falling back to Wagmi')
+        } catch (err) {
+          console.error('❌ Failed to get Base Account profile:', err)
+          setError(err.message)
+          setBaseProfile(null)
         }
-      } catch (err) {
-        console.error('❌ Base Account initialization failed:', err)
-        setError(err.message)
-      } finally {
         setIsLoading(false)
+      } else {
+        setBaseProfile(null)
+        setError(null)
       }
     }
 
-    initializeBaseAccount()
-  }, [])
+    initBaseProfile()
+  }, [isBaseApp, isConnected, connector])
+
+  const connectBaseAccount = async () => {
+    if (baseAccountConnector) {
+      try {
+        await connect({ connector: baseAccountConnector })
+      } catch (error) {
+        console.error('Failed to connect Base Account:', error)
+        setError(error.message)
+      }
+    }
+  }
 
   const value = {
     isBaseApp,
-    baseAccount,
+    baseAccount: isBaseApp ? connector : null,
     baseProfile,
     isLoading,
-    error
+    error,
+    connectBaseAccount,
+    disconnect
   }
 
   return (
