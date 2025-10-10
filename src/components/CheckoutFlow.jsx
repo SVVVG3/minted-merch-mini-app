@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useCart } from '@/lib/CartContext';
 import { useUSDCPayment } from '@/lib/useUSDCPayment';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { useBaseAccount } from '@/components/BaseAccountProvider';
 import { calculateCheckout } from '@/lib/shopify';
 import { sdk } from '@farcaster/miniapp-sdk';
 
@@ -13,6 +14,7 @@ import GiftCardSection, { GiftCardBalance } from './GiftCardSection';
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
   const { getFid, isInFarcaster, user, context } = useFarcaster();
+  const { isBaseApp, baseAccount, baseProfile, isLoading: isBaseLoading } = useBaseAccount();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(checkoutData ? true : false);
   const [checkoutStep, setCheckoutStep] = useState('shipping'); // 'shipping', 'shipping-method', 'payment', or 'success'
   const [shippingData, setShippingData] = useState(cart.shipping || null);
@@ -809,11 +811,23 @@ Transaction Hash: ${transactionHash}`;
         disabled={!hasItems || !isConnected}
         className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
       >
-        {!isConnected ? 'Connect Wallet to Pay' : (() => {
+{!isConnected ? 'Connect Wallet to Pay' : (() => {
           // Check if cart total is effectively free (considering product-specific discounts)
           const isCartFree = cartTotal <= 0.01;
           const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
           
+          // Base Account enhanced experience
+          if (isBaseApp && baseAccount) {
+            if (isFreeWithShipping) {
+              return '🚀 Pay with Base Account (FREE + $0.01 processing)';
+            } else if (appliedDiscount?.freeShipping) {
+              return `🚀 Pay with Base Account (${cartTotal.toFixed(2)} USDC + free shipping)`;
+            } else {
+              return `🚀 Pay with Base Account (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
+            }
+          }
+          
+          // Standard Farcaster experience
           if (isFreeWithShipping) {
             return 'Checkout (FREE + $0.01 processing fee)';
           } else if (appliedDiscount?.freeShipping) {
@@ -833,6 +847,21 @@ Transaction Hash: ${transactionHash}`;
             
             {/* Header */}
             <div className="p-4 border-b">
+              {/* Base Account Status */}
+              {isBaseApp && baseAccount && (
+                <div className="mb-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-blue-800">
+                      Enhanced Base Experience
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-1">
+                    One-tap payments and auto-filled shipping available
+                  </p>
+                </div>
+              )}
+              
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold">
