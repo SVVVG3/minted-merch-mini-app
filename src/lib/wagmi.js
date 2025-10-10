@@ -1,25 +1,37 @@
 import { http, createConfig } from 'wagmi'
 import { base } from 'wagmi/chains'
 import { farcasterMiniApp as miniAppConnector } from '@farcaster/miniapp-wagmi-connector'
-import { injected } from 'wagmi/connectors'
+import { injected, baseAccount } from 'wagmi/connectors'
 
-// Wagmi configuration for Farcaster Mini App
-// Base Account will be handled separately via @base-org/account package
+// Wagmi configuration for Farcaster Mini App with Base Account support
+const connectors = [
+  // Farcaster Mini App connector for Farcaster app users
+  miniAppConnector(),
+  // Add injected connector as fallback for different Farcaster clients
+  injected({
+    target: 'farcaster',
+  }),
+  // Generic injected connector for broader compatibility
+  injected()
+]
+
+// Try to add Base Account connector if available
+try {
+  const baseAccountConnector = baseAccount({
+    appName: 'Minted Merch',
+  })
+  connectors.unshift(baseAccountConnector) // Add to beginning
+  console.log('✅ Base Account connector added to Wagmi config')
+} catch (error) {
+  console.log('⚠️ Base Account connector not available:', error.message)
+}
+
 export const config = createConfig({
   chains: [base],
   transports: {
     [base.id]: http(),
   },
-  connectors: [
-    // Farcaster Mini App connector for Farcaster app users
-    miniAppConnector(),
-    // Add injected connector as fallback for different Farcaster clients
-    injected({
-      target: 'farcaster',
-    }),
-    // Generic injected connector for broader compatibility
-    injected()
-  ]
+  connectors
 })
 
 // USDC contract address on Base
