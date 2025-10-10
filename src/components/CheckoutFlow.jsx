@@ -963,15 +963,6 @@ Transaction Hash: ${transactionHash}`;
       ) : (
         // Standard Farcaster experience
         <div className="w-full space-y-2">
-          {/* Base Account not available message */}
-          {!isBaseApp && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
-              <div className="text-blue-800 text-sm font-medium mb-1">Base Account Not Available</div>
-              <div className="text-blue-600 text-xs">
-                Base Account is not available in this environment. Open the app in a regular browser window to use Base Account features.
-              </div>
-            </div>
-          )}
           
           <button
             onClick={handleCheckout}

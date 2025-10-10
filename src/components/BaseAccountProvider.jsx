@@ -141,22 +141,52 @@ export function BaseAccountProvider({ children }) {
         throw new Error('Base Account requires access to Ethereum provider. Please ensure you have a wallet extension installed.')
       }
       
-      // Use the proper EIP-1193 method for requesting accounts
+      // Use the proper Base Account wallet_connect method with signInWithEthereum
       // This will open a popup to keys.coinbase.com
-      const accounts = await baseAccountSDK.getProvider().request({ 
-        method: 'eth_requestAccounts' 
+      
+      // 1. Switch to Base Chain first
+      await baseAccountSDK.getProvider().request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: '0x2105' }], // Base Mainnet
       })
       
-      if (accounts && accounts.length > 0) {
-        setUserAddress(accounts[0])
-        console.log('✅ User address obtained:', accounts[0])
-      }
+      // 2. Connect and authenticate with signInWithEthereum
+      const { accounts } = await baseAccountSDK.getProvider().request({
+        method: 'wallet_connect',
+        params: [{
+          version: '1',
+          capabilities: {
+            signInWithEthereum: { 
+              nonce: preGeneratedNonce, 
+              chainId: '0x2105' // Base Mainnet - 8453
+            }
+          }
+        }]
+      })
+      
+      const { address } = accounts[0]
+      const { message, signature } = accounts[0].capabilities.signInWithEthereum
+      
+      console.log('✅ Base Account authentication successful:', {
+        address,
+        message: message.substring(0, 50) + '...',
+        signature: signature.substring(0, 10) + '...'
+      })
+      
+      // Set authentication state
+      setUserAddress(address)
+      
+      // TODO: Verify signature on backend
+      // await fetch('/auth/verify', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ address, message, signature })
+      // })
       
       console.log('✅ Base Account sign-in successful')
       
       // Set authentication state
       setIsAuthenticated(true)
-      // Note: We'll get the user address when they make a payment
 
     } catch (err) {
       console.error('❌ Base Account sign-in failed:', err)
@@ -166,12 +196,14 @@ export function BaseAccountProvider({ children }) {
         setError('Base Account popup was blocked. Please allow popups for this site and try again.')
       } else if (err.message?.includes('popup') || err.message?.includes('window')) {
         setError('Popup blocked. Please allow popups for this site and try again.')
-      } else if (err.message?.includes('User rejected')) {
+      } else if (err.message?.includes('User rejected') || err.code === 4001) {
         setError('Sign-in cancelled by user.')
+      } else if (err.message?.includes('method_not_supported')) {
+        setError('Base Account is not supported in this wallet. Please use a compatible wallet.')
       } else if (err.message?.includes('Ethereum provider')) {
         setError('Base Account requires access to Ethereum provider. Please ensure you have a wallet extension installed.')
       } else {
-        setError(err.message || 'Sign in failed')
+        setError(err.message || 'Base Account sign-in failed')
       }
       
       throw err
