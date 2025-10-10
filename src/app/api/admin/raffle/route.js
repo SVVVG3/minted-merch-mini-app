@@ -103,7 +103,8 @@ export async function POST(request) {
     if (filters.minTokenBalance > 0 || filters.minPoints > 0 || filters.minStreak > 0 || filters.minPurchasePoints > 0) {
       filteredUsers = filteredUsers.filter(user => {
         // Handle different data structures from profiles vs user_leaderboard queries
-        const leaderboardData = user.user_leaderboard?.[0] || user;
+        // user_leaderboard can be an object (from profiles query) or array (from user_leaderboard query)
+        const leaderboardData = user.user_leaderboard?.[0] || user.user_leaderboard || user;
         const totalPoints = leaderboardData.total_points || 0;
         const streak = leaderboardData.checkin_streak || 0;
         const purchasePoints = leaderboardData.points_from_purchases || 0;
@@ -189,7 +190,8 @@ export async function POST(request) {
     // Save winner entries
     const winnerEntries = winners.map((winner, index) => {
       // Handle different data structures from profiles vs user_leaderboard queries
-      const leaderboardData = winner.user_leaderboard?.[0] || winner;
+      // user_leaderboard can be an object (from profiles query) or array (from user_leaderboard query)
+      const leaderboardData = winner.user_leaderboard?.[0] || winner.user_leaderboard || winner;
       const userId = winner.user_fid || winner.fid;
       
       return {
