@@ -9,6 +9,7 @@ import { ChatEligibilityBanner } from "@/components/ChatEligibilityBanner";
 import { ChatEligibilityPopup } from "@/components/ChatEligibilityPopup";
 import { CartProvider } from "@/lib/CartContext";
 import { WagmiProvider } from "@/components/WagmiProvider";
+import { BaseAccountProvider } from "@/components/BaseAccountProvider";
 // import { MiniAppProvider } from '@neynar/react';
 
 const geistSans = Geist({
@@ -38,15 +39,17 @@ export default function RootLayout({ children }) {
         <GoogleMapsScript />
         <FrameInit />
         <WagmiProvider>
-          <CartProvider>
-            <div>
-              <PriceTicker />
-              <FarcasterHeader />
-              <ChatEligibilityBanner />
-              {children}
-              <ChatEligibilityPopup />
-            </div>
-          </CartProvider>
+          <BaseAccountProvider>
+            <CartProvider>
+              <div>
+                <PriceTicker />
+                <FarcasterHeader />
+                <ChatEligibilityBanner />
+                {children}
+                <ChatEligibilityPopup />
+              </div>
+            </CartProvider>
+          </BaseAccountProvider>
         </WagmiProvider>
       </body>
     </html>
