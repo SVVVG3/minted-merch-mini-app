@@ -13,10 +13,11 @@ export async function POST(request) {
       query = supabaseAdmin
         .from('profiles')
         .select(`
-          fid as user_fid,
+          fid,
           username,
           token_balance,
-          user_leaderboard!fid (
+          user_leaderboard!user_fid (
+            user_fid,
             total_points,
             checkin_streak,
             points_from_purchases,
@@ -136,7 +137,11 @@ export async function POST(request) {
       const previousWinnerFids = new Set(previousWinners.map(w => w.user_fid));
       
       // Filter out users who have previously won
-      filteredUsers = filteredUsers.filter(user => !previousWinnerFids.has(user.user_fid));
+      // Handle different field names: 'fid' for profiles query, 'user_fid' for user_leaderboard query
+      filteredUsers = filteredUsers.filter(user => {
+        const userId = user.user_fid || user.fid;
+        return !previousWinnerFids.has(userId);
+      });
       
       console.log(`📊 After excluding previous winners: ${filteredUsers.length} users`);
     } else {
@@ -182,16 +187,22 @@ export async function POST(request) {
     }
 
     // Save winner entries
-    const winnerEntries = winners.map((winner, index) => ({
-      raffle_id: raffleId,
-      user_fid: winner.user_fid,
-      username: winner.username,
-      total_points: winner.total_points,
-      checkin_streak: winner.checkin_streak,
-      points_from_purchases: winner.points_from_purchases,
-      total_orders: winner.total_orders,
-      winner_position: index + 1
-    }));
+    const winnerEntries = winners.map((winner, index) => {
+      // Handle different data structures from profiles vs user_leaderboard queries
+      const leaderboardData = winner.user_leaderboard?.[0] || winner;
+      const userId = winner.user_fid || winner.fid;
+      
+      return {
+        raffle_id: raffleId,
+        user_fid: userId,
+        username: winner.username,
+        total_points: leaderboardData.total_points || 0,
+        checkin_streak: leaderboardData.checkin_streak || 0,
+        points_from_purchases: leaderboardData.points_from_purchases || 0,
+        total_orders: leaderboardData.total_orders || 0,
+        winner_position: index + 1
+      };
+    });
 
     const { error: entriesError } = await supabaseAdmin
       .from('raffle_winner_entries')
