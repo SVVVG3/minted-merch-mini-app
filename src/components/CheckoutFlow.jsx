@@ -292,6 +292,61 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     }
   }, [baseAccountProfile, shippingData]);
 
+  // Function to create order from Base Pay data
+  const createOrderFromBasePay = async (orderData) => {
+    try {
+      console.log('📝 Creating order from Base Pay data:', orderData);
+      
+      // Extract shipping information
+      const { paymentId, amount, items, shippingInfo, recipientAddress } = orderData;
+      
+      // Prepare order data for your backend
+      const orderPayload = {
+        paymentId,
+        amount,
+        items: items.map(item => ({
+          id: item.id,
+          title: item.title,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        shipping: {
+          email: shippingInfo.email,
+          firstName: shippingInfo.name?.firstName || '',
+          lastName: shippingInfo.name?.familyName || '',
+          address1: shippingInfo.physicalAddress?.address1 || '',
+          address2: shippingInfo.physicalAddress?.address2 || '',
+          city: shippingInfo.physicalAddress?.city || '',
+          state: shippingInfo.physicalAddress?.state || '',
+          zip: shippingInfo.physicalAddress?.postalCode || '',
+          country: shippingInfo.physicalAddress?.country || 'US'
+        },
+        paymentMethod: 'base_pay',
+        recipientAddress
+      };
+      
+      // Send to your backend API
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderPayload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Order creation failed: ${response.statusText}`);
+      }
+      
+      const orderResult = await response.json();
+      console.log('✅ Order created:', orderResult);
+      
+      return orderResult;
+    } catch (error) {
+      console.error('❌ Order creation error:', error);
+      throw error;
+    }
+  };
 
   const handleBasePay = async () => {
     if (!hasItems) return;
@@ -310,7 +365,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         throw new Error('payWithBase function not available');
       }
       
-      // Call Base Pay directly - users already have shipping info in their Base Account
+      // Call Base Pay with payerInfo to collect shipping information
       const result = await payWithBase(totalAmount, recipientAddress);
       
       if (result.success) {
@@ -318,6 +373,33 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         
         // Handle successful payment
         console.log('🎉 Payment completed with ID:', result.paymentId);
+        
+        // Process the order with collected shipping information
+        if (result.payerInfo) {
+          console.log('📦 Processing order with shipping info:', result.payerInfo);
+          
+          // Create order with the collected information
+          try {
+            // You'll need to implement this function to create an order in your system
+            await createOrderFromBasePay({
+              paymentId: result.paymentId,
+              amount: totalAmount,
+              items: cart,
+              shippingInfo: result.payerInfo,
+              recipientAddress: recipientAddress
+            });
+            
+            console.log('✅ Order created successfully');
+          } catch (orderError) {
+            console.error('❌ Failed to create order:', orderError);
+            setCheckoutError('Payment successful but order creation failed. Please contact support.');
+            return;
+          }
+        } else {
+          console.log('❌ No shipping info collected - order cannot be processed');
+          setCheckoutError('Payment successful but shipping information is required for physical items. Please contact support.');
+          return;
+        }
         
         // Clear cart and show success
         clearCart();
