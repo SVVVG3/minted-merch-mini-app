@@ -224,10 +224,27 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Failed to save winner entries' });
     }
 
+    // Format winners for frontend response - ensure consistent structure
+    const formattedWinners = winners.map((winner, index) => {
+      // Handle different data structures from profiles vs user_leaderboard queries
+      const leaderboardData = winner.user_leaderboard?.[0] || winner.user_leaderboard || winner;
+      const userId = winner.user_fid || winner.fid;
+      
+      return {
+        user_fid: userId,
+        username: winner.username,
+        total_points: leaderboardData.total_points || 0,
+        checkin_streak: leaderboardData.checkin_streak || 0,
+        points_from_purchases: leaderboardData.points_from_purchases || 0,
+        total_orders: leaderboardData.total_orders || 0,
+        winner_position: index + 1
+      };
+    });
+
     return NextResponse.json({
       success: true,
       data: {
-        winners,
+        winners: formattedWinners,
         eligibleCount: filteredUsers.length,
         raffleId,
         timestamp: raffleTimestamp,
