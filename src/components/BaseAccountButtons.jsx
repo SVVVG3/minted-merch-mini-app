@@ -41,20 +41,23 @@ export const BasePayButton = ({ colorScheme = 'light', onClick, disabled = false
       type="button" 
       onClick={onClick}
       disabled={disabled}
-      className={`flex items-center justify-center px-4 py-3 rounded-lg cursor-pointer min-w-[180px] h-11 transition-colors ${className}`}
+      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg cursor-pointer font-medium text-sm min-w-[180px] h-11 transition-colors ${className}`}
       style={{
-        backgroundColor: isLight ? '#ffffff' : '#0000FF',
+        backgroundColor: isLight ? '#0000FF' : '#ffffff',
+        color: isLight ? '#ffffff' : '#0000FF',
         border: 'none',
-        fontFamily: 'system-ui, -apple-system, sans-serif'
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontWeight: '500'
       }}
     >
-      {/* Base Pay Logo */}
-      <img 
-        src={isLight ? '/images/base-account/BasePayBlueLogo.png' : '/images/base-account/BasePayWhiteLogo.png'} 
-        alt="Base Pay" 
-        className="h-5 w-auto"
-        style={{ height: '20px' }}
+      {/* Base Square Logo */}
+      <div 
+        className="w-4 h-4 rounded-sm flex-shrink-0"
+        style={{
+          backgroundColor: isLight ? '#ffffff' : '#0000FF'
+        }}
       />
+      <span>Pay with Base</span>
     </button>
   )
 }
