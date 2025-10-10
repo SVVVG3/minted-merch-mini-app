@@ -1,7 +1,6 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { useAccount, useConnect, useDisconnect } from 'wagmi'
 
 const BaseAccountContext = createContext({
   isBaseApp: false,
@@ -20,70 +19,65 @@ export function useBaseAccount() {
 }
 
 export function BaseAccountProvider({ children }) {
-  const { address, isConnected, connector } = useAccount()
-  const { connect, connectors } = useConnect()
-  const { disconnect } = useDisconnect()
-  
+  const [isBaseApp, setIsBaseApp] = useState(false)
+  const [baseAccount, setBaseAccount] = useState(null)
   const [baseProfile, setBaseProfile] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Check if we're using the Base Account connector
-  const isBaseApp = connector?.id === 'baseAccount'
-  const baseAccountConnector = connectors.find(c => c.id === 'baseAccount')
-
   useEffect(() => {
-    async function initBaseProfile() {
-      if (isBaseApp && isConnected && connector) {
+    async function initBaseAccount() {
+      try {
         setIsLoading(true)
         setError(null)
-        try {
-          console.log('🚀 Base Account connected, getting profile...')
+
+        // Check if Base Account SDK is available via CDN
+        if (typeof window !== 'undefined' && window.base && window.base.pay) {
+          setIsBaseApp(true)
+          setBaseAccount(window.base)
+          console.log('🚀 Base Account SDK available via CDN')
           
-          // Get profile from Base Account connector
-          if (connector.getProfile) {
-            const profile = await connector.getProfile()
-            setBaseProfile(profile)
-            console.log('👤 Base Account profile loaded:', {
-              hasEmail: !!profile?.email,
-              hasShippingAddress: !!profile?.shippingAddress,
-              hasPhone: !!profile?.phone
-            })
+          // Try to get profile if available
+          try {
+            if (window.base.getProfile) {
+              const profile = await window.base.getProfile()
+              setBaseProfile(profile)
+              console.log('👤 Base Account profile loaded:', {
+                hasEmail: !!profile?.email,
+                hasShippingAddress: !!profile?.shippingAddress,
+                hasPhone: !!profile?.phone
+              })
+            }
+          } catch (profileError) {
+            console.log('Profile not available:', profileError.message)
+            setBaseProfile(null)
           }
-        } catch (err) {
-          console.error('❌ Failed to get Base Account profile:', err)
-          setError(err.message)
+        } else {
+          setIsBaseApp(false)
+          setBaseAccount(null)
           setBaseProfile(null)
+          console.log('🔗 Base Account SDK not available, using standard flow')
         }
-        setIsLoading(false)
-      } else {
+      } catch (err) {
+        console.error('❌ Base Account initialization failed:', err)
+        setError(err.message)
+        setIsBaseApp(false)
+        setBaseAccount(null)
         setBaseProfile(null)
-        setError(null)
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    initBaseProfile()
-  }, [isBaseApp, isConnected, connector])
-
-  const connectBaseAccount = async () => {
-    if (baseAccountConnector) {
-      try {
-        await connect({ connector: baseAccountConnector })
-      } catch (error) {
-        console.error('Failed to connect Base Account:', error)
-        setError(error.message)
-      }
-    }
-  }
+    initBaseAccount()
+  }, [])
 
   const value = {
     isBaseApp,
-    baseAccount: isBaseApp ? connector : null,
+    baseAccount,
     baseProfile,
     isLoading,
-    error,
-    connectBaseAccount,
-    disconnect
+    error
   }
 
   return (
