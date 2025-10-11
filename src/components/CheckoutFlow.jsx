@@ -621,6 +621,9 @@ Transaction Hash: ${transactionHash}`;
         userFid = null;
       }
       
+      // Calculate the total that was actually paid (using the same logic as payment execution)
+      const paidTotal = calculateFinalTotal();
+      
       const orderData = {
         cartItems: cart.items,
         shippingAddress: shippingData,
@@ -642,7 +645,8 @@ Transaction Hash: ${transactionHash}`;
           code: appliedGiftCard.code,
           // Don't send amountUsed - server will calculate this
           balance: appliedGiftCard.balance
-        }] : []
+        }] : [],
+        total: paidTotal // CRITICAL: Total amount that was actually paid - used for payment reconciliation
       };
 
       const response = await fetch('/api/shopify/orders', {

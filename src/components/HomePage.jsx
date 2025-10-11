@@ -413,17 +413,18 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       console.log('Pending discount from URL:', pendingDiscount);
 
       // Check if user has notifications enabled (required for database discount auto-population)
+      // Use a lightweight profile check instead of the debug endpoint to avoid errors
       let hasNotifications = false;
       try {
-        const response = await fetch('/api/debug/notification-status-sync?' + new URLSearchParams({
+        const response = await fetch('/api/user/profile?' + new URLSearchParams({
           fid: fid.toString()
         }));
-        const statusData = await response.json();
-        hasNotifications = statusData.currentNeynarStatus || statusData.profile?.has_notifications || false;
+        const profileData = await response.json();
+        hasNotifications = profileData.profile?.has_notifications || false;
         console.log('User notification status:', hasNotifications);
       } catch (error) {
         console.warn('Could not check notification status:', error);
-        // Default to false if we can't check
+        // Default to false if we can't check - this is not critical
         hasNotifications = false;
       }
 
