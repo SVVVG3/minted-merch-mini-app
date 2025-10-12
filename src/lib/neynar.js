@@ -219,6 +219,7 @@ export async function fetchBulkUserProfiles(fids) {
 
 /**
  * Check if a user has notification tokens available via Neynar
+ * Returns separate status for Base app and Farcaster tokens
  */
 export async function checkUserNotificationStatus(targetFid) {
   try {
@@ -226,7 +227,12 @@ export async function checkUserNotificationStatus(targetFid) {
 
     if (!isNeynarAvailable()) {
       console.log('Neynar not available, cannot check notification status');
-      return { hasNotifications: false, error: 'Neynar not configured' };
+      return { 
+        hasNotifications: false, 
+        hasFarcasterNotifications: false,
+        hasBaseNotifications: false,
+        error: 'Neynar not configured' 
+      };
     }
 
     // Use the SDK to fetch notification tokens for this specific user
@@ -242,13 +248,30 @@ export async function checkUserNotificationStatus(targetFid) {
     const userTokens = tokens.filter(token => token.fid === targetFid);
     const activeTokens = userTokens.filter(token => token.status === 'enabled');
 
+    // Separate tokens by client type
+    // Neynar tokens have a 'client' field that indicates which app (farcaster, base, etc.)
+    const farcasterTokens = activeTokens.filter(token => 
+      !token.client || token.client === 'farcaster' || token.client === 'warpcast'
+    );
+    const baseTokens = activeTokens.filter(token => 
+      token.client === 'base' || token.client === 'base_app'
+    );
+
     console.log(`Found ${userTokens.length} total tokens, ${activeTokens.length} active tokens for FID ${targetFid}`);
+    console.log(`  - Farcaster tokens: ${farcasterTokens.length}`);
+    console.log(`  - Base app tokens: ${baseTokens.length}`);
 
     return {
       hasNotifications: activeTokens.length > 0,
+      hasFarcasterNotifications: farcasterTokens.length > 0,
+      hasBaseNotifications: baseTokens.length > 0,
       tokenCount: activeTokens.length,
+      farcasterTokenCount: farcasterTokens.length,
+      baseTokenCount: baseTokens.length,
       totalTokens: userTokens.length,
       tokens: activeTokens,
+      farcasterTokens: farcasterTokens,
+      baseTokens: baseTokens,
       allTokens: userTokens
     };
 
@@ -256,6 +279,8 @@ export async function checkUserNotificationStatus(targetFid) {
     console.error('❌ Error checking notification status:', error);
     return {
       hasNotifications: false,
+      hasFarcasterNotifications: false,
+      hasBaseNotifications: false,
       error: error.message
     };
   }

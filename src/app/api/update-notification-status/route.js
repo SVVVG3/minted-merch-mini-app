@@ -37,13 +37,30 @@ export async function POST(request) {
     }
 
     // If profile exists, update it
+    // IMPORTANT: Check BOTH Farcaster AND Base app tokens in Neynar
+    // Each user can have separate tokens for each client
     if (existingProfile) {
       console.log(`📝 Updating existing profile for FID ${fid}`);
+      
+      // Import the function to check notification status across all clients
+      const { checkUserNotificationStatus } = await import('@/lib/neynar');
+      
+      // Check if user has tokens in Neynar for BOTH clients
+      const tokenStatus = await checkUserNotificationStatus(fid);
+      
+      console.log(`🔍 Token status for FID ${fid}:`, {
+        farcaster: tokenStatus.hasFarcasterNotifications,
+        base: tokenStatus.hasBaseNotifications,
+        total: tokenStatus.tokenCount
+      });
       
       const { data, error } = await supabaseAdmin
         .from('profiles')
         .update({
-          has_notifications: enabled,
+          // has_notifications = Farcaster/Warpcast
+          has_notifications: tokenStatus.hasFarcasterNotifications,
+          // has_base_notifications = Base app
+          has_base_notifications: tokenStatus.hasBaseNotifications,
           notification_status_updated_at: new Date().toISOString(),
           notification_status_source: source
         })
@@ -58,12 +75,17 @@ export async function POST(request) {
         }, { status: 500 });
       }
       
-      console.log(`✅ Updated FID ${fid} notification status to ${enabled ? 'enabled' : 'disabled'}`);
+      console.log(`✅ Updated FID ${fid} notification status - Farcaster: ${tokenStatus.hasFarcasterNotifications}, Base: ${tokenStatus.hasBaseNotifications}`);
       
       return NextResponse.json({
         success: true,
-        message: `Notification status updated to ${enabled ? 'enabled' : 'disabled'}`,
+        message: `Notification status updated - Farcaster: ${tokenStatus.hasFarcasterNotifications}, Base: ${tokenStatus.hasBaseNotifications}`,
         profile: data[0],
+        tokenStatus: {
+          farcaster: tokenStatus.hasFarcasterNotifications,
+          base: tokenStatus.hasBaseNotifications,
+          total: tokenStatus.tokenCount
+        },
         timestamp: formatPSTTime()
       });
     }
