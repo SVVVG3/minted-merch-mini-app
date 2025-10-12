@@ -613,6 +613,13 @@ export function HomePage({ collection: initialCollection, products: initialProdu
             {/* Info Button - Show for everyone, positioned after leaderboard */}
             <InfoButton />
             
+            {/* Sign In Button - Only show when NOT authenticated and NOT in mini app */}
+            {!user && !isInFarcaster && isReady && (
+              <div className="w-24">
+                <SignInWithFarcaster />
+              </div>
+            )}
+            
             {/* Cart Button */}
             <button
               onClick={openCart}
@@ -666,19 +673,26 @@ export function HomePage({ collection: initialCollection, products: initialProdu
         </div>
       </header>
       
-      {/* Sign In Section - Only show when NOT in mini-app and NOT signed in */}
-      {!isInFarcaster && !user && isReady && (
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 px-4 py-8">
-          <div className="max-w-md mx-auto">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Welcome to Minted Merch
-              </h2>
-              <p className="text-gray-600">
-                Sign in with your Farcaster account to access your profile, check-ins, and exclusive discounts!
-              </p>
+      {/* Green Banner - Show different message based on auth status */}
+      {!isInFarcaster && (
+        <div className="bg-[#3eb489] text-white px-4 py-2 text-xs">
+          <div className="flex items-center justify-center">
+            <div className="text-center">
+              {!user && isReady ? (
+                <div>
+                  Sign in with your Farcaster account to access your profile, check-ins, and exclusive discounts!
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  <div>
+                    Spin the wheel daily to qualify for random raffles!
+                  </div>
+                  <div>
+                    Hold 50M+ $mintedmerch to become a Merch Mogul 🤌
+                  </div>
+                </div>
+              )}
             </div>
-            <SignInWithFarcaster />
           </div>
         </div>
       )}
