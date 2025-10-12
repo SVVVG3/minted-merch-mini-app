@@ -1,19 +1,28 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAccount, useConnect } from 'wagmi';
 
 /**
  * Hook to detect and auto-connect dGEN1 wallet
  * dGEN1 is an Android device with built-in Ethereum wallet
+ * 
+ * NOTE: This hook does NOT use Wagmi hooks to avoid WagmiProvider dependency issues
+ * It detects dGEN1 and connects directly via window.ethereum
  */
 export function useDgenWallet() {
-  const { isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
   const [isDgen, setIsDgen] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  // Client-side only rendering
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
+    // Don't run until mounted (client-side)
+    if (!mounted) return;
+
     async function checkForDgenWallet() {
       try {
         // Check if we're on Android
@@ -42,23 +51,21 @@ export function useDgenWallet() {
           console.log('🤖 dGEN1 wallet detected!');
           setIsDgen(true);
 
-          // Auto-connect to dGEN1 wallet if not already connected
-          if (!isConnected) {
+          // Auto-request accounts to connect wallet
+          // This is similar to what Wagmi does but without needing WagmiProvider
+          try {
             console.log('🔌 Auto-connecting to dGEN1 wallet...');
+            const accounts = await window.ethereum.request({ 
+              method: 'eth_requestAccounts' 
+            });
             
-            // Try to find injected connector (dGEN1 wallet)
-            const injectedConnector = connectors.find(
-              (c) => c.type === 'injected' || c.name.toLowerCase().includes('injected')
-            );
-
-            if (injectedConnector) {
-              try {
-                await connect({ connector: injectedConnector });
-                console.log('✅ Successfully connected to dGEN1 wallet');
-              } catch (error) {
-                console.error('❌ Failed to auto-connect dGEN1 wallet:', error);
-              }
+            if (accounts && accounts.length > 0) {
+              console.log('✅ Successfully connected to dGEN1 wallet:', accounts[0]);
+              // Wagmi will automatically detect this connection
             }
+          } catch (error) {
+            console.error('❌ Failed to auto-connect dGEN1 wallet:', error);
+            // User may have denied connection, that's ok
           }
         } else {
           console.log('ℹ️ Not a dGEN1 device');
@@ -71,7 +78,7 @@ export function useDgenWallet() {
     }
 
     checkForDgenWallet();
-  }, [isConnected, connect, connectors]);
+  }, [mounted]);
 
   return {
     isDgen,
