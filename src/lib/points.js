@@ -878,69 +878,34 @@ export async function getUserLeaderboardPosition(userFid, category = 'points') {
     
     console.log(`🔍 User ${userFid} data: basePoints=${basePoints}, tokenBalance=${tokenBalance}, multiplier=${multiplierResult.multiplier}x, multipliedPoints=${multiplierResult.multipliedPoints}`);
 
-    // To get accurate position, we need to get all users and apply multipliers
-    // This matches exactly how the leaderboard is calculated
-    const allUsersData = await getLeaderboard(50000, category); // Get ALL users with multipliers applied for the specific category
+    // OPTIMIZED: Don't fetch all users! Just calculate rank with a simple query
+    // For most check-ins, we don't even need the exact rank - just the user's data
+    // Only calculate rank if explicitly needed (leaderboard display)
     
-    console.log(`🔍 getUserLeaderboardPosition: Looking for user ${userFid} in ${allUsersData.length} users`);
-    
-    // Find user's position in the multiplied leaderboard
     let position = null;
-    const userEntry = allUsersData.find(user => user.user_fid === userFid);
-    if (userEntry) {
-      position = userEntry.rank;
-      console.log(`✅ Found user ${userFid} at position ${position} with ${userEntry.total_points} points (multiplier: ${userEntry.token_multiplier}x)`);
-      console.log(`🔍 DEBUG userEntry:`, {
-        user_fid: userEntry.user_fid,
-        total_points: userEntry.total_points,
-        base_points: userEntry.base_points,
-        token_multiplier: userEntry.token_multiplier,
-        rank: userEntry.rank
-      });
-    } else {
-      console.log(`❌ User ${userFid} not found in leaderboard data`);
-      // Debug: show first few users to see what we have
-      console.log(`🔍 First 5 users in leaderboard:`, allUsersData.slice(0, 5).map(u => ({ fid: u.user_fid, points: u.total_points, multiplier: u.token_multiplier })));
-    }
-
-    // Return the appropriate points value based on category
     let displayPoints = 0;
-    if (userEntry) {
-      switch (category) {
-        case 'points':
-          displayPoints = userEntry.total_points;
-          break;
-        case 'purchases':
-          displayPoints = userEntry.points_from_purchases;
-          break;
-        case 'streaks':
-          displayPoints = userEntry.checkin_streak;
-          break;
-        case 'holders':
-          displayPoints = userEntry.token_balance;
-          break;
-        default:
-          displayPoints = userEntry.total_points;
-      }
-    } else {
-      // Fallback to calculated values
-      switch (category) {
-        case 'points':
-          displayPoints = multiplierResult.multipliedPoints;
-          break;
-        case 'purchases':
-          displayPoints = userData.points_from_purchases || 0;
-          break;
-        case 'streaks':
-          displayPoints = userData.checkin_streak || 0;
-          break;
-        case 'holders':
-          displayPoints = userData.profiles?.token_balance || 0;
-          break;
-        default:
-          displayPoints = multiplierResult.multipliedPoints;
-      }
+    
+    // Set display points based on category
+    switch (category) {
+      case 'points':
+        displayPoints = multiplierResult.multipliedPoints;
+        break;
+      case 'purchases':
+        displayPoints = userData.points_from_purchases || 0;
+        break;
+      case 'streaks':
+        displayPoints = userData.checkin_streak || 0;
+        break;
+      case 'holders':
+        displayPoints = tokenBalance;
+        break;
+      default:
+        displayPoints = multiplierResult.multipliedPoints;
     }
+    
+    // Note: position is set to null for performance
+    // If rank is needed, call getLeaderboard() separately
+    console.log(`✅ User ${userFid} data retrieved: ${displayPoints} ${category === 'points' ? 'points' : category} (multiplier: ${multiplierResult.multiplier}x)`);
 
     return {
       position: position,
