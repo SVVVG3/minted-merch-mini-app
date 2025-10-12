@@ -592,6 +592,30 @@ export function HomePage({ collection: initialCollection, products: initialProdu
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Green Banner - Show different message based on auth status */}
+      {!isInFarcaster && (
+        <div className="bg-[#3eb489] text-white px-4 py-2 text-xs">
+          <div className="flex items-center justify-center">
+            <div className="text-center">
+              {!user && isReady ? (
+                <div>
+                  Sign in with your Farcaster account to access your profile, check-ins, and exclusive discounts!
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  <div>
+                    Spin the wheel daily to qualify for random raffles!
+                  </div>
+                  <div>
+                    Hold 50M+ $mintedmerch to become a Merch Mogul 🤌
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="px-2 py-1.5 flex items-center justify-between">
           {/* Logo */}
@@ -672,30 +696,6 @@ export function HomePage({ collection: initialCollection, products: initialProdu
           </div>
         </div>
       </header>
-      
-      {/* Green Banner - Show different message based on auth status */}
-      {!isInFarcaster && (
-        <div className="bg-[#3eb489] text-white px-4 py-2 text-xs">
-          <div className="flex items-center justify-center">
-            <div className="text-center">
-              {!user && isReady ? (
-                <div>
-                  Sign in with your Farcaster account to access your profile, check-ins, and exclusive discounts!
-                </div>
-              ) : (
-                <div className="space-y-0.5">
-                  <div>
-                    Spin the wheel daily to qualify for random raffles!
-                  </div>
-                  <div>
-                    Hold 50M+ $mintedmerch to become a Merch Mogul 🤌
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
       
       {/* Collection Selector Section */}
       <div className="bg-[#3eb489] px-4 py-1.5">
