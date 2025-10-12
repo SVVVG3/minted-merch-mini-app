@@ -604,11 +604,11 @@ export function HomePage({ collection: initialCollection, products: initialProdu
           </div>
           
           <div className="flex items-center space-x-2">
-            {/* Check-in Button - Only show in Farcaster */}
-            {isInFarcaster && <CheckInButton />}
+            {/* Check-in Button - Show for authenticated users (mini app OR AuthKit) */}
+            {user && <CheckInButton />}
             
-            {/* Leaderboard Button - Only show in Farcaster */}
-            {isInFarcaster && <LeaderboardButton />}
+            {/* Leaderboard Button - Show for authenticated users (mini app OR AuthKit) */}
+            {user && <LeaderboardButton />}
             
             {/* Info Button - Show for everyone, positioned after leaderboard */}
             <InfoButton />
@@ -633,18 +633,20 @@ export function HomePage({ collection: initialCollection, products: initialProdu
               </div>
             </button>
             
-            {/* Profile Picture - Only show in Farcaster */}
-            {isInFarcaster && user?.pfpUrl && (
+            {/* Profile Picture - Show for authenticated users (mini app OR AuthKit) */}
+            {user?.pfpUrl && (
               <button
                 onClick={async () => {
-                  // Add haptic feedback for profile picture selection
-                  try {
-                    const capabilities = await sdk.getCapabilities();
-                    if (capabilities.includes('haptics.selectionChanged')) {
-                      await sdk.haptics.selectionChanged();
+                  // Add haptic feedback for profile picture selection (only in mini app)
+                  if (isInFarcaster) {
+                    try {
+                      const capabilities = await sdk.getCapabilities();
+                      if (capabilities.includes('haptics.selectionChanged')) {
+                        await sdk.haptics.selectionChanged();
+                      }
+                    } catch (error) {
+                      console.log('Haptics not available:', error);
                     }
-                  } catch (error) {
-                    console.log('Haptics not available:', error);
                   }
                   
                   // Open profile modal directly
