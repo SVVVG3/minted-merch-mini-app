@@ -6,14 +6,14 @@ import { CheckInModal } from './CheckInModal';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 export function CheckInButton() {
-  const { isInFarcaster, isReady, getFid } = useFarcaster();
+  const { user, isReady, getFid } = useFarcaster();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userStatus, setUserStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load user's check-in status and points
   useEffect(() => {
-    if (!isInFarcaster || !isReady) {
+    if (!user || !isReady) {
       setIsLoading(false);
       return;
     }
@@ -25,7 +25,7 @@ export function CheckInButton() {
     }
 
     loadUserStatus(userFid);
-  }, [isInFarcaster, isReady]);
+  }, [user, isReady, getFid]);
 
   const loadUserStatus = async (userFid) => {
     try {
@@ -44,15 +44,17 @@ export function CheckInButton() {
   };
 
   const handleOpenModal = async () => {
-    // Add haptic feedback for check-in action
-    try {
-      const capabilities = await sdk.getCapabilities();
-      if (capabilities.includes('haptics.impactOccurred')) {
-        await sdk.haptics.impactOccurred('medium');
+    // Add haptic feedback for check-in action (only in mini app)
+    if (user && !user.isAuthKit) {
+      try {
+        const capabilities = await sdk.getCapabilities();
+        if (capabilities.includes('haptics.impactOccurred')) {
+          await sdk.haptics.impactOccurred('medium');
+        }
+      } catch (error) {
+        // Haptics not available, continue without feedback
+        console.log('Haptics not available:', error);
       }
-    } catch (error) {
-      // Haptics not available, continue without feedback
-      console.log('Haptics not available:', error);
     }
     
     setIsModalOpen(true);
@@ -64,7 +66,7 @@ export function CheckInButton() {
 
   const handleCheckInComplete = (result) => {
     // Reload user status after successful check-in
-    if (isInFarcaster && isReady) {
+    if (user && isReady) {
       const userFid = getFid();
       if (userFid) {
         loadUserStatus(userFid);
@@ -72,8 +74,8 @@ export function CheckInButton() {
     }
   };
 
-  // Don't show button if not in Farcaster
-  if (!isInFarcaster || !isReady) {
+  // Don't show button if not authenticated
+  if (!user || !isReady) {
     return null;
   }
 
