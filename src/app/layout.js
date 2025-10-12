@@ -1,4 +1,4 @@
-import localFont from "next/font/local";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 // import "@neynar/react/dist/style.css";
 import { FrameInit } from "@/components/FrameInit";
@@ -13,16 +13,14 @@ import { BaseAccountProvider } from "@/components/BaseAccountProvider";
 import { AuthKitProvider } from "@/components/AuthKitProvider";
 // import { MiniAppProvider } from '@neynar/react';
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
+const geistSans = Geist({
   variable: "--font-geist-sans",
-  weight: "100 900",
+  subsets: ["latin"],
 });
 
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
+const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
-  weight: "100 900",
+  subsets: ["latin"],
 });
 
 export const metadata = {
