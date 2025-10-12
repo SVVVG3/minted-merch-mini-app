@@ -8,18 +8,17 @@ import { AuthKitProvider as FarcasterAuthKitProvider } from '@farcaster/auth-kit
  */
 export function AuthKitProvider({ children }) {
   const config = {
-    // Your app's domain
-    domain: 'app.mintedmerch.shop',
-    
-    // Your app's Farcaster App ID (same as in your manifest)
-    // You'll need to get this from https://warpcast.com/~/developers
-    siweUri: 'https://app.mintedmerch.shop',
-    
-    // Relay server for AuthKit
+    // Relay server for AuthKit (required)
     relay: 'https://relay.farcaster.xyz',
     
-    // Redirect URL after sign-in
+    // RPC URL for Optimism Mainnet (required for SIWE)
     rpcUrl: 'https://mainnet.optimism.io',
+    
+    // Your app's domain (for SIWE)
+    domain: 'app.mintedmerch.shop',
+    
+    // SIWE URI (the full URL of your app)
+    siweUri: 'https://app.mintedmerch.shop',
     
     // Version
     version: 'v1',

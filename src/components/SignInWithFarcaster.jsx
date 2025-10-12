@@ -39,14 +39,33 @@ export function SignInWithFarcaster({ onSignIn }) {
   useEffect(() => {
     if (isSuccess && validSignature && data) {
       console.log('✅ Farcaster AuthKit sign-in successful:', data);
+      console.log('User FID:', data.fid);
+      console.log('Username:', data.username);
       
       // Close modal on success
       setShowModal(false);
+      
+      // Force a small delay to ensure profile state updates
+      setTimeout(() => {
+        console.log('Authentication complete, profile should update now');
+      }, 100);
       
       // The profile will be automatically updated via useProfile hook
       // which will trigger the useFarcaster hook to update
     }
   }, [isSuccess, validSignature, data]);
+
+  // Log authentication state for debugging
+  useEffect(() => {
+    console.log('AuthKit State:', {
+      isAuthenticated,
+      hasProfile: !!profile,
+      isSuccess,
+      validSignature,
+      hasData: !!data,
+      showModal
+    });
+  }, [isAuthenticated, profile, isSuccess, validSignature, data, showModal]);
 
   // Handle errors
   useEffect(() => {
@@ -134,69 +153,56 @@ export function SignInWithFarcaster({ onSignIn }) {
       <button
         onClick={handleSignIn}
         disabled={!isClient}
-        className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+        className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-[#8A63D2] hover:bg-[#7C5BC7] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 1000 1000"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="flex-shrink-0"
-        >
-          <rect width="1000" height="1000" rx="200" fill="currentColor"/>
-          <path
-            d="M257.778 155.556H742.222V844.444H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.444H257.778V155.556Z"
-            fill="white"
-          />
-          <path
-            d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.444H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"
-            fill="white"
-          />
-          <path
-            d="M871.111 253.333L842.222 351.111H817.778V746.667C830.051 746.667 840 756.616 840 768.889V795.556H844.444C856.717 795.556 866.667 805.505 866.667 817.778V844.444H617.778V817.778C617.778 805.505 627.727 795.556 640 795.556H644.444V768.889C644.444 756.616 654.394 746.667 666.667 746.667H693.333V253.333H871.111Z"
-            fill="white"
-          />
+        {/* Farcaster Arch Logo */}
+        <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
+          <path d="M257.778 155.556H742.222V844.445H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.445H257.778V155.556Z"/>
+          <path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.445H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/>
+          <path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.445H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/>
         </svg>
-        Sign in with Farcaster
+        Sign in
       </button>
 
       {/* Modal with QR code */}
       {showModal && url && channelToken && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={handleCancel}>
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-8 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Close button */}
             <button
               onClick={handleCancel}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
 
-            <div className="text-center">
+            <div className="text-center mb-4">
               <h3 className="text-xl font-bold text-gray-900 mb-2">
                 Sign in with Farcaster
               </h3>
-              <p className="text-sm text-gray-600 mb-6">
+              <p className="text-sm text-gray-600">
                 Scan this QR code with your phone's camera or Warpcast app
               </p>
             </div>
             
-            {/* QR Code iframe */}
+            {/* QR Code iframe - larger size */}
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
               <iframe
                 src={url}
                 title="Farcaster Sign In"
-                className="w-full h-80 border-0"
+                className="w-full h-[500px] border-0"
                 allow="camera; publickey-credentials-get *"
               />
             </div>
 
             <button
               onClick={handleCancel}
-              className="w-full mt-4 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="w-full mt-4 px-4 py-3 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
