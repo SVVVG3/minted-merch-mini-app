@@ -9,6 +9,7 @@ import { InfoButton } from './InfoButton';
 import { ProfileModal } from './ProfileModal';
 import { CollectionSelector } from './CollectionSelector';
 import { SignInWithFarcaster } from './SignInWithFarcaster';
+import { ConnectWalletButton } from './ConnectWalletButton';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
@@ -633,6 +634,9 @@ export function HomePage({ collection: initialCollection, products: initialProdu
             
             {/* Leaderboard Button - Show for authenticated users (mini app OR AuthKit) */}
             {user && <LeaderboardButton />}
+            
+            {/* Connect Wallet Button - Only show when NOT in mini app */}
+            {!isInFarcaster && <ConnectWalletButton />}
             
             {/* Sign In Button - Only show when NOT authenticated and NOT in mini app */}
             {!user && !isInFarcaster && isReady && (

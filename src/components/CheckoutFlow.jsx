@@ -878,12 +878,7 @@ Transaction Hash: ${transactionHash}`;
     <>
       {/* Checkout Button */}
       {!isConnected ? (
-        <button
-          disabled
-          className="w-full bg-gray-400 cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg"
-        >
-          Connect Wallet to Pay
-        </button>
+        <w3m-button />
               ) : isBaseApp && baseAccountSDK ? (
         // Always show the branded green checkout button in cart
         <div className="w-full space-y-2">
