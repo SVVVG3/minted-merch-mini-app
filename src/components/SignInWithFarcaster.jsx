@@ -84,19 +84,26 @@ export function SignInWithFarcaster({ onSignIn }) {
   const handleSignIn = useCallback(async () => {
     console.log('🔐 Initiating Farcaster sign-in...');
     
-    // Show modal
-    setShowModal(true);
-    
-    // Reset any previous state
-    signOut();
-    
-    // Start sign-in flow
-    const signInResult = await signIn();
-    console.log('Sign-in initiated:', signInResult);
-    
-    // Connect to the relay
-    connect();
-  }, [signIn, signOut, connect]);
+    try {
+      // Show modal first
+      setShowModal(true);
+      
+      // Small delay to ensure modal is rendered
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Start sign-in flow - this generates the QR code
+      console.log('Calling signIn()...');
+      await signIn();
+      
+      console.log('SignIn called, QR should be visible');
+      
+      // The connect() is automatically called by the hook
+      // We don't need to call it manually
+    } catch (error) {
+      console.error('Sign-in error:', error);
+      setShowModal(false);
+    }
+  }, [signIn]);
 
   const handleCancel = useCallback(() => {
     console.log('❌ Sign-in cancelled');
