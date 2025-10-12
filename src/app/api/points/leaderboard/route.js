@@ -1,7 +1,7 @@
 // API endpoint for leaderboard data
 import { getLeaderboard, getUserLeaderboardPosition } from '../../../../lib/points.js';
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { setUserContext } from '@/lib/auth';
 
 export async function GET(request) {
@@ -43,9 +43,62 @@ export async function GET(request) {
     if (userFid) {
       const fid = parseInt(userFid);
       if (!isNaN(fid) && fid > 0) {
-      console.log(`🚨 API CALL: Getting user position for FID ${fid} in category ${category}`);
-      userPosition = await getUserLeaderboardPosition(fid, category);
-      console.log(`🚨 API RESULT: User position result:`, userPosition);
+        console.log(`🚨 API CALL: Getting user data and position for FID ${fid} in category ${category}`);
+        
+        // Get user's data (fast - just their row)
+        const userData = await getUserLeaderboardPosition(fid, category);
+        
+        // Calculate their actual position by counting how many users have higher values
+        // This is MUCH faster than fetching all users
+        let position = null;
+        
+        try {
+          const userValue = category === 'points' 
+            ? userData.totalPoints || 0
+            : category === 'streaks'
+            ? userData.checkin_streak || 0
+            : category === 'purchases'
+            ? userData.pointsFromPurchases || 0
+            : category === 'spending'
+            ? userData.totalSpent || 0
+            : 0;
+          
+          // Count how many users have a higher value
+          let countQuery = supabaseAdmin
+            .from('user_leaderboard')
+            .select('user_fid', { count: 'exact', head: true });
+          
+          // Add the appropriate filter based on category
+          if (category === 'points') {
+            countQuery = countQuery.gt('total_points', userValue);
+          } else if (category === 'streaks') {
+            countQuery = countQuery.gt('checkin_streak', userValue);
+          } else if (category === 'purchases') {
+            countQuery = countQuery
+              .gt('total_orders', 0)
+              .gt('points_from_purchases', userValue);
+          } else if (category === 'spending') {
+            countQuery = countQuery.gt('total_spent', userValue);
+          }
+          
+          const { count, error } = await countQuery;
+          
+          if (!error && count !== null) {
+            position = count + 1; // Their position is count of users above them + 1
+            console.log(`✅ User position calculated: ${position} (${count} users ranked higher)`);
+          } else {
+            console.error('Error counting users:', error);
+          }
+        } catch (error) {
+          console.error('Error calculating position:', error);
+        }
+        
+        userPosition = {
+          ...userData,
+          position: position
+        };
+        
+        console.log(`🚨 API RESULT: User position result:`, userPosition);
       }
     }
 
