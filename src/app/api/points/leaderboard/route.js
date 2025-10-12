@@ -48,55 +48,41 @@ export async function GET(request) {
         // Get user's data (fast - just their row)
         const userData = await getUserLeaderboardPosition(fid, category);
         
-        // Calculate their actual position by counting how many users have higher values
-        // This is MUCH faster than fetching all users
-        let position = null;
+        // Check if user is in the displayed leaderboard
+        const userInLeaderboard = leaderboard.find(user => user.user_fid === fid);
         
-        try {
-          const userValue = category === 'points' 
-            ? userData.totalPoints || 0
-            : category === 'streaks'
-            ? userData.checkin_streak || 0
-            : category === 'purchases'
-            ? userData.pointsFromPurchases || 0
-            : category === 'spending'
-            ? userData.totalSpent || 0
-            : 0;
+        if (userInLeaderboard) {
+          // User is in top results - use their rank from the leaderboard
+          const position = userInLeaderboard.rank;
+          userPosition = {
+            ...userData,
+            position: position
+          };
+          console.log(`✅ User found in top ${limit}: position ${position}`);
+        } else {
+          // User not in top results - need to calculate position
+          // For accurate position with multipliers, we need to fetch more users
+          // Fetch a larger leaderboard to find their position
+          console.log(`📊 User not in top ${limit}, fetching larger leaderboard to find position...`);
+          const fullLeaderboard = await getLeaderboard(10000, category);
+          const userInFullLeaderboard = fullLeaderboard.find(user => user.user_fid === fid);
           
-          // Count how many users have a higher value
-          let countQuery = supabaseAdmin
-            .from('user_leaderboard')
-            .select('user_fid', { count: 'exact', head: true });
-          
-          // Add the appropriate filter based on category
-          if (category === 'points') {
-            countQuery = countQuery.gt('total_points', userValue);
-          } else if (category === 'streaks') {
-            countQuery = countQuery.gt('checkin_streak', userValue);
-          } else if (category === 'purchases') {
-            countQuery = countQuery
-              .gt('total_orders', 0)
-              .gt('points_from_purchases', userValue);
-          } else if (category === 'spending') {
-            countQuery = countQuery.gt('total_spent', userValue);
-          }
-          
-          const { count, error } = await countQuery;
-          
-          if (!error && count !== null) {
-            position = count + 1; // Their position is count of users above them + 1
-            console.log(`✅ User position calculated: ${position} (${count} users ranked higher)`);
+          if (userInFullLeaderboard) {
+            const position = userInFullLeaderboard.rank;
+            userPosition = {
+              ...userData,
+              position: position
+            };
+            console.log(`✅ User found in extended leaderboard: position ${position}`);
           } else {
-            console.error('Error counting users:', error);
+            // User not found even in extended leaderboard - return data without position
+            userPosition = {
+              ...userData,
+              position: null
+            };
+            console.log(`ℹ️ User not found in top 10,000, position unknown`);
           }
-        } catch (error) {
-          console.error('Error calculating position:', error);
         }
-        
-        userPosition = {
-          ...userData,
-          position: position
-        };
         
         console.log(`🚨 API RESULT: User position result:`, userPosition);
       }

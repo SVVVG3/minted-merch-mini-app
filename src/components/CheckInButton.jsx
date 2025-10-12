@@ -18,14 +18,14 @@ export function CheckInButton() {
       return;
     }
     
-    const userFid = getFid();
+    const userFid = user.fid;
     if (!userFid) {
       setIsLoading(false);
       return;
     }
 
     loadUserStatus(userFid);
-  }, [user, isReady, getFid]);
+  }, [user, isReady]); // Removed getFid from dependencies to prevent infinite loop
 
   const loadUserStatus = async (userFid) => {
     try {
