@@ -12,6 +12,7 @@ import { SignInWithFarcaster } from './SignInWithFarcaster';
 import { ConnectWalletButton } from './ConnectWalletButton';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { useDgenWallet } from '@/lib/useDgenWallet';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
 import { getBestAvailableDiscount, hasDiscountOfType } from '@/lib/discounts';
 import { sdk } from '@farcaster/miniapp-sdk';
@@ -22,6 +23,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 export function HomePage({ collection: initialCollection, products: initialProducts }) {
   const { itemCount, cartTotal } = useCart();
   const { isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user, context, hasNotifications, getNotificationDetails } = useFarcaster();
+  const { isDgen, isChecking: isDgenChecking } = useDgenWallet(); // Auto-connect dGEN1 wallet
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [notificationContext, setNotificationContext] = useState(null);
