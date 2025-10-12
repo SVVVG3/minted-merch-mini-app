@@ -248,23 +248,31 @@ export async function checkUserNotificationStatus(targetFid) {
     const userTokens = tokens.filter(token => token.fid === targetFid);
     const activeTokens = userTokens.filter(token => token.status === 'enabled');
 
-    console.log(`Found ${userTokens.length} total tokens, ${activeTokens.length} active tokens for FID ${targetFid}`);
+    // Separate tokens by URL - this indicates which client they're for
+    // Farcaster/Warpcast: https://api.farcaster.xyz/v1/frame-notifications
+    // Base app: https://api.neynar.com/f/app_host/notify
+    const farcasterTokens = activeTokens.filter(token => 
+      token.url && token.url.includes('api.farcaster.xyz')
+    );
+    const baseTokens = activeTokens.filter(token => 
+      token.url && token.url.includes('api.neynar.com/f/app_host')
+    );
 
-    // IMPORTANT DISCOVERY: Neynar tokens don't have a 'client' field
-    // One token works for ALL clients (Farcaster, Base app, etc.)
-    // When you send a notification via Neynar, it goes to all clients where user has mini app
-    const hasAnyActiveToken = activeTokens.length > 0;
+    console.log(`Found ${userTokens.length} total tokens, ${activeTokens.length} active tokens for FID ${targetFid}`);
+    console.log(`  - Farcaster tokens (api.farcaster.xyz): ${farcasterTokens.length}`);
+    console.log(`  - Base app tokens (api.neynar.com/f/app_host): ${baseTokens.length}`);
 
     return {
-      hasNotifications: hasAnyActiveToken,
-      // Both are the same - one token serves all clients
-      hasFarcasterNotifications: hasAnyActiveToken,
-      hasBaseNotifications: hasAnyActiveToken,
+      hasNotifications: activeTokens.length > 0,
+      hasFarcasterNotifications: farcasterTokens.length > 0,
+      hasBaseNotifications: baseTokens.length > 0,
       tokenCount: activeTokens.length,
-      farcasterTokenCount: activeTokens.length,
-      baseTokenCount: activeTokens.length,
+      farcasterTokenCount: farcasterTokens.length,
+      baseTokenCount: baseTokens.length,
       totalTokens: userTokens.length,
       tokens: activeTokens,
+      farcasterTokens: farcasterTokens,
+      baseTokens: baseTokens,
       allTokens: userTokens
     };
 
