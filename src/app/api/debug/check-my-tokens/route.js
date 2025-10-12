@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { checkUserNotificationStatus } from '@/lib/neynar';
+import { neynarClient } from '@/lib/neynar';
 
 export async function GET(request) {
   try {
@@ -13,38 +13,41 @@ export async function GET(request) {
       }, { status: 400 });
     }
 
-    console.log(`🔍 Checking notification tokens for FID ${fid}...`);
+    console.log(`🔍 Checking RAW notification tokens for FID ${fid}...`);
 
-    // Get the raw token data from Neynar
-    const tokenStatus = await checkUserNotificationStatus(parseInt(fid));
+    // Get RAW token data directly from Neynar SDK
+    const response = await neynarClient.fetchNotificationTokens({
+      fids: fid.toString(),
+      limit: 100
+    });
 
-    // Return all the details so we can see what's in Neynar
+    console.log('RAW Neynar response:', JSON.stringify(response, null, 2));
+
+    const tokens = response.notification_tokens || [];
+    const userTokens = tokens.filter(token => token.fid === parseInt(fid));
+    const activeTokens = userTokens.filter(token => token.status === 'enabled');
+
+    // Return ALL fields from the token object so we can see everything
     return NextResponse.json({
       success: true,
       fid: parseInt(fid),
       summary: {
-        hasAnyNotifications: tokenStatus.hasNotifications,
-        hasFarcasterNotifications: tokenStatus.hasFarcasterNotifications,
-        hasBaseNotifications: tokenStatus.hasBaseNotifications,
-        totalActiveTokens: tokenStatus.tokenCount,
-        farcasterTokenCount: tokenStatus.farcasterTokenCount,
-        baseTokenCount: tokenStatus.baseTokenCount
+        totalTokens: userTokens.length,
+        activeTokens: activeTokens.length,
+        disabledTokens: userTokens.length - activeTokens.length
       },
-      allTokens: tokenStatus.allTokens?.map(token => ({
-        fid: token.fid,
-        status: token.status,
-        client: token.client || 'UNKNOWN',
-        created_at: token.created_at,
-        // Don't expose the actual token for security
-        hasToken: !!token.token
-      })) || [],
-      activeTokens: tokenStatus.tokens?.map(token => ({
-        fid: token.fid,
-        status: token.status,
-        client: token.client || 'UNKNOWN',
-        created_at: token.created_at
-      })) || [],
-      error: tokenStatus.error || null,
+      allTokensRaw: userTokens.map(token => ({
+        ...token,
+        // Mask the actual token value for security
+        token: token.token ? `${token.token.substring(0, 10)}...` : null
+      })),
+      activeTokensRaw: activeTokens.map(token => ({
+        ...token,
+        // Mask the actual token value for security
+        token: token.token ? `${token.token.substring(0, 10)}...` : null
+      })),
+      rawResponseKeys: Object.keys(response),
+      firstTokenKeys: userTokens.length > 0 ? Object.keys(userTokens[0]) : [],
       timestamp: new Date().toISOString()
     });
 
@@ -52,7 +55,8 @@ export async function GET(request) {
     console.error('❌ Error checking tokens:', error);
     return NextResponse.json({
       success: false,
-      error: error.message
+      error: error.message,
+      stack: error.stack
     }, { status: 500 });
   }
 }

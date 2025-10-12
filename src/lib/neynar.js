@@ -248,30 +248,23 @@ export async function checkUserNotificationStatus(targetFid) {
     const userTokens = tokens.filter(token => token.fid === targetFid);
     const activeTokens = userTokens.filter(token => token.status === 'enabled');
 
-    // Separate tokens by client type
-    // Neynar tokens have a 'client' field that indicates which app (farcaster, base, etc.)
-    const farcasterTokens = activeTokens.filter(token => 
-      !token.client || token.client === 'farcaster' || token.client === 'warpcast'
-    );
-    const baseTokens = activeTokens.filter(token => 
-      token.client === 'base' || token.client === 'base_app'
-    );
-
     console.log(`Found ${userTokens.length} total tokens, ${activeTokens.length} active tokens for FID ${targetFid}`);
-    console.log(`  - Farcaster tokens: ${farcasterTokens.length}`);
-    console.log(`  - Base app tokens: ${baseTokens.length}`);
+
+    // IMPORTANT DISCOVERY: Neynar tokens don't have a 'client' field
+    // One token works for ALL clients (Farcaster, Base app, etc.)
+    // When you send a notification via Neynar, it goes to all clients where user has mini app
+    const hasAnyActiveToken = activeTokens.length > 0;
 
     return {
-      hasNotifications: activeTokens.length > 0,
-      hasFarcasterNotifications: farcasterTokens.length > 0,
-      hasBaseNotifications: baseTokens.length > 0,
+      hasNotifications: hasAnyActiveToken,
+      // Both are the same - one token serves all clients
+      hasFarcasterNotifications: hasAnyActiveToken,
+      hasBaseNotifications: hasAnyActiveToken,
       tokenCount: activeTokens.length,
-      farcasterTokenCount: farcasterTokens.length,
-      baseTokenCount: baseTokens.length,
+      farcasterTokenCount: activeTokens.length,
+      baseTokenCount: activeTokens.length,
       totalTokens: userTokens.length,
       tokens: activeTokens,
-      farcasterTokens: farcasterTokens,
-      baseTokens: baseTokens,
       allTokens: userTokens
     };
 
