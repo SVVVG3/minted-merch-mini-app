@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { setUserContext } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { formatPSTTime } from '../../../lib/timezone.js';
 
 export async function POST(request) {
@@ -16,65 +16,84 @@ export async function POST(request) {
       }, { status: 400 });
     }
     
-    // 🔒 SECURITY: Set user context for RLS policies
-    await setUserContext(fid);
-
-    // Update the user's notification status in the database
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({
-        has_notifications: enabled,
-        notification_status_updated_at: new Date().toISOString(),
-        notification_status_source: source
-      })
-      .eq('fid', fid)
-      .select();
+    // Use supabaseAdmin to bypass RLS for system notification updates
+    // This is a system operation triggered by Farcaster/Base app events
     
-    if (error) {
-      console.error('❌ Error updating notification status:', error);
+    // First, check if profile exists
+    const { data: existingProfile, error: checkError } = await supabaseAdmin
+      .from('profiles')
+      .select('fid')
+      .eq('fid', fid)
+      .single();
+    
+    if (checkError && checkError.code !== 'PGRST116') {
+      // PGRST116 = not found, which is fine (we'll create it)
+      // Any other error is a problem
+      console.error('❌ Error checking profile:', checkError);
       return NextResponse.json({
         success: false,
-        error: error.message
+        error: checkError.message
       }, { status: 500 });
     }
-    
-    // If user doesn't exist, create profile
-    if (!data || data.length === 0) {
-      console.log(`👤 Creating new profile for FID ${fid} with notification status: ${enabled}`);
+
+    // If profile exists, update it
+    if (existingProfile) {
+      console.log(`📝 Updating existing profile for FID ${fid}`);
       
-      const { data: newProfile, error: createError } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('profiles')
-        .insert({
-          fid: fid,
+        .update({
           has_notifications: enabled,
           notification_status_updated_at: new Date().toISOString(),
           notification_status_source: source
         })
+        .eq('fid', fid)
         .select();
       
-      if (createError) {
-        console.error('❌ Error creating profile:', createError);
+      if (error) {
+        console.error('❌ Error updating notification status:', error);
         return NextResponse.json({
           success: false,
-          error: createError.message
+          error: error.message
         }, { status: 500 });
       }
       
-      console.log(`✅ Created new profile for FID ${fid}`);
+      console.log(`✅ Updated FID ${fid} notification status to ${enabled ? 'enabled' : 'disabled'}`);
+      
       return NextResponse.json({
         success: true,
-        message: `Profile created with notifications ${enabled ? 'enabled' : 'disabled'}`,
-        profile: newProfile[0],
+        message: `Notification status updated to ${enabled ? 'enabled' : 'disabled'}`,
+        profile: data[0],
         timestamp: formatPSTTime()
       });
     }
     
-    console.log(`✅ Updated FID ${fid} notification status to ${enabled ? 'enabled' : 'disabled'}`);
+    // If profile doesn't exist, create it
+    console.log(`👤 Creating new profile for FID ${fid} with notification status: ${enabled}`);
     
+    const { data: newProfile, error: createError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        fid: fid,
+        has_notifications: enabled,
+        notification_status_updated_at: new Date().toISOString(),
+        notification_status_source: source
+      })
+      .select();
+    
+    if (createError) {
+      console.error('❌ Error creating profile:', createError);
+      return NextResponse.json({
+        success: false,
+        error: createError.message
+      }, { status: 500 });
+    }
+    
+    console.log(`✅ Created new profile for FID ${fid}`);
     return NextResponse.json({
       success: true,
-      message: `Notification status updated to ${enabled ? 'enabled' : 'disabled'}`,
-      profile: data[0],
+      message: `Profile created with notifications ${enabled ? 'enabled' : 'disabled'}`,
+      profile: newProfile[0],
       timestamp: formatPSTTime()
     });
     
