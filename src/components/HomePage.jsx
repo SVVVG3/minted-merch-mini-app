@@ -634,15 +634,15 @@ export function HomePage({ collection: initialCollection, products: initialProdu
             {/* Leaderboard Button - Show for authenticated users (mini app OR AuthKit) */}
             {user && <LeaderboardButton />}
             
-            {/* Info Button - Show for everyone, positioned after leaderboard */}
-            <InfoButton />
-            
             {/* Sign In Button - Only show when NOT authenticated and NOT in mini app */}
             {!user && !isInFarcaster && isReady && (
               <div className="w-24">
                 <SignInWithFarcaster />
               </div>
             )}
+            
+            {/* Info Button - Show for everyone, positioned after sign in */}
+            <InfoButton />
             
             {/* Cart Button */}
             <button

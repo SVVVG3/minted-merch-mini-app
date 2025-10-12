@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Roboto } from "next/font/google";
 import "./globals.css";
 // import "@neynar/react/dist/style.css";
 import { FrameInit } from "@/components/FrameInit";
@@ -13,14 +13,11 @@ import { BaseAccountProvider } from "@/components/BaseAccountProvider";
 import { AuthKitProvider } from "@/components/AuthKitProvider";
 // import { MiniAppProvider } from '@neynar/react';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const roboto = Roboto({
+  weight: ['300', '400', '500', '700'],
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: "--font-roboto",
+  display: 'swap',
 });
 
 export const metadata = {
@@ -36,7 +33,7 @@ export default function RootLayout({ children }) {
         {/* Base Account SDK is now loaded via Wagmi connector */}
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${roboto.variable} antialiased`}
       >
         <GoogleMapsScript />
         <FrameInit />
