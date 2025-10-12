@@ -473,13 +473,12 @@ export async function getLeaderboard(limit = 10, category = 'points') {
   try {
     console.log(`🔍 getLeaderboard called with limit: ${limit}, category: ${category}`);
     
-    // For accurate rankings with token multipliers, we need to fetch more users than requested
-    // because someone with lower base points but high multiplier might rank higher
-    const needsLargerDataset = limit <= 1000;
-    const isAdminRequest = limit > 1000;
+    // Use comprehensive pagination for large requests (limit > 1000)
+    // This includes admin dashboard requests AND getUserLeaderboardPosition calls
+    const needsComprehensivePagination = limit > 1000;
     
-    if (isAdminRequest || needsLargerDataset) {
-      console.log(`🏆 ${isAdminRequest ? 'Admin request' : 'Mini app request'} detected - using comprehensive pagination like admin dashboard`);
+    if (needsComprehensivePagination) {
+      console.log(`🏆 Large request detected (limit: ${limit}) - using comprehensive pagination`);
       
       // Use the same pagination approach as admin dashboard to get ALL users
       let allData = [];
@@ -545,9 +544,9 @@ export async function getLeaderboard(limit = 10, category = 'points') {
           hasMoreData = false;
         }
 
-        // For mini app, we can limit total fetch to reasonable amount
-        if (!isAdminRequest && allData.length >= 10000) {
-          console.log(`📊 Mini app: Fetched ${allData.length} users, stopping for performance`);
+        // For non-admin requests, we can limit total fetch to reasonable amount
+        if (limit < 50000 && allData.length >= 10000) {
+          console.log(`📊 Non-admin request: Fetched ${allData.length} users, stopping for performance`);
           hasMoreData = false;
         }
       }
@@ -620,7 +619,7 @@ export async function getLeaderboard(limit = 10, category = 'points') {
       // Return up to the requested limit
       const finalUsers = finalData.slice(0, limit);
       
-      console.log(`📊 getLeaderboard returned ${finalUsers.length} users for ${isAdminRequest ? 'admin' : 'mini app'} request with accurate global rankings`);
+      console.log(`📊 getLeaderboard returned ${finalUsers.length} users for large request (limit: ${limit}) with accurate global rankings`);
       
       return finalUsers;
     }
