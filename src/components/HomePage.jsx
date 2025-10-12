@@ -8,6 +8,7 @@ import { LeaderboardButton } from './LeaderboardButton';
 import { InfoButton } from './InfoButton';
 import { ProfileModal } from './ProfileModal';
 import { CollectionSelector } from './CollectionSelector';
+import { SignInWithFarcaster } from './SignInWithFarcaster';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
@@ -662,6 +663,23 @@ export function HomePage({ collection: initialCollection, products: initialProdu
           </div>
         </div>
       </header>
+      
+      {/* Sign In Section - Only show when NOT in mini-app and NOT signed in */}
+      {!isInFarcaster && !user && isReady && (
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 px-4 py-8">
+          <div className="max-w-md mx-auto">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Welcome to Minted Merch
+              </h2>
+              <p className="text-gray-600">
+                Sign in with your Farcaster account to access your profile, check-ins, and exclusive discounts!
+              </p>
+            </div>
+            <SignInWithFarcaster />
+          </div>
+        </div>
+      )}
       
       {/* Collection Selector Section */}
       <div className="bg-[#3eb489] px-4 py-1.5">
