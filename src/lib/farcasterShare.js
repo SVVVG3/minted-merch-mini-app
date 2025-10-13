@@ -134,29 +134,24 @@ export async function shareLeaderboardPosition({
 }) {
   const positionText = position === 1 ? '1st' : position === 2 ? '2nd' : position === 3 ? '3rd' : `${position}th`;
   
-  // Build OG image URL with all parameters
-  const ogImageParams = new URLSearchParams({
-    position: position.toString(),
-    points: totalPoints.toString(),
-    username: username,
-    multiplier: multiplier.toString(),
-    tier: tier,
+  // Build leaderboard page URL with user FID and category
+  // This will trigger the generateMetadata in /leaderboard/page.js which creates the mini app embed
+  const leaderboardParams = new URLSearchParams({
+    user: fid.toString(),
     category: category,
-    tokenBalance: tokenBalance.toString(),
+    t: Date.now().toString() // Cache busting
   });
   
-  // Add profile picture if available
-  if (pfp) {
-    ogImageParams.set('pfp', pfp);
-  }
+  const leaderboardUrl = `${window.location.origin}/leaderboard?${leaderboardParams.toString()}`;
   
-  const ogImageUrl = `${window.location.origin}/api/og/leaderboard?${ogImageParams.toString()}`;
+  console.log('🔗 Sharing leaderboard URL:', leaderboardUrl);
+  console.log('📊 Leaderboard share data:', { position, totalPoints, username, multiplier, tier, pfp, tokenBalance, fid });
   
   const shareText = `I'm currently ranked ${positionText} place on the @mintedmerch mini app leaderboard!\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
   
   return shareToFarcaster({
     text: shareText,
-    embeds: [ogImageUrl],
+    embeds: [leaderboardUrl],
     isInFarcaster,
   });
 }
