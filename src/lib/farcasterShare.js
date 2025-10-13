@@ -36,10 +36,10 @@ export async function shareToFarcaster({ text, embeds = [], isInFarcaster = fals
         `&embeds[]=${encodeURIComponent(url)}`
       ).join('');
       
-      // Use warpcast:// deep link for installed app
-      const warpcastUrl = `https://warpcast.com/~/compose?text=${encodedText}${embedsParam}`;
+      // Use Farcaster compose URL (farcaster.xyz is the new domain)
+      const farcasterUrl = `https://farcaster.xyz/~/compose?text=${encodedText}${embedsParam}`;
       
-      console.log('🔗 Opening Warpcast compose:', warpcastUrl);
+      console.log('🔗 Opening Farcaster compose:', farcasterUrl);
       
       // Detect if user is on mobile
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -47,7 +47,7 @@ export async function shareToFarcaster({ text, embeds = [], isInFarcaster = fals
       if (isMobile) {
         // On mobile: Open in a new window to prevent navigating away from app
         // This allows the system to handle the deep link properly
-        const newWindow = window.open(warpcastUrl, '_blank');
+        const newWindow = window.open(farcasterUrl, '_blank');
         
         // Check if the window opened successfully
         if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
@@ -55,7 +55,7 @@ export async function shareToFarcaster({ text, embeds = [], isInFarcaster = fals
           console.log('🔄 Trying iframe approach for deep link');
           const iframe = document.createElement('iframe');
           iframe.style.display = 'none';
-          iframe.src = warpcastUrl;
+          iframe.src = farcasterUrl;
           document.body.appendChild(iframe);
           
           // Clean up iframe after a short delay
@@ -66,12 +66,12 @@ export async function shareToFarcaster({ text, embeds = [], isInFarcaster = fals
       } else {
         // On desktop: Open web version in new tab
         console.log('💻 Desktop detected, opening web version');
-        const newWindow = window.open(warpcastUrl, '_blank', 'noopener,noreferrer');
+        const newWindow = window.open(farcasterUrl, '_blank', 'noopener,noreferrer');
         
         // If popup was blocked, use location.href
         if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
           console.log('🔄 Popup blocked, using location.href');
-          window.location.href = warpcastUrl;
+          window.location.href = farcasterUrl;
         }
       }
       
