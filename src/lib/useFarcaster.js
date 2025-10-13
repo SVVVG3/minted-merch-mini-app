@@ -52,7 +52,7 @@ export function useFarcaster() {
   // If user signed in via AuthKit (non-mini-app), use that profile
   useEffect(() => {
     if (!isInFarcaster && isAuthKitAuthenticated && authKitProfile) {
-      console.log('Using AuthKit profile:', authKitProfile);
+      console.log('✅ Using AuthKit profile:', authKitProfile);
       setUser({
         fid: authKitProfile.fid,
         username: authKitProfile.username,
@@ -61,6 +61,10 @@ export function useFarcaster() {
         bio: authKitProfile.bio,
         isAuthKit: true, // Flag to indicate this is AuthKit authentication
       });
+    } else if (!isInFarcaster && !isAuthKitAuthenticated) {
+      // Clear user if AuthKit auth is lost
+      console.log('ℹ️ AuthKit not authenticated, clearing user');
+      setUser(null);
     }
   }, [isInFarcaster, isAuthKitAuthenticated, authKitProfile]);
 
