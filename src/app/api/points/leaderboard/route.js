@@ -19,10 +19,11 @@ export async function GET(request) {
     }
 
     // Validate limit
-    if (limit < 1 || limit > 2000) {
+    // Increased limit for accurate leaderboard rankings with token multipliers
+    if (limit < 1 || limit > 50000) {
       return Response.json({
         success: false,
-        error: 'Limit must be between 1 and 2000'
+        error: 'Limit must be between 1 and 50000'
       }, { status: 400 });
     }
 
