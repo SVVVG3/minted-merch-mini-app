@@ -49,11 +49,11 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
     return (
       <div className="text-center">
         <div className="mb-6">
-          <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-black rounded-full flex items-center justify-center mx-auto mb-4 p-2">
             <img 
               src="/logo.png" 
               alt="Minted Merch" 
-              className="w-12 h-12 object-contain animate-pulse"
+              className="w-full h-full object-contain"
             />
           </div>
           <h3 className="text-xl font-bold text-gray-900 mb-2">
