@@ -94,9 +94,11 @@ export async function GET(request) {
     }
 
     // Check if user is a Merch Mogul (50M+ tokens) and fetch badge
-    const tokenBalanceWei = parseFloat(searchParams.get('tokenBalance') || '0');
-    const tokenBalance = tokenBalanceWei / 1000000000000000000; // Convert from wei to tokens
+    // Token balance is already stored as actual token values (not wei) after migration
+    const tokenBalance = parseFloat(searchParams.get('tokenBalance') || '0');
     const isMerchMogul = tokenBalance >= 50000000; // 50M+ tokens
+    
+    console.log('🏆 Token balance check:', { tokenBalance, isMerchMogul });
     
     let merchMogulBadgeData = null;
     if (isMerchMogul) {
