@@ -24,13 +24,20 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
       
       // Try to open the Farcaster app using custom URL scheme
       const attemptDeepLink = () => {
-        // First try the farcaster:// scheme
-        window.location.href = deepLinkUrl;
+        // Create a hidden iframe to trigger the deep link without navigating away
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = deepLinkUrl;
+        document.body.appendChild(iframe);
         
-        // If that doesn't work after a short delay, fall back to farcaster.xyz
+        // Clean up iframe after attempting
         setTimeout(() => {
-          window.location.href = farcasterWebLink;
-        }, 500);
+          document.body.removeChild(iframe);
+        }, 100);
+        
+        // If the app doesn't open (user doesn't have it or it failed), 
+        // the manual button will be available for them to click
+        console.log('📱 Deep link attempted via iframe');
       };
 
       attemptDeepLink();
