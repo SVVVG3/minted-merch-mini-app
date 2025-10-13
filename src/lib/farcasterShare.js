@@ -36,18 +36,34 @@ export async function shareToFarcaster({ text, embeds = [], isInFarcaster = fals
         `&embeds[]=${encodeURIComponent(url)}`
       ).join('');
       
-      // Construct Warpcast compose URL
-      const warpcastUrl = `https://warpcast.com/~/compose?text=${encodedText}${embedsParam}`;
+      // Try app deep link first (opens installed app), then fallback to web
+      const appDeepLink = `farcaster://compose?text=${encodedText}${embedsParam}`;
+      const webFallback = `https://warpcast.com/~/compose?text=${encodedText}${embedsParam}`;
       
-      console.log('🔗 Opening Warpcast URL:', warpcastUrl);
+      console.log('🔗 Trying app deep link:', appDeepLink);
       
-      // Try to open in new window first (works on desktop)
-      const newWindow = window.open(warpcastUrl, '_blank', 'noopener,noreferrer');
+      // Detect if user is on mobile
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       
-      // If popup was blocked or on mobile, use location.href as fallback
-      if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-        console.log('🔄 Popup blocked, using location.href fallback');
-        window.location.href = warpcastUrl;
+      if (isMobile) {
+        // On mobile: Try app deep link first, fallback to web after delay
+        window.location.href = appDeepLink;
+        
+        // Fallback to web version if app doesn't open (user doesn't have app installed)
+        setTimeout(() => {
+          console.log('🔄 App did not open, trying web fallback');
+          window.location.href = webFallback;
+        }, 1500);
+      } else {
+        // On desktop: Open web version in new tab
+        console.log('💻 Desktop detected, opening web version');
+        const newWindow = window.open(webFallback, '_blank', 'noopener,noreferrer');
+        
+        // If popup was blocked, use location.href
+        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+          console.log('🔄 Popup blocked, using location.href');
+          window.location.href = webFallback;
+        }
       }
       
       return true;
