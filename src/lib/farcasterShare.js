@@ -111,18 +111,52 @@ export async function shareToFarcaster({ text, embeds = [], isInFarcaster = fals
  * @param {number} options.position - User's leaderboard position
  * @param {number} options.totalPoints - User's total points
  * @param {string} options.category - Leaderboard category
+ * @param {string} [options.username] - User's username
+ * @param {number} [options.multiplier] - User's token multiplier
+ * @param {string} [options.tier] - User's tier (legendary, elite, none)
+ * @param {string} [options.pfp] - User's profile picture URL
+ * @param {number} [options.tokenBalance] - User's token balance
+ * @param {number} [options.fid] - User's FID
  * @param {boolean} [options.isInFarcaster] - Whether user is in mini app
  * @returns {Promise<boolean>}
  */
-export async function shareLeaderboardPosition({ position, totalPoints, category, isInFarcaster = false }) {
+export async function shareLeaderboardPosition({ 
+  position, 
+  totalPoints, 
+  category, 
+  username = 'Anonymous',
+  multiplier = 1,
+  tier = 'none',
+  pfp = null,
+  tokenBalance = 0,
+  fid = null,
+  isInFarcaster = false 
+}) {
   const positionText = position === 1 ? '1st' : position === 2 ? '2nd' : position === 3 ? '3rd' : `${position}th`;
-  const leaderboardUrl = `${window.location.origin}/?leaderboard=true&fid=${position}&category=${category}`;
+  
+  // Build OG image URL with all parameters
+  const ogImageParams = new URLSearchParams({
+    position: position.toString(),
+    points: totalPoints.toString(),
+    username: username,
+    multiplier: multiplier.toString(),
+    tier: tier,
+    category: category,
+    tokenBalance: tokenBalance.toString(),
+  });
+  
+  // Add profile picture if available
+  if (pfp) {
+    ogImageParams.set('pfp', pfp);
+  }
+  
+  const ogImageUrl = `${window.location.origin}/api/og/leaderboard?${ogImageParams.toString()}`;
   
   const shareText = `I'm currently ranked ${positionText} place on the @mintedmerch mini app leaderboard!\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
   
   return shareToFarcaster({
     text: shareText,
-    embeds: [leaderboardUrl],
+    embeds: [ogImageUrl],
     isInFarcaster,
   });
 }

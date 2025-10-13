@@ -111,11 +111,21 @@ export function Leaderboard({ isVisible = true }) {
 
       const positionText = getPositionSuffix(pointsPosition);
       
+      // Get user profile data for share image
+      const userProfile = userProfiles[currentUserFid];
+      const tokenBalance = userPosition?.token_balance || 0;
+      
       // Use the new utility function to handle sharing (works in both mini-app and non-mini-app)
       await shareLeaderboardPosition({
         position: pointsPosition,
         totalPoints: points,
         category: 'points',
+        username,
+        multiplier,
+        tier,
+        pfp: userProfile?.pfp_url,
+        tokenBalance,
+        fid: currentUserFid,
         isInFarcaster,
       });
 
