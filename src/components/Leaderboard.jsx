@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { shareLeaderboardPosition } from '@/lib/farcasterShare';
 
 export function Leaderboard({ isVisible = true }) {
   const { isInFarcaster, isReady, getFid, user } = useFarcaster();
@@ -109,47 +110,14 @@ export function Leaderboard({ isVisible = true }) {
       };
 
       const positionText = getPositionSuffix(pointsPosition);
-      const multiplierText = multiplier > 1 ? ` (${multiplier}x ${tier === 'legendary' ? '🏆' : '⭐'})` : '';
       
-      // Always use points category for share URL to show points leaderboard position in OG image
-      const leaderboardUrl = `${window.location.origin}/leaderboard?category=points&user=${currentUserFid}&t=${Date.now()}`;
-      const shareText = `I'm currently ranked ${positionText} place on the @mintedmerch mini app leaderboard!\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
-      
-      console.log('🔗 Sharing leaderboard URL:', leaderboardUrl);
-      console.log('📝 Share text:', shareText);
-
-      if (!isInFarcaster) {
-        // Fallback for non-Farcaster environments
-        if (navigator.share) {
-          try {
-            await navigator.share({
-              title: `My Leaderboard Position - Minted Merch`,
-              text: shareText,
-              url: leaderboardUrl,
-            });
-          } catch (err) {
-            console.log('Error sharing:', err);
-          }
-        } else {
-          // Copy link to clipboard
-          try {
-            await navigator.clipboard.writeText(`${shareText}\n\n${leaderboardUrl}`);
-            alert('Share text copied to clipboard!');
-          } catch (err) {
-            console.log('Error copying to clipboard:', err);
-          }
-        }
-        return;
-      }
-
-      // Use the Farcaster SDK composeCast action with leaderboard URL (EXACT same as collections)
-      const { sdk } = await import('../lib/frame');
-      const result = await sdk.actions.composeCast({
-        text: shareText,
-        embeds: [leaderboardUrl],
+      // Use the new utility function to handle sharing (works in both mini-app and non-mini-app)
+      await shareLeaderboardPosition({
+        position: pointsPosition,
+        totalPoints: points,
+        category: 'points',
+        isInFarcaster,
       });
-      
-      console.log('Leaderboard cast composed:', result);
 
     } catch (error) {
       console.error('Error sharing leaderboard position:', error);

@@ -6,6 +6,7 @@ import { VariantSelector } from './VariantSelector';
 import { ProductImageGallery } from './ProductImageGallery';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { shareProduct } from '@/lib/farcasterShare';
 import { Cart } from './Cart';
 import { sdk } from '@farcaster/miniapp-sdk';
 
@@ -68,53 +69,15 @@ export function ProductDetail({
 
   // Share product function
   const handleShareProduct = async () => {
-    if (!isInFarcaster) {
-      // Fallback for non-Farcaster environments
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            title: `${product.title} - Minted Merch`,
-            text: `Check out this ${product.title} on the $mintedmerch mini app! Order now & pay with USDC on Base 🟦`,
-            url: window.location.href,
-          });
-        } catch (err) {
-          console.log('Error sharing:', err);
-        }
-      } else {
-        // Copy link to clipboard
-        try {
-          await navigator.clipboard.writeText(window.location.href);
-          alert('Link copied to clipboard!');
-        } catch (err) {
-          console.log('Error copying to clipboard:', err);
-        }
-      }
-      return;
-    }
-
-    // Farcaster sharing using SDK composeCast action
     try {
-      // Use the actual product page URL for Mini App embed (which will use dynamic OG images in metadata)
-      const productUrl = `${window.location.origin}/product/${handle}`;
-      const shareText = `Check out this ${product.title} on the $mintedmerch mini app!\n\nOrder now & pay with USDC on Base 🟦`;
-      
-      // Use the Farcaster SDK composeCast action with Mini App URL
-      const { sdk } = await import('../lib/frame');
-      const result = await sdk.actions.composeCast({
-        text: shareText,
-        embeds: [productUrl],
+      // Use the new utility function to handle sharing (works in both mini-app and non-mini-app)
+      await shareProduct({
+        productHandle: handle,
+        productTitle: product.title,
+        isInFarcaster,
       });
-      
-      console.log('Cast composed with Mini App embed:', result);
     } catch (error) {
       console.error('Error sharing product:', error);
-      // Fallback to copying link
-      try {
-        await navigator.clipboard.writeText(window.location.href);
-        alert('Link copied to clipboard!');
-      } catch (err) {
-        console.log('Error copying to clipboard:', err);
-      }
     }
   };
 

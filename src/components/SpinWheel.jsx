@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { shareCheckIn } from '@/lib/farcasterShare';
 // SDK imported dynamically like other working components
 import { getTimeUntilReset } from '@/lib/timezone';
 import { ethers } from 'ethers';
@@ -50,62 +51,20 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   // Share check-in result function
   const handleShareCheckIn = async (resultToShare = null) => {
     const shareResult = resultToShare || spinResult;
-    if (!isInFarcaster || !shareResult) return;
+    if (!shareResult) return;
 
-    // Add haptic feedback for share action
-    await triggerHaptic('medium');
+    // Add haptic feedback for share action (only in mini app)
+    if (isInFarcaster) {
+      await triggerHaptic('medium');
+    }
 
     try {
-      // Create dynamic OG image URL with check-in data
-      const baseUrl = window.location.origin;
-      // Calculate multiplied earned points first (needed for shareParams)
-      const multipliedEarnedPoints = shareResult.multipliedPoints || 
-        (userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
-          ? shareResult.pointsEarned * userStatus.tokenMultiplier
-          : shareResult.pointsEarned);
-      
-      // Use the current total points for OG image (matches leaderboard)
-      const multipliedTotalForOG = userStatus?.totalPoints || shareResult.totalPoints;
-      
-      const shareParams = new URLSearchParams({
-        checkin: 'true',
-        points: multipliedEarnedPoints.toString(), // Use multiplied earned points
-        streak: shareResult.newStreak.toString(),
-        total: multipliedTotalForOG.toString(), // Use multiplied total
-        base: shareResult.basePoints.toString(),
-        bonus: shareResult.streakBonus.toString(),
-        multiplier: (userStatus?.tokenMultiplier || 1).toString(),
-        tier: userStatus?.tokenTier || 'none',
-        t: Date.now().toString() // Cache busting
+      // Use the new utility function to handle sharing (works in both mini-app and non-mini-app)
+      await shareCheckIn({
+        spinResult: shareResult,
+        userStatus,
+        isInFarcaster,
       });
-      
-      const shareUrl = `${baseUrl}?${shareParams.toString()}`;
-      
-      // Create share text
-      const streakEmoji = shareResult.newStreak >= 30 ? "👑" : 
-                        shareResult.newStreak >= 14 ? "🔥" : 
-                        shareResult.newStreak >= 7 ? "⚡" : 
-                        shareResult.newStreak >= 3 ? "🌟" : "💫";
-      
-      // Use the current total points from userStatus (which already includes multiplier from leaderboard)
-      const multipliedTotalPoints = userStatus?.totalPoints || shareResult.totalPoints;
-      
-      const multiplierText = userStatus?.tokenMultiplier && userStatus.tokenMultiplier > 1 
-        ? ` (${userStatus.tokenMultiplier}x ${userStatus.tokenTier === 'legendary' ? '🏆' : '⭐'} multiplier)`
-        : '';
-      
-      const shareText = `🎯 Daily check-in complete! +${multipliedEarnedPoints.toLocaleString()} points earned!\n\n(${shareResult.basePoints} base${shareResult.streakBonus > 0 ? ` + ${shareResult.streakBonus} streak bonus` : ''}${userStatus?.tokenMultiplier > 1 ? ` × ${userStatus.tokenMultiplier}x multiplier` : ''})\n\n${streakEmoji} ${shareResult.newStreak} day streak • 💎 ${multipliedTotalPoints.toLocaleString()} total points\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
-
-      // Use the Farcaster SDK composeCast action (EXACT same as leaderboard)
-      const { sdk } = await import('../lib/frame');
-      console.log('🎬 About to call composeCast with:', { shareText: shareText.substring(0, 100) + '...', shareUrl });
-      
-      const result = await sdk.actions.composeCast({
-        text: shareText,
-        embeds: [shareUrl],
-      });
-      
-      console.log('✅ Check-in cast composed:', result);
     } catch (error) {
       console.error('Error sharing check-in:', error);
       // Fallback to copying link

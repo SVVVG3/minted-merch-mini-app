@@ -13,6 +13,7 @@ import { ConnectWalletButton } from './ConnectWalletButton';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { useDgenWallet } from '@/lib/useDgenWallet';
+import { shareCollection } from '@/lib/farcasterShare';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
 import { getBestAvailableDiscount, hasDiscountOfType } from '@/lib/discounts';
 import { sdk } from '@farcaster/miniapp-sdk';
@@ -86,34 +87,16 @@ export function HomePage({ collection: initialCollection, products: initialProdu
 
   // Share collection function
   const handleShareCollection = async () => {
-    if (!selectedCollection || !isInFarcaster) return;
+    if (!selectedCollection) return;
 
     try {
-      // Create collection URL with cache-busting parameter for fresh OG images
-      const collectionUrl = `${window.location.origin}/?collection=${selectedCollection.handle}&t=${Date.now()}`;
-      const shareText = `Check out the ${selectedCollection.title} collection on @mintedmerch!\n\nShop & pay with USDC on Base 🟦`;
-      
-      console.log('🔗 Sharing collection URL:', collectionUrl);
-      console.log('📝 Share text:', shareText);
-      
-      // Use the Farcaster SDK composeCast action with collection URL
-      const { sdk } = await import('../lib/frame');
-      const result = await sdk.actions.composeCast({
-        text: shareText,
-        embeds: [collectionUrl],
+      // Use the new utility function to handle sharing (works in both mini-app and non-mini-app)
+      await shareCollection({
+        collectionHandle: selectedCollection.handle,
+        isInFarcaster,
       });
-      
-      console.log('Collection cast composed:', result);
     } catch (error) {
       console.error('Error sharing collection:', error);
-      // Fallback to copying link
-      try {
-        const collectionUrl = `${window.location.origin}/?collection=${selectedCollection.handle}&t=${Date.now()}`;
-        await navigator.clipboard.writeText(collectionUrl);
-        alert('Collection link copied to clipboard!');
-      } catch (err) {
-        console.log('Error copying to clipboard:', err);
-      }
     }
   };
 
@@ -732,8 +715,8 @@ export function HomePage({ collection: initialCollection, products: initialProdu
             />
           </div>
           
-          {/* Share Collection Button - Only show in Farcaster */}
-          {isInFarcaster && selectedCollection && (
+          {/* Share Collection Button - Show for all users */}
+          {selectedCollection && (
             <button
               onClick={handleShareCollection}
               className="flex items-center justify-center w-12 h-12 bg-[#8A63D2] hover:bg-[#7C5BC7] text-white rounded-lg transition-colors flex-shrink-0"
