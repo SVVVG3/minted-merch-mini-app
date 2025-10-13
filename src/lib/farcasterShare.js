@@ -36,33 +36,42 @@ export async function shareToFarcaster({ text, embeds = [], isInFarcaster = fals
         `&embeds[]=${encodeURIComponent(url)}`
       ).join('');
       
-      // Try app deep link first (opens installed app), then fallback to web
-      const appDeepLink = `farcaster://compose?text=${encodedText}${embedsParam}`;
-      const webFallback = `https://warpcast.com/~/compose?text=${encodedText}${embedsParam}`;
+      // Use warpcast:// deep link for installed app
+      const warpcastUrl = `https://warpcast.com/~/compose?text=${encodedText}${embedsParam}`;
       
-      console.log('🔗 Trying app deep link:', appDeepLink);
+      console.log('🔗 Opening Warpcast compose:', warpcastUrl);
       
       // Detect if user is on mobile
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       
       if (isMobile) {
-        // On mobile: Try app deep link first, fallback to web after delay
-        window.location.href = appDeepLink;
+        // On mobile: Open in a new window to prevent navigating away from app
+        // This allows the system to handle the deep link properly
+        const newWindow = window.open(warpcastUrl, '_blank');
         
-        // Fallback to web version if app doesn't open (user doesn't have app installed)
-        setTimeout(() => {
-          console.log('🔄 App did not open, trying web fallback');
-          window.location.href = webFallback;
-        }, 1500);
+        // Check if the window opened successfully
+        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+          // Popup blocked - use an invisible iframe approach for deep link
+          console.log('🔄 Trying iframe approach for deep link');
+          const iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          iframe.src = warpcastUrl;
+          document.body.appendChild(iframe);
+          
+          // Clean up iframe after a short delay
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 100);
+        }
       } else {
         // On desktop: Open web version in new tab
         console.log('💻 Desktop detected, opening web version');
-        const newWindow = window.open(webFallback, '_blank', 'noopener,noreferrer');
+        const newWindow = window.open(warpcastUrl, '_blank', 'noopener,noreferrer');
         
         // If popup was blocked, use location.href
         if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
           console.log('🔄 Popup blocked, using location.href');
-          window.location.href = webFallback;
+          window.location.href = warpcastUrl;
         }
       }
       
