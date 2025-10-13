@@ -3,11 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
-import { useAccount } from 'wagmi';
 
 export function ProfileModal({ isOpen, onClose }) {
   const { user, isInFarcaster } = useFarcaster();
-  const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
   const [profileData, setProfileData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [connectedWallet, setConnectedWallet] = useState(null);
@@ -39,14 +37,21 @@ export function ProfileModal({ isOpen, onClose }) {
     }
   };
 
-  // Get wallet address from Farcaster SDK OR Wagmi (for dGEN1/desktop)
+  // Get wallet address from Farcaster SDK or window.ethereum (for dGEN1/desktop)
   useEffect(() => {
     async function getWalletAddress() {
-      // Priority 1: Wagmi wallet (dGEN1, desktop with Web3Modal)
-      if (wagmiConnected && wagmiAddress) {
-        console.log('Using Wagmi wallet address:', wagmiAddress);
-        setConnectedWallet(wagmiAddress);
-        return;
+      // Priority 1: Check window.ethereum for dGEN1/desktop wallet
+      if (typeof window !== 'undefined' && window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts && accounts.length > 0) {
+            console.log('Using window.ethereum wallet address:', accounts[0]);
+            setConnectedWallet(accounts[0]);
+            return;
+          }
+        } catch (error) {
+          console.log('Error getting wallet from window.ethereum:', error);
+        }
       }
       
       // Priority 2: Farcaster SDK wallet (mini app)
@@ -67,7 +72,7 @@ export function ProfileModal({ isOpen, onClose }) {
     }
 
     getWalletAddress();
-  }, [isInFarcaster, user, wagmiConnected, wagmiAddress]);
+  }, [isInFarcaster, user]);
 
   // Load order history  
   const loadOrderHistory = async () => {

@@ -9,7 +9,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 
 
 export function SpinWheel({ onSpinComplete, isVisible = true }) {
-  const { isInFarcaster, isReady, getFid } = useFarcaster();
+  const { isInFarcaster, isReady, getFid, user } = useFarcaster();
   const { address, isConnected } = useAccount();
   const { 
     writeContract, 
@@ -118,15 +118,16 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     }
   };
 
-  // Load user's check-in status
+  // Load user's check-in status (works for both mini-app and AuthKit users)
   useEffect(() => {
-    if (!isInFarcaster || !isReady) return;
+    if (!isReady || !user) return;
     
-    const userFid = getFid();
+    const userFid = user.fid || getFid();
     if (!userFid) return;
 
+    console.log('🎯 Loading check-in status for user FID:', userFid);
     loadUserStatus(userFid);
-  }, [isInFarcaster, isReady]);
+  }, [isReady, user]);
 
   // Countdown timer effect for next spin availability
   useEffect(() => {
