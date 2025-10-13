@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 export function ProfileModal({ isOpen, onClose }) {
+  const router = useRouter();
   const { user, isInFarcaster } = useFarcaster();
   const [profileData, setProfileData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -443,7 +445,10 @@ export function ProfileModal({ isOpen, onClose }) {
                                 className="font-semibold text-orange-800 text-sm hover:text-orange-600 underline cursor-pointer"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  window.location.href = `/order/${cleanOrderId}`;
+                                  // Close modal first
+                                  onClose();
+                                  // Use Next.js router to avoid full page reload (preserves auth state)
+                                  router.push(`/order/${cleanOrderId}`);
                                 }}
                               >
                                 Order #{cleanOrderId}

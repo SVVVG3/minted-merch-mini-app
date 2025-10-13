@@ -31,10 +31,13 @@ export function ProductPageClient({ handle }) {
   }, []);
 
   // CRITICAL FIX: Register user profile when Farcaster context is ready (like HomePage.jsx does)
+  // Works for both mini-app users AND AuthKit users
   useEffect(() => {
-    if (!isInFarcaster || !isReady) return;
+    // Wait for auth to be ready
+    if (!isReady) return;
     
-    const userFid = getFid();
+    // Get FID from either mini-app or AuthKit
+    const userFid = farcasterUser?.fid || getFid();
     if (!userFid) return;
 
     // Prevent multiple registrations
@@ -47,7 +50,7 @@ export function ProductPageClient({ handle }) {
 
     const registerUserProfile = async () => {
       try {
-        console.log('=== REGISTERING USER PROFILE (Product Page) ===');
+        console.log(`=== REGISTERING USER PROFILE (Product Page) - FID: ${userFid}, isInFarcaster: ${isInFarcaster}, isAuthKit: ${farcasterUser?.isAuthKit} ===`);
         console.log('User FID:', userFid);
         console.log('User Data:', {
           fid: userFid,
