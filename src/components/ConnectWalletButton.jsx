@@ -20,7 +20,9 @@ export function ConnectWalletButton() {
   }
 
   return (
-    <w3m-button balance="hide" size="sm" />
+    <div className="w-12 h-12 flex items-center justify-center overflow-hidden">
+      <w3m-button balance="hide" size="sm" />
+    </div>
   );
 }
 
