@@ -165,8 +165,11 @@ export function Leaderboard({ isVisible = true }) {
       setError(null);
       
       // Build query parameters
+      // IMPORTANT: Request more users than we display to account for token multipliers
+      // Users with lower base points but high multipliers can rank higher after multiplier is applied
+      // The API will fetch all users, apply multipliers, re-sort, and return top 50
       const params = new URLSearchParams({
-        limit: '50', // Show top 50 users
+        limit: '10000', // Fetch enough users to get accurate rankings after multipliers
         category: category
       });
 
@@ -198,12 +201,17 @@ export function Leaderboard({ isVisible = true }) {
           userPos = result.data.userPosition || null;
         }
         
-        setLeaderboardData(leaderboard);
+        // Only display top 50 users in the UI (API fetched 10k for accurate ranking)
+        const displayLeaderboard = leaderboard.slice(0, 50);
+        
+        console.log(`📊 Displaying ${displayLeaderboard.length} users from ${leaderboard.length} total fetched`);
+        
+        setLeaderboardData(displayLeaderboard);
         setUserPosition(userPos);
 
-        // Fetch user profiles for the leaderboard
+        // Fetch user profiles for the displayed leaderboard (top 50)
         const allFids = [...new Set([
-          ...leaderboard.map(user => category === 'holders' ? user.fid : user.user_fid),
+          ...displayLeaderboard.map(user => category === 'holders' ? user.fid : user.user_fid),
           ...(userPos && userPos.position > 50 ? [userPos.user_fid] : [])
         ])];
 
