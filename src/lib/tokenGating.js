@@ -476,11 +476,11 @@ async function checkTokenBalance(discount, userWalletAddresses, fid = null, useC
       blockchainCalls = validAddresses.length;
     }
 
-    // Convert balance to tokens for comparison
-    // Both cached and fresh_fetch return wei values, required balance is in tokens
-    const totalBalanceInTokens = method.includes('cached') || method.includes('fresh_fetch') ? 
-      totalBalance / Math.pow(10, 18) : 
-      totalBalance; // Only direct RPC returns tokens directly
+    // Database stores token values (not wei), so no conversion needed for cached balances
+    // Only direct RPC fallback returns wei and needs conversion
+    const totalBalanceInTokens = method === 'direct_rpc' || method === 'direct_rpc_fallback' ? 
+      totalBalance / Math.pow(10, 18) :  // Direct RPC returns wei, convert to tokens
+      totalBalance; // Cached/fresh_fetch are already in tokens
     
     const eligible = totalBalanceInTokens >= requiredBalance;
 
