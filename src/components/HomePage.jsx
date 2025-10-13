@@ -622,23 +622,13 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="px-2 py-1.5 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-3 pr-2">
+          {/* Logo - different logo for mini app vs browser */}
+          <div className="flex items-center pr-2">
             <img 
-              src="/MintedMerchHeaderLogo.png" 
+              src={isInFarcaster ? "/MintedMerchHeaderLogo.png" : "/MintedMerchSpinnerLogo.png"}
               alt="Minted Merch" 
               className="h-16"
             />
-            {/* Circular logo - only show when NOT in mini app */}
-            {!isInFarcaster && (
-              <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center p-2 flex-shrink-0">
-                <img 
-                  src="/logo.png" 
-                  alt="Minted Merch Icon" 
-                  className="w-full h-full object-contain"
-                />
-              </div>
-            )}
           </div>
           
           <div className="flex items-center space-x-2">
