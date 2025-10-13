@@ -87,20 +87,8 @@ export function PriceTicker() {
 
   // Handle click to open swap
   const handleSwapClick = async () => {
-    try {
-      const result = await sdk.actions.swapToken({
-        buyToken: `eip155:8453/erc20:${MINTEDMERCH_TOKEN_ADDRESS}`, // $mintedmerch token on Base
-        sellToken: 'eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
-      });
-      
-      if (result.success) {
-        console.log('Swap completed:', result.swap);
-      } else {
-        console.log('Swap failed or cancelled:', result.reason);
-      }
-    } catch (error) {
-      console.error('Error opening swap:', error);
-    }
+    // Open Matcha in new tab (works in all environments)
+    window.open('https://matcha.xyz/tokens/base/0x774eaefe73df7959496ac92a77279a8d7d690b07', '_blank');
   };
 
   if (error) {

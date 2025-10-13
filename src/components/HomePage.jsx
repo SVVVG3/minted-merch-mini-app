@@ -610,7 +610,16 @@ export function HomePage({ collection: initialCollection, products: initialProdu
                     Spin the wheel daily to qualify for random raffles!
                   </div>
                   <div>
-                    Hold 50M+ $mintedmerch to become a Merch Mogul 🤌
+                    Hold 50M+{' '}
+                    <a 
+                      href="https://coin.mintedmerch.shop" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="underline hover:text-white/90 transition-colors"
+                    >
+                      $mintedmerch
+                    </a>
+                    {' '}to become a Merch Mogul 🤌
                   </div>
                 </div>
               )}
