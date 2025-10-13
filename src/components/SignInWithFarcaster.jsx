@@ -66,7 +66,7 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
           href={`https://farcaster.xyz/~/sign-in-with-farcaster?channelToken=${channelToken}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 w-full px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors mb-4"
+          className="inline-flex items-center justify-center gap-2 w-full px-6 py-4 bg-[#8A63D2] hover:bg-[#7C5BC7] text-white font-medium rounded-lg transition-colors mb-4"
         >
           <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
             <path d="M257.778 155.556H742.222V844.445H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.445H257.778V155.556Z"/>
