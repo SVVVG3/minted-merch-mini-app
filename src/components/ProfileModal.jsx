@@ -40,14 +40,17 @@ export function ProfileModal({ isOpen, onClose }) {
   // Get wallet address from Farcaster SDK or window.ethereum (for dGEN1/desktop)
   useEffect(() => {
     async function getWalletAddress() {
+      let detectedAddress = null;
+      let source = null;
+
       // Priority 1: Check window.ethereum for dGEN1/desktop wallet
       if (typeof window !== 'undefined' && window.ethereum) {
         try {
           const accounts = await window.ethereum.request({ method: 'eth_accounts' });
           if (accounts && accounts.length > 0) {
-            console.log('Using window.ethereum wallet address:', accounts[0]);
-            setConnectedWallet(accounts[0]);
-            return;
+            detectedAddress = accounts[0];
+            source = 'window.ethereum';
+            console.log('💳 Using window.ethereum wallet address:', detectedAddress);
           }
         } catch (error) {
           console.log('Error getting wallet from window.ethereum:', error);
@@ -55,18 +58,47 @@ export function ProfileModal({ isOpen, onClose }) {
       }
       
       // Priority 2: Farcaster SDK wallet (mini app)
-      if (isInFarcaster && user) {
+      if (!detectedAddress && isInFarcaster && user) {
         try {
           const provider = await sdk.wallet.getEthereumProvider();
           if (provider) {
             const accounts = await provider.request({ method: 'eth_accounts' });
             if (accounts && accounts.length > 0) {
-              console.log('Using Farcaster SDK wallet address:', accounts[0]);
-              setConnectedWallet(accounts[0]);
+              detectedAddress = accounts[0];
+              source = 'Farcaster SDK';
+              console.log('💳 Using Farcaster SDK wallet address:', detectedAddress);
             }
           }
         } catch (error) {
           console.log('Error getting wallet address from Farcaster SDK:', error);
+        }
+      }
+
+      // Update local state
+      if (detectedAddress) {
+        setConnectedWallet(detectedAddress);
+
+        // If user has FID, save wallet to database
+        if (user?.fid && source === 'window.ethereum') {
+          console.log('💾 Saving connected wallet to database for FID:', user.fid);
+          try {
+            const response = await fetch('/api/update-connected-wallet', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                fid: user.fid,
+                walletAddress: detectedAddress
+              })
+            });
+            const result = await response.json();
+            if (result.success) {
+              console.log('✅ Wallet saved to database');
+            } else {
+              console.error('❌ Failed to save wallet:', result.error);
+            }
+          } catch (error) {
+            console.error('Error saving wallet to database:', error);
+          }
         }
       }
     }

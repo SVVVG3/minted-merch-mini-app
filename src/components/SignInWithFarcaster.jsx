@@ -76,10 +76,9 @@ export function SignInWithFarcaster({ onSignIn }) {
 
   // Auto-reconnect on mount if previously authenticated
   useEffect(() => {
-    if (!isAuthenticated) {
-      reconnect();
-    }
-  }, [isAuthenticated, reconnect]);
+    console.log('🔄 AuthKit attempting auto-reconnect...');
+    reconnect();
+  }, []); // Run only once on mount, not on every auth change
 
   const handleSignIn = useCallback(async () => {
     console.log('🔐 Initiating Farcaster sign-in...');
