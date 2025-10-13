@@ -4,6 +4,118 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSignIn, useProfile } from '@farcaster/auth-kit';
 
 /**
+ * Deep Link Handler component - handles both mobile deep links and desktop QR codes
+ */
+function DeepLinkHandler({ url, channelToken, onCancel }) {
+  const [isMobile, setIsMobile] = useState(false);
+  const [deepLinkOpened, setDeepLinkOpened] = useState(false);
+
+  useEffect(() => {
+    const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    setIsMobile(mobile);
+
+    // If on mobile, automatically open the Farcaster deep link
+    if (mobile && !deepLinkOpened) {
+      console.log('📱 Mobile detected, opening Farcaster app with deep link...');
+      
+      // Create Farcaster deep link with channel token
+      const deepLinkUrl = `farcaster://sign-in?channelToken=${channelToken}`;
+      const warpcastDeepLink = `https://warpcast.com/~/sign-in-with-farcaster?channelToken=${channelToken}`;
+      
+      // Try to open the Farcaster app using custom URL scheme
+      const attemptDeepLink = () => {
+        // First try the farcaster:// scheme
+        window.location.href = deepLinkUrl;
+        
+        // If that doesn't work after a short delay, fall back to warpcast.com
+        setTimeout(() => {
+          window.location.href = warpcastDeepLink;
+        }, 500);
+      };
+
+      attemptDeepLink();
+      setDeepLinkOpened(true);
+    }
+  }, [channelToken, deepLinkOpened]);
+
+  if (isMobile) {
+    return (
+      <div className="text-center">
+        <div className="mb-6">
+          <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-purple-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">
+            Opening Farcaster...
+          </h3>
+          <p className="text-sm text-gray-600 mb-4">
+            If the app doesn't open automatically, tap the button below
+          </p>
+        </div>
+
+        <a
+          href={`https://warpcast.com/~/sign-in-with-farcaster?channelToken=${channelToken}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-2 w-full px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors mb-4"
+        >
+          <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
+            <path d="M257.778 155.556H742.222V844.445H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.445H257.778V155.556Z"/>
+            <path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.445H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/>
+            <path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.445H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/>
+          </svg>
+          <span>Open Farcaster</span>
+        </a>
+
+        <p className="text-xs text-gray-500 mb-4">
+          After signing in with Farcaster, return to this tab to continue
+        </p>
+
+        <button
+          onClick={onCancel}
+          className="w-full px-4 py-3 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  // Desktop: Show QR code
+  return (
+    <>
+      <div className="text-center mb-4">
+        <h3 className="text-xl font-bold text-gray-900 mb-2">
+          Sign in with Farcaster
+        </h3>
+        <p className="text-sm text-gray-600">
+          Scan this QR code with your phone's camera or Warpcast app
+        </p>
+      </div>
+      
+      {/* QR Code iframe - larger size */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <iframe
+          src={url}
+          title="Farcaster Sign In"
+          className="w-full h-[500px] border-0"
+          allow="camera; publickey-credentials-get *"
+        />
+      </div>
+
+      <button
+        onClick={onCancel}
+        className="w-full mt-4 px-4 py-3 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+      >
+        Cancel
+      </button>
+    </>
+  );
+}
+
+/**
  * Sign in with Farcaster button for non-mini-app environments
  * Only shows when NOT in Farcaster/Base mini app
  */
@@ -84,20 +196,25 @@ export function SignInWithFarcaster({ onSignIn }) {
     console.log('🔐 Initiating Farcaster sign-in...');
     
     try {
-      // Show modal first
-      setShowModal(true);
+      // Detect if user is on mobile
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       
-      // Small delay to ensure modal is rendered
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Start sign-in flow - this generates the QR code
+      // Start sign-in flow - this generates the channel
       console.log('Calling signIn()...');
       await signIn();
       
-      console.log('SignIn called, QR should be visible');
+      console.log('SignIn called, channel created');
+      
+      // Wait a moment for url to be available
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // The connect() is automatically called by the hook
       // We don't need to call it manually
+      
+      // Show modal after sign-in is initiated
+      // On mobile, the deep link will open Farcaster app
+      // On desktop, show QR code
+      setShowModal(true);
     } catch (error) {
       console.error('Sign-in error:', error);
       setShowModal(false);
@@ -171,7 +288,7 @@ export function SignInWithFarcaster({ onSignIn }) {
         <span>Sign in</span>
       </button>
 
-      {/* Modal with QR code */}
+      {/* Modal with QR code or deep link */}
       {showModal && url && channelToken && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={handleCancel}>
           <div 
@@ -188,31 +305,7 @@ export function SignInWithFarcaster({ onSignIn }) {
               </svg>
             </button>
 
-            <div className="text-center mb-4">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Sign in with Farcaster
-              </h3>
-              <p className="text-sm text-gray-600">
-                Scan this QR code with your phone's camera or Warpcast app
-              </p>
-            </div>
-            
-            {/* QR Code iframe - larger size */}
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <iframe
-                src={url}
-                title="Farcaster Sign In"
-                className="w-full h-[500px] border-0"
-                allow="camera; publickey-credentials-get *"
-              />
-            </div>
-
-            <button
-              onClick={handleCancel}
-              className="w-full mt-4 px-4 py-3 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
+            <DeepLinkHandler url={url} channelToken={channelToken} onCancel={handleCancel} />
           </div>
         </div>
       )}
