@@ -602,7 +602,16 @@ export function HomePage({ collection: initialCollection, products: initialProdu
             <div className="text-center">
               {!user && isReady ? (
                 <div>
-                  Sign in with your Farcaster account to access your profile, check-ins, and exclusive discounts!
+                  Sign in with Farcaster to access your profile, daily check-ins, leaderboard, notifications, order history, and token gated discounts! Hold 50M+{' '}
+                  <a 
+                    href="https://coin.mintedmerch.shop" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="underline hover:text-white/90 transition-colors"
+                  >
+                    $mintedmerch
+                  </a>
+                  {' '}to become a Merch Mogul 🤌
                 </div>
               ) : (
                 <div className="space-y-0.5">
