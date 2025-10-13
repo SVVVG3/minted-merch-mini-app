@@ -804,26 +804,35 @@ Transaction Hash: ${transactionHash}`;
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     if (!isInFarcaster) {
-      // Fallback for non-Farcaster environments
-      if (navigator.share) {
+      // For non-mini-app environments, open Warpcast app with pre-filled cast
+      try {
+        const orderNumber = orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name;
+        const orderUrl = `${window.location.origin}/order/${orderNumber}?t=${Date.now()}`;
+        const mainProduct = orderDetails.lineItems?.[0]?.title || orderDetails.lineItems?.[0]?.name || 'item';
+        const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on /mintedmerch - pay onchain 🟦`;
+        
+        // Encode for URL
+        const encodedText = encodeURIComponent(shareText);
+        const encodedEmbed = encodeURIComponent(orderUrl);
+        
+        // Warpcast deep link format: warpcast://compose?text=...&embeds[]=...
+        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`;
+        
+        console.log('Opening Warpcast with share link:', warpcastUrl);
+        
+        // Open in new window/tab (will open Warpcast app on mobile)
+        window.open(warpcastUrl, '_blank');
+        
+      } catch (err) {
+        console.error('Error opening Warpcast:', err);
+        
+        // Fallback: copy link to clipboard
         try {
-          // Get the main product name from the order
-          const mainProduct = orderDetails.lineItems?.[0]?.title || orderDetails.lineItems?.[0]?.name || 'item';
-          await navigator.share({
-            title: `Order ${orderDetails.name} Confirmed - Minted Merch`,
-            text: `Just ordered my new ${mainProduct}! You get 15% off your first order when you add the $mintedmerch mini app! 👀 Shop on /mintedmerch - pay onchain 🟦`,
-            url: `${window.location.origin}/order/${orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name}`,
-          });
-        } catch (err) {
-          console.log('Error sharing:', err);
-        }
-      } else {
-        // Copy link to clipboard with cache-busting parameter
-        try {
-          await navigator.clipboard.writeText(`${window.location.origin}/order/${orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name}?t=${Date.now()}`);
+          const orderNumber = orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name;
+          await navigator.clipboard.writeText(`${window.location.origin}/order/${orderNumber}?t=${Date.now()}`);
           alert('Order link copied to clipboard!');
-        } catch (err) {
-          console.log('Error copying to clipboard:', err);
+        } catch (clipErr) {
+          console.log('Error copying to clipboard:', clipErr);
         }
       }
       return;
