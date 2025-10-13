@@ -580,27 +580,29 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         localStorage.setItem('farcaster_fid', userFid.toString());
       }
       
-      // CRITICAL: Validate FID before order creation with better error handling
+      // Validate FID - only show error if user WAS authenticated but lost it
+      // Anonymous users (dGEN1, desktop) can checkout without FID
       if (!userFid) {
-        console.error('❌ CRITICAL: No FID available for order creation after all fallbacks!', {
-          fid: userFid,
-          isInFarcaster: isInFarcaster,
-          hasUser: !!user,
-          hasContext: !!context,
-          user: user,
-          context: context,
-          allFallbacks: {
-            getFid: getFid(),
-            userFid: user?.fid,
-            contextFid: context?.user?.fid,
-            windowFid: typeof window !== 'undefined' ? window.userFid : null,
-            storedFid: typeof window !== 'undefined' ? localStorage.getItem('farcaster_fid') : null
-          }
-        });
-        
-        // More user-friendly error with debugging info
-        const errorMessage = `Unable to create order: User authentication lost during checkout.
-        
+        if (isInFarcaster || user) {
+          // User was authenticated but lost FID - this is a problem
+          console.error('❌ CRITICAL: Lost FID during checkout for authenticated user!', {
+            fid: userFid,
+            isInFarcaster: isInFarcaster,
+            hasUser: !!user,
+            hasContext: !!context,
+            user: user,
+            context: context,
+            allFallbacks: {
+              getFid: getFid(),
+              userFid: user?.fid,
+              contextFid: context?.user?.fid,
+              windowFid: typeof window !== 'undefined' ? window.userFid : null,
+              storedFid: typeof window !== 'undefined' ? localStorage.getItem('farcaster_fid') : null
+            }
+          });
+          
+          const errorMessage = `Unable to create order: User authentication lost during checkout.
+
 Debug Info:
 - In Farcaster: ${isInFarcaster}
 - Has User: ${!!user}
@@ -612,13 +614,14 @@ Please try:
 3. Contact support if issue persists
 
 Transaction Hash: ${transactionHash}`;
-        
-        alert(errorMessage);
-        
-        // Don't return immediately - try to create order anyway with FID as null
-        // This will at least create the Shopify order and we can manually fix the Supabase entry
-        console.log('⚠️ Attempting order creation without FID as fallback...');
-        userFid = null;
+          
+          alert(errorMessage);
+          userFid = null; // Proceed with anonymous order as fallback
+        } else {
+          // Anonymous user (dGEN1, desktop browser) - this is fine!
+          console.log('ℹ️ Anonymous order (no FID) - user not authenticated in Farcaster/Base app');
+          userFid = null;
+        }
       }
       
       // Calculate the total that was actually paid (using the same logic as payment execution)
