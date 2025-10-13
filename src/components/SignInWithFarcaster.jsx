@@ -20,16 +20,16 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
       
       // Create Farcaster deep link with channel token
       const deepLinkUrl = `farcaster://sign-in?channelToken=${channelToken}`;
-      const warpcastDeepLink = `https://warpcast.com/~/sign-in-with-farcaster?channelToken=${channelToken}`;
+      const farcasterWebLink = `https://farcaster.xyz/~/sign-in-with-farcaster?channelToken=${channelToken}`;
       
       // Try to open the Farcaster app using custom URL scheme
       const attemptDeepLink = () => {
         // First try the farcaster:// scheme
         window.location.href = deepLinkUrl;
         
-        // If that doesn't work after a short delay, fall back to warpcast.com
+        // If that doesn't work after a short delay, fall back to farcaster.xyz
         setTimeout(() => {
-          window.location.href = warpcastDeepLink;
+          window.location.href = farcasterWebLink;
         }, 500);
       };
 
@@ -56,7 +56,7 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
         </div>
 
         <a
-          href={`https://warpcast.com/~/sign-in-with-farcaster?channelToken=${channelToken}`}
+          href={`https://farcaster.xyz/~/sign-in-with-farcaster?channelToken=${channelToken}`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center justify-center gap-2 w-full px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors mb-4"
@@ -91,7 +91,7 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
           Sign in with Farcaster
         </h3>
         <p className="text-sm text-gray-600">
-          Scan this QR code with your phone's camera or Warpcast app
+          Scan this QR code with your phone's camera or Farcaster app
         </p>
       </div>
       
