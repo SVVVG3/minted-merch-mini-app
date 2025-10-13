@@ -420,6 +420,33 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                       )}
                     </div>
                   )}
+
+                  {/* Connected Wallets (dGEN1/Web3Modal) */}
+                  {userData.walletAddresses.connected_eth?.length > 0 && (
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <div className="flex items-center mb-3">
+                        <h4 className="font-medium text-blue-800">🤖 dGEN1 Wallet</h4>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {userData.walletAddresses.connected_eth.map((addr, index) => (
+                          <div key={index}>
+                            <div className="text-xs text-blue-600 mb-1 font-medium">Ethereum Address #{index + 1}</div>
+                            <div className="flex items-center">
+                              <div className="font-mono text-sm bg-white p-2 rounded border border-blue-200 flex-1">
+                                {addr}
+                              </div>
+                              <CopyButton text={addr} label="dGEN1 wallet address" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div className="text-xs text-blue-600 mt-2">
+                        Connected via dGEN1 device or Web3Modal
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

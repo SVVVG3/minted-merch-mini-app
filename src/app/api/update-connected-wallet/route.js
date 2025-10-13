@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase';
  * Update a user's connected wallet address in their profile
  * This is for dGEN1/desktop users who connect via Web3Modal/window.ethereum
  * Different from Farcaster verified addresses (those come from Neynar)
+ * Stores in connected_eth_addresses for proper labeling in Admin Dashboard
  */
 export async function POST(request) {
   try {
@@ -21,11 +22,10 @@ export async function POST(request) {
 
     console.log('💳 Updating connected wallet for FID:', fid, 'Address:', normalizedAddress);
 
-    // Update profile with the connected wallet
-    // We'll store it in primary_eth_address if they don't have one from Farcaster
+    // Get existing profile
     const { data: existingProfile, error: fetchError } = await supabaseAdmin
       .from('profiles')
-      .select('primary_eth_address, verified_eth_addresses, all_wallet_addresses')
+      .select('connected_eth_addresses, all_wallet_addresses')
       .eq('fid', fid)
       .single();
 
@@ -42,15 +42,13 @@ export async function POST(request) {
       updated_at: new Date().toISOString()
     };
 
-    // If they don't have a primary ETH address from Farcaster, use this one
-    if (!existingProfile.primary_eth_address) {
-      updates.primary_eth_address = normalizedAddress;
-    }
-
-    // Add to verified_eth_addresses if not already there
-    const verifiedAddresses = existingProfile.verified_eth_addresses || [];
-    if (!verifiedAddresses.includes(normalizedAddress)) {
-      updates.verified_eth_addresses = [...verifiedAddresses, normalizedAddress];
+    // Add to connected_eth_addresses if not already there
+    const connectedAddresses = existingProfile.connected_eth_addresses || [];
+    if (!connectedAddresses.includes(normalizedAddress)) {
+      updates.connected_eth_addresses = [...connectedAddresses, normalizedAddress];
+      console.log(`💳 Adding new connected wallet: ${normalizedAddress}`);
+    } else {
+      console.log(`💳 Wallet already connected: ${normalizedAddress}`);
     }
 
     // Add to all_wallet_addresses if not already there

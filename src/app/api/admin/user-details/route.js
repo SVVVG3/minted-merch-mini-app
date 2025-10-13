@@ -154,6 +154,7 @@ export async function GET(request) {
     try {
       walletAddresses.verified_eth = Array.isArray(profile.verified_eth_addresses) ? profile.verified_eth_addresses : JSON.parse(profile.verified_eth_addresses || '[]');
       walletAddresses.verified_sol = Array.isArray(profile.verified_sol_addresses) ? profile.verified_sol_addresses : JSON.parse(profile.verified_sol_addresses || '[]');
+      walletAddresses.connected_eth = Array.isArray(profile.connected_eth_addresses) ? profile.connected_eth_addresses : JSON.parse(profile.connected_eth_addresses || '[]');
       walletAddresses.all_addresses = Array.isArray(profile.all_wallet_addresses) ? profile.all_wallet_addresses : JSON.parse(profile.all_wallet_addresses || '[]');
     } catch (error) {
       console.error('Error parsing wallet addresses:', error);
