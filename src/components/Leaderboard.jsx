@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 
 export function Leaderboard({ isVisible = true }) {
-  const { isInFarcaster, isReady, getFid } = useFarcaster();
+  const { isInFarcaster, isReady, getFid, user } = useFarcaster();
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [userPosition, setUserPosition] = useState(null);
   const [userProfiles, setUserProfiles] = useState({});
@@ -12,10 +12,11 @@ export function Leaderboard({ isVisible = true }) {
   const [category, setCategory] = useState('points');
   const [error, setError] = useState(null);
 
-  const currentUserFid = isInFarcaster && isReady ? getFid() : null;
+  // Get current user FID from either mini-app context or AuthKit
+  const currentUserFid = user?.fid || (isReady ? getFid() : null);
   
-  // Debug Farcaster connection
-  console.log(`🚨 FARCASTER DEBUG: isInFarcaster=${isInFarcaster}, isReady=${isReady}, getFid()=${getFid()}, currentUserFid=${currentUserFid}`);
+  // Debug user connection
+  console.log(`🚨 USER DEBUG: isInFarcaster=${isInFarcaster}, isReady=${isReady}, user=${!!user}, user.fid=${user?.fid}, currentUserFid=${currentUserFid}`);
 
   // Handle sharing leaderboard position
   const handleSharePosition = async () => {
