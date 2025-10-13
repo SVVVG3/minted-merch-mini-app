@@ -874,9 +874,13 @@ export async function getUserLeaderboardPosition(userFid, category = 'points') {
     // Apply token multiplier to user's points
     const tokenBalance = userData.profiles?.token_balance || 0;
     const basePoints = userData.total_points || 0;
-    const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
+    const basePurchasePoints = userData.points_from_purchases || 0;
     
-    console.log(`🔍 User ${userFid} data: basePoints=${basePoints}, tokenBalance=${tokenBalance}, multiplier=${multiplierResult.multiplier}x, multipliedPoints=${multiplierResult.multipliedPoints}`);
+    // Apply multiplier to both total points and purchase points
+    const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
+    const purchaseMultiplierResult = applyTokenMultiplier(basePurchasePoints, tokenBalance);
+    
+    console.log(`🔍 User ${userFid} data: basePoints=${basePoints}, basePurchasePoints=${basePurchasePoints}, tokenBalance=${tokenBalance}, multiplier=${multiplierResult.multiplier}x, multipliedPoints=${multiplierResult.multipliedPoints}, multipliedPurchasePoints=${purchaseMultiplierResult.multipliedPoints}`);
 
     // OPTIMIZED: Don't fetch all users! Just calculate rank with a simple query
     // For most check-ins, we don't even need the exact rank - just the user's data
@@ -891,7 +895,8 @@ export async function getUserLeaderboardPosition(userFid, category = 'points') {
         displayPoints = multiplierResult.multipliedPoints;
         break;
       case 'purchases':
-        displayPoints = userData.points_from_purchases || 0;
+        // Use multiplied purchase points, not base points
+        displayPoints = purchaseMultiplierResult.multipliedPoints;
         break;
       case 'streaks':
         displayPoints = userData.checkin_streak || 0;
@@ -922,7 +927,9 @@ export async function getUserLeaderboardPosition(userFid, category = 'points') {
       lastCheckin: userData.last_checkin_date,
       totalOrders: userData.total_orders || 0,
       totalSpent: userData.total_spent || 0,
-      pointsFromPurchases: userData.points_from_purchases || 0
+      // Return multiplied purchase points, not base points
+      pointsFromPurchases: purchaseMultiplierResult.multipliedPoints,
+      basePurchasePoints: basePurchasePoints // Also include base purchase points for reference
     };
 
   } catch (error) {
