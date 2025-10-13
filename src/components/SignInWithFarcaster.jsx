@@ -50,13 +50,18 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
       <div className="text-center">
         <div className="mb-6">
           <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-purple-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
+            <img 
+              src="/logo.png" 
+              alt="Minted Merch" 
+              className="w-12 h-12 object-contain animate-pulse"
+            />
           </div>
           <h3 className="text-xl font-bold text-gray-900 mb-2">
             Opening Farcaster...
           </h3>
+          <p className="text-sm text-gray-700 mb-3 px-2">
+            Sign in with Farcaster to access your profile, daily check-ins, leaderboard, notifications, order history, and token gated discounts!
+          </p>
           <p className="text-sm text-gray-600 mb-4">
             If the app doesn't open automatically, tap the button below
           </p>
