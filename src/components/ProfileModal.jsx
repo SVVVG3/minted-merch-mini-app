@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { useAccount } from 'wagmi';
 
 export function ProfileModal({ isOpen, onClose }) {
   const { user, isInFarcaster } = useFarcaster();
+  const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
   const [profileData, setProfileData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [connectedWallet, setConnectedWallet] = useState(null);
@@ -37,30 +39,44 @@ export function ProfileModal({ isOpen, onClose }) {
     }
   };
 
-  // Get wallet address from Farcaster SDK
+  // Get wallet address from Farcaster SDK OR Wagmi (for dGEN1/desktop)
   useEffect(() => {
     async function getWalletAddress() {
+      // Priority 1: Wagmi wallet (dGEN1, desktop with Web3Modal)
+      if (wagmiConnected && wagmiAddress) {
+        console.log('Using Wagmi wallet address:', wagmiAddress);
+        setConnectedWallet(wagmiAddress);
+        return;
+      }
+      
+      // Priority 2: Farcaster SDK wallet (mini app)
       if (isInFarcaster && user) {
         try {
           const provider = await sdk.wallet.getEthereumProvider();
           if (provider) {
             const accounts = await provider.request({ method: 'eth_accounts' });
             if (accounts && accounts.length > 0) {
+              console.log('Using Farcaster SDK wallet address:', accounts[0]);
               setConnectedWallet(accounts[0]);
             }
           }
         } catch (error) {
-          console.log('Error getting wallet address:', error);
+          console.log('Error getting wallet address from Farcaster SDK:', error);
         }
       }
     }
 
     getWalletAddress();
-  }, [isInFarcaster, user]);
+  }, [isInFarcaster, user, wagmiConnected, wagmiAddress]);
 
-  // Load order history
+  // Load order history  
   const loadOrderHistory = async () => {
-    if (!user?.fid) return;
+    // For anonymous users (dGEN1), we can't load order history without FID
+    // Orders are stored but not queryable without FID
+    if (!user?.fid) {
+      console.log('No FID available - cannot load order history');
+      return;
+    }
     
     setOrdersLoading(true);
     try {
