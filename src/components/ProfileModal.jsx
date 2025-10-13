@@ -246,28 +246,35 @@ export function ProfileModal({ isOpen, onClose }) {
                   </div>
                   <button
                     onClick={async () => {
-                      try {
-                        const capabilities = await sdk.getCapabilities();
-                        if (capabilities.includes('haptics.selectionChanged')) {
-                          await sdk.haptics.selectionChanged();
+                      if (isInFarcaster) {
+                        // In mini app - use SDK swap action
+                        try {
+                          const capabilities = await sdk.getCapabilities();
+                          if (capabilities.includes('haptics.selectionChanged')) {
+                            await sdk.haptics.selectionChanged();
+                          }
+                        } catch (error) {
+                          console.log('Haptics not available:', error);
                         }
-                      } catch (error) {
-                        console.log('Haptics not available:', error);
-                      }
-                      
-                      try {
-                        const result = await sdk.actions.swapToken({
-                          buyToken: `eip155:8453/erc20:0x774EAeFE73Df7959496Ac92a77279A8D7d690b07`,
-                          sellToken: 'eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-                        });
                         
-                        if (result.success) {
-                          console.log('Swap completed:', result.swap);
-                        } else {
-                          console.log('Swap failed or cancelled:', result.reason);
+                        try {
+                          const result = await sdk.actions.swapToken({
+                            buyToken: `eip155:8453/erc20:0x774EAeFE73Df7959496Ac92a77279A8D7d690b07`,
+                            sellToken: 'eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+                          });
+                          
+                          if (result.success) {
+                            console.log('Swap completed:', result.swap);
+                          } else {
+                            console.log('Swap failed or cancelled:', result.reason);
+                          }
+                        } catch (error) {
+                          console.error('Error opening swap:', error);
                         }
-                      } catch (error) {
-                        console.error('Error opening swap:', error);
+                      } else {
+                        // Not in mini app - open Matcha in new tab
+                        const matchaUrl = 'https://matcha.xyz/tokens/base/0x774eaefe73df7959496ac92a77279a8d7d690b07';
+                        window.open(matchaUrl, '_blank', 'noopener,noreferrer');
                       }
                     }}
                     className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-full text-xs font-semibold transition-all hover:scale-105 shadow-md"
