@@ -79,10 +79,14 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
 
   // Load user's check-in status (works for both mini-app and AuthKit users)
   useEffect(() => {
-    if (!isReady || !user) return;
+    // For dGEN1/desktop: user object must exist
+    // For mini app: isReady must be true
+    const userFid = user?.fid || (isReady ? getFid() : null);
     
-    const userFid = user.fid || getFid();
-    if (!userFid) return;
+    if (!userFid) {
+      console.log('⏳ Waiting for user authentication...', { hasUser: !!user, isReady });
+      return;
+    }
 
     console.log('🎯 Loading check-in status for user FID:', userFid);
     loadUserStatus(userFid);
@@ -119,7 +123,12 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       const confirmWithBackend = async () => {
         try {
           console.log('🎯 Confirming spin with backend...');
-          const userFid = getFid();
+          // Get user FID - works for both mini app and dGEN1/desktop with Farcaster auth
+          const userFid = user?.fid || (isReady ? getFid() : null);
+          
+          if (!userFid) {
+            throw new Error('User FID not available');
+          }
           
           const checkinResponse = await fetch('/api/points/checkin', {
             method: 'POST',
@@ -268,17 +277,20 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
 
   // Main spin function (always on-chain)
   const handleSpin = async () => {
-    console.log('🎰 Spin button clicked!', { isInFarcaster, isReady, isSpinning, canSpin });
+    console.log('🎰 Spin button clicked!', { isInFarcaster, isReady, isSpinning, canSpin, user });
     
-    if (!isInFarcaster || !isReady || isSpinning || !canSpin) {
-      console.log('❌ Spin blocked:', { isInFarcaster, isReady, isSpinning, canSpin });
+    // Check if spinning is in progress or user can't spin
+    if (isSpinning || !canSpin) {
+      console.log('❌ Spin blocked:', { isSpinning, canSpin });
       return;
     }
 
-    const userFid = getFid();
+    // Get user FID - works for both mini app and dGEN1/desktop with Farcaster auth
+    const userFid = user?.fid || (isReady ? getFid() : null);
     console.log('👤 User FID:', userFid);
     if (!userFid) {
-      console.log('❌ No user FID');
+      console.log('❌ No user FID - user must be signed in with Farcaster');
+      alert('Please sign in with Farcaster to spin the wheel');
       return;
     }
 
