@@ -46,6 +46,7 @@ export function CheckInButton() {
   const handleOpenModal = async () => {
     // Add haptic feedback for check-in action (works in mini app AND mobile browser)
     const isInMiniApp = user && !user.isAuthKit;
+    console.log('🎯 CheckInButton clicked, triggering haptics. isInMiniApp:', isInMiniApp);
     await haptics.medium(isInMiniApp);
     
     setIsModalOpen(true);

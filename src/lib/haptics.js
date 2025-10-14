@@ -9,15 +9,16 @@ import { sdk } from '@farcaster/miniapp-sdk';
 /**
  * Haptic intensity patterns for Web Vibration API
  * Maps Farcaster haptic types to vibration patterns (in milliseconds)
+ * Note: Increased durations for better mobile browser feedback
  */
 const VIBRATION_PATTERNS = {
-  light: 10,
-  medium: 20,
-  heavy: 30,
-  success: [10, 50, 10],
-  warning: [10, 100, 10, 100, 10],
-  error: [50, 50, 50],
-  selectionChanged: 5,
+  light: 20,
+  medium: 50,
+  heavy: 80,
+  success: [30, 50, 30],
+  warning: [30, 100, 30, 100, 30],
+  error: [80, 50, 80],
+  selectionChanged: 15,
 };
 
 /**
@@ -56,11 +57,15 @@ export async function triggerHaptic(type = 'medium', isInMiniApp = false) {
   if (typeof navigator !== 'undefined' && navigator.vibrate) {
     try {
       const pattern = VIBRATION_PATTERNS[type] || VIBRATION_PATTERNS.medium;
-      navigator.vibrate(pattern);
+      console.log('🔔 Triggering browser vibration:', type, pattern);
+      const result = navigator.vibrate(pattern);
+      console.log('🔔 Vibration result:', result);
       return true;
     } catch (error) {
-      console.log('Web Vibration API not available:', error);
+      console.log('❌ Web Vibration API error:', error);
     }
+  } else {
+    console.log('❌ Web Vibration API not available. Navigator.vibrate:', typeof navigator !== 'undefined' ? navigator.vibrate : 'navigator undefined');
   }
   
   return false;
