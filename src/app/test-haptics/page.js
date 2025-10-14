@@ -28,6 +28,8 @@ export default function TestHapticsPage() {
     { type: 'selectionChanged', label: 'Selection', color: 'bg-purple-500' },
   ];
 
+  const vibrateAvailable = typeof navigator !== 'undefined' && navigator.vibrate;
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-md mx-auto">
@@ -35,6 +37,19 @@ export default function TestHapticsPage() {
         <p className="text-sm text-gray-600 mb-6">
           Test haptic feedback on your device. Watch for toast messages showing which API is used.
         </p>
+
+        {/* Warning Banner if Vibrate API not available */}
+        {!vibrateAvailable && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 mb-6">
+            <h3 className="font-bold text-red-900 mb-2">⚠️ Vibrate API Not Detected</h3>
+            <p className="text-sm text-red-800 mb-2">
+              Your browser doesn't support the Web Vibration API. Haptics won't work until this is enabled.
+            </p>
+            <p className="text-xs text-red-700">
+              See troubleshooting section below for solutions.
+            </p>
+          </div>
+        )}
 
         {/* Settings */}
         <div className="bg-white rounded-lg p-4 mb-6 shadow">
@@ -65,9 +80,13 @@ export default function TestHapticsPage() {
         <div className="bg-white rounded-lg p-4 mb-6 shadow">
           <h2 className="font-semibold mb-2">Device Info</h2>
           <div className="text-xs space-y-1">
-            <p>User Agent: {typeof navigator !== 'undefined' ? navigator.userAgent.substring(0, 50) + '...' : 'N/A'}</p>
-            <p>Vibrate API: {typeof navigator !== 'undefined' && navigator.vibrate ? '✅ Available' : '❌ Not Available'}</p>
+            <p className="break-all">User Agent: {typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A'}</p>
+            <p className={typeof navigator !== 'undefined' && navigator.vibrate ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
+              Vibrate API: {typeof navigator !== 'undefined' && navigator.vibrate ? '✅ Available' : '❌ Not Available'}
+            </p>
             <p>Platform: {typeof navigator !== 'undefined' ? navigator.platform : 'N/A'}</p>
+            <p>Navigator.vibrate type: {typeof navigator !== 'undefined' ? typeof navigator.vibrate : 'N/A'}</p>
+            <p>Is Secure Context: {typeof window !== 'undefined' && window.isSecureContext ? '✅ Yes (HTTPS)' : '❌ No'}</p>
           </div>
         </div>
 
@@ -113,14 +132,40 @@ export default function TestHapticsPage() {
 
         {/* Troubleshooting */}
         <div className="mt-6 bg-yellow-50 rounded-lg p-4">
-          <h3 className="font-semibold text-yellow-900 mb-2">Troubleshooting</h3>
-          <ul className="text-sm text-yellow-800 space-y-1 list-disc list-inside">
-            <li>Ensure device vibration is enabled in system settings</li>
-            <li>Haptics require a user gesture (button tap) to work</li>
-            <li>Firefox on Android should support Web Vibration API</li>
-            <li>If no toast appears, JavaScript may be blocked</li>
-            <li>Try different haptic types - some may work better than others</li>
-          </ul>
+          <h3 className="font-semibold text-yellow-900 mb-2">Troubleshooting - Vibrate API Not Available</h3>
+          <div className="text-sm text-yellow-800 space-y-3">
+            <p className="font-semibold">If Vibrate API shows "Not Available":</p>
+            
+            <div>
+              <p className="font-medium mb-1">1. Enable vibration in Firefox:</p>
+              <ul className="list-disc list-inside ml-2 space-y-0.5">
+                <li>Type <code className="bg-yellow-100 px-1 rounded">about:config</code> in address bar</li>
+                <li>Search for: <code className="bg-yellow-100 px-1 rounded">dom.vibrator.enabled</code></li>
+                <li>Make sure it's set to <strong>true</strong></li>
+              </ul>
+            </div>
+            
+            <div>
+              <p className="font-medium mb-1">2. Check system settings:</p>
+              <ul className="list-disc list-inside ml-2 space-y-0.5">
+                <li>Go to ethOS Settings → Sound & Vibration</li>
+                <li>Ensure vibration is enabled</li>
+                <li>Disable "Do Not Disturb" mode if active</li>
+              </ul>
+            </div>
+            
+            <div>
+              <p className="font-medium mb-1">3. Try a different browser:</p>
+              <ul className="list-disc list-inside ml-2 space-y-0.5">
+                <li>Chrome/Brave typically have better vibration support</li>
+                <li>Check if dGEN1 has other browsers available</li>
+              </ul>
+            </div>
+            
+            <div>
+              <p className="font-medium">4. Site must use HTTPS (secure context)</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
