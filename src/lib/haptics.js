@@ -1,10 +1,25 @@
 /**
  * Haptics utility for cross-platform haptic feedback
+ * - Uses native Capacitor haptics in native Android/iOS apps (best)
  * - Uses Farcaster SDK haptics in mini app environment
  * - Falls back to Web Vibration API in mobile browsers
  */
 
 import { sdk } from '@farcaster/miniapp-sdk';
+
+// Dynamic import for Capacitor (only loads if available)
+let Haptics = null;
+try {
+  // This will only work if @capacitor/haptics is installed
+  // Otherwise it gracefully fails and uses fallback methods
+  import('@capacitor/haptics').then(module => {
+    Haptics = module.Haptics;
+  }).catch(() => {
+    // Capacitor not available, use fallbacks
+  });
+} catch (e) {
+  // Capacitor not available
+}
 
 /**
  * Haptic intensity patterns for Web Vibration API
@@ -28,7 +43,38 @@ const VIBRATION_PATTERNS = {
  * @returns {Promise<boolean>} - Whether haptic was triggered successfully
  */
 export async function triggerHaptic(type = 'medium', isInMiniApp = false) {
-  // Try Farcaster SDK haptics first if in mini app
+  // Try Capacitor native haptics first (best option for native apps)
+  if (Haptics) {
+    try {
+      // Map types to Capacitor ImpactStyle
+      const impactMap = {
+        light: 'LIGHT',
+        medium: 'MEDIUM',
+        heavy: 'HEAVY',
+        selectionChanged: 'LIGHT',
+      };
+      
+      const notificationMap = {
+        success: 'SUCCESS',
+        warning: 'WARNING',
+        error: 'ERROR',
+      };
+      
+      if (impactMap[type]) {
+        await Haptics.impact({ style: impactMap[type] });
+        console.log('✅ Capacitor haptic triggered:', type);
+        return true;
+      } else if (notificationMap[type]) {
+        await Haptics.notification({ type: notificationMap[type] });
+        console.log('✅ Capacitor haptic triggered:', type);
+        return true;
+      }
+    } catch (error) {
+      console.log('Capacitor haptics failed, trying fallback:', error);
+    }
+  }
+  
+  // Try Farcaster SDK haptics if in mini app
   if (isInMiniApp) {
     try {
       const capabilities = await sdk.getCapabilities();
