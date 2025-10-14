@@ -23,6 +23,7 @@ export function isGiftCardCode(code) {
     /^PROMO-/,                // PROMO-XXXXX
     /^SAVE\d+/,               // SAVE20, SAVE15, etc.
     /^MERCH-MOGULS$/,         // MERCH-MOGULS (token-gated discount)
+    /^[0-9A-Z]+-[A-Z]+-[A-Z]+$/,    // Pattern like 0XT0NY-RAFFLE-WIN (starts with number or letter)
     /^[A-Z]+\d+-[A-Z0-9]+$/,  // General pattern: CODE15-XXXXX
     /^[A-Z]+-[A-Z]+-\d+$/,    // Pattern like SAVAGE-TEST-345
     /^[A-Z]+TEST-\d+$/,       // Pattern like SAVAGETEST-345
