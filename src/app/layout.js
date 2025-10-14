@@ -26,6 +26,11 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "Shopify Mini App Frame",
   description: "Farcaster frame for shopping with USDC",
+  icons: {
+    icon: '/MintedMerchHeaderLogo.png',
+    shortcut: '/MintedMerchHeaderLogo.png',
+    apple: '/MintedMerchHeaderLogo.png',
+  },
 };
 
 export default function RootLayout({ children }) {
