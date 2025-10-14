@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { CheckInModal } from './CheckInModal';
-import { sdk } from '@farcaster/miniapp-sdk';
+import { haptics } from '@/lib/haptics';
 
 export function CheckInButton() {
   const { user, isReady, getFid } = useFarcaster();
@@ -44,18 +44,9 @@ export function CheckInButton() {
   };
 
   const handleOpenModal = async () => {
-    // Add haptic feedback for check-in action (only in mini app)
-    if (user && !user.isAuthKit) {
-      try {
-        const capabilities = await sdk.getCapabilities();
-        if (capabilities.includes('haptics.impactOccurred')) {
-          await sdk.haptics.impactOccurred('medium');
-        }
-      } catch (error) {
-        // Haptics not available, continue without feedback
-        console.log('Haptics not available:', error);
-      }
-    }
+    // Add haptic feedback for check-in action (works in mini app AND mobile browser)
+    const isInMiniApp = user && !user.isAuthKit;
+    await haptics.medium(isInMiniApp);
     
     setIsModalOpen(true);
   };
