@@ -22,7 +22,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 
 export function HomePage({ collection: initialCollection, products: initialProducts }) {
   const { itemCount, cartTotal } = useCart();
-  const { isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, user, context, hasNotifications, getNotificationDetails } = useFarcaster();
+  const { isInFarcaster, isReady, isLoading: isFarcasterLoading, getFid, getUsername, getDisplayName, getPfpUrl, user, context, hasNotifications, getNotificationDetails } = useFarcaster();
   const { isDgen, isChecking: isDgenChecking } = useDgenWallet(); // Auto-connect dGEN1 wallet
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -623,11 +623,16 @@ export function HomePage({ collection: initialCollection, products: initialProdu
         <div className="px-2 py-1.5 flex items-center justify-between">
           {/* Logo - different logo for mini app vs browser */}
           <div className="flex items-center pr-2">
-            <img 
-              src={isInFarcaster ? "/MintedMerchHeaderLogo.png" : "/MintedMerchSpinnerLogo.png"}
-              alt="Minted Merch" 
-              className="h-16"
-            />
+            {isFarcasterLoading ? (
+              // Placeholder while detecting environment to prevent logo flash
+              <div className="h-16 w-32 bg-gray-100 animate-pulse rounded" />
+            ) : (
+              <img 
+                src={isInFarcaster ? "/MintedMerchHeaderLogo.png" : "/MintedMerchSpinnerLogo.png"}
+                alt="Minted Merch" 
+                className="h-16"
+              />
+            )}
           </div>
           
           <div className="flex items-center space-x-2">
