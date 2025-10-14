@@ -24,8 +24,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Shopify Mini App Frame",
-  description: "Farcaster frame for shopping with USDC",
+  title: "Minted Merch - Shop with Crypto",
+  description: "Shop exclusive merchandise with USDC. Spin the wheel, earn points, and join the Minted Merch community.",
   icons: {
     icon: '/MintedMerchHeaderLogo.png',
     shortcut: '/MintedMerchHeaderLogo.png',
