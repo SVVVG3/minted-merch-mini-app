@@ -243,7 +243,9 @@ export async function recalculateOrderTotals(orderData) {
     
     // Apply minimum charge logic for gift card orders (same as client logic)
     const isCartFree = subtotal <= 0.01;
-    if (finalTotal <= 0.01 && (isCartFree || giftCardDiscount > 0)) {
+    
+    // If gift card covers the entire order (including tax), apply minimum charge
+    if (giftCardDiscount >= totalBeforeGiftCard && (isCartFree || giftCardDiscount > 0)) {
       finalTotal = 0.01;
     }
     
