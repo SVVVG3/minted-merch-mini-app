@@ -10,6 +10,7 @@ import { ProfileModal } from './ProfileModal';
 import { CollectionSelector } from './CollectionSelector';
 import { SignInWithFarcaster } from './SignInWithFarcaster';
 import { WalletConnectButton } from './WalletConnectButton';
+import { CompactWalletStatus } from './CompactWalletStatus';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { useDgenWallet } from '@/lib/useDgenWallet';
@@ -652,13 +653,23 @@ export function HomePage({ collection: initialCollection, products: initialProdu
               </div>
             )}
             
-            {/* WalletConnect Button - Show when not in mini app and no user connected */}
-            {!isInFarcaster && !user && connectionMethod === 'walletconnect' && (
-              <div className="w-32">
-                <WalletConnectButton 
-                  className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                />
-              </div>
+            {/* WalletConnect UI - Only show when NOT signed into Farcaster */}
+            {!user && !isInFarcaster && (
+              <>
+                {/* Connect Button - Show when not connected */}
+                {!isWalletConnected && connectionMethod === 'walletconnect' && (
+                  <div className="w-24">
+                    <WalletConnectButton 
+                      className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    />
+                  </div>
+                )}
+                
+                {/* Compact Status - Show when connected */}
+                {isWalletConnected && connectionMethod === 'walletconnect' && (
+                  <CompactWalletStatus />
+                )}
+              </>
             )}
             
             {/* Info Button - Show for everyone, positioned after sign in */}
@@ -683,18 +694,6 @@ export function HomePage({ collection: initialCollection, products: initialProdu
                 )}
               </div>
             </button>
-            
-            {/* WalletConnect Status - Simple indicator when connected via WalletConnect */}
-            {isWalletConnected && connectionMethod === 'walletconnect' && (
-              <div className="flex items-center space-x-1 px-2 py-1 bg-green-50 border border-green-200 rounded-lg">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-xs text-green-700 font-medium">Wallet</span>
-                <WalletConnectButton 
-                  className="px-1 py-0.5 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-                  showDisconnect={true}
-                />
-              </div>
-            )}
             
             {/* Profile Picture - Show for authenticated users (mini app OR AuthKit) */}
             {user?.pfpUrl && (

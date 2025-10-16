@@ -1,6 +1,6 @@
 'use client';
 
-import { WalletConnectButton, WalletStatus } from '@/components/WalletConnectButton';
+import { WalletConnectButton } from '@/components/WalletConnectButton';
 import { useWalletConnectContext } from '@/components/WalletConnectProvider';
 
 export default function WalletTestPage() {
@@ -69,7 +69,6 @@ export default function WalletTestPage() {
             <h2 className="text-xl font-semibold mb-4">Wallet Connection</h2>
             <div className="space-y-4">
               <WalletConnectButton />
-              <WalletStatus />
             </div>
           </div>
 
