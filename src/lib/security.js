@@ -239,7 +239,13 @@ export async function recalculateOrderTotals(orderData) {
     
     // Calculate final total
     const totalBeforeGiftCard = subtotalAfterDiscount + adjustedTax + finalShippingPrice;
-    let finalTotal = Math.max(0.01, totalBeforeGiftCard - giftCardDiscount); // Minimum $0.01
+    let finalTotal = Math.max(0, totalBeforeGiftCard - giftCardDiscount);
+    
+    // Apply minimum charge logic for gift card orders (same as client logic)
+    const isCartFree = subtotal <= 0.01;
+    if (finalTotal <= 0.01 && (isCartFree || giftCardDiscount > 0)) {
+      finalTotal = 0.01;
+    }
     
     // Round to 2 decimal places to avoid floating-point precision issues
     finalTotal = Math.round(finalTotal * 100) / 100;
