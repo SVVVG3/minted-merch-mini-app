@@ -98,7 +98,7 @@ export async function validateGiftCardsServerSide(giftCards, expectedTotal) {
     let totalDiscount = 0;
 
     for (const giftCard of giftCards) {
-      if (!giftCard.code || !giftCard.amountUsed) {
+      if (!giftCard.code) {
         return {
           success: false,
           error: 'Invalid gift card data provided',
@@ -118,25 +118,29 @@ export async function validateGiftCardsServerSide(giftCards, expectedTotal) {
       }
 
       const actualBalance = parseFloat(validationResult.giftCard.balance.amount);
-      const clientAmountUsed = parseFloat(giftCard.amountUsed);
+      // Calculate server-side amount used (security: don't trust client)
       const serverAmountUsed = Math.min(actualBalance, expectedTotal - totalDiscount);
 
-      // Validate amount used
-      if (!validateGiftCardAmount(clientAmountUsed, serverAmountUsed)) {
-        return {
-          success: false,
-          error: 'Gift card amount mismatch detected',
-          details: {
-            code: giftCard.code,
-            clientAmount: clientAmountUsed,
-            serverAmount: serverAmountUsed,
-            actualBalance: actualBalance
-          }
-        };
+      // If client provided amountUsed, validate it matches server calculation
+      if (giftCard.amountUsed !== undefined) {
+        const clientAmountUsed = parseFloat(giftCard.amountUsed);
+        if (!validateGiftCardAmount(clientAmountUsed, serverAmountUsed)) {
+          return {
+            success: false,
+            error: 'Gift card amount mismatch detected',
+            details: {
+              code: giftCard.code,
+              clientAmount: clientAmountUsed,
+              serverAmount: serverAmountUsed,
+              actualBalance: actualBalance
+            }
+          };
+        }
       }
 
       validatedGiftCards.push({
         ...giftCard,
+        amountUsed: serverAmountUsed, // Use server-calculated amount
         validatedAmount: serverAmountUsed,
         actualBalance: actualBalance
       });
