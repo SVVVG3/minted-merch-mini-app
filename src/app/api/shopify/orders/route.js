@@ -454,7 +454,7 @@ export async function POST(request) {
           sessionId: null,
           status: 'paid',
           currency: 'USDC',
-          amountTotal: finalTotalPrice,
+          amountTotal: body.total || finalTotalPrice, // Use actual payment amount if available
           amountSubtotal: subtotalAfterDiscount, // Use server-calculated discounted subtotal
           amountTax: adjustedTax, // Use server-calculated adjusted tax
           amountShipping: shippingPrice, // Use server-calculated shipping (includes free shipping logic)
