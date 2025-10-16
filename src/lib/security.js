@@ -298,21 +298,25 @@ export async function validatePaymentReconciliation(clientOrderData, serverTotal
     // Validate gift card amounts if present
     if (giftCards.length > 0) {
       for (const giftCard of giftCards) {
-        const clientAmount = parseFloat(giftCard.amountUsed);
-        const serverAmount = parseFloat(giftCard.validatedAmount || 0);
-        
-        if (!validateGiftCardAmount(clientAmount, serverAmount)) {
-          return {
-            success: false,
-            error: 'Gift card amount mismatch detected',
-            details: {
-              code: giftCard.code,
-              clientAmount,
-              serverAmount,
-              difference: Math.abs(clientAmount - serverAmount)
-            }
-          };
+        // Only validate if client provided amountUsed (for backward compatibility)
+        if (giftCard.amountUsed !== undefined) {
+          const clientAmount = parseFloat(giftCard.amountUsed);
+          const serverAmount = parseFloat(giftCard.validatedAmount || 0);
+          
+          if (!validateGiftCardAmount(clientAmount, serverAmount)) {
+            return {
+              success: false,
+              error: 'Gift card amount mismatch detected',
+              details: {
+                code: giftCard.code,
+                clientAmount,
+                serverAmount,
+                difference: Math.abs(clientAmount - serverAmount)
+              }
+            };
+          }
         }
+        // If client didn't provide amountUsed, we trust the server calculation
       }
     }
     
