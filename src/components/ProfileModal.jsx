@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { useWalletConnectContext } from './WalletConnectProvider';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 export function ProfileModal({ isOpen, onClose }) {
   const router = useRouter();
   const { user, isInFarcaster } = useFarcaster();
+  const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod } = useWalletConnectContext();
   const [profileData, setProfileData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [connectedWallet, setConnectedWallet] = useState(null);
@@ -39,14 +41,21 @@ export function ProfileModal({ isOpen, onClose }) {
     }
   };
 
-  // Get wallet address from Farcaster SDK or window.ethereum (for dGEN1/desktop)
+  // Get wallet address from Farcaster SDK, WalletConnect, or window.ethereum (for dGEN1/desktop)
   useEffect(() => {
     async function getWalletAddress() {
       let detectedAddress = null;
       let isConnectedWallet = false;
 
-      // Priority 1: Check window.ethereum for dGEN1/desktop wallet
-      if (typeof window !== 'undefined' && window.ethereum) {
+      // Priority 1: Check WalletConnect connection
+      if (isWalletConnected && walletConnectAddress && connectionMethod === 'walletconnect') {
+        detectedAddress = walletConnectAddress;
+        isConnectedWallet = true;
+        console.log('💳 Using WalletConnect wallet address:', detectedAddress);
+      }
+      
+      // Priority 2: Check window.ethereum for dGEN1/desktop wallet
+      if (!detectedAddress && typeof window !== 'undefined' && window.ethereum) {
         try {
           const accounts = await window.ethereum.request({ method: 'eth_accounts' });
           if (accounts && accounts.length > 0) {
@@ -59,7 +68,7 @@ export function ProfileModal({ isOpen, onClose }) {
         }
       }
       
-      // Priority 2: Farcaster SDK wallet (mini app)
+      // Priority 3: Farcaster SDK wallet (mini app)
       if (!detectedAddress && isInFarcaster && user) {
         try {
           const provider = await sdk.wallet.getEthereumProvider();
@@ -105,7 +114,7 @@ export function ProfileModal({ isOpen, onClose }) {
     }
 
     getWalletAddress();
-  }, [isInFarcaster, user]);
+  }, [isInFarcaster, user, isWalletConnected, walletConnectAddress, connectionMethod]);
 
   // Load order history  
   const loadOrderHistory = async () => {
