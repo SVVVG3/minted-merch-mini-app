@@ -32,6 +32,7 @@ export default function GiftCardSection({
       });
 
       const result = await response.json();
+      console.log('🔍 Frontend received gift card validation response:', result);
 
       if (result.success && result.isValid) {
         console.log('✅ Gift card validation successful:', result);

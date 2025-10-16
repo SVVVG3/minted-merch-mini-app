@@ -42,10 +42,10 @@ export async function POST(request) {
     }
     
     // Return valid gift card details
-    return NextResponse.json({
+    const response = {
       success: true,
       isValid: true,
-      message: 'Gift card is valid and can be used',
+      message: `Gift card is valid with $${parseFloat(validationResult.giftCard.balance.amount)} balance`,
       giftCard: {
         id: validationResult.giftCard.id,
         code: validationResult.giftCard.maskedCode,
@@ -55,11 +55,13 @@ export async function POST(request) {
         createdAt: validationResult.giftCard.createdAt,
         expiresAt: validationResult.giftCard.expiresAt,
         note: validationResult.giftCard.note
-      },
+      }
       // SECURITY: Don't return discount amounts to prevent client-side manipulation
       // Discount amounts will be calculated server-side during checkout
-      message: `Gift card is valid with $${parseFloat(validationResult.giftCard.balance.amount)} balance`
-    });
+    };
+    
+    console.log('✅ Returning successful gift card validation response:', JSON.stringify(response, null, 2));
+    return NextResponse.json(response);
     
   } catch (error) {
     console.error('❌ Error validating gift card:', error);
