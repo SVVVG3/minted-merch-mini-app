@@ -227,6 +227,10 @@ export async function recalculateOrderTotals(orderData) {
     // Round to 2 decimal places
     adjustedTax = Math.round(adjustedTax * 100) / 100;
     
+    // Also round discount and gift card amounts for consistency
+    discountAmount = Math.round(discountAmount * 100) / 100;
+    giftCardDiscount = Math.round(giftCardDiscount * 100) / 100;
+    
     // Calculate shipping
     const shippingPrice = parseFloat(selectedShipping.price.amount);
     
@@ -235,7 +239,10 @@ export async function recalculateOrderTotals(orderData) {
     
     // Calculate final total
     const totalBeforeGiftCard = subtotalAfterDiscount + adjustedTax + finalShippingPrice;
-    const finalTotal = Math.max(0.01, totalBeforeGiftCard - giftCardDiscount); // Minimum $0.01
+    let finalTotal = Math.max(0.01, totalBeforeGiftCard - giftCardDiscount); // Minimum $0.01
+    
+    // Round to 2 decimal places to avoid floating-point precision issues
+    finalTotal = Math.round(finalTotal * 100) / 100;
     
     return {
       success: true,
