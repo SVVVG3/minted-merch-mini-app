@@ -1101,15 +1101,15 @@ Transaction Hash: ${transactionHash}`;
                       )}
                       {appliedGiftCard && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Gift Card (${appliedGiftCard.discount.discountAmount.toFixed(2)})</span>
-                          <span>-${appliedGiftCard.discount.discountAmount.toFixed(2)}</span>
+                          <span>Gift Card (${appliedGiftCard.balance.toFixed(2)} balance)</span>
+                          <span>-${Math.min(appliedGiftCard.balance, totalBeforeGiftCard).toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between font-medium">
                         <span>Total</span>
                         <span>
                           {(cartTotal <= 0.01) || 
-                           (appliedGiftCard && appliedGiftCard.discount.discountAmount >= cartTotal) ? (
+                           (appliedGiftCard && Math.min(appliedGiftCard.balance, totalBeforeGiftCard) >= cartTotal) ? (
                             (appliedDiscount?.freeShipping || appliedGiftCard) ? (
                               <span className="text-green-600">$0.01 <span className="text-xs">(min processing fee)</span></span>
                             ) : (
@@ -1208,8 +1208,8 @@ Transaction Hash: ${transactionHash}`;
                       )}
                       {appliedGiftCard && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Gift Card (${appliedGiftCard.discount.discountAmount.toFixed(2)})</span>
-                          <span>-${appliedGiftCard.discount.discountAmount.toFixed(2)}</span>
+                          <span>Gift Card (${appliedGiftCard.balance.toFixed(2)} balance)</span>
+                          <span>-${Math.min(appliedGiftCard.balance, totalBeforeGiftCard).toFixed(2)}</span>
                         </div>
                       )}
                       {cart.checkout && (
