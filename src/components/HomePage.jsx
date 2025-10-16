@@ -9,9 +9,11 @@ import { InfoButton } from './InfoButton';
 import { ProfileModal } from './ProfileModal';
 import { CollectionSelector } from './CollectionSelector';
 import { SignInWithFarcaster } from './SignInWithFarcaster';
+import { WalletConnectButton } from './WalletConnectButton';
 import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { useDgenWallet } from '@/lib/useDgenWallet';
+import { useWalletConnectContext } from './WalletConnectProvider';
 import { shareCollection } from '@/lib/farcasterShare';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
 import { getBestAvailableDiscount, hasDiscountOfType } from '@/lib/discounts';
@@ -24,6 +26,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
   const { itemCount, cartTotal } = useCart();
   const { isInFarcaster, isReady, isLoading: isFarcasterLoading, getFid, getUsername, getDisplayName, getPfpUrl, user, context, hasNotifications, getNotificationDetails } = useFarcaster();
   const { isDgen, isChecking: isDgenChecking } = useDgenWallet(); // Auto-connect dGEN1 wallet
+  const { isConnected: isWalletConnected, connectionMethod } = useWalletConnectContext();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [notificationContext, setNotificationContext] = useState(null);
@@ -649,6 +652,15 @@ export function HomePage({ collection: initialCollection, products: initialProdu
               </div>
             )}
             
+            {/* WalletConnect Button - Show when not in mini app and no user connected */}
+            {!isInFarcaster && !user && connectionMethod === 'walletconnect' && (
+              <div className="w-32">
+                <WalletConnectButton 
+                  className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                />
+              </div>
+            )}
+            
             {/* Info Button - Show for everyone, positioned after sign in */}
             <InfoButton />
             
@@ -671,6 +683,18 @@ export function HomePage({ collection: initialCollection, products: initialProdu
                 )}
               </div>
             </button>
+            
+            {/* WalletConnect Status - Show when connected via WalletConnect */}
+            {isWalletConnected && connectionMethod === 'walletconnect' && (
+              <div className="flex items-center space-x-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm text-green-700 font-medium">Wallet Connected</span>
+                <WalletConnectButton 
+                  className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                  showDisconnect={true}
+                />
+              </div>
+            )}
             
             {/* Profile Picture - Show for authenticated users (mini app OR AuthKit) */}
             {user?.pfpUrl && (
