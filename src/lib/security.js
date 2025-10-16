@@ -239,7 +239,6 @@ export async function recalculateOrderTotals(orderData) {
     giftCardDiscount = Math.round(giftCardDiscount * 100) / 100;
     
     // Calculate final total
-    const totalBeforeGiftCard = subtotalAfterDiscount + adjustedTax + finalShippingPrice;
     let finalTotal = Math.max(0, totalBeforeGiftCard - giftCardDiscount);
     
     // Apply minimum charge logic for gift card orders (same as client logic)
