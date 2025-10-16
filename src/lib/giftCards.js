@@ -83,10 +83,13 @@ export async function validateGiftCard(code) {
     
     const giftCard = data.gift_cards[0];
     
+    // Debug: Log the actual Shopify response structure
+    console.log('🔍 Raw Shopify gift card response:', JSON.stringify(giftCard, null, 2));
+    
     // Return in GraphQL-style format for compatibility
     const formattedGiftCard = {
       id: `gid://shopify/GiftCard/${giftCard.id}`,
-      maskedCode: giftCard.masked_code,
+      maskedCode: giftCard.last_characters || giftCard.masked_code || `•••• •••• •••• ${cleanCode.slice(-4)}`,
       balance: {
         amount: giftCard.balance.toString(),
         currencyCode: giftCard.currency
