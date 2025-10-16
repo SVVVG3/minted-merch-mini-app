@@ -734,10 +734,15 @@ Transaction Hash: ${transactionHash}`;
         // Ensure total doesn't go negative
         finalOrderTotal = Math.max(0, finalOrderTotal);
         
-        // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
-        // Use <= 0.01 to handle floating point precision issues
+        // MINIMUM CHARGE: If total would be $0.00 or gift card covers entire order, charge $0.01 for payment processing
         const isCartFree = cartTotal <= 0.01;
-        if (finalOrderTotal <= 0.01 && (isCartFree || (appliedGiftCard && (typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance)) > 0))) {
+        const totalBeforeGiftCard = (cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount : cartSubtotal) - (appliedDiscount ? calculateProductAwareDiscountAmount() : 0) + calculateAdjustedTax() + shippingCost;
+        const giftCardBalance = appliedGiftCard ? (typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance)) : 0;
+        
+        if (giftCardBalance >= totalBeforeGiftCard && (isCartFree || giftCardBalance > 0)) {
+          finalOrderTotal = 0.01;
+          console.log('💰 Applied minimum charge of $0.01 for gift card order covering entire amount');
+        } else if (finalOrderTotal <= 0.01 && isCartFree) {
           finalOrderTotal = 0.01;
           console.log('💰 Applied minimum charge of $0.01 for free giveaway order processing');
         }
