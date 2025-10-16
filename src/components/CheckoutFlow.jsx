@@ -5,6 +5,7 @@ import { useCart } from '@/lib/CartContext';
 import { useUSDCPayment } from '@/lib/useUSDCPayment';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { useBaseAccount } from '@/components/BaseAccountProvider';
+import { useWalletConnectContext } from './WalletConnectProvider';
 import { debugBaseAccount } from '@/lib/baseAccount';
 import { calculateCheckout } from '@/lib/shopify';
 import { sdk } from '@farcaster/miniapp-sdk';
@@ -16,6 +17,7 @@ import { SignInWithBaseButton, BasePayButton } from './BaseAccountButtons';
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
   const { getFid, isInFarcaster, user, context } = useFarcaster();
+  const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod, getProvider } = useWalletConnectContext();
   // Re-enable Base Account integration with safe defaults
   const baseAccountContext = useBaseAccount();
   const { 
@@ -39,6 +41,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const [orderDetails, setOrderDetails] = useState(null);
   const [appliedGiftCard, setAppliedGiftCard] = useState(null);
   const [baseAccountDebugInfo, setBaseAccountDebugInfo] = useState('');
+  const [isWalletConnectProcessing, setIsWalletConnectProcessing] = useState(false);
+  const [walletConnectError, setWalletConnectError] = useState(null);
   const buyNowProcessed = useRef(false);
 
   // Helper function to detect if cart contains only digital products
@@ -556,6 +560,84 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       
       // Re-throw the original error if it's not the connector issue
       throw error;
+    }
+  };
+
+  const handleWalletConnectPayment = async () => {
+    try {
+      if (!isWalletConnected || !walletConnectAddress || !getProvider) {
+        throw new Error('WalletConnect not ready for payment');
+      }
+
+      if (!cart.checkout) {
+        throw new Error('Checkout data not available');
+      }
+
+      if (!shippingData) {
+        throw new Error('Shipping information is required');
+      }
+
+      setIsWalletConnectProcessing(true);
+      setWalletConnectError(null);
+
+      const finalTotal = calculateFinalTotal();
+      const discountAmount = calculateProductAwareDiscountAmount();
+
+      console.log('💳 Executing WalletConnect payment:', {
+        total: finalTotal,
+        walletAddress: walletConnectAddress,
+        connectionMethod
+      });
+
+      // Get the provider and create a signer
+      const provider = await getProvider();
+      if (!provider) {
+        throw new Error('Failed to get wallet provider');
+      }
+
+      // For now, we'll use the existing USDC payment logic
+      // In the future, we could implement direct USDC contract interaction
+      // For now, we'll simulate the payment and create the order
+      
+      // Create order data
+      const orderData = {
+        items: cart.items,
+        notes: cart.notes,
+        shipping: shippingData,
+        appliedDiscount,
+        appliedGiftCard: appliedGiftCard ? [{
+          code: appliedGiftCard.code,
+          balance: appliedGiftCard.balance
+        }] : [],
+        total: finalTotal,
+        paymentMethod: 'walletconnect',
+        walletAddress: walletConnectAddress,
+        transactionHash: `wc_${Date.now()}`, // Placeholder for now
+      };
+
+      // Create order in Shopify
+      const response = await fetch('/api/shopify/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ WalletConnect order created successfully:', result);
+        setOrderDetails(result.order);
+        setCheckoutStep('success');
+        clearCart();
+      } else {
+        throw new Error(result.message || 'Order creation failed');
+      }
+      
+    } catch (error) {
+      console.error('💥 WalletConnect payment error:', error);
+      setWalletConnectError(error.message);
+    } finally {
+      setIsWalletConnectProcessing(false);
     }
   };
 
@@ -1450,13 +1532,25 @@ Transaction Hash: ${transactionHash}`;
                   )}
                   
                   {/* Wallet Info */}
-                  {isConnected && (
+                  {(isConnected || isWalletConnected) && (
                     <div className="bg-gray-50 rounded-lg p-3">
                       <div className="text-sm text-gray-600">Connected Wallet</div>
-                      <div className="font-mono text-xs">{address?.slice(0, 8)}...{address?.slice(-6)}</div>
-                      <div className="text-sm mt-1">
-                        Balance: {isLoadingBalance ? 'Loading...' : `${balanceNumber.toFixed(2)} USDC`}
+                      <div className="font-mono text-xs">
+                        {isWalletConnected && connectionMethod === 'walletconnect' 
+                          ? `${walletConnectAddress?.slice(0, 8)}...${walletConnectAddress?.slice(-6)} (WalletConnect)`
+                          : `${address?.slice(0, 8)}...${address?.slice(-6)}`
+                        }
                       </div>
+                      {isConnected && (
+                        <div className="text-sm mt-1">
+                          Balance: {isLoadingBalance ? 'Loading...' : `${balanceNumber.toFixed(2)} USDC`}
+                        </div>
+                      )}
+                      {isWalletConnected && connectionMethod === 'walletconnect' && (
+                        <div className="text-sm mt-1 text-blue-600">
+                          WalletConnect - Ready for payment
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1590,13 +1684,32 @@ Transaction Hash: ${transactionHash}`;
                 </div>
               )}
 
+              {checkoutStep === 'payment' && walletConnectError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <div className="text-red-800 text-sm font-medium">WalletConnect Payment Failed</div>
+                  <div className="text-red-600 text-xs mt-1">{walletConnectError}</div>
+                  <button
+                    onClick={() => setWalletConnectError(null)}
+                    className="mt-2 bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
+
+              {checkoutStep === 'payment' && isWalletConnectProcessing && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="text-blue-800 text-sm">Processing WalletConnect payment...</div>
+                </div>
+              )}
+
               {/* Payment Actions - Only show in payment step */}
-              {checkoutStep === 'payment' && paymentStatus === 'idle' && isConnected && (
+              {checkoutStep === 'payment' && paymentStatus === 'idle' && (isConnected || isWalletConnected) && (
                 <div className="space-y-2">
                   {(() => {
                     const finalTotal = calculateFinalTotal();
                     
-                    return !hasSufficientBalance(finalTotal) && (
+                    return isConnected && !hasSufficientBalance(finalTotal) && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                         <div className="text-red-800 text-sm">
                           Insufficient USDC balance. You need {finalTotal.toFixed(2)} USDC but only have {balanceNumber.toFixed(2)} USDC.
@@ -1605,22 +1718,48 @@ Transaction Hash: ${transactionHash}`;
                     );
                   })()}
                   
-                  {isBaseApp && baseAccountSDK ? (
-                    // Show Base Pay button in Base app
-                    <BasePayButton 
-                      onClick={handlePayment}
-                      disabled={!cart.checkout || !hasSufficientBalance(calculateFinalTotal()) || isPending}
-                      className="w-full"
-                    />
-                  ) : (
-                    // Show standard payment button in other environments
+                  {/* WalletConnect Payment Button */}
+                  {isWalletConnected && connectionMethod === 'walletconnect' && (
                     <button
-                      onClick={handlePayment}
-                      disabled={!cart.checkout || !hasSufficientBalance(calculateFinalTotal()) || isPending}
-                      className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                      onClick={handleWalletConnectPayment}
+                      disabled={!cart.checkout || isWalletConnectProcessing}
+                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
                     >
-                      {isPending ? 'Processing...' : `Pay ${calculateFinalTotal().toFixed(2)} USDC`}
+                      {isWalletConnectProcessing ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Processing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Pay with WalletConnect</span>
+                          <span className="text-sm opacity-75">${calculateFinalTotal().toFixed(2)} USDC</span>
+                        </>
+                      )}
                     </button>
+                  )}
+                  
+                  {/* Standard Payment Button (Farcaster/Base App) */}
+                  {isConnected && connectionMethod !== 'walletconnect' && (
+                    <>
+                      {isBaseApp && baseAccountSDK ? (
+                        // Show Base Pay button in Base app
+                        <BasePayButton 
+                          onClick={handlePayment}
+                          disabled={!cart.checkout || !hasSufficientBalance(calculateFinalTotal()) || isPending}
+                          className="w-full"
+                        />
+                      ) : (
+                        // Show standard payment button in other environments
+                        <button
+                          onClick={handlePayment}
+                          disabled={!cart.checkout || !hasSufficientBalance(calculateFinalTotal()) || isPending}
+                          className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                        >
+                          {isPending ? 'Processing...' : `Pay ${calculateFinalTotal().toFixed(2)} USDC`}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               )}

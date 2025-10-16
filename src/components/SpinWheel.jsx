@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { useWalletConnectContext } from './WalletConnectProvider';
 import { shareCheckIn } from '@/lib/farcasterShare';
 // SDK imported dynamically like other working components
 import { getTimeUntilReset } from '@/lib/timezone';
@@ -11,6 +12,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 
 export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const { isInFarcaster, isReady, getFid, user } = useFarcaster();
+  const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod, getProvider } = useWalletConnectContext();
   const { address, isConnected } = useAccount();
   const { 
     writeContract, 
@@ -81,16 +83,36 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   useEffect(() => {
     // For dGEN1/desktop: user object must exist
     // For mini app: isReady must be true
+    // For WalletConnect: no user required, just wallet connection
     const userFid = user?.fid || (isReady ? getFid() : null);
     
-    if (!userFid) {
-      console.log('⏳ Waiting for user authentication...', { hasUser: !!user, isReady });
+    // Check if we have a wallet connection (either Farcaster user or WalletConnect)
+    const hasWalletConnection = (isConnected && address) || (isWalletConnected && walletConnectAddress);
+    
+    if (!userFid && !hasWalletConnection) {
+      console.log('⏳ Waiting for user authentication or wallet connection...', { 
+        hasUser: !!user, 
+        isReady, 
+        isConnected, 
+        isWalletConnected 
+      });
       return;
     }
 
-    console.log('🎯 Loading check-in status for user FID:', userFid);
-    loadUserStatus(userFid);
-  }, [isReady, user]);
+    // For WalletConnect users without Farcaster auth, use a default FID or handle differently
+    if (isWalletConnected && walletConnectAddress && !userFid) {
+      console.log('🎯 WalletConnect user detected, loading check-in status...');
+      // You might want to create a guest user or handle this differently
+      // For now, we'll use a placeholder FID
+      loadUserStatus('walletconnect_guest');
+      return;
+    }
+
+    if (userFid) {
+      console.log('🎯 Loading check-in status for user FID:', userFid);
+      loadUserStatus(userFid);
+    }
+  }, [isReady, user, isConnected, address, isWalletConnected, walletConnectAddress]);
 
   // Countdown timer effect for next spin availability
   useEffect(() => {
@@ -263,14 +285,25 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     console.log('🔍 Checking wallet connection:', { 
       isConnected, 
       address,
+      isWalletConnected,
+      walletConnectAddress,
+      connectionMethod,
       isInFarcaster
     });
     
-    if (!isConnected || !address) {
-      throw new Error('Wallet not connected. Please refresh the app and try again.');
+    // Priority 1: Check WalletConnect connection
+    if (isWalletConnected && walletConnectAddress && connectionMethod === 'walletconnect') {
+      console.log('✅ Using WalletConnect wallet:', walletConnectAddress);
+      return walletConnectAddress;
     }
     
-    return address;
+    // Priority 2: Check standard wallet connection (Farcaster/Base app)
+    if (isConnected && address) {
+      console.log('✅ Using standard wallet:', address);
+      return address;
+    }
+    
+    throw new Error('Wallet not connected. Please connect your wallet and try again.');
   };
 
 
@@ -1003,9 +1036,9 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
               {/* Main spin button */}
               <button
                 onClick={handleSpin}
-                disabled={!canSpin || isSpinning || !isConnected}
+                disabled={!canSpin || isSpinning || (!isConnected && !isWalletConnected)}
                 className={`w-full px-8 py-4 rounded-xl font-bold transition-all duration-200 transform ${
-                  canSpin && !isSpinning && isConnected
+                  canSpin && !isSpinning && (isConnected || isWalletConnected)
                     ? 'bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white shadow-lg hover:shadow-xl hover:scale-105 active:scale-95'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 } ${isSpinning ? 'animate-pulse' : ''}`}
