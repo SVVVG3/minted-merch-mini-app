@@ -1,10 +1,10 @@
-# WalletConnect Integration Setup
+# WalletConnect App SDK Integration Setup
 
-This document explains how to set up WalletConnect integration for desktop and mobile web users.
+This document explains how to set up WalletConnect App SDK integration for desktop and mobile web users.
 
 ## Overview
 
-WalletConnect integration allows users visiting the site on desktop or mobile web (not in mini app environments like Farcaster or dGEN1) to connect their wallets and make payments or use the daily check-in wheel.
+WalletConnect App SDK integration allows users visiting the site on desktop or mobile web (not in mini app environments like Farcaster or dGEN1) to connect their wallets and make payments or use the daily check-in wheel using the Universal Connector.
 
 ## Setup Steps
 
@@ -14,7 +14,15 @@ WalletConnect integration allows users visiting the site on desktop or mobile we
 2. Create a new project
 3. Copy your Project ID
 
-### 2. Add Environment Variable
+### 2. Install App SDK Packages
+
+The following packages are installed:
+
+```bash
+npm install @reown/appkit @reown/appkit-universal-connector @reown/appkit-common ethers
+```
+
+### 3. Add Environment Variable
 
 Add the following environment variable to your `.env.local` file:
 
@@ -22,9 +30,9 @@ Add the following environment variable to your `.env.local` file:
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id_here
 ```
 
-### 3. Deploy
+### 4. Deploy
 
-The WalletConnect integration is already implemented and will automatically activate when the environment variable is set.
+The WalletConnect App SDK integration is already implemented and will automatically activate when the environment variable is set.
 
 ## How It Works
 
@@ -46,11 +54,13 @@ The system automatically detects the user's environment and chooses the appropri
 
 ### Features
 
+- **Universal Connector for multi-chain support**
 - **Automatic environment detection**
 - **Seamless integration with existing functionality**
 - **Support for Base network transactions**
 - **Daily check-in wheel access**
 - **Checkout flow integration**
+- **Provider access for transactions**
 - **No breaking changes to existing functionality**
 
 ## Usage

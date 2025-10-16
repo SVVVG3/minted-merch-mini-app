@@ -5,7 +5,9 @@ import {
   initializeWalletConnect, 
   connectWallet, 
   disconnectWallet, 
-  getActiveSessions,
+  getActiveSession,
+  getConnectedAccounts,
+  getWalletProvider,
   shouldUseWalletConnect,
   isWalletConnectAvailable 
 } from './walletConnect';
@@ -45,23 +47,24 @@ export function useWalletConnect() {
         setIsLoading(true);
         
         // Initialize WalletConnect
-        await initializeWalletConnect();
+        const universalConnector = await initializeWalletConnect();
         
-        // Check for existing sessions
-        const activeSessions = await getActiveSessions();
-        setSessions(activeSessions);
-        
-        if (Object.keys(activeSessions).length > 0) {
-          setIsConnected(true);
-          // Extract accounts from sessions
-          const allAccounts = [];
-          Object.values(activeSessions).forEach(session => {
+        if (universalConnector) {
+          // Check for existing session
+          const session = universalConnector.provider.session;
+          
+          if (session) {
+            setIsConnected(true);
+            setSessions({ [session.topic]: session });
+            
+            // Extract accounts from session
+            const allAccounts = [];
             if (session.namespaces?.eip155?.accounts) {
               allAccounts.push(...session.namespaces.eip155.accounts);
             }
-          });
-          setAccounts(allAccounts);
-          console.log('✅ Found existing WalletConnect sessions:', activeSessions);
+            setAccounts(allAccounts);
+            console.log('✅ Found existing WalletConnect session:', session);
+          }
         }
       } catch (error) {
         console.error('❌ Failed to initialize WalletConnect:', error);
@@ -87,23 +90,21 @@ export function useWalletConnect() {
       console.log('🔗 Connecting wallet via WalletConnect...');
       
       // Connect wallet
-      const walletKit = await connectWallet();
+      const universalConnector = await connectWallet();
       
-      if (walletKit) {
-        // Get updated sessions
-        const activeSessions = await getActiveSessions();
-        setSessions(activeSessions);
+      if (universalConnector) {
+        // Get the connected session
+        const session = universalConnector.provider.session;
         
-        if (Object.keys(activeSessions).length > 0) {
+        if (session) {
           setIsConnected(true);
+          setSessions({ [session.topic]: session });
           
-          // Extract accounts from sessions
+          // Extract accounts from session
           const allAccounts = [];
-          Object.values(activeSessions).forEach(session => {
-            if (session.namespaces?.eip155?.accounts) {
-              allAccounts.push(...session.namespaces.eip155.accounts);
-            }
-          });
+          if (session.namespaces?.eip155?.accounts) {
+            allAccounts.push(...session.namespaces.eip155.accounts);
+          }
           setAccounts(allAccounts);
           
           console.log('✅ WalletConnect connection successful:', allAccounts);
@@ -169,6 +170,12 @@ export function useWalletConnect() {
     });
   }, [accounts]);
 
+  // Get wallet provider for transactions
+  const getProvider = useCallback(async () => {
+    if (!shouldUseWC) return null;
+    return await getWalletProvider();
+  }, [shouldUseWC]);
+
   return {
     // State
     isConnected,
@@ -187,6 +194,7 @@ export function useWalletConnect() {
     // Helpers
     getPrimaryAddress,
     isAccountConnected,
+    getProvider,
     
     // Computed values
     primaryAddress: getPrimaryAddress(),
