@@ -1,8 +1,6 @@
 'use client';
 
 import { UniversalConnector } from '@reown/appkit-universal-connector';
-import type { AppKitNetwork } from '@reown/appkit/networks';
-import type { CustomCaipNetwork } from '@reown/appkit-common';
 
 /**
  * WalletConnect App SDK integration for desktop and mobile web users
@@ -19,9 +17,9 @@ if (!projectId) {
 }
 
 // Configure Base network for our app
-const baseMainnet: CustomCaipNetwork<'eip155'> = {
+const baseMainnet = {
   id: 8453,
-  chainNamespace: 'eip155' as const,
+  chainNamespace: 'eip155',
   caipNetworkId: 'eip155:8453',
   name: 'Base',
   nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
@@ -32,7 +30,7 @@ const baseMainnet: CustomCaipNetwork<'eip155'> = {
   blockExplorerUrls: { default: { name: 'BaseScan', url: 'https://basescan.org' } }
 };
 
-export const networks = [baseMainnet] as [AppKitNetwork, ...AppKitNetwork[]];
+export const networks = [baseMainnet];
 
 // Initialize WalletConnect Universal Connector
 export async function initializeWalletConnect() {
@@ -70,7 +68,7 @@ export async function initializeWalletConnect() {
             'wallet_switchEthereumChain',
             'wallet_addEthereumChain',
           ],
-          chains: [baseMainnet as CustomCaipNetwork],
+          chains: [baseMainnet],
           events: [
             'chainChanged',
             'accountsChanged',
