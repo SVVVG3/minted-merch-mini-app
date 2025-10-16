@@ -30,6 +30,9 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
   useEffect(() => {
     if (initialShipping) {
       setShipping(initialShipping);
+      // Validate the initial data and notify parent
+      const valid = validateForm(initialShipping);
+      onShippingChange(initialShipping, valid);
     }
   }, [initialShipping]);
 

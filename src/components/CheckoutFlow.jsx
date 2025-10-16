@@ -1126,16 +1126,17 @@ Transaction Hash: ${transactionHash}`;
                       <div className="flex justify-between font-medium">
                         <span>Total</span>
                         <span>
-                          {(cartTotal <= 0.01) || 
-                           (appliedGiftCard && Math.min(typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance), calculateTotalBeforeGiftCard()) >= cartTotal) ? (
-                            (appliedDiscount?.freeShipping || appliedGiftCard) ? (
-                              <span className="text-green-600">$0.01 <span className="text-xs">(min processing fee)</span></span>
-                            ) : (
-                              <span className="text-green-600">FREE</span>
-                            )
-                          ) : (
-                            `$${cartTotal.toFixed(2)}`
-                          )}
+                          {(() => {
+                            const finalTotal = calculateFinalTotal();
+                            if (finalTotal <= 0.01) {
+                              return (appliedDiscount?.freeShipping || appliedGiftCard) ? (
+                                <span className="text-green-600">$0.01 <span className="text-xs">(min processing fee)</span></span>
+                              ) : (
+                                <span className="text-green-600">FREE</span>
+                              );
+                            }
+                            return `$${finalTotal.toFixed(2)}`;
+                          })()}
                         </span>
                       </div>
                     </div>
