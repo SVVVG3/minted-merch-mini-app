@@ -138,6 +138,16 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     return Math.max(0, subtotal - discount + shipping + tax);
   };
 
+  // Helper function to calculate gift card discount
+  const calculateGiftCardDiscount = () => {
+    if (!appliedGiftCard || appliedGiftCard.balance === undefined) return 0;
+    
+    const giftCardBalance = typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance);
+    const totalBeforeGiftCard = calculateTotalBeforeGiftCard();
+    
+    return Math.min(giftCardBalance, totalBeforeGiftCard);
+  };
+
   // Helper function to calculate final total safely (never negative)
   const calculateFinalTotal = () => {
     if (!cart.checkout || !cart.checkout.subtotal || !cart.selectedShipping) return cartTotal;
@@ -145,14 +155,9 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     // Calculate total before gift card using helper function
     const totalBeforeGiftCard = calculateTotalBeforeGiftCard();
     
-    // SECURITY: Gift card discount will be calculated server-side
-    // Frontend only shows that gift card is applied, not the amount
-    let giftCardDiscount = 0;
-    if (appliedGiftCard && appliedGiftCard.balance !== undefined) {
-      // Estimate gift card discount for display purposes only
-      // Actual amount will be calculated server-side during checkout
-      const giftCardBalance = typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance);
-      giftCardDiscount = Math.min(giftCardBalance, totalBeforeGiftCard);
+    // Calculate gift card discount using helper function
+    const giftCardDiscount = calculateGiftCardDiscount();
+    if (giftCardDiscount > 0) {
       console.log('🎁 Gift card applied (estimated discount):', giftCardDiscount);
     }
     
@@ -1301,7 +1306,7 @@ Transaction Hash: ${transactionHash}`;
                           {appliedGiftCard && (
                             <div className="flex justify-between text-sm text-green-600">
                               <span>Gift Card (${(typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance)).toFixed(2)} balance)</span>
-                              <span>-${giftCardDiscount.toFixed(2)}</span>
+                              <span>-${calculateGiftCardDiscount().toFixed(2)}</span>
                             </div>
                           )}
                           <div className="flex justify-between text-sm">
@@ -1329,7 +1334,7 @@ Transaction Hash: ${transactionHash}`;
                                 
                                 const subtotal = cart.checkout.subtotal.amount;
                                 const discount = calculateProductAwareDiscountAmount();
-                                const giftCardDiscount = appliedGiftCard ? Math.min(typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance), subtotal - discount) : 0;
+                                const giftCardDiscount = calculateGiftCardDiscount();
                                 let shipping = cart.selectedShipping.price.amount;
                                 
                                 // Override shipping to 0 if discount includes free shipping
@@ -1459,7 +1464,7 @@ Transaction Hash: ${transactionHash}`;
                       {appliedGiftCard && (
                         <div className="flex justify-between text-sm text-green-600">
                           <span>Gift Card (${(typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance)).toFixed(2)} balance)</span>
-                          <span>-${giftCardDiscount.toFixed(2)}</span>
+                          <span>-${calculateGiftCardDiscount().toFixed(2)}</span>
                         </div>
                       )}
                       
