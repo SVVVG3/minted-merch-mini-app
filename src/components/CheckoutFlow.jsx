@@ -148,9 +148,31 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     return Math.min(giftCardBalance, totalBeforeGiftCard);
   };
 
+  // Helper function to calculate total before shipping (for first checkout screen)
+  const calculateTotalBeforeShipping = () => {
+    // Start with cart total (which already includes discounts)
+    let total = cartTotal;
+    
+    // Apply gift card discount if available
+    if (appliedGiftCard && appliedGiftCard.balance !== undefined) {
+      const giftCardBalance = typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance);
+      const giftCardDiscount = Math.min(giftCardBalance, total);
+      total = Math.max(0, total - giftCardDiscount);
+      
+      if (giftCardDiscount > 0) {
+        console.log('🎁 Gift card applied (pre-shipping discount):', giftCardDiscount);
+      }
+    }
+    
+    return total;
+  };
+
   // Helper function to calculate final total safely (never negative)
   const calculateFinalTotal = () => {
-    if (!cart.checkout || !cart.checkout.subtotal || !cart.selectedShipping) return cartTotal;
+    if (!cart.checkout || !cart.checkout.subtotal || !cart.selectedShipping) {
+      // If we don't have shipping info yet, use the pre-shipping calculation
+      return calculateTotalBeforeShipping();
+    }
     
     // Calculate total before gift card using helper function
     const totalBeforeGiftCard = calculateTotalBeforeGiftCard();
