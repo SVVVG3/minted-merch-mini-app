@@ -205,16 +205,7 @@ export async function recalculateOrderTotals(orderData) {
       }
     }
     
-    // Validate and calculate gift card discount
-    if (giftCards.length > 0) {
-      const giftCardValidation = await validateGiftCardsServerSide(giftCards, subtotal - discountAmount);
-      if (!giftCardValidation.success) {
-        throw new Error(`Gift card validation failed: ${giftCardValidation.error}`);
-      }
-      giftCardDiscount = giftCardValidation.totalDiscount;
-    }
-    
-    // Calculate tax (proportional to discounted subtotal)
+    // Calculate tax first (proportional to discounted subtotal)
     const originalTax = parseFloat(checkout.tax.amount);
     const subtotalAfterDiscount = Math.max(0, subtotal - discountAmount);
     let adjustedTax = 0;
@@ -227,15 +218,25 @@ export async function recalculateOrderTotals(orderData) {
     // Round to 2 decimal places
     adjustedTax = Math.round(adjustedTax * 100) / 100;
     
-    // Also round discount and gift card amounts for consistency
-    discountAmount = Math.round(discountAmount * 100) / 100;
-    giftCardDiscount = Math.round(giftCardDiscount * 100) / 100;
-    
     // Calculate shipping
     const shippingPrice = parseFloat(selectedShipping.price.amount);
-    
-    // Apply free shipping if discount includes it
     const finalShippingPrice = (appliedDiscount?.freeShipping) ? 0 : shippingPrice;
+    
+    // Calculate total before gift card (including tax and shipping)
+    const totalBeforeGiftCard = subtotalAfterDiscount + adjustedTax + finalShippingPrice;
+    
+    // Validate and calculate gift card discount against total including tax
+    if (giftCards.length > 0) {
+      const giftCardValidation = await validateGiftCardsServerSide(giftCards, totalBeforeGiftCard);
+      if (!giftCardValidation.success) {
+        throw new Error(`Gift card validation failed: ${giftCardValidation.error}`);
+      }
+      giftCardDiscount = giftCardValidation.totalDiscount;
+    }
+    
+    // Round discount and gift card amounts for consistency
+    discountAmount = Math.round(discountAmount * 100) / 100;
+    giftCardDiscount = Math.round(giftCardDiscount * 100) / 100;
     
     // Calculate final total
     const totalBeforeGiftCard = subtotalAfterDiscount + adjustedTax + finalShippingPrice;
