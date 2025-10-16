@@ -8,9 +8,7 @@ export function useFarcaster() {
   const [context, setContext] = useState(null);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  // Default to true to prevent logo flash - most users are in mini app
-  // Will be set to false if we detect we're NOT in mini app
-  const [isInFarcaster, setIsInFarcaster] = useState(true);
+  const [isInFarcaster, setIsInFarcaster] = useState(false);
   const [isReady, setIsReady] = useState(false);
   
   // AuthKit profile for non-mini-app environments

@@ -11,6 +11,7 @@ import { CartProvider } from "@/lib/CartContext";
 import { WagmiProvider } from "@/components/WagmiProvider";
 import { BaseAccountProvider } from "@/components/BaseAccountProvider";
 import { AuthKitProvider } from "@/components/AuthKitProvider";
+import { WalletConnectProvider } from "@/components/WalletConnectProvider";
 // import { MiniAppProvider } from '@neynar/react';
 
 const geistSans = Geist({
@@ -48,15 +49,17 @@ export default function RootLayout({ children }) {
         <AuthKitProvider>
           <WagmiProvider>
             <BaseAccountProvider>
-              <CartProvider>
-                <div>
-                  <PriceTicker />
-                  <FarcasterHeader />
-                  <ChatEligibilityBanner />
-                  {children}
-                  <ChatEligibilityPopup />
-                </div>
-              </CartProvider>
+              <WalletConnectProvider>
+                <CartProvider>
+                  <div>
+                    <PriceTicker />
+                    <FarcasterHeader />
+                    <ChatEligibilityBanner />
+                    {children}
+                    <ChatEligibilityPopup />
+                  </div>
+                </CartProvider>
+              </WalletConnectProvider>
             </BaseAccountProvider>
           </WagmiProvider>
         </AuthKitProvider>
