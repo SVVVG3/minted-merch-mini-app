@@ -646,11 +646,18 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         from: walletConnectAddress,
         to: PAYMENT_CONFIG.merchantWallet,
         amount: finalTotal,
-        usdcAmount: usdcAmount.toString()
+        usdcAmount: usdcAmount.toString(),
+        contractAddress: USDC_CONTRACT.address,
+        functionName: 'transfer'
       });
 
       // Execute the USDC transfer
-      const tx = await usdcContract.transfer(PAYMENT_CONFIG.merchantWallet, usdcAmount);
+      // Note: The amount should be visible in the wallet as this is a standard ERC-20 transfer
+      // Some wallets may show "Transfer X USDC to address" in the transaction details
+      const tx = await usdcContract.transfer(PAYMENT_CONFIG.merchantWallet, usdcAmount, {
+        // Add gas limit to prevent estimation issues
+        gasLimit: 100000n, // 100k gas should be enough for USDC transfer
+      });
       
       console.log('📝 Transaction submitted:', tx.hash);
       
@@ -663,20 +670,73 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         gasUsed: receipt.gasUsed.toString()
       });
 
-      // Create order data with actual transaction hash
+      // Enhanced FID resolution for WalletConnect users (same as handlePaymentSuccess)
+      let userFid = getFid();
+      
+      // Fallback 1: Try to get FID from stored Farcaster user
+      if (!userFid && user?.fid) {
+        userFid = user.fid;
+        console.log('🔄 FID recovered from user object:', userFid);
+      }
+      
+      // Fallback 2: Try to get FID from Farcaster context
+      if (!userFid && context?.user?.fid) {
+        userFid = context.user.fid;
+        console.log('🔄 FID recovered from context:', userFid);
+      }
+      
+      // Fallback 3: Try to get FID from window.userFid (frame initialization)
+      if (!userFid && typeof window !== 'undefined' && window.userFid) {
+        userFid = window.userFid;
+        console.log('🔄 FID recovered from window.userFid:', userFid);
+      }
+      
+      // Fallback 4: Try to get FID from localStorage persistence
+      if (!userFid && typeof window !== 'undefined') {
+        const storedFid = localStorage.getItem('farcaster_fid');
+        if (storedFid && !isNaN(parseInt(storedFid))) {
+          userFid = parseInt(storedFid);
+          console.log('🔄 FID recovered from localStorage:', userFid);
+        }
+      }
+      
+      // Store FID in localStorage for future sessions (if we have one)
+      if (userFid && typeof window !== 'undefined') {
+        localStorage.setItem('farcaster_fid', userFid.toString());
+      }
+      
+      // For WalletConnect users, FID might be null (anonymous) - this is fine
+      if (!userFid) {
+        console.log('ℹ️ WalletConnect order (no FID) - user not authenticated in Farcaster');
+        userFid = null;
+      }
+
+      // Create order data with complete structure (same as handlePaymentSuccess)
       const orderData = {
-        items: cart.items,
-        notes: cart.notes,
-        shipping: shippingData,
-        appliedDiscount,
-        appliedGiftCard: appliedGiftCard ? [{
+        cartItems: cart.items,
+        shippingAddress: shippingData,
+        billingAddress: null, // Same as shipping for now
+        customer: {
+          email: shippingData.email || '',
+          phone: shippingData.phone || ''
+        },
+        checkout: cart.checkout,
+        selectedShipping: cart.selectedShipping,
+        transactionHash: receipt.hash,
+        notes: cart.notes || '',
+        fid: userFid, // Add user's Farcaster ID for notifications (may be null)
+        appliedDiscount: appliedDiscount, // Include discount information from CartContext
+        discountAmount: discountAmount,
+        appliedGiftCard: appliedGiftCard, // Include gift card information (for display)
+        // SECURITY: Gift card amounts will be calculated server-side
+        giftCards: appliedGiftCard ? [{
           code: appliedGiftCard.code,
+          // Don't send amountUsed - server will calculate this
           balance: appliedGiftCard.balance
         }] : [],
-        total: finalTotal,
+        total: finalTotal, // Total amount that was actually paid
         paymentMethod: 'walletconnect',
         walletAddress: walletConnectAddress,
-        transactionHash: receipt.hash,
       };
 
       // Create order in Shopify
