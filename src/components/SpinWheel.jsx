@@ -1052,7 +1052,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                     <span className="text-lg">Spinning the wheel...</span>
                     <span className="animate-bounce">🎰</span>
                   </span>
-                ) : !isConnected ? (
+                ) : (!isConnected && !isWalletConnected) ? (
                   <span className="text-lg">🔗 Connect Wallet to Spin</span>
                 ) : canSpin ? (
                   <span className="text-lg">✨ Spin the Wheel ✨</span>
