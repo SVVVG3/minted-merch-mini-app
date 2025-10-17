@@ -12,7 +12,7 @@ export function CompactWalletStatus() {
   const truncatedAddress = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
 
   return (
-    <div className="flex items-center space-x-1 px-2 py-1 bg-green-50 border border-green-200 rounded text-xs">
+    <div className="flex items-center space-x-1 px-2 py-1 bg-green-50 border border-green-200 rounded text-xs mr-2">
       <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
       <span className="text-green-700 font-medium">{truncatedAddress}</span>
       <button

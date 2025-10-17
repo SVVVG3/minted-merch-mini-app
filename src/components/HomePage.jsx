@@ -658,7 +658,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
               <>
                 {/* Connect Button - Show when not connected */}
                 {!isWalletConnected && connectionMethod === 'walletconnect' && (
-                  <div className="w-24">
+                  <div className="w-24 mr-2">
                     <WalletConnectButton 
                       className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     />

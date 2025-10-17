@@ -1016,7 +1016,7 @@ Transaction Hash: ${transactionHash}`;
   return (
     <>
       {/* Checkout Button */}
-      {!isConnected ? (
+      {!isConnected && !isWalletConnected ? (
         <w3m-button />
               ) : isBaseApp && baseAccountSDK ? (
         // Always show the branded green checkout button in cart
