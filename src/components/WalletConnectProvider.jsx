@@ -167,9 +167,9 @@ export function WalletConnectProvider({ children }) {
     } else if (connectionMethod === 'ethereum' && window.ethereum) {
       return window.ethereum;
     } else if (connectionMethod === 'walletconnect') {
-      // For WalletConnect, we'll need to implement transaction handling
-      // This is a placeholder - actual implementation would depend on your wallet setup
-      throw new Error('WalletConnect transaction handling not yet implemented');
+      // Get WalletConnect provider directly from the walletConnect module
+      const { getWalletProvider: getWCProvider } = await import('@/lib/walletConnect');
+      return await getWCProvider();
     }
     
     throw new Error('No wallet provider available');

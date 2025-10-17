@@ -660,7 +660,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
                 {!isWalletConnected && connectionMethod === 'walletconnect' && (
                   <div className="w-24 mr-2">
                     <WalletConnectButton 
-                      className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="flex items-center justify-center h-12 px-3 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     />
                   </div>
                 )}

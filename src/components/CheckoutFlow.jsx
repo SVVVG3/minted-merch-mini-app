@@ -17,7 +17,7 @@ import { SignInWithBaseButton, BasePayButton } from './BaseAccountButtons';
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
   const { getFid, isInFarcaster, user, context } = useFarcaster();
-  const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod, getProvider } = useWalletConnectContext();
+  const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod, getWalletProvider } = useWalletConnectContext();
   // Re-enable Base Account integration with safe defaults
   const baseAccountContext = useBaseAccount();
   const { 
@@ -565,7 +565,18 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
   const handleWalletConnectPayment = async () => {
     try {
-      if (!isWalletConnected || !walletConnectAddress || !getProvider) {
+      console.log('🔍 WalletConnect payment check:', {
+        isWalletConnected,
+        walletConnectAddress,
+        connectionMethod,
+        hasGetWalletProvider: !!getWalletProvider
+      });
+      
+      if (!isWalletConnected || !walletConnectAddress) {
+        console.error('❌ WalletConnect not ready:', {
+          isWalletConnected,
+          walletConnectAddress
+        });
         throw new Error('WalletConnect not ready for payment');
       }
 
@@ -590,7 +601,11 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       });
 
       // Get the provider and create a signer
-      const provider = await getProvider();
+      if (!getWalletProvider) {
+        throw new Error('Wallet provider function not available');
+      }
+      
+      const provider = await getWalletProvider();
       if (!provider) {
         throw new Error('Failed to get wallet provider');
       }
