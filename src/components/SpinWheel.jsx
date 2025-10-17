@@ -280,6 +280,45 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     return "💫";
   };
 
+  // Process spin result after successful transaction (for WalletConnect)
+  const processSpinResult = async (permitData, txHash) => {
+    try {
+      console.log('🎯 Confirming spin with backend...');
+      // Get user FID - works for both mini app and dGEN1/desktop with Farcaster auth
+      const userFid = user?.fid || (isReady ? getFid() : null);
+      
+      if (!userFid) {
+        console.log('⚠️ No FID available for backend confirmation');
+        // Still try to confirm without FID (for anonymous users)
+      }
+      
+      const confirmResponse = await fetch('/api/spin/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          permit: permitData.permit,
+          signature: permitData.signature,
+          anonId: permitData.anonId,
+          transactionHash: txHash,
+          fid: userFid
+        })
+      });
+      
+      const result = await confirmResponse.json();
+      
+      if (result.success) {
+        console.log('✅ Spin confirmed with backend:', result);
+        await handleSpinSuccess(result);
+      } else {
+        console.error('❌ Backend confirmation failed:', result.error);
+        throw new Error(result.error || 'Backend confirmation failed');
+      }
+    } catch (error) {
+      console.error('❌ Error processing spin result:', error);
+      throw error;
+    }
+  };
+
   // Check if wallet is connected (no manual connection needed)
   const checkWalletConnection = () => {
     console.log('🔍 Checking wallet connection:', { 
@@ -370,8 +409,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
 
       console.log('✅ Spin permit received');
 
-      // Step 2: Submit blockchain transaction using Wagmi
-      console.log('⛓️ Submitting blockchain transaction with Wagmi...');
+      // Step 2: Submit blockchain transaction using appropriate provider
+      console.log('⛓️ Submitting blockchain transaction...');
       
       // Contract ABI for the spin function
       const contractABI = [
@@ -396,23 +435,71 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         }
       ];
       
-      console.log('🎯 Contract address:', process.env.NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f');
+      const contractAddress = process.env.NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f';
+      console.log('🎯 Contract address:', contractAddress);
 
-      // Send transaction using Wagmi writeContract (same as checkout)
-      console.log('📤 Sending spin transaction...');
-      writeContract({
-        address: process.env.NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS || '0xe424E28FCDE2E009701F7d592842C56f7E041a3f',
-        abi: contractABI,
-        functionName: 'spin',
-        args: [
+      // Choose transaction method based on connection type
+      if (connectionMethod === 'walletconnect' && isWalletConnected) {
+        // Use WalletConnect provider for transaction
+        console.log('📤 Sending spin transaction via WalletConnect...');
+        
+        if (!getProvider) {
+          throw new Error('WalletConnect provider not available');
+        }
+        
+        const provider = await getProvider();
+        if (!provider) {
+          throw new Error('Failed to get WalletConnect provider');
+        }
+
+        // Create ethers provider and signer
+        const ethersProvider = new ethers.BrowserProvider(provider);
+        const signer = await ethersProvider.getSigner();
+        
+        // Create contract instance
+        const contract = new ethers.Contract(contractAddress, contractABI, signer);
+        
+        // Execute the spin transaction
+        const tx = await contract.spin(
           permitData.permit,
           permitData.signature,
-          permitData.anonId
-        ]
-      });
+          permitData.anonId,
+          {
+            gasLimit: 200000n, // Set gas limit for spin transaction
+          }
+        );
+        
+        console.log('📝 WalletConnect transaction submitted:', tx.hash);
+        setTxHash(tx.hash);
+        
+        // Wait for transaction confirmation
+        const receipt = await tx.wait();
+        console.log('✅ WalletConnect transaction confirmed:', receipt.hash);
+        
+        // Process the successful transaction
+        setTxStatus('confirmed');
+        setTxHash(receipt.hash);
+        
+        // Continue with spin result processing (same logic as useEffect for Wagmi)
+        await processSpinResult(permitData, receipt.hash);
+        
+      } else {
+        // Use Wagmi for standard connections (Farcaster/Base app)
+        console.log('📤 Sending spin transaction via Wagmi...');
+        writeContract({
+          address: contractAddress,
+          abi: contractABI,
+          functionName: 'spin',
+          args: [
+            permitData.permit,
+            permitData.signature,
+            permitData.anonId
+          ]
+        });
 
-      console.log('📤 Transaction sent, waiting for user confirmation...');
-      // Note: Transaction confirmation will be handled by useEffect watching isConfirmed
+        console.log('📤 Transaction sent, waiting for user confirmation...');
+        // Note: Transaction confirmation will be handled by useEffect watching isConfirmed
+      }
 
     } catch (error) {
       console.error('❌ On-chain spin failed:', error);
