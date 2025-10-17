@@ -13,6 +13,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 import { ShippingForm } from './ShippingForm';
 import GiftCardSection, { GiftCardBalance } from './GiftCardSection';
 import { SignInWithBaseButton, BasePayButton } from './BaseAccountButtons';
+import { WalletConnectButton } from './WalletConnectButton';
 
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
@@ -1141,9 +1142,17 @@ Transaction Hash: ${transactionHash}`;
     <>
       {/* Checkout Button */}
       {!isConnected && !isWalletConnected ? (
-        <w3m-button />
-              ) : isBaseApp && baseAccountSDK ? (
-        // Always show the branded green checkout button in cart
+        // No wallet connected - show Connect Wallet button
+        <div className="w-full space-y-2">
+          <WalletConnectButton 
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+          />
+          <p className="text-xs text-gray-500 text-center">
+            Connect your wallet to proceed with checkout
+          </p>
+        </div>
+      ) : isBaseApp && baseAccountSDK ? (
+        // Base app experience - always show checkout button
         <div className="w-full space-y-2">
           <button
             onClick={handleCheckout}
@@ -1168,30 +1177,29 @@ Transaction Hash: ${transactionHash}`;
           </button>
         </div>
       ) : (
-        // Standard Farcaster experience
+        // Standard Farcaster experience - wallet should be connected
         <div className="w-full space-y-2">
-          
-        <button
-          onClick={handleCheckout}
-          disabled={!hasItems}
-          className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
-        >
-          {(() => {
-            const isCartFree = cartTotal <= 0.01;
-            const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
+          <button
+            onClick={handleCheckout}
+            disabled={!hasItems}
+            className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
+          >
+            {(() => {
+              const isCartFree = cartTotal <= 0.01;
+              const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
 
-            // Standard checkout button
-            if (isFreeWithShipping) {
-              return 'Checkout (FREE + $0.01 processing fee)';
-            } else if (appliedDiscount?.freeShipping) {
-              return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
-            } else if (appliedDiscount) {
-              return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
-            } else {
-              return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
-            }
-          })()}
-        </button>
+              // Standard checkout button
+              if (isFreeWithShipping) {
+                return 'Checkout (FREE + $0.01 processing fee)';
+              } else if (appliedDiscount?.freeShipping) {
+                return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
+              } else if (appliedDiscount) {
+                return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
+              } else {
+                return `Checkout (${cartTotal.toFixed(2)} USDC + shipping & taxes)`;
+              }
+            })()}
+          </button>
         </div>
       )}
 
