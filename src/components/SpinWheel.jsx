@@ -12,7 +12,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 
 export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const { isInFarcaster, isReady, getFid, user } = useFarcaster();
-  const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod, getProvider } = useWalletConnectContext();
+  const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod, getWalletProvider } = useWalletConnectContext();
   const { address, isConnected } = useAccount();
   const { 
     writeContract, 
@@ -443,11 +443,11 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         // Use WalletConnect provider for transaction
         console.log('📤 Sending spin transaction via WalletConnect...');
         
-        if (!getProvider) {
+        if (!getWalletProvider) {
           throw new Error('WalletConnect provider not available');
         }
         
-        const provider = await getProvider();
+        const provider = await getWalletProvider();
         if (!provider) {
           throw new Error('Failed to get WalletConnect provider');
         }
