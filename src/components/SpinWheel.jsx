@@ -292,17 +292,15 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         // Still try to confirm without FID (for anonymous users)
       }
       
-      const confirmResponse = await fetch('/api/spin/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          permit: permitData.permit,
-          signature: permitData.signature,
-          anonId: permitData.anonId,
-          transactionHash: txHash,
-          fid: userFid
-        })
-      });
+          const confirmResponse = await fetch('/api/points/checkin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userFid: userFid,
+              txHash: txHash,
+              skipBlockchainCheck: false
+            })
+          });
       
       const result = await confirmResponse.json();
       
