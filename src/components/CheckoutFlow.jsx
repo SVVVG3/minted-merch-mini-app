@@ -610,11 +610,60 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         throw new Error('Failed to get wallet provider');
       }
 
-      // For now, we'll use the existing USDC payment logic
-      // In the future, we could implement direct USDC contract interaction
-      // For now, we'll simulate the payment and create the order
+      // Import ethers and USDC contract details
+      const { ethers } = await import('ethers');
+      const { USDC_CONTRACT, PAYMENT_CONFIG, usdToUSDC } = await import('@/lib/usdc');
+
+      // Create ethers provider and signer
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
       
-      // Create order data
+      // Verify the signer address matches our connected address
+      const signerAddress = await signer.getAddress();
+      if (signerAddress.toLowerCase() !== walletConnectAddress.toLowerCase()) {
+        throw new Error('Wallet address mismatch');
+      }
+
+      // Check USDC balance
+      const usdcContract = new ethers.Contract(USDC_CONTRACT.address, USDC_CONTRACT.abi, signer);
+      const balance = await usdcContract.balanceOf(walletConnectAddress);
+      const balanceFormatted = ethers.formatUnits(balance, 6); // USDC has 6 decimals
+      
+      console.log('💰 USDC Balance check:', {
+        balance: balanceFormatted,
+        required: finalTotal,
+        sufficient: parseFloat(balanceFormatted) >= finalTotal
+      });
+
+      if (parseFloat(balanceFormatted) < finalTotal) {
+        throw new Error(`Insufficient USDC balance. You need ${finalTotal} USDC but only have ${parseFloat(balanceFormatted).toFixed(2)} USDC`);
+      }
+
+      // Convert USD to USDC amount
+      const usdcAmount = usdToUSDC(finalTotal);
+      
+      console.log('🚀 Initiating USDC transfer:', {
+        from: walletConnectAddress,
+        to: PAYMENT_CONFIG.merchantWallet,
+        amount: finalTotal,
+        usdcAmount: usdcAmount.toString()
+      });
+
+      // Execute the USDC transfer
+      const tx = await usdcContract.transfer(PAYMENT_CONFIG.merchantWallet, usdcAmount);
+      
+      console.log('📝 Transaction submitted:', tx.hash);
+      
+      // Wait for transaction confirmation
+      const receipt = await tx.wait();
+      
+      console.log('✅ Transaction confirmed:', {
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed.toString()
+      });
+
+      // Create order data with actual transaction hash
       const orderData = {
         items: cart.items,
         notes: cart.notes,
@@ -627,7 +676,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         total: finalTotal,
         paymentMethod: 'walletconnect',
         walletAddress: walletConnectAddress,
-        transactionHash: `wc_${Date.now()}`, // Placeholder for now
+        transactionHash: receipt.hash,
       };
 
       // Create order in Shopify
