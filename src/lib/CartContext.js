@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { getBestAvailableDiscount } from './discounts';
+import { useFarcaster } from './useFarcaster';
 
 // Cart Context
 const CartContext = createContext();
@@ -187,6 +188,9 @@ const initialCartState = {
 export function CartProvider({ children }) {
   const [cart, dispatch] = useReducer(cartReducer, initialCartState);
   const [isEvaluatingDiscount, setIsEvaluatingDiscount] = useState(false);
+  
+  // Get Farcaster context for FID access
+  const { getFid, user, context, isReady } = useFarcaster();
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -301,41 +305,62 @@ export function CartProvider({ children }) {
     }, 1000); // Increased debounce to 1 second
 
     return () => clearTimeout(timeoutId);
-  }, [cart.items, cart.appliedDiscount]);
+  }, [cart.items, cart.appliedDiscount, isReady, getFid, user, context]);
 
-  // Helper function to get user FID (you might need to adjust this based on your auth system)
+  // Helper function to get user FID using Farcaster hook (same logic as CheckoutFlow)
   const getUserFid = () => {
     try {
-      // Method 1: Check if we have user FID in sessionStorage from the Farcaster hook
-      const userContextData = sessionStorage.getItem('userDiscountContext');
-      if (userContextData) {
-        const userData = JSON.parse(userContextData);
-        return userData.fid;
+      // Method 1: Try to get FID from Farcaster hook
+      let userFid = getFid();
+      
+      // Fallback 1: Try to get FID from stored Farcaster user
+      if (!userFid && user?.fid) {
+        userFid = user.fid;
+        console.log('🔄 Cart: FID recovered from user object:', userFid);
       }
       
-      // Method 2: Check for FID in active discount data
-      const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
-      if (activeDiscountData) {
-        const discountData = JSON.parse(activeDiscountData);
-        if (discountData.fid) return discountData.fid;
+      // Fallback 2: Try to get FID from Farcaster context
+      if (!userFid && context?.user?.fid) {
+        userFid = context.user.fid;
+        console.log('🔄 Cart: FID recovered from context:', userFid);
       }
       
-      // Method 3: Access Farcaster context directly from window
-      if (typeof window !== 'undefined' && window.farcaster) {
-        const fid = window.farcaster.user?.fid;
-        if (fid && typeof fid === 'number') return fid;
+      // Fallback 3: Try to get FID from window.userFid (frame initialization)
+      if (!userFid && typeof window !== 'undefined' && window.userFid) {
+        userFid = window.userFid;
+        console.log('🔄 Cart: FID recovered from window.userFid:', userFid);
       }
       
-      // Method 4: Check for FID in localStorage (fallback)
-      const storedFid = localStorage.getItem('farcaster_fid');
-      if (storedFid) {
-        const fid = parseInt(storedFid);
-        if (!isNaN(fid)) return fid;
+      // Fallback 4: Try to get FID from localStorage persistence
+      if (!userFid && typeof window !== 'undefined') {
+        const storedFid = localStorage.getItem('farcaster_fid');
+        if (storedFid && !isNaN(parseInt(storedFid))) {
+          userFid = parseInt(storedFid);
+          console.log('🔄 Cart: FID recovered from localStorage:', userFid);
+        }
       }
       
-      return null;
+      // Fallback 5: Check for FID in active discount data
+      if (!userFid) {
+        const activeDiscountData = sessionStorage.getItem('activeDiscountCode');
+        if (activeDiscountData) {
+          const discountData = JSON.parse(activeDiscountData);
+          if (discountData.fid) {
+            userFid = discountData.fid;
+            console.log('🔄 Cart: FID recovered from active discount data:', userFid);
+          }
+        }
+      }
+      
+      // Store FID in localStorage for future sessions (if we have one)
+      if (userFid && typeof window !== 'undefined') {
+        localStorage.setItem('farcaster_fid', userFid.toString());
+      }
+      
+      console.log('🔍 Cart: Final FID result:', userFid);
+      return userFid;
     } catch (error) {
-      console.error('Error getting user FID:', error);
+      console.error('Error getting user FID in cart:', error);
       return null;
     }
   };

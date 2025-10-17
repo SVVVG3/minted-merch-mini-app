@@ -172,6 +172,70 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     return total;
   };
 
+  // Helper function to calculate discounted price for a cart item
+  const calculateItemDiscountedPrice = (item) => {
+    if (!appliedDiscount || !appliedDiscount.discountValue) {
+      return item.price;
+    }
+    
+    const originalPrice = item.price;
+    let discountedPrice = originalPrice;
+    
+    // Check if this is a product-specific discount
+    const isProductSpecific = appliedDiscount.discount_scope === 'product' || 
+                              (appliedDiscount.target_products && 
+                               Array.isArray(appliedDiscount.target_products) && 
+                               appliedDiscount.target_products.length > 0);
+    
+    if (isProductSpecific) {
+      // Check if this item qualifies for the discount
+      const targetProducts = Array.isArray(appliedDiscount.target_products) ? 
+                             appliedDiscount.target_products : [];
+      
+      const qualifies = targetProducts.some(target => {
+        // Handle different target formats
+        if (typeof target === 'string') {
+          return target === item.product?.handle || target === item.product?.title;
+        } else if (typeof target === 'object' && target.handle) {
+          return target.handle === item.product?.handle;
+        }
+        return false;
+      });
+      
+      if (!qualifies) {
+        return originalPrice; // No discount for this item
+      }
+    }
+    
+    // Apply discount
+    if (appliedDiscount.discountType === 'percentage') {
+      const savings = originalPrice * (appliedDiscount.discountValue / 100);
+      discountedPrice = originalPrice - savings;
+    } else if (appliedDiscount.discountType === 'fixed') {
+      const savings = Math.min(appliedDiscount.discountValue, originalPrice);
+      discountedPrice = originalPrice - savings;
+    }
+    
+    return Math.max(discountedPrice, 0); // Ensure non-negative
+  };
+
+  // Helper function to calculate discounted subtotal
+  const calculateDiscountedSubtotal = () => {
+    if (!appliedDiscount || !appliedDiscount.discountValue) {
+      return cartSubtotal;
+    }
+    
+    let discountedSubtotal = 0;
+    
+    // Sum up all discounted item prices
+    cart.items.forEach(item => {
+      const discountedPrice = calculateItemDiscountedPrice(item);
+      discountedSubtotal += discountedPrice * item.quantity;
+    });
+    
+    return Math.max(discountedSubtotal, 0);
+  };
+
   // Helper function to calculate final total safely (never negative)
   const calculateFinalTotal = () => {
     if (!cart.checkout || !cart.checkout.subtotal || !cart.selectedShipping) {
@@ -1339,7 +1403,7 @@ Transaction Hash: ${transactionHash}`;
                     {(Array.isArray(cart.items) ? cart.items : []).map((item) => (
                       <div key={item.key} className="flex justify-between text-sm">
                         <span>{item.product?.title || item.title} {item.variant?.title && item.variant.title !== 'Default Title' && `(${item.variant.title})`} × {item.quantity}</span>
-                        <span>${(item.price * item.quantity).toFixed(2)}</span>
+                        <span>${(calculateItemDiscountedPrice(item) * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
                     {cart.notes && (
@@ -1350,7 +1414,7 @@ Transaction Hash: ${transactionHash}`;
                     <div className="border-t pt-2">
                       <div className="flex justify-between text-sm">
                         <span>Subtotal</span>
-                        <span>${cartSubtotal.toFixed(2)}</span>
+                        <span>${calculateDiscountedSubtotal().toFixed(2)}</span>
                       </div>
                       {appliedDiscount && (
                         <div className="flex justify-between text-sm text-green-600">
@@ -1452,13 +1516,13 @@ Transaction Hash: ${transactionHash}`;
                     {(Array.isArray(cart.items) ? cart.items : []).map((item) => (
                       <div key={item.key} className="flex justify-between text-sm">
                         <span>{item.product?.title || item.title} {item.variant?.title && item.variant.title !== 'Default Title' && `(${item.variant.title})`} × {item.quantity}</span>
-                        <span>${(item.price * item.quantity).toFixed(2)}</span>
+                        <span>${(calculateItemDiscountedPrice(item) * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
                     <div className="border-t pt-2">
                       <div className="flex justify-between text-sm">
                         <span>Subtotal</span>
-                        <span>${cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount.toFixed(2) : cartSubtotal.toFixed(2)}</span>
+                        <span>${calculateDiscountedSubtotal().toFixed(2)}</span>
                       </div>
                       {appliedDiscount && (
                         <div className="flex justify-between text-sm text-green-600">
@@ -1537,7 +1601,7 @@ Transaction Hash: ${transactionHash}`;
                         <div className="space-y-1">
                           <div className="flex justify-between text-sm">
                             <span>Subtotal</span>
-                            <span>${cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount.toFixed(2) : cartSubtotal.toFixed(2)}</span>
+                            <span>${calculateDiscountedSubtotal().toFixed(2)}</span>
                           </div>
                           {appliedDiscount && (
                             <div className="flex justify-between text-sm text-green-600">
@@ -1692,7 +1756,7 @@ Transaction Hash: ${transactionHash}`;
                     {(Array.isArray(cart.items) ? cart.items : []).map((item) => (
                       <div key={item.key} className="flex justify-between text-sm">
                         <span>{item.product.title} {item.variant?.title && item.variant.title !== 'Default Title' && `(${item.variant.title})`} × {item.quantity}</span>
-                        <span>${(item.price * item.quantity).toFixed(2)}</span>
+                        <span>${(calculateItemDiscountedPrice(item) * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
                     {cart.notes && (
@@ -1703,7 +1767,7 @@ Transaction Hash: ${transactionHash}`;
                     <div className="border-t pt-2 space-y-1">
                       <div className="flex justify-between text-sm">
                         <span>Subtotal</span>
-                        <span>${cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount.toFixed(2) : cartSubtotal.toFixed(2)}</span>
+                        <span>${calculateDiscountedSubtotal().toFixed(2)}</span>
                       </div>
                       
                       {/* Discount Line Item */}
