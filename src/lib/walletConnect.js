@@ -107,6 +107,18 @@ export function shouldUseWalletConnect() {
     return false;
   }
   
+  // Don't use WalletConnect on dGEN1 devices (they have built-in wallet)
+  if (userAgent.includes('android') && window.ethereum) {
+    // Check for dGEN1-specific properties
+    if (window.ethereum.isDgen === true || 
+        window.ethereum.isEthereumPhone === true ||
+        /dgen1/i.test(userAgent) ||
+        /ethereumphone/i.test(userAgent)) {
+      console.log('🤖 dGEN1 device detected - using native wallet instead of WalletConnect');
+      return false;
+    }
+  }
+  
   // Don't use WalletConnect if we have window.ethereum (browser extension)
   if (window.ethereum && !window.ethereum.isMetaMask) {
     return false;

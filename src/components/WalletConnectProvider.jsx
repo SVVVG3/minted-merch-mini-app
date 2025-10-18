@@ -65,13 +65,46 @@ export function WalletConnectProvider({ children }) {
         // Priority 2: Check for existing wallet connection (window.ethereum)
         if (typeof window !== 'undefined' && window.ethereum) {
           try {
-            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-            if (accounts && accounts.length > 0) {
-              console.log('🔗 Using existing wallet connection');
-              setConnectionMethod('ethereum');
-              setUserAddress(accounts[0]);
-              console.log('✅ Existing wallet address:', accounts[0]);
-              return;
+            // Check if this is a dGEN1 device
+            const userAgent = window.navigator?.userAgent?.toLowerCase() || '';
+            const isDgen1 = userAgent.includes('android') && 
+                           (window.ethereum.isDgen === true || 
+                            window.ethereum.isEthereumPhone === true ||
+                            /dgen1/i.test(userAgent) ||
+                            /ethereumphone/i.test(userAgent));
+            
+            if (isDgen1) {
+              console.log('🤖 dGEN1 device detected - attempting auto-connection');
+              // For dGEN1, try to request accounts to trigger auto-connection
+              try {
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                if (accounts && accounts.length > 0) {
+                  console.log('✅ dGEN1 wallet auto-connected:', accounts[0]);
+                  setConnectionMethod('ethereum');
+                  setUserAddress(accounts[0]);
+                  return;
+                }
+              } catch (error) {
+                console.log('ℹ️ dGEN1 auto-connection failed, trying eth_accounts:', error);
+                // Fall back to eth_accounts if eth_requestAccounts fails
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                if (accounts && accounts.length > 0) {
+                  console.log('✅ dGEN1 wallet already connected:', accounts[0]);
+                  setConnectionMethod('ethereum');
+                  setUserAddress(accounts[0]);
+                  return;
+                }
+              }
+            } else {
+              // For other wallets, just check existing accounts
+              const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+              if (accounts && accounts.length > 0) {
+                console.log('🔗 Using existing wallet connection');
+                setConnectionMethod('ethereum');
+                setUserAddress(accounts[0]);
+                console.log('✅ Existing wallet address:', accounts[0]);
+                return;
+              }
             }
           } catch (error) {
             console.log('ℹ️ Could not get existing wallet accounts:', error);
