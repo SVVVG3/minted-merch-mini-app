@@ -65,40 +65,36 @@ export function WalletConnectProvider({ children }) {
         // Priority 2: Check for existing wallet connection (window.ethereum)
         if (typeof window !== 'undefined' && window.ethereum) {
           try {
-            // Check if this is a dGEN1 device
+            // Check if this is an Android device with native wallet (includes dGEN1)
             const userAgent = window.navigator?.userAgent?.toLowerCase() || '';
-            const isDgen1 = userAgent.includes('android') && 
-                           (window.ethereum.isDgen === true || 
-                            window.ethereum.isEthereumPhone === true ||
-                            /dgen1/i.test(userAgent) ||
-                            /ethereumphone/i.test(userAgent));
+            const isAndroidWallet = userAgent.includes('android');
             
-            if (isDgen1) {
-              console.log('🤖 dGEN1 device detected - attempting auto-connection');
+            if (isAndroidWallet) {
+              console.log('🤖 Android device with native wallet detected - attempting auto-connection');
               // For dGEN1, try to request accounts to trigger auto-connection
               try {
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 if (accounts && accounts.length > 0 && accounts[0] !== 'decline') {
-                  console.log('✅ dGEN1 wallet auto-connected:', accounts[0]);
+                  console.log('✅ Android wallet auto-connected:', accounts[0]);
                   setConnectionMethod('ethereum');
                   setUserAddress(accounts[0]);
                   return;
                 } else if (accounts && accounts.length > 0 && accounts[0] === 'decline') {
-                  console.log('❌ dGEN1 wallet connection declined by user');
+                  console.log('❌ Android wallet connection declined by user');
                   // Don't set connection, let it remain null
                 }
               } catch (error) {
-                console.log('ℹ️ dGEN1 auto-connection failed, trying eth_accounts:', error);
+                console.log('ℹ️ Android wallet auto-connection failed, trying eth_accounts:', error);
                 // Fall back to eth_accounts if eth_requestAccounts fails
                 try {
                   const accounts = await window.ethereum.request({ method: 'eth_accounts' });
                   if (accounts && accounts.length > 0 && accounts[0] !== 'decline') {
-                    console.log('✅ dGEN1 wallet already connected:', accounts[0]);
+                    console.log('✅ Android wallet already connected:', accounts[0]);
                     setConnectionMethod('ethereum');
                     setUserAddress(accounts[0]);
                     return;
                   } else if (accounts && accounts.length > 0 && accounts[0] === 'decline') {
-                    console.log('❌ dGEN1 wallet connection declined (eth_accounts)');
+                    console.log('❌ Android wallet connection declined (eth_accounts)');
                   }
                 } catch (ethAccountsError) {
                   console.log('❌ Failed to get eth_accounts:', ethAccountsError);
