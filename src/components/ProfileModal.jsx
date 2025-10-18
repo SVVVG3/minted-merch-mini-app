@@ -70,19 +70,28 @@ export function ProfileModal({ isOpen, onClose }) {
             // For dGEN1, try to request accounts to trigger auto-connection
             try {
               const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-              if (accounts && accounts.length > 0) {
+              if (accounts && accounts.length > 0 && accounts[0] !== 'decline') {
                 detectedAddress = accounts[0];
                 isConnectedWallet = true;
                 console.log('✅ dGEN1 wallet auto-connected in ProfileModal:', detectedAddress);
+              } else if (accounts && accounts.length > 0 && accounts[0] === 'decline') {
+                console.log('❌ dGEN1 wallet connection declined by user');
+                // Don't set detectedAddress, let it remain null
               }
             } catch (error) {
               console.log('ℹ️ dGEN1 auto-connection failed in ProfileModal, trying eth_accounts:', error);
               // Fall back to eth_accounts if eth_requestAccounts fails
-              const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-              if (accounts && accounts.length > 0) {
-                detectedAddress = accounts[0];
-                isConnectedWallet = true;
-                console.log('✅ dGEN1 wallet already connected in ProfileModal:', detectedAddress);
+              try {
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                if (accounts && accounts.length > 0 && accounts[0] !== 'decline') {
+                  detectedAddress = accounts[0];
+                  isConnectedWallet = true;
+                  console.log('✅ dGEN1 wallet already connected in ProfileModal:', detectedAddress);
+                } else if (accounts && accounts.length > 0 && accounts[0] === 'decline') {
+                  console.log('❌ dGEN1 wallet connection declined (eth_accounts)');
+                }
+              } catch (ethAccountsError) {
+                console.log('❌ Failed to get eth_accounts:', ethAccountsError);
               }
             }
           } else {
@@ -433,7 +442,58 @@ export function ProfileModal({ isOpen, onClose }) {
                     </button>
                   </div>
                 ) : (
-                  <p className="text-blue-600 text-center py-2">No wallet connected</p>
+                  <div className="text-center py-2">
+                    <p className="text-blue-600 mb-3">No wallet connected</p>
+                    <button
+                      onClick={async () => {
+                        console.log('🔗 Manual wallet connection attempt...');
+                        try {
+                          // Check if this is a dGEN1 device
+                          const userAgent = window.navigator?.userAgent?.toLowerCase() || '';
+                          const isDgen1 = userAgent.includes('android') && 
+                                         (window.ethereum?.isDgen === true || 
+                                          window.ethereum?.isEthereumPhone === true ||
+                                          /dgen1/i.test(userAgent) ||
+                                          /ethereumphone/i.test(userAgent));
+                          
+                          if (isDgen1 && window.ethereum) {
+                            console.log('🤖 Manual dGEN1 connection attempt...');
+                            try {
+                              const accounts = await window.ethereum.request({ 
+                                method: 'eth_requestAccounts' 
+                              });
+                              console.log('🔍 Manual connection result:', accounts);
+                              
+                              if (accounts && accounts.length > 0 && accounts[0] !== 'decline') {
+                                console.log('✅ Manual dGEN1 connection successful:', accounts[0]);
+                                setConnectedWallet(accounts[0]);
+                                // Trigger a re-render of the wallet detection
+                                window.location.reload();
+                              } else if (accounts && accounts.length > 0 && accounts[0] === 'decline') {
+                                console.log('❌ Manual dGEN1 connection declined');
+                                alert('Wallet connection was declined. Please try again or check your dGEN1 wallet settings.');
+                              } else {
+                                console.log('❌ No accounts returned from manual connection');
+                                alert('No wallet accounts found. Please check your dGEN1 wallet is unlocked.');
+                              }
+                            } catch (error) {
+                              console.error('❌ Manual dGEN1 connection failed:', error);
+                              alert(`Wallet connection failed: ${error.message}`);
+                            }
+                          } else {
+                            console.log('❌ Not a dGEN1 device or no ethereum provider');
+                            alert('Wallet connection not available on this device.');
+                          }
+                        } catch (error) {
+                          console.error('❌ Manual connection error:', error);
+                          alert(`Connection error: ${error.message}`);
+                        }
+                      }}
+                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold transition-colors"
+                    >
+                      🔗 Connect dGEN1 Wallet
+                    </button>
+                  </div>
                 )}
               </div>
               

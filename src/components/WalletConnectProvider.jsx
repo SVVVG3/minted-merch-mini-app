@@ -78,21 +78,30 @@ export function WalletConnectProvider({ children }) {
               // For dGEN1, try to request accounts to trigger auto-connection
               try {
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                if (accounts && accounts.length > 0) {
+                if (accounts && accounts.length > 0 && accounts[0] !== 'decline') {
                   console.log('✅ dGEN1 wallet auto-connected:', accounts[0]);
                   setConnectionMethod('ethereum');
                   setUserAddress(accounts[0]);
                   return;
+                } else if (accounts && accounts.length > 0 && accounts[0] === 'decline') {
+                  console.log('❌ dGEN1 wallet connection declined by user');
+                  // Don't set connection, let it remain null
                 }
               } catch (error) {
                 console.log('ℹ️ dGEN1 auto-connection failed, trying eth_accounts:', error);
                 // Fall back to eth_accounts if eth_requestAccounts fails
-                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-                if (accounts && accounts.length > 0) {
-                  console.log('✅ dGEN1 wallet already connected:', accounts[0]);
-                  setConnectionMethod('ethereum');
-                  setUserAddress(accounts[0]);
-                  return;
+                try {
+                  const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                  if (accounts && accounts.length > 0 && accounts[0] !== 'decline') {
+                    console.log('✅ dGEN1 wallet already connected:', accounts[0]);
+                    setConnectionMethod('ethereum');
+                    setUserAddress(accounts[0]);
+                    return;
+                  } else if (accounts && accounts.length > 0 && accounts[0] === 'decline') {
+                    console.log('❌ dGEN1 wallet connection declined (eth_accounts)');
+                  }
+                } catch (ethAccountsError) {
+                  console.log('❌ Failed to get eth_accounts:', ethAccountsError);
                 }
               }
             } else {

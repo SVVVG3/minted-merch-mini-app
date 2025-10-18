@@ -17,6 +17,20 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
+    // Validate wallet address - reject invalid addresses like "decline"
+    if (walletAddress.toLowerCase() === 'decline' || 
+        walletAddress.toLowerCase() === 'undefined' ||
+        walletAddress.toLowerCase() === 'null' ||
+        walletAddress.toLowerCase() === 'error' ||
+        !walletAddress.startsWith('0x') ||
+        walletAddress.length !== 42) {
+      console.log('❌ Invalid wallet address rejected:', walletAddress);
+      return NextResponse.json({ 
+        error: 'Invalid wallet address',
+        details: 'Wallet connection was declined or failed'
+      }, { status: 400 });
+    }
+
     // Normalize wallet address to lowercase for consistency
     const normalizedAddress = walletAddress.toLowerCase();
 
