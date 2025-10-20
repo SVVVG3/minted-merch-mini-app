@@ -44,6 +44,17 @@ export async function POST(request) {
       .single();
 
     if (fetchError) {
+      // PGRST116 means profile doesn't exist - this is expected for new users
+      if (fetchError.code === 'PGRST116') {
+        console.log(`ℹ️ Profile not found for FID ${fid} - user needs to register first`);
+        return NextResponse.json({ 
+          error: 'Profile not found',
+          details: 'User must sign in with Farcaster first to create a profile',
+          code: 'PROFILE_NOT_FOUND'
+        }, { status: 404 });
+      }
+      
+      // Other errors are actual database issues
       console.error('Error fetching existing profile:', fetchError);
       return NextResponse.json({ 
         error: 'Failed to fetch profile',

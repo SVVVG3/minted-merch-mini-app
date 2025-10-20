@@ -139,6 +139,9 @@ export function ProfileModal({ isOpen, onClose }) {
             const result = await response.json();
             if (result.success) {
               console.log('✅ Connected wallet saved to database');
+            } else if (result.code === 'PROFILE_NOT_FOUND') {
+              // User hasn't registered yet - this is expected, not an error
+              console.log('ℹ️ Profile not found - user needs to sign in with Farcaster first');
             } else {
               console.error('❌ Failed to save wallet:', result.error);
             }
