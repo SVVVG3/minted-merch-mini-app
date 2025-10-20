@@ -435,9 +435,15 @@ async function checkTokenBalance(discount, userWalletAddresses, fid = null, useC
     let blockchainCalls = 0;
     let method = 'cached';
 
-    // If FID is provided, try to get cached balance first
-    if (fid) {
-      console.log(`💾 Checking cached balance for FID ${fid}${useCacheOnly ? ' (cache-only mode)' : ''}`);
+    // Check if this is the $MINTEDMERCH token (which we cache in profiles table)
+    const mintedMerchContract = '0x774EAeFE73Df7959496Ac92a77279A8D7d690b07';
+    const isMintedMerchToken = contractAddresses.some(addr => 
+      addr.toLowerCase() === mintedMerchContract.toLowerCase()
+    );
+
+    // If FID is provided AND checking $MINTEDMERCH token, try to get cached balance
+    if (fid && isMintedMerchToken) {
+      console.log(`💾 Checking cached balance for FID ${fid} ($MINTEDMERCH token)${useCacheOnly ? ' (cache-only mode)' : ''}`);
       const balanceResult = await refreshUserTokenBalance(fid, validAddresses, false, useCacheOnly);
       
       if (balanceResult.success) {
@@ -463,6 +469,17 @@ async function checkTokenBalance(discount, userWalletAddresses, fid = null, useC
         method = 'direct_rpc_fallback';
         blockchainCalls = validAddresses.length;
       }
+    } else if (!isMintedMerchToken) {
+      // For non-$MINTEDMERCH tokens, always use direct RPC (no cache available)
+      console.log(`🔗 Checking balance for non-$MINTEDMERCH token (${contractAddresses.join(', ')}) - using direct RPC`);
+      const { checkTokenBalanceDirectly } = await import('./blockchainAPI.js');
+      totalBalance = await checkTokenBalanceDirectly(
+        validAddresses,
+        contractAddresses,
+        chainIds[0] || 8453
+      );
+      method = 'direct_rpc';
+      blockchainCalls = validAddresses.length;
     } else {
       // No FID provided, use direct RPC check
       console.log('🔗 No FID provided, using direct RPC check');
