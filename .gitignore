@@ -57,8 +57,14 @@ SECURITY_INCIDENT_REPORT.md
 docs/EMERGENCY_SECURITY_FIXES.md
 docs/ADMIN_SECURITY_SETUP.md
 
-# Test files (should not be in production)
+# Test files and debug endpoints (keep local only)
 test-*.js
 *-test.js
 test-*
 debug-*.js
+src/app/api/debug/
+src/app/wallet-test/
+src/app/api/test-webhook/
+database/test_*.sql
+scripts/protect-debug-*.{sh,js}
+farcaster-old-domain.json
