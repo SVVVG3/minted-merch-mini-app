@@ -1,8 +1,17 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { SignJWT, jwtVerify } from 'jose';
 import { supabaseAdmin } from './supabase';
 
-const JWT_SECRET = process.env.PARTNER_JWT_SECRET || 'fallback-secret-change-in-production';
+function getJWTSecret() {
+  const secret = process.env.PARTNER_JWT_SECRET;
+  
+  if (!secret) {
+    console.error('❌ CRITICAL: PARTNER_JWT_SECRET environment variable is not set!');
+    throw new Error('Server configuration error: PARTNER_JWT_SECRET not configured');
+  }
+  
+  return secret;
+}
 
 // Hash password
 export async function hashPassword(password) {
@@ -15,27 +24,57 @@ export async function verifyPassword(password, hashedPassword) {
   return bcrypt.compare(password, hashedPassword);
 }
 
-// Generate JWT token for partner
-export function generatePartnerToken(partner) {
-  return jwt.sign(
-    { 
-      id: partner.id,
-      email: partner.email,
-      name: partner.name,
-      fid: partner.fid,
-      type: 'partner'
-    },
-    JWT_SECRET,
-    { expiresIn: '7d' }
-  );
+// Generate JWT token for partner (Edge-compatible with jose)
+export async function generatePartnerToken(partner) {
+  const secret = getJWTSecret();
+  const secretKey = new TextEncoder().encode(secret);
+  
+  const tokenPayload = {
+    id: partner.id,
+    email: partner.email,
+    name: partner.name,
+    fid: partner.fid,
+    type: 'partner'
+  };
+  
+  const token = await new SignJWT(tokenPayload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .sign(secretKey);
+  
+  return token;
 }
 
-// Verify JWT token
-export function verifyPartnerToken(token) {
+// Verify JWT token (Edge-compatible with jose)
+export async function verifyPartnerToken(token) {
+  if (!token) {
+    return null;
+  }
+  
   try {
-    return jwt.verify(token, JWT_SECRET);
+    const secret = getJWTSecret();
+    const secretKey = new TextEncoder().encode(secret);
+    
+    const { payload } = await jwtVerify(token, secretKey, {
+      algorithms: ['HS256']
+    });
+    
+    // Verify it's a partner token
+    if (payload.type !== 'partner') {
+      console.warn('⚠️ Token is not a partner token');
+      return null;
+    }
+    
+    return payload;
   } catch (error) {
-    console.error('Partner token verification failed:', error);
+    if (error.code === 'ERR_JWT_EXPIRED') {
+      console.warn('⚠️ Partner token expired');
+    } else if (error.code === 'ERR_JWS_INVALID') {
+      console.warn('⚠️ Invalid partner token');
+    } else {
+      console.error('❌ Error verifying partner token:', error);
+    }
     return null;
   }
 }
@@ -90,7 +129,7 @@ export async function authenticatePartner(email, password) {
 
     // Don't return password hash
     const { password_hash, ...safePartner } = partner;
-    const token = generatePartnerToken(safePartner);
+    const token = await generatePartnerToken(safePartner);
 
     return { 
       success: true, 

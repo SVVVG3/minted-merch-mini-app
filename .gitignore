@@ -45,3 +45,13 @@ next-env.d.ts
 .cursor/
 tasks.md
 architecture.md
+
+# Security & deployment guides (contain secrets or internal deployment info)
+QUICK_START.md
+DEPLOYMENT_GUIDE.md
+TESTING_CHECKLIST.md
+VERIFICATION_RESULTS.md
+PARTNER_SECURITY_FIX.md
+SECURITY_CLEANUP_SUMMARY.md
+docs/EMERGENCY_SECURITY_FIXES.md
+docs/ADMIN_SECURITY_SETUP.md

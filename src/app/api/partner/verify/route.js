@@ -13,8 +13,8 @@ export async function GET(request) {
       }, { status: 401 });
     }
 
-    // Verify token
-    const decoded = verifyPartnerToken(token);
+    // Verify token (now async with jose)
+    const decoded = await verifyPartnerToken(token);
 
     if (!decoded) {
       return NextResponse.json({
