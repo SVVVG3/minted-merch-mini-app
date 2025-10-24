@@ -3,6 +3,30 @@
 import { useState, useEffect } from 'react';
 // Removed client-side imports - eligibility check now happens server-side
 
+// Helper function for authenticated admin API calls
+const adminFetch = async (url, options = {}) => {
+  const token = localStorage.getItem('admin_token');
+  if (!token) {
+    throw new Error('No authentication token found. Please log in again.');
+  }
+  
+  const headers = {
+    ...options.headers,
+    'Authorization': `Bearer ${token}`,
+    'X-Admin-Token': token
+  };
+  
+  const response = await fetch(url, { ...options, headers });
+  
+  if (response.status === 401) {
+    localStorage.removeItem('admin_token');
+    window.location.reload();
+    throw new Error('Session expired. Please log in again.');
+  }
+  
+  return response;
+};
+
 export function ChatAdminDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [eligibilityData, setEligibilityData] = useState(null);
@@ -23,7 +47,7 @@ export function ChatAdminDashboard() {
     try {
       console.log('📋 Loading existing chat members with cached balances...');
       
-      const response = await fetch('/api/admin/chat-members');
+      const response = await adminFetch('/api/admin/chat-members');
       const { members } = await response.json();
       
       if (!members || members.length === 0) {
@@ -152,7 +176,7 @@ export function ChatAdminDashboard() {
     try {
       console.log('🔄 Manually triggering balance update for all chat members...');
       
-      const response = await fetch('/api/admin/update-balances', {
+      const response = await adminFetch('/api/admin/update-balances', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json'
@@ -186,7 +210,7 @@ export function ChatAdminDashboard() {
     try {
       console.log(`🔄 Updating balance for individual user FID: ${fid} (${username})`);
       
-      const response = await fetch('/api/admin/update-individual-balance', {
+      const response = await adminFetch('/api/admin/update-individual-balance', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json'
@@ -267,7 +291,7 @@ export function ChatAdminDashboard() {
 
       console.log('Adding chat members for FIDs:', fids);
 
-      const response = await fetch('/api/admin/chat-members', {
+      const response = await adminFetch('/api/admin/chat-members', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -316,7 +340,7 @@ export function ChatAdminDashboard() {
     
     try {
       // Search for user by username in profiles table
-      const response = await fetch('/api/admin/users', {
+      const response = await adminFetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -332,7 +356,7 @@ export function ChatAdminDashboard() {
         console.log('Found user:', user);
         
         // Add the user's FID to the chat members
-        const addResponse = await fetch('/api/admin/chat-members', {
+        const addResponse = await adminFetch('/api/admin/chat-members', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -369,7 +393,7 @@ export function ChatAdminDashboard() {
     }
 
     try {
-      const response = await fetch('/api/admin/chat-members', {
+      const response = await adminFetch('/api/admin/chat-members', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
