@@ -2,6 +2,30 @@
 
 import { useState, useEffect } from 'react';
 
+// Helper function for authenticated admin API calls
+const adminFetch = async (url, options = {}) => {
+  const token = localStorage.getItem('admin_token');
+  if (!token) {
+    throw new Error('No authentication token found. Please log in again.');
+  }
+  
+  const headers = {
+    ...options.headers,
+    'Authorization': `Bearer ${token}`,
+    'X-Admin-Token': token
+  };
+  
+  const response = await fetch(url, { ...options, headers });
+  
+  if (response.status === 401) {
+    localStorage.removeItem('admin_token');
+    window.location.reload();
+    throw new Error('Session expired. Please log in again.');
+  }
+  
+  return response;
+};
+
 export default function UserModal({ isOpen, onClose, userFid }) {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -19,7 +43,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
     setError(null);
     
     try {
-      const response = await fetch(`/api/admin/user-details?fid=${userFid}`);
+      const response = await adminFetch(`/api/admin/user-details?fid=${userFid}`);
       const result = await response.json();
       
       if (result.success) {
