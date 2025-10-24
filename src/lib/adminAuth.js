@@ -12,7 +12,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
+import { SignJWT, jwtVerify } from 'jose';
 
 /**
  * Get JWT secret from environment
@@ -33,45 +33,58 @@ function getJWTSecret() {
  * Generate a JWT token for admin sessions
  * @param {Object} payload - Data to encode in the token
  * @param {string} expiresIn - Token expiration time (default: 8 hours)
- * @returns {string} JWT token
+ * @returns {Promise<string>} JWT token
  */
-export function generateAdminToken(payload = {}, expiresIn = '8h') {
+export async function generateAdminToken(payload = {}, expiresIn = '8h') {
   const secret = getJWTSecret();
+  const secretKey = new TextEncoder().encode(secret);
+  
+  // Convert expiresIn string to seconds
+  const expiresInSeconds = expiresIn === '8h' ? 8 * 60 * 60 : 28800; // 8 hours default
   
   const tokenPayload = {
     ...payload,
     role: 'admin',
-    iat: Math.floor(Date.now() / 1000),
   };
   
-  return jwt.sign(tokenPayload, secret, { expiresIn });
+  const token = await new SignJWT(tokenPayload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime(Math.floor(Date.now() / 1000) + expiresInSeconds)
+    .sign(secretKey);
+  
+  return token;
 }
 
 /**
  * Verify and decode a JWT token
  * @param {string} token - JWT token to verify
- * @returns {Object|null} Decoded token payload or null if invalid
+ * @returns {Promise<Object|null>} Decoded token payload or null if invalid
  */
-export function verifyAdminToken(token) {
+export async function verifyAdminToken(token) {
   if (!token) {
     return null;
   }
   
   try {
     const secret = getJWTSecret();
-    const decoded = jwt.verify(token, secret);
+    const secretKey = new TextEncoder().encode(secret);
+    
+    const { payload } = await jwtVerify(token, secretKey, {
+      algorithms: ['HS256']
+    });
     
     // Verify it's an admin token
-    if (decoded.role !== 'admin') {
+    if (payload.role !== 'admin') {
       console.warn('⚠️ Token does not have admin role');
       return null;
     }
     
-    return decoded;
+    return payload;
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
+    if (error.code === 'ERR_JWT_EXPIRED') {
       console.warn('⚠️ Admin token expired');
-    } else if (error.name === 'JsonWebTokenError') {
+    } else if (error.code === 'ERR_JWS_INVALID') {
       console.warn('⚠️ Invalid admin token');
     } else {
       console.error('❌ Error verifying admin token:', error);
@@ -131,8 +144,8 @@ export function withAdminAuth(handler) {
         );
       }
       
-      // Verify token
-      const decoded = verifyAdminToken(token);
+      // Verify token (now async with jose)
+      const decoded = await verifyAdminToken(token);
       
       if (!decoded) {
         console.warn('⚠️ Admin API access attempt with invalid token');

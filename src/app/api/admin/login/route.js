@@ -16,8 +16,8 @@ export async function POST(request) {
     const isValid = validateAdminPassword(password);
     
     if (isValid) {
-      // Generate JWT token with 8-hour expiration
-      const token = generateAdminToken({
+      // Generate JWT token with 8-hour expiration (now async with jose)
+      const token = await generateAdminToken({
         timestamp: Date.now(),
         // Add any other non-sensitive data you want in the token
       }, '8h');
