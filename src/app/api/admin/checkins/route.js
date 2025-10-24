@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getUserLeaderboardData } from '@/lib/points.js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
@@ -75,4 +76,4 @@ export async function GET(request) {
       error: 'Internal server error' 
     }, { status: 500 });
   }
-} 
+});

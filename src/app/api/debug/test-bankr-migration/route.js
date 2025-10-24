@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { action } = await request.json();
     
@@ -88,7 +89,7 @@ COMMENT ON COLUMN profiles.bankr_membership_updated_at IS 'Last time Bankr Club 
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
-}
+});
 
 export async function GET() {
   return NextResponse.json({

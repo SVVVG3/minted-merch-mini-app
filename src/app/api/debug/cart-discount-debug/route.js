@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getUserAvailableDiscounts } from '@/lib/discounts';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   const { searchParams } = new URL(request.url);
   const fid = parseInt(searchParams.get('fid')) || 18949;
   
@@ -143,4 +144,4 @@ export async function GET(request) {
       stack: error.stack 
     }, { status: 500 });
   }
-} 
+});

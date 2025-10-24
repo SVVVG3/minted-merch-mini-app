@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 // Helper function to extract variant ID from GraphQL ID
 function extractVariantId(graphqlId) {

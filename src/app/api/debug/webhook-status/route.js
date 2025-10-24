@@ -1,3 +1,4 @@
+import { withAdminAuth } from '@/lib/adminAuth';
 export async function GET() {
   try {
     const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;

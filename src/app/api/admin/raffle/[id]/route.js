@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 export async function DELETE(request, { params }) {
   try {

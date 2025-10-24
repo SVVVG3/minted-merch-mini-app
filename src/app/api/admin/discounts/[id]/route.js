@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 // Update a discount code
 export async function PUT(request, { params }) {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { updatePartnerStatus } from '@/lib/partnerAuth';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 // PATCH update partner status (admin only)
 export async function PATCH(request, { params }) {

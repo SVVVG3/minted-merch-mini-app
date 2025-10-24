@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request) => {
   try {
     console.log('🛍️ Fetching all orders for admin dashboard...');
 
@@ -157,4 +158,4 @@ export async function GET(request) {
       error: 'Internal server error'
     }, { status: 500 });
   }
-} 
+}); 

@@ -9,6 +9,7 @@ import {
   isGiftCardCode
 } from '@/lib/discounts';
 import { supabase } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 // Test the isGiftCardCode function with various codes
 function testCodeClassification() {
@@ -123,7 +124,7 @@ async function checkAndFixSavageTestDiscount() {
   }
 }
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   const { searchParams } = new URL(request.url);
   const action = searchParams.get('action') || 'default';
   
@@ -456,10 +457,10 @@ export async function GET(request) {
       details: error.message
     }, { status: 500 });
   }
-}
+});
 
 // POST endpoint for cleanup
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { action } = await request.json();
     
@@ -496,4 +497,4 @@ export async function POST(request) {
       details: error.message
     }, { status: 500 });
   }
-} 
+});

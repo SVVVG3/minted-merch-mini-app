@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const hours = parseInt(searchParams.get('hours')) || 24;
@@ -64,7 +65,7 @@ export async function GET(request) {
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
-}
+});
 
 async function analyzeRecentOrders(hours) {
   const hoursAgo = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
@@ -393,7 +394,7 @@ function identifyPotentialIssues(findings) {
   return issues;
 }
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   const body = await request.json();
   const { action, orderIds } = body;
   
@@ -402,7 +403,7 @@ export async function POST(request) {
   }
   
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-}
+});
 
 async function reprocessFailedOrders(orderIds) {
   // This would attempt to recreate failed orders

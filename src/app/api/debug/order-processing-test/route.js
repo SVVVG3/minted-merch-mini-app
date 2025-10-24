@@ -13,6 +13,7 @@ import {
   markDiscountCodeAsUsed 
 } from '@/lib/discounts';
 import { supabase } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 export async function GET() {
   const results = [];

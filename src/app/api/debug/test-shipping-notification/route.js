@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { addTrackingInfo, updateOrderStatus } from '@/lib/orders';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { orderId, trackingNumber, carrier } = await request.json();
 
@@ -45,7 +46,7 @@ export async function POST(request) {
       error: error.message
     }, { status: 500 });
   }
-}
+});
 
 export async function GET() {
   return NextResponse.json({

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 // Helper function to extract variant ID from Shopify GraphQL ID
 function extractVariantId(graphqlId) {
@@ -8,7 +9,7 @@ function extractVariantId(graphqlId) {
   return graphqlId;
 }
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const variantId = searchParams.get('variantId') || '50352720183577'; // Default to one from the screenshot
@@ -125,4 +126,4 @@ export async function GET(request) {
       stack: error.stack
     }, { status: 500 });
   }
-} 
+});

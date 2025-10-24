@@ -1,5 +1,6 @@
 // Debug endpoint to test point transaction logging and retrieval
 
+import { withAdminAuth } from '@/lib/adminAuth';
 import { 
   getUserPointTransactions, 
   getUserPointTransactionStats,
@@ -7,7 +8,7 @@ import {
   getUserLeaderboardData
 } from '../../../../lib/points.js';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const url = new URL(request.url);
     const userFid = url.searchParams.get('userFid');
@@ -64,9 +65,9 @@ export async function GET(request) {
       error: 'Unexpected error fetching point transactions'
     }, { status: 500 });
   }
-}
+});
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const body = await request.json();
     const { userFid, transactionType, pointsEarned, description, referenceId, metadata } = body;
@@ -117,4 +118,4 @@ export async function POST(request) {
       error: 'Unexpected error logging test transaction'
     }, { status: 500 });
   }
-} 
+});

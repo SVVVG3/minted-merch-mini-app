@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { neynarClient, isNeynarAvailable } from '@/lib/neynar';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const fid = searchParams.get('fid') || '466111'; // Default to your FID
@@ -77,9 +78,9 @@ export async function GET(request) {
       stack: error.stack
     }, { status: 500 });
   }
-}
+});
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { fid } = await request.json();
 
@@ -137,4 +138,4 @@ export async function POST(request) {
       error: error.message
     }, { status: 500 });
   }
-} 
+});

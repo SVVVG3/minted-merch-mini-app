@@ -1,8 +1,9 @@
 import { createShopifyOrder } from '@/lib/shopifyAdmin';
 import { createOrder as createSupabaseOrder } from '@/lib/orders';
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const body = await request.json();
     const { testOrderData, skipShopify = false, skipSupabase = false } = body;
@@ -118,7 +119,7 @@ export async function POST(request) {
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
-}
+});
 
 function validateOrderData(orderData) {
   const errors = [];

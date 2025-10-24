@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 export async function GET() {
   try {

@@ -3,6 +3,7 @@ import { createOrder as createSupabaseOrder } from '@/lib/orders';
 import { sendOrderConfirmationNotificationAndMark } from '@/lib/orders';
 import { markDiscountCodeAsUsed } from '@/lib/discounts';
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 // Function to sanitize address fields by removing emojis and non-alphabetic characters
 function sanitizeAddressField(text) {
@@ -13,7 +14,7 @@ function sanitizeAddressField(text) {
   return text.replace(/[^a-zA-Z\s'\-\.]/g, '').replace(/\s+/g, ' ').trim();
 }
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   const requestId = `recover-${Date.now()}`;
   
   try {
@@ -242,4 +243,4 @@ export async function POST(request) {
       requestId: requestId
     }, { status: 500 });
   }
-} 
+});

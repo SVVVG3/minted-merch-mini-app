@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   console.log('🐛 Debug: Testing admin orders API...');
   
   const result = {
@@ -115,4 +116,4 @@ export async function GET(request) {
       error: error.message
     }, { status: 500 });
   }
-} 
+});

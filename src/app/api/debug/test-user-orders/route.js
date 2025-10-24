@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     console.log('🧪 Testing user orders API endpoint...');
 
@@ -61,4 +62,4 @@ export async function GET(request) {
       details: 'Check server logs for more information'
     }, { status: 500 });
   }
-} 
+});

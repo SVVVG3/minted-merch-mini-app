@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getCurrentCheckInDay } from '../../../../lib/timezone.js';
 import { getUsersNeedingCheckInReminders } from '../../../../lib/notifications.js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const url = new URL(request.url);
     const testFid = url.searchParams.get('testFid') || 466111;
@@ -56,4 +57,4 @@ export async function GET(request) {
       stack: error.stack
     }, { status: 500 });
   }
-} 
+});

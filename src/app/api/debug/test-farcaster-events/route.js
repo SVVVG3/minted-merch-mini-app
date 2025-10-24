@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   return NextResponse.json({
     success: true,
     message: 'Farcaster Event Testing Endpoint',
@@ -22,9 +23,9 @@ export async function GET(request) {
     simulateEvent: 'POST /api/debug/test-farcaster-events {"action": "simulate", "fid": 123, "event": "notificationsEnabled"}',
     timestamp: new Date().toISOString()
   });
-}
+});
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { action, fid, event } = await request.json();
     
@@ -138,4 +139,4 @@ export async function POST(request) {
       error: error.message
     }, { status: 500 });
   }
-} 
+});

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { sendEveningCheckInReminders, shouldSendEveningNotifications } from '../../../../lib/notifications.js';
 import { formatPSTTime, isEveningNotificationTime } from '../../../../lib/timezone.js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
@@ -95,4 +96,4 @@ export async function GET(request) {
       stack: error.stack
     }, { status: 500 });
   }
-} 
+});

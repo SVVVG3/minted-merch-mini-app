@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 export async function GET() {
   try {

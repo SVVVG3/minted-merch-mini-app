@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   const { searchParams } = new URL(request.url);
   const testFid = parseInt(searchParams.get('fid')) || 466111; // Default to your FID
   
@@ -138,4 +139,4 @@ export async function GET(request) {
       stack: error.stack
     }, { status: 500 });
   }
-} 
+});

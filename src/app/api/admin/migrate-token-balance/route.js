@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     console.log('🔄 Starting token balance migration...');
 
@@ -58,4 +59,4 @@ export async function POST(request) {
       error: error.message
     }, { status: 500 });
   }
-}
+});

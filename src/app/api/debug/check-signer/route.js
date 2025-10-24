@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ethers } from 'ethers';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 export async function GET() {
   try {

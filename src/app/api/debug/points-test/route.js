@@ -1,4 +1,5 @@
 // Debug endpoint for testing points system
+import { withAdminAuth } from '@/lib/adminAuth';
 import { 
   performDailyCheckin, 
   canCheckInToday, 
@@ -8,7 +9,7 @@ import {
   getUserLeaderboardPosition
 } from '../../../../lib/points.js';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const url = new URL(request.url);
     const testFid = parseInt(url.searchParams.get('testFid')) || 12345;
@@ -98,4 +99,4 @@ export async function GET(request) {
       details: error.message
     }, { status: 500 });
   }
-} 
+});

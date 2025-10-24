@@ -1,7 +1,8 @@
 import { createShopifyOrder } from '@/lib/shopifyAdmin';
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     console.log('=== DEBUG ORDER TEST ===');
     
@@ -64,4 +65,4 @@ export async function POST(request) {
       details: 'Debug order creation failed'
     }, { status: 500 });
   }
-} 
+});

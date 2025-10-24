@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 export const runtime = 'edge';
 

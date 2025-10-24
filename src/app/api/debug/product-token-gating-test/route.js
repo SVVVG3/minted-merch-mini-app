@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   const { searchParams } = new URL(request.url);
   const handle = searchParams.get('handle') || 'tiny-hyper-tee';
   const fid = searchParams.get('fid') || '466111';
@@ -143,4 +144,4 @@ export async function GET(request) {
       logs
     });
   }
-} 
+});

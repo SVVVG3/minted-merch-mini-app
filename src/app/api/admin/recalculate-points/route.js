@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { userFid, recalculateAll = false } = await request.json();
 
@@ -133,4 +134,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-}
+});

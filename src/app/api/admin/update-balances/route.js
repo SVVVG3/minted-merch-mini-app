@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getChatMembers } from '@/lib/chatMemberDatabase';
 import { batchCheckEligibility } from '@/lib/chatEligibility';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     console.log('🔄 Starting manual chat member balance update...');
     const startTime = Date.now();
@@ -65,4 +66,4 @@ export async function POST(request) {
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
-}
+});

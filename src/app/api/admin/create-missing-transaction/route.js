@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { fid, txHash, dayStart } = await request.json();
 
@@ -108,9 +109,9 @@ export async function POST(request) {
     console.error('API error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
-}
+});
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   const { searchParams } = new URL(request.url);
   const fid = searchParams.get('fid');
 
@@ -149,4 +150,4 @@ export async function GET(request) {
     console.error('API error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
-}
+});

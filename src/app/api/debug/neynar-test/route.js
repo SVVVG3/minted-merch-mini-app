@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isNeynarAvailable, fetchNotificationTokensFromNeynar, neynarClient } from '@/lib/neynar';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 export async function GET() {
   try {
@@ -62,7 +63,7 @@ export async function GET() {
 }
 
 // POST endpoint to test sending a notification (for manual testing)
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { userFid, testType = 'welcome' } = await request.json();
     
@@ -120,4 +121,4 @@ export async function POST(request) {
       details: 'Notification test failed'
     }, { status: 500 });
   }
-} 
+});

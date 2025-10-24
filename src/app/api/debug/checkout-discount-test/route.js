@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createWelcomeDiscountCode, validateDiscountCode, calculateDiscountAmount, markDiscountCodeAsUsed } from '@/lib/discounts';
 import { supabase } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 export async function GET() {
   try {
@@ -325,7 +326,7 @@ export async function GET() {
 }
 
 // POST endpoint for cleanup
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { action } = await request.json();
     
@@ -362,4 +363,4 @@ export async function POST(request) {
       details: error.message
     }, { status: 500 });
   }
-} 
+});

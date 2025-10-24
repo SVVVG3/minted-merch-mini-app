@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/supabase.js';
 import { fetchBulkUserProfiles } from '../../../../lib/neynar.js';
 import { formatPSTTime } from '../../../../lib/timezone.js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const dryRun = searchParams.get('dryRun') === 'true';
@@ -178,4 +179,4 @@ export async function GET(request) {
       error: error.message
     }, { status: 500 });
   }
-} 
+});

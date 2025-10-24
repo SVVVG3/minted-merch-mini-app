@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkChatEligibility } from '@/lib/chatEligibility';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { fid } = await request.json();
     
@@ -89,4 +90,4 @@ export async function POST(request) {
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
-}
+});

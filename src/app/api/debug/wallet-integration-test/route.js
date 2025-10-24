@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { fetchUserWalletData, extractWalletDataFromNeynar } from '@/lib/walletUtils';
 import { neynarClient, isNeynarAvailable } from '@/lib/neynar';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const testFid = parseInt(searchParams.get('fid')) || 466111; // Default to svvvg3.eth for testing
@@ -156,10 +157,10 @@ export async function GET(request) {
       stack: error.stack
     }, { status: 500 });
   }
-}
+});
 
 // POST endpoint for testing registration with wallet data
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { fid, test_registration = false } = await request.json();
 
@@ -233,4 +234,4 @@ export async function POST(request) {
       error: error.message
     }, { status: 500 });
   }
-} 
+});

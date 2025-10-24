@@ -1,4 +1,5 @@
 import { getCollectionByHandle, getCollections } from '@/lib/shopify';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 export async function GET() {
   try {

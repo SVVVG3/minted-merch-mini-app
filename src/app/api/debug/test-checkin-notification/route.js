@@ -3,8 +3,9 @@
 
 import { testCheckInReminder, createCheckInReminderMessage, getUsersNeedingCheckInReminders } from '../../../../lib/notifications.js';
 import { formatPSTTime, getCurrentCheckInDay } from '../../../../lib/timezone.js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const body = await request.json();
     const { userFid, force } = body;
@@ -56,9 +57,9 @@ export async function POST(request) {
       message: 'Internal server error'
     }, { status: 500 });
   }
-}
+});
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
@@ -119,4 +120,4 @@ export async function GET(request) {
       error: error.message
     }, { status: 500 });
   }
-} 
+});

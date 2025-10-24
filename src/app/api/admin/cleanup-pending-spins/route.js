@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const supabase = getSupabaseAdmin();
     const { fid, reason = 'Cleanup pending transaction' } = await request.json();
@@ -86,9 +87,9 @@ export async function POST(request) {
       details: error.message 
     }, { status: 500 });
   }
-}
+});
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const fid = searchParams.get('fid');
@@ -136,4 +137,4 @@ export async function GET(request) {
       details: error.message 
     }, { status: 500 });
   }
-}
+});

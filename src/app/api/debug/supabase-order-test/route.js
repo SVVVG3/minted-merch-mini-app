@@ -1,4 +1,5 @@
-export async function POST(request) {
+import { withAdminAuth } from '@/lib/adminAuth';
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { createOrder } = await import('@/lib/orders');
     const body = await request.json();
@@ -66,7 +67,7 @@ export async function POST(request) {
       stack: error.stack
     }, { status: 500 });
   }
-}
+});
 
 export async function GET() {
   return Response.json({

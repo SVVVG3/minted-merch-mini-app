@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getCurrentCheckInDay, calculateStreakPST } from '@/lib/timezone.js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 // Helper functions for calculating check-in points (same logic as points.js)
 function generateRandomCheckinPoints() {
@@ -66,7 +67,7 @@ function getPSTDayStart() {
   return utcDayStart;
 }
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const supabase = getSupabaseAdmin();
     const { fid, reason, adminNote } = await request.json();
@@ -281,4 +282,4 @@ export async function POST(request) {
       error: 'Internal server error' 
     }, { status: 500 });
   }
-}
+});

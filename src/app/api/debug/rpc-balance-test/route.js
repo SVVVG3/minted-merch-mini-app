@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const walletAddress = searchParams.get('wallet') || '0x380d89b06a1a596a2c4f788daaabc2dcc6493888'; // Default to one of SVVVG3's wallets
@@ -97,4 +98,4 @@ export async function GET(request) {
       stack: error.stack
     }, { status: 500 });
   }
-}
+});

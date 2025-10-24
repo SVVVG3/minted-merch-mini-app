@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit')) || 10000;
@@ -218,4 +219,4 @@ export async function GET(request) {
       { status: 500 }
     );
   }
-} 
+});

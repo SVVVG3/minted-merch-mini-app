@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { numWinners, filters } = await request.json();
     
@@ -256,9 +257,9 @@ export async function POST(request) {
     console.error('Raffle API Error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' });
   }
-}
+});
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit')) || 50;
@@ -323,7 +324,7 @@ export async function GET(request) {
     console.error('Get raffle history error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' });
   }
-}
+});
 
 function generateCriteriaDescription(filters, eligibleCount, originalCount = null) {
   const criteria = [];

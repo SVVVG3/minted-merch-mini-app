@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { formatPSTTime, isNotificationTime } from '../../../../lib/timezone.js';
 import { getUsersNeedingCheckInReminders } from '../../../../lib/notifications.js';
 import { supabase } from '../../../../lib/supabase.js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     console.log('🔍 Checking cron job status...');
     
@@ -133,4 +134,4 @@ export async function GET(request) {
       currentTime: formatPSTTime()
     }, { status: 500 });
   }
-} 
+});

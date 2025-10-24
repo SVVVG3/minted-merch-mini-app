@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     // Get the failed transaction hash from the request
     const { transactionHash } = await request.json();
@@ -148,4 +149,4 @@ export async function POST(request) {
       stack: error.stack
     }, { status: 500 });
   }
-} 
+});

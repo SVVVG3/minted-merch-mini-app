@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { formatPSTTime } from '@/lib/timezone';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 // Simple in-memory store for cron job execution tracking
 let cronExecutions = [];
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const jobType = searchParams.get('job') || 'unknown';
@@ -36,9 +37,9 @@ export async function POST(request) {
       error: error.message
     }, { status: 500 });
   }
-}
+});
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     return NextResponse.json({
       success: true,
@@ -55,4 +56,4 @@ export async function GET(request) {
       error: error.message
     }, { status: 500 });
   }
-} 
+});

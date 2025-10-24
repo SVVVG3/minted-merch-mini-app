@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const neynarApiKey = process.env.NEYNAR_API_KEY;
     
@@ -59,4 +60,4 @@ export async function GET(request) {
       stack: error.stack
     }, { status: 500 });
   }
-} 
+});

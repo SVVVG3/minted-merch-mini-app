@@ -6,8 +6,9 @@ import {
   createExampleTokenGatedDiscounts 
 } from '@/lib/tokenGating';
 import { fetchUserWalletData } from '@/lib/walletUtils';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const testFid = parseInt(searchParams.get('fid')) || 466111;
@@ -73,7 +74,7 @@ export async function GET(request) {
       stack: error.stack 
     }, { status: 500 });
   }
-}
+});
 
 /**
  * Set up example token-gated discounts for testing
@@ -324,7 +325,7 @@ async function listTokenGatedDiscounts() {
   }
 }
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { action, fid, discount_data } = await request.json();
 
@@ -349,7 +350,7 @@ export async function POST(request) {
       error: error.message 
     }, { status: 500 });
   }
-}
+});
 
 /**
  * Create a custom token-gated discount

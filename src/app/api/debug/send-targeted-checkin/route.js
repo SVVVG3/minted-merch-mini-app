@@ -3,8 +3,9 @@ import { supabase } from '@/lib/supabase';
 import { sendCheckInReminder, createCheckInReminderMessage } from '@/lib/notifications';
 import { canCheckInToday } from '@/lib/points';
 import { formatPSTTime } from '@/lib/timezone';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { 
       targetGroup = 'unchecked', 
@@ -171,7 +172,7 @@ export async function POST(request) {
       error: error.message 
     }, { status: 500 });
   }
-}
+});
 
 export async function GET() {
   try {

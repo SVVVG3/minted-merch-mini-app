@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit')) || 50;
@@ -64,10 +65,10 @@ export async function GET(request) {
       { status: 500 }
     );
   }
-}
+});
 
 // POST endpoint to manually log security events (for testing)
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { eventType, details, fid } = await request.json();
 
@@ -93,4 +94,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-}
+});

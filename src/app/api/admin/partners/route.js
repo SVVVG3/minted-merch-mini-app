@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getAllPartners, createPartner } from '@/lib/partnerAuth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 // GET all partners (admin only)
-export async function GET(request) {
+export const GET = withAdminAuth(async (request) => {
   try {
     console.log('🤝 Fetching all partners for admin dashboard...');
 
@@ -91,10 +92,10 @@ export async function GET(request) {
       error: 'Failed to fetch partners'
     }, { status: 500 });
   }
-}
+});
 
 // POST create new partner (admin only)
-export async function POST(request) {
+export const POST = withAdminAuth(async (request) => {
   try {
     const { name, email, password, fid } = await request.json();
 
@@ -142,4 +143,4 @@ export async function POST(request) {
       error: 'Failed to create partner'
     }, { status: 500 });
   }
-} 
+}); 

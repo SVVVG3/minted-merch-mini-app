@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     
@@ -107,4 +108,4 @@ export async function GET(request) {
       details: error.message 
     }, { status: 500 });
   }
-} 
+});

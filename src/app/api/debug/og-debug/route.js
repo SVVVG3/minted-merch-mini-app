@@ -1,4 +1,5 @@
-export async function GET(request) {
+import { withAdminAuth } from '@/lib/adminAuth';
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const handle = searchParams.get('handle') || 'gdupi-cap';
@@ -86,4 +87,4 @@ export async function GET(request) {
       stack: error.stack
     });
   }
-} 
+});

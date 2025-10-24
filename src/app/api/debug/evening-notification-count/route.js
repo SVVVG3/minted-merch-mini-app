@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { getUsersNeedingCheckInReminders } from '../../../../lib/notifications.js';
 import { formatPSTTime, getCurrentCheckInDay, isEveningNotificationTime } from '../../../../lib/timezone.js';
 import { supabase, supabaseAdmin } from '../../../../lib/supabase.js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     console.log('🔍 Checking how many users would receive evening notifications...');
     
@@ -84,4 +85,4 @@ export async function GET(request) {
       stack: error.stack
     }, { status: 500 });
   }
-} 
+});

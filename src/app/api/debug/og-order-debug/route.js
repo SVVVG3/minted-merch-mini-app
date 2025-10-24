@@ -1,3 +1,4 @@
+import { withAdminAuth } from '@/lib/adminAuth';
 export async function GET() {
   try {
     console.log('=== OG Order Debug Test ===');

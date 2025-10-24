@@ -3,8 +3,9 @@ import { checkTokenBalanceDirectly } from '@/lib/blockchainAPI';
 import { refreshUserTokenBalance, updateUserTokenBalance } from '@/lib/tokenBalanceCache';
 import { supabaseAdmin } from '@/lib/supabase';
 import { deduplicateRequest } from '@/lib/requestDeduplication';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const fid = parseInt(searchParams.get('fid'));
@@ -42,7 +43,7 @@ export async function GET(request) {
       error: error.message
     }, { status: 500 });
   }
-}
+});
 
 async function makeTokenBalanceRequest(fid, forceRefresh, cacheOnly) {
   try {

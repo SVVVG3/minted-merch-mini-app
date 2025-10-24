@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { checkTokenGatedEligibility, createExampleTokenGatedDiscounts } from '@/lib/tokenGating';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   const { searchParams } = new URL(request.url);
   const testFid = parseInt(searchParams.get('fid')) || 466111; // Default to your FID
   const action = searchParams.get('action') || 'test_eligibility';
@@ -224,10 +225,10 @@ export async function GET(request) {
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
-}
+});
 
 // Helper function to create example discounts
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     console.log('🛠️ Creating example token-gated discounts including Bankr Club...');
     
@@ -245,4 +246,4 @@ export async function POST(request) {
       error: error.message 
     }, { status: 500 });
   }
-} 
+});

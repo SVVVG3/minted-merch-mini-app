@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { checkTokenBalanceDirectly } from '@/lib/blockchainAPI';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const fid = searchParams.get('fid') || '466111';
@@ -109,4 +110,4 @@ export async function GET(request) {
       error: error.message
     }, { status: 500 });
   }
-}
+});

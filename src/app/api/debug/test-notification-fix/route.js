@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { sendOrderConfirmationNotification } from '@/lib/neynar';
 import { sendOrderConfirmationNotificationAndMark } from '@/lib/orders';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { fid, orderId } = await request.json();
     
@@ -170,7 +171,7 @@ export async function POST(request) {
       stack: error.stack
     }, { status: 500 });
   }
-}
+});
 
 export async function GET() {
   return NextResponse.json({

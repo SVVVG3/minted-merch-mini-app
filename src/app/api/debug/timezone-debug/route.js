@@ -1,4 +1,5 @@
-export async function GET(request) {
+import { withAdminAuth } from '@/lib/adminAuth';
+export const GET = withAdminAuth(async (request, context) => {
   const now = new Date();
   
   // Test various methods of getting Pacific time
@@ -49,4 +50,4 @@ export async function GET(request) {
       isEveningNotificationTime: isEveningNotificationTime()
     }
   });
-} 
+});

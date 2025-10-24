@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { setSystemContext } from '@/lib/auth';
+import { withAdminAuth } from '@/lib/adminAuth';
 import { 
   testSupabaseConnection, 
   getAllProfiles, 
@@ -13,7 +14,7 @@ import {
   isNeynarAvailable
 } from '@/lib/neynar';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const testType = searchParams.get('testType') || 'full';
@@ -250,4 +251,4 @@ export async function GET(request) {
       { status: 500 }
     );
   }
-} 
+});

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { hasNotificationTokenInNeynar } from '@/lib/neynar';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { fid, syncAll } = await request.json();
 
@@ -130,10 +131,10 @@ export async function POST(request) {
       error: error.message 
     }, { status: 500 });
   }
-}
+});
 
 // GET endpoint for testing
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   const { searchParams } = new URL(request.url);
   const fid = searchParams.get('fid');
 
@@ -173,4 +174,4 @@ export async function GET(request) {
       syncMadyak: 'POST /api/debug/notification-status-sync {"fid": 14369}'
     }
   });
-} 
+});

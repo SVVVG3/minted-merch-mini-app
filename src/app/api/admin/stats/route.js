@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 // Use service role client to bypass RLS for admin endpoints
 const supabaseAdmin = createClient(
@@ -13,7 +14,7 @@ const supabaseAdmin = createClient(
   }
 );
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request) => {
   try {
     console.log('📊 Admin fetching dashboard stats');
 
@@ -281,4 +282,4 @@ export async function GET(request) {
       { status: 500 }
     );
   }
-} 
+}); 

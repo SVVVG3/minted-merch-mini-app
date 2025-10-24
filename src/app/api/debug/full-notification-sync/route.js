@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { hasNotificationTokenInNeynar } from '@/lib/neynar';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { batchSize = 25, maxBatches = 20, startOffset = 0 } = await request.json();
 
@@ -178,7 +179,7 @@ export async function POST(request) {
       error: error.message 
     }, { status: 500 });
   }
-}
+});
 
 // GET endpoint for status and instructions
 export async function GET() {

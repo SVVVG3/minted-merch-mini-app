@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request) => {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page')) || 1;
@@ -163,9 +164,9 @@ export async function GET(request) {
       error: 'Internal server error'
     }, { status: 500 });
   }
-}
+});
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request) => {
   try {
     const {
       code,
@@ -291,4 +292,4 @@ export async function POST(request) {
       error: 'Internal server error'
     }, { status: 500 });
   }
-} 
+}); 

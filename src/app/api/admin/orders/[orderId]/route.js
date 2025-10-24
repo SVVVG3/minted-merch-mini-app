@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { updateOrderStatus } from '@/lib/orders';
 import { sendPartnerAssignmentNotification } from '@/lib/neynar';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 export async function PUT(request, { params }) {
   try {

@@ -1,6 +1,7 @@
 // Debug endpoint for testing PST timezone logic
 // Demonstrates 8 AM PST reset logic and check-in day calculations
 
+import { withAdminAuth } from '@/lib/adminAuth';
 import { 
   getCurrentPSTTime, 
   getCurrentCheckInDay, 
@@ -13,7 +14,7 @@ import {
   isNotificationTime
 } from '../../../../lib/timezone.js';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const url = new URL(request.url);
     const testDate = url.searchParams.get('testDate'); // YYYY-MM-DD format
@@ -130,7 +131,7 @@ export async function GET(request) {
       error: error.message
     }, { status: 500 });
   }
-}
+});
 
 // Helper functions for test scenarios
 function getYesterdayCheckInDay() {
@@ -154,7 +155,7 @@ function getPreviousCheckInDay() {
   return previous.toISOString().split('T')[0];
 }
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const body = await request.json();
     const { userFid, lastCheckinDate, currentStreak } = body;
@@ -204,4 +205,4 @@ export async function POST(request) {
       error: error.message
     }, { status: 500 });
   }
-} 
+});

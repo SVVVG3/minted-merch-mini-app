@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     console.log('🧹 Starting cleanup of duplicate welcome discount codes...');
     
@@ -105,9 +106,9 @@ export async function POST(request) {
       error: error.message
     }, { status: 500 });
   }
-}
+});
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     // Just analyze duplicates without removing them
     const { data: allWelcomeCodes, error: fetchError } = await supabaseAdmin
@@ -169,4 +170,4 @@ export async function GET(request) {
       error: error.message
     }, { status: 500 });
   }
-} 
+});

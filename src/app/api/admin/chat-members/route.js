@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { batchCheckEligibility, getEligibilitySummary } from '@/lib/chatEligibility';
 import { getChatMembers, addChatMembersByFids, removeChatMember } from '@/lib/chatMemberDatabase';
 import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 // This would need to be secured with admin authentication in production
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     // TODO: Add admin authentication check here
     // const isAdmin = await verifyAdminAuth(request);
@@ -26,9 +27,9 @@ export async function GET(request) {
       error: error.message || 'Internal server error'
     }, { status: 500 });
   }
-}
+});
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     // TODO: Add admin authentication check here
     
@@ -128,4 +129,4 @@ export async function POST(request) {
       error: error.message || 'Internal server error'
     }, { status: 500 });
   }
-}
+});

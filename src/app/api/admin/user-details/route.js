@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const fid = searchParams.get('fid');
@@ -240,4 +241,4 @@ export async function GET(request) {
       error: 'Internal server error'
     }, { status: 500 });
   }
-} 
+});

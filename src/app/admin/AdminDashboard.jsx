@@ -4,6 +4,35 @@ import { useState, useEffect } from 'react';
 import UserModal from '@/components/UserModal';
 import { ChatAdminDashboard } from '@/components/ChatAdminDashboard';
 
+// CRITICAL SECURITY: Helper function to make authenticated admin API calls
+const adminFetch = async (url, options = {}) => {
+  const token = localStorage.getItem('admin_token');
+  
+  if (!token) {
+    throw new Error('No authentication token found. Please log in again.');
+  }
+  
+  const headers = {
+    ...options.headers,
+    'Authorization': `Bearer ${token}`,
+    'X-Admin-Token': token // Fallback header
+  };
+  
+  const response = await fetch(url, {
+    ...options,
+    headers
+  });
+  
+  // If we get a 401, the token is invalid - clear it and reload
+  if (response.status === 401) {
+    localStorage.removeItem('admin_token');
+    window.location.reload();
+    throw new Error('Session expired. Please log in again.');
+  }
+  
+  return response;
+};
+
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
@@ -122,6 +151,15 @@ export default function AdminDashboard() {
     hasPrev: false
   });
 
+  // Check for existing token on component mount
+  useEffect(() => {
+    const token = localStorage.getItem('admin_token');
+    if (token) {
+      setIsAuthenticated(true);
+      loadDashboardData();
+    }
+  }, []);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -136,17 +174,29 @@ export default function AdminDashboard() {
         body: JSON.stringify({ password }),
       });
       
-      if (response.ok) {
+      const data = await response.json();
+      
+      if (response.ok && data.success && data.token) {
+        // Store the JWT token in localStorage
+        localStorage.setItem('admin_token', data.token);
+        console.log('✅ Admin logged in successfully');
         setIsAuthenticated(true);
         loadDashboardData();
       } else {
-        setError('Invalid password');
+        setError(data.error || 'Invalid password');
       }
     } catch (error) {
+      console.error('❌ Login error:', error);
       setError('Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('admin_token');
+    setIsAuthenticated(false);
+    setPassword('');
   };
 
   const loadDiscounts = async (page = 1, limit = 50, filters = discountFilters) => {
@@ -162,7 +212,7 @@ export default function AdminDashboard() {
         discountScope: filters.discountScope || 'all'
       });
 
-      const response = await fetch(`/api/admin/discounts?${params}`);
+      const response = await adminFetch(`/api/admin/discounts?${params}`);
       const result = await response.json();
       
       if (result.success) {
@@ -186,9 +236,9 @@ export default function AdminDashboard() {
   const loadDashboardData = async () => {
     try {
       const [leaderboardRes, statsRes, ordersRes, productsRes, collectionsRes] = await Promise.all([
-        fetch(`/api/admin/leaderboard?limit=10000&sortBy=${sortField}`),
-        fetch('/api/admin/stats'),
-        fetch('/api/admin/orders'),
+        adminFetch(`/api/admin/leaderboard?limit=10000&sortBy=${sortField}`),
+        adminFetch('/api/admin/stats'),
+        adminFetch('/api/admin/orders'),
         fetch('/api/products'),
         fetch('/api/shopify/collections')
       ]);
@@ -234,7 +284,7 @@ export default function AdminDashboard() {
     setResetSpinResult(null);
 
     try {
-      const response = await fetch('/api/admin/reset-daily-spin', {
+      const response = await adminFetch('/api/admin/reset-daily-spin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -339,7 +389,7 @@ export default function AdminDashboard() {
         tracking_url: generateTrackingUrl(orderEditData.tracking_number)
       };
 
-      const response = await fetch(`/api/admin/orders/${encodeURIComponent(selectedOrder.order_id)}`, {
+      const response = await adminFetch(`/api/admin/orders/${encodeURIComponent(selectedOrder.order_id)}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -366,7 +416,7 @@ export default function AdminDashboard() {
       const winners = winnersCount || numWinners;
       const filters = customFilters || raffleFilters;
       
-      const response = await fetch('/api/admin/raffle', {
+      const response = await adminFetch('/api/admin/raffle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -498,7 +548,7 @@ export default function AdminDashboard() {
     setPastRafflesError('');
     
     try {
-      const response = await fetch('/api/admin/raffle');
+      const response = await adminFetch('/api/admin/raffle');
       const result = await response.json();
       
       if (result.success) {
@@ -521,7 +571,7 @@ export default function AdminDashboard() {
     }
     
     try {
-      const response = await fetch(`/api/admin/raffle/${raffleId}`, {
+      const response = await adminFetch(`/api/admin/raffle/${raffleId}`, {
         method: 'DELETE'
       });
       
@@ -545,7 +595,7 @@ export default function AdminDashboard() {
     setUsersError('');
     
     try {
-      const response = await fetch('/api/admin/users');
+      const response = await adminFetch('/api/admin/users');
       const result = await response.json();
       
       if (result.success) {
@@ -571,7 +621,7 @@ export default function AdminDashboard() {
     setCheckinsError('');
     
     try {
-      const response = await fetch('/api/admin/checkins');
+      const response = await adminFetch('/api/admin/checkins');
       const result = await response.json();
       
       if (result.success) {
@@ -593,7 +643,7 @@ export default function AdminDashboard() {
     setPartnersError('');
     
     try {
-      const response = await fetch('/api/admin/partners');
+      const response = await adminFetch('/api/admin/partners');
       const result = await response.json();
       
       if (result.success) {
@@ -617,7 +667,7 @@ export default function AdminDashboard() {
     }
 
     try {
-      const response = await fetch('/api/admin/partners', {
+      const response = await adminFetch('/api/admin/partners', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -649,7 +699,7 @@ export default function AdminDashboard() {
   // Toggle partner active status
   const togglePartnerStatus = async (partnerId, isActive) => {
     try {
-      const response = await fetch(`/api/admin/partners/${partnerId}`, {
+      const response = await adminFetch(`/api/admin/partners/${partnerId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -701,7 +751,7 @@ export default function AdminDashboard() {
   // Function to reload leaderboard data with current sort
   const reloadLeaderboardData = async (newSortField = sortField) => {
     try {
-      const leaderboardRes = await fetch(`/api/admin/leaderboard?limit=10000&sortBy=${newSortField}`);
+      const leaderboardRes = await adminFetch(`/api/admin/leaderboard?limit=10000&sortBy=${newSortField}`);
       const leaderboard = await leaderboardRes.json();
       setLeaderboardData(leaderboard.data || []);
     } catch (error) {
@@ -1123,7 +1173,7 @@ export default function AdminDashboard() {
     if (!confirm('Are you sure you want to delete this discount code?')) return;
     
     try {
-      const response = await fetch(`/api/admin/discounts/${discountId}`, {
+      const response = await adminFetch(`/api/admin/discounts/${discountId}`, {
         method: 'DELETE'
       });
       
@@ -4164,7 +4214,7 @@ function CreateDiscountForm({ onClose, onSuccess }) {
         chain_ids: formData.chain_ids ? formData.chain_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [1]
       };
 
-      const response = await fetch('/api/admin/discounts', {
+      const response = await adminFetch('/api/admin/discounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submitData)
@@ -4582,7 +4632,7 @@ function EditDiscountForm({ discount, onClose, onSuccess }) {
         chain_ids: formData.chain_ids ? formData.chain_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [1]
       };
 
-      const response = await fetch(`/api/admin/discounts/${discount.id}`, {
+      const response = await adminFetch(`/api/admin/discounts/${discount.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submitData)

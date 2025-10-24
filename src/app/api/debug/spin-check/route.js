@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -42,7 +43,7 @@ function getPSTDayStart() {
   };
 }
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const url = new URL(request.url);
     const fid = url.searchParams.get('fid') || '466111'; // Default to your FID
@@ -85,4 +86,4 @@ export async function GET(request) {
       error: error.message 
     }, { status: 500 });
   }
-}
+});

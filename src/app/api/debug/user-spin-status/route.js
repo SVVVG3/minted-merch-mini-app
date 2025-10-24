@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -38,7 +39,7 @@ function getPSTDayStart() {
   return Math.floor(utcDayStart.getTime() / 1000);
 }
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const fid = searchParams.get('fid');
@@ -139,4 +140,4 @@ export async function GET(request) {
       details: error.message 
     }, { status: 500 });
   }
-}
+});

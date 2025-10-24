@@ -1,8 +1,9 @@
 // Debug endpoint to sync existing order data with purchase tracking columns
 
 import { syncPurchaseTracking } from '../../../../lib/points.js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const url = new URL(request.url);
     const userFid = url.searchParams.get('userFid');
@@ -43,9 +44,9 @@ export async function GET(request) {
       error: error.message
     }, { status: 500 });
   }
-}
+});
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const result = await syncPurchaseTracking();
     
@@ -63,4 +64,4 @@ export async function POST(request) {
       error: error.message
     }, { status: 500 });
   }
-} 
+});

@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { fid } = await request.json();
     
@@ -103,4 +104,4 @@ export async function POST(request) {
       error: error.message 
     }, { status: 500 });
   }
-}
+});

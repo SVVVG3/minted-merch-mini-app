@@ -1,7 +1,8 @@
 import { supabase } from '@/lib/supabase';
 import { fetchNotificationTokensFromNeynar } from '@/lib/neynar';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     if (!supabase) {
       throw new Error('Supabase not available');
@@ -104,4 +105,4 @@ export async function POST(request) {
       error: error.message 
     }, { status: 500 });
   }
-} 
+});

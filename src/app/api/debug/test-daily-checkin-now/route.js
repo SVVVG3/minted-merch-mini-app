@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { sendDailyCheckInReminders, getUsersNeedingCheckInReminders } from '../../../../lib/notifications.js';
 import { formatPSTTime, isNotificationTime } from '../../../../lib/timezone.js';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     console.log('🧪 Testing daily check-in notification system...');
     
@@ -62,9 +63,9 @@ export async function GET(request) {
       currentTime: formatPSTTime()
     }, { status: 500 });
   }
-}
+});
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     console.log('🚀 Force sending daily check-in notifications via POST...');
     
@@ -88,4 +89,4 @@ export async function POST(request) {
       currentTime: formatPSTTime()
     }, { status: 500 });
   }
-} 
+});

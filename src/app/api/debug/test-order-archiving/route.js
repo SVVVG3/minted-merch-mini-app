@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { archiveOrder, getOrder } from '@/lib/orders';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 export async function GET() {
   const results = [];

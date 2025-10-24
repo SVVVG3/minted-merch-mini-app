@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getUserAvailableDiscounts, getBestAvailableDiscount, hasDiscountOfType } from '@/lib/discounts';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     const { searchParams } = new URL(request.url);
     const testFid = searchParams.get('fid') || 297728; // Default test FID
@@ -188,10 +189,10 @@ export async function GET(request) {
       details: error.message
     }, { status: 500 });
   }
-}
+});
 
 // POST endpoint for testing specific scenarios
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { fid, scenario, discountCode } = await request.json();
 
@@ -288,4 +289,4 @@ export async function POST(request) {
       details: error.message
     }, { status: 500 });
   }
-} 
+});

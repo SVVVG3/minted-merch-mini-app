@@ -1,8 +1,9 @@
 import { ImageResponse } from 'next/og';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 export const runtime = 'edge';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     return new ImageResponse(
       (
@@ -95,4 +96,4 @@ export async function GET(request) {
       }
     );
   }
-} 
+});

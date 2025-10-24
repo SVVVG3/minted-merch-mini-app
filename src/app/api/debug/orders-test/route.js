@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { createOrder, updateOrderStatus, addTrackingInfo, getUserOrders } from '@/lib/orders';
 import { checkUserNotificationStatus } from '@/lib/neynar';
 import { supabase } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     console.log('🧪 Testing order system...');
 
@@ -237,4 +238,4 @@ export async function GET(request) {
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
-} 
+});

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     console.log('=== URL PARAMETER DETECTION TEST ===');
     
@@ -245,10 +246,10 @@ export async function GET(request) {
       details: error.message
     }, { status: 500 });
   }
-}
+});
 
 // POST endpoint for simulating notification clicks
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { testUrl } = await request.json();
     
@@ -294,4 +295,4 @@ export async function POST(request) {
       details: error.message
     }, { status: 500 });
   }
-} 
+});

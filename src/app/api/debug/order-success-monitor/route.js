@@ -1,8 +1,9 @@
 import { supabase } from '@/lib/supabase';
 import { getOrdersByDateRange } from '@/lib/shopifyAdmin';
 import { NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   try {
     console.log('🔍 Order success monitor check starting...');
     
@@ -162,4 +163,4 @@ export async function GET(request) {
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
-} 
+});

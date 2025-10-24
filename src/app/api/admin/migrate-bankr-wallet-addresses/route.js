@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const supabaseAdmin = getSupabaseAdmin();
     console.log('🔧 Running Bankr wallet addresses migration...');
@@ -42,4 +43,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-}
+});

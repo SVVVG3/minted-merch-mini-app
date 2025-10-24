@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { createOrder } from '@/lib/orders';
 import { shopifyAdminFetch } from '@/lib/shopifyAdmin';
 import { supabase } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+export const POST = withAdminAuth(async (request, context) => {
   try {
     const { transactionHash } = await request.json();
     
@@ -62,12 +63,12 @@ export async function POST(request) {
       error: error.message
     }, { status: 500 });
   }
-}
+});
 
 // GET endpoint to lookup transaction details
-export async function GET(request) {
+export const GET = withAdminAuth(async (request, context) => {
   return NextResponse.json({
     message: "Transaction Recovery Debug",
     usage: "POST /api/debug/transaction-recovery with transaction hash to find order details"
   });
-} 
+});
