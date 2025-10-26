@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function DELETE(request, { params }) {
+export const DELETE = withAdminAuth(async (request, { params }) => {
   try {
     const { id } = params;
 
@@ -38,4 +38,4 @@ export async function DELETE(request, { params }) {
     console.error('Delete raffle error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
-} 
+}); 

@@ -3,7 +3,7 @@ import { updatePartnerStatus } from '@/lib/partnerAuth';
 import { withAdminAuth } from '@/lib/adminAuth';
 
 // PATCH update partner status (admin only)
-export async function PATCH(request, { params }) {
+export const PATCH = withAdminAuth(async (request, { params }) => {
   try {
     const { id } = params;
     const { is_active } = await request.json();
@@ -50,4 +50,4 @@ export async function PATCH(request, { params }) {
       error: 'Failed to update partner status'
     }, { status: 500 });
   }
-} 
+}); 

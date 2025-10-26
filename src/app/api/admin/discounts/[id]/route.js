@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { withAdminAuth } from '@/lib/adminAuth';
 
 // Update a discount code
-export async function PUT(request, { params }) {
+export const PUT = withAdminAuth(async (request, { params }) => {
   try {
     const supabase = getSupabaseAdmin();
     const { id } = params;
@@ -94,10 +94,10 @@ export async function PUT(request, { params }) {
       error: 'Internal server error' 
     }, { status: 500 });
   }
-}
+});
 
 // Delete a discount code
-export async function DELETE(request, { params }) {
+export const DELETE = withAdminAuth(async (request, { params }) => {
   try {
     const supabase = getSupabaseAdmin();
     const { id } = params;
@@ -165,4 +165,4 @@ export async function DELETE(request, { params }) {
       error: 'Internal server error' 
     }, { status: 500 });
   }
-} 
+}); 

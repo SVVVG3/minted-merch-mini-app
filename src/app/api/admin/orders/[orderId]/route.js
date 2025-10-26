@@ -4,7 +4,7 @@ import { updateOrderStatus } from '@/lib/orders';
 import { sendPartnerAssignmentNotification } from '@/lib/neynar';
 import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function PUT(request, { params }) {
+export const PUT = withAdminAuth(async (request, { params }) => {
   try {
     const { orderId } = params;
     const updateData = await request.json();
@@ -171,9 +171,9 @@ export async function PUT(request, { params }) {
       error: 'Internal server error'
     }, { status: 500 });
   }
-}
+});
 
-export async function GET(request, { params }) {
+export const GET = withAdminAuth(async (request, { params }) => {
   try {
     const { orderId } = params;
 
@@ -233,4 +233,4 @@ export async function GET(request, { params }) {
       error: 'Internal server error'
     }, { status: 500 });
   }
-} 
+}); 
