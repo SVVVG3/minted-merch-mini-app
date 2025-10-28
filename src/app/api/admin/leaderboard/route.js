@@ -21,8 +21,8 @@ export const GET = withAdminAuth(async (request, context) => {
     let isHoldingsQuery = false;
     
     if (sortBy === 'token_balance' || sortBy === 'holdings') {
-      // For holdings, query profiles table directly (no joins) to get ALL token holders
-      // This matches the mini app API and avoids LEFT JOIN pagination issues
+      // For holdings, query profiles table with LEFT JOIN to get leaderboard data
+      // Use proper Supabase LEFT JOIN syntax with !left for optional relationship
       isHoldingsQuery = true;
       baseQuery = supabaseAdmin
         .from('profiles')
@@ -32,7 +32,18 @@ export const GET = withAdminAuth(async (request, context) => {
           display_name,
           pfp_url,
           token_balance,
-          token_balance_updated_at
+          token_balance_updated_at,
+          user_leaderboard!left (
+            user_fid,
+            total_points,
+            checkin_streak,
+            last_checkin_date,
+            total_orders,
+            total_spent,
+            points_from_purchases,
+            points_from_checkins,
+            created_at
+          )
         `)
         .gt('token_balance', 0); // Only show users with tokens
     } else {
@@ -116,11 +127,14 @@ export const GET = withAdminAuth(async (request, context) => {
       let profile, leaderboardInfo, tokenBalance, basePoints, userFid;
       
       if (isHoldingsQuery) {
-        // Data from profiles table only (no join)
+        // Data from profiles table with LEFT JOIN to user_leaderboard
         profile = entry;
-        leaderboardInfo = {}; // No leaderboard data for pure holdings query
+        // LEFT JOIN returns array - get first element or empty object if no leaderboard data
+        leaderboardInfo = (entry.user_leaderboard && entry.user_leaderboard.length > 0) 
+          ? entry.user_leaderboard[0] 
+          : {};
         tokenBalance = entry.token_balance || 0;
-        basePoints = 0; // Holdings-only users may not have points
+        basePoints = leaderboardInfo.total_points || 0;
         userFid = entry.fid;
       } else {
         // Data from user_leaderboard table
@@ -148,7 +162,7 @@ export const GET = withAdminAuth(async (request, context) => {
         pfp_url: profile.pfp_url,
         token_balance: tokenBalance,
         token_balance_updated_at: profile.token_balance_updated_at,
-        // Leaderboard stats (may be 0 for holdings-only users)
+        // Leaderboard stats (may be 0 for users without leaderboard activity)
         total_points: multiplierResult.multipliedPoints,
         base_points: basePoints,
         checkin_streak: leaderboardInfo.checkin_streak || 0,
