@@ -129,21 +129,11 @@ export const GET = withAdminAuth(async (request, context) => {
       if (isHoldingsQuery) {
         // Data from profiles table with LEFT JOIN to user_leaderboard
         profile = entry;
-        // LEFT JOIN returns array - get first element or empty object if no leaderboard data
-        leaderboardInfo = (entry.user_leaderboard && entry.user_leaderboard.length > 0) 
-          ? entry.user_leaderboard[0] 
-          : {};
+        // PostgREST LEFT JOIN returns an OBJECT (not array!) when there's a match, or NULL when there isn't
+        leaderboardInfo = entry.user_leaderboard || {};
         tokenBalance = entry.token_balance || 0;
         basePoints = leaderboardInfo.total_points || 0;
         userFid = entry.fid;
-        
-        // Debug logging for first few entries
-        if (index < 5) {
-          console.log(`🔍 Entry ${index}: FID ${userFid}`);
-          console.log(`   - user_leaderboard raw:`, JSON.stringify(entry.user_leaderboard));
-          console.log(`   - leaderboardInfo:`, JSON.stringify(leaderboardInfo));
-          console.log(`   - total_points:`, leaderboardInfo.total_points);
-        }
       } else {
         // Data from user_leaderboard table
         profile = entry.profiles || {};
