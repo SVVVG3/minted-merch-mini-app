@@ -136,6 +136,14 @@ export const GET = withAdminAuth(async (request, context) => {
         tokenBalance = entry.token_balance || 0;
         basePoints = leaderboardInfo.total_points || 0;
         userFid = entry.fid;
+        
+        // Debug logging for first few entries
+        if (index < 5) {
+          console.log(`🔍 Entry ${index}: FID ${userFid}`);
+          console.log(`   - user_leaderboard raw:`, JSON.stringify(entry.user_leaderboard));
+          console.log(`   - leaderboardInfo:`, JSON.stringify(leaderboardInfo));
+          console.log(`   - total_points:`, leaderboardInfo.total_points);
+        }
       } else {
         // Data from user_leaderboard table
         profile = entry.profiles || {};
@@ -147,11 +155,6 @@ export const GET = withAdminAuth(async (request, context) => {
       
       // Apply token multiplier to total points
       const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
-      
-      // Debug first few entries
-      if (index < 5) {
-        console.log(`🔍 Entry ${index}: FID ${userFid}, isHoldingsQuery: ${isHoldingsQuery}, tokenBalance:`, tokenBalance, 'multiplier:', multiplierResult.multiplier);
-      }
       
       return {
         // Normalize the data structure
