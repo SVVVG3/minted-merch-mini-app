@@ -21,7 +21,8 @@ export const GET = withAdminAuth(async (request, context) => {
     let isHoldingsQuery = false;
     
     if (sortBy === 'token_balance' || sortBy === 'holdings') {
-      // For holdings, query profiles table to get ALL token holders (not just active users)
+      // For holdings, query profiles table directly (no joins) to get ALL token holders
+      // This matches the mini app API and avoids LEFT JOIN pagination issues
       isHoldingsQuery = true;
       baseQuery = supabaseAdmin
         .from('profiles')
@@ -31,18 +32,7 @@ export const GET = withAdminAuth(async (request, context) => {
           display_name,
           pfp_url,
           token_balance,
-          token_balance_updated_at,
-          user_leaderboard!fid (
-            user_fid,
-            total_points,
-            checkin_streak,
-            last_checkin_date,
-            total_orders,
-            total_spent,
-            points_from_purchases,
-            points_from_checkins,
-            created_at
-          )
+          token_balance_updated_at
         `)
         .gt('token_balance', 0); // Only show users with tokens
     } else {
@@ -126,11 +116,11 @@ export const GET = withAdminAuth(async (request, context) => {
       let profile, leaderboardInfo, tokenBalance, basePoints, userFid;
       
       if (isHoldingsQuery) {
-        // Data from profiles table
+        // Data from profiles table only (no join)
         profile = entry;
-        leaderboardInfo = entry.user_leaderboard?.[0] || {};
+        leaderboardInfo = {}; // No leaderboard data for pure holdings query
         tokenBalance = entry.token_balance || 0;
-        basePoints = leaderboardInfo.total_points || 0;
+        basePoints = 0; // Holdings-only users may not have points
         userFid = entry.fid;
       } else {
         // Data from user_leaderboard table
@@ -158,7 +148,7 @@ export const GET = withAdminAuth(async (request, context) => {
         pfp_url: profile.pfp_url,
         token_balance: tokenBalance,
         token_balance_updated_at: profile.token_balance_updated_at,
-        // Leaderboard stats (may be 0 for users who haven't engaged)
+        // Leaderboard stats (may be 0 for holdings-only users)
         total_points: multiplierResult.multipliedPoints,
         base_points: basePoints,
         checkin_streak: leaderboardInfo.checkin_streak || 0,
