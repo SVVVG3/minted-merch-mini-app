@@ -10,45 +10,98 @@ export const GET = withAdminAuth(async (request, context) => {
     
     console.log(`📊 Admin fetching leaderboard data - limit: ${limit}, sortBy: ${sortBy}`);
 
-    // Supabase enforces 1000 row limit regardless of .limit() - use real pagination
-    let allData = [];
-    let currentPage = 0;
-    const pageSize = 1000;
-    let hasMoreData = true;
+    const isHoldingsQuery = (sortBy === 'token_balance' || sortBy === 'holdings');
+    let leaderboardData = [];
 
-    // Build base query - use profiles table for holdings, user_leaderboard for everything else
-    let baseQuery;
-    let isHoldingsQuery = false;
-    
-    if (sortBy === 'token_balance' || sortBy === 'holdings') {
-      // For holdings, query profiles table with LEFT JOIN to get leaderboard data
-      // Use proper Supabase LEFT JOIN syntax with !left for optional relationship
-      isHoldingsQuery = true;
-      baseQuery = supabaseAdmin
-        .from('profiles')
-        .select(`
-          fid,
-          username,
-          display_name,
-          pfp_url,
-          token_balance,
-          token_balance_updated_at,
-          user_leaderboard!left (
-            user_fid,
-            total_points,
-            checkin_streak,
-            last_checkin_date,
-            total_orders,
-            total_spent,
-            points_from_purchases,
-            points_from_checkins,
-            created_at
-          )
-        `)
-        .gt('token_balance', 0); // Only show users with tokens
+    if (isHoldingsQuery) {
+      // For holdings, use the same reliable approach as the mini app:
+      // 1. Query profiles directly (no LEFT JOIN pagination issues)
+      // 2. Fetch leaderboard data separately for those FIDs
+      console.log('📊 Fetching profiles by token holdings (matching mini app approach)');
+      
+      // Fetch ALL profiles with tokens using pagination (no LEFT JOIN)
+      let allProfiles = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      let hasMoreData = true;
+
+      while (hasMoreData) {
+        const startRange = currentPage * pageSize;
+        const endRange = startRange + pageSize - 1;
+        
+        console.log(`📊 Fetching profiles page ${currentPage + 1}: rows ${startRange} to ${endRange}`);
+        
+        const { data: pageData, error } = await supabaseAdmin
+          .from('profiles')
+          .select('fid, username, display_name, pfp_url, token_balance, token_balance_updated_at')
+          .gt('token_balance', 0)
+          .order('token_balance', { ascending: false })
+          .range(startRange, endRange);
+
+        if (error) {
+          console.error('Error fetching profiles page:', error);
+          return NextResponse.json(
+            { success: false, error: 'Failed to fetch profiles data' },
+            { status: 500 }
+          );
+        }
+
+        if (pageData && pageData.length > 0) {
+          allProfiles = allProfiles.concat(pageData);
+          console.log(`📊 Profiles page ${currentPage + 1}: fetched ${pageData.length} entries, total: ${allProfiles.length}`);
+          hasMoreData = pageData.length === pageSize;
+          currentPage++;
+        } else {
+          hasMoreData = false;
+        }
+      }
+
+      console.log(`✅ Fetched ${allProfiles.length} total profiles with tokens`);
+
+      // Get all FIDs to fetch leaderboard data
+      const fids = allProfiles.map(p => p.fid);
+      
+      // Fetch leaderboard data for these FIDs (if they have any)
+      console.log(`📊 Fetching leaderboard data for ${fids.length} FIDs`);
+      const { data: leaderboardEntries, error: leaderboardError } = await supabaseAdmin
+        .from('user_leaderboard')
+        .select('*')
+        .in('user_fid', fids);
+
+      if (leaderboardError) {
+        console.warn('⚠️ Error fetching leaderboard data:', leaderboardError);
+        // Continue without leaderboard data
+      }
+
+      // Create a map of FID -> leaderboard data for quick lookup
+      const leaderboardMap = new Map();
+      if (leaderboardEntries) {
+        leaderboardEntries.forEach(entry => {
+          leaderboardMap.set(entry.user_fid, entry);
+        });
+      }
+
+      // Merge profiles with their leaderboard data
+      leaderboardData = allProfiles.map(profile => ({
+        fid: profile.fid,
+        username: profile.username,
+        display_name: profile.display_name,
+        pfp_url: profile.pfp_url,
+        token_balance: profile.token_balance,
+        token_balance_updated_at: profile.token_balance_updated_at,
+        user_leaderboard: leaderboardMap.get(profile.fid) || null
+      }));
+
+      console.log(`✅ Successfully merged ${leaderboardData.length} profiles with leaderboard data`);
+      
     } else {
-      // For other sorts, use user_leaderboard table
-      baseQuery = supabaseAdmin
+      // For other sorts, use user_leaderboard table with pagination
+      let allData = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      let hasMoreData = true;
+
+      let baseQuery = supabaseAdmin
         .from('user_leaderboard')
         .select(`
           *,
@@ -59,65 +112,55 @@ export const GET = withAdminAuth(async (request, context) => {
             token_balance
           )
         `);
-    }
 
-    // Add sorting
-    switch (sortBy) {
-      case 'total_points':
-        baseQuery = baseQuery.order('total_points', { ascending: false });
-        break;
-      case 'checkin_streak':
-        baseQuery = baseQuery.order('checkin_streak', { ascending: false });
-        break;
-      case 'points_from_purchases':
-        baseQuery = baseQuery.order('points_from_purchases', { ascending: false });
-        break;
-      case 'total_orders':
-        baseQuery = baseQuery.order('total_orders', { ascending: false });
-        break;
-      case 'token_balance':
-      case 'holdings':
-        baseQuery = baseQuery.order('token_balance', { ascending: false });
-        break;
-      default:
-        if (isHoldingsQuery) {
-          baseQuery = baseQuery.order('token_balance', { ascending: false });
-        } else {
+      // Add sorting
+      switch (sortBy) {
+        case 'total_points':
           baseQuery = baseQuery.order('total_points', { ascending: false });
-        }
-    }
-
-    // Fetch all pages
-    while (hasMoreData) {
-      const startRange = currentPage * pageSize;
-      const endRange = startRange + pageSize - 1;
-      
-      console.log(`📊 Fetching page ${currentPage + 1}: rows ${startRange} to ${endRange}`);
-      
-      const { data: pageData, error } = await baseQuery.range(startRange, endRange);
-
-      if (error) {
-        console.error('Error fetching admin leaderboard page:', error);
-        return NextResponse.json(
-          { success: false, error: 'Failed to fetch leaderboard data' },
-          { status: 500 }
-        );
+          break;
+        case 'checkin_streak':
+          baseQuery = baseQuery.order('checkin_streak', { ascending: false });
+          break;
+        case 'points_from_purchases':
+          baseQuery = baseQuery.order('points_from_purchases', { ascending: false });
+          break;
+        case 'total_orders':
+          baseQuery = baseQuery.order('total_orders', { ascending: false });
+          break;
+        default:
+          baseQuery = baseQuery.order('total_points', { ascending: false });
       }
 
-      if (pageData && pageData.length > 0) {
-        allData = allData.concat(pageData);
-        console.log(`📊 Page ${currentPage + 1}: fetched ${pageData.length} entries, total: ${allData.length}`);
+      // Fetch all pages
+      while (hasMoreData) {
+        const startRange = currentPage * pageSize;
+        const endRange = startRange + pageSize - 1;
         
-        // If we got less than pageSize, we've reached the end
-        hasMoreData = pageData.length === pageSize;
-        currentPage++;
-      } else {
-        hasMoreData = false;
-      }
-    }
+        console.log(`📊 Fetching page ${currentPage + 1}: rows ${startRange} to ${endRange}`);
+        
+        const { data: pageData, error } = await baseQuery.range(startRange, endRange);
 
-    const leaderboardData = allData;
-    console.log(`📊 ✅ Successfully fetched ALL ${leaderboardData.length} leaderboard entries using pagination`);
+        if (error) {
+          console.error('Error fetching leaderboard page:', error);
+          return NextResponse.json(
+            { success: false, error: 'Failed to fetch leaderboard data' },
+            { status: 500 }
+          );
+        }
+
+        if (pageData && pageData.length > 0) {
+          allData = allData.concat(pageData);
+          console.log(`📊 Page ${currentPage + 1}: fetched ${pageData.length} entries, total: ${allData.length}`);
+          hasMoreData = pageData.length === pageSize;
+          currentPage++;
+        } else {
+          hasMoreData = false;
+        }
+      }
+
+      leaderboardData = allData;
+      console.log(`📊 ✅ Successfully fetched ALL ${leaderboardData.length} leaderboard entries using pagination`);
+    }
 
     // Import multiplier functions
     const { applyTokenMultiplier } = await import('@/lib/points');
@@ -127,15 +170,15 @@ export const GET = withAdminAuth(async (request, context) => {
       let profile, leaderboardInfo, tokenBalance, basePoints, userFid;
       
       if (isHoldingsQuery) {
-        // Data from profiles table with LEFT JOIN to user_leaderboard
+        // Data from profiles table with separate leaderboard data
         profile = entry;
-        // PostgREST LEFT JOIN returns an OBJECT (not array!) when there's a match, or NULL when there isn't
+        // user_leaderboard is now null or an object (from separate query)
         leaderboardInfo = entry.user_leaderboard || {};
         tokenBalance = entry.token_balance || 0;
         basePoints = leaderboardInfo.total_points || 0;
         userFid = entry.fid;
       } else {
-        // Data from user_leaderboard table
+        // Data from user_leaderboard table with profile join
         profile = entry.profiles || {};
         leaderboardInfo = entry;
         tokenBalance = profile.token_balance || 0;
