@@ -298,7 +298,8 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     
     // Only keep alphabetic characters, spaces, apostrophes, hyphens, and periods
     // This approach is more reliable than trying to match all emoji ranges
-    return text.replace(/[^a-zA-Z\s'\-\.]/g, '').replace(/\s+/g, ' ').trim();
+    // Note: Don't trim() here - let users type spaces naturally. Validation will trim later.
+    return text.replace(/[^a-zA-Z\s'\-\.]/g, '').replace(/\s+/g, ' ');
   };
 
   // Handle input changes
