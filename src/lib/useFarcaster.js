@@ -17,28 +17,47 @@ export function useFarcaster() {
   useEffect(() => {
     async function loadContext() {
       try {
-        console.log('Loading Farcaster context...');
+        console.log('🔍 Loading Farcaster context...');
+        console.log('🔍 SDK object:', sdk);
         const farcasterContext = await sdk.context;
         
-        console.log('Farcaster context loaded:', farcasterContext);
+        console.log('🔍 Farcaster context loaded:', JSON.stringify(farcasterContext, null, 2));
+        console.log('🔍 Context type:', typeof farcasterContext);
+        console.log('🔍 Context keys:', farcasterContext ? Object.keys(farcasterContext) : 'null');
+        console.log('🔍 Context.user:', farcasterContext?.user);
+        
         setContext(farcasterContext);
         setIsInFarcaster(!!farcasterContext);
         
         if (farcasterContext && farcasterContext.user) {
-          console.log('Farcaster user data (mini app):', farcasterContext.user);
+          console.log('✅ Farcaster user data (mini app):', farcasterContext.user);
+          console.log('✅ FID:', farcasterContext.user.fid);
           setUser(farcasterContext.user);
           setIsReady(true);
         } else if (farcasterContext) {
-          // We're in Farcaster but no user data yet
-          console.log('In Farcaster but no user data available');
+          // We're in Farcaster but no user data yet - THIS SHOULDN'T HAPPEN
+          console.error('⚠️ CRITICAL: In Farcaster but no user data available!');
+          console.error('⚠️ Context exists but context.user is:', farcasterContext.user);
+          console.error('⚠️ Full context:', farcasterContext);
+          
+          // Try to extract user from alternate locations
+          if (farcasterContext.client?.user) {
+            console.log('🔄 Found user in context.client.user:', farcasterContext.client.user);
+            setUser(farcasterContext.client.user);
+          } else if (window.farcasterUser) {
+            console.log('🔄 Found user in window.farcasterUser:', window.farcasterUser);
+            setUser(window.farcasterUser);
+          }
+          
           setIsReady(true);
         } else {
           // Not in Farcaster mini app environment
-          console.log('Not in Farcaster mini app environment');
+          console.log('ℹ️ Not in Farcaster mini app environment');
           setIsReady(true);
         }
       } catch (error) {
-        console.log('Error loading Farcaster context:', error);
+        console.error('❌ Error loading Farcaster context:', error);
+        console.error('❌ Error details:', error.message, error.stack);
         setIsInFarcaster(false);
         setIsReady(true); // Still mark as ready even if there's an error
       } finally {
