@@ -67,7 +67,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: blob: https: http:",
               "font-src 'self' data: https://fonts.gstatic.com",
-              "connect-src 'self' https://*.shopify.com https://*.farcaster.xyz https://farcaster.xyz https://*.walletconnect.org https://*.walletconnect.com https://*.web3modal.com https://*.web3modal.org https://*.alchemy.com https://*.infura.io https://*.googleapis.com https://api.dexscreener.com https://api.zapper.xyz https://imagedelivery.net https://wrpcd.net https://*.wrpcd.net wss://*.alchemy.com wss://*.infura.io wss://*.walletconnect.com wss://*.walletconnect.org",
+              "connect-src 'self' https://*.shopify.com https://*.farcaster.xyz https://farcaster.xyz https://*.walletconnect.org https://*.walletconnect.com https://*.web3modal.com https://*.web3modal.org https://*.alchemy.com https://*.infura.io https://*.base.org https://mainnet.base.org https://*.googleapis.com https://api.dexscreener.com https://api.zapper.xyz https://imagedelivery.net https://wrpcd.net https://*.wrpcd.net wss://*.alchemy.com wss://*.infura.io wss://*.walletconnect.com wss://*.walletconnect.org",
               "frame-src 'self' https://*.shopify.com https://*.farcaster.xyz https://farcaster.xyz",
               "object-src 'none'",
               "base-uri 'self'",

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useWalletConnect } from '@/lib/useWalletConnect';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { useConnect, useAccount } from 'wagmi';
 
 /**
  * WalletConnect Provider Context
@@ -19,6 +20,10 @@ export function WalletConnectProvider({ children }) {
   
   // Get Farcaster context
   const { isInFarcaster, user: farcasterUser, isReady: farcasterReady } = useFarcaster();
+  
+  // Wagmi hooks for Farcaster wallet connection
+  const { connect, connectors } = useConnect();
+  const { isConnected: isWagmiConnected } = useAccount();
   
   // Get WalletConnect context
   const {
@@ -44,6 +49,22 @@ export function WalletConnectProvider({ children }) {
         if (isInFarcaster && farcasterUser) {
           console.log('🔗 Using Farcaster mini app connection');
           setConnectionMethod('farcaster');
+          
+          // Auto-connect Farcaster wallet to wagmi if not already connected
+          if (!isWagmiConnected) {
+            try {
+              const farcasterConnector = connectors.find(c => c.name === 'FarcasterMiniApp' || c.id === 'farcasterMiniApp');
+              if (farcasterConnector) {
+                console.log('🔌 Auto-connecting Farcaster wallet to wagmi...');
+                await connect({ connector: farcasterConnector });
+                console.log('✅ Farcaster wallet connected to wagmi');
+              } else {
+                console.warn('⚠️ Farcaster connector not found in wagmi config');
+              }
+            } catch (connectError) {
+              console.warn('⚠️ Could not auto-connect Farcaster wallet to wagmi:', connectError);
+            }
+          }
           
           // Get wallet address from Farcaster SDK
           try {

@@ -330,6 +330,39 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     address
   } = useUSDCPayment();
 
+  // WalletConnect balance state
+  const [walletConnectBalance, setWalletConnectBalance] = useState(null);
+  const [isLoadingWCBalance, setIsLoadingWCBalance] = useState(false);
+
+  // Load balance for WalletConnect wallets
+  useEffect(() => {
+    if (isWalletConnected && walletConnectAddress && !isConnected) {
+      const loadWalletConnectBalance = async () => {
+        try {
+          setIsLoadingWCBalance(true);
+          const { ethers } = await import('ethers');
+          const { USDC_CONTRACT } = await import('@/lib/usdc');
+          
+          // Use public RPC to check balance
+          const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
+          const usdcContract = new ethers.Contract(USDC_CONTRACT.address, USDC_CONTRACT.abi, provider);
+          const balance = await usdcContract.balanceOf(walletConnectAddress);
+          const balanceFormatted = ethers.formatUnits(balance, 6);
+          
+          console.log('💰 WalletConnect balance loaded:', balanceFormatted);
+          setWalletConnectBalance(parseFloat(balanceFormatted));
+        } catch (error) {
+          console.error('❌ Failed to load WalletConnect balance:', error);
+          setWalletConnectBalance(0);
+        } finally {
+          setIsLoadingWCBalance(false);
+        }
+      };
+      
+      loadWalletConnectBalance();
+    }
+  }, [isWalletConnected, walletConnectAddress, isConnected]);
+
   // Use cart total from context instead of calculating locally
   const hasItems = Array.isArray(cart.items) ? cart.items.length > 0 : false;
   const appliedDiscount = cart.appliedDiscount;
@@ -1733,7 +1766,7 @@ Transaction Hash: ${transactionHash}`;
                       <div className="text-sm text-gray-600">Connected Wallet</div>
                       <div className="font-mono text-xs">
                         {isWalletConnected && connectionMethod === 'walletconnect' 
-                          ? `${walletConnectAddress?.slice(0, 8)}...${walletConnectAddress?.slice(-6)} (WalletConnect)`
+                          ? `${walletConnectAddress?.slice(0, 8)}...${walletConnectAddress?.slice(-6)}`
                           : `${address?.slice(0, 8)}...${address?.slice(-6)}`
                         }
                       </div>
@@ -1743,8 +1776,8 @@ Transaction Hash: ${transactionHash}`;
                         </div>
                       )}
                       {isWalletConnected && connectionMethod === 'walletconnect' && (
-                        <div className="text-sm mt-1 text-blue-600">
-                          WalletConnect - Ready for payment
+                        <div className="text-sm mt-1">
+                          Balance: {isLoadingWCBalance ? 'Loading...' : `${(walletConnectBalance || 0).toFixed(2)} USDC`}
                         </div>
                       )}
                     </div>
