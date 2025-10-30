@@ -21,9 +21,15 @@ export function WalletConnectProvider({ children }) {
   // Get Farcaster context
   const { isInFarcaster, user: farcasterUser, isReady: farcasterReady } = useFarcaster();
   
-  // Wagmi hooks for Farcaster wallet connection
+  // Wagmi hooks for Farcaster wallet connection (with SSR safety)
+  const [isMounted, setIsMounted] = useState(false);
   const { connect, connectors } = useConnect();
   const { isConnected: isWagmiConnected } = useAccount();
+  
+  // Track mounted state for SSR safety
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
   // Get WalletConnect context
   const {
@@ -41,7 +47,7 @@ export function WalletConnectProvider({ children }) {
 
   // Initialize connection method detection
   useEffect(() => {
-    if (!farcasterReady) return;
+    if (!farcasterReady || !isMounted) return;
 
     const detectConnectionMethod = async () => {
       try {
@@ -51,9 +57,9 @@ export function WalletConnectProvider({ children }) {
           setConnectionMethod('farcaster');
           
           // Auto-connect Farcaster wallet to wagmi if not already connected
-          if (!isWagmiConnected) {
+          if (!isWagmiConnected && typeof connect === 'function') {
             try {
-              const farcasterConnector = connectors.find(c => c.name === 'FarcasterMiniApp' || c.id === 'farcasterMiniApp');
+              const farcasterConnector = connectors?.find(c => c.name === 'FarcasterMiniApp' || c.id === 'farcasterMiniApp');
               if (farcasterConnector) {
                 console.log('🔌 Auto-connecting Farcaster wallet to wagmi...');
                 await connect({ connector: farcasterConnector });
@@ -165,7 +171,7 @@ export function WalletConnectProvider({ children }) {
     };
 
     detectConnectionMethod();
-  }, [farcasterReady, isInFarcaster, farcasterUser, shouldUseWC, isWCAvailable, isWCConnected, wcHasAccounts, getPrimaryAddress]);
+  }, [farcasterReady, isInFarcaster, farcasterUser, shouldUseWC, isWCAvailable, isWCConnected, wcHasAccounts, getPrimaryAddress, isMounted, isWagmiConnected, connect, connectors]);
 
   // Handle WalletConnect connection changes
   useEffect(() => {
