@@ -320,6 +320,7 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
               description: `On-chain daily check-in (streak: ${newStreak})`,
               reference_id: transactionData.referenceId,
               spin_tx_hash: txHash,
+              tx_hash: txHash,
               spin_confirmed_at: new Date().toISOString(),
               metadata: transactionData.metadata
             })
@@ -1137,6 +1138,10 @@ export async function logPointTransaction({
   try {
     // Use admin client for system operations that log transactions
     const adminClient = supabaseAdmin || supabase;
+    
+    // Extract tx_hash from metadata for database column
+    const txHash = metadata.txHash || null;
+    
     const { data, error } = await adminClient
       .from('point_transactions')
       .insert({
@@ -1147,12 +1152,31 @@ export async function logPointTransaction({
         points_after: pointsAfter,
         description: description,
         reference_id: referenceId,
-        metadata: metadata
+        metadata: metadata,
+        tx_hash: txHash
       })
       .select()
       .single();
 
     if (error) {
+      // Check if this is a unique constraint violation (duplicate tx_hash)
+      if (error.code === '23505' && error.message.includes('idx_unique_checkin_tx_hash')) {
+        console.log('⚠️ Duplicate tx_hash detected, transaction already processed:', txHash);
+        
+        // Fetch and return the existing transaction
+        const { data: existingTx } = await adminClient
+          .from('point_transactions')
+          .select('*')
+          .eq('tx_hash', txHash)
+          .eq('transaction_type', 'daily_checkin')
+          .single();
+          
+        if (existingTx) {
+          console.log('✅ Returning existing transaction data');
+          return { success: true, transaction: existingTx, cached: true };
+        }
+      }
+      
       console.error('Error logging point transaction:', error);
       return { success: false, error: error.message };
     }
