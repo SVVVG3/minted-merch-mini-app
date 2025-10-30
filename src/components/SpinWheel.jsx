@@ -134,6 +134,40 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     return () => clearInterval(interval);
   }, []);
 
+  // Log when hash changes (critical for debugging)
+  useEffect(() => {
+    console.log('🔑 Transaction hash changed:', { 
+      hash: hash ? hash.substring(0, 10) + '...' : 'null',
+      isTxPending,
+      writeError: writeError?.message || 'none'
+    });
+  }, [hash, isTxPending, writeError]);
+
+  // Handle writeContract errors
+  useEffect(() => {
+    if (writeError) {
+      console.error('❌ Wagmi writeContract error detected:', {
+        message: writeError.message,
+        code: writeError.code,
+        details: writeError
+      });
+      
+      // Check if user rejected
+      if (writeError.message?.includes('User rejected') || writeError.message?.includes('user rejected')) {
+        console.warn('⚠️ User rejected transaction in wallet');
+        setIsSpinning(false);
+        setTxStatus('failed');
+        // Don't show error - user intentionally cancelled
+        return;
+      }
+      
+      // Handle other errors
+      setTxStatus('failed');
+      setIsSpinning(false);
+      handleSpinError(writeError);
+    }
+  }, [writeError]);
+
   // Manual polling backup if wagmi hook fails
   useEffect(() => {
     if (!hash || isConfirmed || txStatus === 'confirmed' || txStatus === 'failed') {
@@ -620,19 +654,30 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       } else {
         // Use Wagmi for standard connections (Farcaster/Base app)
         console.log('📤 Sending spin transaction via Wagmi...');
-        writeContract({
-          address: contractAddress,
-          abi: contractABI,
-          functionName: 'spin',
-          args: [
-            permitData.permit,
-            permitData.signature,
-            permitData.anonId
-          ]
-        });
+        console.log('📤 Contract:', contractAddress);
+        console.log('📤 Args:', [permitData.permit, permitData.signature, permitData.anonId]);
+        
+        try {
+          writeContract({
+            address: contractAddress,
+            abi: contractABI,
+            functionName: 'spin',
+            args: [
+              permitData.permit,
+              permitData.signature,
+              permitData.anonId
+            ]
+          });
 
-        console.log('📤 Transaction sent, waiting for user confirmation...');
-        // Note: Transaction confirmation will be handled by useEffect watching isConfirmed
+          console.log('📤 writeContract called successfully');
+          console.log('📤 Now waiting for transaction hash and confirmation...');
+          console.log('📤 User must approve in wallet, then transaction will confirm on-chain');
+          // Note: Transaction hash will be available in `hash` (data from useWriteContract)
+          // Transaction confirmation will be handled by useEffect watching isConfirmed and manual polling
+        } catch (contractError) {
+          console.error('❌ writeContract failed:', contractError);
+          throw contractError;
+        }
       }
 
     } catch (error) {
