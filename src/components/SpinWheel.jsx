@@ -134,7 +134,75 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Handle transaction confirmation
+  // Manual polling backup if wagmi hook fails
+  useEffect(() => {
+    if (!hash || isConfirmed || txStatus === 'confirmed' || txStatus === 'failed') {
+      return;
+    }
+    
+    console.log('⏰ Starting manual polling backup for tx:', hash.substring(0, 10));
+    
+    let pollCount = 0;
+    const maxPolls = 24; // 24 polls * 5 seconds = 2 minutes
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        pollCount++;
+        console.log(`🔍 Manually checking transaction receipt (${pollCount}/${maxPolls})...`);
+        
+        const provider = new ethers.JsonRpcProvider('https://base-mainnet.g.alchemy.com/v2/demo');
+        const receipt = await provider.getTransactionReceipt(hash);
+        
+        if (receipt && receipt.status === 1) {
+          console.log('✅ Manual poll detected confirmation!');
+          clearInterval(pollInterval);
+          
+          // Trigger backend confirmation manually
+          const fidToUse = capturedUserFid || user?.fid || (isReady ? getFid() : null);
+          if (!fidToUse) {
+            console.error('❌ No FID available for manual confirmation');
+            return;
+          }
+          
+          console.log('🎯 Manual poll triggering backend confirmation');
+          setTxStatus('confirmed');
+          
+          const checkinResponse = await fetch('/api/points/checkin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              userFid: fidToUse, 
+              txHash: hash,
+              skipBlockchainCheck: false
+            }),
+          });
+          
+          const result = await checkinResponse.json();
+          console.log('🔍 Manual poll backend response:', result);
+          
+          if (result.success) {
+            await handleSpinSuccess(result);
+          } else {
+            throw new Error(result.error);
+          }
+        } else if (pollCount >= maxPolls) {
+          console.warn('⚠️ Manual polling timed out after 2 minutes');
+          clearInterval(pollInterval);
+        }
+      } catch (error) {
+        console.error('❌ Manual poll error:', error);
+        if (pollCount >= maxPolls) {
+          clearInterval(pollInterval);
+        }
+      }
+    }, 5000); // Poll every 5 seconds
+    
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [hash, isConfirmed, txStatus, capturedUserFid, user, isReady, getFid]);
+
+  // Handle transaction confirmation from wagmi hook
   useEffect(() => {
     console.log('🔄 useEffect triggered:', { isConfirmed, hash: hash?.substring(0, 10), capturedUserFid });
     
@@ -166,7 +234,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     }
     
     if (isConfirmed && hash && (capturedUserFid || (user?.fid || getFid()))) {
-      console.log('✅ Transaction confirmed:', hash);
+      console.log('✅ Transaction confirmed via wagmi hook:', hash);
       setTxHash(hash);
       setTxStatus('confirmed');
       
