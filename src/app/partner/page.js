@@ -221,22 +221,24 @@ function PartnerDashboard() {
                   {orders.map((order) => (
                     <tr key={order.order_id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {order.name || order.order_id}
+                        {order.order_id}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {partnerType === 'fulfillment' ? (
                           /* Fulfillment Partners: Show Shipping Address */
-                          order.shipping_name ? (
+                          order.shipping_address ? (
                             <div>
-                              <div className="font-medium">{order.shipping_name}</div>
-                              <div className="text-xs text-gray-500">{order.shipping_address1}</div>
-                              {order.shipping_address2 && (
-                                <div className="text-xs text-gray-500">{order.shipping_address2}</div>
+                              <div className="font-medium">
+                                {order.customer_name || `${order.shipping_address.firstName || ''} ${order.shipping_address.lastName || ''}`}
+                              </div>
+                              <div className="text-xs text-gray-500">{order.shipping_address.address1}</div>
+                              {order.shipping_address.address2 && (
+                                <div className="text-xs text-gray-500">{order.shipping_address.address2}</div>
                               )}
                               <div className="text-xs text-gray-500">
-                                {order.shipping_city}, {order.shipping_province} {order.shipping_zip}
+                                {order.shipping_address.city}, {order.shipping_address.province} {order.shipping_address.zip}
                               </div>
-                              <div className="text-xs text-gray-500">{order.shipping_country}</div>
+                              <div className="text-xs text-gray-500">{order.shipping_address.country}</div>
                             </div>
                           ) : (
                             <div className="text-gray-500 text-xs">No address</div>
@@ -363,7 +365,7 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Order {order.name || order.order_id}</h2>
+            <h2 className="text-xl font-bold">Order #{order.order_id}</h2>
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700"
@@ -377,17 +379,20 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
           {/* Conditional Display: Shipping Address OR Farcaster Info */}
           {partnerType === 'fulfillment' ? (
             /* Fulfillment Partners: Show Shipping Address */
-            order.shipping_name && (
+            order.shipping_address && (
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-3">Shipping Address</h3>
                 <div className="bg-gray-50 p-4 rounded-md">
                   <div className="text-sm text-gray-900">
-                    <div className="font-medium">{order.shipping_name}</div>
-                    <div>{order.shipping_address1}</div>
-                    {order.shipping_address2 && <div>{order.shipping_address2}</div>}
-                    <div>{order.shipping_city}, {order.shipping_province} {order.shipping_zip}</div>
-                    <div>{order.shipping_country}</div>
-                    {order.shipping_phone && <div>📞 {order.shipping_phone}</div>}
+                    <div className="font-medium">
+                      {order.customer_name || `${order.shipping_address.firstName || ''} ${order.shipping_address.lastName || ''}`}
+                    </div>
+                    <div>{order.shipping_address.address1}</div>
+                    {order.shipping_address.address2 && <div>{order.shipping_address.address2}</div>}
+                    <div>{order.shipping_address.city}, {order.shipping_address.province} {order.shipping_address.zip}</div>
+                    <div>{order.shipping_address.country}</div>
+                    {order.shipping_address.phone && <div>📞 {order.shipping_address.phone}</div>}
+                    {order.customer_email && <div>✉️ {order.customer_email}</div>}
                   </div>
                 </div>
               </div>

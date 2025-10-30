@@ -33,7 +33,7 @@ export async function GET(request) {
     const selectQuery = partnerType === 'collab'
       ? `
         id,
-        name,
+        order_id,
         status,
         amount_total,
         created_at,
@@ -59,19 +59,15 @@ export async function GET(request) {
       `
       : `
         id,
-        name,
+        order_id,
         status,
         amount_total,
         created_at,
         assigned_at,
-        shipping_name,
-        shipping_address1,
-        shipping_address2,
-        shipping_city,
-        shipping_province,
-        shipping_zip,
-        shipping_country,
-        shipping_phone,
+        customer_name,
+        customer_email,
+        shipping_address,
+        shipping_method,
         order_items (
           id,
           product_id,
