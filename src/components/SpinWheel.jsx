@@ -137,7 +137,36 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
 
   // Handle transaction confirmation
   useEffect(() => {
-    if (isConfirmed && hash && capturedUserFid) {
+    console.log('🔄 useEffect triggered:', { isConfirmed, hash: hash?.substring(0, 10), capturedUserFid });
+    
+    if (!isConfirmed) {
+      console.log('⏳ Transaction not confirmed yet');
+      return;
+    }
+    
+    if (!hash) {
+      console.log('⚠️ No transaction hash available');
+      return;
+    }
+    
+    if (!capturedUserFid) {
+      console.error('❌ CRITICAL: Transaction confirmed but capturedUserFid is NULL!');
+      console.error('❌ This means setState didn\'t work or got cleared');
+      console.error('❌ Current state:', { user, isReady, capturedUserFid });
+      // Try to get it directly as fallback
+      const fallbackFid = user?.fid || (isReady ? getFid() : null);
+      console.log('🔄 Attempting fallback FID:', fallbackFid);
+      if (fallbackFid) {
+        console.log('✅ Using fallback FID to save the spin');
+        // Continue with fallback FID
+      } else {
+        console.error('❌ Fallback also failed - cannot complete spin');
+        setTxStatus('failed');
+        return;
+      }
+    }
+    
+    if (isConfirmed && hash && (capturedUserFid || (user?.fid || getFid()))) {
       console.log('✅ Transaction confirmed:', hash);
       setTxHash(hash);
       setTxStatus('confirmed');
@@ -146,18 +175,26 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       const confirmWithBackend = async () => {
         try {
           console.log('🎯 Confirming spin with backend...');
-          console.log('👤 DEBUG: capturedUserFid state value:', capturedUserFid, 'type:', typeof capturedUserFid);
+          
+          // Use captured FID or fallback to current FID
+          const fidToUse = capturedUserFid || user?.fid || (isReady ? getFid() : null);
+          console.log('👤 DEBUG: FID selection:', { 
+            capturedUserFid, 
+            userFid: user?.fid,
+            getFidResult: isReady ? getFid() : 'not ready',
+            finalFid: fidToUse,
+            type: typeof fidToUse
+          });
           console.log('👤 DEBUG: txHash:', hash);
           
-          // EMERGENCY GUARD: Double-check capturedUserFid exists
-          if (!capturedUserFid) {
-            console.error('❌ CRITICAL: capturedUserFid is null/undefined in confirmWithBackend!');
-            console.error('❌ State values:', { user, isReady, capturedUserFid });
-            throw new Error('User FID was not captured before transaction - this should not happen');
+          if (!fidToUse) {
+            console.error('❌ CRITICAL: No FID available anywhere!');
+            console.error('❌ All sources:', { capturedUserFid, user, isReady });
+            throw new Error('Cannot determine user FID - authentication may have failed');
           }
           
           const requestBody = { 
-            userFid: capturedUserFid, 
+            userFid: fidToUse, 
             txHash: hash,
             skipBlockchainCheck: false
           };
@@ -186,7 +223,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       
       confirmWithBackend();
     }
-  }, [isConfirmed, hash, capturedUserFid]);
+  }, [isConfirmed, hash, capturedUserFid, user, isReady, getFid]);
 
   // Handle transaction pending state
   useEffect(() => {
@@ -293,17 +330,26 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const processSpinResult = async (permitData, txHash) => {
     try {
       console.log('🎯 Confirming spin with backend (WalletConnect path)...');
-      console.log('👤 DEBUG (WC): capturedUserFid value:', capturedUserFid, 'type:', typeof capturedUserFid);
+      
+      // Use captured FID or fallback to current FID
+      const fidToUse = capturedUserFid || user?.fid || (isReady ? getFid() : null);
+      console.log('👤 DEBUG (WC): FID selection:', { 
+        capturedUserFid, 
+        userFid: user?.fid,
+        getFidResult: isReady ? getFid() : 'not ready',
+        finalFid: fidToUse,
+        type: typeof fidToUse
+      });
       console.log('👤 DEBUG (WC): txHash:', txHash);
       
-      if (!capturedUserFid) {
-        console.error('❌ CRITICAL (WC): capturedUserFid is null/undefined!');
-        console.error('❌ State values:', { user, isReady, capturedUserFid });
-        throw new Error('User FID not captured - please try again');
+      if (!fidToUse) {
+        console.error('❌ CRITICAL (WC): No FID available anywhere!');
+        console.error('❌ All sources:', { capturedUserFid, user, isReady });
+        throw new Error('Cannot determine user FID - authentication may have failed');
       }
       
       const requestBody = {
-        userFid: capturedUserFid,
+        userFid: fidToUse,
         txHash: txHash,
         skipBlockchainCheck: false
       };
