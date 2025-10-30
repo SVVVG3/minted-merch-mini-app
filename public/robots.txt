@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Allow OG image endpoints for social media crawlers
+Allow: /api/og/*
+
+# Standard Next.js static files
+Allow: /_next/static/
+Allow: /favicon.ico
+
+Sitemap: https://mintedmerch.vercel.app/sitemap.xml 

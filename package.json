@@ -1,0 +1,51 @@
+{
+  "name": "shopify-mini-app-frame",
+  "version": "0.1.0",
+  "private": true,
+  "overrides": {
+    "viem": "^2.31.4"
+  },
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "deploy:contract": "node scripts/deploy-spin-registry.js"
+  },
+  "dependencies": {
+    "@base-org/account": "^2.4.0",
+    "@base-org/account-ui": "^1.0.1",
+    "@capacitor/haptics": "^7.0.2",
+    "@cloudflare/workers-types": "^4.20250620.0",
+    "@farcaster/auth-kit": "^0.8.1",
+    "@farcaster/frame-node": "^0.0.41",
+    "@farcaster/frame-sdk": "^0.0.64",
+    "@farcaster/miniapp-sdk": "^0.1.6",
+    "@farcaster/miniapp-wagmi-connector": "^1.0.0",
+    "@neynar/nodejs-sdk": "^3.19.0",
+    "@reown/appkit": "^1.8.10",
+    "@reown/appkit-common": "^1.8.10",
+    "@reown/appkit-universal-connector": "^1.8.10",
+    "@reown/appkit-wallet": "^1.8.11",
+    "@supabase/supabase-js": "^2.50.2",
+    "@tanstack/react-query": "^5.81.2",
+    "@vercel/kv": "^3.0.0",
+    "@vercel/og": "^0.6.8",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^17.2.1",
+    "ethers": "^6.15.0",
+    "jose": "^6.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "next": "^15.5.2",
+    "pino-pretty": "^13.1.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "viem": "^2.31.4",
+    "wagmi": "^2.15.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "solc": "^0.8.30",
+    "tailwindcss": "^4"
+  }
+}

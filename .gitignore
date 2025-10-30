@@ -1,0 +1,77 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# internal development documentation
+.cursor/
+tasks.md
+architecture.md
+
+# Security & deployment guides (contain secrets or internal deployment info)
+QUICK_START.md
+DEPLOYMENT_GUIDE.md
+TESTING_CHECKLIST.md
+VERIFICATION_RESULTS.md
+PARTNER_SECURITY_FIX.md
+SECURITY_CLEANUP_SUMMARY.md
+SECURITY_INCIDENT_REPORT.md
+docs/EMERGENCY_SECURITY_FIXES.md
+docs/ADMIN_SECURITY_SETUP.md
+
+# Security audits and sensitive analysis (NEVER push to public repo)
+**/*security-audit*.md
+**/*SECURITY_AUDIT*.md
+**/*security-analysis*.md
+**/audit-*.md
+.cursor/*.md
+
+# Test files and debug endpoints (keep local only)
+test-*.js
+*-test.js
+test-*
+debug-*.js
+src/app/api/debug/
+src/app/wallet-test/
+src/app/api/test-webhook/
+database/test_*.sql
+scripts/protect-debug-*.{sh,js}
+farcaster-old-domain.json
