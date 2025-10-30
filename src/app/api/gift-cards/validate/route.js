@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server';
 import { validateGiftCardForCheckout, isGiftCardUsable } from '@/lib/giftCards';
+import { rateLimit, getClientIp, rateLimitResponse, RATE_LIMITS } from '@/lib/rateLimiter';
 
 export async function POST(request) {
   try {
+    // 🔒 RATE LIMITING: Prevent brute force attacks on gift cards (ultra-strict!)
+    const clientIp = getClientIp(request);
+    const rateLimitResult = rateLimit(clientIp, RATE_LIMITS.ULTRA_STRICT);
+    
+    if (!rateLimitResult.allowed) {
+      console.log('⚠️ Rate limit exceeded for gift card validation:', { ip: clientIp });
+      return rateLimitResponse(
+        'Too many validation attempts. Please try again later.',
+        rateLimitResult
+      );
+    }
+    
     const { code, cartTotal = 0 } = await request.json();
     
     console.log('🔍 Gift card validation request:', { code, cartTotal });

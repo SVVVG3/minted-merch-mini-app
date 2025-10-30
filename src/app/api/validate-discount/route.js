@@ -3,9 +3,22 @@ import { setUserContext } from '@/lib/auth';
 import { validateDiscountCode, calculateDiscountAmount, isGiftCardCode, validateGiftCardCode, cartContainsGiftCards } from '@/lib/discounts';
 import { checkTokenGatedEligibility } from '@/lib/tokenGating';
 import { fetchUserWalletData } from '@/lib/walletUtils';
+import { rateLimit, getClientIp, rateLimitResponse, RATE_LIMITS } from '@/lib/rateLimiter';
 
 export async function POST(request) {
   try {
+    // 🔒 RATE LIMITING: Prevent brute force attacks on discount codes
+    const clientIp = getClientIp(request);
+    const rateLimitResult = rateLimit(clientIp, RATE_LIMITS.STRICT);
+    
+    if (!rateLimitResult.allowed) {
+      console.log('⚠️ Rate limit exceeded for discount validation:', { ip: clientIp });
+      return rateLimitResponse(
+        'Too many validation attempts. Please try again later.',
+        rateLimitResult
+      );
+    }
+    
     const { code, fid, subtotal, cartItems } = await request.json();
 
     if (!code) {
