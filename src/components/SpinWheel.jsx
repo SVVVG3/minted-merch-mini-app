@@ -115,7 +115,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       console.log('🎯 Loading check-in status for user FID:', userFid);
       loadUserStatus(userFid);
     }
-  }, [isReady, user, isConnected, address, isWalletConnected, walletConnectAddress]);
+  }, [isReady, user?.fid, isConnected, address, isWalletConnected, walletConnectAddress]); // Only refetch when FID changes, not when user object is recreated
 
   // Countdown timer effect for next spin availability
   useEffect(() => {

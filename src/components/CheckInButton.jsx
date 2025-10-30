@@ -25,7 +25,7 @@ export function CheckInButton() {
     }
 
     loadUserStatus(userFid);
-  }, [user, isReady]); // Removed getFid from dependencies to prevent infinite loop
+  }, [user?.fid, isReady]); // Only refetch when FID changes, not when user object is recreated
 
   const loadUserStatus = async (userFid) => {
     try {
