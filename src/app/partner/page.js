@@ -328,36 +328,23 @@ function PartnerDashboard() {
 }
 
 function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
-  const [status, setStatus] = useState(order.status);
   const [trackingNumber, setTrackingNumber] = useState(order.tracking_number || '');
   const [carrier, setCarrier] = useState(order.carrier || '');
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    const updateData = {};
-    
-    if (status !== order.status) {
-      updateData.status = status;
-    }
-    if (trackingNumber !== (order.tracking_number || '')) {
-      updateData.tracking_number = trackingNumber;
-    }
-    if (carrier !== (order.carrier || '')) {
-      updateData.carrier = carrier;
+    // Validate tracking number is provided
+    if (!trackingNumber.trim()) {
+      alert('Please enter a tracking number');
+      return;
     }
 
-    if (Object.keys(updateData).length > 0) {
-      onUpdate(order.order_id, updateData);
-    }
-  };
-
-  const canTransition = (currentStatus, newStatus) => {
-    const allowedTransitions = {
-      'assigned': ['processing'],
-      'processing': ['shipped']
-    };
-    return allowedTransitions[currentStatus]?.includes(newStatus);
+    // Send tracking info - status will auto-update to "shipped" on backend
+    onUpdate(order.order_id, {
+      tracking_number: trackingNumber,
+      carrier: carrier
+    });
   };
 
   return (
@@ -453,36 +440,19 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
             </div>
           </div>
 
-          {/* Order Update Form - Only for Fulfillment Partners */}
+          {/* Shipping Form - Only for Fulfillment Partners */}
           {partnerType === 'fulfillment' ? (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Order Status
-                </label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                  disabled={updating}
-                >
-                  <option value="assigned">Assigned</option>
-                  {canTransition('assigned', 'processing') && (
-                    <option value="processing">Processing</option>
-                  )}
-                  {(order.status === 'processing' || status === 'processing') && (
-                    <option value="shipped">Shipped</option>
-                  )}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  You can only update: Assigned → Processing → Shipped
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
+                <p className="text-sm text-blue-800">
+                  📦 <strong>Enter tracking info to mark as shipped.</strong> Order will automatically be marked as shipped and customer will be notified.
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tracking Number {status === 'shipped' && <span className="text-red-500">*</span>}
+                    Tracking Number <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -491,13 +461,13 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
                     placeholder="Enter tracking number"
                     disabled={updating}
-                    required={status === 'shipped'}
+                    required
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Carrier
+                    Carrier <span className="text-gray-400">(Optional)</span>
                   </label>
                   <input
                     type="text"
@@ -524,7 +494,7 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
                   className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md disabled:opacity-50"
                   disabled={updating}
                 >
-                  {updating ? 'Updating...' : 'Update Order'}
+                  {updating ? 'Shipping...' : 'Mark as Shipped'}
                 </button>
               </div>
             </form>
