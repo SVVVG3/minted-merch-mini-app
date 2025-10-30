@@ -1,24 +1,14 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 // import "@neynar/react/dist/style.css";
-import dynamic from 'next/dynamic';
 import { FrameInit } from "@/components/FrameInit";
 import { GoogleMapsScript } from "@/components/GoogleMapsScript";
 import { FarcasterHeader } from "@/components/FarcasterHeader";
 import { PriceTicker } from "@/components/PriceTicker";
 import { ChatEligibilityBanner } from "@/components/ChatEligibilityBanner";
 import { ChatEligibilityPopup } from "@/components/ChatEligibilityPopup";
-import { CartProvider } from "@/lib/CartContext";
-import { WagmiProvider } from "@/components/WagmiProvider";
-import { BaseAccountProvider } from "@/components/BaseAccountProvider";
-import { AuthKitProvider } from "@/components/AuthKitProvider";
+import { Providers } from "@/components/Providers";
 // import { MiniAppProvider } from '@neynar/react';
-
-// Dynamic import to prevent SSR issues with wagmi hooks
-const WalletConnectProvider = dynamic(
-  () => import('@/components/WalletConnectProvider').then(mod => mod.WalletConnectProvider),
-  { ssr: false }
-);
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,23 +42,15 @@ export default function RootLayout({ children }) {
       >
         <GoogleMapsScript />
         <FrameInit />
-        <AuthKitProvider>
-          <WagmiProvider>
-            <BaseAccountProvider>
-              <WalletConnectProvider>
-                <CartProvider>
-                  <div>
-                    <PriceTicker />
-                    <FarcasterHeader />
-                    <ChatEligibilityBanner />
-                    {children}
-                    <ChatEligibilityPopup />
-                  </div>
-                </CartProvider>
-              </WalletConnectProvider>
-            </BaseAccountProvider>
-          </WagmiProvider>
-        </AuthKitProvider>
+        <Providers>
+          <div>
+            <PriceTicker />
+            <FarcasterHeader />
+            <ChatEligibilityBanner />
+            {children}
+            <ChatEligibilityPopup />
+          </div>
+        </Providers>
       </body>
     </html>
   );
