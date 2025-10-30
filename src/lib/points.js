@@ -175,10 +175,14 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
         .eq('transaction_type', 'daily_checkin')
         .or(`spin_tx_hash.eq.${txHash},metadata->txHash.eq.${txHash}`)
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (existingTx && !txCheckError) {
-        console.log('✅ Found existing transaction for txHash, returning cached result');
+      if (existingTx) {
+        console.log('✅ Found existing transaction for txHash, returning cached result:', {
+          points_earned: existingTx.points_earned,
+          user_fid: existingTx.user_fid,
+          created_at: existingTx.created_at
+        });
         return {
           success: true,
           pointsEarned: existingTx.points_earned,
@@ -189,6 +193,13 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
           streakBroken: false,
           cached: true
         };
+      }
+      
+      if (txCheckError) {
+        console.error('⚠️ Error checking for existing transaction:', txCheckError);
+        // Continue with normal flow if database check fails
+      } else {
+        console.log('🆕 No existing transaction found for txHash, proceeding with new spin');
       }
     }
 
