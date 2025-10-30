@@ -39,6 +39,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const [txStatus, setTxStatus] = useState(null); // 'pending', 'confirmed', 'failed'
   const [txHash, setTxHash] = useState(null);
   const [userWalletAddress, setUserWalletAddress] = useState(null);
+  const [capturedUserFid, setCapturedUserFid] = useState(null); // Capture FID at spin start
 
   // Define wheel segments with enhanced visual styling
   const wheelSegments = [
@@ -136,7 +137,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
 
   // Handle transaction confirmation
   useEffect(() => {
-    if (isConfirmed && hash) {
+    if (isConfirmed && hash && capturedUserFid) {
       console.log('✅ Transaction confirmed:', hash);
       setTxHash(hash);
       setTxStatus('confirmed');
@@ -145,21 +146,13 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       const confirmWithBackend = async () => {
         try {
           console.log('🎯 Confirming spin with backend...');
-          // Get user FID - works for both mini app and dGEN1/desktop with Farcaster auth
-          const userFid = user?.fid || (isReady ? getFid() : null);
-          
-          if (!userFid) {
-            console.error('❌ User FID not available', { user, isReady });
-            throw new Error('User FID not available - please try refreshing the page');
-          }
-          
-          console.log('👤 Confirming with userFid:', userFid, 'txHash:', hash);
+          console.log('👤 Using captured userFid:', capturedUserFid, 'txHash:', hash);
           
           const checkinResponse = await fetch('/api/points/checkin', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-              userFid, 
+              userFid: capturedUserFid, 
               txHash: hash,
               skipBlockchainCheck: false
             }),
@@ -182,7 +175,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       
       confirmWithBackend();
     }
-  }, [isConfirmed, hash, user, isReady, getFid]);
+  }, [isConfirmed, hash, capturedUserFid]);
 
   // Handle transaction pending state
   useEffect(() => {
@@ -289,21 +282,19 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const processSpinResult = async (permitData, txHash) => {
     try {
       console.log('🎯 Confirming spin with backend...');
-      // Get user FID - works for both mini app and dGEN1/desktop with Farcaster auth
-      const userFid = user?.fid || (isReady ? getFid() : null);
       
-      if (!userFid) {
-        console.error('❌ No FID available for backend confirmation', { user, isReady });
-        throw new Error('User FID not available - please sign in with Farcaster and try again');
+      if (!capturedUserFid) {
+        console.error('❌ No captured FID available for backend confirmation');
+        throw new Error('User FID not captured - please try again');
       }
       
-      console.log('👤 Processing spin for userFid:', userFid, 'txHash:', txHash);
+      console.log('👤 Processing spin for captured userFid:', capturedUserFid, 'txHash:', txHash);
       
       const confirmResponse = await fetch('/api/points/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userFid: userFid,
+          userFid: capturedUserFid,
           txHash: txHash,
           skipBlockchainCheck: false
         })
@@ -372,6 +363,10 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       alert('Please sign in with Farcaster to spin the wheel');
       return;
     }
+
+    // 🔑 CRITICAL: Capture userFid NOW so it's available later when transaction confirms
+    setCapturedUserFid(userFid);
+    console.log('✅ Captured userFid for transaction confirmation:', userFid);
 
     try {
       // Trigger haptic feedback on button press
