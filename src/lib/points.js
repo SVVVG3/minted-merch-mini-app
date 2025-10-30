@@ -166,6 +166,32 @@ function applyStreakBonus(basePoints, streak) {
  */
 export async function performDailyCheckin(userFid, txHash = null, skipBlockchainCheck = false) {
   try {
+    // CRITICAL: Deduplicate by txHash to prevent race conditions
+    if (txHash) {
+      console.log('🔍 Checking for existing transaction with txHash:', txHash);
+      const { data: existingTx, error: txCheckError } = await supabaseAdmin
+        .from('point_transactions')
+        .select('*')
+        .eq('transaction_type', 'daily_checkin')
+        .or(`spin_tx_hash.eq.${txHash},metadata->txHash.eq.${txHash}`)
+        .limit(1)
+        .single();
+
+      if (existingTx && !txCheckError) {
+        console.log('✅ Found existing transaction for txHash, returning cached result');
+        return {
+          success: true,
+          pointsEarned: existingTx.points_earned,
+          basePoints: existingTx.metadata?.basePoints || existingTx.points_earned,
+          streakBonus: existingTx.metadata?.streakBonus || 0,
+          newStreak: existingTx.metadata?.streak || 1,
+          totalPoints: existingTx.points_after,
+          streakBroken: false,
+          cached: true
+        };
+      }
+    }
+
     // Check if user can check in today
     const canCheckin = await canCheckInToday(userFid);
     if (!canCheckin) {
