@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { useWalletConnectContext } from './WalletConnectProvider';
 import { shareCheckIn } from '@/lib/farcasterShare';
@@ -40,6 +40,9 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const [txHash, setTxHash] = useState(null);
   const [userWalletAddress, setUserWalletAddress] = useState(null);
   const [capturedUserFid, setCapturedUserFid] = useState(null); // Capture FID at spin start
+  
+  // Track processed transactions to prevent duplicate API calls
+  const processedTransactions = useRef(new Set());
 
   // Define wheel segments with enhanced visual styling
   const wheelSegments = [
@@ -182,6 +185,12 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       return;
     }
     
+    // CRITICAL: Check if we've already processed this transaction
+    if (processedTransactions.current.has(hash)) {
+      console.log('✅ Transaction already processed, skipping:', hash.substring(0, 10));
+      return;
+    }
+    
     if (!capturedUserFid) {
       console.error('❌ CRITICAL: Transaction confirmed but capturedUserFid is NULL!');
       console.error('❌ This means setState didn\'t work or got cleared');
@@ -201,6 +210,11 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     
     if (isConfirmed && hash && (capturedUserFid || (user?.fid || getFid()))) {
       console.log('✅ Transaction confirmed via wagmi hook:', hash);
+      
+      // Mark transaction as processed IMMEDIATELY to prevent duplicate calls
+      processedTransactions.current.add(hash);
+      console.log('🔒 Transaction marked as processed:', hash.substring(0, 10));
+      
       setTxHash(hash);
       setTxStatus('confirmed');
       
@@ -442,6 +456,10 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   // Main spin function (always on-chain)
   const handleSpin = async () => {
     console.log('🎰 Spin button clicked!', { isInFarcaster, isReady, isSpinning, canSpin, user });
+    
+    // Clear processed transactions for new spin session
+    processedTransactions.current.clear();
+    console.log('🧹 Cleared processed transactions for new spin');
     
     // Check if spinning is in progress or user can't spin
     if (isSpinning || !canSpin) {
