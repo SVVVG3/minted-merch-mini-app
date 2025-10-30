@@ -679,6 +679,42 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   // Unified error handler
   const handleSpinError = async (error) => {
     console.error('Spin error:', error);
+    
+    // Check if this is the "Already spun this app-day" error from contract
+    const errorMessage = error?.message || error?.toString() || '';
+    if (errorMessage.includes('Already spun') || errorMessage.includes('already spun')) {
+      console.log('🔄 Detected "Already spun" error - attempting automatic recovery...');
+      
+      // Try to recover the stuck spin
+      const userFid = capturedUserFid || user?.fid || (isReady ? getFid() : null);
+      if (userFid) {
+        try {
+          const recoveryResponse = await fetch('/api/recover-stuck-spin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              userFid,
+              txHash: txHash || hash 
+            })
+          });
+          
+          const recoveryResult = await recoveryResponse.json();
+          
+          if (recoveryResult.success) {
+            console.log('✅ Automatic recovery successful!', recoveryResult);
+            // Treat this as a successful spin
+            await handleSpinSuccess(recoveryResult);
+            return; // Don't show error - recovery worked!
+          } else {
+            console.error('❌ Automatic recovery failed:', recoveryResult.error);
+          }
+        } catch (recoveryError) {
+          console.error('❌ Error during automatic recovery:', recoveryError);
+        }
+      }
+    }
+    
+    // If recovery failed or wasn't applicable, show error
     setIsSpinning(false);
     setWheelGlow(false);
     setTxStatus(null);
