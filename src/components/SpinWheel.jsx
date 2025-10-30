@@ -146,16 +146,27 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       const confirmWithBackend = async () => {
         try {
           console.log('🎯 Confirming spin with backend...');
-          console.log('👤 Using captured userFid:', capturedUserFid, 'txHash:', hash);
+          console.log('👤 DEBUG: capturedUserFid state value:', capturedUserFid, 'type:', typeof capturedUserFid);
+          console.log('👤 DEBUG: txHash:', hash);
+          
+          // EMERGENCY GUARD: Double-check capturedUserFid exists
+          if (!capturedUserFid) {
+            console.error('❌ CRITICAL: capturedUserFid is null/undefined in confirmWithBackend!');
+            console.error('❌ State values:', { user, isReady, capturedUserFid });
+            throw new Error('User FID was not captured before transaction - this should not happen');
+          }
+          
+          const requestBody = { 
+            userFid: capturedUserFid, 
+            txHash: hash,
+            skipBlockchainCheck: false
+          };
+          console.log('👤 DEBUG: Request body being sent:', JSON.stringify(requestBody));
           
           const checkinResponse = await fetch('/api/points/checkin', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              userFid: capturedUserFid, 
-              txHash: hash,
-              skipBlockchainCheck: false
-            }),
+            body: JSON.stringify(requestBody),
           });
 
           const result = await checkinResponse.json();
@@ -281,23 +292,27 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   // Process spin result after successful transaction (for WalletConnect)
   const processSpinResult = async (permitData, txHash) => {
     try {
-      console.log('🎯 Confirming spin with backend...');
+      console.log('🎯 Confirming spin with backend (WalletConnect path)...');
+      console.log('👤 DEBUG (WC): capturedUserFid value:', capturedUserFid, 'type:', typeof capturedUserFid);
+      console.log('👤 DEBUG (WC): txHash:', txHash);
       
       if (!capturedUserFid) {
-        console.error('❌ No captured FID available for backend confirmation');
+        console.error('❌ CRITICAL (WC): capturedUserFid is null/undefined!');
+        console.error('❌ State values:', { user, isReady, capturedUserFid });
         throw new Error('User FID not captured - please try again');
       }
       
-      console.log('👤 Processing spin for captured userFid:', capturedUserFid, 'txHash:', txHash);
+      const requestBody = {
+        userFid: capturedUserFid,
+        txHash: txHash,
+        skipBlockchainCheck: false
+      };
+      console.log('👤 DEBUG (WC): Request body being sent:', JSON.stringify(requestBody));
       
       const confirmResponse = await fetch('/api/points/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userFid: capturedUserFid,
-          txHash: txHash,
-          skipBlockchainCheck: false
-        })
+        body: JSON.stringify(requestBody)
       });
       
       const result = await confirmResponse.json();
@@ -357,7 +372,10 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
 
     // Get user FID - works for both mini app and dGEN1/desktop with Farcaster auth
     const userFid = user?.fid || (isReady ? getFid() : null);
-    console.log('👤 User FID:', userFid);
+    console.log('👤 DEBUG: handleSpin - Getting userFid');
+    console.log('👤 DEBUG: user?.fid:', user?.fid, 'isReady:', isReady, 'getFid():', isReady ? getFid() : 'not ready');
+    console.log('👤 DEBUG: Final userFid:', userFid, 'type:', typeof userFid);
+    
     if (!userFid) {
       console.log('❌ No user FID - user must be signed in with Farcaster');
       alert('Please sign in with Farcaster to spin the wheel');
@@ -365,8 +383,9 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     }
 
     // 🔑 CRITICAL: Capture userFid NOW so it's available later when transaction confirms
+    console.log('🔑 DEBUG: About to capture userFid in state:', userFid);
     setCapturedUserFid(userFid);
-    console.log('✅ Captured userFid for transaction confirmation:', userFid);
+    console.log('✅ DEBUG: setCapturedUserFid called with:', userFid);
 
     try {
       // Trigger haptic feedback on button press

@@ -4,13 +4,37 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
-    const { userFid, timezone, txHash, skipBlockchainCheck } = await request.json();
+    const body = await request.json();
+    console.log('🔍 DEBUG: Raw request body received:', JSON.stringify(body));
+    
+    const { userFid, timezone, txHash, skipBlockchainCheck } = body;
+    
+    console.log('🔍 DEBUG: Parsed values:', {
+      userFid,
+      userFidType: typeof userFid,
+      userFidValue: JSON.stringify(userFid),
+      timezone,
+      txHash: txHash ? txHash.substring(0, 10) + '...' : 'none',
+      skipBlockchainCheck
+    });
 
     // Validate required parameters
     if (!userFid) {
+      console.error('❌ DEBUG: userFid validation failed!', {
+        userFid,
+        isFalsy: !userFid,
+        isNull: userFid === null,
+        isUndefined: userFid === undefined,
+        isEmpty: userFid === '',
+        isZero: userFid === 0
+      });
       return NextResponse.json({ 
         success: false, 
-        error: 'User FID is required' 
+        error: 'User FID is required',
+        debug: {
+          receivedUserFid: userFid,
+          type: typeof userFid
+        }
       }, { status: 400 });
     }
 
