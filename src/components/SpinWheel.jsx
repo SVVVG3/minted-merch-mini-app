@@ -149,8 +149,11 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           const userFid = user?.fid || (isReady ? getFid() : null);
           
           if (!userFid) {
-            throw new Error('User FID not available');
+            console.error('❌ User FID not available', { user, isReady });
+            throw new Error('User FID not available - please try refreshing the page');
           }
+          
+          console.log('👤 Confirming with userFid:', userFid, 'txHash:', hash);
           
           const checkinResponse = await fetch('/api/points/checkin', {
             method: 'POST',
@@ -163,6 +166,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
           });
 
           const result = await checkinResponse.json();
+          
+          console.log('🔍 Check-in API response:', result);
           
           if (result.success) {
             await handleSpinSuccess(result);
@@ -177,7 +182,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       
       confirmWithBackend();
     }
-  }, [isConfirmed, hash]);
+  }, [isConfirmed, hash, user, isReady, getFid]);
 
   // Handle transaction pending state
   useEffect(() => {
@@ -288,21 +293,25 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       const userFid = user?.fid || (isReady ? getFid() : null);
       
       if (!userFid) {
-        console.log('⚠️ No FID available for backend confirmation');
-        // Still try to confirm without FID (for anonymous users)
+        console.error('❌ No FID available for backend confirmation', { user, isReady });
+        throw new Error('User FID not available - please sign in with Farcaster and try again');
       }
       
-          const confirmResponse = await fetch('/api/points/checkin', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userFid: userFid,
-              txHash: txHash,
-              skipBlockchainCheck: false
-            })
-          });
+      console.log('👤 Processing spin for userFid:', userFid, 'txHash:', txHash);
+      
+      const confirmResponse = await fetch('/api/points/checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userFid: userFid,
+          txHash: txHash,
+          skipBlockchainCheck: false
+        })
+      });
       
       const result = await confirmResponse.json();
+      
+      console.log('🔍 Check-in API response (WalletConnect):', result);
       
       if (result.success) {
         console.log('✅ Spin confirmed with backend:', result);
