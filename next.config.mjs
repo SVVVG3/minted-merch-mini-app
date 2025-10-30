@@ -67,7 +67,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: blob: https: http:",
               "font-src 'self' data: https://fonts.gstatic.com",
-              "connect-src 'self' https://*.shopify.com https://*.warpcast.com https://*.farcaster.xyz https://*.alchemy.com https://*.infura.io wss://*.alchemy.com wss://*.infura.io",
+              "connect-src 'self' https://*.shopify.com https://*.warpcast.com https://*.farcaster.xyz https://*.alchemy.com https://*.infura.io https://api.dexscreener.com https://api.zapper.xyz wss://*.alchemy.com wss://*.infura.io",
               "frame-src 'self' https://*.shopify.com https://*.warpcast.com https://*.farcaster.xyz",
               "object-src 'none'",
               "base-uri 'self'",
