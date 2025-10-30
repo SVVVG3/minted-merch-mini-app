@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 // import "@neynar/react/dist/style.css";
+import dynamic from 'next/dynamic';
 import { FrameInit } from "@/components/FrameInit";
 import { GoogleMapsScript } from "@/components/GoogleMapsScript";
 import { FarcasterHeader } from "@/components/FarcasterHeader";
@@ -11,8 +12,13 @@ import { CartProvider } from "@/lib/CartContext";
 import { WagmiProvider } from "@/components/WagmiProvider";
 import { BaseAccountProvider } from "@/components/BaseAccountProvider";
 import { AuthKitProvider } from "@/components/AuthKitProvider";
-import { WalletConnectProvider } from "@/components/WalletConnectProvider";
 // import { MiniAppProvider } from '@neynar/react';
+
+// Dynamic import to prevent SSR issues with wagmi hooks
+const WalletConnectProvider = dynamic(
+  () => import('@/components/WalletConnectProvider').then(mod => mod.WalletConnectProvider),
+  { ssr: false }
+);
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
