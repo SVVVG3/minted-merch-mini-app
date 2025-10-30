@@ -173,7 +173,7 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
         .from('point_transactions')
         .select('*')
         .eq('transaction_type', 'daily_checkin')
-        .or(`spin_tx_hash.eq.${txHash},metadata->txHash.eq.${txHash}`)
+        .or(`spin_tx_hash.eq.${txHash},metadata->txHash.eq.${txHash},tx_hash.eq.${txHash}`)
         .limit(1)
         .maybeSingle();
 
