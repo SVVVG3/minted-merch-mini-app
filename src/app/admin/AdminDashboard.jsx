@@ -3568,6 +3568,9 @@ export default function AdminDashboard() {
                         Partner Info
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Linked Farcaster
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -3594,6 +3597,15 @@ export default function AdminDashboard() {
                               <div className="text-sm text-gray-500">{partner.email}</div>
                             </div>
                           </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            partner.partner_type === 'collab'
+                              ? 'bg-purple-100 text-purple-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {partner.partner_type === 'collab' ? '🤝 Collab' : '📦 Fulfillment'}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {partner.fid ? (
@@ -3750,6 +3762,23 @@ export default function AdminDashboard() {
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Optional: Link to Farcaster profile for notifications
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Partner Type *
+                    </label>
+                    <select
+                      value={createPartnerData.partner_type || 'fulfillment'}
+                      onChange={(e) => setCreatePartnerData({...createPartnerData, partner_type: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="fulfillment">Fulfillment Partner</option>
+                      <option value="collab">Collab Partner</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Fulfillment: Sees shipping addresses | Collab: Sees Farcaster profiles
                     </p>
                   </div>
                 </div>

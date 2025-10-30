@@ -97,15 +97,24 @@ export const GET = withAdminAuth(async (request) => {
 // POST create new partner (admin only)
 export const POST = withAdminAuth(async (request) => {
   try {
-    const { name, email, password, fid } = await request.json();
+    const { name, email, password, fid, partner_type } = await request.json();
 
-    console.log('🤝 Creating new partner:', { name, email, fid });
+    console.log('🤝 Creating new partner:', { name, email, fid, partner_type });
 
     // Validate required fields
     if (!name || !email || !password) {
       return NextResponse.json({
         success: false,
         error: 'Name, email, and password are required'
+      }, { status: 400 });
+    }
+
+    // Validate partner_type
+    const validPartnerType = partner_type || 'fulfillment';
+    if (!['fulfillment', 'collab'].includes(validPartnerType)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Partner type must be either "fulfillment" or "collab"'
       }, { status: 400 });
     }
 
@@ -118,7 +127,7 @@ export const POST = withAdminAuth(async (request) => {
       }, { status: 400 });
     }
 
-    const result = await createPartner(email, password, name, validatedFid);
+    const result = await createPartner(email, password, name, validatedFid, validPartnerType);
 
     if (!result.success) {
       console.error('❌ Failed to create partner:', result.error);

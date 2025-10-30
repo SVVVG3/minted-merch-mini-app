@@ -25,13 +25,20 @@ export async function GET(request) {
       }, { status: 401 });
     }
 
-    console.log(`🤝 Fetching orders for partner ${decoded.email}...`);
+    const partnerType = decoded.partnerType || 'fulfillment';
+    console.log(`🤝 Fetching orders for ${partnerType} partner ${decoded.email}...`);
 
     // Fetch orders assigned to this partner
-    const { data: orders, error: ordersError } = await supabaseAdmin
-      .from('orders')
-      .select(`
-        *,
+    // Include profiles for collab partners, exclude for fulfillment partners
+    const selectQuery = partnerType === 'collab'
+      ? `
+        id,
+        name,
+        status,
+        amount_total,
+        created_at,
+        assigned_at,
+        fid,
         order_items (
           id,
           product_id,
@@ -46,9 +53,41 @@ export async function GET(request) {
         profiles (
           username,
           display_name,
-          pfp_url
+          pfp_url,
+          fid
         )
-      `)
+      `
+      : `
+        id,
+        name,
+        status,
+        amount_total,
+        created_at,
+        assigned_at,
+        shipping_name,
+        shipping_address1,
+        shipping_address2,
+        shipping_city,
+        shipping_province,
+        shipping_zip,
+        shipping_country,
+        shipping_phone,
+        order_items (
+          id,
+          product_id,
+          variant_id,
+          quantity,
+          price,
+          total,
+          product_title,
+          variant_title,
+          product_data
+        )
+      `;
+
+    const { data: orders, error: ordersError } = await supabaseAdmin
+      .from('orders')
+      .select(selectQuery)
       .eq('assigned_partner_id', decoded.id)
       .order('assigned_at', { ascending: false });
 
@@ -60,11 +99,12 @@ export async function GET(request) {
       }, { status: 500 });
     }
 
-    console.log(`✅ Retrieved ${orders.length} orders for partner ${decoded.email}`);
+    console.log(`✅ Retrieved ${orders.length} orders for ${partnerType} partner ${decoded.email}`);
 
     return NextResponse.json({
       success: true,
-      data: orders
+      data: orders,
+      partnerType // Include partner type so frontend knows what to display
     });
 
   } catch (error) {

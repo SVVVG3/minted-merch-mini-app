@@ -34,7 +34,8 @@ export async function generatePartnerToken(partner) {
     email: partner.email,
     name: partner.name,
     fid: partner.fid,
-    type: 'partner'
+    type: 'partner',
+    partnerType: partner.partner_type || 'fulfillment' // 'fulfillment' or 'collab'
   };
   
   const token = await new SignJWT(tokenPayload)
@@ -80,7 +81,7 @@ export async function verifyPartnerToken(token) {
 }
 
 // Create new partner
-export async function createPartner(email, password, name, fid = null) {
+export async function createPartner(email, password, name, fid = null, partnerType = 'fulfillment') {
   try {
     const hashedPassword = await hashPassword(password);
     
@@ -90,9 +91,10 @@ export async function createPartner(email, password, name, fid = null) {
         email: email.toLowerCase(),
         password_hash: hashedPassword,
         name,
-        fid
+        fid,
+        partner_type: partnerType
       })
-      .select('id, email, name, fid, is_active, created_at')
+      .select('id, email, name, fid, partner_type, is_active, created_at')
       .single();
 
     if (error) {
@@ -173,6 +175,7 @@ export async function getAllPartners() {
         email,
         name,
         fid,
+        partner_type,
         is_active,
         created_at,
         updated_at,

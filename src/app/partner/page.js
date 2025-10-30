@@ -6,6 +6,7 @@ import { PartnerProvider, usePartner } from '@/lib/PartnerContext';
 
 function PartnerDashboard() {
   const [orders, setOrders] = useState([]);
+  const [partnerType, setPartnerType] = useState('fulfillment'); // 'fulfillment' or 'collab'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -37,6 +38,7 @@ function PartnerDashboard() {
 
       if (result.success) {
         setOrders(result.data);
+        setPartnerType(result.partnerType || 'fulfillment'); // Store partner type from API
         setError('');
       } else {
         setError(result.error || 'Failed to load orders');
@@ -196,7 +198,7 @@ function PartnerDashboard() {
                       Order ID
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Shipping Address
+                      {partnerType === 'fulfillment' ? 'Shipping Address' : 'Customer'}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
@@ -219,27 +221,48 @@ function PartnerDashboard() {
                   {orders.map((order) => (
                     <tr key={order.order_id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {order.order_id}
+                        {order.name || order.order_id}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        {order.shipping_address ? (
-                          <div>
-                            <div className="font-medium">
-                              {order.shipping_address.firstName} {order.shipping_address.lastName}
+                        {partnerType === 'fulfillment' ? (
+                          /* Fulfillment Partners: Show Shipping Address */
+                          order.shipping_name ? (
+                            <div>
+                              <div className="font-medium">{order.shipping_name}</div>
+                              <div className="text-xs text-gray-500">{order.shipping_address1}</div>
+                              {order.shipping_address2 && (
+                                <div className="text-xs text-gray-500">{order.shipping_address2}</div>
+                              )}
+                              <div className="text-xs text-gray-500">
+                                {order.shipping_city}, {order.shipping_province} {order.shipping_zip}
+                              </div>
+                              <div className="text-xs text-gray-500">{order.shipping_country}</div>
                             </div>
-                            <div className="text-xs text-gray-500">
-                              {order.shipping_address.address1}
-                              {order.shipping_address.address2 && `, ${order.shipping_address.address2}`}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {order.shipping_address.city}, {order.shipping_address.province} {order.shipping_address.zip}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {order.shipping_address.country}
-                            </div>
-                          </div>
+                          ) : (
+                            <div className="text-gray-500 text-xs">No address</div>
+                          )
                         ) : (
-                          <div className="text-gray-500 text-xs">No address</div>
+                          /* Collab Partners: Show Farcaster Info */
+                          order.profiles ? (
+                            <div className="flex items-center space-x-2">
+                              {order.profiles.pfp_url && (
+                                <img
+                                  src={order.profiles.pfp_url}
+                                  alt={order.profiles.username}
+                                  className="w-8 h-8 rounded-full"
+                                />
+                              )}
+                              <div>
+                                <div className="font-medium">@{order.profiles.username}</div>
+                                {order.profiles.display_name && (
+                                  <div className="text-xs text-gray-500">{order.profiles.display_name}</div>
+                                )}
+                                <div className="text-xs text-gray-500">FID: {order.fid}</div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-gray-500 text-xs">FID: {order.fid}</div>
+                          )
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -292,6 +315,7 @@ function PartnerDashboard() {
       {selectedOrder && (
         <OrderDetailModal
           order={selectedOrder}
+          partnerType={partnerType}
           onClose={() => setSelectedOrder(null)}
           onUpdate={handleOrderUpdate}
           updating={updating === selectedOrder.order_id}
@@ -301,7 +325,7 @@ function PartnerDashboard() {
   );
 }
 
-function OrderDetailModal({ order, onClose, onUpdate, updating }) {
+function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
   const [status, setStatus] = useState(order.status);
   const [trackingNumber, setTrackingNumber] = useState(order.tracking_number || '');
   const [carrier, setCarrier] = useState(order.carrier || '');
@@ -339,7 +363,7 @@ function OrderDetailModal({ order, onClose, onUpdate, updating }) {
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Order {order.order_id}</h2>
+            <h2 className="text-xl font-bold">Order {order.name || order.order_id}</h2>
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700"
@@ -350,22 +374,49 @@ function OrderDetailModal({ order, onClose, onUpdate, updating }) {
             </button>
           </div>
 
-
-          {/* Shipping Address */}
-          {order.shipping_address && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3">Shipping Address</h3>
-              <div className="bg-gray-50 p-4 rounded-md">
-                <div className="text-sm text-gray-900">
-                  <div>{order.shipping_address.firstName} {order.shipping_address.lastName}</div>
-                  <div>{order.shipping_address.address1}</div>
-                  {order.shipping_address.address2 && <div>{order.shipping_address.address2}</div>}
-                  <div>{order.shipping_address.city}, {order.shipping_address.province} {order.shipping_address.zip}</div>
-                  <div>{order.shipping_address.country}</div>
-                  {order.shipping_address.phone && <div>{order.shipping_address.phone}</div>}
+          {/* Conditional Display: Shipping Address OR Farcaster Info */}
+          {partnerType === 'fulfillment' ? (
+            /* Fulfillment Partners: Show Shipping Address */
+            order.shipping_name && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3">Shipping Address</h3>
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <div className="text-sm text-gray-900">
+                    <div className="font-medium">{order.shipping_name}</div>
+                    <div>{order.shipping_address1}</div>
+                    {order.shipping_address2 && <div>{order.shipping_address2}</div>}
+                    <div>{order.shipping_city}, {order.shipping_province} {order.shipping_zip}</div>
+                    <div>{order.shipping_country}</div>
+                    {order.shipping_phone && <div>📞 {order.shipping_phone}</div>}
+                  </div>
                 </div>
               </div>
-            </div>
+            )
+          ) : (
+            /* Collab Partners: Show Farcaster Info */
+            order.profiles && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3">Customer</h3>
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <div className="flex items-center space-x-3">
+                    {order.profiles.pfp_url && (
+                      <img
+                        src={order.profiles.pfp_url}
+                        alt={order.profiles.username}
+                        className="w-16 h-16 rounded-full"
+                      />
+                    )}
+                    <div className="text-sm text-gray-900">
+                      <div className="font-medium text-lg">@{order.profiles.username}</div>
+                      {order.profiles.display_name && (
+                        <div className="text-gray-600">{order.profiles.display_name}</div>
+                      )}
+                      <div className="text-gray-500 text-xs mt-1">Farcaster ID: {order.fid}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
           )}
 
           {/* Order Items */}
