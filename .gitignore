@@ -57,6 +57,13 @@ SECURITY_INCIDENT_REPORT.md
 docs/EMERGENCY_SECURITY_FIXES.md
 docs/ADMIN_SECURITY_SETUP.md
 
+# Security audits and sensitive analysis (NEVER push to public repo)
+**/*security-audit*.md
+**/*SECURITY_AUDIT*.md
+**/*security-analysis*.md
+**/audit-*.md
+.cursor/*.md
+
 # Test files and debug endpoints (keep local only)
 test-*.js
 *-test.js
