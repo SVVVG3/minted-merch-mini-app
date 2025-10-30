@@ -64,6 +64,13 @@ docs/ADMIN_SECURITY_SETUP.md
 **/audit-*.md
 .cursor/*.md
 
+# Internal debugging and incident analysis (keep private)
+*ROOT_CAUSE*.md
+*INCIDENT*.md
+*FAILURE*.md
+*DEBUG*.md
+*ANALYSIS*.md
+
 # Test files and debug endpoints (keep local only)
 test-*.js
 *-test.js
