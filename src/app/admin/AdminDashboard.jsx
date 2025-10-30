@@ -127,7 +127,8 @@ export default function AdminDashboard() {
     name: '',
     email: '',
     password: '',
-    fid: ''
+    fid: '',
+    partner_type: 'fulfillment'
   });
 
   // Discounts filtering and sorting state
@@ -676,7 +677,8 @@ export default function AdminDashboard() {
           name: createPartnerData.name,
           email: createPartnerData.email,
           password: createPartnerData.password,
-          fid: createPartnerData.fid || null
+          fid: createPartnerData.fid || null,
+          partner_type: createPartnerData.partner_type || 'fulfillment'
         }),
       });
 
@@ -685,7 +687,7 @@ export default function AdminDashboard() {
       if (result.success) {
         alert('Partner created successfully!');
         setShowCreatePartner(false);
-        setCreatePartnerData({ name: '', email: '', password: '', fid: '' });
+        setCreatePartnerData({ name: '', email: '', password: '', fid: '', partner_type: 'fulfillment' });
         loadPartners(); // Refresh the list
       } else {
         alert(result.error || 'Failed to create partner');
