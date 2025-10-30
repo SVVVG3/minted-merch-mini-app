@@ -299,7 +299,7 @@ function PartnerDashboard() {
                           onClick={() => setSelectedOrder(order)}
                           className="text-blue-600 hover:text-blue-900"
                         >
-                          View Details
+                          {partnerType === 'fulfillment' ? 'View Details' : 'View Order'}
                         </button>
                       </td>
                     </tr>
@@ -448,80 +448,108 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
             </div>
           </div>
 
-          {/* Order Update Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Order Status
-              </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                disabled={updating}
-              >
-                <option value="assigned">Assigned</option>
-                {canTransition('assigned', 'processing') && (
-                  <option value="processing">Processing</option>
-                )}
-                {(order.status === 'processing' || status === 'processing') && (
-                  <option value="shipped">Shipped</option>
-                )}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                You can only update: Assigned → Processing → Shipped
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+          {/* Order Update Form - Only for Fulfillment Partners */}
+          {partnerType === 'fulfillment' ? (
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tracking Number {status === 'shipped' && <span className="text-red-500">*</span>}
+                  Order Status
                 </label>
-                <input
-                  type="text"
-                  value={trackingNumber}
-                  onChange={(e) => setTrackingNumber(e.target.value)}
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                  placeholder="Enter tracking number"
                   disabled={updating}
-                  required={status === 'shipped'}
-                />
+                >
+                  <option value="assigned">Assigned</option>
+                  {canTransition('assigned', 'processing') && (
+                    <option value="processing">Processing</option>
+                  )}
+                  {(order.status === 'processing' || status === 'processing') && (
+                    <option value="shipped">Shipped</option>
+                  )}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  You can only update: Assigned → Processing → Shipped
+                </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Carrier
-                </label>
-                <input
-                  type="text"
-                  value={carrier}
-                  onChange={(e) => setCarrier(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                  placeholder="UPS, FedEx, USPS, etc."
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tracking Number {status === 'shipped' && <span className="text-red-500">*</span>}
+                  </label>
+                  <input
+                    type="text"
+                    value={trackingNumber}
+                    onChange={(e) => setTrackingNumber(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                    placeholder="Enter tracking number"
+                    disabled={updating}
+                    required={status === 'shipped'}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Carrier
+                  </label>
+                  <input
+                    type="text"
+                    value={carrier}
+                    onChange={(e) => setCarrier(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                    placeholder="UPS, FedEx, USPS, etc."
+                    disabled={updating}
+                  />
+                </div>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md disabled:opacity-50"
                   disabled={updating}
-                />
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md disabled:opacity-50"
+                  disabled={updating}
+                >
+                  {updating ? 'Updating...' : 'Update Order'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            /* Collab Partners: View-Only Mode */
+            <div className="pt-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+                <div className="flex items-center">
+                  <div className="text-blue-600 mr-3">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium">Collab Partner - View Only</p>
+                    <p className="text-xs mt-1">You can view order details but cannot update status or tracking info.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-md"
+                >
+                  Close
+                </button>
               </div>
             </div>
-
-            <div className="flex space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md disabled:opacity-50"
-                disabled={updating}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md disabled:opacity-50"
-                disabled={updating}
-              >
-                {updating ? 'Updating...' : 'Update Order'}
-              </button>
-            </div>
-          </form>
+          )}
         </div>
       </div>
     </div>

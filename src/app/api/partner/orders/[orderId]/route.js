@@ -29,7 +29,17 @@ export async function PUT(request, { params }) {
       }, { status: 401 });
     }
 
-    console.log(`🤝 Partner ${decoded.email} updating order: ${orderId}`, updateData);
+    const partnerType = decoded.partnerType || 'fulfillment';
+    console.log(`🤝 Partner ${decoded.email} (${partnerType}) updating order: ${orderId}`, updateData);
+
+    // 🚫 SECURITY: Only fulfillment partners can update orders
+    if (partnerType !== 'fulfillment') {
+      console.warn(`⚠️ Collab partner ${decoded.email} attempted to update order ${orderId}`);
+      return NextResponse.json({
+        success: false,
+        error: 'Collab partners cannot update order status or tracking info. Only fulfillment partners have this permission.'
+      }, { status: 403 });
+    }
 
     // First, verify this order is assigned to this partner
     const { data: currentOrder, error: fetchError } = await supabaseAdmin
