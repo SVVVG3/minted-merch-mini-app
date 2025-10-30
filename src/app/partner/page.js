@@ -207,6 +207,9 @@ function PartnerDashboard() {
                       Items
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Discount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Total
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -289,6 +292,16 @@ function PartnerDashboard() {
                             </div>
                           )}
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {order.discount_code ? (
+                          <div>
+                            <div className="font-medium text-gray-900">{order.discount_code}</div>
+                            <div className="text-xs text-green-600">${parseFloat(order.discount_amount || 0).toFixed(2)}</div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         ${order.amount_total}
@@ -437,6 +450,29 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
                   </div>
                 );
               })}
+            </div>
+            
+            {/* Discount Information */}
+            {order.discount_code && (
+              <div className="mt-4 bg-green-50 border border-green-200 rounded-md p-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">Discount Applied</div>
+                    <div className="text-xs text-gray-600">Code: {order.discount_code}</div>
+                  </div>
+                  <div className="text-sm font-semibold text-green-600">
+                    -${parseFloat(order.discount_amount || 0).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Order Total */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex justify-between items-center">
+                <div className="text-lg font-semibold text-gray-900">Order Total</div>
+                <div className="text-lg font-bold text-gray-900">${parseFloat(order.amount_total).toFixed(2)}</div>
+              </div>
             </div>
           </div>
 
