@@ -12,7 +12,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
  * Reference: https://eips.ethereum.org/EIPS/eip-1193
  * SDK Docs: https://miniapps.farcaster.xyz/docs/sdk/wallet
  */
-export function WagmiWalletConnectBridge() {
+function WagmiWalletConnectBridgeInner() {
   const [isMounted, setIsMounted] = useState(false);
   const { isInFarcaster, user: farcasterUser, isReady: farcasterReady } = useFarcaster();
   const { connect, connectors } = useConnect();
@@ -77,5 +77,21 @@ export function WagmiWalletConnectBridge() {
 
   // This component doesn't render anything
   return null;
+}
+
+// Wrapper to prevent SSR rendering
+export function WagmiWalletConnectBridge() {
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  // Only render after hydration (client-side only)
+  if (!isHydrated) {
+    return null;
+  }
+
+  return <WagmiWalletConnectBridgeInner />;
 }
 
