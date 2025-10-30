@@ -100,12 +100,11 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       return;
     }
 
-    // For WalletConnect users without Farcaster auth, use a default FID or handle differently
+    // Spins require Farcaster authentication - can't spin as guest
     if (isWalletConnected && walletConnectAddress && !userFid) {
-      console.log('🎯 WalletConnect user detected, loading check-in status...');
-      // You might want to create a guest user or handle this differently
-      // For now, we'll use a placeholder FID
-      loadUserStatus('walletconnect_guest');
+      console.log('⚠️ WalletConnect user without Farcaster auth - cannot spin');
+      setCanSpin(false);
+      setIsLoading(false);
       return;
     }
 
@@ -1223,12 +1222,28 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                 </div>
               )}
               
+              {/* Farcaster auth required message */}
+              {(isWalletConnected && !user && !isReady) && (
+                <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-xl">
+                  <div className="text-center">
+                    <div className="text-2xl mb-2">🔐</div>
+                    <div className="text-sm font-medium text-yellow-800 mb-1">
+                      Farcaster Sign-In Required
+                    </div>
+                    <div className="text-xs text-yellow-700">
+                      Daily check-ins require Farcaster authentication to track your points and streak.
+                      Please sign in with Farcaster to continue.
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Main spin button */}
               <button
                 onClick={handleSpin}
-                disabled={!canSpin || isSpinning || (!isConnected && !isWalletConnected)}
+                disabled={!canSpin || isSpinning || (!isConnected && !isWalletConnected) || (isWalletConnected && !user && !isReady)}
                 className={`w-full px-8 py-4 rounded-xl font-bold transition-all duration-200 transform ${
-                  canSpin && !isSpinning && (isConnected || isWalletConnected)
+                  canSpin && !isSpinning && (isConnected || isWalletConnected) && (user || isReady)
                     ? 'bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white shadow-lg hover:shadow-xl hover:scale-105 active:scale-95'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 } ${isSpinning ? 'animate-pulse' : ''}`}
@@ -1244,6 +1259,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                   </span>
                 ) : (!isConnected && !isWalletConnected) ? (
                   <span className="text-lg">🔗 Connect Wallet to Spin</span>
+                ) : (isWalletConnected && !user && !isReady) ? (
+                  <span className="text-lg">🔐 Sign in with Farcaster Required</span>
                 ) : canSpin ? (
                   <span className="text-lg">✨ Spin the Wheel ✨</span>
                 ) : (
