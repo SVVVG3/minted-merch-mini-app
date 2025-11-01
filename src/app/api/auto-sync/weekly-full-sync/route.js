@@ -2,6 +2,32 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
+    // SECURITY: Verify CRON_SECRET to prevent unauthorized access
+    // This endpoint makes expensive API calls and should only be triggered by authorized cron jobs
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
+    
+    if (!cronSecret) {
+      console.error('🚨 CRON_SECRET not configured in environment variables');
+      return NextResponse.json(
+        { error: 'Server misconfiguration: CRON_SECRET not set' },
+        { status: 500 }
+      );
+    }
+    
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      const clientIp = request.headers.get('x-forwarded-for') || 'unknown';
+      console.warn(`🚫 Unauthorized weekly-sync attempt from IP: ${clientIp}`);
+      return NextResponse.json(
+        { 
+          error: 'Unauthorized',
+          message: 'This endpoint requires valid cron authentication'
+        },
+        { status: 401 }
+      );
+    }
+    
+    console.log('✅ CRON_SECRET verified - proceeding with weekly full sync');
     console.log('📅 Weekly full sync initiated by cron job');
     
     // Call the main auto-sync endpoint with full sync parameters
@@ -18,6 +44,7 @@ export async function POST(request) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${cronSecret}` // Pass cron secret to nested call
       },
       body: JSON.stringify(fullSyncParams)
     });
