@@ -262,6 +262,8 @@ export async function checkUserNotificationStatus(targetFid) {
     console.log(`  - Farcaster tokens (api.farcaster.xyz): ${farcasterTokens.length}`);
     console.log(`  - Base app tokens (api.neynar.com/f/app_host): ${baseTokens.length}`);
 
+    // SECURITY FIX: Never expose actual token values in API responses
+    // Tokens should be treated like passwords and only used server-side
     return {
       hasNotifications: activeTokens.length > 0,
       hasFarcasterNotifications: farcasterTokens.length > 0,
@@ -269,11 +271,9 @@ export async function checkUserNotificationStatus(targetFid) {
       tokenCount: activeTokens.length,
       farcasterTokenCount: farcasterTokens.length,
       baseTokenCount: baseTokens.length,
-      totalTokens: userTokens.length,
-      tokens: activeTokens,
-      farcasterTokens: farcasterTokens,
-      baseTokens: baseTokens,
-      allTokens: userTokens
+      totalTokens: userTokens.length
+      // REMOVED: tokens, farcasterTokens, baseTokens, allTokens arrays
+      // These contained actual notification token values (security risk)
     };
 
   } catch (error) {

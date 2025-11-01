@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 /**
  * Update a user's connected wallet address in their profile
@@ -16,6 +17,12 @@ export async function POST(request) {
         error: 'FID and wallet address are required' 
       }, { status: 400 });
     }
+
+    // SECURITY FIX: Verify user can only update their own connected wallet
+    // Prevents wallet spoofing attacks (e.g., associating Uniswap contract to appear #1 on leaderboard)
+    const authenticatedFid = getAuthenticatedFid(request);
+    const authCheck = requireOwnFid(authenticatedFid, fid);
+    if (authCheck) return authCheck; // Return 401 or 403 error
 
     // Validate wallet address - reject invalid addresses like "decline"
     if (walletAddress.toLowerCase() === 'decline' || 

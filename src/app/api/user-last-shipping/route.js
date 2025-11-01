@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 export async function GET(request) {
   try {
@@ -12,6 +13,11 @@ export async function GET(request) {
         { status: 400 }
       );
     }
+
+    // SECURITY FIX: Verify user can only access their own shipping data
+    const authenticatedFid = getAuthenticatedFid(request);
+    const authCheck = requireOwnFid(authenticatedFid, fid);
+    if (authCheck) return authCheck; // Return 401 or 403 error
 
     console.log('🔍 Fetching last shipping address for FID:', fid);
 

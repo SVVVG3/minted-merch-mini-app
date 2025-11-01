@@ -286,7 +286,12 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         try {
           console.log('🔍 Fetching previous shipping address for returning user...');
           
-          const response = await fetch(`/api/user-last-shipping?fid=${userFid}`);
+          // SECURITY FIX: Include authenticated FID in header
+          const response = await fetch(`/api/user-last-shipping?fid=${userFid}`, {
+            headers: {
+              'X-User-FID': userFid.toString()
+            }
+          });
           
           if (!response.ok) {
             console.log('📝 No previous shipping address found or API error');

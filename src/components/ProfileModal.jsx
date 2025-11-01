@@ -128,9 +128,13 @@ export function ProfileModal({ isOpen, onClose }) {
         if (user?.fid && isConnectedWallet) {
           console.log('💾 Saving connected wallet to database for FID:', user.fid);
           try {
+            // SECURITY FIX: Include authenticated FID in header
             const response = await fetch('/api/update-connected-wallet', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                'Content-Type': 'application/json',
+                'X-User-FID': user.fid.toString()
+              },
               body: JSON.stringify({
                 fid: user.fid,
                 walletAddress: detectedAddress
