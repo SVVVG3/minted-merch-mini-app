@@ -1,36 +1,65 @@
 /**
- * EMERGENCY SECURITY FIX: User Authentication
+ * PHASE 2: Cryptographic User Authentication
  * 
- * This is a temporary authentication system to stop critical PII leaks.
- * It will be replaced with proper Farcaster Frame authentication in Phase 2.
+ * Verifies JWT session tokens issued by /api/auth/session.
+ * These tokens are cryptographically signed and cannot be forged.
  * 
- * For now, we require that requests to sensitive endpoints include:
- * 1. A valid session FID (stored in cookie/header)
- * 2. The FID matches the requested resource
+ * Works for both:
+ * - Mini App users (Quick Auth → Session JWT)
+ * - Desktop users (AuthKit → Session JWT)
  */
 
 import { NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
+
+// Get JWT secret as Uint8Array for jose library
+function getJWTSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
+  return new TextEncoder().encode(secret);
+}
 
 /**
- * Extract authenticated FID from request
+ * Extract and verify authenticated FID from JWT token
  * 
- * TEMPORARY IMPLEMENTATION:
- * For emergency fix, we check for FID in multiple locations:
- * 1. X-User-FID header (sent by frontend)
- * 2. Cookie-based session
+ * PHASE 2 IMPLEMENTATION:
+ * Verifies JWT session token from Authorization header.
+ * Token is cryptographically signed and contains verified FID.
  * 
- * NOTE: This is NOT cryptographically secure authentication.
- * It stops casual curl exploits but not determined attackers.
- * Will be replaced with Farcaster Frame signatures in Phase 2.
+ * For backward compatibility during migration, also checks legacy X-User-FID header.
  */
-export function getAuthenticatedFid(request) {
+export async function getAuthenticatedFid(request) {
   try {
-    // Check for FID in custom header (sent by our frontend)
+    // Primary: Check for JWT in Authorization header
+    const authHeader = request.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      
+      try {
+        const secret = getJWTSecret();
+        const { payload } = await jwtVerify(token, secret, {
+          issuer: 'mintedmerch'
+        });
+        
+        if (payload.fid && typeof payload.fid === 'number') {
+          console.log(`✅ Authenticated FID from JWT: ${payload.fid}`);
+          return payload.fid;
+        }
+      } catch (error) {
+        console.warn('⚠️ JWT verification failed:', error.message);
+        // Fall through to legacy methods
+      }
+    }
+
+    // LEGACY SUPPORT (Phase 1 - will be removed after migration)
+    // Check for FID in custom header (sent by Phase 1 frontend)
     const fidHeader = request.headers.get('x-user-fid');
     if (fidHeader) {
       const fid = parseInt(fidHeader);
       if (!isNaN(fid) && fid > 0) {
-        console.log(`✅ Authenticated FID from header: ${fid}`);
+        console.log(`⚠️ Authenticated FID from legacy header: ${fid} (update client to use JWT)`);
         return fid;
       }
     }
@@ -41,7 +70,7 @@ export function getAuthenticatedFid(request) {
     if (fidCookie && fidCookie.value) {
       const fid = parseInt(fidCookie.value);
       if (!isNaN(fid) && fid > 0) {
-        console.log(`✅ Authenticated FID from cookie: ${fid}`);
+        console.log(`⚠️ Authenticated FID from cookie: ${fid} (update client to use JWT)`);
         return fid;
       }
     }

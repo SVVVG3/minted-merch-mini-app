@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { checkChatEligibility, generateChatInvitation } from '@/lib/chatEligibility';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 export async function POST(request) {
   try {
-    const { fid, skipTokenCheck = false } = await request.json();
+    const { fid } = await request.json();
 
     if (!fid) {
       return NextResponse.json({
@@ -12,6 +13,14 @@ export async function POST(request) {
         error: 'FID is required'
       }, { status: 400 });
     }
+
+    // PHASE 2 SECURITY: Verify user can only check their own eligibility
+    const authenticatedFid = await getAuthenticatedFid(request);
+    const authCheck = requireOwnFid(authenticatedFid, fid);
+    if (authCheck) return authCheck; // Return 401 or 403 error
+
+    // PHASE 2 SECURITY FIX: Removed skipTokenCheck bypass parameter
+    // Token checking is now always performed (cannot be bypassed)
 
     console.log('🎫 Checking chat eligibility for popup, FID:', fid);
 
@@ -61,32 +70,20 @@ export async function POST(request) {
 
     console.log(`💰 Found ${validWallets.length} wallet addresses for FID ${fid}`);
 
-    // Step 3: Check token eligibility (skip if requested - used when token gating already checked)
-    let eligibility = null;
-    
-    if (!skipTokenCheck) {
-      eligibility = await checkChatEligibility(validWallets, fid);
+    // Step 3: Check token eligibility (ALWAYS performed - no bypasses)
+    const eligibility = await checkChatEligibility(validWallets, fid);
 
-      if (!eligibility.eligible) {
-        console.log('❌ User not eligible for chat:', eligibility.message);
-        return NextResponse.json({
-          success: true,
-          shouldShowInvite: false,
-          reason: 'Not eligible - insufficient tokens',
-          tokenBalance: eligibility.tokenBalance
-        });
-      }
-
-      console.log('✅ User is eligible for chat!');
-    } else {
-      console.log('⏭️ Skipping token check - eligibility already verified by token gating');
-      // Create a minimal eligibility object for skipped checks
-      eligibility = {
-        eligible: true,
-        tokenBalance: 0, // Will be populated from token gating results
-        message: 'Eligibility verified by token gating'
-      };
+    if (!eligibility.eligible) {
+      console.log('❌ User not eligible for chat:', eligibility.message);
+      return NextResponse.json({
+        success: true,
+        shouldShowInvite: false,
+        reason: 'Not eligible - insufficient tokens',
+        tokenBalance: eligibility.tokenBalance
+      });
     }
+
+    console.log('✅ User is eligible for chat!');
 
     // Step 4: Check if already a chat member
     const { data: existingMember, error: memberError } = await supabaseAdmin

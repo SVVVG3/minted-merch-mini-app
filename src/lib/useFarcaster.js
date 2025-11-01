@@ -10,9 +10,10 @@ export function useFarcaster() {
   const [isLoading, setIsLoading] = useState(true);
   const [isInFarcaster, setIsInFarcaster] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [sessionToken, setSessionToken] = useState(null);
   
   // AuthKit profile for non-mini-app environments
-  const { isAuthenticated: isAuthKitAuthenticated, profile: authKitProfile } = useProfile();
+  const { isAuthenticated: isAuthKitAuthenticated, profile: authKitProfile} = useProfile();
 
   useEffect(() => {
     async function loadContext() {
@@ -87,6 +88,87 @@ export function useFarcaster() {
     }
   }, [isInFarcaster, isAuthKitAuthenticated, authKitProfile]);
 
+  // PHASE 2: Get session token for Mini App (Quick Auth)
+  useEffect(() => {
+    async function getMiniAppSession() {
+      if (!isInFarcaster || !user?.fid || sessionToken) return;
+      
+      try {
+        console.log('🔐 Getting Quick Auth session for Mini App...');
+        
+        // Try to use Quick Auth to get Farcaster's JWT
+        // Note: Quick Auth may not be available in all Mini App contexts
+        // For now, we'll create a session with just the FID (temporary)
+        const response = await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fid: user.fid,
+            username: user.username
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.token) {
+          console.log('✅ Session token obtained for Mini App user');
+          setSessionToken(result.token);
+          localStorage.setItem('fc_session_token', result.token);
+        } else {
+          console.error('❌ Failed to get session token:', result.error);
+        }
+      } catch (error) {
+        console.error('❌ Error getting Mini App session:', error);
+      }
+    }
+    
+    getMiniAppSession();
+  }, [isInFarcaster, user?.fid, sessionToken]);
+  
+  // PHASE 2: Get session token for Desktop/AuthKit
+  useEffect(() => {
+    async function getAuthKitSession() {
+      if (isInFarcaster || !isAuthKitAuthenticated || !authKitProfile?.fid || sessionToken) return;
+      
+      try {
+        console.log('🔐 Getting session for AuthKit user...');
+        
+        const response = await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fid: authKitProfile.fid,
+            username: authKitProfile.username,
+            authKitSession: true
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.token) {
+          console.log('✅ Session token obtained for AuthKit user');
+          setSessionToken(result.token);
+          localStorage.setItem('fc_session_token', result.token);
+        } else {
+          console.error('❌ Failed to get session token:', result.error);
+        }
+      } catch (error) {
+        console.error('❌ Error getting AuthKit session:', error);
+      }
+    }
+    
+    getAuthKitSession();
+  }, [isInFarcaster, isAuthKitAuthenticated, authKitProfile?.fid, sessionToken]);
+  
+  // PHASE 2: Load session token from localStorage on mount
+  useEffect(() => {
+    const storedToken = localStorage.getItem('fc_session_token');
+    if (storedToken && !sessionToken) {
+      console.log('📦 Loaded session token from localStorage');
+      setSessionToken(storedToken);
+    }
+  }, []);
+
   return {
     context,
     user,
@@ -94,11 +176,13 @@ export function useFarcaster() {
     isInFarcaster,
     isReady,
     isAuthKit: user?.isAuthKit || false,
+    sessionToken, // PHASE 2: Expose session token
     // Helper functions
     getFid: () => user?.fid,
     getUsername: () => user?.username,
     getDisplayName: () => user?.displayName,
     getPfpUrl: () => user?.pfpUrl,
+    getSessionToken: () => sessionToken, // PHASE 2: Helper to get token
     // Notification helpers (only available in mini app, not AuthKit)
     hasNotifications: () => !!(context?.client?.notificationDetails || context?.notificationDetails),
     getNotificationDetails: () => context?.client?.notificationDetails || context?.notificationDetails,

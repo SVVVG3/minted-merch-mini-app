@@ -20,7 +20,7 @@ export async function POST(request) {
 
     // SECURITY FIX: Verify user can only update their own connected wallet
     // Prevents wallet spoofing attacks (e.g., associating Uniswap contract to appear #1 on leaderboard)
-    const authenticatedFid = getAuthenticatedFid(request);
+    const authenticatedFid = await getAuthenticatedFid(request);
     const authCheck = requireOwnFid(authenticatedFid, fid);
     if (authCheck) return authCheck; // Return 401 or 403 error
 

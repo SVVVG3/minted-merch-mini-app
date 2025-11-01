@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { checkChatEligibility, generateChatInvitation } from '@/lib/chatEligibility';
+import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 export async function POST(request) {
   try {
@@ -11,6 +12,12 @@ export async function POST(request) {
         error: 'Missing required parameters: fid and walletAddresses'
       }, { status: 400 });
     }
+
+    // PHASE 2 SECURITY: Verify user can only check/generate for their own FID
+    // Prevents unauthorized chat invitation generation
+    const authenticatedFid = await getAuthenticatedFid(request);
+    const authCheck = requireOwnFid(authenticatedFid, fid);
+    if (authCheck) return authCheck; // Return 401 or 403 error
 
     switch (action) {
       case 'check':

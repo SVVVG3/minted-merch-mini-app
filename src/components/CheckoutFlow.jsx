@@ -17,7 +17,7 @@ import { WalletConnectButton } from './WalletConnectButton';
 
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
-  const { getFid, isInFarcaster, user, context } = useFarcaster();
+  const { getFid, getSessionToken, isInFarcaster, user, context } = useFarcaster();
   const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod, getWalletProvider } = useWalletConnectContext();
   // Re-enable Base Account integration with safe defaults
   const baseAccountContext = useBaseAccount();
@@ -280,17 +280,24 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   useEffect(() => {
     const fetchPreviousShippingAddress = async () => {
       const userFid = getFid();
+      const token = getSessionToken();
       
       // Only fetch if we don't already have shipping data and user is identified
       if (!shippingData && userFid) {
         try {
           console.log('🔍 Fetching previous shipping address for returning user...');
           
-          // SECURITY FIX: Include authenticated FID in header
+          // PHASE 2: Include session JWT token in Authorization header
+          const headers = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          } else {
+            // Fallback to Phase 1 header during migration
+            headers['X-User-FID'] = userFid.toString();
+          }
+          
           const response = await fetch(`/api/user-last-shipping?fid=${userFid}`, {
-            headers: {
-              'X-User-FID': userFid.toString()
-            }
+            headers
           });
           
           if (!response.ok) {

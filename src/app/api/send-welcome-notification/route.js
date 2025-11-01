@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendWelcomeNotificationWithNeynar, checkUserNotificationStatus } from '@/lib/neynar';
 import { hasWelcomeNotificationBeenSent, markWelcomeNotificationSent } from '@/lib/supabase';
+import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 export async function POST(request) {
   try {
@@ -12,6 +13,12 @@ export async function POST(request) {
         error: 'FID is required' 
       }, { status: 400 });
     }
+
+    // PHASE 2 SECURITY: Verify user can only send notifications to themselves
+    // Prevents notification spam attacks
+    const authenticatedFid = await getAuthenticatedFid(request);
+    const authCheck = requireOwnFid(authenticatedFid, fid);
+    if (authCheck) return authCheck; // Return 401 or 403 error
 
     console.log('=== SENDING WELCOME NOTIFICATION ===');
     console.log('Target FID:', fid);

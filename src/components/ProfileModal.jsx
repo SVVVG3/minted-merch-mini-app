@@ -128,13 +128,23 @@ export function ProfileModal({ isOpen, onClose }) {
         if (user?.fid && isConnectedWallet) {
           console.log('💾 Saving connected wallet to database for FID:', user.fid);
           try {
-            // SECURITY FIX: Include authenticated FID in header
+            // PHASE 2: Include session JWT token in Authorization header
+            const headers = { 
+              'Content-Type': 'application/json'
+            };
+            
+            // Try to get session token
+            const token = localStorage.getItem('fc_session_token');
+            if (token) {
+              headers['Authorization'] = `Bearer ${token}`;
+            } else {
+              // Fallback to Phase 1 header during migration
+              headers['X-User-FID'] = user.fid.toString();
+            }
+            
             const response = await fetch('/api/update-connected-wallet', {
               method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'X-User-FID': user.fid.toString()
-              },
+              headers,
               body: JSON.stringify({
                 fid: user.fid,
                 walletAddress: detectedAddress

@@ -15,7 +15,7 @@ export async function GET(request) {
     }
 
     // SECURITY FIX: Verify user can only access their own shipping data
-    const authenticatedFid = getAuthenticatedFid(request);
+    const authenticatedFid = await getAuthenticatedFid(request);
     const authCheck = requireOwnFid(authenticatedFid, fid);
     if (authCheck) return authCheck; // Return 401 or 403 error
 
