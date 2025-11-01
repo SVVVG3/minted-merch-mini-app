@@ -226,12 +226,14 @@ export async function recalculateOrderTotals(orderData) {
     const totalBeforeGiftCard = subtotalAfterDiscount + adjustedTax + finalShippingPrice;
     
     // Validate and calculate gift card discount against total including tax
+    let validatedGiftCards = [];
     if (giftCards.length > 0) {
       const giftCardValidation = await validateGiftCardsServerSide(giftCards, totalBeforeGiftCard);
       if (!giftCardValidation.success) {
         throw new Error(`Gift card validation failed: ${giftCardValidation.error}`);
       }
       giftCardDiscount = giftCardValidation.totalDiscount;
+      validatedGiftCards = giftCardValidation.validatedGiftCards; // BUGFIX: Save validated gift cards with amountUsed
     }
     
     // Round discount and gift card amounts for consistency
@@ -261,6 +263,7 @@ export async function recalculateOrderTotals(orderData) {
       adjustedTax,
       shippingPrice: finalShippingPrice,
       finalTotal,
+      validatedGiftCards, // BUGFIX: Return validated gift cards with amountUsed for Shopify
       breakdown: {
         originalSubtotal: subtotal,
         discountApplied: discountAmount,
