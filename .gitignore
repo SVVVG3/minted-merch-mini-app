@@ -70,6 +70,10 @@ docs/ADMIN_SECURITY_SETUP.md
 *FAILURE*.md
 *DEBUG*.md
 *ANALYSIS*.md
+*PHASE*_SETUP*.md
+*PHASE*_SUMMARY*.md
+*SECRET*.md
+*_SECRET_*.md
 
 # Test files and debug endpoints (keep local only)
 test-*.js
