@@ -82,19 +82,49 @@ export function getCurrentCheckInDay() {
 }
 
 /**
- * Get the next 8 AM PST reset time
- * @returns {Date} Next 8 AM PST as a Date object
+ * Get the next 8 AM PST/PDT reset time
+ * @returns {Date} Next 8 AM Pacific as a UTC Date object
  */
 export function getNext8AMPST() {
+  const now = new Date();
   const components = getPacificComponents();
   
-  // Create a date for today at 8 AM Pacific
-  const next8AM = new Date(components.year, components.month, components.day, 8, 0, 0, 0);
+  // Determine which day we need (today or tomorrow)
+  let targetDay = components.day;
+  let targetMonth = components.month;
+  let targetYear = components.year;
   
-  // If it's already past 8 AM today, move to tomorrow
   if (components.hour >= 8) {
-    next8AM.setDate(next8AM.getDate() + 1);
+    // Already past 8 AM Pacific, so next reset is tomorrow
+    const tomorrow = new Date(targetYear, targetMonth, targetDay + 1);
+    targetYear = tomorrow.getFullYear();
+    targetMonth = tomorrow.getMonth();
+    targetDay = tomorrow.getDate();
   }
+  
+  // Create a date at midnight on the target day in UTC
+  const targetDate = new Date(Date.UTC(targetYear, targetMonth, targetDay, 0, 0, 0));
+  
+  // Get what "midnight" on that day looks like in Pacific time
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  
+  // Calculate the offset between Pacific and UTC for that specific day
+  // by checking what hour UTC midnight appears as in Pacific
+  const parts = formatter.formatToParts(targetDate);
+  const pacificHourAtUTCMidnight = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+  
+  // If UTC midnight = 4 PM Pacific, then Pacific midnight = 8 AM UTC
+  // So 8 AM Pacific = (8 AM + 8) = 4 PM UTC (PST)
+  // or 8 AM Pacific = (8 AM + 7) = 3 PM UTC (PDT)
+  const hoursToAdd = (24 - pacificHourAtUTCMidnight + 8) % 24;
+  
+  const next8AM = new Date(targetDate);
+  next8AM.setUTCHours(hoursToAdd);
   
   return next8AM;
 }
