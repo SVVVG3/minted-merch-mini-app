@@ -148,16 +148,23 @@ async function createSessionToken(fid, username) {
 /**
  * POST /api/auth/session
  * 
+ * SECURE: Verifies Farcaster authentication and issues session JWTs
+ * 
  * Request body (from Mini App - Quick Auth):
  * {
- *   "farcasterToken": "eyJhbGc..." // JWT from Quick Auth
+ *   "farcasterToken": "eyJhbGc..." // JWT from Quick Auth (cryptographically verified)
  * }
  * 
- * Request body (from Desktop - AuthKit):
+ * Request body (from Desktop/Web - AuthKit):
  * {
- *   "fid": 466111,
- *   "username": "svvvg3.eth",
- *   "authKitSession": true
+ *   "authKitData": {
+ *     "message": "...",
+ *     "signature": "0x...",
+ *     "nonce": "...",
+ *     "domain": "app.mintedmerch.shop",
+ *     "fid": 466111,
+ *     "username": "svvvg3.eth"
+ *   }
  * }
  * 
  * Response:

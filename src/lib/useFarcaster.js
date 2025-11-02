@@ -202,33 +202,14 @@ export function useFarcaster() {
             console.error('❌ Failed to get session token:', result.error);
           }
         } else {
-          console.warn('⚠️ No Quick Auth method available in SDK');
-          console.warn('⚠️ Available SDK structure:', {
+          console.error('❌ No Quick Auth method available in SDK');
+          console.error('❌ Available SDK structure:', {
             sdkMethods: sdk ? Object.keys(sdk) : 'undefined',
             actionsMethods: sdk?.actions ? Object.keys(sdk.actions) : 'undefined'
           });
-        }
-        
-        // FALLBACK (INSECURE): If Quick Auth not available, use legacy method
-        // This should only happen in development or if SDK version doesn't support Quick Auth
-        console.warn('⚠️ Quick Auth not available - using INSECURE fallback (FID only)');
-        const response = await fetch('/api/auth/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fid: user.fid,
-            username: user.username
-          })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success && result.token) {
-          console.log('⚠️ Session token obtained using legacy method (NOT SECURE)');
-          setSessionToken(result.token);
-          localStorage.setItem('fc_session_token', result.token);
-        } else {
-          console.error('❌ Failed to get session token:', result.error);
+          console.error('❌ Cannot authenticate without Quick Auth - Mini App SDK may need update');
+          // Note: Legacy insecure fallback has been REMOVED for security
+          // Users must have a compatible SDK version with Quick Auth support
         }
       } catch (error) {
         console.error('❌ Error getting Mini App session:', error);

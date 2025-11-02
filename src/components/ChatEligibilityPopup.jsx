@@ -68,10 +68,16 @@ export function ChatEligibilityPopup() {
 
         if (hasMerchMogulsDiscount) {
           // Check if already a chat member to avoid duplicate invites
+          const token = localStorage.getItem('fc_session_token');
+          const headers = { 'Content-Type': 'application/json' };
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+          
           const chatCheckResponse = await fetch('/api/check-chat-eligibility', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fid: user.fid, skipTokenCheck: true })
+            headers,
+            body: JSON.stringify({ fid: user.fid })
           });
 
           const chatResult = await chatCheckResponse.json();
