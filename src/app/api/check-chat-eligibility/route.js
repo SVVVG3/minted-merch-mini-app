@@ -73,17 +73,17 @@ export async function POST(request) {
     // Step 3: Check token eligibility (ALWAYS performed - no bypasses)
     const eligibility = await checkChatEligibility(validWallets, fid);
 
-    if (!eligibility.eligible) {
-      console.log('❌ User not eligible for chat:', eligibility.message);
-      return NextResponse.json({
-        success: true,
-        shouldShowInvite: false,
-        reason: 'Not eligible - insufficient tokens',
-        tokenBalance: eligibility.tokenBalance
-      });
-    }
+      if (!eligibility.eligible) {
+        console.log('❌ User not eligible for chat:', eligibility.message);
+        return NextResponse.json({
+          success: true,
+          shouldShowInvite: false,
+          reason: 'Not eligible - insufficient tokens',
+          tokenBalance: eligibility.tokenBalance
+        });
+      }
 
-    console.log('✅ User is eligible for chat!');
+      console.log('✅ User is eligible for chat!');
 
     // Step 4: Check if already a chat member
     const { data: existingMember, error: memberError } = await supabaseAdmin

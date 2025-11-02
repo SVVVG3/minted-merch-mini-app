@@ -93,10 +93,36 @@ export function useFarcaster() {
   // PHASE 2 FIX: Get session token for Mini App using Quick Auth
   useEffect(() => {
     async function getMiniAppSession() {
-      // Don't check sessionToken here - always try to refresh for Mini App
-      if (!isInFarcaster || !user?.fid || hasAttemptedMiniAppAuth.current) return;
+      // Multi-level guard to prevent duplicate requests
+      if (!isInFarcaster || !user?.fid) return;
       
-      hasAttemptedMiniAppAuth.current = true; // Mark that we've attempted
+      // Check if we already have a valid session token
+      const existingToken = localStorage.getItem('fc_session_token');
+      if (existingToken && sessionToken) {
+        console.log('✅ Session token already exists, skipping Quick Auth');
+        return;
+      }
+      
+      // Check if we've already attempted (component-level)
+      if (hasAttemptedMiniAppAuth.current) {
+        console.log('⏭️ Already attempted Quick Auth in this session');
+        return;
+      }
+      
+      // Check if another instance is currently attempting (global lock)
+      const attemptLock = localStorage.getItem('quick_auth_attempting');
+      const lockTimestamp = attemptLock ? parseInt(attemptLock) : 0;
+      const now = Date.now();
+      
+      // If lock is less than 5 seconds old, another instance is working on it
+      if (attemptLock && (now - lockTimestamp) < 5000) {
+        console.log('⏭️ Another instance is currently attempting Quick Auth');
+        return;
+      }
+      
+      // Set locks to prevent duplicate attempts
+      hasAttemptedMiniAppAuth.current = true;
+      localStorage.setItem('quick_auth_attempting', now.toString());
       
       try {
         console.log('🔐 Getting Quick Auth session for Mini App...');
@@ -206,6 +232,10 @@ export function useFarcaster() {
         }
       } catch (error) {
         console.error('❌ Error getting Mini App session:', error);
+      } finally {
+        // Clean up the global lock regardless of success/failure
+        localStorage.removeItem('quick_auth_attempting');
+        console.log('🧹 Cleaned up Quick Auth lock');
       }
     }
     
