@@ -27,15 +27,15 @@ export async function getUserStakedBalance(walletAddresses) {
   console.log(`📊 Querying staking balance for ${normalizedAddresses.length} wallet(s)`);
 
   try {
-    // GraphQL query to get staked balances
-    // Adjust this query based on the actual schema of the betr-contracts subgraph
+    // GraphQL query to get staked balances using the correct schema
+    // Schema has 'stakerBalances' (not 'stakes')
     const query = `
       query GetStakedBalances($addresses: [String!]!) {
-        stakes(where: { user_in: $addresses }) {
-          user
-          amount
-          stakedAt
-          active
+        stakerBalances(where: { staker_in: $addresses }) {
+          id
+          staker
+          balance
+          timestamp_
         }
       }
     `;
@@ -64,17 +64,15 @@ export async function getUserStakedBalance(walletAddresses) {
       throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
     }
 
-    // Sum up all active stakes for the user's wallets
-    const stakes = result.data?.stakes || [];
-    const totalStaked = stakes
-      .filter(stake => stake.active) // Only count active stakes
-      .reduce((sum, stake) => {
-        // Convert from wei to tokens (divide by 10^18)
-        const stakeAmount = parseFloat(stake.amount) / Math.pow(10, 18);
-        return sum + stakeAmount;
-      }, 0);
+    // Sum up all staked balances for the user's wallets
+    const stakerBalances = result.data?.stakerBalances || [];
+    const totalStaked = stakerBalances.reduce((sum, stakerBalance) => {
+      // Convert from wei to tokens (divide by 10^18)
+      const balance = parseFloat(stakerBalance.balance) / Math.pow(10, 18);
+      return sum + balance;
+    }, 0);
 
-    console.log(`📊 Total staked balance: ${totalStaked.toLocaleString()} tokens across ${stakes.length} stake(s)`);
+    console.log(`📊 Total staked balance: ${totalStaked.toLocaleString()} tokens across ${stakerBalances.length} wallet(s)`);
 
     return totalStaked;
 
@@ -107,12 +105,11 @@ export async function getUserStakingDetails(walletAddresses) {
   try {
     const query = `
       query GetStakingDetails($addresses: [String!]!) {
-        stakes(where: { user_in: $addresses }, orderBy: stakedAt, orderDirection: desc) {
-          user
-          amount
-          stakedAt
-          active
-          unlockTime
+        stakerBalances(where: { staker_in: $addresses }, orderBy: timestamp_, orderDirection: desc) {
+          id
+          staker
+          balance
+          timestamp_
         }
       }
     `;
@@ -140,22 +137,19 @@ export async function getUserStakingDetails(walletAddresses) {
       throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
     }
 
-    const stakes = result.data?.stakes || [];
-    const formattedStakes = stakes.map(stake => ({
-      wallet: stake.user,
-      amount: parseFloat(stake.amount) / Math.pow(10, 18),
-      stakedAt: new Date(parseInt(stake.stakedAt) * 1000).toISOString(),
-      active: stake.active,
-      unlockTime: stake.unlockTime ? new Date(parseInt(stake.unlockTime) * 1000).toISOString() : null
+    const stakerBalances = result.data?.stakerBalances || [];
+    const formattedBalances = stakerBalances.map(balance => ({
+      wallet: balance.staker,
+      amount: parseFloat(balance.balance) / Math.pow(10, 18),
+      timestamp: new Date(parseInt(balance.timestamp_) * 1000).toISOString(),
+      id: balance.id
     }));
 
-    const totalStaked = formattedStakes
-      .filter(stake => stake.active)
-      .reduce((sum, stake) => sum + stake.amount, 0);
+    const totalStaked = formattedBalances.reduce((sum, balance) => sum + balance.amount, 0);
 
     return {
       totalStaked,
-      stakes: formattedStakes,
+      stakes: formattedBalances,
       wallets: normalizedAddresses
     };
 
