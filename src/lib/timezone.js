@@ -12,16 +12,34 @@
  * @returns {Date} Current date/time in PST timezone
  */
 export function getCurrentPSTTime() {
-  // Simple approach: use the browser's built-in timezone support
+  // Get current UTC time
   const now = new Date();
   
-  // Get Pacific time by getting the time components directly
-  const pacificTimeString = now.toLocaleString("en-US", {
-    timeZone: "America/Los_Angeles"
+  // Use Intl.DateTimeFormat to get the time in Pacific timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
   });
   
-  // Parse the string back to a Date object
-  const pacificTime = new Date(pacificTimeString);
+  const parts = formatter.formatToParts(now);
+  const getValue = (type) => parts.find(part => part.type === type)?.value;
+  
+  // Create a new Date object in UTC that represents the Pacific time
+  // We use Date.UTC to create a timestamp, treating Pacific components as if they were UTC
+  const pacificTime = new Date(Date.UTC(
+    parseInt(getValue('year')),
+    parseInt(getValue('month')) - 1, // Month is 0-indexed
+    parseInt(getValue('day')),
+    parseInt(getValue('hour')),
+    parseInt(getValue('minute')),
+    parseInt(getValue('second'))
+  ));
   
   return pacificTime;
 }
