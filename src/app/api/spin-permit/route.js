@@ -52,20 +52,19 @@ function getPSTDayStart() {
     dayStart = new Date(Date.UTC(year, month_utc, date - 1, 8, 0, 0, 0));
   }
   
-  // Convert to UTC and return as Unix timestamp
-  const utcDayStart = new Date(dayStart.getTime() + pacificOffset);
+  // dayStart is already in UTC (created with Date.UTC), so no offset needed
+  // BUGFIX: Removed the double offset calculation that was causing "Already spun" errors
   
   console.log('🕐 Pacific Day Start Calculation:', {
     nowUTC: now.toISOString(),
     nowPacific: pacificNow.toISOString(),
     pacificHour: hour,
     timezone: isDST ? 'PDT (UTC-7)' : 'PST (UTC-8)',
-    dayStartPacific: dayStart.toISOString(),
-    dayStartUTC: utcDayStart.toISOString(),
-    unixTimestamp: Math.floor(utcDayStart.getTime() / 1000)
+    dayStart: dayStart.toISOString(),
+    unixTimestamp: Math.floor(dayStart.getTime() / 1000)
   });
   
-  return Math.floor(utcDayStart.getTime() / 1000);
+  return Math.floor(dayStart.getTime() / 1000);
 }
 
 export async function POST(request) {
