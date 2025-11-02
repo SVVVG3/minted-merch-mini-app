@@ -23,6 +23,7 @@
     "@farcaster/frame-sdk": "^0.0.64",
     "@farcaster/miniapp-sdk": "^0.1.6",
     "@farcaster/miniapp-wagmi-connector": "^1.0.0",
+    "@farcaster/quick-auth": "^0.0.8",
     "@neynar/nodejs-sdk": "^3.19.0",
     "@reown/appkit": "^1.8.10",
     "@reown/appkit-common": "^1.8.10",
