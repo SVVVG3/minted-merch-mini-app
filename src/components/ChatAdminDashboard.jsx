@@ -27,7 +27,7 @@ const adminFetch = async (url, options = {}) => {
   return response;
 };
 
-export function ChatAdminDashboard() {
+export function ChatAdminDashboard({ onOpenUserModal }) {
   const [isLoading, setIsLoading] = useState(false);
   const [eligibilityData, setEligibilityData] = useState(null);
   const [summary, setSummary] = useState(null);
@@ -611,7 +611,10 @@ export function ChatAdminDashboard() {
                     <div key={user.fid} className="bg-red-50 border border-red-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                       <div className="flex items-start space-x-3">
                         {/* Profile Picture */}
-                        <div className="flex-shrink-0">
+                        <div 
+                          className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => onOpenUserModal && onOpenUserModal(user.fid)}
+                        >
                           {user.pfpUrl ? (
                             <img
                               src={user.pfpUrl}
@@ -632,11 +635,17 @@ export function ChatAdminDashboard() {
                         
                         {/* User Info */}
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-semibold text-red-900 truncate">
+                          <div 
+                            className="text-sm font-semibold text-red-900 truncate cursor-pointer hover:text-red-700 transition-colors"
+                            onClick={() => onOpenUserModal && onOpenUserModal(user.fid)}
+                          >
                             {user.displayName || user.username || 'Unknown User'}
                           </div>
                           {user.username && user.displayName && (
-                            <div className="text-xs text-red-600 truncate">
+                            <div 
+                              className="text-xs text-red-600 truncate cursor-pointer hover:text-red-500"
+                              onClick={() => onOpenUserModal && onOpenUserModal(user.fid)}
+                            >
                               @{user.username}
                             </div>
                           )}
@@ -703,7 +712,10 @@ export function ChatAdminDashboard() {
                   <div key={user.fid} className="bg-green-50 border border-green-200 rounded-lg p-4 hover:bg-green-100 transition-colors">
                     <div className="flex items-start space-x-3">
                       {/* Profile Picture */}
-                      <div className="flex-shrink-0">
+                      <div 
+                        className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => onOpenUserModal && onOpenUserModal(user.fid)}
+                      >
                         {user.pfpUrl ? (
                           <img 
                             src={user.pfpUrl} 
@@ -724,11 +736,17 @@ export function ChatAdminDashboard() {
                       
                       {/* User Info */}
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-green-800 truncate">
+                        <div 
+                          className="font-medium text-green-800 truncate cursor-pointer hover:text-green-600 transition-colors"
+                          onClick={() => onOpenUserModal && onOpenUserModal(user.fid)}
+                        >
                           {user.displayName || user.username || 'Unknown'}
                         </div>
                         {user.username && user.displayName && (
-                          <div className="text-xs text-green-600 truncate">
+                          <div 
+                            className="text-xs text-green-600 truncate cursor-pointer hover:text-green-500"
+                            onClick={() => onOpenUserModal && onOpenUserModal(user.fid)}
+                          >
                             @{user.username}
                           </div>
                         )}

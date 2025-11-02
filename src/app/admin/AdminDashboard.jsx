@@ -3827,7 +3827,7 @@ export default function AdminDashboard() {
         {/* Chat Eligibility Tab */}
         {activeTab === 'chat' && (
           <div className="bg-white rounded-lg shadow">
-            <ChatAdminDashboard />
+            <ChatAdminDashboard onOpenUserModal={openUserModal} />
           </div>
         )}
 

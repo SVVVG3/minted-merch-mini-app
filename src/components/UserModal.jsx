@@ -312,9 +312,39 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                       <div className="text-2xl font-bold text-yellow-600">
                         {formatTokenBalance(userData.token_balance)}
                       </div>
-                      <div className="text-sm text-yellow-600">$MINTEDMERCH</div>
+                      <div className="text-sm text-yellow-600">Total $MINTEDMERCH</div>
                     </div>
                   </div>
+
+                  {/* Token Holdings Breakdown */}
+                  {(userData.wallet_balance > 0 || userData.staked_balance > 0) && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="text-lg font-semibold mb-3">Token Holdings Breakdown</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-600">Wallet Balance</label>
+                          <p className="text-xl font-bold text-green-600">{formatTokenBalance(userData.wallet_balance || 0)}</p>
+                          <p className="text-xs text-gray-500">Tokens in user wallets</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-600">Staked Balance</label>
+                          <p className="text-xl font-bold text-purple-600">{formatTokenBalance(userData.staked_balance || 0)}</p>
+                          <p className="text-xs text-gray-500">Tokens in staking contract</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-600">Total Holdings:</span>
+                          <span className="text-xl font-bold text-yellow-600">{formatTokenBalance(userData.token_balance || 0)}</span>
+                        </div>
+                        {userData.token_balance_updated_at && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Last updated: {formatDate(userData.token_balance_updated_at)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
