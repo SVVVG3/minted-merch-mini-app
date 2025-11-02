@@ -14,10 +14,15 @@ export async function getUsersNeedingCheckInReminders() {
     // Use supabaseAdmin to bypass RLS for system operations
     const adminClient = supabaseAdmin || supabase;
     
-    // Get all users who have notifications enabled
+    // Get current check-in day for filtering
+    const { getCurrentCheckInDay } = await import('./timezone.js');
+    const currentCheckInDay = getCurrentCheckInDay();
+    
+    // Get all users who have notifications enabled and haven't received a reminder today
+    // NOTE: last_daily_reminder_sent_date is stored as DATE in PST timezone
     const { data: profilesData, error: profilesError } = await adminClient
       .from('profiles')
-      .select('fid')
+      .select('fid, last_daily_reminder_sent_date')
       .eq('has_notifications', true);
 
     if (profilesError) {
@@ -32,10 +37,6 @@ export async function getUsersNeedingCheckInReminders() {
 
     console.log(`Found ${profilesData.length} users with notifications enabled`);
 
-    // Get current check-in day
-    const { getCurrentCheckInDay } = await import('./timezone.js');
-    const currentCheckInDay = getCurrentCheckInDay();
-
     // Get users who haven't checked in today
     const { data: leaderboardData, error: leaderboardError } = await adminClient
       .from('user_leaderboard')
@@ -49,6 +50,11 @@ export async function getUsersNeedingCheckInReminders() {
 
     // Filter users who need reminders
     const usersNeedingReminders = profilesData.filter(profile => {
+      // DUPLICATE PREVENTION: Skip if we already sent a reminder today
+      if (profile.last_daily_reminder_sent_date === currentCheckInDay) {
+        return false;
+      }
+
       const userLeaderboard = leaderboardData.find(lb => lb.user_fid === profile.fid);
       
       // If user has no leaderboard entry, they need a reminder
@@ -61,6 +67,7 @@ export async function getUsersNeedingCheckInReminders() {
     });
 
     console.log(`${usersNeedingReminders.length} users need check-in reminders`);
+    console.log(`${profilesData.length - usersNeedingReminders.length} users filtered out (already checked in or already notified)`);
     return usersNeedingReminders.map(u => u.fid);
 
   } catch (error) {
@@ -218,15 +225,37 @@ export async function sendDailyCheckInReminders() {
 }
 
 /**
- * Log notification sent to database (optional tracking)
+ * Log notification sent to database (tracks when reminders were last sent)
  * @param {number} userFid - User's Farcaster ID
- * @param {string} type - Notification type
+ * @param {string} type - Notification type ('checkin_reminder' or 'evening_checkin_reminder')
  * @param {object} message - Message content
  */
 async function logNotificationSent(userFid, type, message) {
   try {
-    // This could be expanded to track notification history
-    console.log(`📝 Logged ${type} notification for FID: ${userFid}`);
+    const adminClient = supabaseAdmin || supabase;
+    const { getCurrentCheckInDay } = await import('./timezone.js');
+    const currentCheckInDay = getCurrentCheckInDay();
+    
+    // Update the appropriate column based on notification type
+    const updateData = {};
+    if (type === 'checkin_reminder') {
+      updateData.last_daily_reminder_sent_date = currentCheckInDay;
+    } else if (type === 'evening_checkin_reminder') {
+      updateData.last_evening_reminder_sent_date = currentCheckInDay;
+    }
+    
+    if (Object.keys(updateData).length > 0) {
+      const { error } = await adminClient
+        .from('profiles')
+        .update(updateData)
+        .eq('fid', userFid);
+      
+      if (error) {
+        console.error(`Error logging ${type} for FID ${userFid}:`, error);
+      } else {
+        console.log(`📝 Logged ${type} notification for FID: ${userFid} on ${currentCheckInDay}`);
+      }
+    }
   } catch (error) {
     console.error('Error logging notification:', error);
   }
@@ -337,6 +366,74 @@ export async function sendEveningCheckInReminder(userFid) {
 }
 
 /**
+ * Get all users who need evening check-in reminders
+ * Similar to daily reminders but checks evening notification tracking
+ * @returns {array} Array of user FIDs who need evening reminders
+ */
+export async function getUsersNeedingEveningReminders() {
+  try {
+    const adminClient = supabaseAdmin || supabase;
+    const { getCurrentCheckInDay } = await import('./timezone.js');
+    const currentCheckInDay = getCurrentCheckInDay();
+    
+    // Get all users who have notifications enabled
+    const { data: profilesData, error: profilesError } = await adminClient
+      .from('profiles')
+      .select('fid, last_evening_reminder_sent_date')
+      .eq('has_notifications', true);
+
+    if (profilesError) {
+      console.error('Error fetching users with notifications:', profilesError);
+      return [];
+    }
+
+    if (!profilesData || profilesData.length === 0) {
+      console.log('No users with notifications enabled');
+      return [];
+    }
+
+    console.log(`Found ${profilesData.length} users with notifications enabled`);
+
+    // Get users who haven't checked in today
+    const { data: leaderboardData, error: leaderboardError } = await adminClient
+      .from('user_leaderboard')
+      .select('user_fid, last_checkin_date')
+      .in('user_fid', profilesData.map(p => p.fid));
+
+    if (leaderboardError) {
+      console.error('Error fetching leaderboard data:', leaderboardError);
+      return [];
+    }
+
+    // Filter users who need evening reminders
+    const usersNeedingReminders = profilesData.filter(profile => {
+      // DUPLICATE PREVENTION: Skip if we already sent an evening reminder today
+      if (profile.last_evening_reminder_sent_date === currentCheckInDay) {
+        return false;
+      }
+
+      const userLeaderboard = leaderboardData.find(lb => lb.user_fid === profile.fid);
+      
+      // If user has no leaderboard entry, they need a reminder
+      if (!userLeaderboard) {
+        return true;
+      }
+
+      // If user hasn't checked in today, they need an evening reminder
+      return userLeaderboard.last_checkin_date !== currentCheckInDay;
+    });
+
+    console.log(`${usersNeedingReminders.length} users need evening check-in reminders`);
+    console.log(`${profilesData.length - usersNeedingReminders.length} users filtered out (already checked in or already notified)`);
+    return usersNeedingReminders.map(u => u.fid);
+
+  } catch (error) {
+    console.error('Error in getUsersNeedingEveningReminders:', error);
+    return [];
+  }
+}
+
+/**
  * Send evening check-in reminders to all eligible users
  * @returns {object} Summary of notification results
  */
@@ -345,8 +442,8 @@ export async function sendEveningCheckInReminders() {
     console.log('🌅 Starting evening check-in reminder process...');
     console.log('📅 Current PST time:', formatPSTTime());
 
-    // Get users who need reminders (same logic as morning - still haven't checked in)
-    const userFids = await getUsersNeedingCheckInReminders();
+    // Get users who need evening reminders (checks evening notification tracking)
+    const userFids = await getUsersNeedingEveningReminders();
 
     if (userFids.length === 0) {
       console.log('✅ No users need evening check-in reminders');
