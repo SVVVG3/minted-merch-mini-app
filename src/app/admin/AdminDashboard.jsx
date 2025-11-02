@@ -1392,7 +1392,9 @@ export default function AdminDashboard() {
                 { label: 'Users with Notifications', value: dashboardStats.usersWithNotifications, icon: '🔔' },
                 { label: 'Total Points Awarded', value: dashboardStats.totalPoints?.toLocaleString(), icon: '⭐' },
                 { label: 'Discounts Used', value: dashboardStats.discountsUsed, icon: '🎫' },
-                { label: 'Total Orders', value: dashboardStats.totalOrders, icon: '🛍️' }
+                { label: 'Total Orders', value: dashboardStats.totalOrders, icon: '🛍️' },
+                { label: 'Wallets Staked', value: dashboardStats.walletsStaked, icon: '🔒' },
+                { label: '$MINTEDMERCH Staked', value: formatTokenBalance(dashboardStats.totalStaked), icon: '📊' }
               ].map((stat) => (
                 <div key={stat.label} className="bg-white rounded-lg shadow p-6">
                   <div className="flex items-center">
@@ -1843,7 +1845,13 @@ export default function AdminDashboard() {
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('token_balance')}
                     >
-                      Holdings {sortField === 'token_balance' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      Total Holdings {sortField === 'token_balance' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Wallet Balance
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Staked Balance
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -1911,8 +1919,18 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.checkin_streak}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.points_from_purchases || 0}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span className="font-medium text-yellow-600">
+                        <span className="font-bold text-yellow-600">
                           {formatTokenBalance(user.token_balance)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <span className="font-medium text-green-600">
+                          {formatTokenBalance(user.wallet_balance || 0)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <span className="font-medium text-purple-600">
+                          {formatTokenBalance(user.staked_balance || 0)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.total_orders || 0}</td>

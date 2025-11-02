@@ -33,7 +33,7 @@ export const GET = withAdminAuth(async (request, context) => {
         
         const { data: pageData, error } = await supabaseAdmin
           .from('profiles')
-          .select('fid, username, display_name, pfp_url, token_balance, token_balance_updated_at')
+          .select('fid, username, display_name, pfp_url, token_balance, wallet_balance, staked_balance, token_balance_updated_at')
           .gt('token_balance', 0)
           .order('token_balance', { ascending: false })
           .range(startRange, endRange);
@@ -109,7 +109,9 @@ export const GET = withAdminAuth(async (request, context) => {
             username,
             display_name,
             pfp_url,
-            token_balance
+            token_balance,
+            wallet_balance,
+            staked_balance
           )
         `);
 
@@ -197,6 +199,8 @@ export const GET = withAdminAuth(async (request, context) => {
         display_name: profile.display_name || leaderboardInfo.display_name,
         pfp_url: profile.pfp_url,
         token_balance: tokenBalance,
+        wallet_balance: profile.wallet_balance || 0,
+        staked_balance: profile.staked_balance || 0,
         token_balance_updated_at: profile.token_balance_updated_at,
         // Leaderboard stats (may be 0 for users without leaderboard activity)
         total_points: multiplierResult.multipliedPoints,
