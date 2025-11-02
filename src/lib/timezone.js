@@ -1,5 +1,11 @@
 // Timezone utilities for PST/PDT daily check-in system
-// Handles 8 AM PST daily reset for check-ins and notifications
+// Handles 8 AM PST/PDT daily reset for check-ins and notifications
+// Note: PST is UTC-8 (winter), PDT is UTC-7 (summer)
+// 
+// DST-PROOF SOLUTION: Run cron at BOTH 15:00 UTC and 16:00 UTC
+// - Winter (PST): 15:00 UTC = 7 AM (skip), 16:00 UTC = 8 AM (send) ✅
+// - Summer (PDT): 15:00 UTC = 8 AM (send) ✅, 16:00 UTC = 9 AM (skip)
+// Time validation ensures notifications only send during the correct hour (8 AM local time)
 
 /**
  * Get the current time in PST/PDT timezone
@@ -157,9 +163,18 @@ export function formatPSTTime(date = getCurrentPSTTime()) {
  * @returns {boolean} True if it's within 8:00-9:00 AM PST/PDT
  */
 export function isNotificationTime() {
-  // Simple approach: cron jobs run at the right time, so just return true
-  // Cron job "0 16 * * *" runs at 8 AM PST
-  return true;
+  const pstTime = getCurrentPSTTime();
+  const hour = pstTime.getHours();
+  
+  // Check if it's between 8:00 AM and 8:59 AM PST/PDT
+  // This provides a 1-hour window for the cron job to execute
+  const isCorrectHour = hour === 8;
+  
+  if (!isCorrectHour) {
+    console.log(`⏰ Not notification time. Current PST hour: ${hour}, expected: 8`);
+  }
+  
+  return isCorrectHour;
 }
 
 /**
@@ -167,7 +182,16 @@ export function isNotificationTime() {
  * @returns {boolean} True if it's within 8:00-9:00 PM PST/PDT
  */
 export function isEveningNotificationTime() {
-  // Simple approach: cron jobs run at the right time, so just return true
-  // Cron job "0 4 * * *" runs at 8 PM PST
-  return true;
+  const pstTime = getCurrentPSTTime();
+  const hour = pstTime.getHours();
+  
+  // Check if it's between 8:00 PM and 8:59 PM PST/PDT (20:00-20:59 in 24h format)
+  // This provides a 1-hour window for the cron job to execute
+  const isCorrectHour = hour === 20;
+  
+  if (!isCorrectHour) {
+    console.log(`⏰ Not evening notification time. Current PST hour: ${hour}, expected: 20`);
+  }
+  
+  return isCorrectHour;
 } 
