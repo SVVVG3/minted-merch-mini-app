@@ -34,15 +34,39 @@ function getJWTSecret() {
  * using Farcaster's public keys from their JWKS endpoint.
  * JWKS endpoint: https://keys.farcaster.xyz/.well-known/jwks.json
  */
+// Cache JWKS to avoid fetching on every request
+let cachedJWKS = null;
+let jwksLastFetched = 0;
+const JWKS_CACHE_TTL = 3600000; // 1 hour in milliseconds
+
 async function verifyFarcasterQuickAuth(token) {
   try {
     console.log('🔐 SECURE: Verifying Quick Auth JWT with cryptographic signature verification...');
     
     // SECURITY FIX: Use Farcaster's JWKS endpoint to verify JWT signature
-    const JWKS = createRemoteJWKSet(new URL('https://keys.farcaster.xyz/.well-known/jwks.json'));
+    // Cache JWKS to improve performance and reliability
+    const now = Date.now();
+    if (!cachedJWKS || (now - jwksLastFetched) > JWKS_CACHE_TTL) {
+      console.log('📥 Fetching fresh JWKS from Farcaster...');
+      try {
+        cachedJWKS = createRemoteJWKSet(new URL('https://keys.farcaster.xyz/.well-known/jwks.json'), {
+          cooldownDuration: 30000, // 30 seconds cooldown between fetches
+          timeoutDuration: 10000, // 10 second timeout for fetch
+        });
+        jwksLastFetched = now;
+        console.log('✅ JWKS cached successfully');
+      } catch (jwksError) {
+        console.error('❌ Failed to fetch JWKS:', jwksError.message);
+        // If we have a cached version, use it even if expired
+        if (!cachedJWKS) {
+          throw new Error(`Cannot verify JWT: JWKS fetch failed - ${jwksError.message}`);
+        }
+        console.warn('⚠️ Using expired JWKS cache due to fetch failure');
+      }
+    }
     
     // Verify JWT signature cryptographically
-    const { payload } = await jwtVerify(token, JWKS, {
+    const { payload } = await jwtVerify(token, cachedJWKS, {
       issuer: 'https://auth.farcaster.xyz', // Expected issuer
       audience: process.env.NEXT_PUBLIC_URL || 'app.mintedmerch.shop', // Our app domain
     });
@@ -75,6 +99,7 @@ async function verifyFarcasterQuickAuth(token) {
     };
   } catch (error) {
     console.error('❌ Quick Auth JWT verification failed:', error.message);
+    console.error('❌ Full error:', error);
     
     // Provide helpful error messages
     if (error.code === 'ERR_JWKS_NO_MATCHING_KEY') {
@@ -83,6 +108,8 @@ async function verifyFarcasterQuickAuth(token) {
       return { valid: false, error: 'Token expired' };
     } else if (error.code === 'ERR_JWT_CLAIM_VALIDATION_FAILED') {
       return { valid: false, error: 'Invalid JWT claims (issuer/audience mismatch)' };
+    } else if (error.message && error.message.includes('fetch failed')) {
+      return { valid: false, error: 'Network error: Unable to verify JWT signature (JWKS fetch failed)' };
     }
     
     return { valid: false, error: `JWT verification failed: ${error.message}` };
