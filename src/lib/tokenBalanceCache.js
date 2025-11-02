@@ -22,6 +22,8 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
         console.log(`💰 Updating token balance for FID ${fid} with ${walletAddresses.length} wallets`);
 
     let finalBalance = tokenBalance;
+    let walletBalance; // For breakdown tracking
+    let stakedBalance; // For breakdown tracking
     
     // If tokenBalance is provided, use it directly (already in tokens)
     if (tokenBalance !== null) {
@@ -48,6 +50,7 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
         const baseChainId = 8453;
         
         try {
+          // Fetch wallet balance from blockchain
           const balanceResult = await checkTokenBalanceDirectly(
             ethAddresses,
             [mintedMerchContract],
@@ -55,11 +58,26 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
           );
         
         // The blockchain API returns balance in tokens (already divided by 10^18)
-        // Store it directly as tokens in the database
-        const tokensBalance = balanceResult || 0;
+        walletBalance = balanceResult || 0;
+        console.log(`✅ Fetched wallet balance: ${walletBalance} tokens`);
+        
+        // Fetch staked balance from subgraph
+        stakedBalance = 0;
+        try {
+          const { getUserStakedBalance } = await import('./stakingBalanceAPI.js');
+          stakedBalance = await getUserStakedBalance(ethAddresses);
+          console.log(`📊 Fetched staked balance: ${stakedBalance} tokens`);
+        } catch (stakingError) {
+          console.warn('⚠️ Could not fetch staked balance:', stakingError.message);
+          console.log('📊 Continuing with wallet balance only');
+          // Continue with just wallet balance if staking query fails
+        }
+        
+        // Combine wallet + staked balance for total holdings
+        const tokensBalance = walletBalance + stakedBalance;
+        console.log(`💰 Total balance (wallet + staked): ${tokensBalance} tokens`);
         
         finalBalance = tokensBalance;
-        console.log(`✅ Fetched balance: ${tokensBalance} tokens`);
         } catch (error) {
           console.error('❌ CRITICAL: Token balance fetch failed:', error);
           
@@ -96,15 +114,25 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
       parseFloat(finalBalance) :
       finalBalance;
 
-    // Update the profiles table
+    // Update the profiles table with total and breakdown (if available)
+    const updateData = {
+      token_balance: tokensBalance,
+      token_balance_updated_at: new Date().toISOString()
+    };
+    
+    // If we have the breakdown from the fetch above, store it
+    // This is optional - for backward compatibility, token_balance is still the total
+    if (typeof walletBalance !== 'undefined' && typeof stakedBalance !== 'undefined') {
+      updateData.wallet_balance = walletBalance;
+      updateData.staked_balance = stakedBalance;
+      console.log(`💾 Storing balance breakdown: ${walletBalance} wallet + ${stakedBalance} staked = ${tokensBalance} total`);
+    }
+
     const { data, error } = await supabaseAdmin
       .from('profiles')
-      .update({
-        token_balance: tokensBalance,
-        token_balance_updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('fid', fid)
-      .select('fid, token_balance, token_balance_updated_at')
+      .select('fid, token_balance, wallet_balance, staked_balance, token_balance_updated_at')
       .single();
 
     if (error) {
