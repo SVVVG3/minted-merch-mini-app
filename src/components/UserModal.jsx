@@ -317,7 +317,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                   </div>
 
                   {/* Token Holdings Breakdown */}
-                  {(userData.wallet_balance > 0 || userData.staked_balance > 0) && (
+                  {userData.token_balance > 0 && (
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h3 className="text-lg font-semibold mb-3">Token Holdings Breakdown</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

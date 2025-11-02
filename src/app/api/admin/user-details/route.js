@@ -188,6 +188,8 @@ export const GET = withAdminAuth(async (request, context) => {
 
       // Token holdings
       token_balance: profile.token_balance,
+      wallet_balance: profile.wallet_balance,
+      staked_balance: profile.staked_balance,
       token_balance_updated_at: profile.token_balance_updated_at,
 
       // Leaderboard stats
