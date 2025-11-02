@@ -8,7 +8,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
   const [isVisible, setIsVisible] = useState(false);
   const [showAddMiniAppPrompt, setShowAddMiniAppPrompt] = useState(false);
-  const [hasNotifications, setHasNotifications] = useState(true); // Default to true to avoid showing prompt unnecessarily
+  const [hasNotifications, setHasNotifications] = useState(null); // null = unknown, will be checked when modal opens
   const { user, getFid, isReady } = useFarcaster();
 
   useEffect(() => {
@@ -54,15 +54,18 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
       if (data.success) {
         setHasNotifications(data.notificationsEnabled || false);
         console.log('📊 User notification status set to:', data.notificationsEnabled ? 'Enabled ✅' : 'Disabled ❌');
+        console.log('📊 Source:', data.source);
       } else {
-        console.warn('⚠️ API returned success: false, defaulting to true');
-        setHasNotifications(true);
+        console.warn('⚠️ API returned success: false, defaulting to false to show prompt');
+        // Default to false so new users see the add mini app prompt
+        setHasNotifications(false);
       }
     } catch (error) {
       console.error('❌ Error checking notification status:', error);
-      // Default to true to avoid showing prompt on error
-      setHasNotifications(true);
-      console.log('❌ Set hasNotifications to true (default) due to error');
+      // Default to false so users see the add mini app prompt
+      // Better to prompt users who might already have it than to miss new users
+      setHasNotifications(false);
+      console.log('⚠️ Set hasNotifications to false (will show prompt) due to error');
     }
   };
 
@@ -95,10 +98,14 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
     console.log('🎯 Add Mini App Eligibility Check:', {
       isInMiniApp: isInMiniApp,
       hasNotifications: hasNotifications,
-      willShowPrompt: isInMiniApp && !hasNotifications
+      hasNotificationsIsNull: hasNotifications === null,
+      willShowPrompt: isInMiniApp && hasNotifications === false
     });
     
-    if (isInMiniApp && !hasNotifications) {
+    // Only show prompt if:
+    // 1. User is in mini app (not AuthKit)
+    // 2. hasNotifications is explicitly false (not null/unknown)
+    if (isInMiniApp && hasNotifications === false) {
       // Show prompt after a brief delay (let them see their spin result first)
       console.log('✅ User is eligible! Showing prompt in 3 seconds...');
       setTimeout(() => {
@@ -108,7 +115,8 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
     } else {
       console.log('❌ Not showing prompt. Reason:', {
         notInMiniApp: !isInMiniApp,
-        alreadyHasNotifications: hasNotifications
+        hasNotifications: hasNotifications,
+        stillLoading: hasNotifications === null
       });
     }
     

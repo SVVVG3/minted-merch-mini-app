@@ -151,6 +151,19 @@ export async function GET(request) {
       .single();
     
     if (error) {
+      // Handle case where user profile doesn't exist yet (PGRST116 = no rows returned)
+      if (error.code === 'PGRST116') {
+        console.log(`ℹ️ Profile not found for FID ${fid}, returning default (notifications disabled)`);
+        return NextResponse.json({
+          success: true,
+          fid: parseInt(fid),
+          notificationsEnabled: false,
+          lastUpdated: null,
+          source: 'default_no_profile',
+          timestamp: formatPSTTime()
+        });
+      }
+      
       console.error('❌ Error getting notification status:', error);
       return NextResponse.json({
         success: false,
