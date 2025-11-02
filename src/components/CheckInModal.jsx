@@ -28,27 +28,41 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen]);
+  }, [isOpen, isReady]);
 
   // Check if user has notifications enabled
   const checkNotificationStatus = async () => {
-    if (!isReady) return;
+    if (!isReady) {
+      console.log('⏳ SDK not ready yet, skipping notification status check');
+      return;
+    }
     
     const userFid = getFid();
-    if (!userFid) return;
+    if (!userFid) {
+      console.log('⏳ No FID available yet, skipping notification status check');
+      return;
+    }
+
+    console.log('🔍 Checking notification status for FID:', userFid);
 
     try {
       const response = await fetch(`/api/update-notification-status?fid=${userFid}`);
       const data = await response.json();
       
+      console.log('📊 Notification status API response:', data);
+      
       if (data.success) {
         setHasNotifications(data.notificationsEnabled || false);
-        console.log('📊 User notification status:', data.notificationsEnabled ? 'Enabled ✅' : 'Disabled ❌');
+        console.log('📊 User notification status set to:', data.notificationsEnabled ? 'Enabled ✅' : 'Disabled ❌');
+      } else {
+        console.warn('⚠️ API returned success: false, defaulting to true');
+        setHasNotifications(true);
       }
     } catch (error) {
       console.error('❌ Error checking notification status:', error);
       // Default to true to avoid showing prompt on error
       setHasNotifications(true);
+      console.log('❌ Set hasNotifications to true (default) due to error');
     }
   };
 
@@ -64,17 +78,38 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
       onCheckInComplete(result);
     }
     
+    // Debug logging for troubleshooting
+    console.log('🔍 Spin Complete - Checking Add Mini App eligibility:', {
+      user: user,
+      isAuthKit: user?.isAuthKit,
+      hasNotifications: hasNotifications,
+      userExists: !!user,
+      isReady: isReady
+    });
+    
     // Only show the add mini app prompt if:
     // 1. User is in mini app (not AuthKit)
     // 2. User doesn't have notifications enabled yet
     const isInMiniApp = user && !user.isAuthKit;
     
+    console.log('🎯 Add Mini App Eligibility Check:', {
+      isInMiniApp: isInMiniApp,
+      hasNotifications: hasNotifications,
+      willShowPrompt: isInMiniApp && !hasNotifications
+    });
+    
     if (isInMiniApp && !hasNotifications) {
       // Show prompt after a brief delay (let them see their spin result first)
+      console.log('✅ User is eligible! Showing prompt in 3 seconds...');
       setTimeout(() => {
-        console.log('🎯 Showing Add Mini App prompt after spin completion');
+        console.log('🎯 Now showing Add Mini App prompt');
         setShowAddMiniAppPrompt(true);
       }, 3000); // 3 second delay to let them enjoy their spin result
+    } else {
+      console.log('❌ Not showing prompt. Reason:', {
+        notInMiniApp: !isInMiniApp,
+        alreadyHasNotifications: hasNotifications
+      });
     }
     
     // Keep modal open to show results
