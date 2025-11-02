@@ -105,17 +105,18 @@ export function useFarcaster() {
         console.log('🔍 SDK Debug Info:', {
           sdkExists: !!sdk,
           actionsExists: !!sdk?.actions,
-          quickAuthExists: !!sdk?.actions?.quickAuth,
-          quickAuthType: typeof sdk?.actions?.quickAuth,
+          quickAuthExists: !!sdk?.quickAuth,
+          quickAuthType: typeof sdk?.quickAuth,
+          quickAuthGetTokenExists: !!sdk?.quickAuth?.getToken,
           availableActions: sdk?.actions ? Object.keys(sdk.actions) : 'N/A'
         });
         
         // SECURITY FIX: Use Quick Auth from Farcaster SDK
         // This returns a cryptographically signed JWT from Farcaster
-        if (sdk?.actions?.quickAuth) {
+        if (sdk?.quickAuth?.getToken) {
           try {
-            console.log('🔐 Attempting to call sdk.actions.quickAuth()...');
-            const quickAuthResult = await sdk.actions.quickAuth();
+            console.log('🔐 Attempting to call sdk.quickAuth.getToken()...');
+            const quickAuthResult = await sdk.quickAuth.getToken();
             console.log('🔍 Quick Auth result:', quickAuthResult);
             
             const quickAuthToken = quickAuthResult?.token;
@@ -148,7 +149,7 @@ export function useFarcaster() {
             console.error('❌ Error stack:', quickAuthError?.stack);
           }
         } else {
-          console.warn('⚠️ sdk.actions.quickAuth is NOT available on this SDK version');
+          console.warn('⚠️ sdk.quickAuth.getToken is NOT available on this SDK version');
         }
         
         // FALLBACK (INSECURE): If Quick Auth not available, use legacy method
