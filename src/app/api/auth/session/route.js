@@ -36,8 +36,13 @@ function getJWTSecret() {
  */
 async function verifyFarcasterQuickAuth(token) {
   try {
+    console.log('🔍 verifyFarcasterQuickAuth: Starting verification...');
+    
     const parts = token.split('.');
+    console.log('🔍 JWT parts count:', parts.length);
+    
     if (parts.length !== 3) {
+      console.error('❌ Invalid JWT format: expected 3 parts, got', parts.length);
       return { valid: false, error: 'Invalid JWT format' };
     }
     
@@ -45,23 +50,35 @@ async function verifyFarcasterQuickAuth(token) {
     const header = JSON.parse(
       Buffer.from(parts[0], 'base64url').toString('utf-8')
     );
+    console.log('🔍 JWT header:', header);
     
     if (!header.alg || !['RS256', 'ES256'].includes(header.alg)) {
-      return { valid: false, error: 'Unsupported JWT algorithm' };
+      console.error('❌ Unsupported algorithm:', header.alg);
+      return { valid: false, error: `Unsupported JWT algorithm: ${header.alg}` };
     }
     
     // Decode payload
     const payload = JSON.parse(
       Buffer.from(parts[1], 'base64url').toString('utf-8')
     );
+    console.log('🔍 JWT payload:', {
+      fid: payload.fid,
+      username: payload.username,
+      iss: payload.iss,
+      exp: payload.exp,
+      expDate: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'none',
+      now: new Date().toISOString()
+    });
     
     // Verify required claims
     if (!payload.fid) {
+      console.error('❌ No FID in token payload');
       return { valid: false, error: 'No FID in token' };
     }
     
     // Check expiration
     if (payload.exp && Date.now() >= payload.exp * 1000) {
+      console.error('❌ Token expired. Exp:', new Date(payload.exp * 1000).toISOString(), 'Now:', new Date().toISOString());
       return { valid: false, error: 'Token expired' };
     }
     
@@ -81,7 +98,8 @@ async function verifyFarcasterQuickAuth(token) {
       warning: 'Signature not verified - structural validation only'
     };
   } catch (error) {
-    console.error('Error verifying Farcaster Quick Auth token:', error);
+    console.error('❌ Error verifying Farcaster Quick Auth token:', error);
+    console.error('❌ Error stack:', error.stack);
     return { valid: false, error: error.message };
   }
 }
@@ -192,14 +210,23 @@ export async function POST(request) {
         }, { status: 401 });
       }
     }
-    // Path 2: Mini App with Quick Auth token (TODO: Implement)
+    // Path 2: Mini App with Quick Auth token (TODO: Implement full crypto verification)
     else if (body.farcasterToken) {
       console.log('🔐 Verifying Farcaster Quick Auth token...');
+      console.log('🔍 Token preview:', body.farcasterToken.substring(0, 50) + '...');
       
       const verification = await verifyFarcasterQuickAuth(body.farcasterToken);
       
+      console.log('🔍 Verification result:', {
+        valid: verification.valid,
+        fid: verification.fid,
+        error: verification.error,
+        warning: verification.warning
+      });
+      
       if (!verification.valid) {
-        console.warn('❌ Quick Auth verification failed:', verification.error);
+        console.error('❌ Quick Auth verification failed:', verification.error);
+        console.error('❌ Full verification object:', JSON.stringify(verification, null, 2));
         return NextResponse.json({
           success: false,
           error: 'Invalid Farcaster authentication',
@@ -210,7 +237,7 @@ export async function POST(request) {
       fid = verification.fid;
       username = verification.username;
       
-      console.log('✅ Quick Auth verified for FID:', fid);
+      console.log('✅ Quick Auth verified for FID:', fid, '(warning: signature not cryptographically verified yet)');
     }
     // Path 3: INSECURE fallback (WILL BE REMOVED)
     else if (body.fid || body.authKitSession) {
