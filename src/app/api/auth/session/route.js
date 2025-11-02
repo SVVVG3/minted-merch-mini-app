@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { SignJWT, jwtVerify } from 'jose';
 import { supabaseAdmin } from '@/lib/supabase';
-import { verifySignInMessage } from '@farcaster/auth-kit';
+import { verifySignInMessage } from '@farcaster/auth-client';
 
 /**
  * PHASE 2: Unified Session Token Endpoint

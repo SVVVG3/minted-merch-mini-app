@@ -17,6 +17,7 @@
     "@base-org/account-ui": "^1.0.1",
     "@capacitor/haptics": "^7.0.2",
     "@cloudflare/workers-types": "^4.20250620.0",
+    "@farcaster/auth-client": "^0.7.0",
     "@farcaster/auth-kit": "^0.8.1",
     "@farcaster/frame-node": "^0.0.41",
     "@farcaster/frame-sdk": "^0.0.64",
