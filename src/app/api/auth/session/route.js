@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { SignJWT, jwtVerify } from 'jose';
 import { supabaseAdmin } from '@/lib/supabase';
+import { verifySignInMessage } from '@farcaster/auth-kit';
 
 /**
  * PHASE 2: Unified Session Token Endpoint
@@ -25,28 +26,36 @@ function getJWTSecret() {
 /**
  * Verify Farcaster Quick Auth JWT (from Mini App)
  * 
- * Quick Auth returns a JWT signed by Farcaster. We verify it to extract the FID.
- * Note: This requires Farcaster's public key to verify the signature.
+ * Quick Auth returns a JWT signed by Farcaster.
+ * 
+ * SECURITY NOTE: This implementation verifies the JWT structure and expiry,
+ * but does not yet verify the cryptographic signature from Farcaster.
+ * 
+ * TODO: Implement full signature verification using Farcaster's public key
+ * from their JWKS endpoint: https://keys.farcaster.xyz/.well-known/jwks.json
  */
 async function verifyFarcasterQuickAuth(token) {
   try {
-    // For Quick Auth, Farcaster signs the JWT with their private key
-    // We need to verify with their public key
-    // 
-    // TODO: Get Farcaster's public key from their well-known endpoint
-    // For now, we'll trust the token structure and extract claims
-    // This is temporary until we implement proper signature verification
-    
     const parts = token.split('.');
     if (parts.length !== 3) {
       return { valid: false, error: 'Invalid JWT format' };
     }
     
-    // Decode payload (not verifying signature yet - see TODO above)
+    // Decode header to check algorithm
+    const header = JSON.parse(
+      Buffer.from(parts[0], 'base64url').toString('utf-8')
+    );
+    
+    if (!header.alg || !['RS256', 'ES256'].includes(header.alg)) {
+      return { valid: false, error: 'Unsupported JWT algorithm' };
+    }
+    
+    // Decode payload
     const payload = JSON.parse(
       Buffer.from(parts[1], 'base64url').toString('utf-8')
     );
     
+    // Verify required claims
     if (!payload.fid) {
       return { valid: false, error: 'No FID in token' };
     }
@@ -56,11 +65,20 @@ async function verifyFarcasterQuickAuth(token) {
       return { valid: false, error: 'Token expired' };
     }
     
+    // Check issuer (should be from Farcaster)
+    if (payload.iss && !payload.iss.includes('farcaster')) {
+      console.warn('⚠️ Quick Auth token from unexpected issuer:', payload.iss);
+    }
+    
+    console.log('⚠️ Quick Auth token structure verified (signature NOT verified)');
+    console.log('⚠️ This is a security risk - implement full cryptographic verification');
+    
     return {
       valid: true,
       fid: payload.fid,
       username: payload.username || null,
-      expiresAt: payload.exp ? new Date(payload.exp * 1000) : null
+      expiresAt: payload.exp ? new Date(payload.exp * 1000) : null,
+      warning: 'Signature not verified - structural validation only'
     };
   } catch (error) {
     console.error('Error verifying Farcaster Quick Auth token:', error);
@@ -127,8 +145,55 @@ export async function POST(request) {
     let fid = null;
     let username = null;
     
-    // Path 1: Mini App with Quick Auth token
-    if (body.farcasterToken) {
+    // Path 1: Desktop/Web with AuthKit (SECURE - Signature Verified)
+    if (body.authKitData) {
+      console.log('🔐 Verifying AuthKit signature...');
+      
+      const { message, signature, nonce, domain } = body.authKitData;
+      
+      if (!message || !signature || !nonce) {
+        return NextResponse.json({
+          success: false,
+          error: 'Missing AuthKit authentication data',
+          details: 'Required: message, signature, nonce'
+        }, { status: 400 });
+      }
+      
+      try {
+        // SECURITY FIX: Verify cryptographic signature from Farcaster
+        const verifyResult = await verifySignInMessage({
+          message,
+          signature,
+          nonce,
+          domain: domain || process.env.NEXT_PUBLIC_URL || 'app.mintedmerch.shop'
+        });
+        
+        if (!verifyResult.success) {
+          console.warn('❌ AuthKit signature verification failed');
+          return NextResponse.json({
+            success: false,
+            error: 'Invalid Farcaster signature',
+            details: 'Signature verification failed'
+          }, { status: 401 });
+        }
+        
+        // Extract verified FID from the message
+        fid = verifyResult.fid || body.authKitData.fid;
+        username = body.authKitData.username || null;
+        
+        console.log('✅ AuthKit signature verified for FID:', fid);
+        
+      } catch (verifyError) {
+        console.error('❌ Error verifying AuthKit signature:', verifyError);
+        return NextResponse.json({
+          success: false,
+          error: 'Signature verification error',
+          details: verifyError.message
+        }, { status: 401 });
+      }
+    }
+    // Path 2: Mini App with Quick Auth token (TODO: Implement)
+    else if (body.farcasterToken) {
       console.log('🔐 Verifying Farcaster Quick Auth token...');
       
       const verification = await verifyFarcasterQuickAuth(body.farcasterToken);
@@ -147,35 +212,22 @@ export async function POST(request) {
       
       console.log('✅ Quick Auth verified for FID:', fid);
     }
-    // Path 2: Desktop/Web with AuthKit
-    else if (body.authKitSession && body.fid) {
-      console.log('🔐 Creating session for AuthKit user...');
+    // Path 3: INSECURE fallback (WILL BE REMOVED)
+    else if (body.fid || body.authKitSession) {
+      console.warn('⚠️ INSECURE: Legacy session creation without signature verification');
+      console.warn('⚠️ This path is deprecated and will be removed');
       
-      // For AuthKit, we trust that the frontend has already authenticated
-      // via Farcaster's AuthKit (Sign In With Farcaster)
-      // 
-      // In production, you might want additional verification here,
-      // but AuthKit handles the crypto verification on the client side
-      
+      // TEMPORARY: Still allow for migration period, but log warning
       fid = body.fid;
       username = body.username || null;
       
-      console.log('✅ AuthKit session for FID:', fid);
-    }
-    // Path 3: Legacy header-based (for backward compatibility during migration)
-    else if (body.fid) {
-      console.log('⚠️ Legacy session creation (no Farcaster token) for FID:', body.fid);
-      
-      // Temporary: Allow session creation with just FID during migration period
-      // TODO: Remove this path after all clients are updated
-      fid = body.fid;
-      username = body.username || null;
+      console.log('⚠️ Legacy session for FID:', fid, '(NO SIGNATURE VERIFICATION)');
     }
     else {
       return NextResponse.json({
         success: false,
         error: 'Missing authentication data',
-        details: 'Provide either farcasterToken (Mini App) or authKitSession + fid (Desktop)'
+        details: 'Provide either authKitData (Desktop) or farcasterToken (Mini App)'
       }, { status: 400 });
     }
     

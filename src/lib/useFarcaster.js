@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { sdk } from './frame';
-import { useProfile } from '@farcaster/auth-kit';
+import { useProfile, useSignIn } from '@farcaster/auth-kit';
 
 export function useFarcaster() {
   const [context, setContext] = useState(null);
@@ -12,8 +12,9 @@ export function useFarcaster() {
   const [isReady, setIsReady] = useState(false);
   const [sessionToken, setSessionToken] = useState(null);
   
-  // AuthKit profile for non-mini-app environments
+  // AuthKit profile and sign-in data for non-mini-app environments
   const { isAuthenticated: isAuthKitAuthenticated, profile: authKitProfile} = useProfile();
+  const { data: authKitData, validSignature } = useSignIn(); // Get signature data
 
   useEffect(() => {
     async function loadContext() {
@@ -88,7 +89,7 @@ export function useFarcaster() {
     }
   }, [isInFarcaster, isAuthKitAuthenticated, authKitProfile]);
 
-  // PHASE 2: Get session token for Mini App (Quick Auth)
+  // PHASE 2 FIX: Get session token for Mini App using Quick Auth
   useEffect(() => {
     async function getMiniAppSession() {
       if (!isInFarcaster || !user?.fid || sessionToken) return;
@@ -96,9 +97,41 @@ export function useFarcaster() {
       try {
         console.log('🔐 Getting Quick Auth session for Mini App...');
         
-        // Try to use Quick Auth to get Farcaster's JWT
-        // Note: Quick Auth may not be available in all Mini App contexts
-        // For now, we'll create a session with just the FID (temporary)
+        // SECURITY FIX: Use Quick Auth from Farcaster SDK
+        // This returns a cryptographically signed JWT from Farcaster
+        if (sdk?.actions?.quickAuth) {
+          try {
+            const { token: quickAuthToken } = await sdk.actions.quickAuth();
+            
+            if (quickAuthToken) {
+              console.log('✅ Quick Auth token obtained from Farcaster SDK');
+              
+              // Send to backend for verification
+              const response = await fetch('/api/auth/session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  farcasterToken: quickAuthToken
+                })
+              });
+              
+              const result = await response.json();
+              
+              if (result.success && result.token) {
+                console.log('✅ Session token obtained for Mini App user');
+                setSessionToken(result.token);
+                localStorage.setItem('fc_session_token', result.token);
+                return;
+              }
+            }
+          } catch (quickAuthError) {
+            console.warn('⚠️ Quick Auth not available, falling back to insecure method:', quickAuthError);
+          }
+        }
+        
+        // FALLBACK (INSECURE): If Quick Auth not available, use legacy method
+        // This should only happen in development or if SDK version doesn't support Quick Auth
+        console.warn('⚠️ Quick Auth not available - using INSECURE fallback (FID only)');
         const response = await fetch('/api/auth/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -111,7 +144,7 @@ export function useFarcaster() {
         const result = await response.json();
         
         if (result.success && result.token) {
-          console.log('✅ Session token obtained for Mini App user');
+          console.log('⚠️ Session token obtained using legacy method (NOT SECURE)');
           setSessionToken(result.token);
           localStorage.setItem('fc_session_token', result.token);
         } else {
@@ -125,21 +158,33 @@ export function useFarcaster() {
     getMiniAppSession();
   }, [isInFarcaster, user?.fid, sessionToken]);
   
-  // PHASE 2: Get session token for Desktop/AuthKit
+  // PHASE 2 FIX: Get session token for Desktop/AuthKit with signature verification
   useEffect(() => {
     async function getAuthKitSession() {
       if (isInFarcaster || !isAuthKitAuthenticated || !authKitProfile?.fid || sessionToken) return;
       
+      // CRITICAL: Need valid signature data from AuthKit
+      if (!authKitData || !validSignature) {
+        console.warn('⚠️ AuthKit authenticated but no signature data available yet');
+        return;
+      }
+      
       try {
-        console.log('🔐 Getting session for AuthKit user...');
+        console.log('🔐 Getting session for AuthKit user with signature verification...');
         
         const response = await fetch('/api/auth/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            fid: authKitProfile.fid,
-            username: authKitProfile.username,
-            authKitSession: true
+            // SECURITY FIX: Send cryptographic proof from AuthKit
+            authKitData: {
+              message: authKitData.message,
+              signature: authKitData.signature,
+              nonce: authKitData.nonce,
+              domain: authKitData.domain,
+              fid: authKitData.fid,
+              username: authKitData.username
+            }
           })
         });
         
@@ -158,7 +203,7 @@ export function useFarcaster() {
     }
     
     getAuthKitSession();
-  }, [isInFarcaster, isAuthKitAuthenticated, authKitProfile?.fid, sessionToken]);
+  }, [isInFarcaster, isAuthKitAuthenticated, authKitProfile?.fid, authKitData, validSignature, sessionToken]);
   
   // PHASE 2: Load session token from localStorage on mount
   useEffect(() => {
