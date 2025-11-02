@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { sdk } from './frame';
 import { useProfile, useSignIn } from '@farcaster/auth-kit';
 
@@ -11,6 +11,7 @@ export function useFarcaster() {
   const [isInFarcaster, setIsInFarcaster] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [sessionToken, setSessionToken] = useState(null);
+  const hasAttemptedMiniAppAuth = useRef(false); // Track if we've tried to get Mini App token
   
   // AuthKit profile and sign-in data for non-mini-app environments
   const { isAuthenticated: isAuthKitAuthenticated, profile: authKitProfile} = useProfile();
@@ -92,7 +93,10 @@ export function useFarcaster() {
   // PHASE 2 FIX: Get session token for Mini App using Quick Auth
   useEffect(() => {
     async function getMiniAppSession() {
-      if (!isInFarcaster || !user?.fid || sessionToken) return;
+      // Don't check sessionToken here - always try to refresh for Mini App
+      if (!isInFarcaster || !user?.fid || hasAttemptedMiniAppAuth.current) return;
+      
+      hasAttemptedMiniAppAuth.current = true; // Mark that we've attempted
       
       try {
         console.log('🔐 Getting Quick Auth session for Mini App...');
@@ -206,13 +210,21 @@ export function useFarcaster() {
   }, [isInFarcaster, isAuthKitAuthenticated, authKitProfile?.fid, authKitData, validSignature, sessionToken]);
   
   // PHASE 2: Load session token from localStorage on mount
+  // NOTE: For Mini App, we'll always fetch a fresh token (see getMiniAppSession useEffect)
+  // This is mainly for desktop/AuthKit where we want to persist tokens across page loads
   useEffect(() => {
+    // Don't load stored token for Mini App - always fetch fresh
+    if (isInFarcaster) {
+      console.log('📦 Mini App detected - will fetch fresh session token');
+      return;
+    }
+    
     const storedToken = localStorage.getItem('fc_session_token');
     if (storedToken && !sessionToken) {
       console.log('📦 Loaded session token from localStorage');
       setSessionToken(storedToken);
     }
-  }, []);
+  }, [isInFarcaster, sessionToken]);
 
   return {
     context,
