@@ -101,11 +101,24 @@ export function useFarcaster() {
       try {
         console.log('🔐 Getting Quick Auth session for Mini App...');
         
+        // DEBUG: Log SDK capabilities
+        console.log('🔍 SDK Debug Info:', {
+          sdkExists: !!sdk,
+          actionsExists: !!sdk?.actions,
+          quickAuthExists: !!sdk?.actions?.quickAuth,
+          quickAuthType: typeof sdk?.actions?.quickAuth,
+          availableActions: sdk?.actions ? Object.keys(sdk.actions) : 'N/A'
+        });
+        
         // SECURITY FIX: Use Quick Auth from Farcaster SDK
         // This returns a cryptographically signed JWT from Farcaster
         if (sdk?.actions?.quickAuth) {
           try {
-            const { token: quickAuthToken } = await sdk.actions.quickAuth();
+            console.log('🔐 Attempting to call sdk.actions.quickAuth()...');
+            const quickAuthResult = await sdk.actions.quickAuth();
+            console.log('🔍 Quick Auth result:', quickAuthResult);
+            
+            const quickAuthToken = quickAuthResult?.token;
             
             if (quickAuthToken) {
               console.log('✅ Quick Auth token obtained from Farcaster SDK');
@@ -127,10 +140,15 @@ export function useFarcaster() {
                 localStorage.setItem('fc_session_token', result.token);
                 return;
               }
+            } else {
+              console.warn('⚠️ Quick Auth returned no token:', quickAuthResult);
             }
           } catch (quickAuthError) {
-            console.warn('⚠️ Quick Auth not available, falling back to insecure method:', quickAuthError);
+            console.error('❌ Quick Auth error:', quickAuthError);
+            console.error('❌ Error stack:', quickAuthError?.stack);
           }
+        } else {
+          console.warn('⚠️ sdk.actions.quickAuth is NOT available on this SDK version');
         }
         
         // FALLBACK (INSECURE): If Quick Auth not available, use legacy method
