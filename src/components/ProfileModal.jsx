@@ -133,13 +133,17 @@ export function ProfileModal({ isOpen, onClose }) {
               'Content-Type': 'application/json'
             };
             
-            // Try to get session token
+            // Get session token (required)
             const token = localStorage.getItem('fc_session_token');
             if (token) {
               headers['Authorization'] = `Bearer ${token}`;
             } else {
-              // Fallback to Phase 1 header during migration
-              headers['X-User-FID'] = user.fid.toString();
+              console.error('No session token available - user must authenticate');
+              setWalletMessage({ 
+                type: 'error', 
+                text: 'Authentication required. Please refresh the app.' 
+              });
+              return;
             }
             
             const response = await fetch('/api/update-connected-wallet', {

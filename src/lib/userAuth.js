@@ -24,59 +24,40 @@ function getJWTSecret() {
 /**
  * Extract and verify authenticated FID from JWT token
  * 
- * PHASE 2 IMPLEMENTATION:
+ * SECURE IMPLEMENTATION:
  * Verifies JWT session token from Authorization header.
  * Token is cryptographically signed and contains verified FID.
  * 
- * For backward compatibility during migration, also checks legacy X-User-FID header.
+ * Legacy fallbacks (X-User-FID header, cookies) have been REMOVED for security.
  */
 export async function getAuthenticatedFid(request) {
   try {
-    // Primary: Check for JWT in Authorization header
+    // Check for JWT in Authorization header (REQUIRED)
     const authHeader = request.headers.get('authorization');
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ No Authorization header found');
+      return null;
+    }
+    
+    const token = authHeader.substring(7);
+    
+    try {
+      const secret = getJWTSecret();
+      const { payload } = await jwtVerify(token, secret, {
+        issuer: 'mintedmerch'
+      });
       
-      try {
-        const secret = getJWTSecret();
-        const { payload } = await jwtVerify(token, secret, {
-          issuer: 'mintedmerch'
-        });
-        
-        if (payload.fid && typeof payload.fid === 'number') {
-          console.log(`✅ Authenticated FID from JWT: ${payload.fid}`);
-          return payload.fid;
-        }
-      } catch (error) {
-        console.warn('⚠️ JWT verification failed:', error.message);
-        // Fall through to legacy methods
+      if (payload.fid && typeof payload.fid === 'number') {
+        console.log(`✅ Authenticated FID from JWT: ${payload.fid}`);
+        return payload.fid;
       }
+      
+      console.log('❌ JWT payload missing or invalid FID');
+      return null;
+    } catch (error) {
+      console.warn('❌ JWT verification failed:', error.message);
+      return null;
     }
-
-    // LEGACY SUPPORT (Phase 1 - will be removed after migration)
-    // Check for FID in custom header (sent by Phase 1 frontend)
-    const fidHeader = request.headers.get('x-user-fid');
-    if (fidHeader) {
-      const fid = parseInt(fidHeader);
-      if (!isNaN(fid) && fid > 0) {
-        console.log(`⚠️ Authenticated FID from legacy header: ${fid} (update client to use JWT)`);
-        return fid;
-      }
-    }
-
-    // Check for FID in cookie (session-based)
-    const cookies = request.cookies;
-    const fidCookie = cookies.get('user_fid');
-    if (fidCookie && fidCookie.value) {
-      const fid = parseInt(fidCookie.value);
-      if (!isNaN(fid) && fid > 0) {
-        console.log(`⚠️ Authenticated FID from cookie: ${fid} (update client to use JWT)`);
-        return fid;
-      }
-    }
-
-    console.log('❌ No authenticated FID found in request');
-    return null;
   } catch (error) {
     console.error('❌ Error extracting authenticated FID:', error);
     return null;

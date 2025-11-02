@@ -287,13 +287,13 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         try {
           console.log('🔍 Fetching previous shipping address for returning user...');
           
-          // PHASE 2: Include session JWT token in Authorization header
+          // PHASE 2: Include session JWT token in Authorization header (required)
           const headers = {};
           if (token) {
             headers['Authorization'] = `Bearer ${token}`;
           } else {
-            // Fallback to Phase 1 header during migration
-            headers['X-User-FID'] = userFid.toString();
+            console.error('No session token available - user must authenticate');
+            throw new Error('Authentication required');
           }
           
           const response = await fetch(`/api/user-last-shipping?fid=${userFid}`, {

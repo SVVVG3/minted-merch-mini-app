@@ -1,17 +1,19 @@
 import { NextResponse } from 'next/server';
-import { SignJWT, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify, createRemoteJWKSet } from 'jose';
 import { supabaseAdmin } from '@/lib/supabase';
 import { verifySignInMessage } from '@farcaster/auth-client';
 
 /**
- * PHASE 2: Unified Session Token Endpoint
+ * SECURE: Unified Session Token Endpoint
  * 
- * This endpoint verifies Farcaster authentication and issues session JWTs.
- * Works for both:
- * - Mini App users (Quick Auth)
- * - Desktop users (AuthKit)
+ * This endpoint cryptographically verifies Farcaster authentication and issues session JWTs.
  * 
- * Once a user has a session JWT, they use it for all API requests.
+ * SECURE authentication paths:
+ * - Mini App users: Quick Auth JWT verified using Farcaster's public keys (JWKS)
+ * - Desktop/Web users: AuthKit signature verified using verifySignInMessage
+ * 
+ * Once a user has a session JWT, they use it for all subsequent API requests.
+ * Session JWTs expire in 7 days.
  */
 
 // Get JWT secret as Uint8Array for jose library
@@ -28,85 +30,62 @@ function getJWTSecret() {
  * 
  * Quick Auth returns a JWT signed by Farcaster.
  * 
- * SECURITY NOTE: This implementation verifies the JWT structure and expiry,
- * but does not yet verify the cryptographic signature from Farcaster.
- * 
- * TODO: Implement full signature verification using Farcaster's public key
- * from their JWKS endpoint: https://keys.farcaster.xyz/.well-known/jwks.json
+ * SECURITY: This implementation cryptographically verifies the JWT signature
+ * using Farcaster's public keys from their JWKS endpoint.
+ * JWKS endpoint: https://keys.farcaster.xyz/.well-known/jwks.json
  */
 async function verifyFarcasterQuickAuth(token) {
   try {
-    console.log('🔍 verifyFarcasterQuickAuth: Starting verification...');
+    console.log('🔐 SECURE: Verifying Quick Auth JWT with cryptographic signature verification...');
     
-    const parts = token.split('.');
-    console.log('🔍 JWT parts count:', parts.length);
+    // SECURITY FIX: Use Farcaster's JWKS endpoint to verify JWT signature
+    const JWKS = createRemoteJWKSet(new URL('https://keys.farcaster.xyz/.well-known/jwks.json'));
     
-    if (parts.length !== 3) {
-      console.error('❌ Invalid JWT format: expected 3 parts, got', parts.length);
-      return { valid: false, error: 'Invalid JWT format' };
-    }
-    
-    // Decode header to check algorithm
-    const header = JSON.parse(
-      Buffer.from(parts[0], 'base64url').toString('utf-8')
-    );
-    console.log('🔍 JWT header:', header);
-    
-    if (!header.alg || !['RS256', 'ES256'].includes(header.alg)) {
-      console.error('❌ Unsupported algorithm:', header.alg);
-      return { valid: false, error: `Unsupported JWT algorithm: ${header.alg}` };
-    }
-    
-    // Decode payload
-    const payload = JSON.parse(
-      Buffer.from(parts[1], 'base64url').toString('utf-8')
-    );
-    console.log('🔍 JWT payload (full):', JSON.stringify(payload, null, 2));
-    console.log('🔍 JWT payload (summary):', {
-      fid: payload.fid,
-      sub: payload.sub,
-      username: payload.username,
-      iss: payload.iss,
-      exp: payload.exp,
-      expDate: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'none',
-      now: new Date().toISOString()
+    // Verify JWT signature cryptographically
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer: 'https://auth.farcaster.xyz', // Expected issuer
+      audience: process.env.NEXT_PUBLIC_URL || 'app.mintedmerch.shop', // Our app domain
     });
     
-    // Verify required claims - check both 'fid' and 'sub' (subject)
-    const fid = payload.fid || (payload.sub ? parseInt(payload.sub) : null);
+    console.log('✅ JWT signature cryptographically verified by Farcaster');
+    console.log('🔍 JWT payload:', {
+      sub: payload.sub,
+      iss: payload.iss,
+      aud: payload.aud,
+      exp: payload.exp,
+      expDate: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'none'
+    });
+    
+    // Extract FID from 'sub' claim (standard JWT format)
+    const fid = payload.sub ? parseInt(payload.sub) : null;
     
     if (!fid) {
-      console.error('❌ No FID in token payload (checked both fid and sub claims)');
+      console.error('❌ No FID in token payload (sub claim)');
       return { valid: false, error: 'No FID in token' };
     }
     
-    console.log('✅ FID extracted:', fid);
-    
-    // Check expiration
-    if (payload.exp && Date.now() >= payload.exp * 1000) {
-      console.error('❌ Token expired. Exp:', new Date(payload.exp * 1000).toISOString(), 'Now:', new Date().toISOString());
-      return { valid: false, error: 'Token expired' };
-    }
-    
-    // Check issuer (should be from Farcaster)
-    if (payload.iss && !payload.iss.includes('farcaster')) {
-      console.warn('⚠️ Quick Auth token from unexpected issuer:', payload.iss);
-    }
-    
-    console.log('⚠️ Quick Auth token structure verified (signature NOT verified)');
-    console.log('⚠️ This is a security risk - implement full cryptographic verification');
+    console.log('✅ FID extracted from cryptographically verified token:', fid);
     
     return {
       valid: true,
       fid: fid,
       username: payload.username || payload.preferred_username || null,
       expiresAt: payload.exp ? new Date(payload.exp * 1000) : null,
-      warning: 'Signature not verified - structural validation only'
+      verified: true // Flag to indicate this was cryptographically verified
     };
   } catch (error) {
-    console.error('❌ Error verifying Farcaster Quick Auth token:', error);
-    console.error('❌ Error stack:', error.stack);
-    return { valid: false, error: error.message };
+    console.error('❌ Quick Auth JWT verification failed:', error.message);
+    
+    // Provide helpful error messages
+    if (error.code === 'ERR_JWKS_NO_MATCHING_KEY') {
+      return { valid: false, error: 'Invalid JWT signature - key not found' };
+    } else if (error.code === 'ERR_JWT_EXPIRED') {
+      return { valid: false, error: 'Token expired' };
+    } else if (error.code === 'ERR_JWT_CLAIM_VALIDATION_FAILED') {
+      return { valid: false, error: 'Invalid JWT claims (issuer/audience mismatch)' };
+    }
+    
+    return { valid: false, error: `JWT verification failed: ${error.message}` };
   }
 }
 
@@ -243,24 +222,13 @@ export async function POST(request) {
       fid = verification.fid;
       username = verification.username;
       
-      console.log('✅ Quick Auth verified for FID:', fid, '(warning: signature not cryptographically verified yet)');
-    }
-    // Path 3: INSECURE fallback (WILL BE REMOVED)
-    else if (body.fid || body.authKitSession) {
-      console.warn('⚠️ INSECURE: Legacy session creation without signature verification');
-      console.warn('⚠️ This path is deprecated and will be removed');
-      
-      // TEMPORARY: Still allow for migration period, but log warning
-      fid = body.fid;
-      username = body.username || null;
-      
-      console.log('⚠️ Legacy session for FID:', fid, '(NO SIGNATURE VERIFICATION)');
+      console.log('✅ Quick Auth SECURELY verified for FID:', fid, '(cryptographic signature verified)');
     }
     else {
       return NextResponse.json({
         success: false,
         error: 'Missing authentication data',
-        details: 'Provide either authKitData (Desktop) or farcasterToken (Mini App)'
+        details: 'Provide either authKitData (Desktop/Web with cryptographic signature) or farcasterToken (Mini App with Quick Auth)'
       }, { status: 400 });
     }
     
