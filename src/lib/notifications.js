@@ -135,9 +135,20 @@ export async function sendCheckInReminder(userFid) {
     const result = await sendNotificationWithNeynar(userFid, message);
 
     if (result.success) {
+      // Check if it was actually sent or just skipped
+      if (result.skipped) {
+        console.log(`⏭️ Skipped FID ${userFid}: ${result.reason || 'Notifications not enabled'}`);
+        return {
+          success: false, // Count as failure for statistics
+          skipped: true,
+          userFid: userFid,
+          reason: result.reason || 'Notifications not enabled'
+        };
+      }
+      
       console.log(`✅ Check-in reminder sent successfully to FID: ${userFid}`);
       
-      // Log notification in database (optional)
+      // Log notification in database
       await logNotificationSent(userFid, 'checkin_reminder', message);
       
       return {
@@ -194,13 +205,15 @@ export async function sendDailyCheckInReminders() {
       userFids.map(userFid => sendCheckInReminder(userFid))
     );
 
-    // Count successes and failures
+    // Count successes, failures, and skipped
     const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+    const skippedCount = results.filter(r => r.status === 'fulfilled' && r.value.skipped).length;
     const failureCount = results.length - successCount;
 
     console.log(`📊 Check-in reminder results:`);
     console.log(`   ✅ Successful: ${successCount}`);
-    console.log(`   ❌ Failed: ${failureCount}`);
+    console.log(`   ⏭️ Skipped (notifications disabled): ${skippedCount}`);
+    console.log(`   ❌ Failed: ${failureCount - skippedCount}`);
     console.log(`   📱 Total: ${results.length}`);
 
     return {
@@ -336,9 +349,20 @@ export async function sendEveningCheckInReminder(userFid) {
     const result = await sendNotificationWithNeynar(userFid, message);
 
     if (result.success) {
+      // Check if it was actually sent or just skipped
+      if (result.skipped) {
+        console.log(`⏭️ Skipped FID ${userFid}: ${result.reason || 'Notifications not enabled'}`);
+        return {
+          success: false, // Count as failure for statistics
+          skipped: true,
+          userFid: userFid,
+          reason: result.reason || 'Notifications not enabled'
+        };
+      }
+      
       console.log(`✅ Evening check-in reminder sent successfully to FID: ${userFid}`);
       
-      // Log notification in database (optional)
+      // Log notification in database
       await logNotificationSent(userFid, 'evening_checkin_reminder', message);
       
       return {
@@ -463,13 +487,15 @@ export async function sendEveningCheckInReminders() {
       userFids.map(userFid => sendEveningCheckInReminder(userFid))
     );
 
-    // Count successes and failures
+    // Count successes, failures, and skipped
     const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+    const skippedCount = results.filter(r => r.status === 'fulfilled' && r.value.skipped).length;
     const failureCount = results.length - successCount;
 
     console.log(`📊 Evening check-in reminder results:`);
     console.log(`   ✅ Successful: ${successCount}`);
-    console.log(`   ❌ Failed: ${failureCount}`);
+    console.log(`   ⏭️ Skipped (notifications disabled): ${skippedCount}`);
+    console.log(`   ❌ Failed: ${failureCount - skippedCount}`);
     console.log(`   📱 Total: ${results.length}`);
 
     return {
