@@ -10,6 +10,7 @@ export function CheckInButton() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userStatus, setUserStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasAutoOpened, setHasAutoOpened] = useState(false);
 
   // Load user's check-in status and points
   useEffect(() => {
@@ -26,6 +27,30 @@ export function CheckInButton() {
 
     loadUserStatus(userFid);
   }, [user?.fid, isReady]); // Only refetch when FID changes, not when user object is recreated
+
+  // Auto-open modal after 2 seconds if user can check in and hasn't opened it yet
+  useEffect(() => {
+    if (!userStatus || isLoading || hasAutoOpened) {
+      return;
+    }
+
+    const canCheckIn = userStatus?.canCheckInToday;
+    
+    if (canCheckIn) {
+      const timer = setTimeout(async () => {
+        console.log('🎯 Auto-opening daily check-in modal');
+        
+        // Add haptic feedback for auto-open (works in mini app)
+        const isInMiniApp = user && !user.isAuthKit;
+        await haptics.light(isInMiniApp);
+        
+        setIsModalOpen(true);
+        setHasAutoOpened(true);
+      }, 2000); // 2 seconds delay
+
+      return () => clearTimeout(timer);
+    }
+  }, [userStatus, isLoading, hasAutoOpened, user]);
 
   const loadUserStatus = async (userFid) => {
     try {
