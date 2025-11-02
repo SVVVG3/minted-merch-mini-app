@@ -104,52 +104,83 @@ export function useFarcaster() {
         // DEBUG: Log SDK capabilities
         console.log('🔍 SDK Debug Info:', {
           sdkExists: !!sdk,
+          sdkKeys: sdk ? Object.keys(sdk) : 'N/A',
           actionsExists: !!sdk?.actions,
+          actionsKeys: sdk?.actions ? Object.keys(sdk.actions) : 'N/A',
           quickAuthExists: !!sdk?.quickAuth,
-          quickAuthType: typeof sdk?.quickAuth,
-          quickAuthGetTokenExists: !!sdk?.quickAuth?.getToken,
-          availableActions: sdk?.actions ? Object.keys(sdk.actions) : 'N/A'
+          quickAuthKeys: sdk?.quickAuth ? Object.keys(sdk.quickAuth) : 'N/A',
         });
         
         // SECURITY FIX: Use Quick Auth from Farcaster SDK
         // This returns a cryptographically signed JWT from Farcaster
+        // Try multiple possible API paths
+        let quickAuthToken = null;
+        
+        // Method 1: Try sdk.quickAuth.getToken()
         if (sdk?.quickAuth?.getToken) {
           try {
-            console.log('🔐 Attempting to call sdk.quickAuth.getToken()...');
-            const quickAuthResult = await sdk.quickAuth.getToken();
-            console.log('🔍 Quick Auth result:', quickAuthResult);
-            
-            const quickAuthToken = quickAuthResult?.token;
-            
-            if (quickAuthToken) {
-              console.log('✅ Quick Auth token obtained from Farcaster SDK');
-              
-              // Send to backend for verification
-              const response = await fetch('/api/auth/session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  farcasterToken: quickAuthToken
-                })
-              });
-              
-              const result = await response.json();
-              
-              if (result.success && result.token) {
-                console.log('✅ Session token obtained for Mini App user');
-                setSessionToken(result.token);
-                localStorage.setItem('fc_session_token', result.token);
-                return;
-              }
-            } else {
-              console.warn('⚠️ Quick Auth returned no token:', quickAuthResult);
-            }
-          } catch (quickAuthError) {
-            console.error('❌ Quick Auth error:', quickAuthError);
-            console.error('❌ Error stack:', quickAuthError?.stack);
+            console.log('🔐 Attempting Method 1: sdk.quickAuth.getToken()...');
+            const result = await sdk.quickAuth.getToken();
+            quickAuthToken = result?.token || result;
+            console.log('✅ Quick Auth Method 1 succeeded');
+          } catch (error) {
+            console.warn('⚠️ Quick Auth Method 1 failed:', error.message);
+          }
+        }
+        
+        // Method 2: Try sdk.actions.signIn()
+        if (!quickAuthToken && sdk?.actions?.signIn) {
+          try {
+            console.log('🔐 Attempting Method 2: sdk.actions.signIn()...');
+            const result = await sdk.actions.signIn();
+            quickAuthToken = result?.token || result;
+            console.log('✅ Quick Auth Method 2 succeeded');
+          } catch (error) {
+            console.warn('⚠️ Quick Auth Method 2 failed:', error.message);
+          }
+        }
+        
+        // Method 3: Try sdk.actions.getAuthToken()
+        if (!quickAuthToken && sdk?.actions?.getAuthToken) {
+          try {
+            console.log('🔐 Attempting Method 3: sdk.actions.getAuthToken()...');
+            const result = await sdk.actions.getAuthToken();
+            quickAuthToken = result?.token || result;
+            console.log('✅ Quick Auth Method 3 succeeded');
+          } catch (error) {
+            console.warn('⚠️ Quick Auth Method 3 failed:', error.message);
+          }
+        }
+        
+        // If we got a token, send it to backend
+        if (quickAuthToken) {
+          console.log('✅ Quick Auth token obtained from Farcaster SDK');
+          
+          // Send to backend for verification
+          const response = await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              farcasterToken: quickAuthToken
+            })
+          });
+          
+          const result = await response.json();
+          
+          if (result.success && result.token) {
+            console.log('✅ Session token obtained for Mini App user');
+            setSessionToken(result.token);
+            localStorage.setItem('fc_session_token', result.token);
+            return;
+          } else {
+            console.error('❌ Failed to get session token:', result.error);
           }
         } else {
-          console.warn('⚠️ sdk.quickAuth.getToken is NOT available on this SDK version');
+          console.warn('⚠️ No Quick Auth method available in SDK');
+          console.warn('⚠️ Available SDK structure:', {
+            sdkMethods: sdk ? Object.keys(sdk) : 'undefined',
+            actionsMethods: sdk?.actions ? Object.keys(sdk.actions) : 'undefined'
+          });
         }
         
         // FALLBACK (INSECURE): If Quick Auth not available, use legacy method
