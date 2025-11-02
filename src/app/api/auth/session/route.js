@@ -61,8 +61,10 @@ async function verifyFarcasterQuickAuth(token) {
     const payload = JSON.parse(
       Buffer.from(parts[1], 'base64url').toString('utf-8')
     );
-    console.log('🔍 JWT payload:', {
+    console.log('🔍 JWT payload (full):', JSON.stringify(payload, null, 2));
+    console.log('🔍 JWT payload (summary):', {
       fid: payload.fid,
+      sub: payload.sub,
       username: payload.username,
       iss: payload.iss,
       exp: payload.exp,
@@ -70,11 +72,15 @@ async function verifyFarcasterQuickAuth(token) {
       now: new Date().toISOString()
     });
     
-    // Verify required claims
-    if (!payload.fid) {
-      console.error('❌ No FID in token payload');
+    // Verify required claims - check both 'fid' and 'sub' (subject)
+    const fid = payload.fid || (payload.sub ? parseInt(payload.sub) : null);
+    
+    if (!fid) {
+      console.error('❌ No FID in token payload (checked both fid and sub claims)');
       return { valid: false, error: 'No FID in token' };
     }
+    
+    console.log('✅ FID extracted:', fid);
     
     // Check expiration
     if (payload.exp && Date.now() >= payload.exp * 1000) {
@@ -92,8 +98,8 @@ async function verifyFarcasterQuickAuth(token) {
     
     return {
       valid: true,
-      fid: payload.fid,
-      username: payload.username || null,
+      fid: fid,
+      username: payload.username || payload.preferred_username || null,
       expiresAt: payload.exp ? new Date(payload.exp * 1000) : null,
       warning: 'Signature not verified - structural validation only'
     };
