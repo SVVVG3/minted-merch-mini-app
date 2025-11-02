@@ -171,7 +171,10 @@ export async function shareCheckIn({ spinResult, userStatus, isInFarcaster = fal
       ? spinResult.pointsEarned * userStatus.tokenMultiplier
       : spinResult.pointsEarned);
 
-  const multipliedTotalPoints = userStatus?.totalPoints || spinResult.totalPoints;
+  // BUGFIX: Calculate UPDATED total points by adding today's earned points to the old total
+  // userStatus.totalPoints is the total BEFORE the spin, so we need to add the new points
+  const oldTotalPoints = userStatus?.totalPoints || 0;
+  const multipliedTotalPoints = oldTotalPoints + multipliedEarnedPoints;
 
   const shareParams = new URLSearchParams({
     checkin: 'true',
