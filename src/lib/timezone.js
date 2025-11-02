@@ -8,14 +8,25 @@
 // Time validation ensures notifications only send during the correct hour (8 AM local time)
 
 /**
- * Get the current time in PST/PDT timezone
- * @returns {Date} Current date/time in PST timezone
+ * Get Pacific timezone hour (0-23)
+ * @returns {number} Current hour in Pacific timezone
  */
-export function getCurrentPSTTime() {
-  // Get current UTC time
+function getPacificHour() {
   const now = new Date();
-  
-  // Use Intl.DateTimeFormat to get the time in Pacific timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    hour: 'numeric',
+    hour12: false
+  });
+  return parseInt(formatter.format(now));
+}
+
+/**
+ * Get Pacific timezone date components
+ * @returns {object} {year, month, day, hour, minute, second}
+ */
+function getPacificComponents() {
+  const now = new Date();
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Los_Angeles',
     year: 'numeric',
@@ -30,18 +41,24 @@ export function getCurrentPSTTime() {
   const parts = formatter.formatToParts(now);
   const getValue = (type) => parts.find(part => part.type === type)?.value;
   
-  // Create a new Date object in UTC that represents the Pacific time
-  // We use Date.UTC to create a timestamp, treating Pacific components as if they were UTC
-  const pacificTime = new Date(Date.UTC(
-    parseInt(getValue('year')),
-    parseInt(getValue('month')) - 1, // Month is 0-indexed
-    parseInt(getValue('day')),
-    parseInt(getValue('hour')),
-    parseInt(getValue('minute')),
-    parseInt(getValue('second'))
-  ));
-  
-  return pacificTime;
+  return {
+    year: parseInt(getValue('year')),
+    month: parseInt(getValue('month')) - 1, // 0-indexed
+    day: parseInt(getValue('day')),
+    hour: parseInt(getValue('hour')),
+    minute: parseInt(getValue('minute')),
+    second: parseInt(getValue('second'))
+  };
+}
+
+/**
+ * Get the current time in PST/PDT timezone
+ * @returns {Date} Current date/time (always returns actual current time)
+ */
+export function getCurrentPSTTime() {
+  // Just return current time - it's always UTC internally
+  // Use getPacificComponents() when you need Pacific timezone parts
+  return new Date();
 }
 
 /**
@@ -50,18 +67,18 @@ export function getCurrentPSTTime() {
  * @returns {string} Check-in day in YYYY-MM-DD format
  */
 export function getCurrentCheckInDay() {
-  const pstTime = getCurrentPSTTime();
-  const hour = pstTime.getHours();
+  const components = getPacificComponents();
   
   // If it's before 8 AM PST, use the previous day as the check-in day
-  if (hour < 8) {
-    const yesterday = new Date(pstTime);
-    yesterday.setDate(yesterday.getDate() - 1);
-    return yesterday.toISOString().split('T')[0];
+  if (components.hour < 8) {
+    const date = new Date(components.year, components.month, components.day);
+    date.setDate(date.getDate() - 1);
+    return date.toISOString().split('T')[0];
   }
   
   // If it's 8 AM PST or later, use the current day
-  return pstTime.toISOString().split('T')[0];
+  const date = new Date(components.year, components.month, components.day);
+  return date.toISOString().split('T')[0];
 }
 
 /**
@@ -69,15 +86,13 @@ export function getCurrentCheckInDay() {
  * @returns {Date} Next 8 AM PST as a Date object
  */
 export function getNext8AMPST() {
-  const pstTime = getCurrentPSTTime();
-  const hour = pstTime.getHours();
+  const components = getPacificComponents();
   
-  // Create next 8 AM PST
-  const next8AM = new Date(pstTime);
-  next8AM.setHours(8, 0, 0, 0);
+  // Create a date for today at 8 AM Pacific
+  const next8AM = new Date(components.year, components.month, components.day, 8, 0, 0, 0);
   
   // If it's already past 8 AM today, move to tomorrow
-  if (hour >= 8) {
+  if (components.hour >= 8) {
     next8AM.setDate(next8AM.getDate() + 1);
   }
   
@@ -178,11 +193,10 @@ export function formatPSTTime(date = getCurrentPSTTime()) {
 
 /**
  * Check if it's currently notification time (8 AM PST/PDT)
- * @returns {boolean} True if it's within 8:00-9:00 AM PST/PDT
+ * @returns {boolean} True if it's within 8:00-8:59 AM PST/PDT
  */
 export function isNotificationTime() {
-  const pstTime = getCurrentPSTTime();
-  const hour = pstTime.getHours();
+  const hour = getPacificHour();
   
   // Check if it's between 8:00 AM and 8:59 AM PST/PDT
   // This provides a 1-hour window for the cron job to execute
@@ -197,11 +211,10 @@ export function isNotificationTime() {
 
 /**
  * Check if it's currently evening notification time (8 PM PST/PDT)
- * @returns {boolean} True if it's within 8:00-9:00 PM PST/PDT
+ * @returns {boolean} True if it's within 8:00-8:59 PM PST/PDT
  */
 export function isEveningNotificationTime() {
-  const pstTime = getCurrentPSTTime();
-  const hour = pstTime.getHours();
+  const hour = getPacificHour();
   
   // Check if it's between 8:00 PM and 8:59 PM PST/PDT (20:00-20:59 in 24h format)
   // This provides a 1-hour window for the cron job to execute
