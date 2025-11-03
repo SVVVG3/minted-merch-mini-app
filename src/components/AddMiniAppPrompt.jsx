@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { sdk } from '@/lib/frame'; // Import the SDK instance used by useFarcaster
 import { haptics } from '@/lib/haptics';
 
 /**
@@ -19,11 +20,11 @@ export function AddMiniAppPrompt({ isOpen, onClose }) {
   const handleAddMiniApp = async () => {
     console.log('🔘 Add Mini App button clicked');
     console.log('  isReady:', isReady);
-    console.log('  window.sdk exists:', !!window.sdk);
-    console.log('  window.sdk.actions exists:', !!window.sdk?.actions);
-    console.log('  window.sdk.actions.addMiniApp exists:', !!window.sdk?.actions?.addMiniApp);
+    console.log('  sdk exists:', !!sdk);
+    console.log('  sdk.actions exists:', !!sdk?.actions);
+    console.log('  sdk.actions.addMiniApp exists:', !!sdk?.actions?.addMiniApp);
     
-    if (!isReady || !window.sdk) {
+    if (!isReady || !sdk) {
       console.error('❌ Farcaster SDK not ready!');
       setResult({ 
         success: false,
@@ -32,7 +33,7 @@ export function AddMiniAppPrompt({ isOpen, onClose }) {
       return;
     }
 
-    if (!window.sdk.actions?.addMiniApp) {
+    if (!sdk.actions?.addMiniApp) {
       console.error('❌ sdk.actions.addMiniApp not available!');
       setResult({ 
         success: false,
@@ -50,7 +51,7 @@ export function AddMiniAppPrompt({ isOpen, onClose }) {
       console.log('🎯 Attempting to add Mini App using sdk.actions.addMiniApp()...');
       
       // Use the official addMiniApp() method from Farcaster SDK
-      await window.sdk.actions.addMiniApp();
+      await sdk.actions.addMiniApp();
       
       console.log('✅ Add Mini App prompt shown to user');
       

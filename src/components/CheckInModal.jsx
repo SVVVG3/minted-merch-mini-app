@@ -9,7 +9,7 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
   const [isVisible, setIsVisible] = useState(false);
   const [showAddMiniAppPrompt, setShowAddMiniAppPrompt] = useState(false);
   const [hasNotifications, setHasNotifications] = useState(null); // null = unknown, will be checked when modal opens
-  const { user, getFid, isReady } = useFarcaster();
+  const { user, getFid, isReady, hasNotifications: checkSdkNotifications, context } = useFarcaster();
 
   useEffect(() => {
     if (isOpen) {
@@ -44,13 +44,27 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
     }
 
     console.log('🔍 Checking notification status for FID:', userFid);
-
+    
+    // PRIORITY 1: Check SDK context for notification details (most reliable)
+    const sdkHasNotifs = checkSdkNotifications();
+    console.log('📱 SDK notification status:', {
+      hasNotifications: sdkHasNotifs,
+      notificationDetails: context?.client?.notificationDetails || context?.notificationDetails
+    });
+    
+    if (sdkHasNotifs) {
+      console.log('✅ SDK confirms notifications are ENABLED - skipping prompt');
+      setHasNotifications(true);
+      return;
+    }
+    
+    // PRIORITY 2: Check database via API (backup check)
     try {
       const response = await fetch(`/api/update-notification-status?fid=${userFid}`);
       
       if (!response.ok) {
         console.error(`❌ API returned ${response.status}: ${response.statusText}`);
-        // If profile doesn't exist, assume no notifications
+        // SDK said no notifications, API failed, so assume no notifications
         setHasNotifications(false);
         return;
       }
@@ -78,8 +92,7 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
     } catch (error) {
       console.error('❌ Error checking notification status:', error);
       console.error('❌ Error details:', error.message);
-      // Default to false so users see the add mini app prompt
-      // Better to prompt users who might already have it than to miss new users
+      // SDK said no notifications, API errored, so assume no notifications
       setHasNotifications(false);
       console.log('⚠️ Set hasNotifications to false (will show prompt) due to error');
     }

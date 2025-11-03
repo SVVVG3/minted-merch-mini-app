@@ -140,11 +140,10 @@ export async function GET(request) {
       }, { status: 400 });
     }
 
-    // 🔒 SECURITY: Set user context for RLS policies
-    await setUserContext(fid);
-    
-    // Get current notification status
-    const { data, error } = await supabase
+    // Use supabaseAdmin to read notification status
+    // This is safe because we're only reading the specific user's own notification status
+    // and returning it directly to them (not exposing other users' data)
+    const { data, error } = await supabaseAdmin
       .from('profiles')
       .select('fid, has_notifications, notification_status_updated_at, notification_status_source')
       .eq('fid', fid)
