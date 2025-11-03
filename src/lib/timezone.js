@@ -82,6 +82,53 @@ export function getCurrentCheckInDay() {
 }
 
 /**
+ * Get the current 8 AM PST/PDT check-in period start time
+ * Returns the 8 AM Pacific time that started the current check-in day
+ * @returns {Date} Current check-in period's 8 AM Pacific as a UTC Date object
+ */
+export function getCurrent8AMPST() {
+  const now = new Date();
+  const components = getPacificComponents();
+  
+  // Determine which day's 8 AM we need
+  let targetDay = components.day;
+  let targetMonth = components.month;
+  let targetYear = components.year;
+  
+  if (components.hour < 8) {
+    // Before 8 AM Pacific, so current check-in period started yesterday at 8 AM
+    const yesterday = new Date(targetYear, targetMonth, targetDay - 1);
+    targetYear = yesterday.getFullYear();
+    targetMonth = yesterday.getMonth();
+    targetDay = yesterday.getDate();
+  }
+  // If >= 8 AM, current check-in period started today at 8 AM
+  
+  // Create a date at midnight on the target day in UTC
+  const targetDate = new Date(Date.UTC(targetYear, targetMonth, targetDay, 0, 0, 0));
+  
+  // Get what "midnight" on that day looks like in Pacific time
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  
+  // Calculate the offset between Pacific and UTC for that specific day
+  const parts = formatter.formatToParts(targetDate);
+  const pacificHourAtUTCMidnight = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+  
+  // Calculate how many hours to add to UTC midnight to get 8 AM Pacific
+  const hoursToAdd = (24 - pacificHourAtUTCMidnight + 8) % 24;
+  
+  const current8AM = new Date(targetDate);
+  current8AM.setUTCHours(hoursToAdd);
+  
+  return current8AM;
+}
+
+/**
  * Get the next 8 AM PST/PDT reset time
  * @returns {Date} Next 8 AM Pacific as a UTC Date object
  */

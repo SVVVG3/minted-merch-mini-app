@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { withAdminAuth } from '@/lib/adminAuth';
+import { formatPSTTime, getCurrent8AMPST } from '@/lib/timezone';
 
 // Use service role client to bypass RLS for admin endpoints
 const supabaseAdmin = createClient(
@@ -67,43 +68,13 @@ export const GET = withAdminAuth(async (request) => {
     }
 
     // Get check-ins today using proper 8 AM PST reset logic
-    const now = new Date();
-    
-    function getPSTDayStart() {
-      // Simple approach: Use month to determine DST
-      // DST in US: March-November (roughly)
-      const month = now.getMonth(); // 0-11
-      const isDST = month >= 2 && month <= 10; // March (2) through November (10)
-      
-      // Use correct offset: PDT = UTC-7, PST = UTC-8  
-      const pacificOffset = isDST ? 7 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
-      const pacificNow = new Date(now.getTime() - pacificOffset);
-      
-      const year = pacificNow.getUTCFullYear();
-      const month_utc = pacificNow.getUTCMonth();
-      const date = pacificNow.getUTCDate();
-      const hour = pacificNow.getUTCHours();
-      
-      let dayStart = new Date(Date.UTC(year, month_utc, date, 8, 0, 0, 0));
-      
-      if (hour < 8) {
-        dayStart = new Date(Date.UTC(year, month_utc, date - 1, 8, 0, 0, 0));
-      }
-      
-      const utcDayStart = new Date(dayStart.getTime() + pacificOffset);
-      return utcDayStart;
-    }
-
-    const todayPSTStart = getPSTDayStart();
+    // Uses the timezone utilities which properly handle DST transitions
+    const todayPSTStart = getCurrent8AMPST();
     
     console.log('🕐 Check-ins today calculation (8 AM Pacific reset):');
-    console.log('  Current UTC time:', now.toISOString());
+    console.log('  Current Pacific time:', formatPSTTime());
     console.log('  Today Pacific start (8 AM):', todayPSTStart.toISOString());
-    
-    // Show which timezone we're using
-    const month = now.getMonth();
-    const isDST = month >= 2 && month <= 10;
-    console.log('  Timezone:', isDST ? 'PDT (UTC-7)' : 'PST (UTC-8)', `(Month: ${month + 1})`);
+    console.log('  Using America/Los_Angeles timezone (automatic DST handling)');
 
     // Count only COMPLETED check-ins (not pending transactions)
     const { count: checkInsToday, error: checkInsError } = await supabaseAdmin
