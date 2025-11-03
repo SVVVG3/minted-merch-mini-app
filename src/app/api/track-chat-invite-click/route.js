@@ -61,8 +61,8 @@ export async function POST(request) {
 
       console.log(`💰 Adding user to chat_members with ${uniqueWallets.length} wallet addresses`);
 
-      // DON'T mark as is_active=true yet! User hasn't actually joined the group.
-      // Only track that they clicked the invite. Admin will manually verify and activate them.
+      // Automatically add user to chat_members and mark as active when they click the invite
+      // This tracks them in the admin dashboard Chat tab
       const { error: upsertError } = await supabaseAdmin
         .from('chat_members')
         .upsert({
@@ -72,17 +72,17 @@ export async function POST(request) {
           pfp_url: profile.pfp_url,
           wallet_addresses: uniqueWallets,
           added_at: new Date().toISOString(),
-          is_active: false, // NOT active until admin verifies they're actually in the group
+          is_active: true, // Mark as active when they click the invite
           removed_at: null
         }, {
           onConflict: 'fid',
-          ignoreDuplicates: true // Don't overwrite existing members who are already active
+          ignoreDuplicates: false // Update existing members if they click again
         });
 
       if (upsertError) {
-        console.error('❌ Error tracking invite click in chat members:', upsertError);
+        console.error('❌ Error adding user to chat members:', upsertError);
       } else {
-        console.log('✅ Tracked invite click - user marked as pending (not active yet)');
+        console.log('✅ Added user to chat members on invite click');
       }
     }
 
