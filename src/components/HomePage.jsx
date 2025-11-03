@@ -24,6 +24,11 @@ import { sdk } from '@farcaster/miniapp-sdk';
 // import { fetchUserWalletData } from '@/lib/walletUtils';
 
 export function HomePage({ collection: initialCollection, products: initialProducts }) {
+  // Debug render count
+  const renderCount = React.useRef(0);
+  renderCount.current += 1;
+  console.log(`🔄 HomePage render #${renderCount.current}`);
+  
   const { itemCount, cartTotal } = useCart();
   const { isInFarcaster, isReady, isLoading: isFarcasterLoading, getFid, getUsername, getDisplayName, getPfpUrl, user, context, hasNotifications, getNotificationDetails } = useFarcaster();
   const { isDgen, isChecking: isDgenChecking } = useDgenWallet(); // Auto-connect dGEN1 wallet

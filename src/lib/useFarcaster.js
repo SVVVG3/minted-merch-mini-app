@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { sdk } from './frame';
 import { useProfile, useSignIn } from '@farcaster/auth-kit';
 
@@ -287,6 +287,21 @@ export function useFarcaster() {
     }
   }, [isInFarcaster, sessionToken]);
 
+  // Memoize callback functions to prevent unnecessary re-renders
+  const getFid = useCallback(() => user?.fid, [user?.fid]);
+  const getUsername = useCallback(() => user?.username, [user?.username]);
+  const getDisplayName = useCallback(() => user?.displayName, [user?.displayName]);
+  const getPfpUrl = useCallback(() => user?.pfpUrl, [user?.pfpUrl]);
+  const getSessionToken = useCallback(() => sessionToken, [sessionToken]);
+  const hasNotifications = useCallback(
+    () => !!(context?.client?.notificationDetails || context?.notificationDetails),
+    [context?.client?.notificationDetails, context?.notificationDetails]
+  );
+  const getNotificationDetails = useCallback(
+    () => context?.client?.notificationDetails || context?.notificationDetails,
+    [context?.client?.notificationDetails, context?.notificationDetails]
+  );
+
   return {
     context,
     user,
@@ -294,15 +309,14 @@ export function useFarcaster() {
     isInFarcaster,
     isReady,
     isAuthKit: user?.isAuthKit || false,
-    sessionToken, // PHASE 2: Expose session token
-    // Helper functions
-    getFid: () => user?.fid,
-    getUsername: () => user?.username,
-    getDisplayName: () => user?.displayName,
-    getPfpUrl: () => user?.pfpUrl,
-    getSessionToken: () => sessionToken, // PHASE 2: Helper to get token
-    // Notification helpers (only available in mini app, not AuthKit)
-    hasNotifications: () => !!(context?.client?.notificationDetails || context?.notificationDetails),
-    getNotificationDetails: () => context?.client?.notificationDetails || context?.notificationDetails,
+    sessionToken,
+    // Memoized helper functions
+    getFid,
+    getUsername,
+    getDisplayName,
+    getPfpUrl,
+    getSessionToken,
+    hasNotifications,
+    getNotificationDetails,
   };
 } 
