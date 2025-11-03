@@ -17,8 +17,27 @@ export function AddMiniAppPrompt({ isOpen, onClose }) {
   const isInMiniApp = user && !user.isAuthKit;
 
   const handleAddMiniApp = async () => {
+    console.log('🔘 Add Mini App button clicked');
+    console.log('  isReady:', isReady);
+    console.log('  window.sdk exists:', !!window.sdk);
+    console.log('  window.sdk.actions exists:', !!window.sdk?.actions);
+    console.log('  window.sdk.actions.addMiniApp exists:', !!window.sdk?.actions?.addMiniApp);
+    
     if (!isReady || !window.sdk) {
-      console.warn('Farcaster SDK not ready');
+      console.error('❌ Farcaster SDK not ready!');
+      setResult({ 
+        success: false,
+        message: 'App not ready. Please close and reopen the Mini App.' 
+      });
+      return;
+    }
+
+    if (!window.sdk.actions?.addMiniApp) {
+      console.error('❌ sdk.actions.addMiniApp not available!');
+      setResult({ 
+        success: false,
+        message: 'This feature is not available in your client. Please update Warpcast.' 
+      });
       return;
     }
 

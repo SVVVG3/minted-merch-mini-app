@@ -47,21 +47,37 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
 
     try {
       const response = await fetch(`/api/update-notification-status?fid=${userFid}`);
+      
+      if (!response.ok) {
+        console.error(`❌ API returned ${response.status}: ${response.statusText}`);
+        // If profile doesn't exist, assume no notifications
+        setHasNotifications(false);
+        return;
+      }
+      
       const data = await response.json();
       
-      console.log('📊 Notification status API response:', data);
+      console.log('📊 Notification status API response:', {
+        success: data.success,
+        notificationsEnabled: data.notificationsEnabled,
+        source: data.source,
+        fid: data.fid
+      });
       
       if (data.success) {
-        setHasNotifications(data.notificationsEnabled || false);
-        console.log('📊 User notification status set to:', data.notificationsEnabled ? 'Enabled ✅' : 'Disabled ❌');
+        const hasNotifs = data.notificationsEnabled === true;
+        setHasNotifications(hasNotifs);
+        console.log(`📊 User notification status set to: ${hasNotifs} (${hasNotifs ? 'Enabled ✅' : 'Disabled ❌'})`);
         console.log('📊 Source:', data.source);
+        console.log(`🎯 Will ${hasNotifs ? 'NOT' : ''} show Add Mini App prompt`);
       } else {
-        console.warn('⚠️ API returned success: false, defaulting to false to show prompt');
-        // Default to false so new users see the add mini app prompt
+        console.warn('⚠️ API returned success: false');
+        console.log('⚠️ Defaulting to false (will show prompt)');
         setHasNotifications(false);
       }
     } catch (error) {
       console.error('❌ Error checking notification status:', error);
+      console.error('❌ Error details:', error.message);
       // Default to false so users see the add mini app prompt
       // Better to prompt users who might already have it than to miss new users
       setHasNotifications(false);
