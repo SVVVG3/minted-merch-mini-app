@@ -51,7 +51,9 @@ export async function POST(request) {
       fid, // User's Farcaster ID for notifications
       appliedDiscount, // Discount information
       discountAmount, // Discount amount
-      giftCards = [] // Gift card information array
+      giftCards = [], // Gift card information array
+      paymentMethod, // Payment method used (e.g., 'daimo', 'walletconnect')
+      paymentMetadata // Additional payment metadata (e.g., daimoPaymentId)
     } = body;
 
     // Convert FID to integer to ensure proper database type matching
@@ -79,6 +81,9 @@ export async function POST(request) {
       hasGiftCards: !!giftCards,
       giftCardsLength: giftCards?.length,
       giftCardsData: giftCards,
+      paymentMethod: paymentMethod,
+      hasPaymentMetadata: !!paymentMetadata,
+      daimoPaymentId: paymentMetadata?.daimoPaymentId,
       timestamp: new Date().toISOString(),
       requestId: requestId
     });
@@ -491,10 +496,14 @@ export async function POST(request) {
               imageUrl: productImageUrl // Store the product image URL!
             };
           }),
-          paymentMethod: 'USDC',
+          paymentMethod: paymentMethod || 'USDC', // Store actual payment method used
           paymentStatus: 'completed',
           paymentIntentId: transactionHash,
-          giftCards: serverTotals.validatedGiftCards || giftCards || [] // Include validated gift card data
+          giftCards: serverTotals.validatedGiftCards || giftCards || [], // Include validated gift card data
+          // Daimo-specific fields
+          daimoPaymentId: paymentMetadata?.daimoPaymentId || null,
+          daimoSourceChain: paymentMetadata?.sourceChain || null,
+          daimoSourceToken: paymentMetadata?.sourceToken || null,
         };
 
         console.log(`💾 [${requestId}] Creating Supabase order (attempt ${supabaseAttempts}):`, {

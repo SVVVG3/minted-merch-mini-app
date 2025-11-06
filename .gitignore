@@ -64,6 +64,10 @@ docs/ADMIN_SECURITY_SETUP.md
 **/audit-*.md
 .cursor/*.md
 
+# Daimo Pay documentation (keep private)
+DAIMO_SECURITY.md
+DAIMO_PAY_INTEGRATION.md
+
 # Internal debugging and incident analysis (keep private)
 *ROOT_CAUSE*.md
 *INCIDENT*.md
