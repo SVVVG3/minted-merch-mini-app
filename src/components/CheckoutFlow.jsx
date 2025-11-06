@@ -969,14 +969,16 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       if (result.success) {
         console.log('✅ Daimo order created successfully:', result);
         
-        // Set order details and transition to success screen
+        // Set order details FIRST
         setOrderDetails(result.order);
         
-        // Small delay to allow Daimo modal to close before showing our success screen
+        // Transition to success screen immediately (don't wait for modal)
+        setCheckoutStep('success');
+        
+        // Clear cart AFTER a delay to avoid re-render issues
         setTimeout(() => {
-          setCheckoutStep('success');
           clearCart();
-        }, 500);
+        }, 1000);
       } else {
         throw new Error(result.message || 'Order creation failed');
       }
