@@ -18,7 +18,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 /**
  * Verify webhook signature from Daimo
- * Daimo uses Basic Auth: Authorization: Basic <base64(webhook_secret)>
+ * Daimo uses token-based auth: Authorization: Basic <token>
+ * The token is provided when creating the webhook
  */
 function verifyWebhookSignature(request) {
   const authHeader = request.headers.get('authorization');
@@ -29,22 +30,24 @@ function verifyWebhookSignature(request) {
   }
 
   // Extract the token from "Basic <token>"
-  const token = authHeader.replace('Basic ', '');
+  const receivedToken = authHeader.replace('Basic ', '');
   
-  // Get expected webhook secret from environment
-  const expectedSecret = process.env.DAIMO_WEBHOOK_SECRET;
+  // Get expected webhook token from environment
+  const expectedToken = process.env.DAIMO_WEBHOOK_SECRET;
   
-  if (!expectedSecret) {
+  if (!expectedToken) {
     console.error('❌ DAIMO_WEBHOOK_SECRET not configured in environment');
     return false;
   }
 
-  // Daimo sends the secret as-is in Basic Auth
-  // Compare the received token with our stored secret
-  const isValid = token === Buffer.from(expectedSecret).toString('base64');
+  // Daimo sends the token directly (not base64 encoded)
+  // Compare the received token with our stored token
+  const isValid = receivedToken === expectedToken;
   
   if (!isValid) {
     console.log('❌ Webhook signature verification failed');
+    console.log('   Received token length:', receivedToken.length);
+    console.log('   Expected token length:', expectedToken.length);
   }
   
   return isValid;
@@ -61,9 +64,9 @@ async function logWebhookEvent(event) {
         source: 'daimo',
         event_type: event.type,
         payment_id: event.paymentId,
-        external_id: event.externalId,
+        external_id: event.payment?.externalId || null,
         tx_hash: event.txHash,
-        chain_id: event.chainId,
+        chain_id: event.chainId ? String(event.chainId) : null,
         raw_payload: event,
         processed_at: new Date().toISOString()
       });
@@ -85,120 +88,193 @@ export async function POST(request) {
     }
 
     const event = await request.json();
-    console.log('📩 Daimo webhook received (verified):', event);
+    
+    // Check if this is a test event
+    const isTestEvent = event.isTestEvent === true;
+    if (isTestEvent) {
+      console.log('🧪 Daimo TEST webhook received (verified):', event.type);
+    } else {
+      console.log('📩 Daimo webhook received (verified):', event.type, event.paymentId);
+    }
 
-    // Log for audit trail
+    // Log for audit trail (even test events)
     await logWebhookEvent(event);
 
+    // Skip processing for test events (just acknowledge receipt)
+    if (isTestEvent) {
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Test webhook received',
+        eventType: event.type
+      });
+    }
+
+    // Extract common fields from the webhook payload
+    const { type, paymentId, chainId, txHash, payment } = event;
+    const externalId = payment?.externalId || null;
+    const metadata = payment?.metadata || {};
+
     // Handle different event types
-    switch (event.type) {
+    switch (type) {
       case 'payment_started':
         console.log('💰 Payment started:', {
-          paymentId: event.paymentId,
-          externalId: event.externalId,
-          chainId: event.chainId,
-          txHash: event.txHash
+          paymentId,
+          externalId,
+          chainId,
+          txHash,
+          sourceChain: payment?.source?.chainId,
+          sourceToken: payment?.source?.tokenSymbol,
+          payerAddress: payment?.source?.payerAddress
         });
         
         // Payment has been initiated on-chain
-        // We could update UI to show "processing" but order isn't created until completion
+        // Order will be created when payment_completed fires
         
         break;
 
       case 'payment_completed':
         console.log('✅ Payment completed (webhook):', {
-          paymentId: event.paymentId,
-          externalId: event.externalId,
-          txHash: event.txHash,
-          chainId: event.chainId
+          paymentId,
+          externalId,
+          txHash,
+          destinationChainId: chainId,
+          sourceChainId: payment?.source?.chainId,
+          amount: payment?.display?.paymentValue,
+          destinationTxHash: payment?.destination?.txHash
         });
         
         // IMPORTANT: Payment is confirmed on-chain
         // The order should already be created by the client-side callback
         // This webhook serves as a backup verification and audit trail
         
-        // Verify the order exists in our database
-        const { data: existingOrder, error: orderError } = await supabaseAdmin
+        // Try to find the order by paymentId, txHash, or externalId
+        let query = supabaseAdmin
           .from('orders')
-          .select('id, shopify_order_id, payment_status')
-          .eq('daimo_payment_id', event.paymentId)
-          .or(`transaction_hash.eq.${event.txHash},shopify_order_name.eq.${event.externalId}`)
-          .single();
+          .select('id, orderId, payment_status, daimo_payment_id, transaction_hash');
 
-        if (orderError && orderError.code !== 'PGRST116') {
-          console.error('Error checking order:', orderError);
+        // Build OR query to find order
+        const conditions = [];
+        if (paymentId) conditions.push(`daimo_payment_id.eq.${paymentId}`);
+        if (txHash) conditions.push(`transaction_hash.eq.${txHash}`);
+        if (payment?.source?.txHash) conditions.push(`transaction_hash.eq.${payment.source.txHash}`);
+        if (externalId) conditions.push(`orderId.eq.${externalId}`);
+        
+        if (conditions.length > 0) {
+          query = query.or(conditions.join(','));
+        } else {
+          console.warn('⚠️ No identifiers to search for order');
+          break;
+        }
+
+        const { data: existingOrder, error: orderError } = await query.maybeSingle();
+
+        if (orderError) {
+          console.error('❌ Error checking order:', orderError);
         }
 
         if (existingOrder) {
-          console.log('✅ Order already exists:', existingOrder.shopify_order_id);
+          console.log('✅ Order found:', existingOrder.orderId);
           
-          // Update payment status if needed
-          if (existingOrder.payment_status !== 'paid') {
-            await supabaseAdmin
-              .from('orders')
-              .update({
-                payment_status: 'paid',
-                payment_verified_at: new Date().toISOString(),
-                payment_verification_source: 'webhook'
-              })
-              .eq('id', existingOrder.id);
-            
-            console.log('✅ Updated payment status to verified');
+          // Update payment verification status
+          const updateData = {
+            payment_verified_at: new Date().toISOString(),
+            payment_verification_source: 'webhook'
+          };
+          
+          // Add Daimo payment ID if not already set
+          if (!existingOrder.daimo_payment_id && paymentId) {
+            updateData.daimo_payment_id = paymentId;
           }
+          
+          // Update transaction hash if not already set (use destination tx)
+          if (!existingOrder.transaction_hash && payment?.destination?.txHash) {
+            updateData.transaction_hash = payment.destination.txHash;
+          }
+          
+          await supabaseAdmin
+            .from('orders')
+            .update(updateData)
+            .eq('id', existingOrder.id);
+            
+          console.log('✅ Updated payment verification status');
         } else {
-          console.warn('⚠️ Payment completed but no order found. This might indicate the client-side order creation failed.');
+          console.warn('⚠️ Payment completed but no order found in database');
+          console.warn('   This might indicate the client-side order creation failed');
           console.warn('   Order should be created via /api/shopify/orders when onPaymentCompleted fires');
-          console.warn('   Webhook serves as backup verification, not primary order creation');
+          console.warn('   Identifiers:', { paymentId, txHash, externalId, sourceTxHash: payment?.source?.txHash });
         }
         
         break;
 
       case 'payment_bounced':
         console.log('⚠️ Payment bounced:', {
-          paymentId: event.paymentId,
-          externalId: event.externalId,
-          txHash: event.txHash,
-          reason: event.reason || 'Contract call reverted'
+          paymentId,
+          externalId,
+          txHash,
+          chainId
         });
         
         // Payment was sent but destination call failed
         // Funds are automatically refunded by Daimo
-        // Mark any pending order as failed
+        // Mark any order as failed
         
-        await supabaseAdmin
+        const { data: bouncedOrder } = await supabaseAdmin
           .from('orders')
-          .update({
-            payment_status: 'failed',
-            payment_failure_reason: event.reason || 'Payment bounced - funds refunded',
-            updated_at: new Date().toISOString()
-          })
-          .eq('daimo_payment_id', event.paymentId);
+          .select('id, orderId')
+          .eq('daimo_payment_id', paymentId)
+          .maybeSingle();
+        
+        if (bouncedOrder) {
+          await supabaseAdmin
+            .from('orders')
+            .update({
+              payment_status: 'failed',
+              payment_failure_reason: 'Payment bounced - contract call reverted, funds refunded',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', bouncedOrder.id);
+          
+          console.log('✅ Marked order as failed:', bouncedOrder.orderId);
+        }
         
         break;
 
       case 'payment_refunded':
         console.log('💸 Payment refunded:', {
-          paymentId: event.paymentId,
-          externalId: event.externalId,
-          refundTxHash: event.txHash
+          paymentId,
+          refundAddress: event.refundAddress,
+          chainId: event.chainId,
+          tokenAddress: event.tokenAddress,
+          amountUnits: event.amountUnits,
+          txHash: event.txHash
         });
         
         // A refund was sent (due to bounce, overpayment, etc.)
         // Update order status
         
-        await supabaseAdmin
+        const { data: refundedOrder } = await supabaseAdmin
           .from('orders')
-          .update({
-            payment_status: 'refunded',
-            refund_tx_hash: event.txHash,
-            refunded_at: new Date().toISOString()
-          })
-          .eq('daimo_payment_id', event.paymentId);
+          .select('id, orderId')
+          .eq('daimo_payment_id', paymentId)
+          .maybeSingle();
+        
+        if (refundedOrder) {
+          await supabaseAdmin
+            .from('orders')
+            .update({
+              payment_status: 'refunded',
+              refund_tx_hash: event.txHash,
+              refunded_at: new Date().toISOString()
+            })
+            .eq('id', refundedOrder.id);
+          
+          console.log('✅ Marked order as refunded:', refundedOrder.orderId);
+        }
         
         break;
 
       default:
-        console.log('⚠️ Unknown Daimo webhook event type:', event.type);
+        console.log('⚠️ Unknown Daimo webhook event type:', type);
     }
 
     // Always return 200 OK to acknowledge receipt
