@@ -11,15 +11,15 @@ export function Providers({ children }) {
   return (
     <AuthKitProvider>
       <WagmiProvider>
-        <DaimoPayProvider>
-          <BaseAccountProvider>
-            <WalletConnectProvider>
+        <BaseAccountProvider>
+          <WalletConnectProvider>
+            <DaimoPayProvider>
               <CartProvider>
                 {children}
               </CartProvider>
-            </WalletConnectProvider>
-          </BaseAccountProvider>
-        </DaimoPayProvider>
+            </DaimoPayProvider>
+          </WalletConnectProvider>
+        </BaseAccountProvider>
       </WagmiProvider>
     </AuthKitProvider>
   );
