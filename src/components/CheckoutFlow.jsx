@@ -54,6 +54,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const daimoPaymentInitiated = useRef(false);
   const [daimoOrderId, setDaimoOrderId] = useState(`order-${Date.now()}`);
   const lastCartFingerprint = useRef(null); // Track last fingerprint to prevent excessive resets
+  const lastDaimoAmount = useRef(null); // Track last amount sent to Daimo to prevent duplicate updates
 
   // Helper function to detect if cart contains only digital products
   const isDigitalOnlyCart = () => {
@@ -323,6 +324,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       // Reset all flags and state for fresh checkout
       daimoPaymentInitiated.current = false;
       processedDaimoTxHashes.current = new Set();
+      lastDaimoAmount.current = null; // Reset to allow shipping update to fire
       
       // CRITICAL: Use Daimo's official resetPayment API to clear cached state
       // This fixes the bug where clearing cart + adding new item would show old price
@@ -350,11 +352,20 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     // Only update if we have shipping info and Daimo is available
     if (cart.selectedShipping && cart.checkout && resetDaimoPayment && daimoOrderId) {
       const finalTotal = calculateFinalTotal();
+      const finalTotalString = finalTotal.toFixed(2);
+      
+      // CRITICAL FIX: Only update if amount actually changed
+      // This prevents infinite loop from cart.checkout triggering repeatedly
+      if (lastDaimoAmount.current === finalTotalString) {
+        return; // Amount hasn't changed, skip update
+      }
+      
+      lastDaimoAmount.current = finalTotalString;
+      
       resetDaimoPayment({
-        toUnits: finalTotal.toFixed(2),
+        toUnits: finalTotalString,
       });
-      // Reduced logging to prevent console spam
-      console.log('💰 Updated Daimo with final total:', '$' + finalTotal.toFixed(2));
+      console.log('💰 Updated Daimo with final total:', '$' + finalTotalString);
     }
   }, [cart.selectedShipping, cart.checkout, resetDaimoPayment, daimoOrderId]);
 
