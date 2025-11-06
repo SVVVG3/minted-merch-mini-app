@@ -2147,6 +2147,7 @@ Transaction Hash: ${transactionHash}`;
                   )}
 
                   <DaimoPayButton
+                    key={daimoOrderId} // Force remount with fresh state for each order
                     amount={calculateFinalTotal()}
                     orderId={daimoOrderId}
                     onPaymentStarted={handleDaimoPaymentStarted}
