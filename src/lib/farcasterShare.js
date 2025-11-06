@@ -215,7 +215,7 @@ export async function shareCheckIn({ spinResult, userStatus, isInFarcaster = fal
  */
 export async function shareProduct({ productHandle, productTitle, isInFarcaster = false }) {
   const productUrl = `${window.location.origin}/product/${productHandle}`;
-  const shareText = `Check out this product on @mintedmerch: ${productTitle}\n\nShop onchain with USDC on @mintedmerch`;
+  const shareText = `Check out this ${productTitle} on @mintedmerch\n\nShop using 1200+ tokens across 20+ chains\n\n$mintedmerch - Where Tokens Meet Merch`;
 
   return shareToFarcaster({
     text: shareText,
@@ -228,12 +228,13 @@ export async function shareProduct({ productHandle, productTitle, isInFarcaster 
  * Share collection to Farcaster
  * @param {Object} options - Share options
  * @param {string} options.collectionHandle - Collection handle
+ * @param {string} options.collectionName - Collection display name
  * @param {boolean} [options.isInFarcaster] - Whether user is in mini app
  * @returns {Promise<boolean>}
  */
-export async function shareCollection({ collectionHandle, isInFarcaster = false }) {
+export async function shareCollection({ collectionHandle, collectionName, isInFarcaster = false }) {
   const collectionUrl = `${window.location.origin}/?collection=${collectionHandle}`;
-  const shareText = `Check out the latest collection on @mintedmerch!\n\nShop onchain with USDC on @mintedmerch`;
+  const shareText = `Check out the ${collectionName} collection on @mintedmerch!\n\nShop using 1200+ tokens across 20+ chains\n\n$mintedmerch - Where Tokens Meet Merch`;
 
   return shareToFarcaster({
     text: shareText,

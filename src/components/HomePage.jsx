@@ -96,6 +96,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       // Use the new utility function to handle sharing (works in both mini-app and non-mini-app)
       await shareCollection({
         collectionHandle: selectedCollection.handle,
+        collectionName: selectedCollection.title,
         isInFarcaster,
       });
     } catch (error) {
