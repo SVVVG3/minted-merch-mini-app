@@ -968,9 +968,15 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       
       if (result.success) {
         console.log('✅ Daimo order created successfully:', result);
+        
+        // Set order details and transition to success screen
         setOrderDetails(result.order);
-        setCheckoutStep('success');
-        clearCart();
+        
+        // Small delay to allow Daimo modal to close before showing our success screen
+        setTimeout(() => {
+          setCheckoutStep('success');
+          clearCart();
+        }, 500);
       } else {
         throw new Error(result.message || 'Order creation failed');
       }
