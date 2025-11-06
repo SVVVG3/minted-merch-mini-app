@@ -1769,6 +1769,29 @@ Transaction Hash: ${transactionHash}`;
                     </div>
                   )}
 
+                  {/* Order Summary */}
+                  <div className="space-y-2 border-t pt-4">
+                    <h3 className="font-medium">Order Summary</h3>
+                    {(Array.isArray(cart.items) ? cart.items : []).map((item) => (
+                      <div key={item.key} className="flex justify-between text-sm">
+                        <span>{item.product?.title || item.title} {item.variant?.title && item.variant.title !== 'Default Title' && `(${item.variant.title})`} × {item.quantity}</span>
+                        <span>${(item.price * item.quantity).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Subtotal</span>
+                        <span>${cartSubtotal.toFixed(2)}</span>
+                      </div>
+                      {appliedDiscount && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Discount ({appliedDiscount.discountValue}%)</span>
+                          <span>-${calculateProductAwareDiscountAmount().toFixed(2)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Shipping Methods */}
                   <div>
                     {cart.checkout?.shippingRates && cart.checkout.shippingRates.length > 0 ? (
