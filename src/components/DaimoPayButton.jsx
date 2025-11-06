@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { DaimoPayButton as DaimoButton } from '@daimo/pay';
 import { MERCHANT_WALLET_ADDRESS, USDC_CONTRACT_ADDRESS } from '@/lib/wagmi';
+import { getAddress } from 'viem';
 
 /**
  * Daimo Pay Button Component
@@ -29,42 +30,16 @@ export function DaimoPayButton({
   disabled = false,
   className = ''
 }) {
-  const [DaimoButton, setDaimoButton] = useState(null);
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-    
-    // Dynamically import Daimo Pay button only on client-side
-    import('@daimo/pay').then((module) => {
-      setDaimoButton(() => module.DaimoPayButton);
-    }).catch((error) => {
-      console.error('Failed to load Daimo Pay button:', error);
-    });
-  }, []);
-
   // Use demo appId for now (works on mainnet and testnets)
   const appId = process.env.NEXT_PUBLIC_DAIMO_APP_ID || 'pay-demo';
-
-  // During SSR or before button loads, show loading state
-  if (!isClient || !DaimoButton) {
-    return (
-      <button
-        disabled
-        className={className || "w-full bg-gray-400 text-white font-medium py-3 px-4 rounded-lg cursor-not-allowed"}
-      >
-        Loading payment options...
-      </button>
-    );
-  }
 
   return (
     <DaimoButton
       appId={appId}
-      toAddress={MERCHANT_WALLET_ADDRESS}
+      toAddress={getAddress(MERCHANT_WALLET_ADDRESS)}
       toChain={8453} // Base mainnet
       toUnits={amount.toFixed(2)} // Format as "10.50"
-      toToken={USDC_CONTRACT_ADDRESS}
+      toToken={getAddress(USDC_CONTRACT_ADDRESS)}
       intent="Purchase Merch"
       externalId={orderId}
       metadata={metadata}
