@@ -1778,7 +1778,7 @@ Transaction Hash: ${transactionHash}`;
                         <span>${(item.price * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
-                    <div className="border-t pt-2">
+                    <div className="border-t pt-2 space-y-1">
                       <div className="flex justify-between text-sm">
                         <span>Subtotal</span>
                         <span>${cartSubtotal.toFixed(2)}</span>
@@ -1788,6 +1788,36 @@ Transaction Hash: ${transactionHash}`;
                           <span>Discount ({appliedDiscount.discountValue}%)</span>
                           <span>-${calculateProductAwareDiscountAmount().toFixed(2)}</span>
                         </div>
+                      )}
+                      
+                      {/* Show shipping, taxes, and total once shipping is selected */}
+                      {cart.selectedShipping && cart.checkout && (
+                        <>
+                          {appliedGiftCard && (
+                            <div className="flex justify-between text-sm text-green-600">
+                              <span>Gift Card (${(typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance)).toFixed(2)} balance)</span>
+                              <span>-${calculateGiftCardDiscount().toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-sm">
+                            <span>Shipping ({cart.selectedShipping.title})</span>
+                            <span>
+                              {cart.selectedShipping.price.amount === 0 || appliedDiscount?.freeShipping ? (
+                                <span className="text-green-600 font-medium">FREE</span>
+                              ) : (
+                                `$${cart.selectedShipping.price.amount.toFixed(2)}`
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Taxes</span>
+                            <span>${calculateAdjustedTax().toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between font-medium text-lg border-t pt-2 mt-2">
+                            <span>Total</span>
+                            <span>${calculateFinalTotal().toFixed(2)} USDC</span>
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>
@@ -1840,68 +1870,6 @@ Transaction Hash: ${transactionHash}`;
                         </ul>
                         <div className="text-orange-700 text-xs">
                           Please try a different address or contact support for assistance.
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Total with Selected Shipping */}
-                    {cart.selectedShipping && cart.checkout && (
-                      <div className="border-t pt-3">
-                        <div className="space-y-1">
-                          {appliedGiftCard && (
-                            <div className="flex justify-between text-sm text-green-600">
-                              <span>Gift Card (${(typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance)).toFixed(2)} balance)</span>
-                              <span>-${calculateGiftCardDiscount().toFixed(2)}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between text-sm">
-                            <span>Shipping ({cart.selectedShipping.title})</span>
-                            <span>
-                              {cart.selectedShipping.price.amount === 0 || appliedDiscount?.freeShipping ? (
-                                <span className="text-green-600 font-medium">FREE</span>
-                              ) : (
-                                `$${cart.selectedShipping.price.amount.toFixed(2)}`
-                              )}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>Taxes</span>
-                            <span>${calculateAdjustedTax().toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between font-medium text-lg border-t pt-1">
-                            <span>Total</span>
-                            <span>
-                              ${(() => {
-                                // Safe access to checkout data
-                                if (!cart.checkout || !cart.checkout.subtotal) {
-                                  return cartTotal.toFixed(2);
-                                }
-                                
-                                const subtotal = cart.checkout.subtotal.amount;
-                                const discount = calculateProductAwareDiscountAmount();
-                                const giftCardDiscount = calculateGiftCardDiscount();
-                                let shipping = cart.selectedShipping.price.amount;
-                                
-                                // Override shipping to 0 if discount includes free shipping
-                                if (appliedDiscount?.freeShipping) {
-                                  shipping = 0;
-                                }
-                                
-                                const discountedSubtotal = subtotal - discount - giftCardDiscount;
-                                const adjustedTax = calculateAdjustedTax();
-                                let finalTotal = Math.max(0, discountedSubtotal + shipping + adjustedTax);
-                                
-                // MINIMUM CHARGE: If total would be $0.00, charge $0.10 for payment processing
-                // (Daimo Pay minimum is $0.10)
-                const isCartFree = cartTotal <= 0.10;
-                if (finalTotal <= 0.10 && (isCartFree || giftCardDiscount > 0)) {
-                  finalTotal = 0.10;
-                }
-                                
-                                return finalTotal.toFixed(2);
-                              })()} USDC
-                            </span>
-                          </div>
                         </div>
                       </div>
                     )}
