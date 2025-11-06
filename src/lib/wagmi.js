@@ -1,10 +1,36 @@
 import { http, createConfig } from 'wagmi'
-import { base } from 'wagmi/chains'
+import { 
+  base, 
+  mainnet, 
+  arbitrum, 
+  optimism, 
+  polygon, 
+  bsc, 
+  celo, 
+  linea, 
+  scroll, 
+  worldchain 
+} from 'wagmi/chains'
 import { farcasterMiniApp as miniAppConnector } from '@farcaster/miniapp-wagmi-connector'
 import { injected } from 'wagmi/connectors'
 
 // Wagmi configuration for Farcaster Mini App
 // Base Account is handled via SDK directly, not through Wagmi
+
+// All chains required by Daimo Pay for cross-chain payments
+const chains = [
+  base,        // Base (primary - where we receive USDC)
+  mainnet,     // Ethereum Mainnet
+  arbitrum,    // Arbitrum One
+  optimism,    // OP Mainnet
+  polygon,     // Polygon
+  bsc,         // BNB Smart Chain
+  celo,        // Celo
+  linea,       // Linea Mainnet
+  scroll,      // Scroll
+  worldchain   // World Chain
+]
+
 const connectors = [
   // Farcaster Mini App connector for Farcaster app users
   miniAppConnector(),
@@ -17,9 +43,19 @@ const connectors = [
 ]
 
 export const config = createConfig({
-  chains: [base],
+  chains,
   transports: {
+    // Configure HTTP transport for each chain
     [base.id]: http(),
+    [mainnet.id]: http(),
+    [arbitrum.id]: http(),
+    [optimism.id]: http(),
+    [polygon.id]: http(),
+    [bsc.id]: http(),
+    [celo.id]: http(),
+    [linea.id]: http(),
+    [scroll.id]: http(),
+    [worldchain.id]: http(),
   },
   connectors
 })
