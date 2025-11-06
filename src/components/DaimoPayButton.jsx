@@ -31,15 +31,6 @@ export function DaimoPayButton({
   // Use demo appId for prototyping (as recommended by Daimo docs)
   const appId = process.env.NEXT_PUBLIC_DAIMO_APP_ID || 'pay-demo';
   
-  // 🔍 DEBUG: Log the actual appId being used
-  console.log('🔍 DAIMO APP ID DEBUG:', {
-    appId,
-    envVar: process.env.NEXT_PUBLIC_DAIMO_APP_ID,
-    isDefined: !!process.env.NEXT_PUBLIC_DAIMO_APP_ID,
-    orderId,
-    amount
-  });
-  
   // Get resetPayment to update amount before showing modal
   const { resetPayment } = useDaimoPayUI();
 
