@@ -2107,9 +2107,9 @@ Transaction Hash: ${transactionHash}`;
                       onPaymentStarted={handleDaimoPaymentStarted}
                       onPaymentCompleted={handleDaimoPaymentCompleted}
                       metadata={{
-                        fid: getFid(),
+                        fid: String(getFid() || ''),
                         items: cart.items.map(i => i.product?.title || i.title).join(', '),
-                        email: shippingData.email
+                        email: shippingData.email || ''
                       }}
                       disabled={!cart.checkout || isDaimoProcessing}
                       className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-all shadow-md hover:shadow-lg"
