@@ -285,10 +285,11 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     }
   }, [checkoutData, addItem]);
   
-  // Reset Daimo payment state when starting a new checkout session
+  // Reset Daimo payment state when cart changes (items added/removed/cleared)
+  // This ensures Daimo always shows the correct amount
   useEffect(() => {
-    if (cart.items.length > 0 && checkoutStep === 'address') {
-      // Generate a fresh order ID for this new checkout session
+    if (cart.items.length > 0) {
+      // Generate a fresh order ID for this cart state
       const newOrderId = `order-${Date.now()}`;
       setDaimoOrderId(newOrderId);
       
@@ -297,15 +298,21 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       processedDaimoTxHashes.current = new Set();
       
       // CRITICAL: Use Daimo's official resetPayment API to clear cached state
+      // This fixes the bug where clearing cart + adding new item would show old price
       if (resetDaimoPayment) {
+        const currentTotal = calculateTotalBeforeShipping();
         resetDaimoPayment({
           externalId: newOrderId,
-          toUnits: calculateFinalTotal().toFixed(2),
+          toUnits: currentTotal.toFixed(2),
         });
-        console.log('🆕 Reset Daimo payment with new order ID:', newOrderId);
+        console.log('🆕 Reset Daimo payment for cart change:', {
+          orderId: newOrderId,
+          items: cart.items.length,
+          total: currentTotal.toFixed(2)
+        });
       }
     }
-  }, [cart.items.length, checkoutStep, resetDaimoPayment]);
+  }, [cart.items, cartTotal, resetDaimoPayment]); // Watch cart.items (not length) and cartTotal
 
   // Fetch user's previous shipping address for pre-population
   useEffect(() => {
