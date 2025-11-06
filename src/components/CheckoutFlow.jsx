@@ -865,7 +865,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         console.log('✅ WalletConnect order created successfully:', result);
         setOrderDetails(result.order);
         setCheckoutStep('success');
-        clearCart();
+        // DON'T clear cart here - it will be cleared when user clicks "Continue Shopping"
       } else {
         throw new Error(result.message || 'Order creation failed');
       }
@@ -975,10 +975,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         // Transition to success screen immediately (don't wait for modal)
         setCheckoutStep('success');
         
-        // Clear cart AFTER a delay to avoid re-render issues
-        setTimeout(() => {
-          clearCart();
-        }, 1000);
+        // DON'T clear cart here - it will be cleared when user navigates away
+        // or manually clears it. Clearing it here causes the success screen to disappear.
       } else {
         throw new Error(result.message || 'Order creation failed');
       }
