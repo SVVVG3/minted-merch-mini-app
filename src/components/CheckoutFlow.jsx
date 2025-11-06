@@ -50,6 +50,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const buyNowProcessed = useRef(false);
   const processedDaimoTxHashes = useRef(new Set());
   const daimoPaymentInitiated = useRef(false);
+  const [daimoOrderId, setDaimoOrderId] = useState(`order-${Date.now()}`);
 
   // Helper function to detect if cart contains only digital products
   const isDigitalOnlyCart = () => {
@@ -280,6 +281,18 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       buyNowProcessed.current = true;
     }
   }, [checkoutData, addItem]);
+  
+  // Reset Daimo order ID and flags when cart changes (new checkout session)
+  useEffect(() => {
+    if (cart.items.length > 0 && checkoutStep === 'address') {
+      // Generate a fresh order ID for this new checkout session
+      setDaimoOrderId(`order-${Date.now()}`);
+      // Reset all flags and state for fresh checkout
+      daimoPaymentInitiated.current = false;
+      processedDaimoTxHashes.current = new Set();
+      console.log('🆕 New checkout session - reset Daimo state');
+    }
+  }, [cart.items.length, checkoutStep]);
 
   // Fetch user's previous shipping address for pre-population
   useEffect(() => {
@@ -1007,6 +1020,10 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         // CRITICAL: Reset the payment initiation flag for next order in this session
         daimoPaymentInitiated.current = false;
         console.log('🔄 Reset payment initiation flag - ready for next order');
+        
+        // CRITICAL: Generate a NEW order ID for next payment to force Daimo to create fresh session
+        setDaimoOrderId(`order-${Date.now()}`);
+        console.log('🆕 Generated new Daimo order ID for next payment');
       } else {
         throw new Error(result.message || 'Order creation failed');
       }
@@ -1016,6 +1033,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       setDaimoError(error.message);
       // Reset flag on error too, so user can retry the payment
       daimoPaymentInitiated.current = false;
+      // Generate new order ID for retry
+      setDaimoOrderId(`order-${Date.now()}`);
     } finally {
       setIsDaimoProcessing(false);
     }
@@ -2129,7 +2148,7 @@ Transaction Hash: ${transactionHash}`;
 
                   <DaimoPayButton
                     amount={calculateFinalTotal()}
-                    orderId={`order-${Date.now()}`}
+                    orderId={daimoOrderId}
                     onPaymentStarted={handleDaimoPaymentStarted}
                     onPaymentCompleted={handleDaimoPaymentCompleted}
                     metadata={{
