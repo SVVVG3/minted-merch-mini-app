@@ -43,6 +43,7 @@ export function DaimoPayButton({
       intent="Purchase Merch"
       externalId={orderId}
       metadata={metadata}
+      closeOnSuccess={true} // Close modal after successful payment
       onPaymentStarted={(event) => {
         console.log('💰 Daimo payment started:', event);
         if (onPaymentStarted) {
