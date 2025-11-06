@@ -1944,25 +1944,6 @@ Transaction Hash: ${transactionHash}`;
                 </div>
               )}
 
-              {checkoutStep === 'payment' && daimoError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <div className="text-red-800 text-sm font-medium">Daimo Payment Failed</div>
-                  <div className="text-red-600 text-xs mt-1">{daimoError}</div>
-                  <button
-                    onClick={() => setDaimoError(null)}
-                    className="mt-2 bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              )}
-
-              {checkoutStep === 'payment' && isDaimoProcessing && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <div className="text-blue-800 text-sm">Processing Daimo payment...</div>
-                  <div className="text-blue-600 text-xs mt-1">Complete payment in the popup window</div>
-                </div>
-              )}
 
               {/* Payment Actions - Only show in payment step */}
               {checkoutStep === 'payment' && paymentStatus === 'idle' && (isConnected || isWalletConnected) && (
