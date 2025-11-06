@@ -1,6 +1,6 @@
 'use client';
 
-import { DaimoPayButton as DaimoButton } from '@daimo/pay';
+import { DaimoPayButton as DaimoButton, useDaimoPayUI } from '@daimo/pay';
 import { MERCHANT_WALLET_ADDRESS, USDC_CONTRACT_ADDRESS } from '@/lib/wagmi';
 import { getAddress } from 'viem';
 
@@ -28,15 +28,32 @@ export function DaimoPayButton({
   metadata = {},
   disabled = false,
 }) {
-  // Use demo appId for now (works on mainnet and testnets)
+  // Use demo appId for prototyping (as recommended by Daimo docs)
   const appId = process.env.NEXT_PUBLIC_DAIMO_APP_ID || 'pay-demo';
+  
+  // Get resetPayment to update amount before showing modal
+  const { resetPayment } = useDaimoPayUI();
+
+  // Handle button click: Update payment amount, then show modal
+  const handleClick = (show) => {
+    // CRITICAL: Update payment with current total before showing modal
+    // This ensures taxes, shipping, and discounts are always reflected
+    resetPayment({
+      toUnits: amount.toFixed(2),
+    });
+    
+    console.log('💰 Opening Daimo modal with total:', '$' + amount.toFixed(2));
+    
+    // Now show the modal with the updated amount
+    show();
+  };
 
   return (
     <DaimoButton.Custom
       appId={appId}
       toAddress={getAddress(MERCHANT_WALLET_ADDRESS)}
       toChain={8453} // Base mainnet
-      toUnits={amount.toFixed(2)} // Format as "10.50"
+      toUnits={amount.toFixed(2)} // Initial amount (will be updated on click)
       toToken={getAddress(USDC_CONTRACT_ADDRESS)}
       intent="Purchase Merch"
       externalId={orderId}
@@ -57,7 +74,7 @@ export function DaimoPayButton({
     >
       {({ show }) => (
         <button
-          onClick={show}
+          onClick={() => handleClick(show)}
           disabled={disabled}
           className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
         >

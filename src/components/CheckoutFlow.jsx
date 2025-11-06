@@ -53,8 +53,6 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const processedDaimoTxHashes = useRef(new Set());
   const daimoPaymentInitiated = useRef(false);
   const [daimoOrderId, setDaimoOrderId] = useState(`order-${Date.now()}`);
-  const lastCartFingerprint = useRef(null); // Track last fingerprint to prevent excessive resets
-  const lastDaimoAmount = useRef(null); // Track last amount sent to Daimo to prevent duplicate updates
 
   // Helper function to detect if cart contains only digital products
   const isDigitalOnlyCart = () => {
@@ -305,69 +303,22 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     return `${itemsKey}|${cartTotal.toFixed(2)}`;
   }, [cart.items, cartTotal]);
   
+  // Generate a fresh order ID when cart changes
   useEffect(() => {
-    // CRITICAL FIX: Only reset Daimo if the fingerprint ACTUALLY changed
-    // This prevents the infinite loop where every render triggers a reset
-    if (cartFingerprint === lastCartFingerprint.current) {
-      // Fingerprint hasn't changed, skip reset
-      return;
-    }
-    
-    // Update the last fingerprint
-    lastCartFingerprint.current = cartFingerprint;
-    
     if (cart.items.length > 0) {
-      // Generate a fresh order ID for this cart state
       const newOrderId = `order-${Date.now()}`;
       setDaimoOrderId(newOrderId);
       
-      // Reset all flags and state for fresh checkout
+      // Reset flags for fresh checkout
       daimoPaymentInitiated.current = false;
       processedDaimoTxHashes.current = new Set();
-      lastDaimoAmount.current = null; // Reset to allow shipping update to fire
       
-      // CRITICAL: Use Daimo's official resetPayment API to clear cached state
-      // This fixes the bug where clearing cart + adding new item would show old price
-      // 
-      // Per Daimo docs: "Props on DaimoPayButton are frozen after first render.
-      // Use useDaimoPayUI().resetPayment to change them."
-      // 
-      // We MUST pass toUnits to update the amount, otherwise it stays cached!
-      if (resetDaimoPayment) {
-        // Calculate the current cart total (without shipping, since we're at cart change)
-        const currentTotal = calculateTotalBeforeShipping();
-        
-        resetDaimoPayment({
-          externalId: newOrderId,
-          toUnits: currentTotal.toFixed(2), // CRITICAL: Must pass toUnits to update amount!
-        });
-        // Reduced logging to prevent console spam
-        console.log('🆕 Reset Daimo:', newOrderId, '$' + currentTotal.toFixed(2));
-      }
+      console.log('🆕 New order ID for cart:', newOrderId);
     }
-  }, [cartFingerprint, resetDaimoPayment, cart.items.length]); // Watch stable fingerprint instead of raw arrays
-
-  // Update Daimo amount when final total changes (shipping/tax/discounts/giftcards calculated)
-  useEffect(() => {
-    // Only update if we have shipping info and Daimo is available
-    if (cart.selectedShipping && cart.checkout && resetDaimoPayment && daimoOrderId) {
-      const finalTotal = calculateFinalTotal();
-      const finalTotalString = finalTotal.toFixed(2);
-      
-      // CRITICAL FIX: Only update if amount actually changed
-      // This prevents infinite loop from cart.checkout triggering repeatedly
-      if (lastDaimoAmount.current === finalTotalString) {
-        return; // Amount hasn't changed, skip update
-      }
-      
-      lastDaimoAmount.current = finalTotalString;
-      
-      resetDaimoPayment({
-        toUnits: finalTotalString,
-      });
-      console.log('💰 Updated Daimo with final total:', '$' + finalTotalString);
-    }
-  }, [cart.selectedShipping, cart.checkout, resetDaimoPayment, daimoOrderId]);
+  }, [cart.items.length]);
+  
+  // NOTE: We no longer update Daimo here! Amount is updated when user clicks "Purchase Merch"
+  // This fixes the race condition where discounts/shipping/taxes weren't reflected in the payment
 
   // Fetch user's previous shipping address for pre-population
   useEffect(() => {
