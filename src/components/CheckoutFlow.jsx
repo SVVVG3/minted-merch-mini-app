@@ -362,7 +362,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         finalTotal: finalTotal.toFixed(2)
       });
     }
-  }, [cart.selectedShipping, cart.checkout, calculateFinalTotal, resetDaimoPayment, daimoOrderId]);
+  }, [cart.selectedShipping, resetDaimoPayment, daimoOrderId]); // REMOVED calculateFinalTotal and cart.checkout to prevent infinite loop
 
   // Fetch user's previous shipping address for pre-population
   useEffect(() => {
