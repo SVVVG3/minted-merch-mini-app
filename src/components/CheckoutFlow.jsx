@@ -263,12 +263,13 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     // Calculate final total with gift card
     let finalTotal = Math.max(0, totalBeforeGiftCard - giftCardDiscount);
     
-    // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
-    // Use <= 0.01 to handle floating point precision issues
-    const isCartFree = cartTotal <= 0.01;
-    if (finalTotal <= 0.01 && (isCartFree || giftCardDiscount > 0)) {
-      finalTotal = 0.01;
-      console.log('💰 Applied minimum charge of $0.01 for free giveaway order processing');
+    // MINIMUM CHARGE: If total would be $0.00, charge $0.10 for payment processing
+    // (Daimo Pay minimum is $0.10)
+    // Use <= 0.10 to handle floating point precision issues
+    const isCartFree = cartTotal <= 0.10;
+    if (finalTotal <= 0.10 && (isCartFree || giftCardDiscount > 0)) {
+      finalTotal = 0.10;
+      console.log('💰 Applied minimum charge of $0.10 for free giveaway order processing (Daimo minimum)');
     }
     
     return finalTotal;
@@ -1233,17 +1234,18 @@ Transaction Hash: ${transactionHash}`;
         // Ensure total doesn't go negative
         finalOrderTotal = Math.max(0, finalOrderTotal);
         
-        // MINIMUM CHARGE: If total would be $0.00 or gift card covers entire order, charge $0.01 for payment processing
-        const isCartFree = cartTotal <= 0.01;
+        // MINIMUM CHARGE: If total would be $0.00 or gift card covers entire order, charge $0.10 for payment processing
+        // (Daimo Pay minimum is $0.10)
+        const isCartFree = cartTotal <= 0.10;
         const totalBeforeGiftCard = (cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount : cartSubtotal) - (appliedDiscount ? calculateProductAwareDiscountAmount() : 0) + calculateAdjustedTax() + shippingCost;
         const giftCardBalance = appliedGiftCard ? (typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance)) : 0;
         
         if (giftCardBalance >= totalBeforeGiftCard && (isCartFree || giftCardBalance > 0)) {
-          finalOrderTotal = 0.01;
-          console.log('💰 Applied minimum charge of $0.01 for gift card order covering entire amount');
-        } else if (finalOrderTotal <= 0.01 && isCartFree) {
-          finalOrderTotal = 0.01;
-          console.log('💰 Applied minimum charge of $0.01 for free giveaway order processing');
+          finalOrderTotal = 0.10;
+          console.log('💰 Applied minimum charge of $0.10 for gift card order covering entire amount (Daimo minimum)');
+        } else if (finalOrderTotal <= 0.10 && isCartFree) {
+          finalOrderTotal = 0.10;
+          console.log('💰 Applied minimum charge of $0.10 for free giveaway order processing (Daimo minimum)');
         }
         
         // Create order details object
@@ -1457,7 +1459,7 @@ Transaction Hash: ${transactionHash}`;
 
               // Standard checkout button
               if (isFreeWithShipping) {
-                return 'Checkout (FREE + $0.01 processing fee)';
+                return 'Checkout (FREE + $0.10 processing fee)';
               } else if (appliedDiscount?.freeShipping) {
                 return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
               } else if (appliedDiscount) {
@@ -1482,7 +1484,7 @@ Transaction Hash: ${transactionHash}`;
 
               // Standard checkout button
               if (isFreeWithShipping) {
-                return 'Checkout (FREE + $0.01 processing fee)';
+                return 'Checkout (FREE + $0.10 processing fee)';
               } else if (appliedDiscount?.freeShipping) {
                 return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
               } else if (appliedDiscount) {
@@ -1661,9 +1663,9 @@ Transaction Hash: ${transactionHash}`;
                         <span>
                           {(() => {
                             const finalTotal = calculateFinalTotal();
-                            if (finalTotal <= 0.01) {
+                            if (finalTotal <= 0.10) {
                               return (appliedDiscount?.freeShipping || appliedGiftCard) ? (
-                                <span className="text-green-600">$0.01 <span className="text-xs">(min processing fee)</span></span>
+                                <span className="text-green-600">$0.10 <span className="text-xs">(min processing fee)</span></span>
                               ) : (
                                 <span className="text-green-600">FREE</span>
                               );
@@ -1880,12 +1882,12 @@ Transaction Hash: ${transactionHash}`;
                                 const adjustedTax = calculateAdjustedTax();
                                 let finalTotal = Math.max(0, discountedSubtotal + shipping + adjustedTax);
                                 
-                                // MINIMUM CHARGE: If total would be $0.00, charge $0.01 for payment processing
-                                // Use <= 0.01 to handle floating point precision issues
-                                const isCartFree = cartTotal <= 0.01;
-                                if (finalTotal <= 0.01 && (isCartFree || giftCardDiscount > 0)) {
-                                  finalTotal = 0.01;
-                                }
+                // MINIMUM CHARGE: If total would be $0.00, charge $0.10 for payment processing
+                // (Daimo Pay minimum is $0.10)
+                const isCartFree = cartTotal <= 0.10;
+                if (finalTotal <= 0.10 && (isCartFree || giftCardDiscount > 0)) {
+                  finalTotal = 0.10;
+                }
                                 
                                 return finalTotal.toFixed(2);
                               })()} USDC

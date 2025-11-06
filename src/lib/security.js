@@ -244,11 +244,12 @@ export async function recalculateOrderTotals(orderData) {
     let finalTotal = Math.max(0, totalBeforeGiftCard - giftCardDiscount);
     
     // Apply minimum charge logic for gift card orders (same as client logic)
-    const isCartFree = subtotal <= 0.01;
+    // Daimo Pay minimum is $0.10
+    const isCartFree = subtotal <= 0.10;
     
     // If gift card covers the entire order (including tax), apply minimum charge
     if (giftCardDiscount >= totalBeforeGiftCard && (isCartFree || giftCardDiscount > 0)) {
-      finalTotal = 0.01;
+      finalTotal = 0.10;
     }
     
     // Round to 2 decimal places to avoid floating-point precision issues
