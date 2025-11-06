@@ -598,7 +598,20 @@ export async function POST(request) {
       
       return NextResponse.json({
         success: true,
-        order: shopifyOrder,
+        order: {
+          ...shopifyOrder,
+          // Override Shopify's total with our server-calculated total (includes discounts)
+          current_total_price: finalTotalPrice.toFixed(2),
+          totalPrice: finalTotalPrice.toFixed(2),
+          // Also include breakdown for transparency
+          calculated_totals: {
+            subtotal: subtotalAfterDiscount,
+            discount: discountAmountValue,
+            tax: adjustedTax,
+            shipping: shippingPrice,
+            total: finalTotalPrice
+          }
+        },
         message: supabaseOrder?.manual_fix_needed 
           ? 'Order created in Shopify - Supabase entry needs manual fix due to missing FID'
           : 'Order created successfully',
