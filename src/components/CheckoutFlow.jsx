@@ -326,17 +326,19 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       
       // CRITICAL: Use Daimo's official resetPayment API to clear cached state
       // This fixes the bug where clearing cart + adding new item would show old price
+      // 
+      // IMPORTANT: We only reset the externalId here, NOT the amount
+      // The amount will be set by the DaimoPayButton props (which uses calculateFinalTotal)
+      // This ensures Daimo always shows the correct total with shipping + taxes
       if (resetDaimoPayment) {
-        const currentTotal = calculateTotalBeforeShipping();
         resetDaimoPayment({
           externalId: newOrderId,
-          toUnits: currentTotal.toFixed(2),
         });
         console.log('🆕 Reset Daimo payment for cart change:', {
           orderId: newOrderId,
           items: cart.items.length,
-          total: currentTotal.toFixed(2),
-          fingerprint: cartFingerprint
+          fingerprint: cartFingerprint,
+          note: 'Amount will be set by DaimoPayButton props'
         });
       }
     }
