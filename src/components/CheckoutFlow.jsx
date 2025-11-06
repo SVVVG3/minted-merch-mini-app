@@ -1003,6 +1003,10 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         
         // DON'T clear cart here - it will be cleared when user navigates away
         // or manually clears it. Clearing it here causes the success screen to disappear.
+        
+        // CRITICAL: Reset the payment initiation flag for next order in this session
+        daimoPaymentInitiated.current = false;
+        console.log('🔄 Reset payment initiation flag - ready for next order');
       } else {
         throw new Error(result.message || 'Order creation failed');
       }
@@ -1010,6 +1014,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     } catch (error) {
       console.error('💥 Daimo payment error:', error);
       setDaimoError(error.message);
+      // Reset flag on error too, so user can retry the payment
+      daimoPaymentInitiated.current = false;
     } finally {
       setIsDaimoProcessing(false);
     }
