@@ -246,8 +246,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   };
 
   // Helper function to calculate final total safely (never negative)
-  // MEMOIZED to prevent excessive recalculations on every render
-  const calculateFinalTotal = useMemo(() => {
+  const calculateFinalTotal() = () => {
     if (!cart.checkout || !cart.checkout.subtotal || !cart.selectedShipping) {
       // If we don't have shipping info yet, use the pre-shipping calculation
       return calculateTotalBeforeShipping();
@@ -275,7 +274,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     }
     
     return finalTotal;
-  }, [cart.checkout, cart.selectedShipping, appliedGiftCard, appliedDiscount, cartTotal, cartSubtotal]);
+  };
 
   // Handle Buy Now functionality by adding item to cart
   useEffect(() => {
@@ -349,14 +348,15 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   // Update Daimo amount when final total changes (shipping/tax/discounts/giftcards calculated)
   useEffect(() => {
     // Only update if we have shipping info and Daimo is available
-    if (cart.selectedShipping && cart.checkout && resetDaimoPayment && daimoOrderId && calculateFinalTotal) {
+    if (cart.selectedShipping && cart.checkout && resetDaimoPayment && daimoOrderId) {
+      const finalTotal = calculateFinalTotal();
       resetDaimoPayment({
-        toUnits: calculateFinalTotal.toFixed(2),
+        toUnits: finalTotal.toFixed(2),
       });
       // Reduced logging to prevent console spam
-      console.log('💰 Updated Daimo with final total:', '$' + calculateFinalTotal.toFixed(2));
+      console.log('💰 Updated Daimo with final total:', '$' + finalTotal.toFixed(2));
     }
-  }, [calculateFinalTotal, cart.selectedShipping, cart.checkout, resetDaimoPayment, daimoOrderId]);
+  }, [cart.selectedShipping, cart.checkout, resetDaimoPayment, daimoOrderId]);
 
   // Fetch user's previous shipping address for pre-population
   useEffect(() => {
@@ -721,7 +721,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       }
 
       // Calculate final total using the safe helper function
-      const finalTotal = calculateFinalTotal;
+      const finalTotal = calculateFinalTotal();
       const discountAmount = calculateProductAwareDiscountAmount();
 
       console.log('💳 Executing payment:', {
@@ -783,7 +783,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       setIsWalletConnectProcessing(true);
       setWalletConnectError(null);
 
-      const finalTotal = calculateFinalTotal;
+      const finalTotal = calculateFinalTotal();
       const discountAmount = calculateProductAwareDiscountAmount();
 
       console.log('💳 Executing WalletConnect payment:', {
@@ -1027,7 +1027,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         userFid = null;
       }
 
-      const finalTotal = calculateFinalTotal;
+      const finalTotal = calculateFinalTotal();
       const discountAmount = calculateProductAwareDiscountAmount();
 
       // Create order data
@@ -1216,7 +1216,7 @@ Transaction Hash: ${transactionHash}`;
       }
       
       // Calculate the total that was actually paid (using the same logic as payment execution)
-      const paidTotal = calculateFinalTotal;
+      const paidTotal = calculateFinalTotal();
       
       const orderData = {
         cartItems: cart.items,
@@ -1713,7 +1713,7 @@ Transaction Hash: ${transactionHash}`;
                         <span>Total</span>
                         <span>
                           {(() => {
-                            const finalTotal = calculateFinalTotal;
+                            const finalTotal = calculateFinalTotal();
                             if (finalTotal <= 0.10) {
                               return (appliedDiscount?.freeShipping || appliedGiftCard) ? (
                                 <span className="text-green-600">$0.10 <span className="text-xs">(min processing fee)</span></span>
@@ -2096,7 +2096,7 @@ Transaction Hash: ${transactionHash}`;
                       <div className="border-t pt-1 flex justify-between font-medium">
                         <span>Total</span>
                         <span>
-                          ${calculateFinalTotal.toFixed(2)} USDC
+                          ${calculateFinalTotal().toFixed(2)} USDC
                         </span>
                       </div>
                     </div>
@@ -2185,7 +2185,7 @@ Transaction Hash: ${transactionHash}`;
               {checkoutStep === 'payment' && paymentStatus === 'idle' && (isConnected || isWalletConnected) && (
                 <div className="space-y-2">
                   {(() => {
-                    const finalTotal = calculateFinalTotal;
+                    const finalTotal = calculateFinalTotal();
                     
                     return isConnected && !hasSufficientBalance(finalTotal) && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -2219,7 +2219,7 @@ Transaction Hash: ${transactionHash}`;
 
                   <DaimoPayButton
                     key={daimoOrderId} // Force remount when order ID changes (fixes amount update bug)
-                    amount={calculateFinalTotal}
+                    amount={calculateFinalTotal()}
                     orderId={daimoOrderId}
                     onPaymentStarted={handleDaimoPaymentStarted}
                     onPaymentCompleted={handleDaimoPaymentCompleted}
