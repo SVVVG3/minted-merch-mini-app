@@ -127,16 +127,14 @@ SELECT
   o.shipping_method,
   o.shipping_cost,
   o.tracking_number,
-  o.order_status,
-  o.fulfillment_status,
+  o.status,
   o.payment_status,
-  o.subtotal,
-  o.tax,
-  o.total,
+  o.amount_subtotal,
+  o.amount_tax,
+  o.amount_total,
   o.created_at,
   o.updated_at,
-  o.assigned_partner_id,
-  o.partner_fulfillment_status
+  o.assigned_partner_id
 FROM orders o
 WHERE o.assigned_partner_id IS NOT NULL;
 
