@@ -2213,24 +2213,30 @@ Transaction Hash: ${transactionHash}`;
                     <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                       <h4 className="font-medium text-gray-900">Order Details</h4>
                       <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Status:</span>
-                          <span className="font-medium text-green-600">{orderDetails.status}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Total:</span>
-                          <span className="font-medium">${orderDetails.total.amount} {orderDetails.total.currencyCode}</span>
-                        </div>
-                        {orderDetails.customer.email && (
+                        {orderDetails.status && (
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Email:</span>
-                            <span className="font-medium">{orderDetails.customer.email}</span>
+                            <span className="text-gray-600">Status:</span>
+                            <span className="font-medium text-green-600">{orderDetails.status}</span>
                           </div>
                         )}
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Transaction:</span>
-                          <span className="font-mono text-xs">{orderDetails.transactionHash?.slice(0, 8)}...{orderDetails.transactionHash?.slice(-6)}</span>
+                          <span className="text-gray-600">Total:</span>
+                          <span className="font-medium">
+                            ${orderDetails.total?.amount || orderDetails.totalPrice || '0.00'} {orderDetails.total?.currencyCode || 'USD'}
+                          </span>
                         </div>
+                        {(orderDetails.customer?.email || shippingData.email) && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Email:</span>
+                            <span className="font-medium">{orderDetails.customer?.email || shippingData.email}</span>
+                          </div>
+                        )}
+                        {orderDetails.transactionHash && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Transaction:</span>
+                            <span className="font-mono text-xs">{orderDetails.transactionHash.slice(0, 8)}...{orderDetails.transactionHash.slice(-6)}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
