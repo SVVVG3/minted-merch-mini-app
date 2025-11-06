@@ -19,7 +19,6 @@ import { getAddress } from 'viem';
  * @param {Function} props.onPaymentCompleted - Called when payment is confirmed
  * @param {Object} props.metadata - Additional metadata to include with payment
  * @param {boolean} props.disabled - Whether the button is disabled
- * @param {string} props.className - Additional CSS classes
  */
 export function DaimoPayButton({
   amount,
@@ -28,13 +27,12 @@ export function DaimoPayButton({
   onPaymentCompleted,
   metadata = {},
   disabled = false,
-  className = ''
 }) {
   // Use demo appId for now (works on mainnet and testnets)
   const appId = process.env.NEXT_PUBLIC_DAIMO_APP_ID || 'pay-demo';
 
   return (
-    <DaimoButton
+    <DaimoButton.Custom
       appId={appId}
       toAddress={getAddress(MERCHANT_WALLET_ADDRESS)}
       toChain={8453} // Base mainnet
@@ -56,9 +54,17 @@ export function DaimoPayButton({
           onPaymentCompleted(event);
         }
       }}
-      disabled={disabled}
-      className={className}
-    />
+    >
+      {({ show }) => (
+        <button
+          onClick={show}
+          disabled={disabled}
+          className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+        >
+          <span>Purchase Merch</span>
+        </button>
+      )}
+    </DaimoButton.Custom>
   );
 }
 

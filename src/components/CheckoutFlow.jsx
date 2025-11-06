@@ -2175,21 +2175,6 @@ Transaction Hash: ${transactionHash}`;
                       email: shippingData.email || ''
                     }}
                     disabled={!cart.checkout || isDaimoProcessing}
-                    amount={calculateFinalTotal()}
-                    buttonText={`Pay ${calculateFinalTotal().toFixed(2)} USDC`}
-                    style={{
-                      width: '100%',
-                      backgroundColor: '#3eb489',
-                      color: 'white',
-                      fontWeight: '500',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      cursor: (!cart.checkout || isDaimoProcessing) ? 'not-allowed' : 'pointer',
-                      opacity: (!cart.checkout || isDaimoProcessing) ? '0.5' : '1',
-                      transition: 'all 0.2s',
-                      fontSize: '16px'
-                    }}
                   />
                 </div>
               )}
