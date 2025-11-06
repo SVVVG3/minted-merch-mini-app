@@ -234,7 +234,7 @@ export async function shareProduct({ productHandle, productTitle, isInFarcaster 
  */
 export async function shareCollection({ collectionHandle, collectionName, isInFarcaster = false }) {
   const collectionUrl = `${window.location.origin}/?collection=${collectionHandle}`;
-  const shareText = `Check out the ${collectionName} collection on @mintedmerch!\n\nShop using 1200+ tokens across 20+ chains\n\n$mintedmerch - Where Tokens Meet Merch`;
+  const shareText = `Check out ${collectionName} on @mintedmerch!\n\nShop using 1200+ tokens across 20+ chains\n\n$mintedmerch - Where Tokens Meet Merch`;
 
   return shareToFarcaster({
     text: shareText,

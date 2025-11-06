@@ -189,7 +189,7 @@ export async function GET(request) {
                   marginTop: '20px',
                 }}
               >
-                Shop with USDC on Base 🟦
+                Pay with 1200+ tokens across 20+ chains ✨
               </div>
             </div>
           </div>
@@ -251,7 +251,7 @@ export async function GET(request) {
         >
           <div style={{ fontSize: 100, color: '#3eb489' }}>📦</div>
           <div style={{ fontSize: 48, marginTop: 20, color: '#3eb489' }}>Minted Merch</div>
-          <div style={{ fontSize: 32, color: '#3eb489', marginTop: 20 }}>Shop collections with USDC!</div>
+          <div style={{ fontSize: 32, color: '#3eb489', marginTop: 20 }}>Pay with 1200+ tokens across 20+ chains ✨</div>
           <div style={{ fontSize: 24, color: '#888', marginTop: 20 }}>Error loading collection details</div>
         </div>
       ),

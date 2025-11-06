@@ -147,17 +147,14 @@ export function AddMiniAppPrompt({ isOpen, onClose }) {
 
           {/* Title */}
           <h3 className="text-2xl font-bold text-gray-900 mb-2">
-            🎉 Nice Spin!
+            Never miss your daily spin!
           </h3>
 
           {/* Message */}
           {!result ? (
             <>
-              <p className="text-base text-gray-700 mb-2 font-medium">
-                Never miss your daily spin!
-              </p>
               <p className="text-sm text-gray-600 mb-6">
-                Add our Mini App to get daily reminders at 8 AM PST to keep your streak alive 🔥
+                Add our mini app & turn on notifications to receive: daily check-in reminders, new product alerts, order confirmations, shipping alerts, and 15% off your next order! ✨
               </p>
             </>
           ) : (
