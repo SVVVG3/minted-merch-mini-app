@@ -1568,13 +1568,6 @@ Transaction Hash: ${transactionHash}`;
                   <div className="flex items-center space-x-1 mt-1">
                     <div className={`w-2 h-2 rounded-full ${checkoutStep === 'shipping' ? 'bg-[#3eb489]' : 'bg-gray-300'}`}></div>
                     <span className="text-xs text-gray-500">{isDigitalOnlyCart() ? 'Billing' : 'Address'}</span>
-                    {!isDigitalOnlyCart() && (
-                      <>
-                        <div className="w-3 h-px bg-gray-300"></div>
-                        <div className={`w-2 h-2 rounded-full ${checkoutStep === 'shipping-method' ? 'bg-[#3eb489]' : 'bg-gray-300'}`}></div>
-                        <span className="text-xs text-gray-500">Shipping</span>
-                      </>
-                    )}
                     <div className="w-3 h-px bg-gray-300"></div>
                     <div className={`w-2 h-2 rounded-full ${checkoutStep === 'payment' ? 'bg-[#3eb489]' : 'bg-gray-300'}`}></div>
                     <span className="text-xs text-gray-500">Payment</span>
