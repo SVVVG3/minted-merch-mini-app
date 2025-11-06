@@ -49,6 +49,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const [daimoError, setDaimoError] = useState(null);
   const buyNowProcessed = useRef(false);
   const processedDaimoTxHashes = useRef(new Set());
+  const daimoPaymentInitiated = useRef(false);
 
   // Helper function to detect if cart contains only digital products
   const isDigitalOnlyCart = () => {
@@ -882,12 +883,19 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   // Daimo Pay handlers
   const handleDaimoPaymentStarted = (event) => {
     console.log('💰 Daimo payment started:', event);
+    daimoPaymentInitiated.current = true; // Mark that user initiated a payment
     setIsDaimoProcessing(true);
     setDaimoError(null);
   };
 
   const handleDaimoPaymentCompleted = async (event) => {
     console.log('✅ Daimo payment completed:', event);
+    
+    // CRITICAL: Only process if user actually initiated a payment
+    if (!daimoPaymentInitiated.current) {
+      console.log('⚠️ Ignoring cached Daimo payment - user did not initiate payment this session');
+      return; // Ignore cached/auto-fired payments
+    }
     
     // CRITICAL: Check if this transaction has already been processed
     const txHash = event.txHash || event.transactionHash;
@@ -2124,7 +2132,21 @@ Transaction Hash: ${transactionHash}`;
                       email: shippingData.email || ''
                     }}
                     disabled={!cart.checkout || isDaimoProcessing}
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                    amount={calculateFinalTotal()}
+                    buttonText={`Pay ${calculateFinalTotal().toFixed(2)} USDC`}
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#3eb489',
+                      color: 'white',
+                      fontWeight: '500',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      cursor: (!cart.checkout || isDaimoProcessing) ? 'not-allowed' : 'pointer',
+                      opacity: (!cart.checkout || isDaimoProcessing) ? '0.5' : '1',
+                      transition: 'all 0.2s',
+                      fontSize: '16px'
+                    }}
                   />
                 </div>
               )}
