@@ -127,7 +127,7 @@ export async function GET(request) {
                   marginBottom: '20px',
                 }}
               >
-                Pay with USDC on Base 🟦
+                Pay with 1200+ tokens across 20+ chains ✨
               </div>
               
               <div
