@@ -1848,16 +1848,6 @@ Transaction Hash: ${transactionHash}`;
                     {cart.selectedShipping && cart.checkout && (
                       <div className="border-t pt-3">
                         <div className="space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <span>Subtotal</span>
-                            <span>${cartSubtotal.toFixed(2)}</span>
-                          </div>
-                          {appliedDiscount && (
-                            <div className="flex justify-between text-sm text-green-600">
-                              <span>Discount ({appliedDiscount.discountValue}%)</span>
-                              <span>-${calculateProductAwareDiscountAmount().toFixed(2)}</span>
-                            </div>
-                          )}
                           {appliedGiftCard && (
                             <div className="flex justify-between text-sm text-green-600">
                               <span>Gift Card (${(typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance)).toFixed(2)} balance)</span>
