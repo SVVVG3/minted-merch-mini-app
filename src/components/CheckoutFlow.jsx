@@ -15,11 +15,13 @@ import GiftCardSection, { GiftCardBalance } from './GiftCardSection';
 import { SignInWithBaseButton, BasePayButton } from './BaseAccountButtons';
 import { WalletConnectButton } from './WalletConnectButton';
 import { DaimoPayButton } from './DaimoPayButton';
+import { useDaimoPayUI } from '@daimo/pay';
 
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
   const { getFid, getSessionToken, isInFarcaster, user, context } = useFarcaster();
   const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod, getWalletProvider } = useWalletConnectContext();
+  const { resetPayment: resetDaimoPayment } = useDaimoPayUI();
   // Re-enable Base Account integration with safe defaults
   const baseAccountContext = useBaseAccount();
   const { 
@@ -51,7 +53,6 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const processedDaimoTxHashes = useRef(new Set());
   const daimoPaymentInitiated = useRef(false);
   const [daimoOrderId, setDaimoOrderId] = useState(`order-${Date.now()}`);
-  const [canRenderDaimoButton, setCanRenderDaimoButton] = useState(false);
 
   // Helper function to detect if cart contains only digital products
   const isDigitalOnlyCart = () => {
@@ -283,34 +284,27 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     }
   }, [checkoutData, addItem]);
   
-  // Reset Daimo order ID and flags when cart changes (new checkout session)
+  // Reset Daimo payment state when starting a new checkout session
   useEffect(() => {
     if (cart.items.length > 0 && checkoutStep === 'address') {
       // Generate a fresh order ID for this new checkout session
-      setDaimoOrderId(`order-${Date.now()}`);
+      const newOrderId = `order-${Date.now()}`;
+      setDaimoOrderId(newOrderId);
+      
       // Reset all flags and state for fresh checkout
       daimoPaymentInitiated.current = false;
       processedDaimoTxHashes.current = new Set();
-      setCanRenderDaimoButton(false); // Prevent Daimo button from rendering until ready
-      console.log('🆕 New checkout session - reset Daimo state');
-    }
-  }, [cart.items.length, checkoutStep]);
-  
-  // Enable Daimo button rendering ONLY when we reach payment step with clean state
-  useEffect(() => {
-    if (checkoutStep === 'payment') {
-      // Small delay to ensure all state is reset before Daimo button mounts
-      const timer = setTimeout(() => {
-        setCanRenderDaimoButton(true);
-        console.log('🆕 Daimo button ready to render with fresh session');
-      }, 100); // 100ms delay ensures all useEffects have run
       
-      return () => clearTimeout(timer);
-    } else {
-      // Immediately disable when leaving payment step
-      setCanRenderDaimoButton(false);
+      // CRITICAL: Use Daimo's official resetPayment API to clear cached state
+      if (resetDaimoPayment) {
+        resetDaimoPayment({
+          externalId: newOrderId,
+          toUnits: calculateFinalTotal().toFixed(2),
+        });
+        console.log('🆕 Reset Daimo payment with new order ID:', newOrderId);
+      }
     }
-  }, [checkoutStep]);
+  }, [cart.items.length, checkoutStep, resetDaimoPayment]);
 
   // Fetch user's previous shipping address for pre-population
   useEffect(() => {
@@ -1039,9 +1033,15 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         daimoPaymentInitiated.current = false;
         console.log('🔄 Reset payment initiation flag - ready for next order');
         
-        // CRITICAL: Generate a NEW order ID for next payment to force Daimo to create fresh session
-        setDaimoOrderId(`order-${Date.now()}`);
-        console.log('🆕 Generated new Daimo order ID for next payment');
+        // CRITICAL: Use Daimo's official resetPayment API to prepare for next payment
+        const nextOrderId = `order-${Date.now()}`;
+        setDaimoOrderId(nextOrderId);
+        if (resetDaimoPayment) {
+          resetDaimoPayment({
+            externalId: nextOrderId,
+          });
+          console.log('🆕 Reset Daimo payment state for next order:', nextOrderId);
+        }
       } else {
         throw new Error(result.message || 'Order creation failed');
       }
@@ -2164,40 +2164,33 @@ Transaction Hash: ${transactionHash}`;
                     </div>
                   )}
 
-                  {canRenderDaimoButton ? (
-                    <DaimoPayButton
-                      key={daimoOrderId} // Force remount with fresh state for each order
-                      amount={calculateFinalTotal()}
-                      orderId={daimoOrderId}
-                      onPaymentStarted={handleDaimoPaymentStarted}
-                      onPaymentCompleted={handleDaimoPaymentCompleted}
-                      metadata={{
-                        fid: String(getFid() || ''),
-                        items: cart.items.map(i => i.product?.title || i.title).join(', '),
-                        email: shippingData.email || ''
-                      }}
-                      disabled={!cart.checkout || isDaimoProcessing}
-                      amount={calculateFinalTotal()}
-                      buttonText={`Pay ${calculateFinalTotal().toFixed(2)} USDC`}
-                      style={{
-                        width: '100%',
-                        backgroundColor: '#3eb489',
-                        color: 'white',
-                        fontWeight: '500',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        cursor: (!cart.checkout || isDaimoProcessing) ? 'not-allowed' : 'pointer',
-                        opacity: (!cart.checkout || isDaimoProcessing) ? '0.5' : '1',
-                        transition: 'all 0.2s',
-                        fontSize: '16px'
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full bg-gray-200 text-gray-500 font-medium py-3 px-4 rounded-lg text-center animate-pulse">
-                      Loading payment...
-                    </div>
-                  )}
+                  <DaimoPayButton
+                    amount={calculateFinalTotal()}
+                    orderId={daimoOrderId}
+                    onPaymentStarted={handleDaimoPaymentStarted}
+                    onPaymentCompleted={handleDaimoPaymentCompleted}
+                    metadata={{
+                      fid: String(getFid() || ''),
+                      items: cart.items.map(i => i.product?.title || i.title).join(', '),
+                      email: shippingData.email || ''
+                    }}
+                    disabled={!cart.checkout || isDaimoProcessing}
+                    amount={calculateFinalTotal()}
+                    buttonText={`Pay ${calculateFinalTotal().toFixed(2)} USDC`}
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#3eb489',
+                      color: 'white',
+                      fontWeight: '500',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      cursor: (!cart.checkout || isDaimoProcessing) ? 'not-allowed' : 'pointer',
+                      opacity: (!cart.checkout || isDaimoProcessing) ? '0.5' : '1',
+                      transition: 'all 0.2s',
+                      fontSize: '16px'
+                    }}
+                  />
                 </div>
               )}
 
