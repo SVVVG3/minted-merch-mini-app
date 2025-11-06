@@ -327,22 +327,42 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       // CRITICAL: Use Daimo's official resetPayment API to clear cached state
       // This fixes the bug where clearing cart + adding new item would show old price
       // 
-      // IMPORTANT: We only reset the externalId here, NOT the amount
-      // The amount will be set by the DaimoPayButton props (which uses calculateFinalTotal)
-      // This ensures Daimo always shows the correct total with shipping + taxes
+      // Per Daimo docs: "Props on DaimoPayButton are frozen after first render.
+      // Use useDaimoPayUI().resetPayment to change them."
+      // 
+      // We MUST pass toUnits to update the amount, otherwise it stays cached!
       if (resetDaimoPayment) {
+        // Calculate the current cart total (without shipping, since we're at cart change)
+        const currentTotal = calculateTotalBeforeShipping();
+        
         resetDaimoPayment({
           externalId: newOrderId,
+          toUnits: currentTotal.toFixed(2), // CRITICAL: Must pass toUnits to update amount!
         });
         console.log('🆕 Reset Daimo payment for cart change:', {
           orderId: newOrderId,
           items: cart.items.length,
-          fingerprint: cartFingerprint,
-          note: 'Amount will be set by DaimoPayButton props'
+          total: currentTotal.toFixed(2),
+          fingerprint: cartFingerprint
         });
       }
     }
   }, [cartFingerprint, resetDaimoPayment, cart.items.length]); // Watch stable fingerprint instead of raw arrays
+
+  // Update Daimo amount when shipping is calculated (final total changes)
+  useEffect(() => {
+    // Only update if we have shipping info and Daimo is available
+    if (cart.selectedShipping && cart.checkout && resetDaimoPayment && daimoOrderId) {
+      const finalTotal = calculateFinalTotal();
+      resetDaimoPayment({
+        toUnits: finalTotal.toFixed(2),
+      });
+      console.log('💰 Updated Daimo amount with shipping:', {
+        orderId: daimoOrderId,
+        finalTotal: finalTotal.toFixed(2)
+      });
+    }
+  }, [cart.selectedShipping, cart.checkout, calculateFinalTotal, resetDaimoPayment, daimoOrderId]);
 
   // Fetch user's previous shipping address for pre-population
   useEffect(() => {
@@ -2204,6 +2224,7 @@ Transaction Hash: ${transactionHash}`;
                   )}
 
                   <DaimoPayButton
+                    key={daimoOrderId} // Force remount when order ID changes (fixes amount update bug)
                     amount={calculateFinalTotal()}
                     orderId={daimoOrderId}
                     onPaymentStarted={handleDaimoPaymentStarted}
