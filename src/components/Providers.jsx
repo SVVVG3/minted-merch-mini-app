@@ -14,9 +14,9 @@ export function Providers({ children }) {
         <BaseAccountProvider>
           <WalletConnectProvider>
             <DaimoPayProvider>
-              <CartProvider>
-                {children}
-              </CartProvider>
+            <CartProvider>
+              {children}
+            </CartProvider>
             </DaimoPayProvider>
           </WalletConnectProvider>
         </BaseAccountProvider>
