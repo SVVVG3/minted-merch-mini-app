@@ -648,8 +648,29 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       // Save checkout data to cart context
       updateCheckout(checkoutData);
       
-      // Move to shipping method selection step
-      setCheckoutStep('shipping-method');
+      // AUTO-SELECT CHEAPEST SHIPPING OPTION
+      // This skips the shipping selection screen for better UX
+      if (checkoutData.shippingRates && checkoutData.shippingRates.length > 0) {
+        // Sort by price (cheapest first)
+        const sortedRates = [...checkoutData.shippingRates].sort((a, b) => 
+          a.price.amount - b.price.amount
+        );
+        
+        // Select the cheapest option (or free shipping if available)
+        const cheapestRate = sortedRates[0];
+        updateSelectedShipping(cheapestRate);
+        
+        console.log('🚀 Auto-selected cheapest shipping:', {
+          option: cheapestRate.title,
+          price: cheapestRate.price.amount === 0 ? 'FREE' : `$${cheapestRate.price.amount}`
+        });
+        
+        // Skip shipping selection and go directly to payment
+        setCheckoutStep('payment');
+      } else {
+        // No shipping rates available - show error
+        setCheckoutStep('shipping-method');
+      }
       
     } catch (error) {
       console.error('Checkout calculation error:', error);
@@ -1736,8 +1757,7 @@ Transaction Hash: ${transactionHash}`;
                     disabled={!isShippingValid || isCalculatingCheckout}
                     className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
                   >
-                    {isCalculatingCheckout ? 'Calculating shipping & taxes...' : 
-                     isDigitalOnlyCart() ? 'Continue to Payment' : 'Continue to Shipping Options'}
+                    {isCalculatingCheckout ? 'Calculating shipping & taxes...' : 'Continue to Payment'}
                   </button>
                 </>
               )}
