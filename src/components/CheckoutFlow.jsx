@@ -1284,7 +1284,7 @@ Transaction Hash: ${transactionHash}`;
         const orderNumber = orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name;
         const orderUrl = `${window.location.origin}/order/${orderNumber}?t=${Date.now()}`;
         const mainProduct = orderDetails.lineItems?.[0]?.title || orderDetails.lineItems?.[0]?.name || 'item';
-        const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on /mintedmerch - pay onchain 🟦`;
+        const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain`;
         
         // Encode for URL
         const encodedText = encodeURIComponent(shareText);
@@ -1320,7 +1320,7 @@ Transaction Hash: ${transactionHash}`;
         const orderUrl = `${window.location.origin}/order/${orderNumber}?t=${Date.now()}`;
         // Get the main product name from the order
         const mainProduct = orderDetails.lineItems?.[0]?.title || orderDetails.lineItems?.[0]?.name || 'item';
-        const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on /mintedmerch - pay onchain 🟦`;
+        const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain`;
       
       // Use the Farcaster SDK composeCast action
       const { sdk } = await import('../lib/frame');
@@ -2074,10 +2074,10 @@ Transaction Hash: ${transactionHash}`;
                     );
                   })()}
 
-                  {/* Daimo Pay - Express Checkout (Pay from ANY chain/token) */}
+                  {/* Daimo Pay - Pay from ANY chain/token */}
                   {daimoError && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <div className="text-red-800 text-sm font-medium">Daimo Payment Failed</div>
+                      <div className="text-red-800 text-sm font-medium">Payment Failed</div>
                       <div className="text-red-600 text-xs mt-1">{daimoError}</div>
                       <button
                         onClick={() => setDaimoError(null)}
@@ -2090,22 +2090,31 @@ Transaction Hash: ${transactionHash}`;
 
                   {isDaimoProcessing && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <div className="text-blue-800 text-sm">Processing Daimo payment...</div>
+                      <div className="text-blue-800 text-sm">Processing payment...</div>
                       <div className="text-blue-600 text-xs mt-1">Complete payment in the popup window</div>
                     </div>
                   )}
 
-                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium text-gray-900">✨ Express Checkout</span>
-                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                          NEW
-                        </span>
+                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-gray-900">Pay with Crypto</h3>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Pay with any token from any chain
+                        </p>
                       </div>
-                    </div>
-                    <div className="text-xs text-gray-600 mb-3">
-                      Pay with any token from Arbitrum, Base, Ethereum, Optimism, Polygon, and more
+                      <div className="flex items-center space-x-1 text-xs text-gray-500">
+                        <span>Arbitrum</span>
+                        <span>•</span>
+                        <span>Base</span>
+                        <span>•</span>
+                        <span>Ethereum</span>
+                        <span>•</span>
+                        <span>Optimism</span>
+                        <span>•</span>
+                        <span>Polygon</span>
+                        <span>+</span>
+                      </div>
                     </div>
                     <DaimoPayButton
                       amount={calculateFinalTotal()}
@@ -2121,60 +2130,6 @@ Transaction Hash: ${transactionHash}`;
                       className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-all shadow-md hover:shadow-lg"
                     />
                   </div>
-
-                  {/* OR Divider */}
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-300"></div>
-                    </div>
-                    <div className="relative flex justify-center text-xs">
-                      <span className="px-2 bg-white text-gray-500">OR</span>
-                    </div>
-                  </div>
-
-                  {/* WalletConnect Payment Button */}
-                  {isWalletConnected && connectionMethod === 'walletconnect' && (
-                    <button
-                      onClick={handleWalletConnectPayment}
-                      disabled={!cart.checkout || isWalletConnectProcessing}
-                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
-                    >
-                      {isWalletConnectProcessing ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          <span>Processing...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Pay with WalletConnect</span>
-                          <span className="text-sm opacity-75">${calculateFinalTotal().toFixed(2)} USDC</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-                  
-                  {/* Standard Payment Button (Farcaster/Base App) */}
-                  {isConnected && connectionMethod !== 'walletconnect' && (
-                    <>
-                      {isBaseApp && baseAccountSDK ? (
-                        // Show Base Pay button in Base app
-                        <BasePayButton 
-                          onClick={handlePayment}
-                          disabled={!cart.checkout || !hasSufficientBalance(calculateFinalTotal()) || isPending}
-                          className="w-full"
-                        />
-                      ) : (
-                        // Show standard payment button in other environments
-                        <button
-                          onClick={handlePayment}
-                          disabled={!cart.checkout || !hasSufficientBalance(calculateFinalTotal()) || isPending}
-                          className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
-                        >
-                          {isPending ? 'Processing...' : `Pay ${calculateFinalTotal().toFixed(2)} USDC`}
-                        </button>
-                      )}
-                    </>
-                  )}
                 </div>
               )}
 

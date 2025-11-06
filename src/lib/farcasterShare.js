@@ -215,7 +215,7 @@ export async function shareCheckIn({ spinResult, userStatus, isInFarcaster = fal
  */
 export async function shareProduct({ productHandle, productTitle, isInFarcaster = false }) {
   const productUrl = `${window.location.origin}/product/${productHandle}`;
-  const shareText = `Check out this product on @mintedmerch: ${productTitle}\n\nShop onchain with USDC on /mintedmerch 🟦`;
+  const shareText = `Check out this product on @mintedmerch: ${productTitle}\n\nShop onchain with USDC on @mintedmerch`;
 
   return shareToFarcaster({
     text: shareText,
@@ -233,7 +233,7 @@ export async function shareProduct({ productHandle, productTitle, isInFarcaster 
  */
 export async function shareCollection({ collectionHandle, isInFarcaster = false }) {
   const collectionUrl = `${window.location.origin}/?collection=${collectionHandle}`;
-  const shareText = `Check out the latest collection on @mintedmerch!\n\nShop onchain with USDC on /mintedmerch 🟦`;
+  const shareText = `Check out the latest collection on @mintedmerch!\n\nShop onchain with USDC on @mintedmerch`;
 
   return shareToFarcaster({
     text: shareText,
@@ -252,7 +252,7 @@ export async function shareCollection({ collectionHandle, isInFarcaster = false 
  */
 export async function shareOrder({ orderNumber, mainProduct, isInFarcaster = false }) {
   const orderUrl = `${window.location.origin}/order/${orderNumber}`;
-  const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on /mintedmerch - pay onchain 🟦`;
+  const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain`;
 
   return shareToFarcaster({
     text: shareText,
