@@ -2095,41 +2095,19 @@ Transaction Hash: ${transactionHash}`;
                     </div>
                   )}
 
-                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="text-base font-semibold text-gray-900">Pay with Crypto</h3>
-                        <p className="text-xs text-gray-600 mt-1">
-                          Pay with any token from any chain
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-1 text-xs text-gray-500">
-                        <span>Arbitrum</span>
-                        <span>•</span>
-                        <span>Base</span>
-                        <span>•</span>
-                        <span>Ethereum</span>
-                        <span>•</span>
-                        <span>Optimism</span>
-                        <span>•</span>
-                        <span>Polygon</span>
-                        <span>+</span>
-                      </div>
-                    </div>
-                    <DaimoPayButton
-                      amount={calculateFinalTotal()}
-                      orderId={`order-${Date.now()}`}
-                      onPaymentStarted={handleDaimoPaymentStarted}
-                      onPaymentCompleted={handleDaimoPaymentCompleted}
-                      metadata={{
-                        fid: String(getFid() || ''),
-                        items: cart.items.map(i => i.product?.title || i.title).join(', '),
-                        email: shippingData.email || ''
-                      }}
-                      disabled={!cart.checkout || isDaimoProcessing}
-                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-all shadow-md hover:shadow-lg"
-                    />
-                  </div>
+                  <DaimoPayButton
+                    amount={calculateFinalTotal()}
+                    orderId={`order-${Date.now()}`}
+                    onPaymentStarted={handleDaimoPaymentStarted}
+                    onPaymentCompleted={handleDaimoPaymentCompleted}
+                    metadata={{
+                      fid: String(getFid() || ''),
+                      items: cart.items.map(i => i.product?.title || i.title).join(', '),
+                      email: shippingData.email || ''
+                    }}
+                    disabled={!cart.checkout || isDaimoProcessing}
+                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                  />
                 </div>
               )}
 
