@@ -53,6 +53,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const processedDaimoTxHashes = useRef(new Set());
   const daimoPaymentInitiated = useRef(false);
   const [daimoOrderId, setDaimoOrderId] = useState(`order-${Date.now()}`);
+  const lastCartFingerprint = useRef(null); // Track last fingerprint to prevent excessive resets
 
   // Helper function to detect if cart contains only digital products
   const isDigitalOnlyCart = () => {
@@ -304,6 +305,16 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   }, [cart.items, cartTotal]);
   
   useEffect(() => {
+    // CRITICAL FIX: Only reset Daimo if the fingerprint ACTUALLY changed
+    // This prevents the infinite loop where every render triggers a reset
+    if (cartFingerprint === lastCartFingerprint.current) {
+      // Fingerprint hasn't changed, skip reset
+      return;
+    }
+    
+    // Update the last fingerprint
+    lastCartFingerprint.current = cartFingerprint;
+    
     if (cart.items.length > 0) {
       // Generate a fresh order ID for this cart state
       const newOrderId = `order-${Date.now()}`;
@@ -329,7 +340,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         });
       }
     }
-  }, [cartFingerprint, resetDaimoPayment]); // Watch stable fingerprint instead of raw arrays
+  }, [cartFingerprint, resetDaimoPayment, cart.items.length]); // Watch stable fingerprint instead of raw arrays
 
   // Fetch user's previous shipping address for pre-population
   useEffect(() => {
