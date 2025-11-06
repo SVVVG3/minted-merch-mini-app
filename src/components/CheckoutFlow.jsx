@@ -1754,6 +1754,7 @@ Transaction Hash: ${transactionHash}`;
                   )}
 
                   {/* Shipping Methods */}
+                  <div>
                     {cart.checkout?.shippingRates && cart.checkout.shippingRates.length > 0 ? (
                       <div>
                         <h4 className="font-medium text-sm mb-2">Select Shipping Method</h4>
