@@ -397,6 +397,14 @@ export function CartProvider({ children }) {
 
   const clearCart = () => {
     dispatch({ type: CART_ACTIONS.CLEAR_CART });
+    
+    // Clear discount evaluation tracking from sessionStorage
+    // This ensures discounts are properly re-evaluated when items are added to a new cart
+    sessionStorage.removeItem('lastDiscountEvaluation');
+    sessionStorage.removeItem('lastDiscountApiCall');
+    sessionStorage.removeItem('activeDiscountCode');
+    
+    console.log('🧹 Cart cleared - discount evaluation cache cleared');
   };
 
   const updateNotes = (notes) => {
