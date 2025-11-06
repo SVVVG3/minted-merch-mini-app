@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useCart } from '@/lib/CartContext';
 import { useUSDCPayment } from '@/lib/useUSDCPayment';
 import { useFarcaster } from '@/lib/useFarcaster';
@@ -287,6 +287,22 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   
   // Reset Daimo payment state when cart changes (items added/removed/cleared)
   // This ensures Daimo always shows the correct amount
+  // 
+  // OPTIMIZATION: Create a stable "cart fingerprint" to detect real changes
+  // This prevents infinite loops from Context re-renders
+  const cartFingerprint = useMemo(() => {
+    // Create a unique string representing cart state
+    // Format: "handle1:qty1,handle2:qty2|total"
+    if (cart.items.length === 0) return 'empty';
+    
+    const itemsKey = cart.items
+      .map(item => `${item.product?.handle || item.key}:${item.quantity}`)
+      .sort()
+      .join(',');
+    
+    return `${itemsKey}|${cartTotal.toFixed(2)}`;
+  }, [cart.items, cartTotal]);
+  
   useEffect(() => {
     if (cart.items.length > 0) {
       // Generate a fresh order ID for this cart state
@@ -308,11 +324,12 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         console.log('🆕 Reset Daimo payment for cart change:', {
           orderId: newOrderId,
           items: cart.items.length,
-          total: currentTotal.toFixed(2)
+          total: currentTotal.toFixed(2),
+          fingerprint: cartFingerprint
         });
       }
     }
-  }, [cart.items, cartTotal, resetDaimoPayment]); // Watch cart.items (not length) and cartTotal
+  }, [cartFingerprint, resetDaimoPayment]); // Watch stable fingerprint instead of raw arrays
 
   // Fetch user's previous shipping address for pre-population
   useEffect(() => {

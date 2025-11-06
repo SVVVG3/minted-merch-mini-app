@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useState, useMemo, useCallback } from 'react';
 import { getBestAvailableDiscount } from './discounts';
 import { useFarcaster } from './useFarcaster';
 
@@ -479,18 +479,22 @@ export function CartProvider({ children }) {
   };
 
   // Safety wrapper to ensure cart always has valid items array
-  const safeCart = {
+  // MEMOIZED to prevent infinite re-renders when used as useEffect dependency
+  const safeCart = useMemo(() => ({
     ...cart,
     items: Array.isArray(cart.items) ? cart.items : []
-  };
+  }), [cart]);
 
   // Cart calculations using safeCart
-  const cartSubtotal = safeCart.items.reduce((total, item) => {
-    return total + (item.price * item.quantity);
-  }, 0);
+  // MEMOIZED to prevent infinite re-renders in CheckoutFlow
+  const cartSubtotal = useMemo(() => {
+    return safeCart.items.reduce((total, item) => {
+      return total + (item.price * item.quantity);
+    }, 0);
+  }, [safeCart.items]);
 
   // Helper function to calculate product-aware discount amount
-  const calculateProductAwareDiscount = () => {
+  const calculateProductAwareDiscount = useMemo(() => {
     if (!safeCart.appliedDiscount) return 0;
     
     const { code, discountType, discountValue, source } = safeCart.appliedDiscount;
@@ -538,32 +542,36 @@ export function CartProvider({ children }) {
     
     // Round to 2 decimal places to match server calculation
     return Math.round(discountAmount * 100) / 100;
-  };
+  }, [safeCart.appliedDiscount, safeCart.items, cartSubtotal]);
 
-  const cartTotal = (() => {
-    const discountAmount = calculateProductAwareDiscount();
-    return Math.max(0, cartSubtotal - discountAmount);
-  })();
+  const cartTotal = useMemo(() => {
+    return Math.max(0, cartSubtotal - calculateProductAwareDiscount);
+  }, [cartSubtotal, calculateProductAwareDiscount]);
 
-  const itemCount = safeCart.items.reduce((count, item) => {
-    return count + item.quantity;
-  }, 0);
+  const itemCount = useMemo(() => {
+    return safeCart.items.reduce((count, item) => {
+      return count + item.quantity;
+    }, 0);
+  }, [safeCart.items]);
 
   // Helper function to check if a specific variant is in cart
-  const isInCart = (productId, variantId = null) => {
+  // MEMOIZED to prevent infinite re-renders in consuming components
+  const isInCart = useCallback((productId, variantId = null) => {
     const itemKey = `${productId}-${variantId || 'default'}`;
     return (cart.items || []).some(item => item.key === itemKey);
-  };
+  }, [cart.items]);
 
   // Helper function to get quantity of specific item in cart
-  const getItemQuantity = (productId, variantId = null) => {
+  // MEMOIZED to prevent infinite re-renders in consuming components
+  const getItemQuantity = useCallback((productId, variantId = null) => {
     const itemKey = `${productId}-${variantId || 'default'}`;
     const item = (cart.items || []).find(item => item.key === itemKey);
     return item ? item.quantity : 0;
-  };
+  }, [cart.items]);
 
   // Re-enabled: Function to evaluate and select the optimal discount for current cart
-  const evaluateOptimalDiscount = async (userFid) => {
+  // MEMOIZED to prevent infinite re-renders in consuming components
+  const evaluateOptimalDiscount = useCallback(async (userFid) => {
     try {
       console.log('🎯 Evaluating optimal discount for cart:', safeCart.items.map(item => item.product?.handle || 'unknown'));
       
@@ -708,9 +716,10 @@ export function CartProvider({ children }) {
       console.error('❌ Error evaluating optimal discount:', error);
       return null;
     }
-  };
+  }, [safeCart.items]); // Only re-create if cart items change
 
-  const contextValue = {
+  // MEMOIZED context value to prevent infinite re-renders in consuming components
+  const contextValue = useMemo(() => ({
     cart: safeCart,
     addItem,
     removeItem,
@@ -730,7 +739,27 @@ export function CartProvider({ children }) {
     getItemQuantity,
     evaluateOptimalDiscount,
     isEvaluatingDiscount
-  };
+  }), [
+    safeCart,
+    addItem,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    updateNotes,
+    updateShipping,
+    updateCheckout,
+    updateSelectedShipping,
+    clearCheckout,
+    applyDiscount,
+    removeDiscount,
+    cartSubtotal,
+    cartTotal,
+    itemCount,
+    isInCart,
+    getItemQuantity,
+    evaluateOptimalDiscount,
+    isEvaluatingDiscount
+  ]);
 
   return (
     <CartContext.Provider value={contextValue}>
