@@ -48,6 +48,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const [isDaimoProcessing, setIsDaimoProcessing] = useState(false);
   const [daimoError, setDaimoError] = useState(null);
   const buyNowProcessed = useRef(false);
+  const processedDaimoTxHashes = useRef(new Set());
 
   // Helper function to detect if cart contains only digital products
   const isDigitalOnlyCart = () => {
@@ -887,6 +888,23 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
   const handleDaimoPaymentCompleted = async (event) => {
     console.log('✅ Daimo payment completed:', event);
+    
+    // CRITICAL: Check if this transaction has already been processed
+    const txHash = event.txHash || event.transactionHash;
+    if (!txHash) {
+      console.error('❌ No transaction hash in Daimo payment event!');
+      setDaimoError('Invalid payment: no transaction hash');
+      return;
+    }
+    
+    if (processedDaimoTxHashes.current.has(txHash)) {
+      console.log('⚠️ Transaction already processed, skipping duplicate:', txHash);
+      return; // Skip duplicate processing
+    }
+    
+    // Mark this transaction as processed immediately
+    processedDaimoTxHashes.current.add(txHash);
+    console.log('✅ Processing new transaction:', txHash);
     
     try {
       // Enhanced FID resolution (same as other payment methods)
