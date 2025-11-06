@@ -1,17 +1,11 @@
-import { createConfig } from 'wagmi'
-import { getDefaultConfig } from '@daimo/pay'
+import { http, createConfig } from 'wagmi'
+import { base, mainnet, arbitrum, optimism, polygon, bsc, celo, linea, scroll, worldchain } from 'wagmi/chains'
 import { farcasterMiniApp as miniAppConnector } from '@farcaster/miniapp-wagmi-connector'
 import { injected } from 'wagmi/connectors'
 
 // Wagmi configuration for Farcaster Mini App + Daimo Pay
-// Uses Daimo's getDefaultConfig to automatically configure all supported chains
+// Includes all chains that Daimo Pay supports
 
-// Get Daimo's default config (includes all chains and transports)
-const daimoConfig = getDefaultConfig({
-  appName: 'Minted Merch',
-})
-
-// Add Farcaster connectors to Daimo's config
 const connectors = [
   // Farcaster Mini App connector for Farcaster app users
   miniAppConnector(),
@@ -23,12 +17,20 @@ const connectors = [
   injected()
 ]
 
+// All chains that Daimo Pay requires (Arbitrum, Base, BNB Smart Chain, Celo, Linea, Ethereum, Polygon, OP Mainnet, Scroll, World Chain)
+const chains = [base, mainnet, arbitrum, optimism, polygon, bsc, celo, linea, scroll, worldchain]
+
+// Create transports for all chains
+const transports = chains.reduce((acc, chain) => {
+  acc[chain.id] = http()
+  return acc
+}, {})
+
 export const config = createConfig({
-  ...daimoConfig,
-  connectors: [
-    ...connectors,
-    ...(daimoConfig.connectors || [])
-  ]
+  chains,
+  transports,
+  connectors,
+  ssr: true // Enable SSR support for proper wallet balance reading
 })
 
 // USDC contract address on Base

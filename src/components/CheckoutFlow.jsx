@@ -14,7 +14,6 @@ import { ShippingForm } from './ShippingForm';
 import GiftCardSection, { GiftCardBalance } from './GiftCardSection';
 import { SignInWithBaseButton, BasePayButton } from './BaseAccountButtons';
 import { WalletConnectButton } from './WalletConnectButton';
-import { DaimoPayButton } from './DaimoPayButton';
 
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
@@ -45,8 +44,6 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const [baseAccountDebugInfo, setBaseAccountDebugInfo] = useState('');
   const [isWalletConnectProcessing, setIsWalletConnectProcessing] = useState(false);
   const [walletConnectError, setWalletConnectError] = useState(null);
-  const [isDaimoProcessing, setIsDaimoProcessing] = useState(false);
-  const [daimoError, setDaimoError] = useState(null);
   const buyNowProcessed = useRef(false);
 
   // Helper function to detect if cart contains only digital products
@@ -875,110 +872,6 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       setWalletConnectError(error.message);
     } finally {
       setIsWalletConnectProcessing(false);
-    }
-  };
-
-  const handleDaimoPaymentStarted = (event) => {
-    console.log('💰 Daimo payment started:', event);
-    setIsDaimoProcessing(true);
-    setDaimoError(null);
-  };
-
-  const handleDaimoPaymentCompleted = async (event) => {
-    console.log('✅ Daimo payment completed:', event);
-    
-    try {
-      // Enhanced FID resolution (same as other payment methods)
-      let userFid = getFid();
-      
-      if (!userFid && user?.fid) {
-        userFid = user.fid;
-        console.log('🔄 FID recovered from user object:', userFid);
-      }
-      
-      if (!userFid && context?.user?.fid) {
-        userFid = context.user.fid;
-        console.log('🔄 FID recovered from context:', userFid);
-      }
-      
-      if (!userFid && typeof window !== 'undefined' && window.userFid) {
-        userFid = window.userFid;
-        console.log('🔄 FID recovered from window.userFid:', userFid);
-      }
-      
-      if (!userFid && typeof window !== 'undefined') {
-        const storedFid = localStorage.getItem('farcaster_fid');
-        if (storedFid && !isNaN(parseInt(storedFid))) {
-          userFid = parseInt(storedFid);
-          console.log('🔄 FID recovered from localStorage:', userFid);
-        }
-      }
-      
-      if (userFid && typeof window !== 'undefined') {
-        localStorage.setItem('farcaster_fid', userFid.toString());
-      }
-      
-      if (!userFid) {
-        console.log('ℹ️ Daimo order (no FID) - user not authenticated in Farcaster');
-        userFid = null;
-      }
-
-      const finalTotal = calculateFinalTotal();
-      const discountAmount = calculateProductAwareDiscountAmount();
-
-      // Create order data
-      const orderData = {
-        cartItems: cart.items,
-        shippingAddress: shippingData,
-        billingAddress: null,
-        customer: {
-          email: shippingData.email || '',
-          phone: shippingData.phone || ''
-        },
-        checkout: cart.checkout,
-        selectedShipping: cart.selectedShipping,
-        transactionHash: event.txHash || event.transactionHash, // Daimo provides transaction hash
-        notes: cart.notes || '',
-        fid: userFid,
-        appliedDiscount: appliedDiscount,
-        discountAmount: discountAmount,
-        appliedGiftCard: appliedGiftCard,
-        giftCards: appliedGiftCard ? [{
-          code: appliedGiftCard.code,
-          balance: appliedGiftCard.balance
-        }] : [],
-        total: finalTotal,
-        paymentMethod: 'daimo',
-        paymentMetadata: {
-          daimoPaymentId: event.paymentId || event.externalId,
-          sourceChain: event.sourceChain,
-          sourceToken: event.sourceToken
-        }
-      };
-
-      // Create order in Shopify
-      const response = await fetch('/api/shopify/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData),
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        console.log('✅ Daimo order created successfully:', result);
-        setOrderDetails(result.order);
-        setCheckoutStep('success');
-        clearCart();
-      } else {
-        throw new Error(result.message || 'Order creation failed');
-      }
-      
-    } catch (error) {
-      console.error('💥 Daimo payment error:', error);
-      setDaimoError(error.message);
-    } finally {
-      setIsDaimoProcessing(false);
     }
   };
 
