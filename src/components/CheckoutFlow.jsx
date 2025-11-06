@@ -1960,44 +1960,6 @@ Transaction Hash: ${transactionHash}`;
                     );
                   })()}
 
-                  {/* Daimo Pay Button - Pay from ANY chain/token */}
-                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium text-gray-900">✨ Express Checkout</span>
-                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                          Pay from any chain
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-600 mb-3">
-                      Pay with any token from Arbitrum, Base, Ethereum, Optimism, Polygon, and more
-                    </div>
-                    <DaimoPayButton
-                      amount={calculateFinalTotal()}
-                      orderId={`order-${Date.now()}`}
-                      onPaymentStarted={handleDaimoPaymentStarted}
-                      onPaymentCompleted={handleDaimoPaymentCompleted}
-                      metadata={{
-                        fid: getFid(),
-                        items: cart.items.map(i => i.product?.title || i.title).join(', '),
-                        email: shippingData.email
-                      }}
-                      disabled={!cart.checkout || isDaimoProcessing}
-                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-all shadow-md hover:shadow-lg"
-                    />
-                  </div>
-
-                  {/* OR Divider */}
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-300"></div>
-                    </div>
-                    <div className="relative flex justify-center text-xs">
-                      <span className="px-2 bg-white text-gray-500">OR</span>
-                    </div>
-                  </div>
-                  
                   {/* WalletConnect Payment Button */}
                   {isWalletConnected && connectionMethod === 'walletconnect' && (
                     <button
