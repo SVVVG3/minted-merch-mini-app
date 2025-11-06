@@ -246,7 +246,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   };
 
   // Helper function to calculate final total safely (never negative)
-  const calculateFinalTotal() = () => {
+  const calculateFinalTotal = () => {
     if (!cart.checkout || !cart.checkout.subtotal || !cart.selectedShipping) {
       // If we don't have shipping info yet, use the pre-shipping calculation
       return calculateTotalBeforeShipping();
