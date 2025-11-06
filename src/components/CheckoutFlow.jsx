@@ -91,22 +91,38 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const calculateProductAwareDiscountAmount = () => {
     if (!appliedDiscount) return 0;
     
-    // Calculate discount amount directly to avoid floating-point errors
-    const subtotal = cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount : cartSubtotal;
     const discountValue = appliedDiscount.discountValue || appliedDiscount.discount_value;
     const discountType = appliedDiscount.discountType || appliedDiscount.discount_type;
     
+    // Check if this is a product-specific discount
+    const isProductSpecific = appliedDiscount.discount_scope === 'product' || 
+                              (appliedDiscount.target_products && 
+                               Array.isArray(appliedDiscount.target_products) && 
+                               appliedDiscount.target_products.length > 0);
+    
     let discountAmount = 0;
-    if (discountType === 'percentage') {
-      discountAmount = (subtotal * discountValue) / 100;
-    } else if (discountType === 'fixed') {
-      discountAmount = Math.min(discountValue, subtotal);
+    
+    if (isProductSpecific) {
+      // For product-specific discounts, calculate by summing individual item discounts
+      cart.items.forEach(item => {
+        const originalPrice = item.price;
+        const discountedPrice = calculateItemDiscountedPrice(item);
+        const itemDiscount = (originalPrice - discountedPrice) * item.quantity;
+        discountAmount += itemDiscount;
+      });
+    } else {
+      // For cart-wide discounts, apply to entire subtotal
+      const subtotal = cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount : cartSubtotal;
+      
+      if (discountType === 'percentage') {
+        discountAmount = (subtotal * discountValue) / 100;
+      } else if (discountType === 'fixed') {
+        discountAmount = Math.min(discountValue, subtotal);
+      }
     }
     
     // Round to 2 decimal places to match server calculation
     discountAmount = Math.round(discountAmount * 100) / 100;
-    
-    // Removed excessive logging that was causing infinite render loops
     
     return discountAmount;
   };
