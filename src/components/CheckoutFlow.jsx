@@ -1850,7 +1850,7 @@ Transaction Hash: ${transactionHash}`;
                         <div className="space-y-1">
                           <div className="flex justify-between text-sm">
                             <span>Subtotal</span>
-                            <span>${calculateDiscountedSubtotal().toFixed(2)}</span>
+                            <span>${cartSubtotal.toFixed(2)}</span>
                           </div>
                           {appliedDiscount && (
                             <div className="flex justify-between text-sm text-green-600">
