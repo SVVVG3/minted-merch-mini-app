@@ -2221,7 +2221,7 @@ Transaction Hash: ${transactionHash}`;
                         <div className="flex justify-between">
                           <span className="text-gray-600">Total:</span>
                           <span className="font-medium">
-                            ${orderDetails.total?.amount || orderDetails.totalPrice || '0.00'} {orderDetails.total?.currencyCode || 'USD'}
+                            ${orderDetails.current_total_price || orderDetails.total?.amount || orderDetails.totalPrice || '0.00'} {orderDetails.total?.currencyCode || 'USD'}
                           </span>
                         </div>
                         {(orderDetails.customer?.email || shippingData.email) && (

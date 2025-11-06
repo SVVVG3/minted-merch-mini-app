@@ -36,7 +36,7 @@ export function OrderSuccess({ orderDetails }) {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Total:</span>
-              <span className="font-medium">${orderDetails.total.amount} {orderDetails.total.currencyCode}</span>
+              <span className="font-medium">${orderDetails.current_total_price || orderDetails.total?.amount || '0.00'} {orderDetails.total?.currencyCode || 'USD'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Email:</span>
