@@ -15,6 +15,7 @@
   "dependencies": {
     "@base-org/account": "^2.4.0",
     "@base-org/account-ui": "^1.0.1",
+    "@capacitor/core": "^7.4.4",
     "@capacitor/haptics": "^7.0.2",
     "@cloudflare/workers-types": "^4.20250620.0",
     "@daimo/pay": "^1.18.3",
