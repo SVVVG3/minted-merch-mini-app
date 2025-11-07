@@ -349,6 +349,7 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     { code: 'BE', name: 'Belgium' },
     { code: 'BR', name: 'Brazil' },
     { code: 'CA', name: 'Canada' },
+    { code: 'CL', name: 'Chile' },
     { code: 'CZ', name: 'Czechia' },
     { code: 'DK', name: 'Denmark' },
     { code: 'FI', name: 'Finland' },
@@ -422,6 +423,29 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
           )}
           <p className="text-gray-400 text-xs mt-1">Letters, spaces, and basic punctuation only</p>
         </div>
+      </div>
+
+      {/* Country */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Country *
+        </label>
+        <select
+          value={shipping.country}
+          onChange={(e) => handleChange('country', e.target.value)}
+          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3eb489] ${
+            errors.country ? 'border-red-500' : 'border-gray-300'
+          }`}
+        >
+          {COUNTRIES.map(country => (
+            <option key={country.code} value={country.code}>
+              {country.name}
+            </option>
+          ))}
+        </select>
+        {errors.country && (
+          <p className="text-red-500 text-xs mt-1">{errors.country}</p>
+        )}
       </div>
 
       {/* Address Fields */}
@@ -554,29 +578,6 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
             <p className="text-red-500 text-xs mt-1">{errors.zip}</p>
           )}
         </div>
-      </div>
-
-      {/* Country */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Country *
-        </label>
-        <select
-          value={shipping.country}
-          onChange={(e) => handleChange('country', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3eb489] ${
-            errors.country ? 'border-red-500' : 'border-gray-300'
-          }`}
-        >
-          {COUNTRIES.map(country => (
-            <option key={country.code} value={country.code}>
-              {country.name}
-            </option>
-          ))}
-        </select>
-        {errors.country && (
-          <p className="text-red-500 text-xs mt-1">{errors.country}</p>
-        )}
       </div>
 
       {/* Contact Information */}
