@@ -236,15 +236,6 @@ export async function GET(request) {
               >
                 {products}
               </div>
-              
-              <div
-                style={{
-                  fontSize: '20px',
-                  color: '#3eb489',
-                }}
-              >
-                Paid with USDC on Base 🟦
-              </div>
             </div>
           </div>
           
