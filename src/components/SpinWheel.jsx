@@ -939,11 +939,9 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
             onClick={() => handleShareCheckIn(window.todaysSpinResult)}
             className="w-full bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 mb-4"
           >
-            {/* New Farcaster Logo (2024 rebrand) */}
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M5.5 3H18.5V21H15.5V11.5H15.4C15.1 8.9 13.3 7 11 7C8.7 7 6.9 8.9 6.6 11.5H6.5V21H3.5V3H5.5Z" fill="currentColor"/>
-              <path d="M3 6L3.5 8H4.5V18.5C4.2 18.5 4 18.7 4 19V19.5H3.5C3.2 19.5 3 19.7 3 20V21H9V20C9 19.7 8.8 19.5 8.5 19.5H8V19C8 18.7 7.8 18.5 7.5 18.5H7V6H3Z" fill="currentColor"/>
-              <path d="M16.5 18.5C16.2 18.5 16 18.7 16 19V19.5H15.5C15.2 19.5 15 19.7 15 20V21H21V20C21 19.7 20.8 19.5 20.5 19.5H20V19C20 18.7 19.8 18.5 19.5 18.5V8H20.5L21 6H17V18.5H16.5Z" fill="currentColor"/>
+            {/* Official Farcaster Logo (2024 rebrand) */}
+            <svg className="w-5 h-5" viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
             </svg>
             <span>Share My Daily Spin</span>
           </button>
