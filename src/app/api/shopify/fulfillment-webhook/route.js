@@ -29,20 +29,32 @@ export async function POST(request) {
       timestamp: new Date().toISOString()
     });
 
-    // Verify webhook signature (if secret is configured)
+    // 🔒 SECURITY: REQUIRE webhook signature verification
     const webhookSecret = process.env.SHOPIFY_WEBHOOK_SECRET;
-    if (webhookSecret && signature) {
-      const isValid = verifyShopifyWebhook(body, signature, webhookSecret);
-      if (!isValid) {
-        console.error('❌ Invalid Shopify webhook signature');
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-      }
-      console.log('✅ Webhook signature verified');
-    } else if (webhookSecret) {
-      console.warn('⚠️ Webhook secret configured but no signature provided');
-    } else {
-      console.log('ℹ️ No webhook secret configured, skipping signature verification');
+    
+    if (!webhookSecret) {
+      console.error('❌ SECURITY: SHOPIFY_WEBHOOK_SECRET not configured - rejecting webhook');
+      return NextResponse.json({ 
+        error: 'Webhook secret not configured' 
+      }, { status: 500 });
     }
+    
+    if (!signature) {
+      console.error('❌ SECURITY: Missing webhook signature - rejecting webhook');
+      return NextResponse.json({ 
+        error: 'Missing signature' 
+      }, { status: 401 });
+    }
+    
+    const isValid = verifyShopifyWebhook(body, signature, webhookSecret);
+    if (!isValid) {
+      console.error('❌ SECURITY: Invalid Shopify webhook signature - rejecting webhook');
+      return NextResponse.json({ 
+        error: 'Invalid signature' 
+      }, { status: 401 });
+    }
+    
+    console.log('✅ Webhook signature verified');
 
     const fulfillmentData = JSON.parse(body);
     console.log('Fulfillment data:', JSON.stringify(fulfillmentData, null, 2));
