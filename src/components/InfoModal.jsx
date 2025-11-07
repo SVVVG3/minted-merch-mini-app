@@ -151,7 +151,7 @@ export function InfoModal({ isOpen, onClose }) {
           {/* Support */}
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
             <p className="text-sm text-gray-600">
-              <strong>Need Help/Have Questions?</strong> Message <button onClick={handleFarcasterProfileClick} className="text-[#8A63D2] hover:underline">@svvvg3.eth</button> on Farcaster!
+              <strong>Need Help/Have Questions?</strong> Message <button onClick={handleFarcasterProfileClick} className="text-[#6A3CFF] hover:underline">@svvvg3.eth</button> on Farcaster!
             </p>
           </div>
         </div>

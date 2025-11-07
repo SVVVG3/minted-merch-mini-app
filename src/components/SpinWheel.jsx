@@ -937,12 +937,13 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         {!canSpin && window.todaysSpinResult && !spinResult && (
           <button
             onClick={() => handleShareCheckIn(window.todaysSpinResult)}
-            className="w-full bg-[#8A63D2] hover:bg-[#7C5BC7] text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 mb-4"
+            className="w-full bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 mb-4"
           >
-            <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
-              <path d="M257.778 155.556H742.222V844.445H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.445H257.778V155.556Z"/>
-              <path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.445H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/>
-              <path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.445H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C888.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/>
+            {/* New Farcaster Logo (2024 rebrand) */}
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5.5 3H18.5V21H15.5V11.5H15.4C15.1 8.9 13.3 7 11 7C8.7 7 6.9 8.9 6.6 11.5H6.5V21H3.5V3H5.5Z" fill="currentColor"/>
+              <path d="M3 6L3.5 8H4.5V18.5C4.2 18.5 4 18.7 4 19V19.5H3.5C3.2 19.5 3 19.7 3 20V21H9V20C9 19.7 8.8 19.5 8.5 19.5H8V19C8 18.7 7.8 18.5 7.5 18.5H7V6H3Z" fill="currentColor"/>
+              <path d="M16.5 18.5C16.2 18.5 16 18.7 16 19V19.5H15.5C15.2 19.5 15 19.7 15 20V21H21V20C21 19.7 20.8 19.5 20.5 19.5H20V19C20 18.7 19.8 18.5 19.5 18.5V8H20.5L21 6H17V18.5H16.5Z" fill="currentColor"/>
             </svg>
             <span>Share My Daily Spin</span>
           </button>
@@ -991,13 +992,13 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
             {/* Share Button - First in results section */}
             <button
               onClick={() => handleShareCheckIn(spinResult)}
-              className="w-full bg-[#8A63D2] hover:bg-[#7C5BC7] text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+              className="w-full bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
             >
-              {/* Official Farcaster Logo */}
-              <svg className="w-5 h-5" viewBox="0 0 1000 1000" fill="currentColor">
-                <path d="M257.778 155.556H742.222V844.445H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.445H257.778V155.556Z"/>
-                <path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.445H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/>
-                <path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.445H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/>
+              {/* New Farcaster Logo (2024 rebrand) */}
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5.5 3H18.5V21H15.5V11.5H15.4C15.1 8.9 13.3 7 11 7C8.7 7 6.9 8.9 6.6 11.5H6.5V21H3.5V3H5.5Z" fill="currentColor"/>
+                <path d="M3 6L3.5 8H4.5V18.5C4.2 18.5 4 18.7 4 19V19.5H3.5C3.2 19.5 3 19.7 3 20V21H9V20C9 19.7 8.8 19.5 8.5 19.5H8V19C8 18.7 7.8 18.5 7.5 18.5H7V6H3Z" fill="currentColor"/>
+                <path d="M16.5 18.5C16.2 18.5 16 18.7 16 19V19.5H15.5C15.2 19.5 15 19.7 15 20V21H21V20C21 19.7 20.8 19.5 20.5 19.5H20V19C20 18.7 19.8 18.5 19.5 18.5V8H20.5L21 6H17V18.5H16.5Z" fill="currentColor"/>
               </svg>
               <span>Share My Daily Spin</span>
             </button>
