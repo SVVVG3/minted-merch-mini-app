@@ -165,6 +165,57 @@ export async function validateGiftCardsServerSide(giftCards, expectedTotal) {
 }
 
 /**
+ * 🔒 SECURITY: Fetch product prices from database to prevent client-side manipulation
+ * @param {Array} cartItems - Cart items with product IDs
+ * @returns {Promise<Object>} - Product prices from database
+ */
+export async function fetchProductPricesFromDatabase(cartItems) {
+  try {
+    if (!cartItems || cartItems.length === 0) {
+      return { success: true, products: [] };
+    }
+
+    console.log('🔒 Fetching product prices from database for validation');
+    
+    // Extract product IDs from cart items
+    const productIds = cartItems.map(item => {
+      // Handle both string IDs and numeric IDs
+      return String(item.id || item.productId || item.product_id);
+    }).filter(Boolean);
+    
+    if (productIds.length === 0) {
+      console.error('❌ No valid product IDs found in cart items');
+      return { success: false, error: 'No valid product IDs' };
+    }
+    
+    console.log('📦 Fetching prices for product IDs:', productIds);
+    
+    // Fetch products from database
+    const { data: products, error } = await supabaseAdmin
+      .from('products')
+      .select('id, shopify_product_id, title, price, variants')
+      .in('shopify_product_id', productIds);
+    
+    if (error) {
+      console.error('❌ Error fetching products from database:', error);
+      return { success: false, error: error.message };
+    }
+    
+    if (!products || products.length === 0) {
+      console.error('❌ No products found in database for IDs:', productIds);
+      return { success: false, error: 'Products not found in database' };
+    }
+    
+    console.log(`✅ Found ${products.length} products in database`);
+    
+    return { success: true, products };
+  } catch (error) {
+    console.error('❌ Error in fetchProductPricesFromDatabase:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Recalculate order totals server-side to prevent manipulation
  * @param {Object} orderData - Order data from client
  * @returns {Promise<Object>} - Recalculated totals
