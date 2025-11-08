@@ -5,9 +5,10 @@ import { supabaseAdmin } from '@/lib/supabase';
  * 🔒 SECURITY: Daimo Pay Webhook Handler with Signature Verification
  * 
  * This endpoint receives payment events from Daimo Pay and verifies them using
- * Basic Authentication with the webhook secret.
+ * Basic Authentication with the webhook secret token provided by Daimo.
  * 
- * Daimo webhooks use: Authorization: Basic <base64(webhook_secret)>
+ * Daimo webhooks use: Authorization: Basic <token>
+ * (The token is provided by Daimo when you create the webhook - use it as-is)
  * 
  * Events:
  * - payment_started: User initiated payment
@@ -41,8 +42,9 @@ export async function POST(request) {
       );
     }
     
-    // Verify Basic Auth: Authorization: Basic <base64(webhook_secret)>
-    const expectedAuth = `Basic ${Buffer.from(webhookSecret).toString('base64')}`;
+    // Verify Basic Auth: Authorization: Basic <token>
+    // Note: Daimo provides the token already formatted, no need to base64 encode
+    const expectedAuth = `Basic ${webhookSecret}`;
     if (authHeader !== expectedAuth) {
       console.error('❌ Invalid webhook signature');
       await logSecurityEvent('webhook_signature_failed', {
