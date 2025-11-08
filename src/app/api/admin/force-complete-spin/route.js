@@ -1,18 +1,11 @@
 // EMERGENCY ADMIN ENDPOINT - Force complete a stuck spin
 // Use this when a user's transaction succeeded on-chain but backend didn't record points
-import { verifyAdminToken } from '@/lib/adminAuth';
+import { withAdminAuth } from '@/lib/adminAuth';
 import { performDailyCheckin } from '@/lib/points.js';
 import { NextResponse } from 'next/server';
 
-export async function POST(request) {
-  // Verify admin authentication
-  const authResult = await verifyAdminToken(request);
-  if (!authResult.authenticated) {
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Unauthorized' 
-    }, { status: 401 });
-  }
+async function handler(request) {
+  // Admin auth already verified by withAdminAuth wrapper
 
   try {
     const { userFid, txHash } = await request.json();
@@ -57,4 +50,7 @@ export async function POST(request) {
     }, { status: 500 });
   }
 }
+
+// Wrap with admin authentication
+export const POST = withAdminAuth(handler);
 

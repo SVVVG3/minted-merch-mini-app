@@ -1,6 +1,6 @@
 // ADMIN ENDPOINT - Reset a user's daily spin for testing
 // Allows testing the spin flow without waiting 24 hours
-import { verifyAdminToken } from '@/lib/adminAuth';
+import { withAdminAuth } from '@/lib/adminAuth';
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
@@ -9,15 +9,8 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-export async function POST(request) {
-  // Verify admin authentication
-  const authResult = await verifyAdminToken(request);
-  if (!authResult.authenticated) {
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Unauthorized' 
-    }, { status: 401 });
-  }
+async function handler(request) {
+  // Admin auth already verified by withAdminAuth wrapper
 
   try {
     const { userFid } = await request.json();
@@ -96,3 +89,6 @@ export async function POST(request) {
     }, { status: 500 });
   }
 }
+
+// Wrap with admin authentication
+export const POST = withAdminAuth(handler);
