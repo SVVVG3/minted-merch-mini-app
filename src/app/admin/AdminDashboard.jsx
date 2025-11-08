@@ -2887,17 +2887,23 @@ export default function AdminDashboard() {
                                 {resetSpinResult.success ? (
                                   <div>
                                     <p>{resetSpinResult.message}</p>
-                                    {resetSpinResult.transaction && (
+                                    {resetSpinResult.data && (
                                       <div className="mt-2 space-y-1">
-                                        <p><strong>Points Earned:</strong> {resetSpinResult.transaction.points_earned}</p>
-                                        <p><strong>Current Streak:</strong> {resetSpinResult.transaction.streak} days</p>
-                                        <p><strong>Total Points:</strong> {resetSpinResult.user?.total_points}</p>
-                                        <p className="font-mono text-xs text-gray-600">
-                                          Transaction ID: {resetSpinResult.transaction.id}
-                                        </p>
+                                        {resetSpinResult.data.pointsEarned !== undefined && (
+                                          <>
+                                            <p><strong>Points Earned:</strong> {resetSpinResult.data.pointsEarned}</p>
+                                            <p><strong>Current Streak:</strong> {resetSpinResult.data.newStreak} days</p>
+                                            <p><strong>Total Points:</strong> {resetSpinResult.data.totalPoints}</p>
+                                          </>
+                                        )}
+                                        {resetSpinResult.data.deletedTransactions !== undefined && (
+                                          <p><strong>Records Cleared:</strong> {resetSpinResult.data.totalDeleted} transaction(s)</p>
+                                        )}
                                       </div>
                                     )}
-                                    <p className="mt-2 text-sm">{resetSpinResult.note}</p>
+                                    {resetSpinResult.data?.note && (
+                                      <p className="mt-2 text-sm">{resetSpinResult.data.note}</p>
+                                    )}
                                   </div>
                                 ) : (
                                   <p>{resetSpinResult.error}</p>

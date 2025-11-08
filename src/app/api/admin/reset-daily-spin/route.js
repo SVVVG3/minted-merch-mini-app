@@ -1,6 +1,7 @@
 // ADMIN ENDPOINT - Reset a user's daily spin for testing
 // Allows testing the spin flow without waiting 24 hours
 import { withAdminAuth } from '@/lib/adminAuth';
+import { performDailyCheckin } from '@/lib/points.js';
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
@@ -69,7 +70,25 @@ async function handler(request) {
       console.log(`🗑️ Also deleted ${pendingCount} pending transaction(s) from today`);
     }
 
-    console.log('✅ ADMIN: Successfully reset daily spin for FID:', targetFid);
+    // Now perform the actual check-in to award points and update streak
+    console.log('🎯 ADMIN: Performing check-in for FID:', targetFid);
+    
+    const checkinResult = await performDailyCheckin(targetFid, null, true);
+    
+    if (!checkinResult.success) {
+      console.error('❌ Failed to perform check-in after reset:', checkinResult.error);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Failed to complete check-in: ' + checkinResult.error,
+        details: {
+          deletedTransactions: deletedCount,
+          deletedPending: pendingCount,
+          checkinError: checkinResult.error
+        }
+      }, { status: 500 });
+    }
+
+    console.log('✅ ADMIN: Successfully completed daily check-in for FID:', targetFid);
     
     return NextResponse.json({
       success: true,
@@ -79,7 +98,10 @@ async function handler(request) {
         deletedPending: pendingCount,
         totalDeleted: deletedCount + pendingCount,
         checkInDay: checkInDay,
-        note: 'User can now spin again today. Note: Smart contract state cannot be reset - if they already spun on-chain today, the contract will still reject.'
+        pointsEarned: checkinResult.pointsEarned,
+        totalPoints: checkinResult.totalPoints,
+        newStreak: checkinResult.newStreak,
+        note: 'Daily check-in completed with points awarded and streak updated.'
       }
     });
 
