@@ -13,16 +13,19 @@ async function handler(request) {
   // Admin auth already verified by withAdminAuth wrapper
 
   try {
-    const { userFid } = await request.json();
+    const { fid, userFid } = await request.json();
+    
+    // Accept either 'fid' or 'userFid' for backwards compatibility
+    const targetFid = fid || userFid;
 
-    if (!userFid) {
+    if (!targetFid) {
       return NextResponse.json({ 
         success: false, 
         error: 'userFid is required' 
       }, { status: 400 });
     }
 
-    console.log('🔧 ADMIN: Resetting daily spin for FID:', userFid);
+    console.log('🔧 ADMIN: Resetting daily spin for FID:', targetFid);
 
     // Get today's check-in day (PST)
     const { getCurrentCheckInDay } = await import('@/lib/timezone.js');
@@ -34,9 +37,9 @@ async function handler(request) {
     const { data: deletedTransactions, error: deleteError } = await supabaseAdmin
       .from('point_transactions')
       .delete()
-      .eq('user_fid', userFid)
+      .eq('user_fid', targetFid)
       .eq('transaction_type', 'daily_checkin')
-      .eq('reference_id', `checkin-${userFid}-${checkInDay}`)
+      .eq('reference_id', `checkin-${targetFid}-${checkInDay}`)
       .select();
 
     if (deleteError) {
@@ -55,7 +58,7 @@ async function handler(request) {
     const { data: pendingTransactions, error: pendingError } = await supabaseAdmin
       .from('point_transactions')
       .delete()
-      .eq('user_fid', userFid)
+      .eq('user_fid', targetFid)
       .eq('transaction_type', 'daily_checkin')
       .gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
       .is('spin_confirmed_at', null)
@@ -66,7 +69,7 @@ async function handler(request) {
       console.log(`🗑️ Also deleted ${pendingCount} pending transaction(s) from today`);
     }
 
-    console.log('✅ ADMIN: Successfully reset daily spin for FID:', userFid);
+    console.log('✅ ADMIN: Successfully reset daily spin for FID:', targetFid);
     
     return NextResponse.json({
       success: true,
