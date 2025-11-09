@@ -132,6 +132,7 @@ export async function GET(request) {
             alignItems: 'center',
             justifyContent: 'center',
             backgroundColor: '#000000',
+            backgroundImage: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%)',
             color: 'white',
             fontFamily: 'Arial, sans-serif',
             padding: '60px',

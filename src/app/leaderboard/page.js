@@ -76,20 +76,53 @@ export async function generateMetadata({ searchParams }) {
     const basePoints = userData.total_points || 0;
     const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
 
-    // Get user's position by counting users with higher multiplied points
-    // Use the same logic as admin dashboard to get accurate position
-    // Fetch all leaderboard data and apply multipliers (same as admin dashboard)
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'https://app.mintedmerch.shop'}/api/admin/leaderboard?limit=10000&sortBy=total_points`);
-    const adminData = await response.json();
-    
-    // Find user's position in the admin leaderboard data
+    // Get user's position by querying the database directly (no API call needed)
+    // Fetch all users and calculate their multiplied points to determine accurate ranking
+    const { data: allUsers, error: leaderboardError } = await supabaseAdmin
+      .from('user_leaderboard')
+      .select(`
+        user_fid,
+        total_points,
+        profiles!user_fid (
+          token_balance
+        )
+      `)
+      .order('total_points', { ascending: false });
+
+    console.log('🔍 Fetched leaderboard data for position calculation:', { 
+      totalUsers: allUsers?.length, 
+      error: leaderboardError 
+    });
+
+    // Calculate multiplied points for all users and sort
     let position = 1;
-    if (adminData.success && adminData.data) {
-      const userIndex = adminData.data.findIndex(user => user.user_fid === parseInt(userFid));
+    if (allUsers && !leaderboardError) {
+      const usersWithMultipliers = allUsers.map(user => {
+        const userTokenBalance = user.profiles?.token_balance || 0;
+        const userBasePoints = user.total_points || 0;
+        const userMultiplierResult = applyTokenMultiplier(userBasePoints, userTokenBalance);
+        return {
+          user_fid: user.user_fid,
+          multipliedPoints: userMultiplierResult.multipliedPoints
+        };
+      });
+
+      // Sort by multiplied points (descending)
+      usersWithMultipliers.sort((a, b) => b.multipliedPoints - a.multipliedPoints);
+
+      // Find current user's position
+      const userIndex = usersWithMultipliers.findIndex(user => user.user_fid === parseInt(userFid));
       position = userIndex >= 0 ? userIndex + 1 : 1;
+
+      console.log('🎯 Position calculation complete:', { 
+        userFid, 
+        position, 
+        totalUsers: usersWithMultipliers.length,
+        userMultipliedPoints: multiplierResult.multipliedPoints
+      });
+    } else {
+      console.error('❌ Failed to fetch leaderboard data for position calculation');
     }
-    
-    console.log('🎯 Leaderboard page position calculation using admin data:', { userFid, position, totalUsers: adminData.data?.length });
     
     const username = userData.profiles?.display_name || userData.profiles?.username || `User ${userFid}`;
     const pfpUrl = userData.profiles?.pfp_url;
