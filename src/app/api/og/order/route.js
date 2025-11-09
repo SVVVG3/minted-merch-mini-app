@@ -230,12 +230,22 @@ export async function GET(request) {
               <div
                 style={{
                   fontSize: '28px',
-                  marginBottom: '40px',
+                  marginBottom: '20px',
                   lineHeight: '1.3',
                   color: 'white',
                 }}
               >
                 {products}
+              </div>
+              
+              <div
+                style={{
+                  fontSize: '24px',
+                  color: '#3eb489',
+                  lineHeight: '1.3',
+                }}
+              >
+                Shop using 1200+ coins across 20+ chains ✨
               </div>
             </div>
           </div>
