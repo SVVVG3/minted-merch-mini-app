@@ -139,8 +139,8 @@ export async function POST(request) {
       console.log('✅ Token gating check passed:', eligibilityResult.reason);
     }
 
-    // Calculate discount amount
-    const discountResult = calculateDiscountAmount(subtotal, validationResult);
+    // Calculate discount amount (pass cartItems for product-scoped discounts)
+    const discountResult = calculateDiscountAmount(subtotal, validationResult, 0, cartItems || []);
     
     if (discountResult.error) {
       return NextResponse.json({

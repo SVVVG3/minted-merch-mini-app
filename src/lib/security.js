@@ -248,10 +248,12 @@ export async function recalculateOrderTotals(orderData) {
           discountType: validationResult.discountCode.discount_type,
           discountValue: validationResult.discountCode.discount_value,
           minimumOrderAmount: validationResult.discountCode.minimum_order_amount,
-          freeShipping: validationResult.discountCode.free_shipping || false
+          freeShipping: validationResult.discountCode.free_shipping || false,
+          discount_scope: validationResult.discountCode.discount_scope,
+          target_products: validationResult.discountCode.target_products
         };
         
-        const discountCalc = calculateDiscountAmount(subtotal, formattedDiscountCode);
+        const discountCalc = calculateDiscountAmount(subtotal, formattedDiscountCode, 0, cartItems);
         discountAmount = discountCalc.discountAmount;
       }
     }

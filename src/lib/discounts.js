@@ -486,14 +486,18 @@ export async function validateDiscountCode(code, fid = null) {
 
 /**
  * Calculate discount amount for an order
+ * @param {number} subtotal - Order subtotal
+ * @param {Object} discountCode - Discount code object
+ * @param {number} shippingAmount - Shipping cost
+ * @param {Array} cartItems - Cart items for product-scoped discounts
  */
-export function calculateDiscountAmount(subtotal, discountCode, shippingAmount = 0) {
+export function calculateDiscountAmount(subtotal, discountCode, shippingAmount = 0, cartItems = []) {
   try {
     if (!discountCode || !discountCode.isValid) {
       return { discountAmount: 0, finalTotal: subtotal, shippingDiscount: 0 };
     }
 
-    const { discountType, discountValue, minimumOrderAmount, freeShipping } = discountCode;
+    const { discountType, discountValue, minimumOrderAmount, freeShipping, discount_scope, target_products } = discountCode;
 
     // Check minimum order amount
     if (minimumOrderAmount && subtotal < minimumOrderAmount) {
@@ -507,12 +511,42 @@ export function calculateDiscountAmount(subtotal, discountCode, shippingAmount =
 
     let discountAmount = 0;
     let shippingDiscount = 0;
+    let discountableAmount = subtotal; // Default to entire subtotal
+
+    // 🔧 FIX: Handle product-scoped discounts
+    if (discount_scope === 'product' && target_products && target_products.length > 0 && cartItems.length > 0) {
+      console.log('🎯 Calculating product-scoped discount:', { 
+        target_products, 
+        cartItemsCount: cartItems.length 
+      });
+      
+      // Calculate total only for targeted products
+      discountableAmount = cartItems.reduce((total, item) => {
+        const productHandle = item.product?.handle || item.handle || '';
+        const isTargeted = target_products.some(targetHandle => 
+          productHandle.includes(targetHandle) || targetHandle.includes(productHandle)
+        );
+        
+        if (isTargeted) {
+          const itemPrice = parseFloat(item.price || item.variant?.price || 0);
+          const quantity = parseInt(item.quantity || 1);
+          const itemTotal = itemPrice * quantity;
+          console.log(`  ✅ Targeted product: ${item.product?.title || item.title} ($${itemTotal})`);
+          return total + itemTotal;
+        } else {
+          console.log(`  ⏭️  Non-targeted product: ${item.product?.title || item.title}`);
+          return total;
+        }
+      }, 0);
+      
+      console.log(`💰 Discountable amount (product-scoped): $${discountableAmount} (subtotal: $${subtotal})`);
+    }
 
     // Calculate product discount
     if (discountType === 'percentage') {
-      discountAmount = (subtotal * discountValue) / 100;
+      discountAmount = (discountableAmount * discountValue) / 100;
     } else if (discountType === 'fixed') {
-      discountAmount = Math.min(discountValue, subtotal); // Don't exceed subtotal
+      discountAmount = Math.min(discountValue, discountableAmount); // Don't exceed discountable amount
     }
 
     // Calculate shipping discount
@@ -524,6 +558,14 @@ export function calculateDiscountAmount(subtotal, discountCode, shippingAmount =
     discountAmount = Math.round(discountAmount * 100) / 100;
     shippingDiscount = Math.round(shippingDiscount * 100) / 100;
     const finalTotal = Math.max(0, subtotal - discountAmount);
+
+    console.log(`💳 Discount calculation result:`, {
+      discountAmount,
+      discountableAmount,
+      subtotal,
+      discount_scope,
+      target_products: target_products || 'all'
+    });
 
     return {
       discountAmount: discountAmount,
