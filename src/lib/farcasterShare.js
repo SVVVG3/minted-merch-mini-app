@@ -147,7 +147,7 @@ export async function shareLeaderboardPosition({
   console.log('🔗 Sharing leaderboard URL:', leaderboardUrl);
   console.log('📊 Leaderboard share data:', { position, totalPoints, username, multiplier, tier, pfp, tokenBalance, fid });
   
-  const shareText = `I'm currently ranked ${positionText} place on the @mintedmerch mini app leaderboard!\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
+  const shareText = `I'm currently ranked ${positionText} place on the @mintedmerch mini app leaderboard!\n\nSpin the wheel daily (for free) & shop using 1200+ coins across 20+ chains to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
   
   return shareToFarcaster({
     text: shareText,
@@ -196,7 +196,7 @@ export async function shareCheckIn({ spinResult, userStatus, isInFarcaster = fal
                     spinResult.newStreak >= 7 ? "⚡" : 
                     spinResult.newStreak >= 3 ? "🌟" : "💫";
 
-  const shareText = `🎯 Daily check-in complete! +${multipliedEarnedPoints.toLocaleString()} points earned!\n\n(${spinResult.basePoints} base${spinResult.streakBonus > 0 ? ` + ${spinResult.streakBonus} streak bonus` : ''}${userStatus?.tokenMultiplier > 1 ? ` × ${userStatus.tokenMultiplier}x multiplier` : ''})\n\n${streakEmoji} ${spinResult.newStreak} day streak • 💎 ${multipliedTotalPoints.toLocaleString()} total points\n\nSpin the wheel daily (for free) & shop using USDC to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
+  const shareText = `🎯 Daily check-in complete! +${multipliedEarnedPoints.toLocaleString()} points earned!\n\n(${spinResult.basePoints} base${spinResult.streakBonus > 0 ? ` + ${spinResult.streakBonus} streak bonus` : ''}${userStatus?.tokenMultiplier > 1 ? ` × ${userStatus.tokenMultiplier}x multiplier` : ''})\n\n${streakEmoji} ${spinResult.newStreak} day streak • 💎 ${multipliedTotalPoints.toLocaleString()} total points\n\nSpin the wheel daily (for free) & shop using 1200+ coins across 20+ chains to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
 
   return shareToFarcaster({
     text: shareText,
@@ -253,7 +253,7 @@ export async function shareCollection({ collectionHandle, collectionName, isInFa
  */
 export async function shareOrder({ orderNumber, mainProduct, isInFarcaster = false }) {
   const orderUrl = `${window.location.origin}/order/${orderNumber}`;
-  const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain`;
+  const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
 
   return shareToFarcaster({
     text: shareText,

@@ -240,7 +240,7 @@ export async function GET(request) {
               
               <div
                 style={{
-                  fontSize: '24px',
+                  fontSize: '20px',
                   color: '#3eb489',
                   lineHeight: '1.3',
                 }}
