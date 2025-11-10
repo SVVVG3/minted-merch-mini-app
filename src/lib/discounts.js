@@ -550,8 +550,30 @@ export function calculateDiscountAmount(subtotal, discountCode, shippingAmount =
     }
 
     // Calculate shipping discount
-    if (freeShipping && shippingAmount > 0) {
+    // 🔧 FIX: Only apply free shipping if discount covers the ENTIRE cart
+    // For product-scoped discounts, free shipping only applies if subtotal equals discountable amount
+    let shouldApplyFreeShipping = freeShipping && shippingAmount > 0;
+    
+    if (shouldApplyFreeShipping && discount_scope === 'product' && target_products && target_products.length > 0) {
+      // Product-scoped discount: only apply free shipping if the discount covers ALL items
+      const tolerance = 0.01; // Allow 1 cent tolerance for rounding
+      const coversEntireCart = Math.abs(discountableAmount - subtotal) < tolerance;
+      
+      if (!coversEntireCart) {
+        console.log(`⚠️ Product-scoped discount doesn't cover entire cart - no free shipping`, {
+          discountableAmount,
+          subtotal,
+          difference: subtotal - discountableAmount
+        });
+        shouldApplyFreeShipping = false;
+      } else {
+        console.log(`✅ Product-scoped discount covers entire cart - applying free shipping`);
+      }
+    }
+    
+    if (shouldApplyFreeShipping) {
       shippingDiscount = shippingAmount;
+      console.log(`🚚 Free shipping applied: $${shippingAmount}`);
     }
 
     // Round to 2 decimal places
