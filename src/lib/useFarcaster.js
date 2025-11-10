@@ -99,8 +99,28 @@ export function useFarcaster() {
       // Check if we already have a valid session token
       const existingToken = localStorage.getItem('fc_session_token');
       if (existingToken && sessionToken) {
-        console.log('✅ Session token already exists, skipping Quick Auth');
-        return;
+        // 🔒 SECURITY FIX: Validate token expiration before skipping Quick Auth
+        try {
+          const parts = existingToken.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]));
+            const expiresAt = payload.exp * 1000;
+            const now = Date.now();
+            
+            if (expiresAt > now) {
+              console.log('✅ Session token already exists and is valid, skipping Quick Auth');
+              return;
+            } else {
+              console.warn('⚠️ Session token expired, will fetch fresh token');
+              localStorage.removeItem('fc_session_token');
+              // Continue to Quick Auth
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error validating existing token:', error);
+          localStorage.removeItem('fc_session_token');
+          // Continue to Quick Auth
+        }
       }
       
       // Check if we've already attempted (component-level)
@@ -282,8 +302,34 @@ export function useFarcaster() {
     
     const storedToken = localStorage.getItem('fc_session_token');
     if (storedToken && !sessionToken) {
-      console.log('📦 Loaded session token from localStorage');
-      setSessionToken(storedToken);
+      // 🔒 SECURITY FIX: Validate JWT before using it
+      try {
+        // Decode JWT to check expiration
+        const parts = storedToken.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          const expiresAt = payload.exp * 1000; // Convert to milliseconds
+          const now = Date.now();
+          
+          if (expiresAt > now) {
+            // Token is still valid
+            console.log('📦 Loaded valid session token from localStorage');
+            setSessionToken(storedToken);
+          } else {
+            // Token is expired
+            console.warn('⚠️ Stored JWT is expired, clearing it');
+            localStorage.removeItem('fc_session_token');
+            // Don't set sessionToken - will trigger re-authentication
+          }
+        } else {
+          // Invalid JWT format
+          console.error('❌ Invalid JWT format in localStorage, clearing it');
+          localStorage.removeItem('fc_session_token');
+        }
+      } catch (error) {
+        console.error('❌ Error validating stored JWT:', error);
+        localStorage.removeItem('fc_session_token');
+      }
     }
   }, [isInFarcaster, sessionToken]);
 
