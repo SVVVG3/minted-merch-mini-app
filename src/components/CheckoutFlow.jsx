@@ -625,24 +625,66 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       }
       
       // Check if applied discount includes free shipping
+      // 🔧 FIX: Only apply free shipping if discount covers the ENTIRE cart
       if (appliedDiscount && appliedDiscount.freeShipping) {
-        console.log('🚚 Free shipping discount detected, adding free shipping option');
+        let shouldApplyFreeShipping = true;
         
-        // Add free shipping option to the beginning of shipping rates
-        const freeShippingOption = {
-          handle: 'discount-free-shipping',
-          title: 'FREE Shipping (Discount Applied)',
-          price: { amount: 0, currencyCode: 'USD' },
-          description: 'Free shipping provided by discount code'
-        };
+        // For product-scoped discounts, check if discount covers all items
+        if (appliedDiscount.discount_scope === 'product' && appliedDiscount.target_products && appliedDiscount.target_products.length > 0) {
+          const subtotal = checkoutData.subtotal.amount;
+          
+          // Calculate total of targeted products only
+          const discountableAmount = cart.items.reduce((total, item) => {
+            const productHandle = item.product?.handle || item.handle || '';
+            const isTargeted = appliedDiscount.target_products.some(targetHandle => 
+              productHandle.includes(targetHandle) || targetHandle.includes(productHandle)
+            );
+            
+            if (isTargeted) {
+              const itemPrice = parseFloat(item.price || item.variant?.price || 0);
+              const quantity = parseInt(item.quantity || 1);
+              return total + (itemPrice * quantity);
+            }
+            return total;
+          }, 0);
+          
+          // Only apply free shipping if discount covers the ENTIRE cart
+          const tolerance = 0.01; // Allow 1 cent tolerance for rounding
+          const coversEntireCart = Math.abs(discountableAmount - subtotal) < tolerance;
+          
+          if (!coversEntireCart) {
+            console.log(`⚠️ Product-scoped discount doesn't cover entire cart - no free shipping`, {
+              discountableAmount,
+              subtotal,
+              difference: subtotal - discountableAmount
+            });
+            shouldApplyFreeShipping = false;
+          } else {
+            console.log(`✅ Product-scoped discount covers entire cart - applying free shipping`);
+          }
+        }
         
-        // Add free shipping as first option and remove duplicates
-        checkoutData.shippingRates = [
-          freeShippingOption,
-          ...checkoutData.shippingRates.filter(rate => rate.price.amount > 0)
-        ];
-        
-        console.log('🚚 Updated shipping rates with free shipping:', checkoutData.shippingRates);
+        if (shouldApplyFreeShipping) {
+          console.log('🚚 Free shipping discount detected, adding free shipping option');
+          
+          // Add free shipping option to the beginning of shipping rates
+          const freeShippingOption = {
+            handle: 'discount-free-shipping',
+            title: 'FREE Shipping (Discount Applied)',
+            price: { amount: 0, currencyCode: 'USD' },
+            description: 'Free shipping provided by discount code'
+          };
+          
+          // Add free shipping as first option and remove duplicates
+          checkoutData.shippingRates = [
+            freeShippingOption,
+            ...checkoutData.shippingRates.filter(rate => rate.price.amount > 0)
+          ];
+          
+          console.log('🚚 Updated shipping rates with free shipping:', checkoutData.shippingRates);
+        } else {
+          console.log('💰 Free shipping NOT applied - user must pay for shipping');
+        }
       }
       
       // Save checkout data to cart context
