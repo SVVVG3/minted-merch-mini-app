@@ -1,4 +1,5 @@
 // API endpoint for daily check-ins
+// SECURITY: This endpoint must NEVER allow skipBlockchainCheck from client
 import { performDailyCheckin, canCheckInToday, getUserLeaderboardData, getUserLeaderboardPosition, getTodaysCheckInResult } from '../../../../lib/points.js';
 import { NextResponse } from 'next/server';
 
@@ -7,7 +8,17 @@ export async function POST(request) {
     const body = await request.json();
     console.log('🔍 DEBUG: Raw request body received:', JSON.stringify(body));
     
-    const { userFid, timezone, txHash, skipBlockchainCheck } = body;
+    // SECURITY FIX: Never trust client-provided skipBlockchainCheck
+    const { userFid, timezone, txHash } = body;
+    
+    // Log and IGNORE any client-provided skipBlockchainCheck
+    if (body.skipBlockchainCheck !== undefined) {
+      console.warn('⚠️ SECURITY: Client attempted to set skipBlockchainCheck, ignoring!', {
+        userFid,
+        clientValue: body.skipBlockchainCheck,
+        ip: request.headers.get('x-forwarded-for') || 'unknown'
+      });
+    }
     
     console.log('🔍 DEBUG: Parsed values:', {
       userFid,
@@ -15,7 +26,7 @@ export async function POST(request) {
       userFidValue: JSON.stringify(userFid),
       timezone,
       txHash: txHash ? txHash.substring(0, 10) + '...' : 'none',
-      skipBlockchainCheck
+      skipBlockchainCheck: 'NEVER (server-enforced)'
     });
 
     // Validate required parameters
@@ -38,10 +49,23 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    console.log(`🎯 Daily check-in attempt for FID: ${userFid}, timezone: ${timezone || 'not provided'}, txHash: ${txHash || 'none'}`);
+    // SECURITY FIX: Transaction hash is now REQUIRED for check-ins
+    if (!txHash) {
+      console.error('❌ SECURITY: Check-in attempt without transaction hash!', {
+        userFid,
+        ip: request.headers.get('x-forwarded-for') || 'unknown'
+      });
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Transaction hash is required for check-ins'
+      }, { status: 400 });
+    }
 
-    // Perform daily check-in (with optional blockchain transaction hash)
-    const result = await performDailyCheckin(userFid, txHash, skipBlockchainCheck);
+    console.log(`🎯 Daily check-in attempt for FID: ${userFid}, timezone: ${timezone || 'not provided'}, txHash: ${txHash.substring(0, 10)}...`);
+
+    // SECURITY: ALWAYS enforce blockchain checks (skipBlockchainCheck = false)
+    // Only admin endpoints and recover-stuck-spin (with its own security) can skip
+    const result = await performDailyCheckin(userFid, txHash, false);
 
     if (!result.success) {
       const statusCode = result.alreadyCheckedIn ? 409 : 500;
