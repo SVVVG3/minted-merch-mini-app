@@ -11,14 +11,35 @@ export async function POST(request) {
     // SECURITY FIX: Never trust client-provided skipBlockchainCheck
     const { userFid, timezone, txHash } = body;
     
-    // Log and IGNORE any client-provided skipBlockchainCheck
-    if (body.skipBlockchainCheck !== undefined) {
-      console.warn('⚠️ SECURITY: Client attempted to set skipBlockchainCheck, ignoring!', {
+    // Log ONLY malicious attempts to bypass security (skipBlockchainCheck: true)
+    if (body.skipBlockchainCheck === true) {
+      console.warn('🚨 SECURITY ALERT: Client attempted to bypass blockchain checks!', {
         userFid,
         clientValue: body.skipBlockchainCheck,
-        ip: request.headers.get('x-forwarded-for') || 'unknown'
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        timestamp: new Date().toISOString()
       });
+      
+      // Log to security_events table for investigation
+      try {
+        const { supabaseAdmin } = await import('@/lib/supabase.js');
+        await supabaseAdmin
+          .from('security_events')
+          .insert({
+            event_type: 'bypass_attempt',
+            user_fid: userFid || null,
+            metadata: {
+              endpoint: '/api/points/checkin',
+              attemptedBypass: 'skipBlockchainCheck',
+              ip: request.headers.get('x-forwarded-for') || 'unknown'
+            },
+            severity: 'high'
+          });
+      } catch (logError) {
+        console.error('Failed to log security event:', logError);
+      }
     }
+    // Silently ignore false values (legitimate frontend behavior)
     
     console.log('🔍 DEBUG: Parsed values:', {
       userFid,
