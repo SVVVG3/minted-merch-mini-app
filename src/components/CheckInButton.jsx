@@ -46,7 +46,7 @@ export function CheckInButton() {
         
         setIsModalOpen(true);
         setHasAutoOpened(true);
-      }, 2000); // 2 seconds delay
+      }, 500); // 0.5 seconds delay
 
       return () => clearTimeout(timer);
     }
