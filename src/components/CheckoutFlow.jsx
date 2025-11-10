@@ -336,25 +336,89 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   // NOTE: We no longer update Daimo here! Amount is updated when user clicks "Purchase Merch"
   // This fixes the race condition where discounts/shipping/taxes weren't reflected in the payment
 
+  // Helper function to check if JWT is expired and refresh if needed
+  const ensureValidToken = async () => {
+    const token = getSessionToken();
+    
+    if (!token) {
+      console.log('⚠️ No session token available');
+      return null;
+    }
+    
+    try {
+      // Decode JWT to check expiration (JWT format: header.payload.signature)
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        console.error('❌ Invalid JWT format');
+        return null;
+      }
+      
+      const payload = JSON.parse(atob(parts[1]));
+      const expiresAt = payload.exp * 1000; // Convert to milliseconds
+      const now = Date.now();
+      
+      // Check if token expires in less than 5 minutes (refresh proactively)
+      if (expiresAt - now < 5 * 60 * 1000) {
+        console.log('🔄 JWT expired or expiring soon, refreshing...');
+        
+        // Re-authenticate using Farcaster session
+        if (isInFarcaster && context) {
+          try {
+            // Get fresh Quick Auth token
+            const quickAuthToken = await sdk.actions.getQuickAuthToken();
+            
+            if (quickAuthToken) {
+              const response = await fetch('/api/auth/session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ farcasterToken: quickAuthToken })
+              });
+              
+              const result = await response.json();
+              
+              if (result.success && result.token) {
+                console.log('✅ JWT refreshed successfully');
+                localStorage.setItem('fc_session_token', result.token);
+                return result.token;
+              }
+            }
+          } catch (error) {
+            console.error('❌ Failed to refresh JWT:', error);
+          }
+        }
+        
+        return null;
+      }
+      
+      return token; // Token is still valid
+    } catch (error) {
+      console.error('❌ Error checking JWT expiration:', error);
+      return token; // Return original token as fallback
+    }
+  };
+
   // Fetch user's previous shipping address for pre-population
   useEffect(() => {
     const fetchPreviousShippingAddress = async () => {
       const userFid = getFid();
-      const token = getSessionToken();
       
       // Only fetch if we don't already have shipping data and user is identified
       if (!shippingData && userFid) {
         try {
           console.log('🔍 Fetching previous shipping address for returning user...');
           
-          // PHASE 2: Include session JWT token in Authorization header (required)
-          const headers = {};
-          if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-          } else {
-            console.error('No session token available - user must authenticate');
-            throw new Error('Authentication required');
+          // Check and refresh JWT if needed
+          const validToken = await ensureValidToken();
+          
+          if (!validToken) {
+            console.log('⚠️ No valid session token - user needs to re-authenticate');
+            return;
           }
+          
+          // PHASE 2: Include session JWT token in Authorization header (required)
+          const headers = {
+            'Authorization': `Bearer ${validToken}`
+          };
           
           const response = await fetch(`/api/user-last-shipping?fid=${userFid}`, {
             headers
@@ -383,7 +447,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     };
 
     fetchPreviousShippingAddress();
-  }, [getFid, shippingData, updateShipping]);
+  }, [getFid, shippingData, updateShipping, isInFarcaster, context]);
   
   const {
     balance,
