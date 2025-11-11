@@ -360,84 +360,139 @@ export async function POST(request) {
         }, { status: 500 });
       }
       
-      // 🔒 CRITICAL SECURITY CHECK: Verify payment with Daimo API
-      // This ensures the payment actually exists and was for the correct amount
-      console.log(`🔒 [${requestId}] Verifying payment with Daimo API...`);
+      // 🔒 CRITICAL SECURITY CHECK: Verify payment with Daimo (webhook or API)
+      // STRATEGY: Check webhook_logs first (instant), fall back to Daimo API if needed
+      console.log(`🔒 [${requestId}] Verifying payment...`);
       
       // Import logSecurityEvent for error logging
       const { logSecurityEvent: logSecurityEventForDaimo } = await import('@/lib/security');
       
-      const daimoApiKey = process.env.DAIMO_API_KEY;
-      if (!daimoApiKey) {
-        console.error(`❌ [${requestId}] DAIMO_API_KEY not configured`);
-        return NextResponse.json({
-          success: false,
-          error: 'Payment verification not available',
-          message: 'Server configuration error'
-        }, { status: 500 });
-      }
+      let daimoPaymentData = null;
+      let paymentSource = 'unknown';
       
       try {
-        // Retry configuration for Daimo API timing issues (similar to webhook)
-        const maxRetries = 3;
-        const retryDelays = [1000, 2000, 3000]; // 1s, 2s, 3s
+        // STEP 1: Check webhook_logs first (this is instant and avoids API indexing delays)
+        console.log(`🔍 [${requestId}] Checking webhook_logs for payment ${paymentMetadata.daimoPaymentId}...`);
         
-        let daimoPaymentData = null;
-        let lastError = null;
-        let lastStatus = null;
+        const { data: webhookData, error: webhookError } = await supabaseAdmin
+          .from('webhook_logs')
+          .select('raw_payload, event_type, processed_at')
+          .eq('payment_id', paymentMetadata.daimoPaymentId)
+          .eq('source', 'daimo')
+          .eq('event_type', 'payment_completed')
+          .order('processed_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
         
-        // Try to fetch payment data with retries (Daimo API might not have indexed it yet)
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
-          if (attempt > 0) {
-            const delay = retryDelays[attempt - 1];
-            console.log(`⏳ [${requestId}] Daimo payment not found yet, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
+        if (webhookData && !webhookError) {
+          // Extract payment object from webhook payload
+          const webhookPayload = webhookData.raw_payload;
+          if (webhookPayload?.payment) {
+            daimoPaymentData = webhookPayload.payment;
+            paymentSource = 'webhook';
+            console.log(`✅ [${requestId}] Payment verified from webhook (instant, no API delay!):`, {
+              paymentId: daimoPaymentData.id,
+              status: daimoPaymentData.status,
+              amount: daimoPaymentData.destination?.amountUnits,
+              processedAt: webhookData.processed_at
+            });
+          }
+        } else if (webhookError) {
+          console.warn(`⚠️ [${requestId}] Error checking webhook_logs:`, webhookError.message);
+        }
+        
+        // STEP 2: If not found in webhook_logs, fall back to Daimo API (with retries for indexing delay)
+        if (!daimoPaymentData) {
+          console.log(`⏳ [${requestId}] Payment not in webhook_logs yet, checking Daimo API...`);
+          
+          const daimoApiKey = process.env.DAIMO_API_KEY;
+          if (!daimoApiKey) {
+            console.error(`❌ [${requestId}] DAIMO_API_KEY not configured`);
+            return NextResponse.json({
+              success: false,
+              error: 'Payment verification not available',
+              message: 'Server configuration error'
+            }, { status: 500 });
           }
           
-          const daimoResponse = await fetch(`https://pay-api.daimo.xyz/v1/payments/${paymentMetadata.daimoPaymentId}`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${daimoApiKey}`,
-              'Content-Type': 'application/json'
-            }
-          });
+          // Retry configuration for Daimo API timing issues
+          const maxRetries = 3;
+          const retryDelays = [1000, 2000, 3000]; // 1s, 2s, 3s
+          let lastError = null;
+          let lastStatus = null;
           
-          lastStatus = daimoResponse.status;
-          
-          if (daimoResponse.ok) {
-            daimoPaymentData = await daimoResponse.json();
+          for (let attempt = 0; attempt <= maxRetries; attempt++) {
             if (attempt > 0) {
-              console.log(`✅ [${requestId}] Daimo payment found on retry attempt ${attempt}`);
+              const delay = retryDelays[attempt - 1];
+              console.log(`⏳ [${requestId}] Retrying Daimo API in ${delay}ms (attempt ${attempt}/${maxRetries})...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
             }
+            
+            const daimoResponse = await fetch(`https://pay-api.daimo.xyz/v1/payments/${paymentMetadata.daimoPaymentId}`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${daimoApiKey}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            lastStatus = daimoResponse.status;
+            
+            if (daimoResponse.ok) {
+              daimoPaymentData = await daimoResponse.json();
+              paymentSource = 'api';
+              if (attempt > 0) {
+                console.log(`✅ [${requestId}] Payment found via Daimo API on retry ${attempt}`);
+              } else {
+                console.log(`✅ [${requestId}] Payment verified from Daimo API`);
+              }
+              break;
+            }
+            
+            // If 404, payment might not be indexed yet - retry
+            if (daimoResponse.status === 404) {
+              lastError = 'Payment not found in Daimo API (may not be indexed yet)';
+              continue; // Retry
+            }
+            
+            // For other errors (401, 500, etc.), don't retry
+            lastError = `Daimo API returned ${daimoResponse.status}`;
             break;
           }
           
-          // If 404, payment might not be indexed yet - retry
-          if (daimoResponse.status === 404) {
-            lastError = 'Payment not found in Daimo API (may not be indexed yet)';
-            continue; // Retry
+          // If still no payment data after retries, check webhook one more time before failing
+          if (!daimoPaymentData) {
+            console.log(`🔄 [${requestId}] Final check: Querying webhook_logs again...`);
+            const { data: finalWebhookCheck } = await supabaseAdmin
+              .from('webhook_logs')
+              .select('raw_payload')
+              .eq('payment_id', paymentMetadata.daimoPaymentId)
+              .eq('source', 'daimo')
+              .eq('event_type', 'payment_completed')
+              .maybeSingle();
+            
+            if (finalWebhookCheck?.raw_payload?.payment) {
+              daimoPaymentData = finalWebhookCheck.raw_payload.payment;
+              paymentSource = 'webhook_retry';
+              console.log(`✅ [${requestId}] Payment found in webhook_logs on final check!`);
+            }
           }
-          
-          // For other errors (401, 500, etc.), don't retry
-          lastError = `Daimo API returned ${daimoResponse.status}`;
-          break;
         }
         
-        // If still no payment data after retries, fail
+        // If still no payment data after ALL attempts (webhook + API + webhook retry), fail
         if (!daimoPaymentData) {
-          console.error(`❌ [${requestId}] Daimo API verification failed after ${maxRetries} retries:`, {
-            lastStatus,
-            lastError,
-            paymentId: paymentMetadata.daimoPaymentId
+          console.error(`❌ [${requestId}] Payment verification completely failed - not found in webhook or API:`, {
+            paymentId: paymentMetadata.daimoPaymentId,
+            checkedWebhook: true,
+            checkedAPI: true,
+            retriedWebhook: true
           });
           
           // Log security event (use imported function)
           try {
             await logSecurityEventForDaimo('daimo_payment_verification_failed', {
               paymentId: paymentMetadata.daimoPaymentId,
-              daimoStatus: lastStatus,
-              lastError,
-              retriesAttempted: maxRetries,
+              message: 'Payment not found in webhook_logs or Daimo API',
               requestId
             }, fidInt, request);
           } catch (logError) {
@@ -451,21 +506,24 @@ export async function POST(request) {
           }, { status: 400 });
         }
         
-        // Now we have verified payment data from Daimo
-        console.log(`✅ [${requestId}] Daimo payment data retrieved:`, {
+        // Now we have verified payment data (from webhook or API)
+        console.log(`✅ [${requestId}] Payment data retrieved from ${paymentSource}:`, {
           id: daimoPaymentData.id,
           status: daimoPaymentData.status,
-          amount: daimoPaymentData.destAmount
+          amount: daimoPaymentData.destination?.amountUnits || daimoPaymentData.destAmount,
+          source: paymentSource
         });
         
-        // Check payment status
-        if (daimoPaymentData.status !== 'confirmed') {
-          console.error(`❌ [${requestId}] Payment not confirmed:`, daimoPaymentData.status);
+        // Check payment status (webhook uses 'payment_completed', API uses 'confirmed')
+        const validStatuses = ['confirmed', 'payment_completed'];
+        if (!validStatuses.includes(daimoPaymentData.status)) {
+          console.error(`❌ [${requestId}] Payment not in valid status:`, daimoPaymentData.status);
           
           try {
             await logSecurityEventForDaimo('daimo_payment_not_confirmed', {
               paymentId: paymentMetadata.daimoPaymentId,
               status: daimoPaymentData.status,
+              expectedStatuses: validStatuses,
               requestId
             }, fidInt, request);
           } catch (logError) {
@@ -480,8 +538,13 @@ export async function POST(request) {
         }
         
         // 🔒 CRITICAL SECURITY: Verify payment amount matches expected total
-        // We'll validate this again after server-side calculation, but check Daimo data exists
-        const daimoPaidAmount = parseFloat(daimoPaymentData.destAmount || daimoPaymentData.amount || 0);
+        // Handle both webhook format (destination.amountUnits) and API format (destAmount)
+        const daimoPaidAmount = parseFloat(
+          daimoPaymentData.destination?.amountUnits || 
+          daimoPaymentData.destAmount || 
+          daimoPaymentData.amount || 
+          0
+        );
         if (daimoPaidAmount <= 0) {
           console.error(`❌ [${requestId}] Invalid payment amount from Daimo:`, daimoPaidAmount);
           
