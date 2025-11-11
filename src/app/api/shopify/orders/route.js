@@ -349,7 +349,7 @@ export async function POST(request) {
 
       if (!checkError || checkError.code === 'PGRST116') {
         // PGRST116 = no rows found, which is good - payment not used yet
-        console.log(`✅ [${requestId}] Payment verification passed - daimoPaymentId is unused`);
+        console.log(`✅ [${requestId}] Payment replay check passed - daimoPaymentId is unused`);
       } else {
         console.error(`❌ [${requestId}] Error checking payment replay:`, checkError);
         // On database error, fail the request rather than risk allowing replay attack
@@ -357,6 +357,116 @@ export async function POST(request) {
           success: false,
           error: 'Payment verification failed',
           message: 'Unable to verify payment status. Please try again.'
+        }, { status: 500 });
+      }
+      
+      // 🔒 CRITICAL SECURITY CHECK: Verify payment with Daimo API
+      // This ensures the payment actually exists and was for the correct amount
+      console.log(`🔒 [${requestId}] Verifying payment with Daimo API...`);
+      
+      const daimoApiKey = process.env.DAIMO_API_KEY;
+      if (!daimoApiKey) {
+        console.error(`❌ [${requestId}] DAIMO_API_KEY not configured`);
+        return NextResponse.json({
+          success: false,
+          error: 'Payment verification not available',
+          message: 'Server configuration error'
+        }, { status: 500 });
+      }
+      
+      try {
+        // Call Daimo API to verify the payment
+        const daimoResponse = await fetch(`https://pay-api.daimo.xyz/v1/payments/${paymentMetadata.daimoPaymentId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${daimoApiKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!daimoResponse.ok) {
+          console.error(`❌ [${requestId}] Daimo API verification failed:`, {
+            status: daimoResponse.status,
+            paymentId: paymentMetadata.daimoPaymentId
+          });
+          
+          await logSecurityEvent('daimo_payment_verification_failed', {
+            paymentId: paymentMetadata.daimoPaymentId,
+            daimoStatus: daimoResponse.status,
+            requestId
+          }, fidInt, request);
+          
+          return NextResponse.json({
+            success: false,
+            error: 'Payment verification failed',
+            message: 'Unable to verify payment with Daimo. Please try again or contact support.'
+          }, { status: 400 });
+        }
+        
+        const daimoPaymentData = await daimoResponse.json();
+        console.log(`✅ [${requestId}] Daimo payment data retrieved:`, {
+          id: daimoPaymentData.id,
+          status: daimoPaymentData.status,
+          amount: daimoPaymentData.destAmount
+        });
+        
+        // Check payment status
+        if (daimoPaymentData.status !== 'confirmed') {
+          console.error(`❌ [${requestId}] Payment not confirmed:`, daimoPaymentData.status);
+          
+          await logSecurityEvent('daimo_payment_not_confirmed', {
+            paymentId: paymentMetadata.daimoPaymentId,
+            status: daimoPaymentData.status,
+            requestId
+          }, fidInt, request);
+          
+          return NextResponse.json({
+            success: false,
+            error: 'Payment not confirmed',
+            message: `Payment status: ${daimoPaymentData.status}. Please wait for confirmation.`
+          }, { status: 400 });
+        }
+        
+        // 🔒 CRITICAL SECURITY: Verify payment amount matches expected total
+        // We'll validate this again after server-side calculation, but check Daimo data exists
+        const daimoPaidAmount = parseFloat(daimoPaymentData.destAmount || daimoPaymentData.amount || 0);
+        if (daimoPaidAmount <= 0) {
+          console.error(`❌ [${requestId}] Invalid payment amount from Daimo:`, daimoPaidAmount);
+          
+          await logSecurityEvent('daimo_invalid_amount', {
+            paymentId: paymentMetadata.daimoPaymentId,
+            amount: daimoPaidAmount,
+            requestId
+          }, fidInt, request);
+          
+          return NextResponse.json({
+            success: false,
+            error: 'Invalid payment amount',
+            message: 'Payment amount is invalid. Please contact support.'
+          }, { status: 400 });
+        }
+        
+        // Store Daimo verified amount for later comparison with server calculation
+        paymentMetadata.daimoVerifiedAmount = daimoPaidAmount;
+        
+        console.log(`✅ [${requestId}] Daimo payment verified: $${daimoPaidAmount}`);
+        
+      } catch (daimoError) {
+        console.error(`❌ [${requestId}] Error verifying with Daimo API:`, {
+          error: daimoError.message,
+          stack: daimoError.stack
+        });
+        
+        await logSecurityEvent('daimo_api_error', {
+          paymentId: paymentMetadata.daimoPaymentId,
+          error: daimoError.message,
+          requestId
+        }, fidInt, request);
+        
+        return NextResponse.json({
+          success: false,
+          error: 'Payment verification error',
+          message: 'Unable to verify payment. Please try again.'
         }, { status: 500 });
       }
     }
@@ -498,6 +608,37 @@ export async function POST(request) {
     const adjustedTax = serverTotals.adjustedTax;
     const shippingPrice = serverTotals.shippingPrice;
     const finalTotalPrice = serverTotals.finalTotal;
+    
+    // 🔒 CRITICAL SECURITY: Verify Daimo payment amount matches our calculated total
+    if (paymentMetadata?.daimoVerifiedAmount) {
+      const daimoPaidAmount = paymentMetadata.daimoVerifiedAmount;
+      const tolerance = 0.01; // Allow 1 cent tolerance for rounding
+      
+      if (Math.abs(daimoPaidAmount - finalTotalPrice) > tolerance) {
+        console.error(`🚨 [${requestId}] SECURITY ALERT: Daimo payment amount mismatch!`, {
+          daimoVerifiedAmount: daimoPaidAmount,
+          serverCalculatedTotal: finalTotalPrice,
+          difference: Math.abs(daimoPaidAmount - finalTotalPrice)
+        });
+        
+        await logSecurityEvent('daimo_amount_mismatch', {
+          paymentId: paymentMetadata.daimoPaymentId,
+          daimoVerifiedAmount: daimoPaidAmount,
+          serverCalculatedTotal: finalTotalPrice,
+          difference: Math.abs(daimoPaidAmount - finalTotalPrice),
+          requestId
+        }, fidInt, request);
+        
+        return NextResponse.json({
+          error: 'Payment amount mismatch',
+          message: 'The payment amount does not match the order total. Please contact support.',
+          requestId: requestId,
+          step: 'daimo_amount_verification'
+        }, { status: 400 });
+      }
+      
+      console.log(`✅ [${requestId}] Daimo payment amount matches server total: $${finalTotalPrice}`);
+    }
 
     console.log(`💰 [${requestId}] Server-calculated totals (validated):`, {
       originalSubtotal: subtotalPrice,
