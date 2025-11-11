@@ -658,9 +658,9 @@ export function ChatAdminDashboard({ onOpenUserModal }) {
                           <div className="text-xs text-red-600 mt-1">
                             Shortfall: -{(user.requiredBalance - (user.tokenBalance || 0)).toLocaleString()}
                           </div>
-                          {user.lastBalanceCheck && (
+                          {user.lastChecked && user.lastChecked !== 'Never' && (
                             <div className="text-xs text-gray-500 mt-1">
-                              💰 Updated: {new Date(user.lastBalanceCheck).toLocaleString()}
+                              💰 Updated: {new Date(user.lastChecked).toLocaleString()}
                             </div>
                           )}
                           {user.balanceCheckStatus === 'error' && (
@@ -756,9 +756,9 @@ export function ChatAdminDashboard({ onOpenUserModal }) {
                         <div className="text-xs text-green-600">
                           FID: {user.fid}
                         </div>
-                        {user.lastBalanceCheck && (
+                        {user.lastChecked && user.lastChecked !== 'Never' && (
                           <div className="text-xs text-gray-500 mt-1">
-                            💰 Updated: {new Date(user.lastBalanceCheck).toLocaleString()}
+                            💰 Updated: {new Date(user.lastChecked).toLocaleString()}
                           </div>
                         )}
                         {user.balanceCheckStatus === 'error' && (
