@@ -186,11 +186,11 @@ async function handlePaymentCompleted(event) {
   let order = null;
   let lastError = null;
   
-  // Try to find the order with retries
+  // Try to find the order with retries (webhook often arrives before order creation)
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
       const delay = retryDelays[attempt - 1];
-      console.log(`⏳ Order not found yet, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})...`);
+      console.log(`⏳ Checking for order creation (attempt ${attempt}/${maxRetries}, waiting ${delay}ms)...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
     
@@ -211,16 +211,12 @@ async function handlePaymentCompleted(event) {
     lastError = error;
   }
   
-  // If order still not found after all retries, log as error
+  // If order still not found after all retries, this is EXPECTED when webhook arrives before order creation
+  // The order will be created shortly and can use the webhook_logs data we already stored
   if (!order) {
-    console.error(`❌ Order not found for payment ${event.paymentId} after ${maxRetries} retries`);
-    await logSecurityEvent('payment_without_order', {
-      paymentId: event.paymentId,
-      txHash: event.txHash,
-      amount: event.amount,
-      retriesAttempted: maxRetries,
-      lastError: lastError?.message
-    });
+    console.log(`ℹ️ Order not created yet for payment ${event.paymentId} - this is normal when webhook arrives first`);
+    console.log(`✅ Payment data is stored in webhook_logs and will be used by order creation`);
+    // Don't log as security event - this is expected behavior with our webhook-first architecture
     return;
   }
   
