@@ -1036,10 +1036,14 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         walletAddress: walletConnectAddress,
       };
 
-      // Create order in Shopify
+      // Create order in Shopify (with authentication)
+      const sessionToken = getSessionToken();
       const response = await fetch('/api/shopify/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
         body: JSON.stringify(orderData),
       });
 
@@ -1165,10 +1169,14 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         }
       };
 
-      // Create order in Shopify
+      // Create order in Shopify (with authentication)
+      const sessionToken = getSessionToken();
       const response = await fetch('/api/shopify/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
         body: JSON.stringify(orderData),
       });
 
@@ -1348,10 +1356,12 @@ Transaction Hash: ${transactionHash}`;
         total: paidTotal // CRITICAL: Total amount that was actually paid - used for payment reconciliation
       };
 
+      const sessionToken = getSessionToken();
       const response = await fetch('/api/shopify/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
         },
         body: JSON.stringify(orderData),
       });

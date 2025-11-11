@@ -37,6 +37,64 @@ export async function POST(request) {
   const requestId = `order-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   
   try {
+    // 🔒 CRITICAL SECURITY: Require authentication for order creation
+    // This prevents attackers from calling this endpoint directly via Postman/curl/scripts
+    const authHeader = request.headers.get('authorization');
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error(`🚨 [${requestId}] SECURITY ALERT: Unauthenticated order creation attempt`, {
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: request.headers.get('user-agent'),
+        timestamp: new Date().toISOString()
+      });
+      
+      // Log to security_events
+      try {
+        const { supabaseAdmin } = await import('@/lib/supabase');
+        await supabaseAdmin
+          .from('security_events')
+          .insert({
+            event_type: 'unauthenticated_order_attempt',
+            user_fid: null,
+            metadata: {
+              ip: request.headers.get('x-forwarded-for') || 'unknown',
+              userAgent: request.headers.get('user-agent'),
+              endpoint: '/api/shopify/orders'
+            },
+            severity: 'high'
+          });
+      } catch (logError) {
+        console.error('Failed to log security event:', logError);
+      }
+      
+      return NextResponse.json({
+        success: false,
+        error: 'Authentication required',
+        message: 'You must be authenticated to create orders'
+      }, { status: 401 });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Verify the JWT token
+    const { verifyFarcasterUser } = await import('@/lib/auth');
+    const authResult = await verifyFarcasterUser(token);
+    
+    if (!authResult.authenticated) {
+      console.error(`🚨 [${requestId}] SECURITY ALERT: Invalid token for order creation`, {
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        timestamp: new Date().toISOString()
+      });
+      
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid authentication token',
+        message: 'Your session has expired. Please refresh the page.'
+      }, { status: 401 });
+    }
+
+    console.log(`✅ [${requestId}] Authenticated order creation - FID:`, authResult.fid);
+    
     const body = await request.json();
     
     const {
@@ -58,6 +116,43 @@ export async function POST(request) {
 
     // Convert FID to integer to ensure proper database type matching
     const fidInt = fid ? parseInt(fid, 10) : null;
+    
+    // 🔒 CRITICAL SECURITY: Verify authenticated FID matches request FID
+    // This prevents users from creating orders for OTHER users
+    if (fidInt && authResult.fid && fidInt !== authResult.fid) {
+      console.error(`🚨 [${requestId}] SECURITY ALERT: FID mismatch in order creation!`, {
+        authenticatedFid: authResult.fid,
+        requestedFid: fidInt,
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        timestamp: new Date().toISOString()
+      });
+      
+      // Log to security_events
+      try {
+        const { supabaseAdmin } = await import('@/lib/supabase');
+        await supabaseAdmin
+          .from('security_events')
+          .insert({
+            event_type: 'fid_spoofing_attempt',
+            user_fid: authResult.fid,
+            metadata: {
+              authenticatedFid: authResult.fid,
+              spoofedFid: fidInt,
+              ip: request.headers.get('x-forwarded-for') || 'unknown',
+              endpoint: '/api/shopify/orders'
+            },
+            severity: 'critical'
+          });
+      } catch (logError) {
+        console.error('Failed to log security event:', logError);
+      }
+      
+      return NextResponse.json({
+        success: false,
+        error: 'Authorization failed',
+        message: 'You can only create orders for yourself'
+      }, { status: 403 });
+    }
     
     // Enhanced debug logging
     console.log(`📦 [${requestId}] Order creation request received:`, {
