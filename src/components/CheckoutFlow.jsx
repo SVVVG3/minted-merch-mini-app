@@ -1038,6 +1038,20 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
       // Create order in Shopify (with authentication)
       const sessionToken = getSessionToken();
+      
+      // Validate session token exists
+      if (!sessionToken) {
+        console.error('❌ No session token available for order creation');
+        throw new Error('Authentication required. Please refresh the page and try again.');
+      }
+      
+      console.log('📦 Creating order with authentication:', {
+        hasToken: !!sessionToken,
+        tokenLength: sessionToken?.length,
+        hasOrderData: !!orderData,
+        orderDataKeys: Object.keys(orderData)
+      });
+      
       const response = await fetch('/api/shopify/orders', {
         method: 'POST',
         headers: { 
@@ -1171,6 +1185,20 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
       // Create order in Shopify (with authentication)
       const sessionToken = getSessionToken();
+      
+      // Validate session token exists
+      if (!sessionToken) {
+        console.error('❌ No session token available for order creation');
+        throw new Error('Authentication required. Please refresh the page and try again.');
+      }
+      
+      console.log('📦 Creating order with authentication:', {
+        hasToken: !!sessionToken,
+        tokenLength: sessionToken?.length,
+        hasOrderData: !!orderData,
+        orderDataKeys: Object.keys(orderData)
+      });
+      
       const response = await fetch('/api/shopify/orders', {
         method: 'POST',
         headers: { 
