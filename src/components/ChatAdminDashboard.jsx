@@ -660,7 +660,7 @@ export function ChatAdminDashboard({ onOpenUserModal }) {
                           </div>
                           {user.lastBalanceCheck && (
                             <div className="text-xs text-gray-500 mt-1">
-                              Updated: {new Date(user.lastBalanceCheck).toLocaleDateString()}
+                              💰 Updated: {new Date(user.lastBalanceCheck).toLocaleString()}
                             </div>
                           )}
                           {user.balanceCheckStatus === 'error' && (
@@ -758,7 +758,7 @@ export function ChatAdminDashboard({ onOpenUserModal }) {
                         </div>
                         {user.lastBalanceCheck && (
                           <div className="text-xs text-gray-500 mt-1">
-                            Updated: {new Date(user.lastBalanceCheck).toLocaleDateString()}
+                            💰 Updated: {new Date(user.lastBalanceCheck).toLocaleString()}
                           </div>
                         )}
                         {user.balanceCheckStatus === 'error' && (
