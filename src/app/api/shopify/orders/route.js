@@ -790,15 +790,28 @@ export async function POST(request) {
       securityValidated: true
     });
 
-    // Format line items for Shopify (shared data)
-    const lineItems = cartItems.map(item => ({
-      variantId: item.variant.id,
-      quantity: item.quantity,
-      // Handle both data structures: item.variant.price.amount or item.price
-      price: item.variant.price?.amount ? parseFloat(item.variant.price.amount) : parseFloat(item.price),
-      // Keep product info for internal use, but don't pass to Shopify API
-      productTitle: item.product.title
-    }));
+    // 🔒 SECURITY: Format line items for Shopify using REAL prices from serverTotals
+    // NEVER trust client-provided prices - always use server-fetched Shopify prices
+    const lineItems = cartItems.map(item => {
+      const variantId = item.variant.id;
+      const quantity = item.quantity;
+      
+      // Get the REAL price from server-calculated Shopify prices (not from client)
+      const realPrice = serverTotals.shopifyPrices[variantId]?.price;
+      
+      if (!realPrice) {
+        throw new Error(`Security Error: Real price not found for variant ${variantId}`);
+      }
+      
+      console.log(`  🔒 Line item: ${item.product.title} - Using real Shopify price: $${realPrice} (not client price)`);
+      
+      return {
+        variantId,
+        quantity,
+        price: realPrice, // 🔒 SECURITY: Use server-fetched real price, not client price
+        productTitle: item.product.title
+      };
+    });
 
     // RETRY LOGIC: Wrap Shopify order creation with retries
     let shopifyOrder = null;
@@ -982,11 +995,20 @@ export async function POST(request) {
               console.warn(`⚠️ [${requestId}] Could not extract image URL:`, imageError);
             }
 
+            // 🔒 SECURITY: Use real Shopify price, not client price
+            const variantId = item.variant.id;
+            const realPrice = serverTotals.shopifyPrices[variantId]?.price;
+            
+            if (!realPrice) {
+              console.error(`❌ Security Error: Real price not found for variant ${variantId} in database lineItems`);
+              throw new Error(`Security Error: Real price not found for variant ${variantId}`);
+            }
+
             return {
-              id: item.variant.id,
+              id: variantId,
               title: item.product.title, // FIXED: Use item.product.title not item.productTitle
               quantity: item.quantity,
-              price: item.variant.price?.amount ? parseFloat(item.variant.price.amount) : parseFloat(item.price),
+              price: realPrice, // 🔒 SECURITY: Use server-fetched real price, not client price
               variant: item.variant?.title !== 'Default Title' ? item.variant?.title : null, // FIXED: Use variant title
               imageUrl: productImageUrl // Store the product image URL!
             };

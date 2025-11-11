@@ -351,3 +351,77 @@ export async function createOrder({ lineItems, customer, shippingAddress, transa
 
   return data.orderCreate.order;
 }
+
+// 🔒 SECURITY: Fetch real product variant prices from Shopify
+// This function is critical for preventing price manipulation attacks
+export async function getVariantPrices(variantIds) {
+  console.log('🔍 Fetching real prices from Shopify for variants:', variantIds);
+  
+  if (!variantIds || variantIds.length === 0) {
+    throw new Error('No variant IDs provided');
+  }
+
+  // Build a GraphQL query to fetch multiple variants at once
+  // Note: Shopify Storefront API has a limit, so we batch if needed
+  const batchSize = 50; // Shopify typically allows 50-100 nodes per query
+  const batches = [];
+  
+  for (let i = 0; i < variantIds.length; i += batchSize) {
+    batches.push(variantIds.slice(i, i + batchSize));
+  }
+
+  const allPrices = {};
+
+  for (const batch of batches) {
+    // Create a query that fetches all variants in this batch
+    const queries = batch.map((variantId, index) => `
+      variant${index}: node(id: "${variantId}") {
+        ... on ProductVariant {
+          id
+          title
+          price {
+            amount
+            currencyCode
+          }
+          product {
+            id
+            title
+          }
+        }
+      }
+    `).join('\n');
+
+    const query = `
+      query {
+        ${queries}
+      }
+    `;
+
+    try {
+      const data = await shopifyFetch(query);
+      
+      // Extract prices from response
+      for (let i = 0; i < batch.length; i++) {
+        const variantData = data[`variant${i}`];
+        if (variantData && variantData.price) {
+          allPrices[batch[i]] = {
+            variantId: variantData.id,
+            price: parseFloat(variantData.price.amount),
+            currency: variantData.price.currencyCode,
+            variantTitle: variantData.title,
+            productTitle: variantData.product?.title || 'Unknown Product'
+          };
+        } else {
+          console.error(`❌ Variant not found or invalid: ${batch[i]}`);
+          throw new Error(`Invalid variant ID: ${batch[i]}`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error fetching variant prices from Shopify:', error);
+      throw new Error(`Failed to fetch product prices: ${error.message}`);
+    }
+  }
+
+  console.log('✅ Fetched real prices from Shopify:', allPrices);
+  return allPrices;
+}

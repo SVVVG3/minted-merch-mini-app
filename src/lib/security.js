@@ -224,8 +224,57 @@ export async function recalculateOrderTotals(orderData) {
   try {
     const { cartItems, checkout, selectedShipping, appliedDiscount, giftCards = [] } = orderData;
     
-    // Start with Shopify checkout subtotal
-    const subtotal = parseFloat(checkout.subtotal.amount);
+    // 🔒 CRITICAL SECURITY FIX: NEVER trust client-provided prices!
+    // Fetch real product prices from Shopify by variant IDs
+    console.log('🔒 SECURITY: Fetching real prices from Shopify (not trusting client prices)');
+    
+    // Extract variant IDs from cart items
+    const variantIds = cartItems.map(item => item.variant?.id || item.variantId).filter(Boolean);
+    
+    if (variantIds.length === 0) {
+      throw new Error('No valid variant IDs found in cart items');
+    }
+    
+    // Fetch real prices from Shopify
+    const { getVariantPrices } = await import('./shopify');
+    const shopifyPrices = await getVariantPrices(variantIds);
+    
+    // Calculate REAL subtotal from Shopify prices (never trust client)
+    let subtotal = 0;
+    const priceBreakdown = [];
+    
+    for (const item of cartItems) {
+      const variantId = item.variant?.id || item.variantId;
+      const quantity = item.quantity || 1;
+      
+      // Get the REAL price from Shopify (not from client)
+      const shopifyPrice = shopifyPrices[variantId];
+      
+      if (!shopifyPrice) {
+        throw new Error(`Product price not found for variant: ${variantId}`);
+      }
+      
+      const itemTotal = shopifyPrice.price * quantity;
+      subtotal += itemTotal;
+      
+      priceBreakdown.push({
+        variantId,
+        productTitle: shopifyPrice.productTitle,
+        variantTitle: shopifyPrice.variantTitle,
+        realPrice: shopifyPrice.price,
+        quantity,
+        itemTotal
+      });
+      
+      console.log(`  ✅ ${shopifyPrice.productTitle}: $${shopifyPrice.price} × ${quantity} = $${itemTotal}`);
+    }
+    
+    // Round subtotal to 2 decimal places
+    subtotal = Math.round(subtotal * 100) / 100;
+    
+    console.log(`💰 Server-calculated subtotal from REAL Shopify prices: $${subtotal}`);
+    console.log(`📊 Price breakdown:`, priceBreakdown);
+    
     let discountAmount = 0;
     let giftCardDiscount = 0;
     
@@ -318,6 +367,8 @@ export async function recalculateOrderTotals(orderData) {
       shippingPrice: finalShippingPrice,
       finalTotal,
       validatedGiftCards, // BUGFIX: Return validated gift cards with amountUsed for Shopify
+      shopifyPrices, // 🔒 SECURITY: Return real Shopify prices for order creation
+      priceBreakdown, // Detailed breakdown showing real prices used
       breakdown: {
         originalSubtotal: subtotal,
         discountApplied: discountAmount,
