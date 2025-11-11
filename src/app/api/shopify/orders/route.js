@@ -772,6 +772,9 @@ export async function POST(request) {
       // Log if minimum was applied
       if (finalTotalPrice < DAIMO_MINIMUM_PAYMENT && Math.abs(daimoPaidAmount - DAIMO_MINIMUM_PAYMENT) <= tolerance) {
         console.log(`ℹ️ [${requestId}] Daimo minimum payment applied: $${DAIMO_MINIMUM_PAYMENT} (order total: $${finalTotalPrice})`);
+        // 🔒 IMPORTANT: Update finalTotalPrice to the ACTUAL amount paid (Daimo minimum)
+        // This ensures the UI shows the correct amount the customer paid
+        finalTotalPrice = DAIMO_MINIMUM_PAYMENT;
       }
       
       console.log(`✅ [${requestId}] Daimo payment amount verified: $${daimoPaidAmount} (expected: $${expectedPayment})`);
