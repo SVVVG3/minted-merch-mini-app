@@ -364,6 +364,9 @@ export async function POST(request) {
       // This ensures the payment actually exists and was for the correct amount
       console.log(`🔒 [${requestId}] Verifying payment with Daimo API...`);
       
+      // Import logSecurityEvent for error logging
+      const { logSecurityEvent: logSecurityEventForDaimo } = await import('@/lib/security');
+      
       const daimoApiKey = process.env.DAIMO_API_KEY;
       if (!daimoApiKey) {
         console.error(`❌ [${requestId}] DAIMO_API_KEY not configured`);
@@ -375,26 +378,71 @@ export async function POST(request) {
       }
       
       try {
-        // Call Daimo API to verify the payment
-        const daimoResponse = await fetch(`https://pay-api.daimo.xyz/v1/payments/${paymentMetadata.daimoPaymentId}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${daimoApiKey}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        // Retry configuration for Daimo API timing issues (similar to webhook)
+        const maxRetries = 3;
+        const retryDelays = [1000, 2000, 3000]; // 1s, 2s, 3s
         
-        if (!daimoResponse.ok) {
-          console.error(`❌ [${requestId}] Daimo API verification failed:`, {
-            status: daimoResponse.status,
+        let daimoPaymentData = null;
+        let lastError = null;
+        let lastStatus = null;
+        
+        // Try to fetch payment data with retries (Daimo API might not have indexed it yet)
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+          if (attempt > 0) {
+            const delay = retryDelays[attempt - 1];
+            console.log(`⏳ [${requestId}] Daimo payment not found yet, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+          
+          const daimoResponse = await fetch(`https://pay-api.daimo.xyz/v1/payments/${paymentMetadata.daimoPaymentId}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${daimoApiKey}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          lastStatus = daimoResponse.status;
+          
+          if (daimoResponse.ok) {
+            daimoPaymentData = await daimoResponse.json();
+            if (attempt > 0) {
+              console.log(`✅ [${requestId}] Daimo payment found on retry attempt ${attempt}`);
+            }
+            break;
+          }
+          
+          // If 404, payment might not be indexed yet - retry
+          if (daimoResponse.status === 404) {
+            lastError = 'Payment not found in Daimo API (may not be indexed yet)';
+            continue; // Retry
+          }
+          
+          // For other errors (401, 500, etc.), don't retry
+          lastError = `Daimo API returned ${daimoResponse.status}`;
+          break;
+        }
+        
+        // If still no payment data after retries, fail
+        if (!daimoPaymentData) {
+          console.error(`❌ [${requestId}] Daimo API verification failed after ${maxRetries} retries:`, {
+            lastStatus,
+            lastError,
             paymentId: paymentMetadata.daimoPaymentId
           });
           
-          await logSecurityEvent('daimo_payment_verification_failed', {
-            paymentId: paymentMetadata.daimoPaymentId,
-            daimoStatus: daimoResponse.status,
-            requestId
-          }, fidInt, request);
+          // Log security event (use imported function)
+          try {
+            await logSecurityEventForDaimo('daimo_payment_verification_failed', {
+              paymentId: paymentMetadata.daimoPaymentId,
+              daimoStatus: lastStatus,
+              lastError,
+              retriesAttempted: maxRetries,
+              requestId
+            }, fidInt, request);
+          } catch (logError) {
+            console.error('Failed to log security event:', logError);
+          }
           
           return NextResponse.json({
             success: false,
@@ -403,7 +451,7 @@ export async function POST(request) {
           }, { status: 400 });
         }
         
-        const daimoPaymentData = await daimoResponse.json();
+        // Now we have verified payment data from Daimo
         console.log(`✅ [${requestId}] Daimo payment data retrieved:`, {
           id: daimoPaymentData.id,
           status: daimoPaymentData.status,
@@ -414,11 +462,15 @@ export async function POST(request) {
         if (daimoPaymentData.status !== 'confirmed') {
           console.error(`❌ [${requestId}] Payment not confirmed:`, daimoPaymentData.status);
           
-          await logSecurityEvent('daimo_payment_not_confirmed', {
-            paymentId: paymentMetadata.daimoPaymentId,
-            status: daimoPaymentData.status,
-            requestId
-          }, fidInt, request);
+          try {
+            await logSecurityEventForDaimo('daimo_payment_not_confirmed', {
+              paymentId: paymentMetadata.daimoPaymentId,
+              status: daimoPaymentData.status,
+              requestId
+            }, fidInt, request);
+          } catch (logError) {
+            console.error('Failed to log security event:', logError);
+          }
           
           return NextResponse.json({
             success: false,
@@ -433,11 +485,15 @@ export async function POST(request) {
         if (daimoPaidAmount <= 0) {
           console.error(`❌ [${requestId}] Invalid payment amount from Daimo:`, daimoPaidAmount);
           
-          await logSecurityEvent('daimo_invalid_amount', {
-            paymentId: paymentMetadata.daimoPaymentId,
-            amount: daimoPaidAmount,
-            requestId
-          }, fidInt, request);
+          try {
+            await logSecurityEventForDaimo('daimo_invalid_amount', {
+              paymentId: paymentMetadata.daimoPaymentId,
+              amount: daimoPaidAmount,
+              requestId
+            }, fidInt, request);
+          } catch (logError) {
+            console.error('Failed to log security event:', logError);
+          }
           
           return NextResponse.json({
             success: false,
@@ -457,11 +513,15 @@ export async function POST(request) {
           stack: daimoError.stack
         });
         
-        await logSecurityEvent('daimo_api_error', {
-          paymentId: paymentMetadata.daimoPaymentId,
-          error: daimoError.message,
-          requestId
-        }, fidInt, request);
+        try {
+          await logSecurityEventForDaimo('daimo_api_error', {
+            paymentId: paymentMetadata.daimoPaymentId,
+            error: daimoError.message,
+            requestId
+          }, fidInt, request);
+        } catch (logError) {
+          console.error('Failed to log security event:', logError);
+        }
         
         return NextResponse.json({
           success: false,
