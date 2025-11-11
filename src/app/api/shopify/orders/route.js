@@ -35,12 +35,17 @@ function sanitizeAddress(address) {
 
 export async function POST(request) {
   const requestId = `order-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  // IMMEDIATE LOGGING - First line to confirm endpoint is reached
+  console.log(`🚀 [${requestId}] Order creation endpoint called`);
+  
   let body; // Declare at function scope so it's available in catch block
   
   try {
     // 🔒 CRITICAL SECURITY: Require authentication for order creation
     // This prevents attackers from calling this endpoint directly via Postman/curl/scripts
     const authHeader = request.headers.get('authorization');
+    console.log(`🔐 [${requestId}] Checking authentication - hasAuthHeader: ${!!authHeader}`);
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       console.error(`🚨 [${requestId}] SECURITY ALERT: Unauthenticated order creation attempt`, {
@@ -78,8 +83,27 @@ export async function POST(request) {
     const token = authHeader.replace('Bearer ', '');
     
     // Verify the JWT token
-    const { verifyFarcasterUser } = await import('@/lib/auth');
+    console.log(`🔍 [${requestId}] Importing auth library...`);
+    let verifyFarcasterUser;
+    try {
+      const authLib = await import('@/lib/auth');
+      verifyFarcasterUser = authLib.verifyFarcasterUser;
+      console.log(`✅ [${requestId}] Auth library imported, verifyFarcasterUser exists: ${typeof verifyFarcasterUser}`);
+    } catch (importError) {
+      console.error(`❌ [${requestId}] Failed to import auth library:`, {
+        error: importError.message,
+        stack: importError.stack
+      });
+      return NextResponse.json({
+        success: false,
+        error: 'Internal server error',
+        message: 'Authentication system unavailable'
+      }, { status: 500 });
+    }
+    
+    console.log(`🔍 [${requestId}] Verifying token...`);
     const authResult = await verifyFarcasterUser(token);
+    console.log(`✅ [${requestId}] Token verified, authenticated: ${authResult.authenticated}`);
     
     if (!authResult.authenticated) {
       console.error(`🚨 [${requestId}] SECURITY ALERT: Invalid token for order creation`, {
