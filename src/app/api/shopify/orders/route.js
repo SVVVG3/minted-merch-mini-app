@@ -144,6 +144,77 @@ export async function POST(request) {
       }
     });
 
+    // 🔒 CRITICAL SECURITY CHECK: Prevent payment replay attacks
+    // Check if daimoPaymentId was already used for another order
+    if (paymentMetadata?.daimoPaymentId) {
+      const { supabaseAdmin } = await import('@/lib/supabase');
+      
+      console.log(`🔒 [${requestId}] Checking for payment replay attack - daimoPaymentId:`, paymentMetadata.daimoPaymentId);
+      
+      const { data: existingOrder, error: checkError } = await supabaseAdmin
+        .from('orders')
+        .select('order_id, id, fid, customer_email, amount_total')
+        .eq('daimo_payment_id', paymentMetadata.daimoPaymentId)
+        .single();
+
+      if (existingOrder) {
+        console.error(`🚨 [${requestId}] SECURITY ALERT: Payment replay attack detected!`, {
+          daimoPaymentId: paymentMetadata.daimoPaymentId,
+          existingOrderId: existingOrder.order_id,
+          existingOrderDbId: existingOrder.id,
+          existingOrderFid: existingOrder.fid,
+          existingOrderEmail: existingOrder.customer_email,
+          existingOrderAmount: existingOrder.amount_total,
+          attackerFid: fidInt,
+          attackerEmail: customer?.email,
+          attemptedAmount: checkout?.totalPrice?.amount,
+          timestamp: new Date().toISOString()
+        });
+
+        // Log to security_events table
+        try {
+          await supabaseAdmin
+            .from('security_events')
+            .insert({
+              event_type: 'payment_replay_attack',
+              user_fid: fidInt,
+              metadata: {
+                daimoPaymentId: paymentMetadata.daimoPaymentId,
+                existingOrderId: existingOrder.order_id,
+                attackerFid: fidInt,
+                attackerEmail: customer?.email,
+                existingOrderFid: existingOrder.fid,
+                ip: request.headers.get('x-forwarded-for') || 'unknown'
+              },
+              severity: 'critical'
+            });
+        } catch (logError) {
+          console.error('Failed to log security event:', logError);
+        }
+
+        return NextResponse.json({
+          success: false,
+          error: 'Payment already used for another order',
+          errorType: 'PAYMENT_REPLAY_ATTACK',
+          existingOrderId: existingOrder.order_id,
+          message: `This payment was already used for order ${existingOrder.order_id}. Each payment can only be used once.`
+        }, { status: 400 });
+      }
+
+      if (!checkError || checkError.code === 'PGRST116') {
+        // PGRST116 = no rows found, which is good - payment not used yet
+        console.log(`✅ [${requestId}] Payment verification passed - daimoPaymentId is unused`);
+      } else {
+        console.error(`❌ [${requestId}] Error checking payment replay:`, checkError);
+        // On database error, fail the request rather than risk allowing replay attack
+        return NextResponse.json({
+          success: false,
+          error: 'Payment verification failed',
+          message: 'Unable to verify payment status. Please try again.'
+        }, { status: 500 });
+      }
+    }
+
     // Validate required fields
     if (!cartItems || cartItems.length === 0) {
       console.error(`❌ [${requestId}] Validation failed: No cart items`);
