@@ -732,23 +732,32 @@ export async function POST(request) {
     const shippingPrice = serverTotals.shippingPrice;
     const finalTotalPrice = serverTotals.finalTotal;
     
-    // 🔒 CRITICAL SECURITY: Verify Daimo payment amount matches our calculated total
+    // 🔒 CRITICAL SECURITY: Verify Daimo payment amount
     if (paymentMetadata?.daimoVerifiedAmount) {
       const daimoPaidAmount = paymentMetadata.daimoVerifiedAmount;
       const tolerance = 0.01; // Allow 1 cent tolerance for rounding
       
-      if (Math.abs(daimoPaidAmount - finalTotalPrice) > tolerance) {
+      // BUSINESS RULE: Daimo has a $0.10 minimum order amount
+      // For orders < $0.10 (e.g. 100% discounts), user pays the minimum
+      const DAIMO_MINIMUM_PAYMENT = 0.10;
+      const expectedPayment = Math.max(finalTotalPrice, DAIMO_MINIMUM_PAYMENT);
+      
+      // Check if payment matches expected amount (server total OR minimum, whichever is greater)
+      if (Math.abs(daimoPaidAmount - expectedPayment) > tolerance) {
         console.error(`🚨 [${requestId}] SECURITY ALERT: Daimo payment amount mismatch!`, {
           daimoVerifiedAmount: daimoPaidAmount,
           serverCalculatedTotal: finalTotalPrice,
-          difference: Math.abs(daimoPaidAmount - finalTotalPrice)
+          daimoMinimum: DAIMO_MINIMUM_PAYMENT,
+          expectedPayment: expectedPayment,
+          difference: Math.abs(daimoPaidAmount - expectedPayment)
         });
         
         await logSecurityEvent('daimo_amount_mismatch', {
           paymentId: paymentMetadata.daimoPaymentId,
           daimoVerifiedAmount: daimoPaidAmount,
           serverCalculatedTotal: finalTotalPrice,
-          difference: Math.abs(daimoPaidAmount - finalTotalPrice),
+          expectedPayment: expectedPayment,
+          difference: Math.abs(daimoPaidAmount - expectedPayment),
           requestId
         }, fidInt, request);
         
@@ -760,7 +769,12 @@ export async function POST(request) {
         }, { status: 400 });
       }
       
-      console.log(`✅ [${requestId}] Daimo payment amount matches server total: $${finalTotalPrice}`);
+      // Log if minimum was applied
+      if (finalTotalPrice < DAIMO_MINIMUM_PAYMENT && Math.abs(daimoPaidAmount - DAIMO_MINIMUM_PAYMENT) <= tolerance) {
+        console.log(`ℹ️ [${requestId}] Daimo minimum payment applied: $${DAIMO_MINIMUM_PAYMENT} (order total: $${finalTotalPrice})`);
+      }
+      
+      console.log(`✅ [${requestId}] Daimo payment amount verified: $${daimoPaidAmount} (expected: $${expectedPayment})`);
     }
 
     console.log(`💰 [${requestId}] Server-calculated totals (validated):`, {
