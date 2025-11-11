@@ -171,23 +171,55 @@ async function handlePaymentStarted(event) {
 /**
  * Handle payment_completed event
  * 🔒 SECURITY: Verify payment amount matches order amount
+ * 
+ * Note: Implements retry logic for webhook timing issues.
+ * Order creation can take 500-1000ms, but webhook arrives immediately.
+ * We retry with exponential backoff to handle this race condition gracefully.
  */
 async function handlePaymentCompleted(event) {
   console.log(`✅ Payment completed: ${event.paymentId}`);
   
-  // Find order by Daimo payment ID
-  const { data: order, error: fetchError } = await supabaseAdmin
-    .from('orders')
-    .select('*')
-    .eq('daimo_payment_id', event.paymentId)
-    .single();
+  // Retry configuration for webhook timing issues
+  const maxRetries = 3;
+  const retryDelays = [1000, 2000, 3000]; // 1s, 2s, 3s
   
-  if (fetchError || !order) {
-    console.error(`❌ Order not found for payment ${event.paymentId}`);
+  let order = null;
+  let lastError = null;
+  
+  // Try to find the order with retries
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      const delay = retryDelays[attempt - 1];
+      console.log(`⏳ Order not found yet, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    const { data, error } = await supabaseAdmin
+      .from('orders')
+      .select('*')
+      .eq('daimo_payment_id', event.paymentId)
+      .single();
+    
+    if (data && !error) {
+      order = data;
+      if (attempt > 0) {
+        console.log(`✅ Order found on retry attempt ${attempt}`);
+      }
+      break;
+    }
+    
+    lastError = error;
+  }
+  
+  // If order still not found after all retries, log as error
+  if (!order) {
+    console.error(`❌ Order not found for payment ${event.paymentId} after ${maxRetries} retries`);
     await logSecurityEvent('payment_without_order', {
       paymentId: event.paymentId,
       txHash: event.txHash,
-      amount: event.amount
+      amount: event.amount,
+      retriesAttempted: maxRetries,
+      lastError: lastError?.message
     });
     return;
   }
