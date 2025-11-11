@@ -35,6 +35,7 @@ function sanitizeAddress(address) {
 
 export async function POST(request) {
   const requestId = `order-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  let body; // Declare at function scope so it's available in catch block
   
   try {
     // 🔒 CRITICAL SECURITY: Require authentication for order creation
@@ -95,7 +96,7 @@ export async function POST(request) {
 
     console.log(`✅ [${requestId}] Authenticated order creation - FID:`, authResult.fid);
     
-    const body = await request.json();
+    body = await request.json();
     
     const {
       cartItems,
