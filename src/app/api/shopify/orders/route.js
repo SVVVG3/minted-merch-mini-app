@@ -96,7 +96,33 @@ export async function POST(request) {
 
     console.log(`✅ [${requestId}] Authenticated order creation - FID:`, authResult.fid);
     
-    body = await request.json();
+    // Parse request body with error handling
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error(`❌ [${requestId}] Failed to parse request body:`, {
+        error: parseError.message,
+        stack: parseError.stack
+      });
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid request body',
+        message: 'Failed to parse order data. Please try again.'
+      }, { status: 400 });
+    }
+    
+    // Validate body exists and has required structure
+    if (!body || typeof body !== 'object') {
+      console.error(`❌ [${requestId}] Invalid body structure:`, {
+        bodyType: typeof body,
+        bodyValue: body
+      });
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid request body',
+        message: 'Request body is missing or invalid'
+      }, { status: 400 });
+    }
     
     const {
       cartItems,
