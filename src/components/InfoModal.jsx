@@ -1,10 +1,51 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { useFarcaster } from '@/lib/useFarcaster';
 
 export function InfoModal({ isOpen, onClose }) {
   const modalRef = useRef(null);
+  const { user } = useFarcaster();
+  const [isMerchMogul, setIsMerchMogul] = useState(false);
+  const [isCheckingBalance, setIsCheckingBalance] = useState(true);
+
+  // Check if user is a Merch Mogul (50M+ tokens)
+  useEffect(() => {
+    const checkMerchMogulStatus = async () => {
+      if (!user?.fid || !isOpen) {
+        setIsCheckingBalance(false);
+        return;
+      }
+
+      try {
+        setIsCheckingBalance(true);
+        const profileResponse = await fetch('/api/user-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fid: user.fid })
+        });
+        
+        const profileData = await profileResponse.json();
+        
+        if (profileData.success && profileData.data?.token_balance) {
+          const tokenBalance = parseFloat(profileData.data.token_balance);
+          const isMogul = tokenBalance >= 50000000; // 50M tokens required
+          setIsMerchMogul(isMogul);
+          console.log(`💼 Merch Mogul Status: ${isMogul} (Balance: ${tokenBalance.toLocaleString()} tokens)`);
+        } else {
+          setIsMerchMogul(false);
+        }
+      } catch (error) {
+        console.error('Error checking Merch Mogul status:', error);
+        setIsMerchMogul(false);
+      } finally {
+        setIsCheckingBalance(false);
+      }
+    };
+
+    checkMerchMogulStatus();
+  }, [user?.fid, isOpen]);
 
   // Handle Farcaster profile link click
   const handleFarcasterProfileClick = async (e) => {
@@ -25,7 +66,18 @@ export function InfoModal({ isOpen, onClose }) {
     }
   };
 
- 
+  // Handle opening Google Form links
+  const handleOpenForm = async (url, formType) => {
+    try {
+      await sdk.actions.openUrl(url);
+      console.log(`📋 Opened ${formType} form`);
+    } catch (error) {
+      console.error(`Error opening ${formType} form:`, error);
+      // Fallback: try window.open as last resort
+      window.open(url, '_blank');
+    }
+  };
+
 
   // Focus management
   useEffect(() => {
@@ -114,39 +166,81 @@ export function InfoModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          {/* Merch Mogul Section */}
-          <div className="bg-gradient-to-r from-purple-50 to-green-50 rounded-lg p-4 border border-purple-200">
-            {/* Centered title above the image */}
-            <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">
-              Become a Merch Mogul 🤌
-            </h3>
-            
-            {/* Merch Mogul Meme Image */}
-            <div className="flex justify-center mb-4">
-              <img 
-                src="/merchmogulmeme.png" 
-                alt="Merch Mogul Meme" 
-                className="w-full max-w-sm h-auto object-contain rounded-lg"
-              />
-            </div>
-
-            <div className="space-y-3 text-sm text-gray-700">
-              <p>
-                Hold <span className="font-bold text-green-600">50M+ $MINTEDMERCH tokens</span> and become a <span className="font-bold text-purple-600">Merch Mogul</span>!
-              </p>
+          {/* Merch Mogul Section - Conditional based on token holdings */}
+          {!isCheckingBalance && isMerchMogul ? (
+            // For Merch Moguls: Show action buttons
+            <div className="bg-gradient-to-r from-purple-50 to-green-50 rounded-lg p-4 border border-purple-200">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">
+                Merch Mogul Actions 🤌
+              </h3>
               
-              {/* Benefits */}
-              <div className="bg-white rounded-lg p-3 border border-gray-200">
-                <p className="text-sm font-medium text-gray-700 mb-2">Merch Mogul Benefits:</p>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• Exclusive collab partner access</li>
-                  <li>• Create/order custom merch</li>
-                  <li>• 15% off store wide while you hold</li>
-                  <li>• Merch Moguls group chat access</li>
-                </ul>
+              <p className="text-sm text-gray-700 mb-4 text-center">
+                As a Merch Mogul, you have exclusive access to:
+              </p>
+
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                <button
+                  onClick={() => handleOpenForm('https://forms.gle/MCQ4CyNEZBzdKMxW8', 'Collab Partner')}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors shadow-md"
+                >
+                  🤝 Become a Collab Partner
+                </button>
+
+                <button
+                  onClick={() => handleOpenForm('https://forms.gle/3T5xqwLTfe2ujZV46', 'Custom Order')}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors shadow-md"
+                >
+                  🎨 Create a Custom Order
+                </button>
+
+                <button
+                  onClick={() => handleOpenForm('https://forms.gle/KPhrjCXHqXRJUZZF8', 'Ambassador')}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors shadow-md"
+                >
+                  📢 Apply to be an Ambassador
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-600 mt-4 text-center">
+                These forms will open in your browser
+              </p>
+            </div>
+          ) : (
+            // For non-Merch Moguls: Show "Become a Merch Mogul" section
+            <div className="bg-gradient-to-r from-purple-50 to-green-50 rounded-lg p-4 border border-purple-200">
+              {/* Centered title above the image */}
+              <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">
+                Become a Merch Mogul 🤌
+              </h3>
+              
+              {/* Merch Mogul Meme Image */}
+              <div className="flex justify-center mb-4">
+                <img 
+                  src="/merchmogulmeme.png" 
+                  alt="Merch Mogul Meme" 
+                  className="w-full max-w-sm h-auto object-contain rounded-lg"
+                />
+              </div>
+
+              <div className="space-y-3 text-sm text-gray-700">
+                <p>
+                  Hold <span className="font-bold text-green-600">50M+ $MINTEDMERCH tokens</span> and become a <span className="font-bold text-purple-600">Merch Mogul</span>!
+                </p>
+                
+                {/* Benefits */}
+                <div className="bg-white rounded-lg p-3 border border-gray-200">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Merch Mogul Benefits:</p>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• Exclusive collab partner access</li>
+                    <li>• Create/order custom merch</li>
+                    <li>• 15% off store wide while you hold</li>
+                    <li>• Merch Moguls group chat access</li>
+                  </ul>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Support */}
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
