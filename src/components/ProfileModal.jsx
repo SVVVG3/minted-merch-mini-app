@@ -214,35 +214,37 @@ export function ProfileModal({ isOpen, onClose }) {
       try {
         setCheckingAmbassador(true);
         
-      // Get auth token
-      const token = await sdk.actions.signIn();
-      console.log('🔑 Ambassador check - Token received:', token ? 'YES' : 'NO');
-      if (!token) {
-        console.log('No auth token available for ambassador check');
-        return;
-      }
+        // Get existing session token (user is already authenticated)
+        const token = localStorage.getItem('fc_session_token');
+        console.log('🔑 Ambassador check - Token received:', token ? 'YES' : 'NO');
+        
+        if (!token) {
+          console.log('❌ No session token available for ambassador check');
+          setIsAmbassador(false);
+          return;
+        }
 
-      // Check ambassador status
-      console.log('🔍 Checking ambassador status for FID:', user.fid);
-      const response = await fetch('/api/ambassador/check-status', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+        // Check ambassador status
+        console.log('🔍 Checking ambassador status for FID:', user.fid);
+        const response = await fetch('/api/ambassador/check-status', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
 
-      console.log('📡 Ambassador check response status:', response.status);
-      const data = await response.json();
-      console.log('📦 Ambassador check response data:', data);
-      
-      if (data.success && data.isAmbassador) {
-        setIsAmbassador(true);
-        console.log('✅ User is an ambassador');
-      } else {
-        setIsAmbassador(false);
-        console.log('❌ User is NOT an ambassador or check failed:', data);
-      }
+        console.log('📡 Ambassador check response status:', response.status);
+        const data = await response.json();
+        console.log('📦 Ambassador check response data:', data);
+        
+        if (data.success && data.isAmbassador) {
+          setIsAmbassador(true);
+          console.log('✅ User is an ambassador');
+        } else {
+          setIsAmbassador(false);
+          console.log('❌ User is NOT an ambassador or check failed:', data);
+        }
       } catch (error) {
-        console.error('Error checking ambassador status:', error);
+        console.error('❌ Error checking ambassador status:', error);
         setIsAmbassador(false);
       } finally {
         setCheckingAmbassador(false);
