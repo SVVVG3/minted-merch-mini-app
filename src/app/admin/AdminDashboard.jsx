@@ -5195,7 +5195,8 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
     proofRequirements: bounty?.proof_requirements || '',
     rewardTokens: bounty?.reward_tokens || '',
     maxCompletions: bounty?.max_completions || '',
-    maxSubmissionsPerAmbassador: bounty?.max_submissions_per_ambassador || ''
+    maxSubmissionsPerAmbassador: bounty?.max_submissions_per_ambassador || '',
+    expiresAt: bounty?.expires_at ? new Date(bounty.expires_at).toISOString().slice(0, 16) : ''
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -5239,9 +5240,15 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
       
       const method = bounty ? 'PUT' : 'POST';
 
+      // Prepare data with proper date formatting
+      const submitData = {
+        ...formData,
+        expiresAt: formData.expiresAt ? new Date(formData.expiresAt).toISOString() : null
+      };
+
       const response = await adminFetch(endpoint, {
         method,
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submitData)
       });
 
       const result = await response.json();
@@ -5395,6 +5402,21 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
               />
               <p className="text-xs text-gray-500 mt-1">
                 How many times can each ambassador submit this bounty? Leave empty for unlimited.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Expiration Date (Optional)
+              </label>
+              <input
+                type="datetime-local"
+                value={formData.expiresAt}
+                onChange={(e) => setFormData({...formData, expiresAt: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                When should this bounty expire? Leave empty for no expiration.
               </p>
             </div>
 
