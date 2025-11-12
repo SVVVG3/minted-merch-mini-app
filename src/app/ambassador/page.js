@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { ProfileModal } from '@/components/ProfileModal';
 
 export default function AmbassadorDashboard() {
   const { user, isSDKReady } = useFarcaster();
@@ -16,6 +17,7 @@ export default function AmbassadorDashboard() {
   const [selectedBounty, setSelectedBounty] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Check ambassador status and load data
   useEffect(() => {
@@ -219,8 +221,8 @@ export default function AmbassadorDashboard() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex items-center justify-between">
             <button
               onClick={() => {
                 try {
@@ -241,12 +243,28 @@ export default function AmbassadorDashboard() {
             <h1 className="text-lg sm:text-xl font-bold text-gray-900 mx-4 text-center flex-1">
               Ambassador Dashboard
             </h1>
-            <button
-              onClick={handleRefresh}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm flex-shrink-0"
-            >
-              🔄 Refresh
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleRefresh}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-800 p-2 rounded-md flex-shrink-0"
+                title="Refresh"
+              >
+                🔄
+              </button>
+              {user?.pfpUrl && (
+                <button
+                  onClick={() => setShowProfileModal(true)}
+                  className="hover:opacity-80 transition-opacity"
+                  title="View Profile"
+                >
+                  <img 
+                    src={user.pfpUrl} 
+                    alt="Profile"
+                    className="w-10 h-10 rounded-full border-2 border-gray-300"
+                  />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Profile Stats */}
@@ -348,6 +366,12 @@ export default function AmbassadorDashboard() {
           }}
         />
       )}
+
+      {/* Profile Modal */}
+      <ProfileModal 
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+      />
     </div>
   );
 }
@@ -731,15 +755,14 @@ function PayoutsTab({ payouts }) {
                 {payout.transactionHash && (
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-700">TX Hash:</span>
-                    <span className="text-blue-600 text-xs font-mono">
+                    <a
+                      href={`https://basescan.org/tx/${payout.transactionHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 text-xs font-mono underline"
+                    >
                       {payout.transactionHash.slice(0, 10)}...{payout.transactionHash.slice(-8)}
-                    </span>
-                  </div>
-                )}
-                {payout.notes && (
-                  <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                    <span className="font-medium text-blue-900 text-xs">Note:</span>
-                    <p className="text-blue-800 text-sm mt-1">{payout.notes}</p>
+                    </a>
                   </div>
                 )}
               </div>
