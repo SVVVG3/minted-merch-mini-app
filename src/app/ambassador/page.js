@@ -119,8 +119,10 @@ export default function AmbassadorDashboard() {
       });
 
       const data = await response.json();
+      console.log('📋 Bounties API response:', data);
       if (data.success) {
-        setBounties(data.bounties || []);
+        setBounties(data.data || []);
+        console.log('✅ Loaded bounties:', data.data?.length || 0);
       }
     } catch (error) {
       console.error('Error loading bounties:', error);
@@ -137,7 +139,8 @@ export default function AmbassadorDashboard() {
 
       const data = await response.json();
       if (data.success) {
-        setSubmissions(data.submissions || []);
+        setSubmissions(data.data || []);
+        console.log('✅ Loaded submissions:', data.data?.length || 0);
       }
     } catch (error) {
       console.error('Error loading submissions:', error);
@@ -154,7 +157,8 @@ export default function AmbassadorDashboard() {
 
       const data = await response.json();
       if (data.success) {
-        setPayouts(data.payouts || []);
+        setPayouts(data.data || []);
+        console.log('✅ Loaded payouts:', data.data?.length || 0);
       }
     } catch (error) {
       console.error('Error loading payouts:', error);
