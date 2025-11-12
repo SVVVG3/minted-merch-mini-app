@@ -217,29 +217,29 @@ export default function AmbassadorDashboard() {
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => {
-                  try {
-                    window.history.back();
-                  } catch (e) {
-                    window.location.href = '/';
-                  }
-                }}
-                className="hover:opacity-80 transition-opacity cursor-pointer"
-                title="Back to shop"
-              >
-                <img 
-                  src="/MintedMerchSpinnerLogo.png" 
-                  alt="Minted Merch"
-                  className="h-8 w-auto"
-                />
-              </button>
-              <h1 className="text-2xl font-bold text-gray-900">Ambassador Dashboard</h1>
-            </div>
+            <button
+              onClick={() => {
+                try {
+                  window.history.back();
+                } catch (e) {
+                  window.location.href = '/';
+                }
+              }}
+              className="hover:opacity-80 transition-opacity cursor-pointer"
+              title="Back to shop"
+            >
+              <img 
+                src="/mintedmerchlogo.png" 
+                alt="Minted Merch"
+                className="h-12 w-auto"
+              />
+            </button>
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900 mx-4 text-center flex-1">
+              Ambassador Dashboard
+            </h1>
             <button
               onClick={handleRefresh}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm"
+              className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm flex-shrink-0"
             >
               🔄 Refresh
             </button>

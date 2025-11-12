@@ -4236,13 +4236,113 @@ export default function AdminDashboard() {
                   </>
                 )}
                 
-                {/* Bounties View - Coming in next update */}
+                {/* Bounties View */}
                 {ambassadorView === 'bounties' && (
-                  <div className="p-6 text-center text-gray-500">
-                    <div className="text-4xl mb-2">🎯</div>
-                    <div>Bounties management UI - Implementation in progress</div>
-                    <div className="text-sm mt-2">All API endpoints are ready, building UI next...</div>
-                  </div>
+                  <>
+                    <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                      <h3 className="text-md font-semibold text-gray-700">Manage Bounties</h3>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={loadBounties}
+                          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                        >
+                          🔄 Refresh
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedBountyForEdit(null);
+                            setShowCreateBounty(true);
+                          }}
+                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm"
+                        >
+                          + Create Bounty
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {bountiesLoading ? (
+                      <div className="p-6 text-center">
+                        <div className="text-gray-500">Loading bounties...</div>
+                      </div>
+                    ) : bountiesError ? (
+                      <div className="p-6 text-center">
+                        <div className="text-red-600">{bountiesError}</div>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bounty</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reward</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Completions</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {bountiesData.map((bounty) => (
+                              <tr key={bounty.id}>
+                                <td className="px-6 py-4">
+                                  <div>
+                                    <div className="text-sm font-semibold text-gray-900">{bounty.title}</div>
+                                    <div className="text-xs text-gray-500 line-clamp-2">{bounty.description}</div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm font-medium text-green-600">
+                                    {Number(bounty.reward_amount).toLocaleString()} $MINTEDMERCH
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                    bounty.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {bounty.is_active ? 'Active' : 'Inactive'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  {bounty.current_completions || 0} / {bounty.max_completions}
+                                  {bounty.max_submissions_per_ambassador && (
+                                    <div className="text-xs text-gray-500">
+                                      Max {bounty.max_submissions_per_ambassador} per ambassador
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedBountyForEdit(bounty);
+                                      setShowCreateBounty(true);
+                                    }}
+                                    className="text-indigo-600 hover:text-indigo-900 font-medium mr-3"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => toggleBountyStatus(bounty.id, bounty.is_active)}
+                                    className={`${
+                                      bounty.is_active
+                                        ? 'text-red-600 hover:text-red-900'
+                                        : 'text-green-600 hover:text-green-900'
+                                    } font-medium`}
+                                  >
+                                    {bounty.is_active ? 'Deactivate' : 'Activate'}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        
+                        {bountiesData.length === 0 && (
+                          <div className="p-6 text-center text-gray-500">
+                            No bounties yet. Create your first bounty to get started.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
                 
                 {/* Submissions View */}
@@ -4579,6 +4679,23 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Create/Edit Bounty Modal */}
+        {showCreateBounty && (
+          <CreateBountyModal 
+            bounty={selectedBountyForEdit}
+            onClose={() => {
+              setShowCreateBounty(false);
+              setSelectedBountyForEdit(null);
+            }}
+            onSuccess={() => {
+              loadBounties();
+              setShowCreateBounty(false);
+              setSelectedBountyForEdit(null);
+            }}
+            adminFetch={adminFetch}
+          />
         )}
 
         {/* Create Partner Modal */}
@@ -5067,7 +5184,213 @@ export default function AdminDashboard() {
       )}
     </div>
   );
-} 
+}
+
+// CreateBountyModal Component
+function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
+  const [formData, setFormData] = useState({
+    title: bounty?.title || '',
+    description: bounty?.description || '',
+    reward_amount: bounty?.reward_amount || '',
+    max_completions: bounty?.max_completions || '',
+    max_submissions_per_ambassador: bounty?.max_submissions_per_ambassador || '',
+    is_active: bounty?.is_active ?? true
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    // Validation
+    if (!formData.title.trim()) {
+      setError('Title is required');
+      return;
+    }
+    if (!formData.description.trim()) {
+      setError('Description is required');
+      return;
+    }
+    if (!formData.reward_amount || formData.reward_amount <= 0) {
+      setError('Reward amount must be greater than 0');
+      return;
+    }
+    if (!formData.max_completions || formData.max_completions <= 0) {
+      setError('Max completions must be greater than 0');
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const endpoint = bounty 
+        ? `/api/admin/bounties/${bounty.id}`
+        : '/api/admin/bounties';
+      
+      const method = bounty ? 'PUT' : 'POST';
+
+      const response = await adminFetch(endpoint, {
+        method,
+        body: JSON.stringify(formData)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        onSuccess();
+      } else {
+        setError(result.error || 'Failed to save bounty');
+      }
+    } catch (error) {
+      console.error('Error saving bounty:', error);
+      setError('Failed to save bounty. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-2xl w-full my-8">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">
+              {bounty ? 'Edit Bounty' : 'Create New Bounty'}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Title *
+              </label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                placeholder="e.g., Create a Minted Merch meme"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description *
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                placeholder="Describe what ambassadors need to do to complete this bounty..."
+                rows={4}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reward Amount ($MINTEDMERCH) *
+                </label>
+                <input
+                  type="number"
+                  value={formData.reward_amount}
+                  onChange={(e) => setFormData({...formData, reward_amount: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                  placeholder="1000000"
+                  min="1"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Max Total Completions *
+                </label>
+                <input
+                  type="number"
+                  value={formData.max_completions}
+                  onChange={(e) => setFormData({...formData, max_completions: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                  placeholder="10"
+                  min="1"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Total submissions that can be approved
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Max Submissions Per Ambassador (Optional)
+              </label>
+              <input
+                type="number"
+                value={formData.max_submissions_per_ambassador}
+                onChange={(e) => setFormData({...formData, max_submissions_per_ambassador: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                placeholder="Leave empty for unlimited"
+                min="1"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                How many times can each ambassador submit this bounty? Leave empty for unlimited.
+              </p>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="is_active"
+                checked={formData.is_active}
+                onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
+                className="h-4 w-4 text-[#3eb489] focus:ring-[#3eb489] border-gray-300 rounded"
+              />
+              <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900">
+                Active (visible to ambassadors)
+              </label>
+            </div>
+
+            <div className="mt-6 flex space-x-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md disabled:opacity-50"
+                disabled={saving}
+              >
+                {saving ? 'Saving...' : (bounty ? 'Update Bounty' : 'Create Bounty')}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // CreateDiscountForm Component
 function CreateDiscountForm({ onClose, onSuccess }) {
