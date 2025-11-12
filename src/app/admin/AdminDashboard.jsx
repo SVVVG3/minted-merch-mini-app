@@ -5191,10 +5191,11 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
   const [formData, setFormData] = useState({
     title: bounty?.title || '',
     description: bounty?.description || '',
-    reward_amount: bounty?.reward_amount || '',
-    max_completions: bounty?.max_completions || '',
-    max_submissions_per_ambassador: bounty?.max_submissions_per_ambassador || '',
-    is_active: bounty?.is_active ?? true
+    requirements: bounty?.requirements || '',
+    proofRequirements: bounty?.proof_requirements || '',
+    rewardTokens: bounty?.reward_tokens || '',
+    maxCompletions: bounty?.max_completions || '',
+    maxSubmissionsPerAmbassador: bounty?.max_submissions_per_ambassador || ''
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -5212,11 +5213,19 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
       setError('Description is required');
       return;
     }
-    if (!formData.reward_amount || formData.reward_amount <= 0) {
+    if (!formData.requirements.trim()) {
+      setError('Requirements are required');
+      return;
+    }
+    if (!formData.proofRequirements.trim()) {
+      setError('Proof requirements are required');
+      return;
+    }
+    if (!formData.rewardTokens || formData.rewardTokens <= 0) {
       setError('Reward amount must be greater than 0');
       return;
     }
-    if (!formData.max_completions || formData.max_completions <= 0) {
+    if (!formData.maxCompletions || formData.maxCompletions <= 0) {
       setError('Max completions must be greater than 0');
       return;
     }
@@ -5297,10 +5306,44 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                placeholder="Describe what ambassadors need to do to complete this bounty..."
-                rows={4}
+                placeholder="General overview of the bounty..."
+                rows={3}
                 required
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Requirements *
+              </label>
+              <textarea
+                value={formData.requirements}
+                onChange={(e) => setFormData({...formData, requirements: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                placeholder="Detailed requirements ambassadors must complete..."
+                rows={3}
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                What does the ambassador need to do?
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Proof Requirements *
+              </label>
+              <textarea
+                value={formData.proofRequirements}
+                onChange={(e) => setFormData({...formData, proofRequirements: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                placeholder="How should they submit proof? (e.g., Link to Farcaster cast, X post, etc.)"
+                rows={2}
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                What type of proof link should they submit?
+              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -5310,8 +5353,8 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
                 </label>
                 <input
                   type="number"
-                  value={formData.reward_amount}
-                  onChange={(e) => setFormData({...formData, reward_amount: e.target.value})}
+                  value={formData.rewardTokens}
+                  onChange={(e) => setFormData({...formData, rewardTokens: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
                   placeholder="1000000"
                   min="1"
@@ -5325,8 +5368,8 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
                 </label>
                 <input
                   type="number"
-                  value={formData.max_completions}
-                  onChange={(e) => setFormData({...formData, max_completions: e.target.value})}
+                  value={formData.maxCompletions}
+                  onChange={(e) => setFormData({...formData, maxCompletions: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
                   placeholder="10"
                   min="1"
@@ -5344,8 +5387,8 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
               </label>
               <input
                 type="number"
-                value={formData.max_submissions_per_ambassador}
-                onChange={(e) => setFormData({...formData, max_submissions_per_ambassador: e.target.value})}
+                value={formData.maxSubmissionsPerAmbassador}
+                onChange={(e) => setFormData({...formData, maxSubmissionsPerAmbassador: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
                 placeholder="Leave empty for unlimited"
                 min="1"
@@ -5353,19 +5396,6 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
               <p className="text-xs text-gray-500 mt-1">
                 How many times can each ambassador submit this bounty? Leave empty for unlimited.
               </p>
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="is_active"
-                checked={formData.is_active}
-                onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
-                className="h-4 w-4 text-[#3eb489] focus:ring-[#3eb489] border-gray-300 rounded"
-              />
-              <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900">
-                Active (visible to ambassadors)
-              </label>
             </div>
 
             <div className="mt-6 flex space-x-3">
