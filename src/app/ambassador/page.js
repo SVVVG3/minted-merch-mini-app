@@ -26,25 +26,32 @@ export default function AmbassadorDashboard() {
 
   const checkAmbassadorStatus = async () => {
     try {
+      console.log('🔍 Ambassador Dashboard: Starting status check...');
       setLoading(true);
       setError('');
 
       // Get existing session token (user is already authenticated)
       const token = localStorage.getItem('fc_session_token');
+      console.log('🔑 Ambassador Dashboard: Token exists?', !!token);
+      
       if (!token) {
+        console.error('❌ Ambassador Dashboard: No token found!');
         setError('Authentication required. Please sign in again.');
         setLoading(false);
         return;
       }
 
       // Check ambassador status
+      console.log('📡 Ambassador Dashboard: Checking status...');
       const statusResponse = await fetch('/api/ambassador/check-status', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
+      console.log('📊 Ambassador Dashboard: Status response:', statusResponse.status);
       const statusData = await statusResponse.json();
+      console.log('📦 Ambassador Dashboard: Status data:', statusData);
 
       if (!statusData.success || !statusData.isAmbassador) {
         setIsAmbassador(false);
@@ -53,9 +60,11 @@ export default function AmbassadorDashboard() {
         return;
       }
 
+      console.log('✅ Ambassador Dashboard: User is confirmed ambassador');
       setIsAmbassador(true);
 
       // Load all ambassador data
+      console.log('📥 Ambassador Dashboard: Loading profile data...');
       await Promise.all([
         loadProfile(token),
         loadBounties(token),
@@ -63,9 +72,10 @@ export default function AmbassadorDashboard() {
         loadPayouts(token),
       ]);
 
+      console.log('✅ Ambassador Dashboard: All data loaded successfully');
       setLoading(false);
     } catch (error) {
-      console.error('Error checking ambassador status:', error);
+      console.error('❌ Ambassador Dashboard: Error during status check:', error);
       setError('Failed to load ambassador data. Please try again.');
       setLoading(false);
     }
@@ -204,18 +214,15 @@ export default function AmbassadorDashboard() {
                     window.location.href = '/';
                   }
                 }}
-                className="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-full transition-colors"
-                title="Go back"
+                className="hover:opacity-80 transition-opacity cursor-pointer"
+                title="Back to shop"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+                <img 
+                  src="/MintedMerchSpinnerLogo.png" 
+                  alt="Minted Merch"
+                  className="h-8 w-auto"
+                />
               </button>
-              <img 
-                src="/MintedMerchSpinnerLogo.png" 
-                alt="Minted Merch"
-                className="h-8 w-auto"
-              />
               <h1 className="text-2xl font-bold text-gray-900">Ambassador Dashboard</h1>
             </div>
             <button
