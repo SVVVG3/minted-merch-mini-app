@@ -749,7 +749,7 @@ function PayoutsTab({ payouts }) {
               <div className="bg-green-100 border border-green-300 rounded-lg px-4 py-2">
                 <div className="text-xs text-green-600 font-medium">Payout</div>
                 <div className="text-2xl font-bold text-green-700">
-                  {formatNumber(payout.amount_tokens)} 🪙
+                  {formatNumber(payout.amountTokens)} 🪙
                 </div>
               </div>
             </div>

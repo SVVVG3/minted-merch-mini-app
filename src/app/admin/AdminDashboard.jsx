@@ -4551,7 +4551,14 @@ export default function AdminDashboard() {
                                 </td>
                                 <td className="px-6 py-4">
                                   {payout.wallet_address ? (
-                                    <div className="text-xs font-mono text-gray-600">
+                                    <div 
+                                      className="text-xs font-mono text-blue-600 cursor-pointer hover:text-blue-800 hover:underline"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(payout.wallet_address);
+                                        alert(`Copied: ${payout.wallet_address}`);
+                                      }}
+                                      title="Click to copy full address"
+                                    >
                                       {payout.wallet_address.slice(0, 6)}...{payout.wallet_address.slice(-4)}
                                     </div>
                                   ) : (
