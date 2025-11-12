@@ -318,6 +318,7 @@ export function ProfileModal({ isOpen, onClose }) {
                 {user?.displayName || user?.username}
               </h3>
               <p className="text-white/80 text-sm">FID: {user?.fid}</p>
+              <p className="text-white/90 text-sm font-semibold mt-1">Profile & Order History</p>
             </div>
           </div>
         </div>
@@ -413,11 +414,11 @@ export function ProfileModal({ isOpen, onClose }) {
                 <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-xl p-5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                        🎯
+                      <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-xl">
+                        🤝
                       </div>
                       <div>
-                        <h4 className="font-bold text-indigo-800">Ambassador Dashboard</h4>
+                        <h4 className="font-bold text-indigo-800 whitespace-nowrap">Ambassador Dashboard</h4>
                         <p className="text-xs text-indigo-600">View bounties, submissions & payouts</p>
                       </div>
                     </div>
@@ -439,9 +440,9 @@ export function ProfileModal({ isOpen, onClose }) {
                         // Navigate to ambassador dashboard
                         router.push('/ambassador');
                       }}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:scale-105 shadow-md flex items-center gap-2"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:scale-105 shadow-md flex items-center gap-2 whitespace-nowrap"
                     >
-                      View Dashboard
+                      Dashboard
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>

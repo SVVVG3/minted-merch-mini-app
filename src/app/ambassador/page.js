@@ -29,10 +29,10 @@ export default function AmbassadorDashboard() {
       setLoading(true);
       setError('');
 
-      // Get auth token
-      const token = await sdk.actions.signIn();
+      // Get existing session token (user is already authenticated)
+      const token = localStorage.getItem('fc_session_token');
       if (!token) {
-        setError('Authentication failed. Please try again.');
+        setError('Authentication required. Please sign in again.');
         setLoading(false);
         return;
       }
@@ -196,6 +196,21 @@ export default function AmbassadorDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
+              <button
+                onClick={() => {
+                  try {
+                    window.history.back();
+                  } catch (e) {
+                    window.location.href = '/';
+                  }
+                }}
+                className="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-full transition-colors"
+                title="Go back"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
               <img 
                 src="/MintedMerchSpinnerLogo.png" 
                 alt="Minted Merch"
@@ -741,10 +756,10 @@ function SubmitBountyModal({ bounty, onClose, onSuccess }) {
     try {
       setSubmitting(true);
 
-      // Get auth token
-      const token = await sdk.actions.signIn();
+      // Get existing session token (user is already authenticated)
+      const token = localStorage.getItem('fc_session_token');
       if (!token) {
-        setError('Authentication failed. Please try again.');
+        setError('Authentication required. Please refresh the page.');
         setSubmitting(false);
         return;
       }
