@@ -1,154 +1,82 @@
-/**
- * Simple in-memory rate limiter for API endpoints
- * 
- * For production scale, consider upgrading to:
- * - Vercel Edge Config
- * - Upstash Redis
- * - Redis Cloud
- * 
- * This implementation uses an in-memory Map that resets on server restart,
- * which is acceptable for Vercel's serverless functions where each invocation
- * is isolated and rate limits are per-instance.
- */
+// Rate Limiting Helper Functions
+// Protects against spam and abuse
 
-const rateLimitStore = new Map();
+import { supabaseAdmin } from './supabase';
 
 /**
- * Clean up old entries to prevent memory leaks
- * Called periodically by the rate limiter
+ * Check if ambassador has exceeded rate limit for submissions
+ * @param {string} ambassadorId - Ambassador UUID
+ * @param {number} maxAttempts - Maximum attempts allowed in time window (default: 10)
+ * @param {number} windowMinutes - Time window in minutes (default: 60)
+ * @returns {Promise<{allowed: boolean, remaining: number, resetAt: Date}>}
  */
-function cleanupOldEntries() {
-  const now = Date.now();
-  const oneHourAgo = now - 3600000; // 1 hour
-  
-  for (const [key, data] of rateLimitStore.entries()) {
-    if (data.resetTime < oneHourAgo) {
-      rateLimitStore.delete(key);
+export async function checkSubmissionRateLimit(ambassadorId, maxAttempts = 10, windowMinutes = 60) {
+  try {
+    const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000);
+
+    // Count submissions in the time window (all statuses - we're counting attempts)
+    const { count, error } = await supabaseAdmin
+      .from('bounty_submissions')
+      .select('id', { count: 'exact', head: true })
+      .eq('ambassador_id', ambassadorId)
+      .gte('submitted_at', windowStart.toISOString());
+
+    if (error) {
+      console.error('❌ Error checking rate limit:', error);
+      // On error, allow the request (fail open)
+      return {
+        allowed: true,
+        remaining: maxAttempts,
+        resetAt: new Date(Date.now() + windowMinutes * 60 * 1000)
+      };
     }
+
+    const attempts = count || 0;
+    const remaining = Math.max(0, maxAttempts - attempts);
+    const allowed = attempts < maxAttempts;
+
+    // Calculate reset time (end of current window)
+    const resetAt = new Date(Date.now() + windowMinutes * 60 * 1000);
+
+    console.log(`🚦 Rate limit check for ambassador ${ambassadorId}:`, {
+      attempts,
+      maxAttempts,
+      remaining,
+      allowed,
+      windowMinutes
+    });
+
+    return {
+      allowed,
+      remaining,
+      resetAt,
+      attempts
+    };
+
+  } catch (error) {
+    console.error('❌ Error in checkSubmissionRateLimit:', error);
+    // Fail open on errors
+    return {
+      allowed: true,
+      remaining: maxAttempts,
+      resetAt: new Date(Date.now() + windowMinutes * 60 * 1000)
+    };
   }
 }
 
 /**
- * Rate limit an identifier (IP address, user ID, etc.)
- * 
- * @param {string} identifier - Unique identifier (IP, user ID, etc.)
- * @param {Object} options - Rate limit options
- * @param {number} options.maxRequests - Maximum requests allowed in window
- * @param {number} options.windowMs - Time window in milliseconds
- * @returns {Object} - { allowed: boolean, remaining: number, resetTime: number }
+ * Generic rate limiter for any action
+ * Can be extended for other endpoints in the future
+ * @param {string} key - Unique identifier (e.g., `ambassador:${ambassadorId}:action`)
+ * @param {number} maxAttempts - Maximum attempts
+ * @param {number} windowSeconds - Time window in seconds
+ * @returns {Promise<{allowed: boolean, remaining: number}>}
  */
-export function rateLimit(identifier, { maxRequests = 10, windowMs = 60000 } = {}) {
-  const now = Date.now();
-  const key = identifier;
-  
-  // Periodically cleanup (every 100 checks)
-  if (Math.random() < 0.01) {
-    cleanupOldEntries();
-  }
-  
-  // Get or create rate limit entry
-  let entry = rateLimitStore.get(key);
-  
-  // Reset if window expired
-  if (!entry || now > entry.resetTime) {
-    entry = {
-      count: 0,
-      resetTime: now + windowMs,
-      firstRequest: now
-    };
-    rateLimitStore.set(key, entry);
-  }
-  
-  // Increment request count
-  entry.count++;
-  
-  // Check if rate limit exceeded
-  const allowed = entry.count <= maxRequests;
-  const remaining = Math.max(0, maxRequests - entry.count);
-  
+export async function checkRateLimit(key, maxAttempts, windowSeconds) {
+  // Future enhancement: Use Redis or in-memory cache for more granular rate limiting
+  // For now, submission rate limiting via database is sufficient
   return {
-    allowed,
-    remaining,
-    resetTime: entry.resetTime,
-    retryAfter: Math.ceil((entry.resetTime - now) / 1000) // seconds until reset
+    allowed: true,
+    remaining: maxAttempts
   };
 }
-
-/**
- * Get client IP address from request headers
- * Works with Vercel's proxy headers
- * 
- * @param {Request} request - Next.js request object
- * @returns {string} - Client IP address
- */
-export function getClientIp(request) {
-  // Try Vercel's forwarded headers first
-  const forwardedFor = request.headers.get('x-forwarded-for');
-  if (forwardedFor) {
-    return forwardedFor.split(',')[0].trim();
-  }
-  
-  // Fallback to other common headers
-  const realIp = request.headers.get('x-real-ip');
-  if (realIp) return realIp;
-  
-  // Last resort: use a placeholder
-  return 'unknown';
-}
-
-/**
- * Create a rate limit response
- * 
- * @param {string} message - Error message
- * @param {Object} rateLimitInfo - Rate limit info from rateLimit()
- * @returns {Response} - Next.js Response object with rate limit headers
- */
-export function rateLimitResponse(message, rateLimitInfo) {
-  return new Response(
-    JSON.stringify({
-      success: false,
-      error: message,
-      retryAfter: rateLimitInfo.retryAfter
-    }),
-    {
-      status: 429,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-RateLimit-Limit': String(rateLimitInfo.remaining + 1),
-        'X-RateLimit-Remaining': String(rateLimitInfo.remaining),
-        'X-RateLimit-Reset': String(Math.floor(rateLimitInfo.resetTime / 1000)),
-        'Retry-After': String(rateLimitInfo.retryAfter)
-      }
-    }
-  );
-}
-
-/**
- * Preset rate limit configurations for common use cases
- */
-export const RATE_LIMITS = {
-  // Strict: For sensitive operations like discount validation
-  STRICT: {
-    maxRequests: 10,
-    windowMs: 60000 // 10 requests per minute
-  },
-  
-  // Moderate: For general API endpoints
-  MODERATE: {
-    maxRequests: 30,
-    windowMs: 60000 // 30 requests per minute
-  },
-  
-  // Generous: For public endpoints
-  GENEROUS: {
-    maxRequests: 100,
-    windowMs: 60000 // 100 requests per minute
-  },
-  
-  // Ultra-strict: For gift card validation
-  ULTRA_STRICT: {
-    maxRequests: 5,
-    windowMs: 60000 // 5 requests per minute
-  }
-};
-

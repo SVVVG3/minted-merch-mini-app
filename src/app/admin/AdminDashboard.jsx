@@ -130,6 +130,40 @@ export default function AdminDashboard() {
     fid: '',
     partner_type: 'fulfillment'
   });
+  
+  // Partners sub-tab state
+  const [partnersSubTab, setPartnersSubTab] = useState('partners'); // 'partners' or 'ambassadors'
+  
+  // Ambassadors state
+  const [ambassadorsData, setAmbassadorsData] = useState([]);
+  const [ambassadorsLoading, setAmbassadorsLoading] = useState(false);
+  const [ambassadorsError, setAmbassadorsError] = useState('');
+  const [showAddAmbassador, setShowAddAmbassador] = useState(false);
+  const [addAmbassadorFid, setAddAmbassadorFid] = useState('');
+  const [addAmbassadorNotes, setAddAmbassadorNotes] = useState('');
+  
+  // Bounties state (for ambassadors sub-tab)
+  const [bountiesData, setBountiesData] = useState([]);
+  const [bountiesLoading, setBountiesLoading] = useState(false);
+  const [bountiesError, setBountiesError] = useState('');
+  const [showCreateBounty, setShowCreateBounty] = useState(false);
+  const [selectedBountyForEdit, setSelectedBountyForEdit] = useState(null);
+  
+  // Submissions state (for ambassadors sub-tab)
+  const [submissionsData, setSubmissionsData] = useState([]);
+  const [submissionsLoading, setSubmissionsLoading] = useState(false);
+  const [submissionsError, setSubmissionsError] = useState('');
+  const [submissionsFilter, setSubmissionsFilter] = useState('pending'); // 'all', 'pending', 'approved', 'rejected'
+  
+  // Payouts state (for ambassadors sub-tab)
+  const [payoutsData, setPayoutsData] = useState([]);
+  const [payoutsLoading, setPayoutsLoading] = useState(false);
+  const [payoutsError, setPayoutsError] = useState('');
+  const [payoutsFilter, setPayoutsFilter] = useState('pending'); // 'all', 'pending', 'processing', 'completed'
+  const [selectedPayoutForComplete, setSelectedPayoutForComplete] = useState(null);
+  
+  // Ambassador section view (within ambassadors sub-tab)
+  const [ambassadorView, setAmbassadorView] = useState('ambassadors'); // 'ambassadors', 'bounties', 'submissions', 'payouts'
 
   // Discounts filtering and sorting state
   const [discountFilters, setDiscountFilters] = useState({
@@ -722,6 +756,260 @@ export default function AdminDashboard() {
     }
   };
 
+  // ========== AMBASSADOR MANAGEMENT FUNCTIONS ==========
+
+  // Load ambassadors
+  const loadAmbassadors = async () => {
+    setAmbassadorsLoading(true);
+    setAmbassadorsError('');
+    try {
+      const response = await adminFetch('/api/admin/ambassadors');
+      const result = await response.json();
+      if (result.success) {
+        setAmbassadorsData(result.ambassadors || []);
+      } else {
+        setAmbassadorsError(result.error || 'Failed to load ambassadors');
+      }
+    } catch (error) {
+      console.error('Error loading ambassadors:', error);
+      setAmbassadorsError('Failed to load ambassadors');
+    } finally {
+      setAmbassadorsLoading(false);
+    }
+  };
+
+  // Add new ambassador
+  const handleAddAmbassador = async () => {
+    if (!addAmbassadorFid || addAmbassadorFid.trim() === '') {
+      alert('Please enter a Farcaster ID');
+      return;
+    }
+
+    try {
+      const response = await adminFetch('/api/admin/ambassadors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fid: parseInt(addAmbassadorFid),
+          notes: addAmbassadorNotes.trim() || null
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert(`Ambassador added successfully! @${result.ambassador.profiles?.username || addAmbassadorFid}`);
+        setShowAddAmbassador(false);
+        setAddAmbassadorFid('');
+        setAddAmbassadorNotes('');
+        loadAmbassadors();
+      } else {
+        alert(result.error || 'Failed to add ambassador');
+      }
+    } catch (error) {
+      console.error('Error adding ambassador:', error);
+      alert('Failed to add ambassador');
+    }
+  };
+
+  // Toggle ambassador active status
+  const toggleAmbassadorStatus = async (ambassadorId, isActive) => {
+    try {
+      const response = await adminFetch(`/api/admin/ambassadors/${ambassadorId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !isActive })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        loadAmbassadors();
+      } else {
+        alert(result.error || 'Failed to update ambassador status');
+      }
+    } catch (error) {
+      console.error('Error updating ambassador status:', error);
+      alert('Failed to update ambassador status');
+    }
+  };
+
+  // Load bounties
+  const loadBounties = async () => {
+    setBountiesLoading(true);
+    setBountiesError('');
+    try {
+      const response = await adminFetch('/api/admin/bounties');
+      const result = await response.json();
+      if (result.success) {
+        setBountiesData(result.bounties || []);
+      } else {
+        setBountiesError(result.error || 'Failed to load bounties');
+      }
+    } catch (error) {
+      console.error('Error loading bounties:', error);
+      setBountiesError('Failed to load bounties');
+    } finally {
+      setBountiesLoading(false);
+    }
+  };
+
+  // Toggle bounty active status
+  const toggleBountyStatus = async (bountyId, isActive) => {
+    try {
+      const response = await adminFetch(`/api/admin/bounties/${bountyId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !isActive })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        loadBounties();
+      } else {
+        alert(result.error || 'Failed to update bounty status');
+      }
+    } catch (error) {
+      console.error('Error updating bounty status:', error);
+      alert('Failed to update bounty status');
+    }
+  };
+
+  // Load submissions
+  const loadSubmissions = async () => {
+    setSubmissionsLoading(true);
+    setSubmissionsError('');
+    try {
+      const url = submissionsFilter === 'all' 
+        ? '/api/admin/bounty-submissions'
+        : `/api/admin/bounty-submissions?status=${submissionsFilter}`;
+      
+      const response = await adminFetch(url);
+      const result = await response.json();
+      if (result.success) {
+        setSubmissionsData(result.submissions || []);
+      } else {
+        setSubmissionsError(result.error || 'Failed to load submissions');
+      }
+    } catch (error) {
+      console.error('Error loading submissions:', error);
+      setSubmissionsError('Failed to load submissions');
+    } finally {
+      setSubmissionsLoading(false);
+    }
+  };
+
+  // Approve submission
+  const handleApproveSubmission = async (submissionId, bountyTitle) => {
+    if (!confirm(`Approve this submission for "${bountyTitle}"? This will create a payout.`)) {
+      return;
+    }
+
+    try {
+      const response = await adminFetch(`/api/admin/bounty-submissions/${submissionId}/approve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminNotes: 'Approved' })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert('Submission approved! Payout created.');
+        if (result.warning) {
+          alert(`Warning: ${result.warning}`);
+        }
+        loadSubmissions();
+        loadPayouts(); // Refresh payouts since we created a new one
+      } else {
+        alert(result.error || 'Failed to approve submission');
+      }
+    } catch (error) {
+      console.error('Error approving submission:', error);
+      alert('Failed to approve submission');
+    }
+  };
+
+  // Reject submission
+  const handleRejectSubmission = async (submissionId, bountyTitle) => {
+    const reason = prompt(`Reject submission for "${bountyTitle}"?\n\nPlease provide a reason (required):`);
+    if (!reason || reason.trim() === '') {
+      return;
+    }
+
+    try {
+      const response = await adminFetch(`/api/admin/bounty-submissions/${submissionId}/reject`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminNotes: reason.trim() })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert('Submission rejected');
+        loadSubmissions();
+      } else {
+        alert(result.error || 'Failed to reject submission');
+      }
+    } catch (error) {
+      console.error('Error rejecting submission:', error);
+      alert('Failed to reject submission');
+    }
+  };
+
+  // Load payouts
+  const loadPayouts = async () => {
+    setPayoutsLoading(true);
+    setPayoutsError('');
+    try {
+      const url = payoutsFilter === 'all'
+        ? '/api/admin/ambassador-payouts'
+        : `/api/admin/ambassador-payouts?status=${payoutsFilter}`;
+      
+      const response = await adminFetch(url);
+      const result = await response.json();
+      if (result.success) {
+        setPayoutsData(result.payouts || []);
+      } else {
+        setPayoutsError(result.error || 'Failed to load payouts');
+      }
+    } catch (error) {
+      console.error('Error loading payouts:', error);
+      setPayoutsError('Failed to load payouts');
+    } finally {
+      setPayoutsLoading(false);
+    }
+  };
+
+  // Complete payout (mark as completed with tx hash)
+  const handleCompletePayout = async (payoutId, ambassadorUsername, amount) => {
+    const txHash = prompt(`Mark payout as completed for @${ambassadorUsername}?\n\nAmount: ${amount} tokens\n\nEnter transaction hash:`);
+    if (!txHash || txHash.trim() === '') {
+      return;
+    }
+
+    try {
+      const response = await adminFetch('/api/admin/ambassador-payouts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payoutId,
+          status: 'completed',
+          transactionHash: txHash.trim(),
+          notes: 'Completed by admin'
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert('Payout marked as completed!');
+        loadPayouts();
+      } else {
+        alert(result.error || 'Failed to complete payout');
+      }
+    } catch (error) {
+      console.error('Error completing payout:', error);
+      alert('Failed to complete payout');
+    }
+  };
+
   // Load past raffles when Past Raffles tab is selected
   useEffect(() => {
     if (activeTab === 'past-raffles' && pastRaffles.length === 0) {
@@ -745,10 +1033,25 @@ export default function AdminDashboard() {
 
   // Load partners when Partners tab is selected
   useEffect(() => {
-    if (activeTab === 'partners' && partnersData.length === 0) {
+    if (activeTab === 'partners' && partnersSubTab === 'partners' && partnersData.length === 0) {
       loadPartners();
     }
-  }, [activeTab]);
+  }, [activeTab, partnersSubTab]);
+
+  // Load ambassadors when Ambassadors sub-tab is selected
+  useEffect(() => {
+    if (activeTab === 'partners' && partnersSubTab === 'ambassadors') {
+      if (ambassadorView === 'ambassadors' && ambassadorsData.length === 0) {
+        loadAmbassadors();
+      } else if (ambassadorView === 'bounties' && bountiesData.length === 0) {
+        loadBounties();
+      } else if (ambassadorView === 'submissions') {
+        loadSubmissions();
+      } else if (ambassadorView === 'payouts') {
+        loadPayouts();
+      }
+    }
+  }, [activeTab, partnersSubTab, ambassadorView, submissionsFilter, payoutsFilter]);
 
   // Function to reload leaderboard data with current sort
   const reloadLeaderboardData = async (newSortField = sortField) => {
@@ -3559,23 +3862,59 @@ export default function AdminDashboard() {
         {/* Partners Tab */}
         {activeTab === 'partners' && (
           <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-800">🤝 Partners</h2>
-              <div className="flex space-x-3">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-gray-800">🤝 Partners & Ambassadors</h2>
+              </div>
+              
+              {/* Sub-tabs */}
+              <div className="flex space-x-4 border-b -mb-px">
                 <button
-                  onClick={() => setShowCreatePartner(true)}
-                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                  onClick={() => setPartnersSubTab('partners')}
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                    partnersSubTab === 'partners'
+                      ? 'border-[#3eb489] text-[#3eb489]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
                 >
-                  ➕ Add Partner
+                  🤝 Fulfillment Partners
                 </button>
                 <button
-                  onClick={loadPartners}
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                  onClick={() => {
+                    setPartnersSubTab('ambassadors');
+                    setAmbassadorView('ambassadors');
+                  }}
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                    partnersSubTab === 'ambassadors'
+                      ? 'border-[#3eb489] text-[#3eb489]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
                 >
-                  🔄 Refresh
+                  🎯 Ambassadors
                 </button>
               </div>
             </div>
+            
+            {/* Fulfillment Partners Content */}
+            {partnersSubTab === 'partners' && (
+              <>
+                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                  <h3 className="text-md font-semibold text-gray-700">Fulfillment & Collab Partners</h3>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => setShowCreatePartner(true)}
+                      className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                    >
+                      ➕ Add Partner
+                    </button>
+                    <button
+                      onClick={loadPartners}
+                      className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                    >
+                      🔄 Refresh
+                    </button>
+                  </div>
+                </div>
             
             {partnersLoading ? (
               <div className="p-6 text-center">
@@ -3715,6 +4054,530 @@ export default function AdminDashboard() {
                 )}
               </div>
             )}
+              </>
+            )}
+            
+            {/* Ambassadors Content */}
+            {partnersSubTab === 'ambassadors' && (
+              <>
+                {/* Ambassador View Tabs */}
+                <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setAmbassadorView('ambassadors')}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        ambassadorView === 'ambassadors'
+                          ? 'bg-[#3eb489] text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      👥 Ambassadors
+                    </button>
+                    <button
+                      onClick={() => setAmbassadorView('bounties')}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        ambassadorView === 'bounties'
+                          ? 'bg-[#3eb489] text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      🎯 Bounties
+                    </button>
+                    <button
+                      onClick={() => setAmbassadorView('submissions')}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        ambassadorView === 'submissions'
+                          ? 'bg-[#3eb489] text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      📝 Submissions
+                    </button>
+                    <button
+                      onClick={() => setAmbassadorView('payouts')}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        ambassadorView === 'payouts'
+                          ? 'bg-[#3eb489] text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      💰 Payouts
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Ambassadors View */}
+                {ambassadorView === 'ambassadors' && (
+                  <>
+                    <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                      <h3 className="text-md font-semibold text-gray-700">Manage Ambassadors</h3>
+                      <div className="flex space-x-3">
+                        <button
+                          onClick={() => setShowAddAmbassador(true)}
+                          className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                        >
+                          ➕ Add Ambassador
+                        </button>
+                        <button
+                          onClick={loadAmbassadors}
+                          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                        >
+                          🔄 Refresh
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {ambassadorsLoading ? (
+                      <div className="p-6 text-center">
+                        <div className="text-gray-500">Loading ambassadors...</div>
+                      </div>
+                    ) : ambassadorsError ? (
+                      <div className="p-6 text-center">
+                        <div className="text-red-600">{ambassadorsError}</div>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Ambassador
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Total Earned
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Completed
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Status
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Joined
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {ambassadorsData.map((ambassador) => (
+                              <tr key={ambassador.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4">
+                                  <div 
+                                    className="flex items-center space-x-2 cursor-pointer"
+                                    onClick={() => openUserModal(ambassador.fid)}
+                                  >
+                                    {ambassador.profiles?.pfp_url && (
+                                      <img
+                                        src={ambassador.profiles.pfp_url}
+                                        alt={ambassador.profiles.username}
+                                        className="w-8 h-8 rounded-full"
+                                      />
+                                    )}
+                                    <div>
+                                      <div className="text-sm font-medium text-gray-900">
+                                        @{ambassador.profiles?.username || `FID ${ambassador.fid}`}
+                                      </div>
+                                      {ambassador.profiles?.display_name && (
+                                        <div className="text-xs text-gray-500">
+                                          {ambassador.profiles.display_name}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm font-bold text-green-600">
+                                    {(ambassador.total_earned_tokens || 0).toLocaleString()} 🪙
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm text-gray-900">
+                                    {ambassador.total_bounties_completed || 0} bounties
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                    ambassador.is_active
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {ambassador.is_active ? 'Active' : 'Inactive'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {new Date(ambassador.created_at).toLocaleDateString()}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                  <button
+                                    onClick={() => toggleAmbassadorStatus(ambassador.id, ambassador.is_active)}
+                                    className={`${
+                                      ambassador.is_active
+                                        ? 'text-red-600 hover:text-red-900'
+                                        : 'text-green-600 hover:text-green-900'
+                                    } font-medium`}
+                                  >
+                                    {ambassador.is_active ? 'Deactivate' : 'Activate'}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        
+                        {ambassadorsData.length === 0 && (
+                          <div className="p-6 text-center text-gray-500">
+                            No ambassadors yet. Add your first ambassador to get started.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+                
+                {/* Bounties View - Coming in next update */}
+                {ambassadorView === 'bounties' && (
+                  <div className="p-6 text-center text-gray-500">
+                    <div className="text-4xl mb-2">🎯</div>
+                    <div>Bounties management UI - Implementation in progress</div>
+                    <div className="text-sm mt-2">All API endpoints are ready, building UI next...</div>
+                  </div>
+                )}
+                
+                {/* Submissions View */}
+                {ambassadorView === 'submissions' && (
+                  <>
+                    <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                      <h3 className="text-md font-semibold text-gray-700">Review Submissions</h3>
+                      <div className="flex space-x-2">
+                        <select
+                          value={submissionsFilter}
+                          onChange={(e) => setSubmissionsFilter(e.target.value)}
+                          className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        >
+                          <option value="all">All Submissions</option>
+                          <option value="pending">Pending</option>
+                          <option value="approved">Approved</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
+                        <button
+                          onClick={loadSubmissions}
+                          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                        >
+                          🔄 Refresh
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {submissionsLoading ? (
+                      <div className="p-6 text-center">
+                        <div className="text-gray-500">Loading submissions...</div>
+                      </div>
+                    ) : submissionsError ? (
+                      <div className="p-6 text-center">
+                        <div className="text-red-600">{submissionsError}</div>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-200">
+                        {submissionsData.map((submission) => (
+                          <div key={submission.id} className="p-6 hover:bg-gray-50">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <h4 className="text-lg font-semibold text-gray-900">
+                                    {submission.bounties?.title}
+                                  </h4>
+                                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                    submission.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                    submission.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                    'bg-red-100 text-red-800'
+                                  }`}>
+                                    {submission.status.toUpperCase()}
+                                  </span>
+                                </div>
+                                
+                                <div className="text-sm text-gray-600 space-y-1">
+                                  <div>
+                                    <span className="font-medium">Ambassador:</span>{' '}
+                                    <span 
+                                      className="text-blue-600 cursor-pointer hover:underline"
+                                      onClick={() => openUserModal(submission.ambassadors?.fid)}
+                                    >
+                                      @{submission.ambassadors?.profiles?.username}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Reward:</span>{' '}
+                                    <span className="text-green-600 font-bold">
+                                      {submission.bounties?.reward_tokens?.toLocaleString()} 🪙
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Submitted:</span>{' '}
+                                    {new Date(submission.submitted_at).toLocaleString()}
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Proof:</span>{' '}
+                                    <a
+                                      href={submission.proof_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline"
+                                    >
+                                      View Submission →
+                                    </a>
+                                  </div>
+                                  {submission.proof_description && (
+                                    <div>
+                                      <span className="font-medium">Description:</span>{' '}
+                                      {submission.proof_description}
+                                    </div>
+                                  )}
+                                  {submission.admin_notes && (
+                                    <div className="mt-2 p-2 bg-blue-50 rounded-md">
+                                      <span className="font-medium text-blue-900">Admin Notes:</span>{' '}
+                                      <span className="text-blue-800">{submission.admin_notes}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="ml-4 flex flex-col space-y-2">
+                                {submission.status === 'pending' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleApproveSubmission(submission.id, submission.bounties?.title)}
+                                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                                    >
+                                      ✅ Approve
+                                    </button>
+                                    <button
+                                      onClick={() => handleRejectSubmission(submission.id, submission.bounties?.title)}
+                                      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                                    >
+                                      ❌ Reject
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {submissionsData.length === 0 && (
+                          <div className="p-6 text-center text-gray-500">
+                            No submissions found.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+                
+                {/* Payouts View */}
+                {ambassadorView === 'payouts' && (
+                  <>
+                    <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                      <h3 className="text-md font-semibold text-gray-700">Manage Payouts</h3>
+                      <div className="flex space-x-2">
+                        <select
+                          value={payoutsFilter}
+                          onChange={(e) => setPayoutsFilter(e.target.value)}
+                          className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        >
+                          <option value="all">All Payouts</option>
+                          <option value="pending">Pending</option>
+                          <option value="processing">Processing</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                        <button
+                          onClick={loadPayouts}
+                          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                        >
+                          🔄 Refresh
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {payoutsLoading ? (
+                      <div className="p-6 text-center">
+                        <div className="text-gray-500">Loading payouts...</div>
+                      </div>
+                    ) : payoutsError ? (
+                      <div className="p-6 text-center">
+                        <div className="text-red-600">{payoutsError}</div>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Ambassador
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Amount
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Wallet
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Status
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Created
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {payoutsData.map((payout) => (
+                              <tr key={payout.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4">
+                                  <div 
+                                    className="text-sm font-medium text-blue-600 cursor-pointer hover:underline"
+                                    onClick={() => openUserModal(payout.ambassadors?.fid)}
+                                  >
+                                    @{payout.ambassadors?.profiles?.username}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm font-bold text-green-600">
+                                    {payout.amount_tokens.toLocaleString()} 🪙
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  {payout.wallet_address ? (
+                                    <div className="text-xs font-mono text-gray-600">
+                                      {payout.wallet_address.slice(0, 6)}...{payout.wallet_address.slice(-4)}
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs text-red-600">No wallet</div>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                    payout.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                    payout.status === 'processing' ? 'bg-blue-100 text-blue-800' :
+                                    payout.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                    'bg-red-100 text-red-800'
+                                  }`}>
+                                    {payout.status.toUpperCase()}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {new Date(payout.created_at).toLocaleDateString()}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                  {payout.status === 'pending' && payout.wallet_address && (
+                                    <button
+                                      onClick={() => handleCompletePayout(
+                                        payout.id,
+                                        payout.ambassadors?.profiles?.username,
+                                        payout.amount_tokens
+                                      )}
+                                      className="text-green-600 hover:text-green-900 font-medium"
+                                    >
+                                      Mark Complete
+                                    </button>
+                                  )}
+                                  {payout.transaction_hash && (
+                                    <a
+                                      href={`https://basescan.org/tx/${payout.transaction_hash}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline text-xs"
+                                    >
+                                      View TX
+                                    </a>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        
+                        {payoutsData.length === 0 && (
+                          <div className="p-6 text-center text-gray-500">
+                            No payouts found.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Add Ambassador Modal */}
+        {showAddAmbassador && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg max-w-md w-full">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold">Add New Ambassador</h2>
+                  <button
+                    onClick={() => setShowAddAmbassador(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Farcaster ID (FID) *
+                    </label>
+                    <input
+                      type="number"
+                      value={addAmbassadorFid}
+                      onChange={(e) => setAddAmbassadorFid(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                      placeholder="123456"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      The user must have already signed in to the app
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Notes (Optional)
+                    </label>
+                    <textarea
+                      value={addAmbassadorNotes}
+                      onChange={(e) => setAddAmbassadorNotes(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                      placeholder="Additional notes about this ambassador..."
+                      rows={3}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6 flex space-x-3">
+                  <button
+                    onClick={() => setShowAddAmbassador(false)}
+                    className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddAmbassador}
+                    className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md"
+                  >
+                    Add Ambassador
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
