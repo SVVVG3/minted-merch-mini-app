@@ -373,16 +373,16 @@ function BountiesTab({ bounties, onSelectBounty }) {
   };
 
   const isFull = (bounty) => {
-    return bounty.current_completions >= bounty.max_completions;
+    return bounty.currentCompletions >= bounty.maxCompletions;
   };
 
   const isLimitReached = (bounty) => {
-    if (!bounty.max_submissions_per_ambassador) return false;
-    return bounty.user_submissions_count >= bounty.max_submissions_per_ambassador;
+    if (!bounty.maxSubmissionsPerAmbassador) return false;
+    return bounty.ambassadorSubmissions >= bounty.maxSubmissionsPerAmbassador;
   };
 
   const canSubmit = (bounty) => {
-    return !isExpired(bounty.expires_at) && !isFull(bounty) && !isLimitReached(bounty);
+    return !isExpired(bounty.expiresAt) && !isFull(bounty) && !isLimitReached(bounty);
   };
 
   if (bounties.length === 0) {
@@ -398,7 +398,7 @@ function BountiesTab({ bounties, onSelectBounty }) {
   return (
     <div className="space-y-4">
       {bounties.map((bounty) => {
-        const availableSlots = bounty.max_completions - bounty.current_completions;
+        const availableSlots = bounty.maxCompletions - bounty.currentCompletions;
         const submittable = canSubmit(bounty);
 
         return (
@@ -413,9 +413,9 @@ function BountiesTab({ bounties, onSelectBounty }) {
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-start gap-3">
-                  {bounty.image_url && (
+                  {bounty.imageUrl && (
                     <img
-                      src={bounty.image_url}
+                      src={bounty.imageUrl}
                       alt={bounty.title}
                       className="w-16 h-16 object-cover rounded-lg"
                     />
@@ -436,7 +436,7 @@ function BountiesTab({ bounties, onSelectBounty }) {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-gray-700">Proof needed:</span>
-                        <span className="text-gray-600">{bounty.proof_requirements}</span>
+                        <span className="text-gray-600">{bounty.proofRequirements}</span>
                       </div>
                     </div>
                   </div>
@@ -447,22 +447,22 @@ function BountiesTab({ bounties, onSelectBounty }) {
                 <div className="bg-green-100 border border-green-300 rounded-lg px-4 py-2">
                   <div className="text-xs text-green-600 font-medium">Reward</div>
                   <div className="text-2xl font-bold text-green-700">
-                    {formatNumber(bounty.reward_tokens)} 🪙
+                    {formatNumber(bounty.rewardTokens)} 🪙
                   </div>
                 </div>
 
                 <div className="text-xs text-gray-600 space-y-1">
                   <div>
-                    <span className="font-medium">Slots:</span> {availableSlots}/{bounty.max_completions} available
+                    <span className="font-medium">Slots:</span> {availableSlots}/{bounty.maxCompletions} available
                   </div>
-                  {bounty.max_submissions_per_ambassador && (
+                  {bounty.maxSubmissionsPerAmbassador && (
                     <div>
-                      <span className="font-medium">Your submissions:</span> {bounty.user_submissions_count}/
-                      {bounty.max_submissions_per_ambassador}
+                      <span className="font-medium">Your submissions:</span> {bounty.ambassadorSubmissions}/
+                      {bounty.maxSubmissionsPerAmbassador}
                     </div>
                   )}
                   <div>
-                    <span className="font-medium">Expires:</span> {formatDate(bounty.expires_at)}
+                    <span className="font-medium">Expires:</span> {formatDate(bounty.expiresAt)}
                   </div>
                 </div>
 
@@ -564,7 +564,7 @@ function SubmissionsTab({ submissions }) {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <h3 className="text-lg font-bold text-gray-900">
-                  {submission.bounties?.title || 'Bounty'}
+                  {submission.bounty?.title || 'Bounty'}
                 </h3>
                 <span
                   className={`inline-block border px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(
@@ -575,15 +575,15 @@ function SubmissionsTab({ submissions }) {
                 </span>
               </div>
 
-              {submission.proof_description && (
-                <p className="text-sm text-gray-600 mb-3">{submission.proof_description}</p>
+              {submission.proofDescription && (
+                <p className="text-sm text-gray-600 mb-3">{submission.proofDescription}</p>
               )}
 
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-gray-700">Proof:</span>
                   <button
-                    onClick={() => handleOpenProof(submission.proof_url)}
+                    onClick={() => handleOpenProof(submission.proofUrl)}
                     className="text-blue-600 hover:text-blue-800 underline"
                   >
                     View Submission
@@ -591,29 +591,29 @@ function SubmissionsTab({ submissions }) {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-gray-700">Submitted:</span>
-                  <span className="text-gray-600">{formatDate(submission.submitted_at)}</span>
+                  <span className="text-gray-600">{formatDate(submission.submittedAt)}</span>
                 </div>
-                {submission.reviewed_at && (
+                {submission.reviewedAt && (
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-700">Reviewed:</span>
-                    <span className="text-gray-600">{formatDate(submission.reviewed_at)}</span>
+                    <span className="text-gray-600">{formatDate(submission.reviewedAt)}</span>
                   </div>
                 )}
-                {submission.admin_notes && (
+                {submission.adminNotes && (
                   <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
                     <span className="font-medium text-blue-900 text-xs">Admin Feedback:</span>
-                    <p className="text-blue-800 text-sm mt-1">{submission.admin_notes}</p>
+                    <p className="text-blue-800 text-sm mt-1">{submission.adminNotes}</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {submission.bounties?.reward_tokens && (
+            {submission.bounty?.rewardTokens && (
               <div className="sm:text-right">
                 <div className="bg-gray-100 rounded-lg px-4 py-2">
                   <div className="text-xs text-gray-600 font-medium">Reward</div>
                   <div className="text-xl font-bold text-gray-900">
-                    {formatNumber(submission.bounties.reward_tokens)} 🪙
+                    {formatNumber(submission.bounty.rewardTokens)} 🪙
                   </div>
                 </div>
               </div>
@@ -692,7 +692,7 @@ function PayoutsTab({ payouts }) {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <h3 className="text-lg font-bold text-gray-900">
-                  {payout.bounty_submissions?.bounties?.title || 'Payout'}
+                  {payout.bounty?.title || 'Payout'}
                 </h3>
                 <span
                   className={`inline-block border px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(
@@ -707,32 +707,32 @@ function PayoutsTab({ payouts }) {
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-gray-700">Amount:</span>
                   <span className="text-green-600 font-bold">
-                    {formatNumber(payout.amount_tokens)} 🪙 $mintedmerch
+                    {formatNumber(payout.amountTokens)} 🪙 $mintedmerch
                   </span>
                 </div>
-                {payout.wallet_address && (
+                {payout.walletAddress && (
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-700">Wallet:</span>
                     <span className="text-gray-600 text-xs font-mono">
-                      {payout.wallet_address.slice(0, 6)}...{payout.wallet_address.slice(-4)}
+                      {payout.walletAddress.slice(0, 6)}...{payout.walletAddress.slice(-4)}
                     </span>
                   </div>
                 )}
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-gray-700">Created:</span>
-                  <span className="text-gray-600">{formatDate(payout.created_at)}</span>
+                  <span className="text-gray-600">{formatDate(payout.createdAt)}</span>
                 </div>
-                {payout.completed_at && (
+                {payout.completedAt && (
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-700">Completed:</span>
-                    <span className="text-gray-600">{formatDate(payout.completed_at)}</span>
+                    <span className="text-gray-600">{formatDate(payout.completedAt)}</span>
                   </div>
                 )}
-                {payout.transaction_hash && (
+                {payout.transactionHash && (
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-700">TX Hash:</span>
                     <span className="text-blue-600 text-xs font-mono">
-                      {payout.transaction_hash.slice(0, 10)}...{payout.transaction_hash.slice(-8)}
+                      {payout.transactionHash.slice(0, 10)}...{payout.transactionHash.slice(-8)}
                     </span>
                   </div>
                 )}
@@ -849,12 +849,12 @@ function SubmitBountyModal({ bounty, onClose, onSuccess }) {
               </div>
               <div>
                 <span className="font-medium text-gray-700">Proof Needed:</span>
-                <p className="text-gray-600 mt-1">{bounty.proof_requirements}</p>
+                <p className="text-gray-600 mt-1">{bounty.proofRequirements}</p>
               </div>
               <div className="pt-2 border-t border-gray-300">
                 <span className="font-medium text-gray-700">Reward:</span>
                 <span className="text-green-600 font-bold ml-2">
-                  {formatNumber(bounty.reward_tokens)} 🪙 $mintedmerch
+                  {formatNumber(bounty.rewardTokens)} 🪙 $mintedmerch
                 </span>
               </div>
             </div>

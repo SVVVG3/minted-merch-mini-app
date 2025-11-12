@@ -45,6 +45,14 @@ export const GET = withAdminAuth(async (request) => {
     }));
 
     console.log(`✅ Fetched ${bounties.length} bounties`);
+    if (bounties.length > 0) {
+      console.log('📊 Sample bounty data:', {
+        id: bounties[0].id,
+        title: bounties[0].title,
+        reward_tokens: bounties[0].reward_tokens,
+        reward_tokens_type: typeof bounties[0].reward_tokens
+      });
+    }
 
     return NextResponse.json({
       success: true,
