@@ -115,8 +115,7 @@ export const PUT = withAdminAuth(async (request) => {
 
     const updateData = {
       status,
-      processed_by_admin_fid: adminFid || null,
-      updated_at: new Date().toISOString()
+      processed_by_admin_fid: adminFid || null
     };
 
     if (transactionHash) {

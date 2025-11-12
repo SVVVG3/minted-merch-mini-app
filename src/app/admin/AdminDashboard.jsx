@@ -161,6 +161,7 @@ export default function AdminDashboard() {
   const [payoutsError, setPayoutsError] = useState('');
   const [payoutsFilter, setPayoutsFilter] = useState('pending'); // 'all', 'pending', 'processing', 'completed'
   const [selectedPayoutForComplete, setSelectedPayoutForComplete] = useState(null);
+  const [copiedWallet, setCopiedWallet] = useState(null); // Track which wallet was copied
   
   // Ambassador section view (within ambassadors sub-tab)
   const [ambassadorView, setAmbassadorView] = useState('ambassadors'); // 'ambassadors', 'bounties', 'submissions', 'payouts'
@@ -4551,15 +4552,21 @@ export default function AdminDashboard() {
                                 </td>
                                 <td className="px-6 py-4">
                                   {payout.wallet_address ? (
-                                    <div 
-                                      className="text-xs font-mono text-blue-600 cursor-pointer hover:text-blue-800 hover:underline"
-                                      onClick={() => {
-                                        navigator.clipboard.writeText(payout.wallet_address);
-                                        alert(`Copied: ${payout.wallet_address}`);
-                                      }}
-                                      title="Click to copy full address"
-                                    >
-                                      {payout.wallet_address.slice(0, 6)}...{payout.wallet_address.slice(-4)}
+                                    <div className="flex items-center gap-2">
+                                      <div 
+                                        className="text-xs font-mono text-blue-600 cursor-pointer hover:text-blue-800 hover:underline"
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(payout.wallet_address);
+                                          setCopiedWallet(payout.id);
+                                          setTimeout(() => setCopiedWallet(null), 2000);
+                                        }}
+                                        title="Click to copy full address"
+                                      >
+                                        {payout.wallet_address.slice(0, 6)}...{payout.wallet_address.slice(-4)}
+                                      </div>
+                                      {copiedWallet === payout.id && (
+                                        <span className="text-green-600 text-sm font-bold animate-pulse">✓</span>
+                                      )}
                                     </div>
                                   ) : (
                                     <div className="text-xs text-red-600">No wallet</div>
