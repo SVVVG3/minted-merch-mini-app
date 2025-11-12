@@ -229,7 +229,7 @@ export default function AmbassadorDashboard() {
               title="Back to shop"
             >
               <img 
-                src="/mintedmerchlogo.png" 
+                src="/MintedMerchHeaderLogo.png" 
                 alt="Minted Merch"
                 className="h-12 w-auto"
               />
