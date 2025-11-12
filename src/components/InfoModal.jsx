@@ -174,6 +174,15 @@ export function InfoModal({ isOpen, onClose }) {
                 Merch Mogul Actions 🤌
               </h3>
               
+              {/* Merch Mogul Meme Image */}
+              <div className="flex justify-center mb-4">
+                <img 
+                  src="/merchmogulmeme.png" 
+                  alt="Merch Mogul Meme" 
+                  className="w-full max-w-sm h-auto object-contain rounded-lg"
+                />
+              </div>
+
               <p className="text-sm text-gray-700 mb-4 text-center">
                 As a Merch Mogul, you have exclusive access to:
               </p>
@@ -182,21 +191,21 @@ export function InfoModal({ isOpen, onClose }) {
               <div className="space-y-3">
                 <button
                   onClick={() => handleOpenForm('https://forms.gle/MCQ4CyNEZBzdKMxW8', 'Collab Partner')}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors shadow-md"
+                  className="w-full bg-[#3eb489] hover:bg-[#359970] text-white font-semibold py-3 px-4 rounded-lg transition-colors shadow-md"
                 >
                   🤝 Become a Collab Partner
                 </button>
 
                 <button
                   onClick={() => handleOpenForm('https://forms.gle/3T5xqwLTfe2ujZV46', 'Custom Order')}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors shadow-md"
+                  className="w-full bg-[#3eb489] hover:bg-[#359970] text-white font-semibold py-3 px-4 rounded-lg transition-colors shadow-md"
                 >
                   🎨 Create a Custom Order
                 </button>
 
                 <button
                   onClick={() => handleOpenForm('https://forms.gle/KPhrjCXHqXRJUZZF8', 'Ambassador')}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors shadow-md"
+                  className="w-full bg-[#3eb489] hover:bg-[#359970] text-white font-semibold py-3 px-4 rounded-lg transition-colors shadow-md"
                 >
                   📢 Apply to be an Ambassador
                 </button>
