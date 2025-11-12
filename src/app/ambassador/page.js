@@ -19,7 +19,19 @@ export default function AmbassadorDashboard() {
 
   // Check ambassador status and load data
   useEffect(() => {
+    console.log('🔄 Ambassador Dashboard: useEffect triggered', { isSDKReady, userFid: user?.fid });
+    
+    // Try to load immediately if we have a session token, don't wait for SDK
+    const token = localStorage.getItem('fc_session_token');
+    if (token && user?.fid) {
+      console.log('⚡ Ambassador Dashboard: Fast path - token exists, loading immediately');
+      checkAmbassadorStatus();
+      return;
+    }
+    
+    // Fallback: wait for SDK to be ready
     if (isSDKReady && user?.fid) {
+      console.log('🐌 Ambassador Dashboard: Slow path - waiting for SDK ready');
       checkAmbassadorStatus();
     }
   }, [isSDKReady, user]);
