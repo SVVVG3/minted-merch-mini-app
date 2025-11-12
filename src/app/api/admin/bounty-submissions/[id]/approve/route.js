@@ -4,7 +4,7 @@
 import { NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/adminAuth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getUserPrimaryWalletAddress } from '@/lib/ambassadorHelpers';
+import { getAmbassadorWalletAddress } from '@/lib/ambassadorHelpers';
 
 // PUT /api/admin/bounty-submissions/[id]/approve - Approve submission
 export const PUT = withAdminAuth(async (request, { params }) => {
@@ -70,7 +70,7 @@ export const PUT = withAdminAuth(async (request, { params }) => {
     }
 
     // Get ambassador's wallet address
-    const walletAddress = await getUserPrimaryWalletAddress(submission.ambassadors.fid);
+    const walletAddress = await getAmbassadorWalletAddress(submission.ambassadors.fid);
 
     if (!walletAddress) {
       console.warn(`⚠️ No wallet address found for ambassador FID ${submission.ambassadors.fid}`);

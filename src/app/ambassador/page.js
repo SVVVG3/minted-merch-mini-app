@@ -871,12 +871,12 @@ function SubmitBountyModal({ bounty, onClose, onSuccess }) {
                 value={proofUrl}
                 onChange={(e) => setProofUrl(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                placeholder="https://warpcast.com/..."
+                placeholder="https://farcaster.xyz/..."
                 disabled={submitting}
                 required
               />
               <p className="text-xs text-gray-500 mt-1">
-                Link to your post on Farcaster, X, TikTok, or Instagram
+                Link to your post on Farcaster (farcaster.xyz), X, TikTok, or Instagram
               </p>
             </div>
 

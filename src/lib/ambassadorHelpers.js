@@ -67,7 +67,7 @@ export async function validateProofUrl(url) {
 
     // Supported platforms
     const platforms = {
-      farcaster: ['warpcast.com', 'www.warpcast.com'],
+      farcaster: ['farcaster.xyz', 'www.farcaster.xyz', 'warpcast.com', 'www.warpcast.com'], // farcaster.xyz is preferred, warpcast.com for backward compatibility
       x: ['x.com', 'www.x.com', 'twitter.com', 'www.twitter.com'],
       tiktok: ['tiktok.com', 'www.tiktok.com', 'vm.tiktok.com'],
       instagram: ['instagram.com', 'www.instagram.com', 'instagr.am']
