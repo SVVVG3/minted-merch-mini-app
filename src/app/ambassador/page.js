@@ -240,10 +240,10 @@ export default function AmbassadorDashboard() {
                 className="h-12 w-auto"
               />
             </button>
-            <h1 className="text-base sm:text-lg font-bold text-gray-900 mx-4 text-center flex-1">
+            <h1 className="text-sm font-bold text-gray-900 mx-2 text-center flex-1 whitespace-nowrap">
               Ambassador Dashboard
             </h1>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
                 onClick={handleRefresh}
                 className="bg-gray-100 hover:bg-gray-200 text-gray-800 p-2 rounded-md flex-shrink-0"
@@ -272,8 +272,9 @@ export default function AmbassadorDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
               <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
                 <div className="text-sm text-green-600 font-medium mb-1">Total Earned</div>
-                <div className="text-2xl font-bold text-gray-900">
-                  {formatNumber(profile.total_earned_tokens)} 🪙
+                <div className="text-2xl font-bold text-gray-900 flex items-center gap-1">
+                  {formatNumber(profile.total_earned_tokens)} 
+                  <img src="/splash.png" alt="Token" className="w-6 h-6 rounded-full inline-block" />
                 </div>
                 <div className="text-xs text-green-600 mt-1">$mintedmerch tokens</div>
               </div>
@@ -306,33 +307,42 @@ export default function AmbassadorDashboard() {
             <nav className="-mb-px flex">
               <button
                 onClick={() => setActiveTab('bounties')}
-                className={`px-4 py-4 text-xs font-medium border-b-2 ${
+                className={`px-4 py-4 text-xs font-medium border-b-2 flex items-center gap-1.5 ${
                   activeTab === 'bounties'
                     ? 'border-[#3eb489] text-[#3eb489]'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                🎯 Bounties ({bounties.length})
+                <span>🎯 Bounties</span>
+                <span className="bg-[#3eb489] text-white text-xs font-semibold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {bounties.length}
+                </span>
               </button>
               <button
                 onClick={() => setActiveTab('submissions')}
-                className={`px-4 py-4 text-xs font-medium border-b-2 ${
+                className={`px-4 py-4 text-xs font-medium border-b-2 flex items-center gap-1.5 ${
                   activeTab === 'submissions'
                     ? 'border-[#3eb489] text-[#3eb489]'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                📝 Submissions ({submissions.length})
+                <span>📝 Submissions</span>
+                <span className="bg-[#3eb489] text-white text-xs font-semibold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {submissions.length}
+                </span>
               </button>
               <button
                 onClick={() => setActiveTab('payouts')}
-                className={`px-4 py-4 text-xs font-medium border-b-2 ${
+                className={`px-4 py-4 text-xs font-medium border-b-2 flex items-center gap-1.5 ${
                   activeTab === 'payouts'
                     ? 'border-[#3eb489] text-[#3eb489]'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                💰 Payouts ({payouts.length})
+                <span>💰 Payouts</span>
+                <span className="bg-[#3eb489] text-white text-xs font-semibold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {payouts.length}
+                </span>
               </button>
             </nav>
           </div>
@@ -470,8 +480,9 @@ function BountiesTab({ bounties, onSelectBounty }) {
               <div className="sm:text-right space-y-2">
                 <div className="bg-green-100 border border-green-300 rounded-lg px-4 py-2">
                   <div className="text-xs text-green-600 font-medium">Reward</div>
-                  <div className="text-2xl font-bold text-green-700">
-                    {formatNumber(bounty.rewardTokens)} 🪙
+                  <div className="text-2xl font-bold text-green-700 flex items-center gap-1">
+                    {formatNumber(bounty.rewardTokens)} 
+                    <img src="/splash.png" alt="Token" className="w-6 h-6 rounded-full inline-block" />
                   </div>
                 </div>
 
@@ -636,8 +647,9 @@ function SubmissionsTab({ submissions }) {
               <div className="sm:text-right">
                 <div className="bg-gray-100 rounded-lg px-4 py-2">
                   <div className="text-xs text-gray-600 font-medium">Reward</div>
-                  <div className="text-xl font-bold text-gray-900">
-                    {formatNumber(submission.bounty.rewardTokens)} 🪙
+                  <div className="text-xl font-bold text-gray-900 flex items-center gap-1">
+                    {formatNumber(submission.bounty.rewardTokens)} 
+                    <img src="/splash.png" alt="Token" className="w-5 h-5 rounded-full inline-block" />
                   </div>
                 </div>
               </div>
@@ -730,8 +742,10 @@ function PayoutsTab({ payouts }) {
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-gray-700">Amount:</span>
-                  <span className="text-green-600 font-bold">
-                    {formatNumber(payout.amountTokens)} 🪙 $mintedmerch
+                  <span className="text-green-600 font-bold flex items-center gap-1">
+                    {formatNumber(payout.amountTokens)} 
+                    <img src="/splash.png" alt="Token" className="w-4 h-4 rounded-full inline-block" />
+                    $mintedmerch
                   </span>
                 </div>
                 {payout.walletAddress && (
@@ -755,14 +769,12 @@ function PayoutsTab({ payouts }) {
                 {payout.transactionHash && (
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-700">TX Hash:</span>
-                    <a
-                      href={`https://basescan.org/tx/${payout.transactionHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 text-xs font-mono underline"
+                    <button
+                      onClick={() => window.open(`https://basescan.org/tx/${payout.transactionHash}`, '_blank', 'noopener,noreferrer')}
+                      className="text-blue-600 hover:text-blue-800 text-xs font-mono underline cursor-pointer"
                     >
                       {payout.transactionHash.slice(0, 10)}...{payout.transactionHash.slice(-8)}
-                    </a>
+                    </button>
                   </div>
                 )}
               </div>
@@ -771,8 +783,9 @@ function PayoutsTab({ payouts }) {
             <div className="sm:text-right">
               <div className="bg-green-100 border border-green-300 rounded-lg px-4 py-2">
                 <div className="text-xs text-green-600 font-medium">Payout</div>
-                <div className="text-2xl font-bold text-green-700">
-                  {formatNumber(payout.amountTokens)} 🪙
+                <div className="text-2xl font-bold text-green-700 flex items-center gap-1">
+                  {formatNumber(payout.amountTokens)} 
+                  <img src="/splash.png" alt="Token" className="w-6 h-6 rounded-full inline-block" />
                 </div>
               </div>
             </div>
@@ -876,8 +889,10 @@ function SubmitBountyModal({ bounty, onClose, onSuccess }) {
               </div>
               <div className="pt-2 border-t border-gray-300">
                 <span className="font-medium text-gray-700">Reward:</span>
-                <span className="text-green-600 font-bold ml-2">
-                  {formatNumber(bounty.rewardTokens)} 🪙 $mintedmerch
+                <span className="text-green-600 font-bold ml-2 flex items-center gap-1">
+                  {formatNumber(bounty.rewardTokens)} 
+                  <img src="/splash.png" alt="Token" className="w-4 h-4 rounded-full inline-block" />
+                  $mintedmerch
                 </span>
               </div>
             </div>
