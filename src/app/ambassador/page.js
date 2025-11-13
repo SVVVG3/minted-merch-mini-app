@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { ProfileModal } from '@/components/ProfileModal';
+import { useSendTransaction, useWaitForReceipt } from 'thirdweb/react';
+import { getContract } from 'thirdweb';
+import { base } from 'thirdweb/chains';
+import { airdropERC20WithSignature } from 'thirdweb/extensions/airdrop';
+import { client } from '@/lib/thirdwebClient';
 
 export default function AmbassadorDashboard() {
   const { user, isSDKReady } = useFarcaster();
@@ -665,6 +670,14 @@ function SubmissionsTab({ submissions }) {
 function PayoutsTab({ payouts, onRefresh }) {
   const [claiming, setClaiming] = useState(null);
   const [claimError, setClaimError] = useState(null);
+  const [pendingTxHash, setPendingTxHash] = useState(null);
+  
+  const { mutate: sendTransaction } = useSendTransaction();
+  const { data: receipt, isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForReceipt({
+    client,
+    chain: base,
+    transactionHash: pendingTxHash,
+  });
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -714,12 +727,66 @@ function PayoutsTab({ payouts, onRefresh }) {
     }
   };
 
+  // Watch for transaction confirmation
+  useEffect(() => {
+    if (isConfirmed && receipt && claiming) {
+      console.log(`✅ Transaction confirmed! Receipt:`, receipt);
+      
+      // Mark payout as completed in backend
+      markPayoutComplete(claiming, receipt.transactionHash);
+    }
+  }, [isConfirmed, receipt, claiming]);
+
+  const markPayoutComplete = async (payoutId, txHash) => {
+    try {
+      const token = localStorage.getItem('fc_session_token');
+      if (!token) {
+        console.error('❌ No auth token for marking payout complete');
+        return;
+      }
+      
+      const response = await fetch(`/api/ambassador/payouts/${payoutId}/claim-complete`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ transactionHash: txHash })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log(`✅ Payout ${payoutId} marked as complete`);
+        
+        // Show success message
+        alert(`✅ Claim successful!\n\nTokens have been sent to your wallet!\n\nView transaction: https://basescan.org/tx/${txHash}`);
+        
+        // Refresh payouts list
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } else {
+        console.error(`❌ Failed to mark payout complete:`, result.error);
+      }
+      
+      // Clear claiming state
+      setClaiming(null);
+      setPendingTxHash(null);
+      
+    } catch (error) {
+      console.error('❌ Error marking payout complete:', error);
+      setClaiming(null);
+      setPendingTxHash(null);
+    }
+  };
+
   const handleClaimPayout = async (payoutId) => {
     try {
       setClaiming(payoutId);
       setClaimError(null);
       
-      console.log(`💰 Starting backend-executed claim for payout ${payoutId}`);
+      console.log(`💰 Fetching claim data for payout ${payoutId}`);
       
       // Get authentication token
       const token = localStorage.getItem('fc_session_token');
@@ -727,38 +794,61 @@ function PayoutsTab({ payouts, onRefresh }) {
         throw new Error('Not authenticated. Please sign in again.');
       }
       
-      // Call backend API to execute airdrop via Thirdweb
-      const response = await fetch(`/api/ambassador/payouts/${payoutId}/claim`, {
-        method: 'POST',
+      // 1. Fetch claim data (req + signature) from backend
+      const response = await fetch(`/api/ambassador/payouts/${payoutId}/claim-data`, {
+        method: 'GET',
         headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       });
       
       const result = await response.json();
       
       if (!result.success) {
-        throw new Error(result.error || result.details || 'Failed to claim tokens');
+        throw new Error(result.error || 'Failed to fetch claim data');
       }
       
-      console.log(`✅ Claim successful!`, result);
+      console.log(`✍️ Claim data fetched for payout ${payoutId}:`, {
+        req: result.data.req,
+        signatureLength: result.data.signature.length
+      });
       
-      // Show success message with transaction link
-      const explorerUrl = result.explorerUrl || `https://basescan.org/tx/${result.transactionId}`;
-      alert(`✅ Claim successful!\n\n${result.amount} tokens have been sent to your wallet!\n\nView transaction: ${explorerUrl}`);
+      // 2. Get airdrop contract
+      const airdropContract = getContract({
+        client,
+        chain: base,
+        address: result.data.contractAddress
+      });
       
-      // Refresh payouts list
-      if (onRefresh) {
-        await onRefresh();
-      }
+      // 3. Prepare the airdropERC20WithSignature transaction
+      const transaction = airdropERC20WithSignature({
+        contract: airdropContract,
+        req: result.data.req,
+        signature: result.data.signature
+      });
       
-      setClaiming(null);
+      console.log(`📝 Prepared airdrop transaction for payout ${payoutId}`);
+      
+      // 4. Send transaction via Wagmi
+      sendTransaction(transaction, {
+        onSuccess: (result) => {
+          console.log(`✅ Transaction sent! Hash:`, result.transactionHash);
+          setPendingTxHash(result.transactionHash);
+          // Wait for confirmation in useEffect
+        },
+        onError: (error) => {
+          console.error('❌ Transaction failed:', error);
+          const errorMessage = error.message || 'Transaction failed';
+          setClaimError(errorMessage);
+          alert(`❌ Claim failed: ${errorMessage}`);
+          setClaiming(null);
+        }
+      });
       
     } catch (error) {
-      console.error('❌ Claim failed:', error);
+      console.error('❌ Claim preparation failed:', error);
       
-      const errorMessage = error.message || 'Failed to claim tokens';
+      const errorMessage = error.message || 'Failed to prepare claim';
       setClaimError(errorMessage);
       alert(`❌ Claim failed: ${errorMessage}`);
       setClaiming(null);
@@ -858,13 +948,13 @@ function PayoutsTab({ payouts, onRefresh }) {
               <div className="sm:text-right mt-4 sm:mt-0">
                 <button
                   onClick={() => handleClaimPayout(payout.id)}
-                  disabled={claiming === payout.id}
+                  disabled={claiming === payout.id || isConfirming}
                   className="w-full sm:w-auto bg-[#3eb489] hover:bg-[#359970] text-white font-semibold px-6 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                 >
                   {claiming === payout.id ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Claiming...</span>
+                      <span>{isConfirming ? 'Confirming...' : 'Claiming...'}</span>
                     </>
                   ) : (
                     <>
@@ -874,7 +964,7 @@ function PayoutsTab({ payouts, onRefresh }) {
                   )}
                 </button>
                 <p className="text-xs text-gray-500 mt-2">
-                  {formatNumber(payout.amountTokens)} tokens • No gas fees
+                  {formatNumber(payout.amountTokens)} tokens • Sign to claim
                 </p>
               </div>
             )}

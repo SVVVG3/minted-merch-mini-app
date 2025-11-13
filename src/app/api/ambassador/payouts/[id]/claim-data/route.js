@@ -1,12 +1,11 @@
 // Ambassador API - Get Claim Data for Payout
-// GET: Returns signature and data needed to claim payout (Thirdweb Airdrop format)
+// GET: Returns req + signature needed for airdropERC20WithSignature (Thirdweb SDK format)
 
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
 import { checkAmbassadorStatus } from '@/lib/ambassadorHelpers';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isSignatureExpired } from '@/lib/claimSignatureService';
-import { solidityPackedKeccak256 } from 'ethers';
 
 export async function GET(request, { params }) {
   try {
@@ -109,13 +108,30 @@ export async function GET(request, { params }) {
       }, { status: 500 });
     }
     
-    // 8. Log access for security monitoring
+    // 8. Parse the stored claim data (req + signature from Thirdweb SDK)
+    let claimData;
+    try {
+      claimData = JSON.parse(payout.claim_signature);
+      
+      if (!claimData.req || !claimData.signature) {
+        throw new Error('Invalid claim data format');
+      }
+    } catch (parseError) {
+      console.error(`❌ Error parsing claim data for payout ${id}:`, parseError);
+      return NextResponse.json({ 
+        success: false,
+        error: 'Invalid claim data',
+        message: 'This payout has corrupted claim data. Please contact support.'
+      }, { status: 500 });
+    }
+    
+    // 9. Log access for security monitoring
     try {
       await supabaseAdmin.from('payout_claim_events').insert({
         payout_id: id,
         user_fid: userFid,
         wallet_address: payout.wallet_address,
-        signature_used: payout.claim_signature.slice(0, 20) + '...', // Truncate for storage
+        signature_used: claimData.signature.slice(0, 20) + '...', // Truncate for storage
         status: 'data_accessed',
         ip_address: request.headers.get('x-forwarded-for') || 
                    request.headers.get('x-real-ip') || 
@@ -126,37 +142,13 @@ export async function GET(request, { params }) {
       // Continue anyway - logging is not critical
     }
     
-    // 9. Build Thirdweb airdrop request data
-    const tokenAddress = process.env.MINTEDMERCH_TOKEN_ADDRESS;
     const contractAddress = process.env.AIRDROP_CONTRACT_ADDRESS;
     
-    // Rebuild UID from payoutId (same as signature generation)
-    const uid = solidityPackedKeccak256(['string'], [payout.id]);
-    
-    // Expiration timestamp (unix seconds)
-    const expirationTimestamp = Math.floor(new Date(payout.claim_deadline).getTime() / 1000);
-    
-    // Build contents array (single recipient)
-    const contents = [
-      {
-        recipient: payout.wallet_address,
-        amount: payout.amount_tokens.toString()
-      }
-    ];
-    
-    // Build the request object matching Thirdweb's struct
-    const req = {
-      uid,
-      tokenAddress,
-      expirationTimestamp,
-      contents
-    };
-    
     console.log(`✅ Claim data provided for payout ${id} (FID: ${userFid})`, {
-      uid: uid.slice(0, 10) + '...',
-      recipient: payout.wallet_address.slice(0, 6) + '...' + payout.wallet_address.slice(-4),
-      amount: payout.amount_tokens.toString(),
-      expirationTimestamp: new Date(expirationTimestamp * 1000).toISOString()
+      uid: claimData.req.uid.slice(0, 10) + '...',
+      recipient: claimData.req.contents[0].recipient.slice(0, 6) + '...' + claimData.req.contents[0].recipient.slice(-4),
+      amount: claimData.req.contents[0].amount.toString(),
+      expirationTimestamp: new Date(Number(claimData.req.expirationTimestamp) * 1000).toISOString()
     });
     
     return NextResponse.json({
@@ -164,14 +156,14 @@ export async function GET(request, { params }) {
       data: {
         payoutId: payout.id,
         bountyTitle: payout.bounty_submissions.bounties.title,
-        // Thirdweb airdrop parameters
-        req,                                  // Full request struct
-        signature: payout.claim_signature,    // EIP-712 signature
+        // Thirdweb SDK airdrop parameters (ready for airdropERC20WithSignature)
+        req: claimData.req,                   // Full request struct from SDK
+        signature: claimData.signature,       // EIP-712 signature from SDK
         contractAddress,                      // Airdrop contract
         // For display purposes
         walletAddress: payout.wallet_address,
         amountTokens: payout.amount_tokens.toString(),
-        tokenAddress,
+        tokenAddress: claimData.req.tokenAddress,
         deadline: payout.claim_deadline
       }
     });

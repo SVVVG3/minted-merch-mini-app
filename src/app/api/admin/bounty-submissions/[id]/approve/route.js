@@ -139,20 +139,23 @@ export const PUT = withAdminAuth(async (request, { params }) => {
           deadline
         });
 
-        console.log(`✍️ Signature generated with data:`, {
-          uid: signatureData.uid,
-          tokenAddress: signatureData.tokenAddress,
-          expirationTimestamp: signatureData.expirationTimestamp,
-          recipient: signatureData.contents[0].recipient,
-          amount: signatureData.contents[0].amount,
+        console.log(`✍️ Thirdweb SDK signature generated:`, {
+          uid: signatureData.req.uid.slice(0, 10) + '...',
+          tokenAddress: signatureData.req.tokenAddress,
+          expirationTimestamp: signatureData.req.expirationTimestamp.toString(),
+          recipient: signatureData.req.contents[0].recipient,
+          amount: signatureData.req.contents[0].amount.toString(),
           signatureLength: signatureData.signature.length
         });
 
-        // Update payout with signature and make it claimable
+        // Update payout with req and signature (ready for airdropERC20WithSignature)
         const { error: signatureError } = await supabaseAdmin
           .from('ambassador_payouts')
           .update({
-            claim_signature: signatureData.signature, // Store EIP-712 signature
+            claim_signature: JSON.stringify({
+              req: signatureData.req,
+              signature: signatureData.signature
+            }), // Store full req + signature for airdropERC20WithSignature
             claim_deadline: deadline.toISOString(),
             status: 'claimable' // Ambassador can now claim immediately!
           })
@@ -162,9 +165,12 @@ export const PUT = withAdminAuth(async (request, { params }) => {
           console.error('❌ Error adding claim signature:', signatureError);
           // Continue anyway - payout created but not claimable yet
         } else {
-          console.log(`✍️ Claim signature generated - payout is now claimable!`);
+          console.log(`✍️ Thirdweb airdrop signature ready - payout is now claimable!`);
           payout.status = 'claimable'; // Update local object
-          payout.claim_signature = signatureData.signature;
+          payout.claim_signature = JSON.stringify({
+            req: signatureData.req,
+            signature: signatureData.signature
+          });
           payout.claim_deadline = deadline.toISOString();
         }
       } catch (signatureError) {

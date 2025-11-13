@@ -1,7 +1,7 @@
 /**
  * Claim Signature Service
  * 
- * Generates EIP-712 signatures for Thirdweb Airdrop contract claims.
+ * Generates EIP-712 signatures for Thirdweb Airdrop contract claims using official SDK.
  * Uses admin wallet to sign claim data, which can be verified on-chain.
  * 
  * Contract Function:
@@ -11,51 +11,32 @@
  * )
  * 
  * Security Features:
- * - EIP-712 typed signatures (domain-separated)
+ * - EIP-712 typed signatures (domain-separated) via Thirdweb SDK
  * - Unique UID per payout (prevents replay attacks)
  * - Time-limited (30-day deadline)
  * - Chain-specific (Base network)
  * - Admin private key never exposed to client
  */
 
-import { ethers, isAddress, keccak256, AbiCoder, id, solidityPackedKeccak256 } from 'ethers';
+import { createThirdwebClient, getContract, privateKeyToAccount } from 'thirdweb';
+import { base } from 'thirdweb/chains';
+import { generateAirdropSignatureERC20 } from 'thirdweb/extensions/airdrop';
+import { isAddress, keccak256, toHex } from 'thirdweb/utils';
 
 const ADMIN_PRIVATE_KEY = process.env.ADMIN_WALLET_PRIVATE_KEY;
 const AIRDROP_CONTRACT_ADDRESS = process.env.AIRDROP_CONTRACT_ADDRESS;
 const TOKEN_ADDRESS = process.env.MINTEDMERCH_TOKEN_ADDRESS;
-const CHAIN_ID = 8453; // Base network
-
-// EIP-712 Domain for Thirdweb Airdrop
-const DOMAIN = {
-  name: 'SignatureAction',
-  version: '1',
-  chainId: CHAIN_ID,
-  verifyingContract: AIRDROP_CONTRACT_ADDRESS
-};
-
-// EIP-712 Types for Thirdweb Airdrop
-const TYPES = {
-  AirdropRequest: [
-    { name: 'uid', type: 'bytes32' },
-    { name: 'tokenAddress', type: 'address' },
-    { name: 'expirationTimestamp', type: 'uint256' },
-    { name: 'contents', type: 'AirdropContent[]' }
-  ],
-  AirdropContent: [
-    { name: 'recipient', type: 'address' },
-    { name: 'amount', type: 'uint256' }
-  ]
-};
+const THIRDWEB_CLIENT_ID = process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID;
 
 /**
- * Generate a claim signature for a payout (Thirdweb Airdrop format)
+ * Generate a claim signature for a payout using Thirdweb SDK
  * 
  * @param {Object} params - Claim parameters
  * @param {string} params.wallet - Ambassador's wallet address
  * @param {string|number} params.amount - Token amount to claim
  * @param {string} params.payoutId - Unique payout ID (prevents replay)
  * @param {Date} params.deadline - Expiration time for claim
- * @returns {Promise<Object>} { signature, uid, expirationTimestamp, contents }
+ * @returns {Promise<Object>} { req, signature } - Ready to use with airdropERC20WithSignature
  */
 export async function generateClaimSignature({ 
   wallet, 
@@ -85,51 +66,65 @@ export async function generateClaimSignature({
     throw new Error('MINTEDMERCH_TOKEN_ADDRESS not configured');
   }
   
+  if (!THIRDWEB_CLIENT_ID) {
+    throw new Error('NEXT_PUBLIC_THIRDWEB_CLIENT_ID not configured');
+  }
+  
   try {
-    const signer = new ethers.Wallet(ADMIN_PRIVATE_KEY);
+    // Initialize Thirdweb client
+    const client = createThirdwebClient({ 
+      clientId: THIRDWEB_CLIENT_ID 
+    });
+    
+    // Get airdrop contract
+    const airdropContract = getContract({
+      client,
+      chain: base,
+      address: AIRDROP_CONTRACT_ADDRESS
+    });
+    
+    // Create admin account from private key
+    const adminAccount = privateKeyToAccount({
+      client,
+      privateKey: ADMIN_PRIVATE_KEY
+    });
     
     // Generate unique UID from payoutId (bytes32)
-    const uid = solidityPackedKeccak256(['string'], [payoutId]);
+    const uid = keccak256(toHex(payoutId));
     
     // Expiration timestamp (unix seconds)
-    const expirationTimestamp = Math.floor(deadline.getTime() / 1000);
+    const expirationTimestamp = BigInt(Math.floor(deadline.getTime() / 1000));
     
-    // Build contents array (single recipient for this payout)
-    const contents = [
-      {
-        recipient: wallet,
-        amount: amountBigInt.toString()
+    // Build the airdrop request using Thirdweb SDK
+    const { req, signature } = await generateAirdropSignatureERC20({
+      contract: airdropContract,
+      account: adminAccount,
+      airdropRequest: {
+        uid,
+        tokenAddress: TOKEN_ADDRESS,
+        expirationTimestamp,
+        contents: [{
+          recipient: wallet,
+          amount: amountBigInt
+        }]
       }
-    ];
+    });
     
-    // Build the request object matching Thirdweb's struct
-    const req = {
-      uid,
-      tokenAddress: TOKEN_ADDRESS,
-      expirationTimestamp,
-      contents
-    };
-    
-    // Sign using EIP-712
-    const signature = await signer.signTypedData(DOMAIN, TYPES, req);
-    
-    console.log(`✍️ Generated Thirdweb airdrop signature:`, {
+    console.log(`✍️ Generated Thirdweb SDK airdrop signature:`, {
       payoutId,
       uid: uid.slice(0, 10) + '...',
       wallet: `${wallet.slice(0, 6)}...${wallet.slice(-4)}`,
       amount: amountBigInt.toString(),
       tokenAddress: TOKEN_ADDRESS,
-      expirationTimestamp: new Date(expirationTimestamp * 1000).toISOString(),
+      expirationTimestamp: new Date(Number(expirationTimestamp) * 1000).toISOString(),
       signaturePreview: `${signature.slice(0, 10)}...${signature.slice(-8)}`,
-      signerAddress: signer.address
+      adminAddress: adminAccount.address
     });
     
+    // Return the full req object and signature
     return {
-      signature,
-      uid,
-      tokenAddress: TOKEN_ADDRESS,
-      expirationTimestamp,
-      contents
+      req,
+      signature
     };
   } catch (error) {
     console.error('❌ Error generating claim signature:', error);
