@@ -238,7 +238,7 @@ export default function AmbassadorDashboard() {
                 className="h-12 w-auto"
               />
             </button>
-            <h1 className="absolute left-1/2 -translate-x-1/2 text-base font-bold text-gray-900 whitespace-nowrap">
+            <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-gray-900 whitespace-nowrap">
               Ambassador Dashboard
             </h1>
             <div className="w-[48px]">
@@ -295,7 +295,7 @@ export default function AmbassadorDashboard() {
         {/* Tabs */}
         <div className="bg-white rounded-t-lg shadow">
           <div className="border-b border-gray-200">
-            <nav className="-mb-px flex">
+            <nav className="-mb-px flex justify-center">
               <button
                 onClick={() => setActiveTab('bounties')}
                 className={`px-4 py-4 text-xs font-medium border-b-2 flex items-center gap-1.5 ${
