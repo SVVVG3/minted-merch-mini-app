@@ -5,9 +5,10 @@ import { sdk } from '@farcaster/miniapp-sdk';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { ProfileModal } from '@/components/ProfileModal';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { triggerHaptic } from '@/lib/haptics';
 
 export default function AmbassadorDashboard() {
-  const { user, isSDKReady } = useFarcaster();
+  const { user, isSDKReady, isInFarcaster } = useFarcaster();
   const [loading, setLoading] = useState(true);
   const [isAmbassador, setIsAmbassador] = useState(false);
   const [profile, setProfile] = useState(null);
@@ -360,7 +361,7 @@ export default function AmbassadorDashboard() {
               <SubmissionsTab submissions={submissions} />
             )}
             {activeTab === 'payouts' && (
-              <PayoutsTab payouts={payouts} onRefresh={handleRefresh} />
+              <PayoutsTab payouts={payouts} onRefresh={handleRefresh} isInMiniApp={isInFarcaster} />
             )}
           </div>
         </div>
@@ -663,7 +664,7 @@ function SubmissionsTab({ submissions }) {
 }
 
 // Payouts Tab Component
-function PayoutsTab({ payouts, onRefresh }) {
+function PayoutsTab({ payouts, onRefresh, isInMiniApp }) {
   const [claiming, setClaiming] = useState(null);
   const [claimError, setClaimError] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -780,6 +781,12 @@ function PayoutsTab({ payouts, onRefresh }) {
       
       if (result.success) {
         console.log(`✅ Payout ${payoutId} marked as complete`);
+        
+        // DRAMATIC HAPTIC CELEBRATION! Multiple bursts for maximum impact
+        triggerHaptic('success', isInMiniApp);
+        setTimeout(() => triggerHaptic('heavy', isInMiniApp), 100);
+        setTimeout(() => triggerHaptic('heavy', isInMiniApp), 250);
+        setTimeout(() => triggerHaptic('medium', isInMiniApp), 400);
         
         // Show confetti celebration!
         setShowConfetti(true);
@@ -927,14 +934,16 @@ function PayoutsTab({ payouts, onRefresh }) {
 
   return (
     <>
-      {/* Confetti Animation on Successful Claim - Shoots from button like fireworks */}
+      {/* Confetti Animation on Successful Claim - DRAMATIC EXPLOSION! */}
       {showConfetti && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-          {[...Array(60)].map((_, i) => {
-            // Random angle and velocity for firework effect
+          {[...Array(200)].map((_, i) => {
+            // Random angle and MUCH HIGHER velocity for dramatic explosion
             const angle = (Math.random() * 360) * (Math.PI / 180);
-            const velocity = 20 + Math.random() * 30;
-            const duration = 1.5 + Math.random() * 1;
+            const velocity = 60 + Math.random() * 100; // 10x more dramatic!
+            const duration = 2 + Math.random() * 1.5;
+            const size = ['w-2 h-2', 'w-3 h-3', 'w-4 h-4', 'w-5 h-5', 'w-6 h-6'][Math.floor(Math.random() * 5)];
+            const colors = ['#3eb489', '#22c55e', '#10b981', '#059669', '#047857', '#fbbf24', '#f59e0b', '#fcd34d', '#14b8a6', '#06b6d4'];
             
             return (
               <div
@@ -943,16 +952,17 @@ function PayoutsTab({ payouts, onRefresh }) {
                 style={{
                   left: `${confettiOrigin.x}%`,
                   top: `${confettiOrigin.y}%`,
-                  animation: `confetti-explode ${duration}s ease-out forwards`,
+                  animation: `confetti-explode ${duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
                   '--tx': `${Math.cos(angle) * velocity}vw`,
                   '--ty': `${Math.sin(angle) * velocity}vh`,
-                  animationDelay: `${Math.random() * 0.2}s`
+                  animationDelay: `${Math.random() * 0.15}s`,
+                  filter: 'drop-shadow(0 0 3px rgba(62, 180, 137, 0.5))'
                 }}
               >
                 <div 
-                  className="w-3 h-3 rotate-45"
+                  className={`${size} rotate-45`}
                   style={{
-                    backgroundColor: ['#3eb489', '#22c55e', '#10b981', '#059669', '#047857', '#fbbf24', '#f59e0b'][Math.floor(Math.random() * 7)]
+                    backgroundColor: colors[Math.floor(Math.random() * colors.length)]
                   }}
                 />
               </div>
@@ -961,15 +971,19 @@ function PayoutsTab({ payouts, onRefresh }) {
         </div>
       )}
       
-      {/* Confetti animation keyframes */}
+      {/* Confetti animation keyframes - DRAMATIC EXPLOSION */}
       <style jsx>{`
         @keyframes confetti-explode {
           0% {
-            transform: translate(0, 0) rotate(0deg);
+            transform: translate(0, 0) rotate(0deg) scale(0);
+            opacity: 1;
+          }
+          20% {
+            transform: translate(calc(var(--tx) * 0.2), calc(var(--ty) * 0.2)) rotate(144deg) scale(1.5);
             opacity: 1;
           }
           100% {
-            transform: translate(var(--tx), var(--ty)) rotate(720deg);
+            transform: translate(var(--tx), var(--ty)) rotate(1080deg) scale(0.5);
             opacity: 0;
           }
         }
