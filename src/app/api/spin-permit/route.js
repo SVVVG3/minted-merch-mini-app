@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { ethers } from 'ethers';
 import crypto from 'crypto';
+import { getCurrent8AMPST, getNext8AMPST } from '@/lib/timezone.js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -26,8 +27,10 @@ const TYPES = {
   ]
 };
 
-// Helper function to get PST day start (8 AM PST/PDT)
-function getPSTDayStart() {
+// DEPRECATED: Use getCurrent8AMPST() from @/lib/timezone.js instead
+// This function had a bug where it created 8 AM UTC instead of 8 AM Pacific
+// Keeping for reference only - NOT USED ANYMORE
+function getPSTDayStart_DEPRECATED() {
   const now = new Date();
   
   // Use month-based DST detection (same as dashboard)
@@ -44,16 +47,19 @@ function getPSTDayStart() {
   const date = pacificNow.getUTCDate();
   const hour = pacificNow.getUTCHours();
   
-  // Create 8 AM Pacific today
-  let dayStart = new Date(Date.UTC(year, month_utc, date, 8, 0, 0, 0));
+  // Create 8 AM Pacific today (need to add offset to get back to UTC)
+  // PDT: 8 AM Pacific = 15:00 UTC (8 + 7)
+  // PST: 8 AM Pacific = 16:00 UTC (8 + 8)
+  const utcHour = 8 + (isDST ? 7 : 8);
+  let dayStart = new Date(Date.UTC(year, month_utc, date, utcHour, 0, 0, 0));
   
   // If it's before 8 AM Pacific, use yesterday's 8 AM Pacific
   if (hour < 8) {
-    dayStart = new Date(Date.UTC(year, month_utc, date - 1, 8, 0, 0, 0));
+    dayStart = new Date(Date.UTC(year, month_utc, date - 1, utcHour, 0, 0, 0));
   }
   
-  // dayStart is already in UTC (created with Date.UTC), so no offset needed
-  // BUGFIX: Removed the double offset calculation that was causing "Already spun" errors
+  // dayStart is now correctly set to 8 AM Pacific (in UTC)
+  // BUGFIX: Was creating 8 AM UTC instead of 8 AM Pacific
   
   console.log('🕐 Pacific Day Start Calculation:', {
     nowUTC: now.toISOString(),
@@ -78,13 +84,15 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Get today's PST day start (8 AM PST boundary)
-    const dayStart = getPSTDayStart();
+    // Get today's PST day start (8 AM PST boundary) using timezone utility
+    const dayStartDate = getCurrent8AMPST();
+    const dayStart = Math.floor(dayStartDate.getTime() / 1000); // Unix timestamp
     
     console.log('🎰 Spin permit request:', {
       fid,
       walletAddress,
-      dayStart: new Date(dayStart * 1000).toISOString()
+      dayStart: dayStartDate.toISOString(),
+      dayStartUnix: dayStart
     });
 
     // Check if user has already completed a spin today (only confirmed spins count)
@@ -93,7 +101,7 @@ export async function POST(request) {
       .select('*')
       .eq('user_fid', fid)
       .eq('transaction_type', 'daily_checkin')
-      .gte('created_at', new Date(dayStart * 1000).toISOString())
+      .gte('created_at', dayStartDate.toISOString())
       .gt('points_earned', 0) // Only count completed spins with points
       .single();
 
@@ -126,7 +134,7 @@ export async function POST(request) {
       return NextResponse.json({ 
         success: false, 
         error: 'Already spun today',
-        nextSpinAt: new Date((dayStart + 24 * 60 * 60) * 1000).toISOString()
+        nextSpinAt: getNext8AMPST().toISOString()
       }, { status: 400 });
     }
 
