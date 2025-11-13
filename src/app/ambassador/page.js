@@ -227,6 +227,7 @@ export default function AmbassadorDashboard() {
           <div className="relative flex items-center justify-between">
             <button
               onClick={() => {
+                triggerHaptic('light', isInFarcaster);
                 window.location.href = '/';
               }}
               className="hover:opacity-80 transition-opacity cursor-pointer z-10"
@@ -248,7 +249,10 @@ export default function AmbassadorDashboard() {
             <div className="pr-[10px]">
               {user?.pfpUrl && (
                 <button
-                  onClick={() => setShowProfileModal(true)}
+                  onClick={() => {
+                    triggerHaptic('light', isInFarcaster);
+                    setShowProfileModal(true);
+                  }}
                   className="hover:opacity-80 transition-opacity z-10"
                   title="View Profile"
                 >
