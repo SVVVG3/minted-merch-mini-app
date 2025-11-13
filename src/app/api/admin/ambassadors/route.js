@@ -5,6 +5,7 @@
 import { NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/adminAuth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { sendWelcomeAmbassadorNotification } from '@/lib/ambassadorNotifications';
 
 // GET /api/admin/ambassadors - List all ambassadors
 export const GET = withAdminAuth(async (request) => {
@@ -127,6 +128,20 @@ export const POST = withAdminAuth(async (request) => {
     }
 
     console.log(`✅ Ambassador created: @${profile.username} (FID ${fid})`);
+
+    // Send welcome notification to new ambassador (don't fail if notification fails)
+    try {
+      const notificationResult = await sendWelcomeAmbassadorNotification(fid, ambassador);
+      if (notificationResult.success) {
+        console.log(`📬 Welcome notification sent to @${profile.username} (FID: ${fid})`);
+      } else if (notificationResult.skipped) {
+        console.log(`⏭️ Welcome notification skipped for FID ${fid}: ${notificationResult.reason}`);
+      } else {
+        console.error('⚠️ Failed to send welcome notification:', notificationResult.error);
+      }
+    } catch (notificationError) {
+      console.error('⚠️ Error sending welcome notification (continuing anyway):', notificationError);
+    }
 
     return NextResponse.json({
       success: true,

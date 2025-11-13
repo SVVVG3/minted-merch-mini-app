@@ -5,6 +5,7 @@
 import { NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/adminAuth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { sendNewBountyNotification } from '@/lib/ambassadorNotifications';
 
 // GET /api/admin/bounties - List all bounties
 export const GET = withAdminAuth(async (request) => {
@@ -146,6 +147,18 @@ export const POST = withAdminAuth(async (request) => {
     }
 
     console.log(`✅ Bounty created: "${title}" (${rewardTokens} tokens, ${maxCompletions} max completions)`);
+
+    // Send notification to all active ambassadors (don't fail if notification fails)
+    try {
+      const notificationResult = await sendNewBountyNotification(bounty);
+      if (notificationResult.success) {
+        console.log(`📬 Bounty notification sent to ${notificationResult.successCount}/${notificationResult.totalAmbassadors} ambassadors`);
+      } else {
+        console.error('⚠️ Failed to send bounty notifications:', notificationResult.error);
+      }
+    } catch (notificationError) {
+      console.error('⚠️ Error sending bounty notifications (continuing anyway):', notificationError);
+    }
 
     return NextResponse.json({
       success: true,

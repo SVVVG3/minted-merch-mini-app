@@ -6,6 +6,7 @@ import { withAdminAuth } from '@/lib/adminAuth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getAmbassadorWalletAddress } from '@/lib/ambassadorHelpers';
 import { generateClaimSignature, getDefaultClaimDeadline } from '@/lib/claimSignatureService';
+import { sendPayoutReadyNotification } from '@/lib/ambassadorNotifications';
 
 // PUT /api/admin/bounty-submissions/[id]/approve - Approve submission
 export const PUT = withAdminAuth(async (request, { params }) => {
@@ -184,6 +185,27 @@ export const PUT = withAdminAuth(async (request, { params }) => {
           payout.status = 'claimable'; // Update local object
           payout.claim_signature = claimDataJson;
           payout.claim_deadline = deadline.toISOString();
+
+          // Send payout ready notification to ambassador
+          try {
+            const notificationResult = await sendPayoutReadyNotification(
+              submission.ambassadors.fid,
+              {
+                amount_tokens: bounty.reward_tokens,
+                bounty: { title: bounty.title },
+                ...payout
+              }
+            );
+            if (notificationResult.success) {
+              console.log(`📬 Payout ready notification sent to ambassador FID: ${submission.ambassadors.fid}`);
+            } else if (notificationResult.skipped) {
+              console.log(`⏭️ Notification skipped for FID ${submission.ambassadors.fid}: ${notificationResult.reason}`);
+            } else {
+              console.error('⚠️ Failed to send payout notification:', notificationResult.error);
+            }
+          } catch (notificationError) {
+            console.error('⚠️ Error sending payout notification (continuing anyway):', notificationError);
+          }
         }
       } catch (signatureError) {
         console.error('❌ Error generating claim signature:', signatureError);
