@@ -18,7 +18,8 @@
  * - Admin private key never exposed to client
  */
 
-import { createThirdwebClient, getContract, privateKeyToAccount } from 'thirdweb';
+import { createThirdwebClient, getContract } from 'thirdweb';
+import { privateKeyToAccount } from 'thirdweb/wallets';
 import { base } from 'thirdweb/chains';
 import { generateAirdropSignatureERC20 } from 'thirdweb/extensions/airdrop';
 import { isAddress, keccak256, toHex } from 'thirdweb/utils';
