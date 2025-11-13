@@ -947,7 +947,7 @@ function PayoutsTab({ payouts, onRefresh }) {
                   '--tx': `${Math.cos(angle) * velocity}vw`,
                   '--ty': `${Math.sin(angle) * velocity}vh`,
                   animationDelay: `${Math.random() * 0.2}s`
-                } as React.CSSProperties}
+                }}
               >
                 <div 
                   className="w-3 h-3 rotate-45"
