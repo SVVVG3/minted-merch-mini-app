@@ -602,7 +602,7 @@ function SubmissionsTab({ submissions }) {
                   {submission.bounty?.title || 'Bounty'}
                 </h3>
                 <span
-                  className={`inline-block border px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(
+                  className={`inline-block border px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${getStatusBadge(
                     submission.status
                   )}`}
                 >
@@ -634,7 +634,7 @@ function SubmissionsTab({ submissions }) {
                     <span className="text-gray-600">{formatDate(submission.reviewedAt)}</span>
                   </div>
                 )}
-                {submission.adminNotes && (
+                {submission.adminNotes && submission.adminNotes.toLowerCase() !== 'approved' && submission.adminNotes.trim() !== '' && (
                   <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
                     <span className="font-medium text-blue-900 text-xs">Admin Feedback:</span>
                     <p className="text-blue-800 text-sm mt-1">{submission.adminNotes}</p>
@@ -731,7 +731,7 @@ function PayoutsTab({ payouts }) {
                   {payout.bounty?.title || 'Payout'}
                 </h3>
                 <span
-                  className={`inline-block border px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(
+                  className={`inline-block border px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${getStatusBadge(
                     payout.status
                   )}`}
                 >
@@ -770,23 +770,20 @@ function PayoutsTab({ payouts }) {
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-700">TX Hash:</span>
                     <button
-                      onClick={() => window.open(`https://basescan.org/tx/${payout.transactionHash}`, '_blank', 'noopener,noreferrer')}
+                      onClick={async () => {
+                        try {
+                          await sdk.actions.openUrl(`https://basescan.org/tx/${payout.transactionHash}`);
+                        } catch (error) {
+                          console.error('Error opening TX Hash:', error);
+                          window.open(`https://basescan.org/tx/${payout.transactionHash}`, '_blank');
+                        }
+                      }}
                       className="text-blue-600 hover:text-blue-800 text-xs font-mono underline cursor-pointer"
                     >
                       {payout.transactionHash.slice(0, 10)}...{payout.transactionHash.slice(-8)}
                     </button>
                   </div>
                 )}
-              </div>
-            </div>
-
-            <div className="sm:text-right">
-              <div className="bg-green-100 border border-green-300 rounded-lg px-4 py-2">
-                <div className="text-xs text-green-600 font-medium">Payout</div>
-                <div className="text-2xl font-bold text-green-700 flex items-center gap-1">
-                  {formatNumber(payout.amountTokens)} 
-                  <img src="/splash.png" alt="Token" className="w-6 h-6 rounded-full inline-block" />
-                </div>
               </div>
             </div>
           </div>
