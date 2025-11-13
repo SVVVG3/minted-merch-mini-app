@@ -729,6 +729,23 @@ function PayoutsTab({ payouts, onRefresh }) {
     }
   };
 
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'pending':
+        return 'PENDING';
+      case 'claimable':
+        return 'CLAIMABLE';
+      case 'processing':
+        return 'PROCESSING';
+      case 'completed':
+        return 'CLAIMED';
+      case 'failed':
+        return 'FAILED';
+      default:
+        return status.toUpperCase();
+    }
+  };
+
   // Watch for transaction confirmation (like SpinWheel)
   useEffect(() => {
     if (isConfirmed && hash && claiming) {
@@ -761,8 +778,24 @@ function PayoutsTab({ payouts, onRefresh }) {
       if (result.success) {
         console.log(`✅ Payout ${payoutId} marked as complete`);
         
-        // Show success message
-        alert(`✅ Claim successful!\n\nTokens have been sent to your wallet!\n\nView transaction: https://basescan.org/tx/${txHash}`);
+        // Show success with clickable transaction link
+        const basescanUrl = `https://basescan.org/tx/${txHash}`;
+        
+        // Use confirm dialog with custom styling
+        const viewTx = window.confirm(
+          `✅ Claim Successful!\n\n` +
+          `100,000 $MINTEDMERCH tokens have been sent to your wallet!\n\n` +
+          `Click OK to view transaction on Basescan`
+        );
+        
+        if (viewTx) {
+          // Open in external browser
+          if (typeof sdk !== 'undefined' && sdk.actions?.openUrl) {
+            sdk.actions.openUrl(basescanUrl);
+          } else {
+            window.open(basescanUrl, '_blank');
+          }
+        }
         
         // Refresh payouts list
         if (onRefresh) {
@@ -774,7 +807,6 @@ function PayoutsTab({ payouts, onRefresh }) {
       
       // Clear claiming state
       setClaiming(null);
-      setPendingTxHash(null);
       
     } catch (error) {
       console.error('❌ Error marking payout complete:', error);
@@ -907,7 +939,7 @@ function PayoutsTab({ payouts, onRefresh }) {
                     payout.status
                   )}`}
                 >
-                  {getStatusIcon(payout.status)} {payout.status.toUpperCase()}
+                  {getStatusIcon(payout.status)} {getStatusText(payout.status)}
                 </span>
               </div>
 
