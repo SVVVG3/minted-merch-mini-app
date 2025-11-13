@@ -224,12 +224,12 @@ export default function AmbassadorDashboard() {
       {/* Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="relative flex items-center justify-between">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
             <button
               onClick={() => {
                 window.location.href = '/';
               }}
-              className="hover:opacity-80 transition-opacity cursor-pointer z-10"
+              className="hover:opacity-80 transition-opacity cursor-pointer justify-self-start"
               title="Back to shop"
             >
               <img 
@@ -238,22 +238,24 @@ export default function AmbassadorDashboard() {
                 className="h-12 w-auto"
               />
             </button>
-            <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-gray-900 whitespace-nowrap">
+            <h1 className="text-base font-bold text-gray-900 whitespace-nowrap">
               Ambassador Dashboard
             </h1>
-            {user?.pfpUrl && (
-              <button
-                onClick={() => setShowProfileModal(true)}
-                className="hover:opacity-80 transition-opacity z-10"
-                title="View Profile"
-              >
-                <img 
-                  src={user.pfpUrl} 
-                  alt="Profile"
-                  className="w-10 h-10 rounded-full border-2 border-gray-300"
-                />
-              </button>
-            )}
+            <div className="justify-self-end">
+              {user?.pfpUrl && (
+                <button
+                  onClick={() => setShowProfileModal(true)}
+                  className="hover:opacity-80 transition-opacity"
+                  title="View Profile"
+                >
+                  <img 
+                    src={user.pfpUrl} 
+                    alt="Profile"
+                    className="w-10 h-10 rounded-full border-2 border-gray-300"
+                  />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Profile Stats */}
