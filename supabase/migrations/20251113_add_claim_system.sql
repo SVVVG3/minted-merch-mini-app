@@ -11,6 +11,14 @@ ADD COLUMN IF NOT EXISTS claim_deadline TIMESTAMP,
 ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMP,
 ADD COLUMN IF NOT EXISTS claim_transaction_hash TEXT;
 
+-- Update status constraint to include 'claimable'
+ALTER TABLE ambassador_payouts 
+DROP CONSTRAINT IF EXISTS ambassador_payouts_status_check;
+
+ALTER TABLE ambassador_payouts 
+ADD CONSTRAINT ambassador_payouts_status_check 
+CHECK (status = ANY (ARRAY['pending'::text, 'claimable'::text, 'processing'::text, 'completed'::text, 'failed'::text]));
+
 -- Add index for efficient claim lookups
 CREATE INDEX IF NOT EXISTS idx_payouts_claimable 
 ON ambassador_payouts(status, claim_signature) 
