@@ -46,28 +46,44 @@ export async function POST(request) {
       batchSize = 50, 
       maxUsers = 200, // Conservative default for daily cron
       forceFullSync = false,
+      discoveryMode = false, // Check ALL users to find newly enabled notifications
       dryRun = false 
     } = body;
 
     console.log('🔄 Auto-sync notification status started');
-    console.log(`📊 Settings: batchSize=${batchSize}, maxUsers=${maxUsers}, forceFullSync=${forceFullSync}, dryRun=${dryRun}`);
+    console.log(`📊 Settings: batchSize=${batchSize}, maxUsers=${maxUsers}, forceFullSync=${forceFullSync}, discoveryMode=${discoveryMode}, dryRun=${dryRun}`);
 
     // Determine which users to sync
     let usersToSync = [];
     
     if (forceFullSync) {
-      // Full sync: all users with notifications enabled
-      console.log('🌍 Full sync mode: checking all notification-enabled users');
-      
-      const { data: allUsers, error } = await supabaseAdmin
-        .from('profiles')
-        .select('fid, username, has_notifications, notification_status_updated_at, notification_status_source')
-        .eq('has_notifications', true)
-        .order('created_at', { ascending: false })
-        .limit(maxUsers);
+      if (discoveryMode) {
+        // Discovery mode: check ALL users (including those with notifications disabled)
+        // This helps find users who enabled notifications but the DB doesn't know yet
+        console.log('🔍 Discovery mode: checking ALL users to find newly enabled notifications');
+        
+        const { data: allUsers, error } = await supabaseAdmin
+          .from('profiles')
+          .select('fid, username, has_notifications, notification_status_updated_at, notification_status_source')
+          .order('created_at', { ascending: false })
+          .limit(maxUsers);
 
-      if (error) throw error;
-      usersToSync = allUsers;
+        if (error) throw error;
+        usersToSync = allUsers;
+      } else {
+        // Full sync: all users with notifications enabled
+        console.log('🌍 Full sync mode: checking all notification-enabled users');
+        
+        const { data: allUsers, error } = await supabaseAdmin
+          .from('profiles')
+          .select('fid, username, has_notifications, notification_status_updated_at, notification_status_source')
+          .eq('has_notifications', true)
+          .order('created_at', { ascending: false })
+          .limit(maxUsers);
+
+        if (error) throw error;
+        usersToSync = allUsers;
+      }
       
     } else {
       // Smart sync: prioritize users who haven't been checked recently
@@ -226,7 +242,7 @@ export async function POST(request) {
         Math.round(((results.newlyEnabled + results.newlyDisabled) / results.totalProcessed) * 100) : 0,
       timestamp: formatPSTTime(),
       dryRun,
-      syncType: forceFullSync ? 'full' : 'smart'
+      syncType: discoveryMode ? 'discovery' : (forceFullSync ? 'full' : 'smart')
     };
 
     console.log('🎉 Auto-sync complete!');
@@ -288,11 +304,13 @@ export async function GET() {
       },
       syncModes: {
         smart: 'Prioritizes stale users (recommended for daily use)',
-        full: 'Checks all users (recommended weekly)'
+        full: 'Checks all users with notifications enabled (recommended weekly)',
+        discovery: 'Checks ALL users to find newly enabled notifications (run after finding gaps)'
       },
       examples: {
         'Smart sync': 'POST {"batchSize": 50, "maxUsers": 200}',
         'Full sync': 'POST {"forceFullSync": true, "maxUsers": 500}',
+        'Discovery sync': 'POST {"forceFullSync": true, "discoveryMode": true, "maxUsers": 1000}',
         'Dry run': 'POST {"dryRun": true}',
         'Conservative': 'POST {"batchSize": 25, "maxUsers": 100}'
       },
