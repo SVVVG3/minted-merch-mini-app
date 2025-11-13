@@ -3,6 +3,7 @@
 
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
+import { checkAmbassadorStatus } from '@/lib/ambassadorHelpers';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isSignatureExpired } from '@/lib/claimSignatureService';
 
@@ -32,20 +33,15 @@ export async function GET(request, { params }) {
     const userFid = authResult.fid;
     console.log(`💰 Fetching claim data for payout ${id} (FID: ${userFid})`);
     
-    // 2. Get ambassador_id for this FID
-    const { data: ambassador, error: ambassadorError } = await supabaseAdmin
-      .from('ambassadors')
-      .select('id')
-      .eq('fid', userFid)
-      .eq('status', 'active')
-      .single();
+    // 2. Check if user is an active ambassador
+    const { isAmbassador, ambassadorId } = await checkAmbassadorStatus(userFid);
     
-    if (ambassadorError || !ambassador) {
-      console.error(`❌ Ambassador not found for FID ${userFid}`);
+    if (!isAmbassador || !ambassadorId) {
+      console.error(`❌ User FID ${userFid} is not an active ambassador`);
       return NextResponse.json({ 
         success: false,
-        error: 'Ambassador not found' 
-      }, { status: 404 });
+        error: 'User is not an active ambassador' 
+      }, { status: 403 });
     }
     
     // 3. Get payout with ownership verification
@@ -59,11 +55,11 @@ export async function GET(request, { params }) {
         )
       `)
       .eq('id', id)
-      .eq('ambassador_id', ambassador.id) // Security: only own payouts
+      .eq('ambassador_id', ambassadorId) // Security: only own payouts
       .single();
     
     if (payoutError || !payout) {
-      console.error(`❌ Payout access denied: ${id} for ambassador ${ambassador.id}`, payoutError);
+      console.error(`❌ Payout access denied: ${id} for ambassador ${ambassadorId}`, payoutError);
       return NextResponse.json({ 
         success: false,
         error: 'Payout not found or access denied' 
