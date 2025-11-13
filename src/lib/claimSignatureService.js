@@ -99,17 +99,15 @@ export async function generateClaimSignature({
     // Generate unique UID from payoutId (bytes32)
     const uid = keccak256(toHex(payoutId));
     
-    // Expiration timestamp (unix seconds)
-    const expirationTimestamp = BigInt(Math.floor(deadlineDate.getTime() / 1000));
-    
     // Build the airdrop request using Thirdweb SDK
+    // Note: expirationTimestamp can be Date or number (unix seconds)
     const { req, signature } = await generateAirdropSignatureERC20({
       contract: airdropContract,
       account: adminAccount,
       airdropRequest: {
         uid,
         tokenAddress: TOKEN_ADDRESS,
-        expirationTimestamp,
+        expirationTimestamp: deadlineDate, // Pass Date object directly
         contents: [{
           recipient: wallet,
           amount: amountBigInt
