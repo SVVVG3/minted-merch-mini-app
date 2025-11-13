@@ -358,6 +358,7 @@ export default function AmbassadorDashboard() {
               <BountiesTab
                 bounties={bounties}
                 onSelectBounty={setSelectedBounty}
+                isInFarcaster={isInFarcaster}
               />
             )}
             {activeTab === 'submissions' && (
@@ -379,6 +380,7 @@ export default function AmbassadorDashboard() {
             setSelectedBounty(null);
             await handleRefresh();
           }}
+          isInFarcaster={isInFarcaster}
         />
       )}
 
@@ -392,7 +394,7 @@ export default function AmbassadorDashboard() {
 }
 
 // Bounties Tab Component
-function BountiesTab({ bounties, onSelectBounty }) {
+function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
   const formatNumber = (num) => {
     return new Intl.NumberFormat('en-US').format(num);
   };
@@ -507,7 +509,10 @@ function BountiesTab({ bounties, onSelectBounty }) {
                 </div>
 
                 <button
-                  onClick={() => onSelectBounty(bounty)}
+                  onClick={() => {
+                    triggerHaptic('light', isInFarcaster);
+                    onSelectBounty(bounty);
+                  }}
                   disabled={!submittable}
                   className={`w-full sm:w-auto px-6 py-2 rounded-md font-medium text-sm ${
                     submittable
@@ -1177,7 +1182,7 @@ function PayoutsTab({ payouts, onRefresh, isInMiniApp }) {
 }
 
 // Submit Bounty Modal Component
-function SubmitBountyModal({ bounty, onClose, onSuccess }) {
+function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
   const [proofUrl, setProofUrl] = useState('');
   const [proofDescription, setProofDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -1191,6 +1196,8 @@ function SubmitBountyModal({ bounty, onClose, onSuccess }) {
       setError('Please provide a link to your proof.');
       return;
     }
+
+    triggerHaptic('medium', isInFarcaster);
 
     try {
       setSubmitting(true);
