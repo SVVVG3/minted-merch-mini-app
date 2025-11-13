@@ -4,11 +4,7 @@ import { useState, useEffect } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { ProfileModal } from '@/components/ProfileModal';
-import { useSendTransaction, useWaitForReceipt } from 'thirdweb/react';
-import { getContract } from 'thirdweb';
-import { base } from 'thirdweb/chains';
-import { airdropERC20WithSignature } from 'thirdweb/extensions/airdrop';
-import { client } from '@/lib/thirdwebClient';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 
 export default function AmbassadorDashboard() {
   const { user, isSDKReady } = useFarcaster();
@@ -670,13 +666,19 @@ function SubmissionsTab({ submissions }) {
 function PayoutsTab({ payouts, onRefresh }) {
   const [claiming, setClaiming] = useState(null);
   const [claimError, setClaimError] = useState(null);
-  const [pendingTxHash, setPendingTxHash] = useState(null);
   
-  const { mutate: sendTransaction } = useSendTransaction();
-  const { data: receipt, isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForReceipt({
-    client,
-    chain: base,
-    transactionHash: pendingTxHash,
+  // Wagmi hooks for transaction handling (like SpinWheel)
+  const { 
+    writeContract, 
+    data: hash, 
+    isPending: isTxPending,
+    error: writeError 
+  } = useWriteContract();
+  const { 
+    isLoading: isConfirming, 
+    isSuccess: isConfirmed 
+  } = useWaitForTransactionReceipt({
+    hash,
   });
 
   const formatDate = (dateString) => {
@@ -727,15 +729,15 @@ function PayoutsTab({ payouts, onRefresh }) {
     }
   };
 
-  // Watch for transaction confirmation
+  // Watch for transaction confirmation (like SpinWheel)
   useEffect(() => {
-    if (isConfirmed && receipt && claiming) {
-      console.log(`✅ Transaction confirmed! Receipt:`, receipt);
+    if (isConfirmed && hash && claiming) {
+      console.log(`✅ Transaction confirmed! Hash:`, hash);
       
       // Mark payout as completed in backend
-      markPayoutComplete(claiming, receipt.transactionHash);
+      markPayoutComplete(claiming, hash);
     }
-  }, [isConfirmed, receipt, claiming]);
+  }, [isConfirmed, hash, claiming]);
 
   const markPayoutComplete = async (payoutId, txHash) => {
     try {
@@ -813,47 +815,59 @@ function PayoutsTab({ payouts, onRefresh }) {
         signatureLength: result.data.signature.length
       });
       
-      // Convert string values back to BigInt for thirdweb SDK
+      // Convert string values back to BigInt for contract call
       const reqWithBigInt = {
-        ...result.data.req,
+        uid: result.data.req.uid,
+        tokenAddress: result.data.req.tokenAddress,
         expirationTimestamp: BigInt(result.data.req.expirationTimestamp),
         contents: result.data.req.contents.map(content => ({
-          ...content,
+          recipient: content.recipient,
           amount: BigInt(content.amount)
         }))
       };
       
-      // 2. Get airdrop contract
-      const airdropContract = getContract({
-        client,
-        chain: base,
-        address: result.data.contractAddress
-      });
-      
-      // 3. Prepare the airdropERC20WithSignature transaction
-      const transaction = airdropERC20WithSignature({
-        contract: airdropContract,
-        req: reqWithBigInt,
-        signature: result.data.signature
-      });
-      
       console.log(`📝 Prepared airdrop transaction for payout ${payoutId}`);
       
-      // 4. Send transaction via Wagmi
-      sendTransaction(transaction, {
-        onSuccess: (result) => {
-          console.log(`✅ Transaction sent! Hash:`, result.transactionHash);
-          setPendingTxHash(result.transactionHash);
-          // Wait for confirmation in useEffect
-        },
-        onError: (error) => {
-          console.error('❌ Transaction failed:', error);
-          const errorMessage = error.message || 'Transaction failed';
-          setClaimError(errorMessage);
-          alert(`❌ Claim failed: ${errorMessage}`);
-          setClaiming(null);
+      // 2. Airdrop contract ABI for airdropERC20WithSignature function
+      const airdropABI = [
+        {
+          name: 'airdropERC20WithSignature',
+          type: 'function',
+          inputs: [
+            {
+              name: 'req',
+              type: 'tuple',
+              components: [
+                { name: 'uid', type: 'bytes32' },
+                { name: 'tokenAddress', type: 'address' },
+                { name: 'expirationTimestamp', type: 'uint256' },
+                {
+                  name: 'contents',
+                  type: 'tuple[]',
+                  components: [
+                    { name: 'recipient', type: 'address' },
+                    { name: 'amount', type: 'uint256' }
+                  ]
+                }
+              ]
+            },
+            { name: 'signature', type: 'bytes' }
+          ],
+          outputs: []
         }
+      ];
+      
+      // 3. Send transaction via Wagmi (like the spin wheel)
+      writeContract({
+        address: result.data.contractAddress,
+        abi: airdropABI,
+        functionName: 'airdropERC20WithSignature',
+        args: [reqWithBigInt, result.data.signature]
       });
+      
+      console.log('📤 writeContract called successfully - waiting for user approval...');
+      // Transaction hash will be available in `hash` from useWriteContract
+      // Confirmation will be handled by useEffect watching isConfirmed
       
     } catch (error) {
       console.error('❌ Claim preparation failed:', error);
