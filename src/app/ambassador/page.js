@@ -667,6 +667,7 @@ function PayoutsTab({ payouts, onRefresh }) {
   const [claiming, setClaiming] = useState(null);
   const [claimError, setClaimError] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [confettiOrigin, setConfettiOrigin] = useState({ x: 50, y: 50 }); // Track button position for confetti
   const [claimSuccess, setClaimSuccess] = useState(null); // Track successful claim for button state
   
   // Wagmi hooks for transaction handling (like SpinWheel)
@@ -809,10 +810,19 @@ function PayoutsTab({ payouts, onRefresh }) {
     }
   };
 
-  const handleClaimPayout = async (payoutId) => {
+  const handleClaimPayout = async (payoutId, event) => {
     try {
       setClaiming(payoutId);
       setClaimError(null);
+      
+      // Capture button position for confetti origin
+      if (event && event.currentTarget) {
+        const rect = event.currentTarget.getBoundingClientRect();
+        setConfettiOrigin({
+          x: (rect.left + rect.width / 2) / window.innerWidth * 100,
+          y: (rect.top + rect.height / 2) / window.innerHeight * 100
+        });
+      }
       
       console.log(`💰 Fetching claim data for payout ${payoutId}`);
       
@@ -917,30 +927,53 @@ function PayoutsTab({ payouts, onRefresh }) {
 
   return (
     <>
-      {/* Confetti Animation on Successful Claim */}
+      {/* Confetti Animation on Successful Claim - Shoots from button like fireworks */}
       {showConfetti && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-          {[...Array(50)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute animate-bounce"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 2}s`,
-                animationDuration: `${2 + Math.random() * 3}s`
-              }}
-            >
-              <div 
-                className="w-2 h-2 rotate-45"
+          {[...Array(60)].map((_, i) => {
+            // Random angle and velocity for firework effect
+            const angle = (Math.random() * 360) * (Math.PI / 180);
+            const velocity = 20 + Math.random() * 30;
+            const duration = 1.5 + Math.random() * 1;
+            
+            return (
+              <div
+                key={i}
+                className="absolute"
                 style={{
-                  backgroundColor: ['#3eb489', '#22c55e', '#10b981', '#059669', '#047857'][Math.floor(Math.random() * 5)]
-                }}
-              />
-            </div>
-          ))}
+                  left: `${confettiOrigin.x}%`,
+                  top: `${confettiOrigin.y}%`,
+                  animation: `confetti-explode ${duration}s ease-out forwards`,
+                  '--tx': `${Math.cos(angle) * velocity}vw`,
+                  '--ty': `${Math.sin(angle) * velocity}vh`,
+                  animationDelay: `${Math.random() * 0.2}s`
+                } as React.CSSProperties}
+              >
+                <div 
+                  className="w-3 h-3 rotate-45"
+                  style={{
+                    backgroundColor: ['#3eb489', '#22c55e', '#10b981', '#059669', '#047857', '#fbbf24', '#f59e0b'][Math.floor(Math.random() * 7)]
+                  }}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
+      
+      {/* Confetti animation keyframes */}
+      <style jsx>{`
+        @keyframes confetti-explode {
+          0% {
+            transform: translate(0, 0) rotate(0deg);
+            opacity: 1;
+          }
+          100% {
+            transform: translate(var(--tx), calc(var(--ty) + 50vh)) rotate(720deg);
+            opacity: 0;
+          }
+        }
+      `}</style>
       
       <div className="space-y-4">
       {payouts.map((payout) => (
@@ -1023,7 +1056,7 @@ function PayoutsTab({ payouts, onRefresh }) {
             {payout.status === 'claimable' && (
               <div className="sm:text-right mt-4 sm:mt-0">
                 <button
-                  onClick={() => handleClaimPayout(payout.id)}
+                  onClick={(e) => handleClaimPayout(payout.id, e)}
                   disabled={claiming === payout.id || isConfirming || claimSuccess === payout.id}
                   className={`w-full sm:w-auto font-semibold px-6 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${
                     claimSuccess === payout.id 
