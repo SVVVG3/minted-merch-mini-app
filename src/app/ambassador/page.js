@@ -245,19 +245,21 @@ export default function AmbassadorDashboard() {
                 className="h-[50px] w-auto"
               />
             </div>
-            {user?.pfpUrl && (
-              <button
-                onClick={() => setShowProfileModal(true)}
-                className="hover:opacity-80 transition-opacity z-10"
-                title="View Profile"
-              >
-                <img 
-                  src={user.pfpUrl} 
-                  alt="Profile"
-                  className="w-10 h-10 rounded-full border-2 border-gray-300"
-                />
-              </button>
-            )}
+            <div className="pr-2">
+              {user?.pfpUrl && (
+                <button
+                  onClick={() => setShowProfileModal(true)}
+                  className="hover:opacity-80 transition-opacity z-10"
+                  title="View Profile"
+                >
+                  <img 
+                    src={user.pfpUrl} 
+                    alt="Profile"
+                    className="w-10 h-10 rounded-full border-2 border-gray-300"
+                  />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Profile Stats */}
