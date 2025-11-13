@@ -238,7 +238,7 @@ export default function AmbassadorDashboard() {
                 className="h-12 w-auto"
               />
             </button>
-            <div className="absolute left-1/2 -translate-x-1/2">
+            <div className="absolute left-1/2 -translate-x-1/2 translate-x-[8px]">
               <img 
                 src="/MintedMerchAmbassadorDashboardLogo.png" 
                 alt="Ambassador Dashboard"
