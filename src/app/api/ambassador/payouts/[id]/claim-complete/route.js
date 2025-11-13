@@ -75,7 +75,7 @@ export async function POST(request, { params }) {
       .from('ambassador_payouts')
       .update({
         status: 'completed',
-        claim_transaction_hash: transactionHash,
+        transaction_hash: transactionHash,
         claimed_at: new Date().toISOString(),
         completed_at: new Date().toISOString()
       })

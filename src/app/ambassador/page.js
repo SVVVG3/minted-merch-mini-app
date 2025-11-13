@@ -666,6 +666,8 @@ function SubmissionsTab({ submissions }) {
 function PayoutsTab({ payouts, onRefresh }) {
   const [claiming, setClaiming] = useState(null);
   const [claimError, setClaimError] = useState(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [claimSuccess, setClaimSuccess] = useState(null); // Track successful claim for button state
   
   // Wagmi hooks for transaction handling (like SpinWheel)
   const { 
@@ -778,35 +780,27 @@ function PayoutsTab({ payouts, onRefresh }) {
       if (result.success) {
         console.log(`✅ Payout ${payoutId} marked as complete`);
         
-        // Show success with clickable transaction link
-        const basescanUrl = `https://basescan.org/tx/${txHash}`;
+        // Show confetti celebration!
+        setShowConfetti(true);
+        setClaimSuccess(payoutId);
         
-        // Use confirm dialog with custom styling
-        const viewTx = window.confirm(
-          `✅ Claim Successful!\n\n` +
-          `100,000 $MINTEDMERCH tokens have been sent to your wallet!\n\n` +
-          `Click OK to view transaction on Basescan`
-        );
+        // Auto-hide confetti after 3 seconds
+        setTimeout(() => setShowConfetti(false), 3000);
         
-        if (viewTx) {
-          // Open in external browser
-          if (typeof sdk !== 'undefined' && sdk.actions?.openUrl) {
-            sdk.actions.openUrl(basescanUrl);
-          } else {
-            window.open(basescanUrl, '_blank');
-          }
-        }
+        // Clear success state after 3 seconds
+        setTimeout(() => setClaimSuccess(null), 3000);
         
-        // Refresh payouts list
+        // Clear claiming state immediately
+        setClaiming(null);
+        
+        // Refresh payouts list to show TX hash
         if (onRefresh) {
           await onRefresh();
         }
       } else {
         console.error(`❌ Failed to mark payout complete:`, result.error);
+        setClaiming(null);
       }
-      
-      // Clear claiming state
-      setClaiming(null);
       
     } catch (error) {
       console.error('❌ Error marking payout complete:', error);
@@ -922,7 +916,33 @@ function PayoutsTab({ payouts, onRefresh }) {
   }
 
   return (
-    <div className="space-y-4">
+    <>
+      {/* Confetti Animation on Successful Claim */}
+      {showConfetti && (
+        <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+          {[...Array(50)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute animate-bounce"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 2}s`,
+                animationDuration: `${2 + Math.random() * 3}s`
+              }}
+            >
+              <div 
+                className="w-2 h-2 rotate-45"
+                style={{
+                  backgroundColor: ['#3eb489', '#22c55e', '#10b981', '#059669', '#047857'][Math.floor(Math.random() * 5)]
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      
+      <div className="space-y-4">
       {payouts.map((payout) => (
         <div
           key={payout.id}
@@ -1004,10 +1024,19 @@ function PayoutsTab({ payouts, onRefresh }) {
               <div className="sm:text-right mt-4 sm:mt-0">
                 <button
                   onClick={() => handleClaimPayout(payout.id)}
-                  disabled={claiming === payout.id || isConfirming}
-                  className="w-full sm:w-auto bg-[#3eb489] hover:bg-[#359970] text-white font-semibold px-6 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                  disabled={claiming === payout.id || isConfirming || claimSuccess === payout.id}
+                  className={`w-full sm:w-auto font-semibold px-6 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${
+                    claimSuccess === payout.id 
+                      ? 'bg-green-600 scale-105' 
+                      : 'bg-[#3eb489] hover:bg-[#359970]'
+                  } text-white`}
                 >
-                  {claiming === payout.id ? (
+                  {claimSuccess === payout.id ? (
+                    <>
+                      <span className="text-xl">✅</span>
+                      <span>Success!</span>
+                    </>
+                  ) : claiming === payout.id ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       <span>{isConfirming ? 'Confirming...' : 'Claiming...'}</span>
@@ -1028,6 +1057,7 @@ function PayoutsTab({ payouts, onRefresh }) {
         </div>
       ))}
     </div>
+    </>
   );
 }
 
