@@ -813,6 +813,16 @@ function PayoutsTab({ payouts, onRefresh }) {
         signatureLength: result.data.signature.length
       });
       
+      // Convert string values back to BigInt for thirdweb SDK
+      const reqWithBigInt = {
+        ...result.data.req,
+        expirationTimestamp: BigInt(result.data.req.expirationTimestamp),
+        contents: result.data.req.contents.map(content => ({
+          ...content,
+          amount: BigInt(content.amount)
+        }))
+      };
+      
       // 2. Get airdrop contract
       const airdropContract = getContract({
         client,
@@ -823,7 +833,7 @@ function PayoutsTab({ payouts, onRefresh }) {
       // 3. Prepare the airdropERC20WithSignature transaction
       const transaction = airdropERC20WithSignature({
         contract: airdropContract,
-        req: result.data.req,
+        req: reqWithBigInt,
         signature: result.data.signature
       });
       
