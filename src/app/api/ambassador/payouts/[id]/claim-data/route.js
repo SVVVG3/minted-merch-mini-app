@@ -116,6 +116,9 @@ export async function GET(request, { params }) {
       if (!claimData.req || !claimData.signature) {
         throw new Error('Invalid claim data format');
       }
+      
+      // Note: BigInt values are stored as strings and will be kept as strings
+      // The frontend will convert them back to BigInt when using with thirdweb SDK
     } catch (parseError) {
       console.error(`❌ Error parsing claim data for payout ${id}:`, parseError);
       return NextResponse.json({ 
@@ -147,7 +150,7 @@ export async function GET(request, { params }) {
     console.log(`✅ Claim data provided for payout ${id} (FID: ${userFid})`, {
       uid: claimData.req.uid.slice(0, 10) + '...',
       recipient: claimData.req.contents[0].recipient.slice(0, 6) + '...' + claimData.req.contents[0].recipient.slice(-4),
-      amount: claimData.req.contents[0].amount.toString(),
+      amount: claimData.req.contents[0].amount, // Already a string
       expirationTimestamp: new Date(Number(claimData.req.expirationTimestamp) * 1000).toISOString()
     });
     

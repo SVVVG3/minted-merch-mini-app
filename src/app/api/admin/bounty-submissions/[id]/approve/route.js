@@ -148,14 +148,26 @@ export const PUT = withAdminAuth(async (request, { params }) => {
           signatureLength: signatureData.signature.length
         });
 
+        // Convert BigInt values to strings for JSON serialization
+        const serializableReq = {
+          ...signatureData.req,
+          expirationTimestamp: signatureData.req.expirationTimestamp.toString(),
+          contents: signatureData.req.contents.map(content => ({
+            ...content,
+            amount: content.amount.toString()
+          }))
+        };
+
+        const claimDataJson = JSON.stringify({
+          req: serializableReq,
+          signature: signatureData.signature
+        });
+
         // Update payout with req and signature (ready for airdropERC20WithSignature)
         const { error: signatureError } = await supabaseAdmin
           .from('ambassador_payouts')
           .update({
-            claim_signature: JSON.stringify({
-              req: signatureData.req,
-              signature: signatureData.signature
-            }), // Store full req + signature for airdropERC20WithSignature
+            claim_signature: claimDataJson,
             claim_deadline: deadline.toISOString(),
             status: 'claimable' // Ambassador can now claim immediately!
           })
@@ -167,10 +179,7 @@ export const PUT = withAdminAuth(async (request, { params }) => {
         } else {
           console.log(`✍️ Thirdweb airdrop signature ready - payout is now claimable!`);
           payout.status = 'claimable'; // Update local object
-          payout.claim_signature = JSON.stringify({
-            req: signatureData.req,
-            signature: signatureData.signature
-          });
+          payout.claim_signature = claimDataJson;
           payout.claim_deadline = deadline.toISOString();
         }
       } catch (signatureError) {
