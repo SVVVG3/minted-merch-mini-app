@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { hasNotificationTokenInNeynar } from '@/lib/neynar';
+import { checkUserNotificationStatus } from '@/lib/neynar';
 import { formatPSTTime } from '@/lib/timezone';
 
 export async function POST(request) {
@@ -64,7 +64,7 @@ export async function POST(request) {
         
         const { data: allUsers, error } = await supabaseAdmin
           .from('profiles')
-          .select('fid, username, has_notifications, notification_status_updated_at, notification_status_source')
+          .select('fid, username, has_notifications, has_base_notifications, notification_status_updated_at, notification_status_source')
           .order('created_at', { ascending: false })
           .limit(maxUsers);
 
@@ -76,8 +76,8 @@ export async function POST(request) {
         
         const { data: allUsers, error } = await supabaseAdmin
           .from('profiles')
-          .select('fid, username, has_notifications, notification_status_updated_at, notification_status_source')
-          .eq('has_notifications', true)
+          .select('fid, username, has_notifications, has_base_notifications, notification_status_updated_at, notification_status_source')
+          .or('has_notifications.eq.true,has_base_notifications.eq.true')
           .order('created_at', { ascending: false })
           .limit(maxUsers);
 
@@ -95,8 +95,8 @@ export async function POST(request) {
       // Get users with stale notification status or no status at all
       const { data: staleUsers, error: staleError } = await supabaseAdmin
         .from('profiles')
-        .select('fid, username, has_notifications, notification_status_updated_at, notification_status_source')
-        .eq('has_notifications', true)
+        .select('fid, username, has_notifications, has_base_notifications, notification_status_updated_at, notification_status_source')
+        .or('has_notifications.eq.true,has_base_notifications.eq.true')
         .or(`notification_status_updated_at.is.null,notification_status_updated_at.lt.${staleCutoff.toISOString()}`)
         .order('notification_status_updated_at', { ascending: true, nullsFirst: true })
         .limit(Math.floor(maxUsers * 0.7)); // 70% of quota for stale users
@@ -106,8 +106,8 @@ export async function POST(request) {
       // Also get some recently updated users for validation
       const { data: recentUsers, error: recentError } = await supabaseAdmin
         .from('profiles')
-        .select('fid, username, has_notifications, notification_status_updated_at, notification_status_source')
-        .eq('has_notifications', true)
+        .select('fid, username, has_notifications, has_base_notifications, notification_status_updated_at, notification_status_source')
+        .or('has_notifications.eq.true,has_base_notifications.eq.true')
         .not('notification_status_updated_at', 'is', null)
         .gte('notification_status_updated_at', staleCutoff.toISOString())
         .order('notification_status_updated_at', { ascending: false })
@@ -148,29 +148,54 @@ export async function POST(request) {
         try {
           results.totalProcessed++;
           
-          // Check current notification status with Neynar
-          const currentStatus = await hasNotificationTokenInNeynar(user.fid);
-          const previousStatus = user.has_notifications;
+          // Check current notification status with Neynar for BOTH platforms
+          const tokenStatus = await checkUserNotificationStatus(user.fid);
+          const previousFarcasterStatus = user.has_notifications;
+          const previousBaseStatus = user.has_base_notifications || false;
+          const currentFarcasterStatus = tokenStatus.hasFarcasterNotifications;
+          const currentBaseStatus = tokenStatus.hasBaseNotifications;
           
-          if (currentStatus !== previousStatus) {
+          // Check if EITHER platform status changed
+          const farcasterChanged = currentFarcasterStatus !== previousFarcasterStatus;
+          const baseChanged = currentBaseStatus !== previousBaseStatus;
+          const hasAnyChange = farcasterChanged || baseChanged;
+          
+          if (hasAnyChange) {
             // Status changed - record the change
+            const changeDetails = [];
+            if (farcasterChanged) {
+              changeDetails.push(`Farcaster: ${previousFarcasterStatus} → ${currentFarcasterStatus}`);
+            }
+            if (baseChanged) {
+              changeDetails.push(`Base: ${previousBaseStatus} → ${currentBaseStatus}`);
+            }
+            
             const change = {
               fid: user.fid,
               username: user.username,
-              previousStatus,
-              currentStatus,
-              changeType: currentStatus ? 'newly_enabled' : 'newly_disabled',
+              previousFarcasterStatus,
+              previousBaseStatus,
+              currentFarcasterStatus,
+              currentBaseStatus,
+              changeType: (currentFarcasterStatus || currentBaseStatus) ? 'newly_enabled' : 'newly_disabled',
+              changes: changeDetails.join(', '),
               timestamp: new Date().toISOString()
             };
             
             results.changes.push(change);
             
-            if (currentStatus) {
+            // Count as enabled if EITHER platform is enabled
+            const wasEnabled = previousFarcasterStatus || previousBaseStatus;
+            const isNowEnabled = currentFarcasterStatus || currentBaseStatus;
+            
+            if (isNowEnabled && !wasEnabled) {
               results.newlyEnabled++;
-              console.log(`🔔 ${user.username} (${user.fid}): NEWLY ENABLED notifications`);
-            } else {
+              console.log(`🔔 ${user.username} (${user.fid}): NEWLY ENABLED - ${changeDetails.join(', ')}`);
+            } else if (!isNowEnabled && wasEnabled) {
               results.newlyDisabled++;
-              console.log(`🔕 ${user.username} (${user.fid}): NEWLY DISABLED notifications`);
+              console.log(`🔕 ${user.username} (${user.fid}): NEWLY DISABLED - ${changeDetails.join(', ')}`);
+            } else {
+              console.log(`🔄 ${user.username} (${user.fid}): STATUS CHANGED - ${changeDetails.join(', ')}`);
             }
             
             // Update database (unless in dry run mode)
@@ -178,7 +203,8 @@ export async function POST(request) {
               const { error: updateError } = await supabaseAdmin
                 .from('profiles')
                 .update({
-                  has_notifications: currentStatus,
+                  has_notifications: currentFarcasterStatus,
+                  has_base_notifications: currentBaseStatus,
                   notification_status_updated_at: new Date().toISOString(),
                   // Only update source to cron_sync if it wasn't originally from a Farcaster event
                   notification_status_source: user.notification_status_source === 'farcaster_event' ? 'farcaster_event' : 'cron_sync'
@@ -277,10 +303,11 @@ export async function GET() {
       .from('profiles')
       .select('fid', { count: 'exact', head: true });
 
+    // Count users with notifications enabled on EITHER platform
     const { count: enabledUsers } = await supabaseAdmin
       .from('profiles')
       .select('fid', { count: 'exact', head: true })
-      .eq('has_notifications', true);
+      .or('has_notifications.eq.true,has_base_notifications.eq.true');
 
     // Count stale users (not updated in 7 days)
     const staleCutoff = new Date();
@@ -289,7 +316,7 @@ export async function GET() {
     const { count: staleUsers } = await supabaseAdmin
       .from('profiles')
       .select('fid', { count: 'exact', head: true })
-      .eq('has_notifications', true)
+      .or('has_notifications.eq.true,has_base_notifications.eq.true')
       .or(`notification_status_updated_at.is.null,notification_status_updated_at.lt.${staleCutoff.toISOString()}`);
 
     return NextResponse.json({
