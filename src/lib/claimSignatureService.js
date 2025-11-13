@@ -11,7 +11,7 @@
  * - Admin private key never exposed to client
  */
 
-import { ethers } from 'ethers';
+import { ethers, isAddress, keccak256, AbiCoder, getBytes } from 'ethers';
 
 const ADMIN_PRIVATE_KEY = process.env.ADMIN_WALLET_PRIVATE_KEY;
 const AIRDROP_CONTRACT_ADDRESS = process.env.AIRDROP_CONTRACT_ADDRESS;
@@ -34,7 +34,7 @@ export async function generateClaimSignature({
   deadline 
 }) {
   // Validate inputs
-  if (!ethers.utils.isAddress(wallet)) {
+  if (!isAddress(wallet)) {
     throw new Error('Invalid wallet address');
   }
   
@@ -54,9 +54,12 @@ export async function generateClaimSignature({
   try {
     const signer = new ethers.Wallet(ADMIN_PRIVATE_KEY);
     
+    // Create AbiCoder instance for ethers v6
+    const abiCoder = AbiCoder.defaultAbiCoder();
+    
     // Create unique payload (prevents replay attacks)
     // Includes: recipient, amount, nonce, chainId, deadline
-    const payload = ethers.utils.defaultAbiCoder.encode(
+    const payload = abiCoder.encode(
       ['address', 'uint256', 'string', 'uint256', 'uint256'],
       [
         wallet,                                      // recipient
@@ -67,8 +70,8 @@ export async function generateClaimSignature({
       ]
     );
     
-    const hash = ethers.utils.keccak256(payload);
-    const signature = await signer.signMessage(ethers.utils.arrayify(hash));
+    const hash = keccak256(payload);
+    const signature = await signer.signMessage(getBytes(hash));
     
     console.log(`✍️ Generated claim signature:`, {
       payoutId,
@@ -117,7 +120,7 @@ export function getDefaultClaimDeadline() {
 export function validateClaimData(claimData) {
   const errors = [];
   
-  if (!claimData.wallet || !ethers.utils.isAddress(claimData.wallet)) {
+  if (!claimData.wallet || !isAddress(claimData.wallet)) {
     errors.push('Invalid or missing wallet address');
   }
   
