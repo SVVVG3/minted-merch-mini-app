@@ -227,11 +227,7 @@ export default function AmbassadorDashboard() {
           <div className="relative flex items-center justify-between">
             <button
               onClick={() => {
-                try {
-                  window.history.back();
-                } catch (e) {
-                  window.location.href = '/';
-                }
+                window.location.href = '/';
               }}
               className="hover:opacity-80 transition-opacity cursor-pointer z-10"
               title="Back to shop"
