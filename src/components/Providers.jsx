@@ -5,6 +5,7 @@ import { BaseAccountProvider } from '@/components/BaseAccountProvider';
 import { AuthKitProvider } from '@/components/AuthKitProvider';
 import { WalletConnectProvider } from '@/components/WalletConnectProvider';
 import { DaimoPayProvider } from '@/components/DaimoPayProvider';
+import { ThirdwebProvider } from '@/components/ThirdwebProvider';
 import { CartProvider } from '@/lib/CartContext';
 
 export function Providers({ children }) {
@@ -14,9 +15,11 @@ export function Providers({ children }) {
         <BaseAccountProvider>
           <WalletConnectProvider>
             <DaimoPayProvider>
-            <CartProvider>
-              {children}
-            </CartProvider>
+              <ThirdwebProvider>
+                <CartProvider>
+                  {children}
+                </CartProvider>
+              </ThirdwebProvider>
             </DaimoPayProvider>
           </WalletConnectProvider>
         </BaseAccountProvider>
