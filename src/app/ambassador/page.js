@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { ProfileModal } from '@/components/ProfileModal';
+import { BrowserProvider, Contract } from 'ethers';
 
 export default function AmbassadorDashboard() {
   const { user, isSDKReady } = useFarcaster();
@@ -740,21 +741,95 @@ function PayoutsTab({ payouts }) {
       const claimData = result.data;
       console.log(`✅ Claim data received for ${claimData.amountTokens} tokens`);
       
-      // 2. Call smart contract with thirdweb
-      console.log(`📝 Preparing contract call...`);
+      // 2. Request wallet connection via Farcaster SDK
+      console.log(`🔌 Requesting wallet connection...`);
       
-      // Note: This will require thirdweb SDK integration
-      // For now, we'll show a message to the user
-      alert(`🎉 Ready to claim ${claimData.amountTokens} tokens!\n\nContract: ${claimData.contractAddress}\nWallet: ${claimData.walletAddress}\n\nSmart contract integration coming soon!`);
+      // Use Farcaster Mini App SDK to get wallet provider
+      const provider = await sdk.wallet.ethProvider({ version: '1.0.0' });
+      if (!provider) {
+        throw new Error('Could not connect to wallet. Please try again.');
+      }
       
-      console.log(`✅ Claim initiated successfully`);
+      const ethersProvider = new BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
+      
+      console.log(`✅ Wallet connected: ${await signer.getAddress()}`);
+      
+      // 3. Call Airdrop contract
+      console.log(`📝 Calling smart contract...`);
+      
+      // Airdrop contract ABI (only the function we need)
+      const airdropABI = [
+        "function airdropERC20WithSignature(address token, address receiver, uint256 amount, bytes signature, uint256 deadline) external"
+      ];
+      
+      const airdropContract = new Contract(
+        claimData.contractAddress,
+        airdropABI,
+        signer
+      );
+      
+      // Convert deadline to Unix timestamp
+      const deadline = Math.floor(new Date(claimData.deadline).getTime() / 1000);
+      
+      console.log(`📤 Submitting claim transaction...`);
+      
+      const tx = await airdropContract.airdropERC20WithSignature(
+        claimData.tokenAddress,           // ERC20 token address
+        claimData.walletAddress,          // Receiver wallet
+        claimData.amountTokens,           // Amount to claim
+        claimData.signature,              // Backend signature
+        deadline                          // Claim deadline
+      );
+      
+      console.log(`⏳ Transaction submitted: ${tx.hash}`);
+      alert(`🚀 Claim submitted!\n\nTransaction: ${tx.hash}\n\nWaiting for confirmation...`);
+      
+      // 4. Wait for transaction confirmation
+      const receipt = await tx.wait();
+      console.log(`✅ Transaction confirmed in block ${receipt.blockNumber}`);
+      
+      // 5. Update payout status in backend
+      await updatePayoutStatus(payoutId, receipt.transactionHash);
+      
+      alert(`✅ Claim successful!\n\n${claimData.amountTokens} tokens claimed!\n\nTX: ${receipt.transactionHash}`);
+      
+      // Refresh payouts
+      await loadAmbassadorData();
       
     } catch (error) {
       console.error('❌ Claim failed:', error);
-      setClaimError(error.message);
-      alert(`Claim failed: ${error.message}`);
+      
+      let errorMessage = 'Transaction failed';
+      if (error.code === 'ACTION_REJECTED') {
+        errorMessage = 'Transaction was rejected';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setClaimError(errorMessage);
+      alert(`❌ Claim failed: ${errorMessage}`);
     } finally {
       setClaiming(null);
+    }
+  };
+  
+  // Helper function to update payout status after successful claim
+  const updatePayoutStatus = async (payoutId, txHash) => {
+    try {
+      const token = localStorage.getItem('fc_session_token');
+      await fetch(`/api/ambassador/payouts/${payoutId}/claim-complete`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ transactionHash: txHash })
+      });
+      console.log(`✅ Payout status updated`);
+    } catch (error) {
+      console.error('⚠️ Failed to update payout status:', error);
+      // Don't throw - tokens are claimed, this is just bookkeeping
     }
   };
 
