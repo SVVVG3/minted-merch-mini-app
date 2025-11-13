@@ -663,6 +663,9 @@ function SubmissionsTab({ submissions }) {
 
 // Payouts Tab Component
 function PayoutsTab({ payouts }) {
+  const [claiming, setClaiming] = useState(null);
+  const [claimError, setClaimError] = useState(null);
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -681,6 +684,8 @@ function PayoutsTab({ payouts }) {
     switch (status) {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'claimable':
+        return 'bg-purple-100 text-purple-800 border-purple-300';
       case 'processing':
         return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'completed':
@@ -696,6 +701,8 @@ function PayoutsTab({ payouts }) {
     switch (status) {
       case 'pending':
         return '⏳';
+      case 'claimable':
+        return '🎁';
       case 'processing':
         return '⚙️';
       case 'completed':
@@ -704,6 +711,50 @@ function PayoutsTab({ payouts }) {
         return '❌';
       default:
         return '💰';
+    }
+  };
+
+  const handleClaimPayout = async (payoutId) => {
+    try {
+      setClaiming(payoutId);
+      setClaimError(null);
+      
+      console.log(`💰 Starting claim for payout ${payoutId}`);
+      
+      // 1. Get claim data from backend
+      const token = localStorage.getItem('fc_session_token');
+      if (!token) {
+        throw new Error('Not authenticated. Please sign in again.');
+      }
+      
+      const response = await fetch(`/api/ambassador/payouts/${payoutId}/claim-data`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || result.message || 'Failed to get claim data');
+      }
+      
+      const claimData = result.data;
+      console.log(`✅ Claim data received for ${claimData.amountTokens} tokens`);
+      
+      // 2. Call smart contract with thirdweb
+      console.log(`📝 Preparing contract call...`);
+      
+      // Note: This will require thirdweb SDK integration
+      // For now, we'll show a message to the user
+      alert(`🎉 Ready to claim ${claimData.amountTokens} tokens!\n\nContract: ${claimData.contractAddress}\nWallet: ${claimData.walletAddress}\n\nSmart contract integration coming soon!`);
+      
+      console.log(`✅ Claim initiated successfully`);
+      
+    } catch (error) {
+      console.error('❌ Claim failed:', error);
+      setClaimError(error.message);
+      alert(`Claim failed: ${error.message}`);
+    } finally {
+      setClaiming(null);
     }
   };
 
@@ -784,8 +835,42 @@ function PayoutsTab({ payouts }) {
                     </button>
                   </div>
                 )}
+                
+                {/* Claim deadline for claimable payouts */}
+                {payout.status === 'claimable' && payout.claimDeadline && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="font-medium text-gray-700">Claim by:</span>
+                    <span className="text-gray-600">{formatDate(payout.claimDeadline)}</span>
+                  </div>
+                )}
               </div>
             </div>
+            
+            {/* Claim Button */}
+            {payout.status === 'claimable' && (
+              <div className="sm:text-right mt-4 sm:mt-0">
+                <button
+                  onClick={() => handleClaimPayout(payout.id)}
+                  disabled={claiming === payout.id}
+                  className="w-full sm:w-auto bg-[#3eb489] hover:bg-[#359970] text-white font-semibold px-6 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                >
+                  {claiming === payout.id ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Claiming...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>💰</span>
+                      <span>Claim Tokens</span>
+                    </>
+                  )}
+                </button>
+                <p className="text-xs text-gray-500 mt-2">
+                  {formatNumber(payout.amountTokens)} tokens ready to claim
+                </p>
+              </div>
+            )}
           </div>
         </div>
       ))}

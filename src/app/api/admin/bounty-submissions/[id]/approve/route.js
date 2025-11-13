@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/adminAuth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getAmbassadorWalletAddress } from '@/lib/ambassadorHelpers';
+import { generateClaimSignature, getDefaultClaimDeadline } from '@/lib/claimSignatureService';
 
 // PUT /api/admin/bounty-submissions/[id]/approve - Approve submission
 export const PUT = withAdminAuth(async (request, { params }) => {
@@ -106,7 +107,7 @@ export const PUT = withAdminAuth(async (request, { params }) => {
         bounty_submission_id: id,
         amount_tokens: bounty.reward_tokens,
         wallet_address: walletAddress,
-        status: 'pending',
+        status: 'pending', // Will be updated to 'claimable' after signature generation
         notes: `Payout for bounty: ${bounty.title}`
       })
       .select()
@@ -124,6 +125,45 @@ export const PUT = withAdminAuth(async (request, { params }) => {
         success: false,
         error: 'Failed to create payout record'
       }, { status: 500 });
+    }
+
+    // 2.5. Generate claim signature and make payout claimable (if wallet address exists)
+    if (walletAddress) {
+      try {
+        const deadline = getDefaultClaimDeadline(); // 30 days from now
+        
+        const signature = await generateClaimSignature({
+          wallet: walletAddress,
+          amount: bounty.reward_tokens.toString(),
+          payoutId: payout.id,
+          deadline
+        });
+
+        // Update payout with signature and make it claimable
+        const { error: signatureError } = await supabaseAdmin
+          .from('ambassador_payouts')
+          .update({
+            claim_signature: signature,
+            claim_deadline: deadline.toISOString(),
+            status: 'claimable' // Ambassador can now claim immediately!
+          })
+          .eq('id', payout.id);
+
+        if (signatureError) {
+          console.error('❌ Error adding claim signature:', signatureError);
+          // Continue anyway - payout created but not claimable yet
+        } else {
+          console.log(`✍️ Claim signature generated - payout is now claimable!`);
+          payout.status = 'claimable'; // Update local object
+          payout.claim_signature = signature;
+          payout.claim_deadline = deadline.toISOString();
+        }
+      } catch (signatureError) {
+        console.error('❌ Error generating claim signature:', signatureError);
+        // Continue anyway - payout created but not claimable yet
+      }
+    } else {
+      console.log(`⚠️ No wallet address - payout created but not claimable until wallet is added`);
     }
 
     // 3. Update ambassador stats
