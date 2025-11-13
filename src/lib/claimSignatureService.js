@@ -71,6 +71,12 @@ export async function generateClaimSignature({
     throw new Error('NEXT_PUBLIC_THIRDWEB_CLIENT_ID not configured');
   }
   
+  // Ensure deadline is a Date object
+  const deadlineDate = deadline instanceof Date ? deadline : new Date(deadline);
+  if (isNaN(deadlineDate.getTime())) {
+    throw new Error('Invalid deadline date');
+  }
+  
   try {
     // Initialize Thirdweb client
     const client = createThirdwebClient({ 
@@ -94,7 +100,7 @@ export async function generateClaimSignature({
     const uid = keccak256(toHex(payoutId));
     
     // Expiration timestamp (unix seconds)
-    const expirationTimestamp = BigInt(Math.floor(deadline.getTime() / 1000));
+    const expirationTimestamp = BigInt(Math.floor(deadlineDate.getTime() / 1000));
     
     // Build the airdrop request using Thirdweb SDK
     const { req, signature } = await generateAirdropSignatureERC20({
@@ -117,7 +123,7 @@ export async function generateClaimSignature({
       wallet: `${wallet.slice(0, 6)}...${wallet.slice(-4)}`,
       amount: amountBigInt.toString(),
       tokenAddress: TOKEN_ADDRESS,
-      expirationTimestamp: new Date(Number(expirationTimestamp) * 1000).toISOString(),
+      expirationTimestamp: deadlineDate.toISOString(),
       signaturePreview: `${signature.slice(0, 10)}...${signature.slice(-8)}`,
       adminAddress: adminAccount.address
     });
