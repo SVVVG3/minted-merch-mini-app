@@ -2,6 +2,7 @@
 // GET: Returns signature and data needed to claim payout
 
 import { NextResponse } from 'next/server';
+import { verifyFarcasterUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isSignatureExpired } from '@/lib/claimSignatureService';
 
@@ -19,36 +20,17 @@ export async function GET(request, { params }) {
     }
     
     const token = authHeader.replace('Bearer ', '');
+    const authResult = await verifyFarcasterUser(token);
     
-    // Verify JWT token (simplified - assumes token contains FID)
-    // In production, you'd verify the JWT signature
-    let userFid;
-    try {
-      // For now, we'll verify this through database lookup
-      // The token should be the same one used in other API calls
-      const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
-      
-      if (userError || !user) {
-        return NextResponse.json({ 
-          success: false,
-          error: 'Invalid authentication token' 
-        }, { status: 401 });
-      }
-      
-      userFid = user.user_metadata?.fid;
-      if (!userFid) {
-        return NextResponse.json({ 
-          success: false,
-          error: 'No FID found in token' 
-        }, { status: 400 });
-      }
-    } catch (authError) {
-      console.error('❌ Authentication error:', authError);
+    if (!authResult.authenticated) {
       return NextResponse.json({ 
         success: false,
-        error: 'Authentication failed' 
+        error: 'Invalid authentication token' 
       }, { status: 401 });
     }
+    
+    const userFid = authResult.fid;
+    console.log(`💰 Fetching claim data for payout ${id} (FID: ${userFid})`);
     
     // 2. Get payout with ownership verification
     const { data: payout, error: payoutError } = await supabaseAdmin
