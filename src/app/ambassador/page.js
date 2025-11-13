@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { ProfileModal } from '@/components/ProfileModal';
-import { BrowserProvider, Contract } from 'ethers';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { parseUnits } from 'ethers';
 
 export default function AmbassadorDashboard() {
   const { user, isSDKReady } = useFarcaster();
@@ -360,7 +361,7 @@ export default function AmbassadorDashboard() {
               <SubmissionsTab submissions={submissions} />
             )}
             {activeTab === 'payouts' && (
-              <PayoutsTab payouts={payouts} />
+              <PayoutsTab payouts={payouts} onRefresh={handleRefresh} />
             )}
           </div>
         </div>
@@ -663,9 +664,63 @@ function SubmissionsTab({ submissions }) {
 }
 
 // Payouts Tab Component
-function PayoutsTab({ payouts }) {
+function PayoutsTab({ payouts, onRefresh }) {
   const [claiming, setClaiming] = useState(null);
   const [claimError, setClaimError] = useState(null);
+  const [claimData, setClaimData] = useState(null);
+  const [currentPayoutId, setCurrentPayoutId] = useState(null);
+  
+  // Wagmi hooks for contract interaction
+  const { 
+    data: txHash,
+    isPending: isTxPending,
+    writeContract,
+    error: writeError 
+  } = useWriteContract();
+  
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
+
+  // Handle transaction confirmation
+  useEffect(() => {
+    if (isConfirmed && txHash && currentPayoutId) {
+      console.log(`✅ Transaction confirmed: ${txHash}`);
+      
+      // Update payout status in backend
+      updatePayoutStatus(currentPayoutId, txHash).then(() => {
+        alert(`✅ Claim successful!\n\n${claimData?.amountTokens} tokens claimed!\n\nTX: ${txHash}`);
+        setClaiming(null);
+        setCurrentPayoutId(null);
+        setClaimData(null);
+        
+        // Refresh payouts
+        if (onRefresh) {
+          onRefresh();
+        }
+      });
+    }
+  }, [isConfirmed, txHash, currentPayoutId, claimData, onRefresh]);
+
+  // Handle write errors
+  useEffect(() => {
+    if (writeError) {
+      console.error('❌ Claim transaction failed:', writeError);
+      
+      let errorMessage = 'Transaction failed';
+      if (writeError.message?.includes('User rejected')) {
+        errorMessage = 'Transaction was rejected';
+      } else if (writeError.message) {
+        errorMessage = writeError.message;
+      }
+      
+      setClaimError(errorMessage);
+      alert(`❌ Claim failed: ${errorMessage}`);
+      setClaiming(null);
+      setCurrentPayoutId(null);
+      setClaimData(null);
+    }
+  }, [writeError]);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -718,11 +773,12 @@ function PayoutsTab({ payouts }) {
   const handleClaimPayout = async (payoutId) => {
     try {
       setClaiming(payoutId);
+      setCurrentPayoutId(payoutId);
       setClaimError(null);
       
       console.log(`💰 Starting claim for payout ${payoutId}`);
       
-      // 1. Get claim data from backend
+      // Get claim data from backend
       const token = localStorage.getItem('fc_session_token');
       if (!token) {
         throw new Error('Not authenticated. Please sign in again.');
@@ -738,79 +794,64 @@ function PayoutsTab({ payouts }) {
         throw new Error(result.error || result.message || 'Failed to get claim data');
       }
       
-      const claimData = result.data;
-      console.log(`✅ Claim data received for ${claimData.amountTokens} tokens`);
-      
-      // 2. Request wallet connection via Farcaster SDK
-      console.log(`🔌 Requesting wallet connection...`);
-      
-      // Use Farcaster Mini App SDK to get wallet provider
-      const provider = await sdk.wallet.ethProvider({ version: '1.0.0' });
-      if (!provider) {
-        throw new Error('Could not connect to wallet. Please try again.');
-      }
-      
-      const ethersProvider = new BrowserProvider(provider);
-      const signer = await ethersProvider.getSigner();
-      
-      console.log(`✅ Wallet connected: ${await signer.getAddress()}`);
-      
-      // 3. Call Airdrop contract
-      console.log(`📝 Calling smart contract...`);
+      const data = result.data;
+      setClaimData(data);
+      console.log(`✅ Claim data received for ${data.amountTokens} tokens`);
       
       // Airdrop contract ABI (only the function we need)
       const airdropABI = [
-        "function airdropERC20WithSignature(address token, address receiver, uint256 amount, bytes signature, uint256 deadline) external"
+        {
+          name: 'airdropERC20WithSignature',
+          type: 'function',
+          stateMutability: 'nonpayable',
+          inputs: [
+            { name: 'token', type: 'address' },
+            { name: 'receiver', type: 'address' },
+            { name: 'amount', type: 'uint256' },
+            { name: 'signature', type: 'bytes' },
+            { name: 'deadline', type: 'uint256' }
+          ],
+          outputs: []
+        }
       ];
       
-      const airdropContract = new Contract(
-        claimData.contractAddress,
-        airdropABI,
-        signer
-      );
-      
       // Convert deadline to Unix timestamp
-      const deadline = Math.floor(new Date(claimData.deadline).getTime() / 1000);
+      const deadline = BigInt(Math.floor(new Date(data.deadline).getTime() / 1000));
       
-      console.log(`📤 Submitting claim transaction...`);
+      console.log(`📤 Submitting claim transaction via Wagmi...`);
+      console.log(`📤 Contract: ${data.contractAddress}`);
+      console.log(`📤 Token: ${data.tokenAddress}, Receiver: ${data.walletAddress}`);
+      console.log(`📤 Amount: ${data.amountTokens}, Deadline: ${deadline}`);
       
-      const tx = await airdropContract.airdropERC20WithSignature(
-        claimData.tokenAddress,           // ERC20 token address
-        claimData.walletAddress,          // Receiver wallet
-        claimData.amountTokens,           // Amount to claim
-        claimData.signature,              // Backend signature
-        deadline                          // Claim deadline
-      );
-      
-      console.log(`⏳ Transaction submitted: ${tx.hash}`);
-      alert(`🚀 Claim submitted!\n\nTransaction: ${tx.hash}\n\nWaiting for confirmation...`);
-      
-      // 4. Wait for transaction confirmation
-      const receipt = await tx.wait();
-      console.log(`✅ Transaction confirmed in block ${receipt.blockNumber}`);
-      
-      // 5. Update payout status in backend
-      await updatePayoutStatus(payoutId, receipt.transactionHash);
-      
-      alert(`✅ Claim successful!\n\n${claimData.amountTokens} tokens claimed!\n\nTX: ${receipt.transactionHash}`);
-      
-      // Refresh payouts
-      await loadAmbassadorData();
+      // Use Wagmi to submit transaction
+      writeContract({
+        address: data.contractAddress,
+        abi: airdropABI,
+        functionName: 'airdropERC20WithSignature',
+        args: [
+          data.tokenAddress,      // ERC20 token address
+          data.walletAddress,     // Receiver wallet
+          BigInt(data.amountTokens),  // Amount to claim
+          data.signature,         // Backend signature
+          deadline                // Claim deadline
+        ]
+      });
+
+      console.log('📤 writeContract called - waiting for user approval...');
       
     } catch (error) {
-      console.error('❌ Claim failed:', error);
+      console.error('❌ Claim preparation failed:', error);
       
-      let errorMessage = 'Transaction failed';
-      if (error.code === 'ACTION_REJECTED') {
-        errorMessage = 'Transaction was rejected';
-      } else if (error.message) {
+      let errorMessage = 'Failed to prepare claim';
+      if (error.message) {
         errorMessage = error.message;
       }
       
       setClaimError(errorMessage);
       alert(`❌ Claim failed: ${errorMessage}`);
-    } finally {
       setClaiming(null);
+      setCurrentPayoutId(null);
+      setClaimData(null);
     }
   };
   
@@ -926,13 +967,23 @@ function PayoutsTab({ payouts }) {
               <div className="sm:text-right mt-4 sm:mt-0">
                 <button
                   onClick={() => handleClaimPayout(payout.id)}
-                  disabled={claiming === payout.id}
+                  disabled={claiming === payout.id || isTxPending || isConfirming}
                   className="w-full sm:w-auto bg-[#3eb489] hover:bg-[#359970] text-white font-semibold px-6 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                 >
-                  {claiming === payout.id ? (
+                  {claiming === payout.id && isTxPending ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Claiming...</span>
+                      <span>Approve in Wallet...</span>
+                    </>
+                  ) : claiming === payout.id && isConfirming ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Confirming...</span>
+                    </>
+                  ) : claiming === payout.id ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Preparing...</span>
                     </>
                   ) : (
                     <>
