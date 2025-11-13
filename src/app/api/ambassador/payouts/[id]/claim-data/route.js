@@ -32,29 +32,45 @@ export async function GET(request, { params }) {
     const userFid = authResult.fid;
     console.log(`💰 Fetching claim data for payout ${id} (FID: ${userFid})`);
     
-    // 2. Get payout with ownership verification
+    // 2. Get ambassador_id for this FID
+    const { data: ambassador, error: ambassadorError } = await supabaseAdmin
+      .from('ambassadors')
+      .select('id')
+      .eq('fid', userFid)
+      .eq('status', 'active')
+      .single();
+    
+    if (ambassadorError || !ambassador) {
+      console.error(`❌ Ambassador not found for FID ${userFid}`);
+      return NextResponse.json({ 
+        success: false,
+        error: 'Ambassador not found' 
+      }, { status: 404 });
+    }
+    
+    // 3. Get payout with ownership verification
     const { data: payout, error: payoutError } = await supabaseAdmin
       .from('ambassador_payouts')
       .select(`
         *,
-        bounty_submissions!inner(
-          user_fid,
+        bounty_submissions(
+          id,
           bounties(title)
         )
       `)
       .eq('id', id)
-      .eq('bounty_submissions.user_fid', userFid) // Security: only own payouts
+      .eq('ambassador_id', ambassador.id) // Security: only own payouts
       .single();
     
     if (payoutError || !payout) {
-      console.error(`❌ Payout access denied: ${id} for FID ${userFid}`, payoutError);
+      console.error(`❌ Payout access denied: ${id} for ambassador ${ambassador.id}`, payoutError);
       return NextResponse.json({ 
         success: false,
         error: 'Payout not found or access denied' 
       }, { status: 404 });
     }
     
-    // 3. Validate payout status
+    // 4. Validate payout status
     if (payout.status !== 'claimable') {
       return NextResponse.json({ 
         success: false,
@@ -66,7 +82,7 @@ export async function GET(request, { params }) {
       }, { status: 400 });
     }
     
-    // 4. Validate wallet address exists
+    // 5. Validate wallet address exists
     if (!payout.wallet_address) {
       return NextResponse.json({ 
         success: false,
@@ -75,7 +91,7 @@ export async function GET(request, { params }) {
       }, { status: 400 });
     }
     
-    // 5. Check if signature expired
+    // 6. Check if signature expired
     if (isSignatureExpired(payout.claim_deadline)) {
       console.error(`❌ Signature expired for payout ${id}`);
       return NextResponse.json({ 
@@ -86,7 +102,7 @@ export async function GET(request, { params }) {
       }, { status: 400 });
     }
     
-    // 6. Validate signature exists
+    // 7. Validate signature exists
     if (!payout.claim_signature) {
       console.error(`❌ No claim signature for payout ${id}`);
       return NextResponse.json({ 
@@ -96,7 +112,7 @@ export async function GET(request, { params }) {
       }, { status: 500 });
     }
     
-    // 7. Log access for security monitoring
+    // 8. Log access for security monitoring
     try {
       await supabaseAdmin.from('payout_claim_events').insert({
         payout_id: id,
@@ -113,7 +129,7 @@ export async function GET(request, { params }) {
       // Continue anyway - logging is not critical
     }
     
-    // 8. Return claim data
+    // 9. Return claim data
     console.log(`✅ Claim data provided for payout ${id} (FID: ${userFid})`);
     
     return NextResponse.json({
