@@ -55,7 +55,7 @@ export async function sendNewBountyNotification(bountyData) {
     // Create notification message
     const rewardAmount = bountyData.reward_tokens || bountyData.rewardTokens;
     const message = {
-      title: "🎯 New Bounty Available!",
+      title: "🎯 New Bounty!", // Keep under 32 chars
       body: `${bountyData.title} - Earn ${rewardAmount.toLocaleString()} $mintedmerch tokens!`,
       targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/ambassador?from=new_bounty&t=${Date.now()}`
     };
@@ -117,7 +117,7 @@ export async function sendPayoutReadyNotification(fid, payoutData) {
 
     // Create notification message
     const message = {
-      title: "💰 Payout Ready to Claim!",
+      title: "💰 Payout Ready!", // Keep under 32 chars
       body: `Your ${amountTokens.toLocaleString()} $mintedmerch tokens are ready! Tap to claim now.`,
       targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/ambassador?tab=payouts&from=payout_ready&t=${Date.now()}`
     };
@@ -176,7 +176,7 @@ export async function sendWelcomeAmbassadorNotification(fid, ambassadorData) {
 
     // Create welcome message
     const message = {
-      title: "🎉 Welcome to the Ambassador Program!",
+      title: "🎉 Welcome Ambassador!", // Keep under 32 chars
       body: `You're now a Minted Merch Ambassador! Start earning $mintedmerch tokens by completing bounties.`,
       targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/ambassador?from=welcome&t=${Date.now()}`
     };
