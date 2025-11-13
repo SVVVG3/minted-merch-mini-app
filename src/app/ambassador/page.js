@@ -242,31 +242,22 @@ export default function AmbassadorDashboard() {
                 className="h-12 w-auto"
               />
             </button>
-            <h1 className="text-sm font-bold text-gray-900 mx-2 text-center flex-1 whitespace-nowrap">
+            <h1 className="text-base font-bold text-gray-900 mx-4 text-center flex-1">
               Ambassador Dashboard
             </h1>
-            <div className="flex items-center gap-2">
+            {user?.pfpUrl && (
               <button
-                onClick={handleRefresh}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-800 p-2 rounded-md flex-shrink-0"
-                title="Refresh"
+                onClick={() => setShowProfileModal(true)}
+                className="hover:opacity-80 transition-opacity flex-shrink-0"
+                title="View Profile"
               >
-                🔄
+                <img 
+                  src={user.pfpUrl} 
+                  alt="Profile"
+                  className="w-10 h-10 rounded-full border-2 border-gray-300"
+                />
               </button>
-              {user?.pfpUrl && (
-                <button
-                  onClick={() => setShowProfileModal(true)}
-                  className="hover:opacity-80 transition-opacity"
-                  title="View Profile"
-                >
-                  <img 
-                    src={user.pfpUrl} 
-                    alt="Profile"
-                    className="w-10 h-10 rounded-full border-2 border-gray-300"
-                  />
-                </button>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Profile Stats */}
@@ -316,9 +307,11 @@ export default function AmbassadorDashboard() {
                 }`}
               >
                 <span>🎯 Bounties</span>
-                <span className="bg-[#3eb489] text-white text-xs font-semibold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {bounties.length}
-                </span>
+                {bounties.filter(b => b.canSubmit).length > 0 && (
+                  <span className="bg-[#3eb489] text-white text-xs font-semibold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                    {bounties.filter(b => b.canSubmit).length}
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => setActiveTab('submissions')}
@@ -329,9 +322,11 @@ export default function AmbassadorDashboard() {
                 }`}
               >
                 <span>📝 Submissions</span>
-                <span className="bg-[#3eb489] text-white text-xs font-semibold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {submissions.length}
-                </span>
+                {submissions.filter(s => s.status === 'pending' || s.status === 'rejected').length > 0 && (
+                  <span className="bg-[#3eb489] text-white text-xs font-semibold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                    {submissions.filter(s => s.status === 'pending' || s.status === 'rejected').length}
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => setActiveTab('payouts')}
@@ -342,9 +337,11 @@ export default function AmbassadorDashboard() {
                 }`}
               >
                 <span>💰 Payouts</span>
-                <span className="bg-[#3eb489] text-white text-xs font-semibold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {payouts.length}
-                </span>
+                {payouts.filter(p => p.status === 'claimable' || p.status === 'pending' || p.status === 'processing').length > 0 && (
+                  <span className="bg-[#3eb489] text-white text-xs font-semibold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                    {payouts.filter(p => p.status === 'claimable' || p.status === 'pending' || p.status === 'processing').length}
+                  </span>
+                )}
               </button>
             </nav>
           </div>
@@ -531,6 +528,8 @@ function BountiesTab({ bounties, onSelectBounty }) {
 
 // Submissions Tab Component
 function SubmissionsTab({ submissions }) {
+  const [deleting, setDeleting] = useState(null);
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -580,19 +579,54 @@ function SubmissionsTab({ submissions }) {
     }
   };
 
-  if (submissions.length === 0) {
+  const handleDeleteSubmission = async (submissionId) => {
+    if (!confirm('Are you sure you want to delete this rejected submission?')) {
+      return;
+    }
+
+    try {
+      setDeleting(submissionId);
+      const token = localStorage.getItem('fc_session_token');
+      
+      const response = await fetch(`/api/ambassador/submissions/${submissionId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh page to update submissions list
+        window.location.reload();
+      } else {
+        alert('Failed to delete submission: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error deleting submission:', error);
+      alert('Failed to delete submission');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  // Filter to only show pending and rejected submissions
+  const filteredSubmissions = submissions.filter(s => s.status === 'pending' || s.status === 'rejected');
+
+  if (filteredSubmissions.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-6xl mb-4">📝</div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Submissions Yet</h3>
-        <p className="text-gray-600">Start completing bounties to see your submissions here!</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Pending Submissions</h3>
+        <p className="text-gray-600">Your approved submissions are shown in the Payouts tab!</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {submissions.map((submission) => (
+      {filteredSubmissions.map((submission) => (
         <div
           key={submission.id}
           className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition-shadow"
@@ -645,8 +679,8 @@ function SubmissionsTab({ submissions }) {
               </div>
             </div>
 
-            {submission.bounty?.rewardTokens && (
-              <div className="sm:text-right">
+            <div className="sm:text-right flex flex-col gap-2">
+              {submission.bounty?.rewardTokens && (
                 <div className="bg-gray-100 rounded-lg px-4 py-2">
                   <div className="text-xs text-gray-600 font-medium">Reward</div>
                   <div className="text-xl font-bold text-gray-900 flex items-center gap-1">
@@ -654,8 +688,18 @@ function SubmissionsTab({ submissions }) {
                     <img src="/splash.png" alt="Token" className="w-5 h-5 rounded-full inline-block" />
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+              
+              {submission.status === 'rejected' && (
+                <button
+                  onClick={() => handleDeleteSubmission(submission.id)}
+                  disabled={deleting === submission.id}
+                  className="bg-red-100 hover:bg-red-200 text-red-800 px-4 py-2 rounded-lg font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {deleting === submission.id ? 'Deleting...' : '🗑️ Delete'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       ))}
@@ -1019,6 +1063,24 @@ function PayoutsTab({ payouts, onRefresh, isInMiniApp }) {
                     $mintedmerch
                   </span>
                 </div>
+                {payout.proofUrl && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-700">Proof:</span>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await sdk.actions.openUrl(payout.proofUrl);
+                        } catch (error) {
+                          console.error('Error opening proof:', error);
+                          window.open(payout.proofUrl, '_blank');
+                        }
+                      }}
+                      className="text-blue-600 hover:text-blue-800 underline"
+                    >
+                      View Submission
+                    </button>
+                  </div>
+                )}
                 {payout.walletAddress && (
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-700">Wallet:</span>

@@ -41,7 +41,7 @@ export async function GET(request) {
       }, { status: 403 });
     }
 
-    // Get all payouts with related submission and bounty details
+    // Get all payouts with related submission and bounty details (including proof)
     const { data: payouts, error: payoutsError } = await supabaseAdmin
       .from('ambassador_payouts')
       .select(`
@@ -56,6 +56,8 @@ export async function GET(request) {
         notes,
         bounty_submissions (
           id,
+          proof_url,
+          proof_description,
           bounties (
             id,
             title,
@@ -86,6 +88,8 @@ export async function GET(request) {
       createdAt: payout.created_at,
       completedAt: payout.completed_at,
       notes: payout.notes,
+      proofUrl: payout.bounty_submissions?.proof_url || null,
+      proofDescription: payout.bounty_submissions?.proof_description || null,
       bounty: payout.bounty_submissions?.bounties ? {
         id: payout.bounty_submissions.bounties.id,
         title: payout.bounty_submissions.bounties.title,
