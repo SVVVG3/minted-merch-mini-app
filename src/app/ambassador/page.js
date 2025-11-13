@@ -245,7 +245,7 @@ export default function AmbassadorDashboard() {
                 className="h-[50px] w-auto"
               />
             </div>
-            <div className="pr-2">
+            <div className="pr-[10px]">
               {user?.pfpUrl && (
                 <button
                   onClick={() => setShowProfileModal(true)}
