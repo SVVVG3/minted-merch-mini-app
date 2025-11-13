@@ -238,11 +238,13 @@ export default function AmbassadorDashboard() {
                 className="h-12 w-auto"
               />
             </button>
-            <img 
-              src="/MintedMerchAmbassadorDashboardLogo.png" 
-              alt="Ambassador Dashboard"
-              className="h-10 w-auto"
-            />
+            <div className="flex justify-center">
+              <img 
+                src="/MintedMerchAmbassadorDashboardLogo.png" 
+                alt="Ambassador Dashboard"
+                className="h-[50px] w-auto"
+              />
+            </div>
             <div className="justify-self-end">
               {user?.pfpUrl && (
                 <button
