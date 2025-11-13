@@ -969,7 +969,7 @@ function PayoutsTab({ payouts, onRefresh }) {
             opacity: 1;
           }
           100% {
-            transform: translate(var(--tx), calc(var(--ty) + 50vh)) rotate(720deg);
+            transform: translate(var(--tx), var(--ty)) rotate(720deg);
             opacity: 0;
           }
         }
