@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { ProfileModal } from '@/components/ProfileModal';
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { parseUnits } from 'ethers';
 
 export default function AmbassadorDashboard() {
   const { user, isSDKReady } = useFarcaster();
@@ -667,60 +665,6 @@ function SubmissionsTab({ submissions }) {
 function PayoutsTab({ payouts, onRefresh }) {
   const [claiming, setClaiming] = useState(null);
   const [claimError, setClaimError] = useState(null);
-  const [claimData, setClaimData] = useState(null);
-  const [currentPayoutId, setCurrentPayoutId] = useState(null);
-  
-  // Wagmi hooks for contract interaction
-  const { 
-    data: txHash,
-    isPending: isTxPending,
-    writeContract,
-    error: writeError 
-  } = useWriteContract();
-  
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash: txHash,
-  });
-
-  // Handle transaction confirmation
-  useEffect(() => {
-    if (isConfirmed && txHash && currentPayoutId) {
-      console.log(`✅ Transaction confirmed: ${txHash}`);
-      
-      // Update payout status in backend
-      updatePayoutStatus(currentPayoutId, txHash).then(() => {
-        alert(`✅ Claim successful!\n\n${claimData?.amountTokens} tokens claimed!\n\nTX: ${txHash}`);
-        setClaiming(null);
-        setCurrentPayoutId(null);
-        setClaimData(null);
-        
-        // Refresh payouts
-        if (onRefresh) {
-          onRefresh();
-        }
-      });
-    }
-  }, [isConfirmed, txHash, currentPayoutId, claimData, onRefresh]);
-
-  // Handle write errors
-  useEffect(() => {
-    if (writeError) {
-      console.error('❌ Claim transaction failed:', writeError);
-      
-      let errorMessage = 'Transaction failed';
-      if (writeError.message?.includes('User rejected')) {
-        errorMessage = 'Transaction was rejected';
-      } else if (writeError.message) {
-        errorMessage = writeError.message;
-      }
-      
-      setClaimError(errorMessage);
-      alert(`❌ Claim failed: ${errorMessage}`);
-      setClaiming(null);
-      setCurrentPayoutId(null);
-      setClaimData(null);
-    }
-  }, [writeError]);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -773,111 +717,51 @@ function PayoutsTab({ payouts, onRefresh }) {
   const handleClaimPayout = async (payoutId) => {
     try {
       setClaiming(payoutId);
-      setCurrentPayoutId(payoutId);
       setClaimError(null);
       
-      console.log(`💰 Starting claim for payout ${payoutId}`);
+      console.log(`💰 Starting backend-executed claim for payout ${payoutId}`);
       
-      // Get claim data from backend
+      // Get authentication token
       const token = localStorage.getItem('fc_session_token');
       if (!token) {
         throw new Error('Not authenticated. Please sign in again.');
       }
       
-      const response = await fetch(`/api/ambassador/payouts/${payoutId}/claim-data`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      // Call backend API to execute airdrop via Thirdweb
+      const response = await fetch(`/api/ambassador/payouts/${payoutId}/claim`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
       
       const result = await response.json();
       
       if (!result.success) {
-        throw new Error(result.error || result.message || 'Failed to get claim data');
+        throw new Error(result.error || result.details || 'Failed to claim tokens');
       }
       
-      const data = result.data;
-      setClaimData(data);
-      console.log(`✅ Claim data received for ${data.amountTokens} tokens`);
+      console.log(`✅ Claim successful!`, result);
       
-      // Thirdweb Airdrop contract ABI (EIP-712 signature format)
-      const airdropABI = [
-        {
-          name: 'airdropERC20WithSignature',
-          type: 'function',
-          stateMutability: 'nonpayable',
-          inputs: [
-            {
-              name: 'req',
-              type: 'tuple',
-              components: [
-                { name: 'uid', type: 'bytes32' },
-                { name: 'tokenAddress', type: 'address' },
-                { name: 'expirationTimestamp', type: 'uint256' },
-                {
-                  name: 'contents',
-                  type: 'tuple[]',
-                  components: [
-                    { name: 'recipient', type: 'address' },
-                    { name: 'amount', type: 'uint256' }
-                  ]
-                }
-              ]
-            },
-            { name: 'signature', type: 'bytes' }
-          ],
-          outputs: []
-        }
-      ];
+      // Show success message with transaction link
+      const explorerUrl = result.explorerUrl || `https://basescan.org/tx/${result.transactionId}`;
+      alert(`✅ Claim successful!\n\n${result.amount} tokens have been sent to your wallet!\n\nView transaction: ${explorerUrl}`);
       
-      console.log(`📤 Submitting Thirdweb airdrop claim via Wagmi...`);
-      console.log(`📤 Contract: ${data.contractAddress}`);
-      console.log(`📤 Request:`, data.req);
-      console.log(`📤 Signature: ${data.signature.slice(0, 10)}...`);
+      // Refresh payouts list
+      if (onRefresh) {
+        await onRefresh();
+      }
       
-      // Use Wagmi to submit transaction with Thirdweb format
-      writeContract({
-        address: data.contractAddress,
-        abi: airdropABI,
-        functionName: 'airdropERC20WithSignature',
-        args: [
-          data.req,          // Full request struct (uid, tokenAddress, expirationTimestamp, contents[])
-          data.signature     // EIP-712 signature
-        ]
-      });
-
-      console.log('📤 writeContract called - waiting for user approval...');
+      setClaiming(null);
       
     } catch (error) {
-      console.error('❌ Claim preparation failed:', error);
+      console.error('❌ Claim failed:', error);
       
-      let errorMessage = 'Failed to prepare claim';
-      if (error.message) {
-        errorMessage = error.message;
-      }
-      
+      const errorMessage = error.message || 'Failed to claim tokens';
       setClaimError(errorMessage);
       alert(`❌ Claim failed: ${errorMessage}`);
       setClaiming(null);
-      setCurrentPayoutId(null);
-      setClaimData(null);
-    }
-  };
-  
-  // Helper function to update payout status after successful claim
-  const updatePayoutStatus = async (payoutId, txHash) => {
-    try {
-      const token = localStorage.getItem('fc_session_token');
-      await fetch(`/api/ambassador/payouts/${payoutId}/claim-complete`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ transactionHash: txHash })
-      });
-      console.log(`✅ Payout status updated`);
-    } catch (error) {
-      console.error('⚠️ Failed to update payout status:', error);
-      // Don't throw - tokens are claimed, this is just bookkeeping
     }
   };
 
@@ -974,23 +858,13 @@ function PayoutsTab({ payouts, onRefresh }) {
               <div className="sm:text-right mt-4 sm:mt-0">
                 <button
                   onClick={() => handleClaimPayout(payout.id)}
-                  disabled={claiming === payout.id || isTxPending || isConfirming}
+                  disabled={claiming === payout.id}
                   className="w-full sm:w-auto bg-[#3eb489] hover:bg-[#359970] text-white font-semibold px-6 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                 >
-                  {claiming === payout.id && isTxPending ? (
+                  {claiming === payout.id ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Approve in Wallet...</span>
-                    </>
-                  ) : claiming === payout.id && isConfirming ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Confirming...</span>
-                    </>
-                  ) : claiming === payout.id ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Preparing...</span>
+                      <span>Claiming...</span>
                     </>
                   ) : (
                     <>
@@ -1000,7 +874,7 @@ function PayoutsTab({ payouts, onRefresh }) {
                   )}
                 </button>
                 <p className="text-xs text-gray-500 mt-2">
-                  {formatNumber(payout.amountTokens)} tokens ready to claim
+                  {formatNumber(payout.amountTokens)} tokens • No gas fees
                 </p>
               </div>
             )}
