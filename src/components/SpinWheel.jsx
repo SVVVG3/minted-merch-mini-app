@@ -751,9 +751,19 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       const userFid = capturedUserFid || user?.fid || (isReady ? getFid() : null);
       if (userFid) {
         try {
+          // Get auth token for recovery endpoint
+          const token = localStorage.getItem('fc_session_token');
+          if (!token) {
+            console.error('❌ No auth token available for spin recovery');
+            throw new Error('Authentication required to recover stuck spin');
+          }
+
           const recoveryResponse = await fetch('/api/recover-stuck-spin', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({ 
               userFid,
               txHash: txHash || hash 
