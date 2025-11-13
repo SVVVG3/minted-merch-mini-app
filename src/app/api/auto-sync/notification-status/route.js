@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { hasNotificationTokenInNeynar } from '@/lib/neynar';
 import { formatPSTTime } from '@/lib/timezone';
 
@@ -59,7 +59,7 @@ export async function POST(request) {
       // Full sync: all users with notifications enabled
       console.log('🌍 Full sync mode: checking all notification-enabled users');
       
-      const { data: allUsers, error } = await supabase
+      const { data: allUsers, error } = await supabaseAdmin
         .from('profiles')
         .select('fid, username, has_notifications, notification_status_updated_at, notification_status_source')
         .eq('has_notifications', true)
@@ -77,7 +77,7 @@ export async function POST(request) {
       staleCutoff.setDate(staleCutoff.getDate() - 7); // 7 days old
       
       // Get users with stale notification status or no status at all
-      const { data: staleUsers, error: staleError } = await supabase
+      const { data: staleUsers, error: staleError } = await supabaseAdmin
         .from('profiles')
         .select('fid, username, has_notifications, notification_status_updated_at, notification_status_source')
         .eq('has_notifications', true)
@@ -88,7 +88,7 @@ export async function POST(request) {
       if (staleError) throw staleError;
       
       // Also get some recently updated users for validation
-      const { data: recentUsers, error: recentError } = await supabase
+      const { data: recentUsers, error: recentError } = await supabaseAdmin
         .from('profiles')
         .select('fid, username, has_notifications, notification_status_updated_at, notification_status_source')
         .eq('has_notifications', true)
@@ -159,7 +159,7 @@ export async function POST(request) {
             
             // Update database (unless in dry run mode)
             if (!dryRun) {
-              const { error: updateError } = await supabase
+              const { error: updateError } = await supabaseAdmin
                 .from('profiles')
                 .update({
                   has_notifications: currentStatus,
@@ -184,7 +184,7 @@ export async function POST(request) {
             results.unchanged++;
             
             if (!dryRun) {
-              await supabase
+              await supabaseAdmin
                 .from('profiles')
                 .update({
                   notification_status_updated_at: new Date().toISOString(),
@@ -257,11 +257,11 @@ export async function POST(request) {
 export async function GET() {
   try {
     // Get sync statistics
-    const { count: totalUsers } = await supabase
+    const { count: totalUsers } = await supabaseAdmin
       .from('profiles')
       .select('fid', { count: 'exact', head: true });
 
-    const { count: enabledUsers } = await supabase
+    const { count: enabledUsers } = await supabaseAdmin
       .from('profiles')
       .select('fid', { count: 'exact', head: true })
       .eq('has_notifications', true);
@@ -270,7 +270,7 @@ export async function GET() {
     const staleCutoff = new Date();
     staleCutoff.setDate(staleCutoff.getDate() - 7);
 
-    const { count: staleUsers } = await supabase
+    const { count: staleUsers } = await supabaseAdmin
       .from('profiles')
       .select('fid', { count: 'exact', head: true })
       .eq('has_notifications', true)
