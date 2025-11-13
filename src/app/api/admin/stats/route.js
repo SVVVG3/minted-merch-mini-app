@@ -253,6 +253,18 @@ export const GET = withAdminAuth(async (request) => {
 
     console.log(`📊 Staking stats: ${walletsStaked || 0} wallets with ${totalStaked.toLocaleString()} tokens staked`);
 
+    // Get pending bounty submissions count
+    const { count: pendingSubmissions, error: submissionsError } = await supabaseAdmin
+      .from('bounty_submissions')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending');
+
+    if (submissionsError) {
+      console.error('Error fetching pending submissions:', submissionsError);
+    }
+
+    console.log(`📊 Pending bounty submissions: ${pendingSubmissions || 0}`);
+
     const stats = {
       totalUsers: totalUsers || 0,
       usersOnLeaderboard: usersOnLeaderboard || 0,
@@ -267,6 +279,7 @@ export const GET = withAdminAuth(async (request) => {
       holdersOneMillion: holdersOneMillion || 0,
       walletsStaked: walletsStaked || 0,
       totalStaked: totalStaked,
+      pendingSubmissions: pendingSubmissions || 0,
       lastRaffle: lastRaffle,
       topStreaks: topStreaks || [],
       topSpenders: topSpenders || []
