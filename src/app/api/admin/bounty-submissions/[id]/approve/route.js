@@ -132,9 +132,12 @@ export const PUT = withAdminAuth(async (request, { params }) => {
       try {
         const deadline = getDefaultClaimDeadline(); // 30 days from now
         
+        // Convert token amount to wei (multiply by 10^18 for 18 decimals)
+        const amountInWei = (BigInt(bounty.reward_tokens) * BigInt(10 ** 18)).toString();
+        
         const signatureData = await generateClaimSignature({
           wallet: walletAddress,
-          amount: bounty.reward_tokens.toString(),
+          amount: amountInWei,
           payoutId: payout.id,
           deadline
         });
