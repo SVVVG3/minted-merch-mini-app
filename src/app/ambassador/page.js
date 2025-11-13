@@ -798,42 +798,49 @@ function PayoutsTab({ payouts, onRefresh }) {
       setClaimData(data);
       console.log(`✅ Claim data received for ${data.amountTokens} tokens`);
       
-      // Airdrop contract ABI (only the function we need)
+      // Thirdweb Airdrop contract ABI (EIP-712 signature format)
       const airdropABI = [
         {
           name: 'airdropERC20WithSignature',
           type: 'function',
           stateMutability: 'nonpayable',
           inputs: [
-            { name: 'token', type: 'address' },
-            { name: 'receiver', type: 'address' },
-            { name: 'amount', type: 'uint256' },
-            { name: 'signature', type: 'bytes' },
-            { name: 'deadline', type: 'uint256' }
+            {
+              name: 'req',
+              type: 'tuple',
+              components: [
+                { name: 'uid', type: 'bytes32' },
+                { name: 'tokenAddress', type: 'address' },
+                { name: 'expirationTimestamp', type: 'uint256' },
+                {
+                  name: 'contents',
+                  type: 'tuple[]',
+                  components: [
+                    { name: 'recipient', type: 'address' },
+                    { name: 'amount', type: 'uint256' }
+                  ]
+                }
+              ]
+            },
+            { name: 'signature', type: 'bytes' }
           ],
           outputs: []
         }
       ];
       
-      // Convert deadline to Unix timestamp
-      const deadline = BigInt(Math.floor(new Date(data.deadline).getTime() / 1000));
-      
-      console.log(`📤 Submitting claim transaction via Wagmi...`);
+      console.log(`📤 Submitting Thirdweb airdrop claim via Wagmi...`);
       console.log(`📤 Contract: ${data.contractAddress}`);
-      console.log(`📤 Token: ${data.tokenAddress}, Receiver: ${data.walletAddress}`);
-      console.log(`📤 Amount: ${data.amountTokens}, Deadline: ${deadline}`);
+      console.log(`📤 Request:`, data.req);
+      console.log(`📤 Signature: ${data.signature.slice(0, 10)}...`);
       
-      // Use Wagmi to submit transaction
+      // Use Wagmi to submit transaction with Thirdweb format
       writeContract({
         address: data.contractAddress,
         abi: airdropABI,
         functionName: 'airdropERC20WithSignature',
         args: [
-          data.tokenAddress,      // ERC20 token address
-          data.walletAddress,     // Receiver wallet
-          BigInt(data.amountTokens),  // Amount to claim
-          data.signature,         // Backend signature
-          deadline                // Claim deadline
+          data.req,          // Full request struct (uid, tokenAddress, expirationTimestamp, contents[])
+          data.signature     // EIP-712 signature
         ]
       });
 

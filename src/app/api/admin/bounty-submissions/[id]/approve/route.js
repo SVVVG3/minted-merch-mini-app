@@ -132,7 +132,7 @@ export const PUT = withAdminAuth(async (request, { params }) => {
       try {
         const deadline = getDefaultClaimDeadline(); // 30 days from now
         
-        const signature = await generateClaimSignature({
+        const signatureData = await generateClaimSignature({
           wallet: walletAddress,
           amount: bounty.reward_tokens.toString(),
           payoutId: payout.id,
@@ -143,7 +143,7 @@ export const PUT = withAdminAuth(async (request, { params }) => {
         const { error: signatureError } = await supabaseAdmin
           .from('ambassador_payouts')
           .update({
-            claim_signature: signature,
+            claim_signature: signatureData.signature, // Store EIP-712 signature
             claim_deadline: deadline.toISOString(),
             status: 'claimable' // Ambassador can now claim immediately!
           })
@@ -155,7 +155,7 @@ export const PUT = withAdminAuth(async (request, { params }) => {
         } else {
           console.log(`✍️ Claim signature generated - payout is now claimable!`);
           payout.status = 'claimable'; // Update local object
-          payout.claim_signature = signature;
+          payout.claim_signature = signatureData.signature;
           payout.claim_deadline = deadline.toISOString();
         }
       } catch (signatureError) {

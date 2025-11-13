@@ -1,11 +1,12 @@
 // Ambassador API - Get Claim Data for Payout
-// GET: Returns signature and data needed to claim payout
+// GET: Returns signature and data needed to claim payout (Thirdweb Airdrop format)
 
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
 import { checkAmbassadorStatus } from '@/lib/ambassadorHelpers';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isSignatureExpired } from '@/lib/claimSignatureService';
+import { solidityPackedKeccak256 } from 'ethers';
 
 export async function GET(request, { params }) {
   try {
@@ -125,20 +126,53 @@ export async function GET(request, { params }) {
       // Continue anyway - logging is not critical
     }
     
-    // 9. Return claim data
-    console.log(`✅ Claim data provided for payout ${id} (FID: ${userFid})`);
+    // 9. Build Thirdweb airdrop request data
+    const tokenAddress = process.env.MINTEDMERCH_TOKEN_ADDRESS;
+    const contractAddress = process.env.AIRDROP_CONTRACT_ADDRESS;
+    
+    // Rebuild UID from payoutId (same as signature generation)
+    const uid = solidityPackedKeccak256(['string'], [payout.id]);
+    
+    // Expiration timestamp (unix seconds)
+    const expirationTimestamp = Math.floor(new Date(payout.claim_deadline).getTime() / 1000);
+    
+    // Build contents array (single recipient)
+    const contents = [
+      {
+        recipient: payout.wallet_address,
+        amount: payout.amount_tokens.toString()
+      }
+    ];
+    
+    // Build the request object matching Thirdweb's struct
+    const req = {
+      uid,
+      tokenAddress,
+      expirationTimestamp,
+      contents
+    };
+    
+    console.log(`✅ Claim data provided for payout ${id} (FID: ${userFid})`, {
+      uid: uid.slice(0, 10) + '...',
+      recipient: payout.wallet_address.slice(0, 6) + '...' + payout.wallet_address.slice(-4),
+      amount: payout.amount_tokens.toString(),
+      expirationTimestamp: new Date(expirationTimestamp * 1000).toISOString()
+    });
     
     return NextResponse.json({
       success: true,
       data: {
         payoutId: payout.id,
         bountyTitle: payout.bounty_submissions.bounties.title,
+        // Thirdweb airdrop parameters
+        req,                                  // Full request struct
+        signature: payout.claim_signature,    // EIP-712 signature
+        contractAddress,                      // Airdrop contract
+        // For display purposes
         walletAddress: payout.wallet_address,
         amountTokens: payout.amount_tokens.toString(),
-        signature: payout.claim_signature,
-        deadline: payout.claim_deadline,
-        contractAddress: process.env.AIRDROP_CONTRACT_ADDRESS,
-        tokenAddress: process.env.MINTEDMERCH_TOKEN_ADDRESS
+        tokenAddress,
+        deadline: payout.claim_deadline
       }
     });
     
