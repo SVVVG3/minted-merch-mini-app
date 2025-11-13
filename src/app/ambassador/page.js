@@ -784,19 +784,19 @@ function PayoutsTab({ payouts, onRefresh }) {
         setShowConfetti(true);
         setClaimSuccess(payoutId);
         
-        // Auto-hide confetti after 3 seconds
-        setTimeout(() => setShowConfetti(false), 3000);
-        
-        // Clear success state after 3 seconds
-        setTimeout(() => setClaimSuccess(null), 3000);
-        
-        // Clear claiming state immediately
+        // Clear claiming state immediately so button shows success
         setClaiming(null);
         
-        // Refresh payouts list to show TX hash
-        if (onRefresh) {
-          await onRefresh();
-        }
+        // Auto-hide confetti and refresh after 3 seconds
+        setTimeout(() => {
+          setShowConfetti(false);
+          setClaimSuccess(null);
+          
+          // Refresh payouts list to show TX hash AFTER animation
+          if (onRefresh) {
+            onRefresh();
+          }
+        }, 3000);
       } else {
         console.error(`❌ Failed to mark payout complete:`, result.error);
         setClaiming(null);
