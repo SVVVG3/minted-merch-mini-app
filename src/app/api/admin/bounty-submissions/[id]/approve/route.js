@@ -139,6 +139,15 @@ export const PUT = withAdminAuth(async (request, { params }) => {
           deadline
         });
 
+        console.log(`✍️ Signature generated with data:`, {
+          uid: signatureData.uid,
+          tokenAddress: signatureData.tokenAddress,
+          expirationTimestamp: signatureData.expirationTimestamp,
+          recipient: signatureData.contents[0].recipient,
+          amount: signatureData.contents[0].amount,
+          signatureLength: signatureData.signature.length
+        });
+
         // Update payout with signature and make it claimable
         const { error: signatureError } = await supabaseAdmin
           .from('ambassador_payouts')
