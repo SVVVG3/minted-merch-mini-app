@@ -172,11 +172,11 @@ export const GET = withAdminAuth(async (request) => {
       console.error('Error fetching total orders:', ordersError);
     }
 
-    // Get users with notifications enabled
+    // Get users with notifications enabled on EITHER Farcaster OR Base
     const { count: usersWithNotifications, error: notificationsError } = await supabaseAdmin
       .from('profiles')
       .select('fid', { count: 'exact', head: true })
-      .eq('has_notifications', true);
+      .or('has_notifications.eq.true,has_base_notifications.eq.true');
 
     if (notificationsError) {
       console.error('Error fetching users with notifications:', notificationsError);
