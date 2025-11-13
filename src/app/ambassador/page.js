@@ -241,21 +241,19 @@ export default function AmbassadorDashboard() {
             <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-gray-900 whitespace-nowrap">
               Ambassador Dashboard
             </h1>
-            <div className="w-[48px]">
-              {user?.pfpUrl && (
-                <button
-                  onClick={() => setShowProfileModal(true)}
-                  className="hover:opacity-80 transition-opacity z-10"
-                  title="View Profile"
-                >
-                  <img 
-                    src={user.pfpUrl} 
-                    alt="Profile"
-                    className="w-10 h-10 rounded-full border-2 border-gray-300"
-                  />
-                </button>
-              )}
-            </div>
+            {user?.pfpUrl && (
+              <button
+                onClick={() => setShowProfileModal(true)}
+                className="hover:opacity-80 transition-opacity z-10"
+                title="View Profile"
+              >
+                <img 
+                  src={user.pfpUrl} 
+                  alt="Profile"
+                  className="w-10 h-10 rounded-full border-2 border-gray-300"
+                />
+              </button>
+            )}
           </div>
 
           {/* Profile Stats */}
