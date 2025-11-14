@@ -1,8 +1,8 @@
 // Farcaster Bounty Verification System
 // Auto-verifies engagement bounties (likes, recasts, comments) via Neynar API
 
-import { NeynarAPIClient, Configuration, CastParamType } from '@neynar/nodejs-sdk';
-import { ReactionsType } from '@neynar/nodejs-sdk/build/api';
+import { NeynarAPIClient, Configuration } from '@neynar/nodejs-sdk';
+import { ReactionsType, CastParamType } from '@neynar/nodejs-sdk/build/api';
 
 // Lazy-initialize Neynar client to avoid build-time errors
 let neynarClient = null;
