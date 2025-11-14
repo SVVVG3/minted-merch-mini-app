@@ -304,6 +304,21 @@ export async function POST(request) {
           }
         }
       } // end of wallet address check
+
+      // INCREMENT BOUNTY COMPLETION COUNTER for auto-approved submissions
+      const { error: updateError } = await supabaseAdmin
+        .from('bounties')
+        .update({ 
+          current_completions: bounty.current_completions + 1 
+        })
+        .eq('id', bountyId);
+
+      if (updateError) {
+        console.error('❌ Error updating bounty completion count:', updateError);
+        // Don't fail the whole request - submission and payout are already created
+      } else {
+        console.log(`📊 Bounty completion count updated: ${bounty.current_completions} → ${bounty.current_completions + 1}`);
+      }
     }
 
     return NextResponse.json({
