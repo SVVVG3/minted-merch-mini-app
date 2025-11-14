@@ -4,6 +4,7 @@
 import { NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/adminAuth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { sendSubmissionRejectedNotification } from '@/lib/ambassadorNotifications';
 
 // PUT /api/admin/bounty-submissions/[id]/reject - Reject submission
 export const PUT = withAdminAuth(async (request, { params }) => {
@@ -21,10 +22,25 @@ export const PUT = withAdminAuth(async (request, { params }) => {
 
     console.log(`❌ Admin rejecting submission ${id}...`);
 
-    // Get submission to check status
+    // Get submission with bounty and ambassador details
     const { data: submission, error: fetchError } = await supabaseAdmin
       .from('bounty_submissions')
-      .select('id, status')
+      .select(`
+        id, 
+        status,
+        ambassador_fid,
+        bounty_id,
+        bounties (
+          id,
+          title
+        ),
+        ambassadors (
+          fid,
+          profiles (
+            username
+          )
+        )
+      `)
       .eq('id', id)
       .single();
 
@@ -65,6 +81,34 @@ export const PUT = withAdminAuth(async (request, { params }) => {
     }
 
     console.log(`✅ Submission rejected successfully with notes`);
+
+    // Send rejection notification to ambassador
+    try {
+      const ambassadorFid = submission.ambassador_fid;
+      const submissionData = {
+        bounty: submission.bounties,
+        bountyTitle: submission.bounties?.title
+      };
+      
+      console.log(`🔔 Sending rejection notification to ambassador FID: ${ambassadorFid}`);
+      const notificationResult = await sendSubmissionRejectedNotification(
+        ambassadorFid, 
+        submissionData, 
+        adminNotes
+      );
+
+      if (notificationResult.success) {
+        console.log(`✅ Rejection notification sent successfully`);
+      } else if (notificationResult.skipped) {
+        console.log(`⏭️ Notification skipped: ${notificationResult.reason}`);
+      } else {
+        console.error(`⚠️ Failed to send rejection notification:`, notificationResult.error);
+        // Don't fail the whole request if notification fails
+      }
+    } catch (notificationError) {
+      console.error('⚠️ Error sending rejection notification:', notificationError);
+      // Don't fail the whole request if notification fails
+    }
 
     return NextResponse.json({
       success: true,

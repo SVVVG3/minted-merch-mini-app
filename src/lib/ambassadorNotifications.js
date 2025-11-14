@@ -160,6 +160,63 @@ export async function sendPayoutReadyNotification(fid, payoutData) {
 }
 
 /**
+ * Send submission rejected notification to individual ambassador
+ * @param {number} fid - Ambassador's Farcaster ID
+ * @param {object} submissionData - The submission data with bounty info
+ * @param {string} adminNotes - Feedback from admin
+ * @returns {Promise<object>} Result of notification send
+ */
+export async function sendSubmissionRejectedNotification(fid, submissionData, adminNotes) {
+  try {
+    console.log(`🔔 Sending submission rejected notification to FID: ${fid}`);
+
+    const bountyTitle = submissionData.bounty?.title || submissionData.bountyTitle || 'Bounty';
+
+    // Create notification message
+    const message = {
+      title: "❌ Submission Rejected", // Keep under 32 chars
+      body: `Your "${bountyTitle}" submission was rejected. Check feedback and try again!`,
+      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/ambassador?tab=submissions&from=submission_rejected&t=${Date.now()}`
+    };
+
+    // Send notification via Neynar
+    const result = await sendNotificationWithNeynar(fid, message);
+
+    if (result.success && !result.skipped) {
+      console.log(`✅ Rejection notification sent to FID: ${fid}`);
+      return {
+        success: true,
+        fid,
+        bountyTitle
+      };
+    } else if (result.skipped) {
+      console.log(`⏭️ Notification skipped for FID ${fid}: ${result.reason || 'Notifications not enabled'}`);
+      return {
+        success: false,
+        skipped: true,
+        fid,
+        reason: result.reason
+      };
+    } else {
+      console.error(`❌ Failed to send rejection notification to FID: ${fid}`, result.error);
+      return {
+        success: false,
+        fid,
+        error: result.error
+      };
+    }
+
+  } catch (error) {
+    console.error(`❌ Error sending rejection notification to FID: ${fid}`, error);
+    return {
+      success: false,
+      fid,
+      error: error.message
+    };
+  }
+}
+
+/**
  * Send welcome notification to newly added ambassador
  * @param {number} fid - Ambassador's Farcaster ID
  * @param {object} ambassadorData - The ambassador data
