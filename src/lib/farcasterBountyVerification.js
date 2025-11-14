@@ -3,8 +3,23 @@
 
 import { NeynarAPIClient } from '@neynar/nodejs-sdk';
 
-// Initialize Neynar client
-const neynarClient = new NeynarAPIClient(process.env.NEXT_PUBLIC_NEYNAR_API_KEY);
+// Lazy-initialize Neynar client to avoid build-time errors
+let neynarClient = null;
+
+/**
+ * Get or create Neynar client instance
+ * @returns {NeynarAPIClient}
+ */
+function getNeynarClient() {
+  if (!neynarClient) {
+    const apiKey = process.env.NEXT_PUBLIC_NEYNAR_API_KEY;
+    if (!apiKey) {
+      throw new Error('NEXT_PUBLIC_NEYNAR_API_KEY is not configured');
+    }
+    neynarClient = new NeynarAPIClient(apiKey);
+  }
+  return neynarClient;
+}
 
 /**
  * Check if Neynar is available
@@ -33,7 +48,8 @@ export async function verifyLikeBounty(ambassadorFid, castHash, castAuthorFid) {
     }
 
     // Fetch all likes on the target cast
-    const response = await neynarClient.fetchReactionsForCast(
+    const client = getNeynarClient();
+    const response = await client.fetchReactionsForCast(
       castHash,
       'likes',
       { viewerFid: ambassadorFid, limit: 100 }
@@ -98,7 +114,8 @@ export async function verifyRecastBounty(ambassadorFid, castHash, castAuthorFid)
     }
 
     // Fetch all recasts of the target cast
-    const response = await neynarClient.fetchReactionsForCast(
+    const client = getNeynarClient();
+    const response = await client.fetchReactionsForCast(
       castHash,
       'recasts',
       { viewerFid: ambassadorFid, limit: 100 }
@@ -163,7 +180,8 @@ export async function verifyCommentBounty(ambassadorFid, castHash, castAuthorFid
     }
 
     // Fetch all replies to the target cast
-    const response = await neynarClient.fetchRepliesForCast(
+    const client = getNeynarClient();
+    const response = await client.fetchRepliesForCast(
       castHash,
       castAuthorFid,
       { limit: 100 }
@@ -274,7 +292,8 @@ export async function parseCastUrl(castUrl) {
 
     // Fetch the cast directly to get all details
     console.log(`🔍 Fetching cast details for hash: ${hash}`);
-    const castResponse = await neynarClient.lookUpCastByHashOrWarpcastUrl(hash, 'hash');
+    const client = getNeynarClient();
+    const castResponse = await client.lookUpCastByHashOrWarpcastUrl(hash, 'hash');
     
     if (!castResponse?.cast) {
       console.error('❌ Cast not found');
