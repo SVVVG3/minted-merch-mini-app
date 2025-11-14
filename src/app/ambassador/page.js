@@ -436,87 +436,132 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
     );
   }
 
+  // Filter out bounties where user has reached their submission limit
+  const visibleBounties = bounties.filter(bounty => !isLimitReached(bounty));
+
   return (
     <div className="space-y-4">
-      {bounties.map((bounty) => {
+      {visibleBounties.map((bounty) => {
         const availableSlots = bounty.maxCompletions - bounty.currentCompletions;
         const submittable = canSubmit(bounty);
+        const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(bounty.bountyType);
 
         return (
           <div
             key={bounty.id}
-            className={`border rounded-lg p-6 ${
+            className={`border-2 rounded-xl p-5 ${
               submittable
-                ? 'border-gray-200 bg-white hover:border-[#3eb489] hover:shadow-md transition-all'
-                : 'border-gray-200 bg-gray-50 opacity-75'
+                ? 'border-gray-200 bg-white hover:border-[#3eb489] hover:shadow-lg transition-all'
+                : 'border-gray-200 bg-gray-50 opacity-60'
             }`}
           >
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex-1">
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-4">
                   {bounty.imageUrl && (
                     <img
                       src={bounty.imageUrl}
                       alt={bounty.title}
-                      className="w-16 h-16 object-cover rounded-lg"
+                      className="w-20 h-20 object-cover rounded-xl shadow-sm"
                     />
                   )}
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">{bounty.title}</h3>
-                    {bounty.category && (
-                      <span className="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full mb-2">
-                        {bounty.category}
-                      </span>
-                    )}
-                    <p className="text-sm text-gray-600 mb-3">{bounty.description}</p>
-
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-700">Requirements:</span>
-                        <span className="text-gray-600">{bounty.requirements}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-700">Proof needed:</span>
-                        <span className="text-gray-600">{bounty.proofRequirements}</span>
-                      </div>
+                  <div className="flex-1 min-w-0">
+                    {/* Title with Bounty Type Badge */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-xl font-bold text-gray-900 truncate">{bounty.title}</h3>
+                      {isFarcasterBounty && (
+                        <span className="inline-flex items-center bg-[#8a63d2] text-white text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap">
+                          ⚡ Auto-Verify
+                        </span>
+                      )}
                     </div>
+
+                    {/* Description */}
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{bounty.description}</p>
+
+                    {/* Simplified Info for Farcaster bounties */}
+                    {isFarcasterBounty ? (
+                      <div className="flex items-center gap-2 text-sm">
+                        {bounty.bountyType === 'farcaster_like' && (
+                          <span className="inline-flex items-center gap-1.5 text-gray-700">
+                            <span className="text-lg">❤️</span>
+                            <span className="font-medium">Like the cast</span>
+                          </span>
+                        )}
+                        {bounty.bountyType === 'farcaster_recast' && (
+                          <span className="inline-flex items-center gap-1.5 text-gray-700">
+                            <span className="text-lg">🔄</span>
+                            <span className="font-medium">Recast the post</span>
+                          </span>
+                        )}
+                        {bounty.bountyType === 'farcaster_comment' && (
+                          <span className="inline-flex items-center gap-1.5 text-gray-700">
+                            <span className="text-lg">💬</span>
+                            <span className="font-medium">Comment on cast</span>
+                          </span>
+                        )}
+                        {bounty.bountyType === 'farcaster_engagement' && (
+                          <span className="inline-flex items-center gap-1.5 text-gray-700">
+                            <span className="text-lg">🔥</span>
+                            <span className="font-medium">Like + Recast + Comment</span>
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      /* Full info for custom bounties */
+                      <div className="space-y-1.5 text-sm">
+                        <div>
+                          <span className="font-semibold text-gray-700">Requirements:</span>
+                          <span className="text-gray-600 ml-1">{bounty.requirements}</span>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-gray-700">Proof needed:</span>
+                          <span className="text-gray-600 ml-1">{bounty.proofRequirements}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="sm:text-right space-y-2">
-                <div className="bg-green-100 border border-green-300 rounded-lg px-4 py-2">
-                  <div className="text-xs text-green-600 font-medium">Reward</div>
-                  <div className="text-2xl font-bold text-green-700 flex items-center gap-1">
+              <div className="sm:text-right space-y-3">
+                {/* Reward Card */}
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl px-4 py-3 shadow-sm">
+                  <div className="text-xs text-green-700 font-semibold mb-1">Reward</div>
+                  <div className="text-3xl font-bold text-green-600 flex items-center justify-end gap-1.5">
                     {formatNumber(bounty.rewardTokens)} 
-                    <img src="/splash.png" alt="Token" className="w-6 h-6 rounded-full inline-block" />
+                    <img src="/splash.png" alt="Token" className="w-6 h-6 rounded-full" />
                   </div>
                 </div>
 
-                <div className="text-xs text-gray-600 space-y-1">
-                  <div>
-                    <span className="font-medium">Slots:</span> {availableSlots}/{bounty.maxCompletions} available
+                {/* Compact Info */}
+                <div className="text-xs text-gray-600 space-y-1 bg-gray-50 rounded-lg p-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Slots:</span>
+                    <span className="font-semibold text-gray-700">{availableSlots}/{bounty.maxCompletions}</span>
                   </div>
                   {bounty.maxSubmissionsPerAmbassador && (
-                    <div>
-                      <span className="font-medium">Your submissions:</span> {bounty.ambassadorSubmissions}/
-                      {bounty.maxSubmissionsPerAmbassador}
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Your submissions:</span>
+                      <span className="font-semibold text-gray-700">{bounty.ambassadorSubmissions}/{bounty.maxSubmissionsPerAmbassador}</span>
                     </div>
                   )}
-                  <div>
-                    <span className="font-medium">Expires:</span> {formatDate(bounty.expiresAt)}
+                  <div className="flex justify-between pt-1 border-t border-gray-200">
+                    <span className="text-gray-500">Expires:</span>
+                    <span className="font-semibold text-gray-700">{formatDate(bounty.expiresAt)}</span>
                   </div>
                 </div>
 
+                {/* Action Button - Contextual Text */}
                 <button
                   onClick={() => {
                     triggerHaptic('light', isInFarcaster);
                     onSelectBounty(bounty);
                   }}
                   disabled={!submittable}
-                  className={`w-full sm:w-auto px-6 py-2 rounded-md font-medium text-sm ${
+                  className={`w-full px-6 py-3 rounded-xl font-semibold text-sm transition-all ${
                     submittable
-                      ? 'bg-[#3eb489] hover:bg-[#359970] text-white'
+                      ? 'bg-[#3eb489] hover:bg-[#359970] text-white shadow-md hover:shadow-lg'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
                 >
@@ -524,8 +569,8 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
                     ? '⏰ Expired'
                     : isFull(bounty)
                     ? '🚫 Full'
-                    : isLimitReached(bounty)
-                    ? '📊 Limit Reached'
+                    : isFarcasterBounty
+                    ? '⚡ Complete Bounty'
                     : '📤 Submit Proof'}
                 </button>
               </div>
@@ -1269,16 +1314,21 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="p-6">
-          <div className="flex justify-between items-start mb-6">
+          {/* Header */}
+          <div className="flex justify-between items-start mb-5">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Submit Bounty Proof</h2>
-              <p className="text-gray-600">{bounty.title}</p>
+              <h2 className="text-2xl font-bold text-gray-900">{bounty.title}</h2>
+              {isFarcasterBounty && (
+                <span className="inline-flex items-center bg-[#8a63d2] text-white text-xs px-2.5 py-1 rounded-full font-medium mt-2">
+                  ⚡ Auto-Verify
+                </span>
+              )}
             </div>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-gray-400 hover:text-gray-600 transition-colors"
               disabled={submitting}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1287,24 +1337,14 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
             </button>
           </div>
 
-          {/* Bounty Details */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-            <div className="space-y-2 text-sm">
-              <div>
-                <span className="font-medium text-gray-700">Requirements:</span>
-                <p className="text-gray-600 mt-1">{bounty.requirements}</p>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">Proof Needed:</span>
-                <p className="text-gray-600 mt-1">{bounty.proofRequirements}</p>
-              </div>
-              <div className="pt-2 border-t border-gray-300">
-                <span className="font-medium text-gray-700">Reward:</span>
-                <span className="text-green-600 font-bold ml-2 flex items-center gap-1">
-                  {formatNumber(bounty.rewardTokens)} 
-                  <img src="/splash.png" alt="Token" className="w-4 h-4 rounded-full inline-block" />
-                  $mintedmerch
-                </span>
+          {/* Reward Banner */}
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl px-4 py-3 mb-5">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-green-700">Reward</span>
+              <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
+                {formatNumber(bounty.rewardTokens)} 
+                <img src="/splash.png" alt="Token" className="w-5 h-5 rounded-full" />
+                <span className="text-sm font-medium">$mintedmerch</span>
               </div>
             </div>
           </div>
@@ -1316,49 +1356,69 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
               <button
                 type="button"
                 onClick={handleOpenCast}
-                className="w-full bg-[#8a63d2] hover:bg-[#7851c1] text-white px-4 py-3 rounded-md font-medium flex items-center justify-center gap-2"
+                className="w-full bg-[#8a63d2] hover:bg-[#7851c1] text-white px-4 py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg"
               >
                 <span>🔗</span>
                 <span>View Cast on Farcaster</span>
               </button>
 
-              {/* Instructions */}
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-                <p className="text-sm text-blue-900 font-medium mb-2">
-                  {bounty.bountyType === 'farcaster_like' && '❤️ Like the cast, then click submit below for instant verification!'}
-                  {bounty.bountyType === 'farcaster_recast' && '🔄 Recast the post, then click submit below for instant verification!'}
-                  {bounty.bountyType === 'farcaster_comment' && '💬 Comment on the cast, then click submit below for instant verification!'}
-                  {bounty.bountyType === 'farcaster_engagement' && '🔥 Complete ALL THREE actions (Like + Recast + Comment), then click submit for instant verification!'}
+              {/* Simplified Instructions */}
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                <p className="text-sm text-blue-900 font-semibold flex items-center gap-2">
+                  {bounty.bountyType === 'farcaster_like' && (
+                    <>
+                      <span className="text-xl">❤️</span>
+                      <span>Like the cast, then click submit below!</span>
+                    </>
+                  )}
+                  {bounty.bountyType === 'farcaster_recast' && (
+                    <>
+                      <span className="text-xl">🔄</span>
+                      <span>Recast the post, then click submit below!</span>
+                    </>
+                  )}
+                  {bounty.bountyType === 'farcaster_comment' && (
+                    <>
+                      <span className="text-xl">💬</span>
+                      <span>Comment on the cast, then click submit below!</span>
+                    </>
+                  )}
+                  {bounty.bountyType === 'farcaster_engagement' && (
+                    <>
+                      <span className="text-xl">🔥</span>
+                      <span>Complete ALL THREE actions (Like + Recast + Comment), then submit!</span>
+                    </>
+                  )}
                 </p>
-                <p className="text-xs text-blue-700">
+                <p className="text-xs text-blue-600 mt-2 font-medium">
                   ⚡ Auto-verified via Neynar API - tokens ready to claim immediately!
                 </p>
               </div>
 
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                  <p className="text-sm text-red-800">{error}</p>
+                <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3">
+                  <p className="text-sm text-red-800 font-medium">{error}</p>
                 </div>
               )}
 
               {successMessage && (
-                <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                  <p className="text-sm text-green-800 font-medium">{successMessage}</p>
+                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-3">
+                  <p className="text-sm text-green-800 font-bold">{successMessage}</p>
                 </div>
               )}
 
-              <div className="flex space-x-3 pt-4">
+              <div className="flex space-x-3 pt-2">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-3 rounded-md font-medium disabled:opacity-50"
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-3 rounded-xl font-semibold disabled:opacity-50 transition-all"
                   disabled={submitting}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSubmit}
-                  className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-3 rounded-md font-medium disabled:opacity-50"
+                  className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-3 rounded-xl font-semibold disabled:opacity-50 transition-all shadow-md hover:shadow-lg"
                   disabled={submitting}
                 >
                   {submitting ? 'Verifying...' : '✅ Submit & Verify'}
@@ -1370,56 +1430,64 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
           {/* Custom Bounty Submission Form */}
           {!isFarcasterBounty && (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Requirements Box */}
+              <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4">
+                <h3 className="font-semibold text-gray-800 mb-2">Requirements:</h3>
+                <p className="text-sm text-gray-600 mb-3">{bounty.requirements}</p>
+                <h3 className="font-semibold text-gray-800 mb-2">Proof Needed:</h3>
+                <p className="text-sm text-gray-600">{bounty.proofRequirements}</p>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Proof Link <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="url"
                   value={proofUrl}
                   onChange={(e) => setProofUrl(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent transition-all"
                   placeholder="https://farcaster.xyz/..."
                   disabled={submitting}
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Link to your post on Farcaster (farcaster.xyz), X, TikTok, Instagram, or Basescan (for token purchases)
+                <p className="text-xs text-gray-500 mt-1.5">
+                  Link to your post on Farcaster, X, TikTok, Instagram, or Basescan
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Description <span className="text-gray-400">(Optional)</span>
                 </label>
                 <textarea
                   value={proofDescription}
                   onChange={(e) => setProofDescription(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                  placeholder="Add any additional context about your submission..."
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent transition-all"
+                  placeholder="Add any additional context..."
                   rows={3}
                   disabled={submitting}
                 />
               </div>
 
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                  <p className="text-sm text-red-800">{error}</p>
+                <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3">
+                  <p className="text-sm text-red-800 font-medium">{error}</p>
                 </div>
               )}
 
-              <div className="flex space-x-3 pt-4">
+              <div className="flex space-x-3 pt-2">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-3 rounded-md font-medium disabled:opacity-50"
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-3 rounded-xl font-semibold disabled:opacity-50 transition-all"
                   disabled={submitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-3 rounded-md font-medium disabled:opacity-50"
+                  className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-3 rounded-xl font-semibold disabled:opacity-50 transition-all shadow-md hover:shadow-lg"
                   disabled={submitting}
                 >
                   {submitting ? 'Submitting...' : '📤 Submit Proof'}
