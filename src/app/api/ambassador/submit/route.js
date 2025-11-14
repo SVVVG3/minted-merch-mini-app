@@ -273,11 +273,11 @@ export async function POST(request) {
       const { data: payoutData, error: payoutError } = await supabaseAdmin
         .from('ambassador_payouts')
         .insert({
-          submission_id: submission.id,
+          bounty_submission_id: submission.id,
           ambassador_id: ambassadorId,
           amount_tokens: bounty.reward_tokens,
           wallet_address: walletAddress,
-          signature: signature,
+          claim_signature: signature,
           status: 'claimable'
         })
         .select()
