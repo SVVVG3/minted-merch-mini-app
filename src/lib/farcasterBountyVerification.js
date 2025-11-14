@@ -2,7 +2,7 @@
 // Auto-verifies engagement bounties (likes, recasts, comments) via Neynar API
 
 import { NeynarAPIClient, Configuration } from '@neynar/nodejs-sdk';
-import { ReactionsType, CastParamType } from '@neynar/nodejs-sdk/build/api';
+import { ReactionsType } from '@neynar/nodejs-sdk/build/api';
 
 // Lazy-initialize Neynar client to avoid build-time errors
 let neynarClient = null;
@@ -192,7 +192,7 @@ export async function verifyCommentBounty(ambassadorFid, castHash, castAuthorFid
     const client = getNeynarClient();
     const response = await client.lookupCastConversation({
       identifier: castHash,
-      type: CastParamType.Hash,
+      type: 'hash',  // Use string literal instead of enum
       replyDepth: 1, // Only fetch direct replies (first level)
       includeChronologicalParentCasts: false,
       limit: 100
@@ -393,7 +393,7 @@ export async function parseCastUrl(castUrl) {
     const client = getNeynarClient();
     const castResponse = await client.lookUpCastByHashOrUrl({
       identifier: hash,
-      type: CastParamType.Hash
+      type: 'hash'  // Use string literal instead of enum
     });
     
     if (!castResponse?.cast) {
