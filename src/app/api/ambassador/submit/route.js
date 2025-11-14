@@ -216,22 +216,22 @@ export async function POST(request) {
     if (autoVerified) {
       console.log(`💰 Creating auto-payout for verified submission...`);
 
-      // Get ambassador wallet address
-      const { data: ambassador } = await supabaseAdmin
-        .from('ambassadors')
-        .select('wallet_address')
-        .eq('id', ambassadorId)
+      // Get ambassador wallet address from profiles table
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('primary_eth_address, verified_eth_addresses')
+        .eq('fid', fid)
         .single();
 
-      if (!ambassador?.wallet_address) {
-        console.error('❌ Ambassador has no wallet address');
-        return NextResponse.json({
-          success: false,
-          error: 'No wallet address found. Please set up your wallet in settings.'
-        }, { status: 400 });
-      }
+      const walletAddress = profile?.primary_eth_address;
 
-      // Generate EIP-712 signature for payout
+      if (!walletAddress) {
+        console.log('⚠️ Ambassador has no primary wallet address - skipping payout creation');
+        console.log('💡 Payout can be created later when wallet is added');
+        // Don't fail - submission is already approved, payout can be created later
+      } else {
+        console.log(`💰 Using wallet address: ${walletAddress}`);
+        // Generate EIP-712 signature for payout
       const { signTypedData } = await import('ethers');
       const { Wallet } = await import('ethers');
 
@@ -253,7 +253,7 @@ export async function POST(request) {
       };
 
       const value = {
-        ambassador: ambassador.wallet_address,
+        ambassador: walletAddress,
         amount: bounty.reward_tokens.toString(),
         submissionId: submission.id
       };
@@ -267,29 +267,30 @@ export async function POST(request) {
           submission_id: submission.id,
           ambassador_id: ambassadorId,
           amount_tokens: bounty.reward_tokens,
-          wallet_address: ambassador.wallet_address,
+          wallet_address: walletAddress,
           signature: signature,
           status: 'claimable'
         })
         .select()
         .single();
 
-      if (payoutError) {
-        console.error('❌ Error creating payout:', payoutError);
-      } else {
-        payout = payoutData;
-        console.log(`✅ Payout created: ${payout.id}`);
+        if (payoutError) {
+          console.error('❌ Error creating payout:', payoutError);
+        } else {
+          payout = payoutData;
+          console.log(`✅ Payout created: ${payout.id}`);
 
-        // Send notification
-        try {
-          await sendPayoutReadyNotification(fid, {
-            ...payout,
-            amountTokens: bounty.reward_tokens
-          });
-        } catch (notifError) {
-          console.error('⚠️ Failed to send payout notification:', notifError);
+          // Send notification
+          try {
+            await sendPayoutReadyNotification(fid, {
+              ...payout,
+              amountTokens: bounty.reward_tokens
+            });
+          } catch (notifError) {
+            console.error('⚠️ Failed to send payout notification:', notifError);
+          }
         }
-      }
+      } // end of wallet address check
     }
 
     return NextResponse.json({
@@ -304,10 +305,14 @@ export async function POST(request) {
           id: payout.id,
           amountTokens: payout.amount_tokens,
           status: payout.status
-        } : null
+        } : null,
+        needsWallet: autoVerified && !payout // Flag if wallet needed
       },
       message: autoVerified 
-        ? `✅ Verified! Your ${bounty.reward_tokens.toLocaleString()} $mintedmerch tokens are ready to claim!`
+        ? (payout 
+            ? `✅ Verified! Your ${bounty.reward_tokens.toLocaleString()} $mintedmerch tokens are ready to claim!`
+            : `✅ Verified! Please add your wallet address in Settings to claim your ${bounty.reward_tokens.toLocaleString()} $mintedmerch tokens.`
+          )
         : 'Submission created successfully and is pending review'
     });
 
