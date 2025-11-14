@@ -1,7 +1,8 @@
 // Farcaster Bounty Verification System
 // Auto-verifies engagement bounties (likes, recasts, comments) via Neynar API
 
-import { NeynarAPIClient, Configuration } from '@neynar/nodejs-sdk';
+import { NeynarAPIClient, Configuration, CastParamType } from '@neynar/nodejs-sdk';
+import { ReactionsType } from '@neynar/nodejs-sdk/build/api';
 
 // Lazy-initialize Neynar client to avoid build-time errors
 let neynarClient = null;
@@ -53,13 +54,14 @@ export async function verifyLikeBounty(ambassadorFid, castHash, castAuthorFid) {
       };
     }
 
-    // Fetch all likes on the target cast
+    // Fetch all likes on the target cast using SDK v2 method
     const client = getNeynarClient();
-    const response = await client.fetchReactionsForCast(
-      castHash,
-      'likes',
-      { viewerFid: ambassadorFid, limit: 100 }
-    );
+    const response = await client.fetchCastReactions({
+      hash: castHash,
+      types: ReactionsType.Likes,
+      viewerFid: ambassadorFid,
+      limit: 100
+    });
 
     console.log(`📊 Found ${response.reactions?.length || 0} likes on cast`);
 
@@ -119,13 +121,14 @@ export async function verifyRecastBounty(ambassadorFid, castHash, castAuthorFid)
       };
     }
 
-    // Fetch all recasts of the target cast
+    // Fetch all recasts of the target cast using SDK v2 method
     const client = getNeynarClient();
-    const response = await client.fetchReactionsForCast(
-      castHash,
-      'recasts',
-      { viewerFid: ambassadorFid, limit: 100 }
-    );
+    const response = await client.fetchCastReactions({
+      hash: castHash,
+      types: ReactionsType.Recasts,
+      viewerFid: ambassadorFid,
+      limit: 100
+    });
 
     console.log(`📊 Found ${response.reactions?.length || 0} recasts of cast`);
 
@@ -185,18 +188,22 @@ export async function verifyCommentBounty(ambassadorFid, castHash, castAuthorFid
       };
     }
 
-    // Fetch all replies to the target cast
+    // Fetch cast conversation (includes all direct replies) using SDK v2 method
     const client = getNeynarClient();
-    const response = await client.fetchRepliesForCast(
-      castHash,
-      castAuthorFid,
-      { limit: 100 }
-    );
+    const response = await client.lookupCastConversation({
+      identifier: castHash,
+      type: CastParamType.Hash,
+      replyDepth: 1, // Only fetch direct replies (first level)
+      includeChronologicalParentCasts: false,
+      limit: 100
+    });
 
-    console.log(`📊 Found ${response.casts?.length || 0} replies to cast`);
+    // Extract direct replies from conversation
+    const directReplies = response.conversation?.cast?.direct_replies || [];
+    console.log(`📊 Found ${directReplies.length} replies to cast`);
 
     // Check if any reply is from the ambassador
-    const hasCommented = response.casts?.some(cast => 
+    const hasCommented = directReplies.some(cast => 
       cast.author?.fid === ambassadorFid
     );
 
@@ -204,7 +211,7 @@ export async function verifyCommentBounty(ambassadorFid, castHash, castAuthorFid
       console.log(`✅ FID ${ambassadorFid} has commented on cast ${castHash}`);
       
       // Get the ambassador's comment for details
-      const ambassadorComment = response.casts?.find(cast => cast.author?.fid === ambassadorFid);
+      const ambassadorComment = directReplies.find(cast => cast.author?.fid === ambassadorFid);
       
       return {
         verified: true,
@@ -381,10 +388,13 @@ export async function parseCastUrl(castUrl) {
     const hash = hashMatch[0];
     console.log(`✅ Extracted cast hash: ${hash} (${hash.length - 2} hex chars)`);
 
-    // Fetch the cast directly to get all details
+    // Fetch the cast directly to get all details using SDK v2 method
     console.log(`🔍 Fetching cast details from Neynar API...`);
     const client = getNeynarClient();
-    const castResponse = await client.lookUpCastByHashOrWarpcastUrl(hash, 'hash');
+    const castResponse = await client.lookUpCastByHashOrUrl({
+      identifier: hash,
+      type: CastParamType.Hash
+    });
     
     if (!castResponse?.cast) {
       console.error('❌ Cast not found in Neynar');
