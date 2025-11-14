@@ -63,10 +63,16 @@ export async function verifyLikeBounty(ambassadorFid, castHash, castAuthorFid) {
     });
 
     console.log(`📊 Found ${response.reactions?.length || 0} likes on cast`);
+    
+    // Debug: Log first reaction structure to understand the API response
+    if (response.reactions && response.reactions.length > 0) {
+      console.log(`🔍 Sample reaction structure:`, JSON.stringify(response.reactions[0], null, 2));
+    }
 
     // Check if ambassador's FID is in the list of likers
+    // Note: For 'likes' type query, all results are likes so no need to check reaction_type
     const hasLiked = response.reactions?.some(reaction => 
-      reaction.user?.fid === ambassadorFid && reaction.reaction_type === 1 // 1 = like
+      reaction.user?.fid === ambassadorFid
     );
 
     if (hasLiked) {
@@ -130,10 +136,16 @@ export async function verifyRecastBounty(ambassadorFid, castHash, castAuthorFid)
     });
 
     console.log(`📊 Found ${response.reactions?.length || 0} recasts of cast`);
+    
+    // Debug: Log first reaction structure to understand the API response
+    if (response.reactions && response.reactions.length > 0) {
+      console.log(`🔍 Sample recast structure:`, JSON.stringify(response.reactions[0], null, 2));
+    }
 
     // Check if ambassador's FID is in the list of recasters
+    // Note: For 'recasts' type query, all results are recasts so no need to check reaction_type
     const hasRecasted = response.reactions?.some(reaction => 
-      reaction.user?.fid === ambassadorFid && reaction.reaction_type === 2 // 2 = recast
+      reaction.user?.fid === ambassadorFid
     );
 
     if (hasRecasted) {
@@ -198,11 +210,24 @@ export async function verifyCommentBounty(ambassadorFid, castHash, castAuthorFid
     // Extract direct replies from conversation
     const directReplies = response.conversation?.cast?.direct_replies || [];
     console.log(`📊 Found ${directReplies.length} replies to cast`);
+    
+    // Debug: Log first reply structure
+    if (directReplies.length > 0) {
+      console.log(`🔍 Sample reply structure:`, JSON.stringify({
+        hash: directReplies[0].hash,
+        authorFid: directReplies[0].author?.fid,
+        authorUsername: directReplies[0].author?.username
+      }, null, 2));
+    }
 
     // Check if any reply is from the ambassador
-    const hasCommented = directReplies.some(cast => 
-      cast.author?.fid === ambassadorFid
-    );
+    const hasCommented = directReplies.some(cast => {
+      const matches = cast.author?.fid === ambassadorFid;
+      if (matches) {
+        console.log(`🔍 Found matching comment from FID ${ambassadorFid}`);
+      }
+      return matches;
+    });
 
     if (hasCommented) {
       console.log(`✅ FID ${ambassadorFid} has commented on cast ${castHash}`);
