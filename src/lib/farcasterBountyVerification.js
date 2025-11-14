@@ -2,7 +2,6 @@
 // Auto-verifies engagement bounties (likes, recasts, comments) via Neynar API
 
 import { NeynarAPIClient, Configuration } from '@neynar/nodejs-sdk';
-import { ReactionsType } from '@neynar/nodejs-sdk/build/api';
 
 // Lazy-initialize Neynar client to avoid build-time errors
 let neynarClient = null;
@@ -58,7 +57,7 @@ export async function verifyLikeBounty(ambassadorFid, castHash, castAuthorFid) {
     const client = getNeynarClient();
     const response = await client.fetchCastReactions({
       hash: castHash,
-      types: ReactionsType.Likes,
+      types: 'likes',  // Use string literal instead of enum
       viewerFid: ambassadorFid,
       limit: 100
     });
@@ -125,7 +124,7 @@ export async function verifyRecastBounty(ambassadorFid, castHash, castAuthorFid)
     const client = getNeynarClient();
     const response = await client.fetchCastReactions({
       hash: castHash,
-      types: ReactionsType.Recasts,
+      types: 'recasts',  // Use string literal instead of enum
       viewerFid: ambassadorFid,
       limit: 100
     });
