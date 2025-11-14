@@ -192,9 +192,7 @@ export async function verifyCommentBounty(ambassadorFid, castHash, castAuthorFid
     const response = await client.lookupCastConversation({
       identifier: castHash,
       type: 'hash',  // Use string literal instead of enum
-      replyDepth: 1, // Only fetch direct replies (first level)
-      includeChronologicalParentCasts: false,
-      limit: 100
+      replyDepth: 1  // Only fetch direct replies (first level)
     });
 
     // Extract direct replies from conversation
