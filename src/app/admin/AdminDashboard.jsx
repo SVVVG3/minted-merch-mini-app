@@ -5211,10 +5211,60 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
     rewardTokens: bounty?.reward_tokens || '',
     maxCompletions: bounty?.max_completions || '',
     maxSubmissionsPerAmbassador: bounty?.max_submissions_per_ambassador || '',
-    expiresAt: bounty?.expires_at ? new Date(bounty.expires_at).toISOString().slice(0, 16) : ''
+    expiresAt: bounty?.expires_at ? new Date(bounty.expires_at).toISOString().slice(0, 16) : '',
+    bountyType: bounty?.bounty_type || 'custom',
+    targetCastUrl: bounty?.target_cast_url || ''
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [castPreview, setCastPreview] = useState(null);
+  const [loadingCast, setLoadingCast] = useState(false);
+
+  // Fetch cast details when URL is entered
+  const handleCastUrlChange = async (url) => {
+    setFormData({...formData, targetCastUrl: url});
+    setCastPreview(null);
+
+    if (!url.trim()) return;
+
+    // Only fetch for Farcaster engagement bounties
+    if (!['farcaster_like', 'farcaster_recast', 'farcaster_comment'].includes(formData.bountyType)) {
+      return;
+    }
+
+    // Basic URL validation
+    if (!url.includes('warpcast.com')) {
+      setError('Please enter a valid Warpcast URL');
+      return;
+    }
+
+    setLoadingCast(true);
+    setError('');
+
+    try {
+      // Parse cast URL via API
+      const response = await adminFetch('/api/admin/parse-cast-url', {
+        method: 'POST',
+        body: JSON.stringify({ castUrl: url })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setCastPreview(result.data);
+        setError('');
+      } else {
+        setError(result.error || 'Invalid cast URL');
+        setCastPreview(null);
+      }
+    } catch (error) {
+      console.error('Error fetching cast:', error);
+      setError('Failed to fetch cast details');
+      setCastPreview(null);
+    } finally {
+      setLoadingCast(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -5229,14 +5279,32 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
       setError('Description is required');
       return;
     }
-    if (!formData.requirements.trim()) {
-      setError('Requirements are required');
-      return;
+
+    // Farcaster engagement bounties have different requirements
+    const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment'].includes(formData.bountyType);
+
+    if (isFarcasterBounty) {
+      // For Farcaster bounties, cast URL is required
+      if (!formData.targetCastUrl.trim()) {
+        setError('Cast URL is required for Farcaster engagement bounties');
+        return;
+      }
+      if (!castPreview) {
+        setError('Please enter a valid Warpcast URL and wait for it to load');
+        return;
+      }
+    } else {
+      // For custom bounties, requirements and proof requirements are required
+      if (!formData.requirements.trim()) {
+        setError('Requirements are required');
+        return;
+      }
+      if (!formData.proofRequirements.trim()) {
+        setError('Proof requirements are required');
+        return;
+      }
     }
-    if (!formData.proofRequirements.trim()) {
-      setError('Proof requirements are required');
-      return;
-    }
+
     if (!formData.rewardTokens || formData.rewardTokens <= 0) {
       setError('Reward amount must be greater than 0');
       return;
@@ -5255,10 +5323,12 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
       
       const method = bounty ? 'PUT' : 'POST';
 
-      // Prepare data with proper date formatting
+      // Prepare data with proper date formatting and cast info
       const submitData = {
         ...formData,
-        expiresAt: formData.expiresAt ? new Date(formData.expiresAt).toISOString() : null
+        expiresAt: formData.expiresAt ? new Date(formData.expiresAt).toISOString() : null,
+        targetCastHash: castPreview?.hash || null,
+        targetCastAuthorFid: castPreview?.authorFid || null
       };
 
       const response = await adminFetch(endpoint, {
@@ -5306,6 +5376,60 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Bounty Type Selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bounty Type *
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="custom"
+                    checked={formData.bountyType === 'custom'}
+                    onChange={(e) => setFormData({...formData, bountyType: e.target.value, targetCastUrl: ''})}
+                    className="mr-2"
+                  />
+                  <span className="text-sm">Custom (Manual Verification)</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="farcaster_like"
+                    checked={formData.bountyType === 'farcaster_like'}
+                    onChange={(e) => setFormData({...formData, bountyType: e.target.value})}
+                    className="mr-2"
+                  />
+                  <span className="text-sm">❤️ Like a Farcaster Cast (Auto-Verified)</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="farcaster_recast"
+                    checked={formData.bountyType === 'farcaster_recast'}
+                    onChange={(e) => setFormData({...formData, bountyType: e.target.value})}
+                    className="mr-2"
+                  />
+                  <span className="text-sm">🔄 Recast a Farcaster Post (Auto-Verified)</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="farcaster_comment"
+                    checked={formData.bountyType === 'farcaster_comment'}
+                    onChange={(e) => setFormData({...formData, bountyType: e.target.value})}
+                    className="mr-2"
+                  />
+                  <span className="text-sm">💬 Comment on a Farcaster Cast (Auto-Verified)</span>
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.bountyType === 'custom' 
+                  ? 'Ambassadors submit proof links that require manual admin review.' 
+                  : 'Ambassadors complete the action on Farcaster, then click submit for instant verification via Neynar API.'}
+              </p>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Title *
@@ -5315,7 +5439,7 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
                 value={formData.title}
                 onChange={(e) => setFormData({...formData, title: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                placeholder="e.g., Create a Minted Merch meme"
+                placeholder={formData.bountyType === 'custom' ? "e.g., Create a Minted Merch meme" : "e.g., Like our product launch post"}
                 required
               />
             </div>
@@ -5334,39 +5458,77 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Requirements *
-              </label>
-              <textarea
-                value={formData.requirements}
-                onChange={(e) => setFormData({...formData, requirements: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                placeholder="Detailed requirements ambassadors must complete..."
-                rows={3}
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                What does the ambassador need to do?
-              </p>
-            </div>
+            {/* Cast URL field for Farcaster bounties */}
+            {['farcaster_like', 'farcaster_recast', 'farcaster_comment'].includes(formData.bountyType) && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Warpcast URL *
+                </label>
+                <input
+                  type="url"
+                  value={formData.targetCastUrl}
+                  onChange={(e) => handleCastUrlChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                  placeholder="https://warpcast.com/username/0x..."
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Paste the full Warpcast URL of the cast ambassadors should engage with
+                </p>
+                {loadingCast && (
+                  <div className="mt-2 text-sm text-gray-600">Loading cast...</div>
+                )}
+                {castPreview && (
+                  <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                    <div className="text-sm text-green-800">
+                      ✅ Cast found: @{castPreview.authorUsername} (FID: {castPreview.authorFid})
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1 line-clamp-2">
+                      {castPreview.text}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Proof Requirements *
-              </label>
-              <textarea
-                value={formData.proofRequirements}
-                onChange={(e) => setFormData({...formData, proofRequirements: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                placeholder="How should they submit proof? (e.g., Link to Farcaster cast, X post, etc.)"
-                rows={2}
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                What type of proof link should they submit?
-              </p>
-            </div>
+            {/* Requirements and Proof Requirements only for custom bounties */}
+            {formData.bountyType === 'custom' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Requirements *
+                  </label>
+                  <textarea
+                    value={formData.requirements}
+                    onChange={(e) => setFormData({...formData, requirements: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                    placeholder="Detailed requirements ambassadors must complete..."
+                    rows={3}
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    What does the ambassador need to do?
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Proof Requirements *
+                  </label>
+                  <textarea
+                    value={formData.proofRequirements}
+                    onChange={(e) => setFormData({...formData, proofRequirements: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                    placeholder="How should they submit proof? (e.g., Link to Farcaster cast, X post, etc.)"
+                    rows={2}
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    What type of proof link should they submit?
+                  </p>
+                </div>
+              </>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>

@@ -1187,12 +1187,27 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
   const [proofDescription, setProofDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment'].includes(bounty.bountyType);
+
+  const handleOpenCast = () => {
+    if (bounty.targetCastUrl) {
+      if (isInFarcaster) {
+        sdk.actions.openUrl(bounty.targetCastUrl);
+      } else {
+        window.open(bounty.targetCastUrl, '_blank');
+      }
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
 
-    if (!proofUrl.trim()) {
+    // Validation for custom bounties
+    if (!isFarcasterBounty && !proofUrl.trim()) {
       setError('Please provide a link to your proof.');
       return;
     }
@@ -1219,15 +1234,24 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
         },
         body: JSON.stringify({
           bountyId: bounty.id,
-          proofUrl: proofUrl.trim(),
-          proofDescription: proofDescription.trim(),
+          proofUrl: isFarcasterBounty ? undefined : proofUrl.trim(),
+          proofDescription: isFarcasterBounty ? undefined : proofDescription.trim(),
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        onSuccess();
+        if (data.autoVerified && data.payout) {
+          // Show success message for auto-verified bounties
+          setSuccessMessage(data.message);
+          // Wait a moment for user to see the message, then close
+          setTimeout(() => {
+            onSuccess();
+          }, 2000);
+        } else {
+          onSuccess();
+        }
       } else {
         setError(data.error || 'Failed to submit bounty proof.');
       }
@@ -1285,64 +1309,123 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
             </div>
           </div>
 
-          {/* Submission Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Proof Link <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="url"
-                value={proofUrl}
-                onChange={(e) => setProofUrl(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                placeholder="https://farcaster.xyz/..."
-                disabled={submitting}
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Link to your post on Farcaster (farcaster.xyz), X, TikTok, or Instagram
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description <span className="text-gray-400">(Optional)</span>
-              </label>
-              <textarea
-                value={proofDescription}
-                onChange={(e) => setProofDescription(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                placeholder="Add any additional context about your submission..."
-                rows={3}
-                disabled={submitting}
-              />
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                <p className="text-sm text-red-800">{error}</p>
-              </div>
-            )}
-
-            <div className="flex space-x-3 pt-4">
+          {/* Farcaster Engagement Bounty UI */}
+          {isFarcasterBounty && (
+            <div className="space-y-4">
+              {/* View Cast Button */}
               <button
                 type="button"
-                onClick={onClose}
-                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-3 rounded-md font-medium disabled:opacity-50"
-                disabled={submitting}
+                onClick={handleOpenCast}
+                className="w-full bg-[#8a63d2] hover:bg-[#7851c1] text-white px-4 py-3 rounded-md font-medium flex items-center justify-center gap-2"
               >
-                Cancel
+                <span>🔗</span>
+                <span>View Cast on Warpcast</span>
               </button>
-              <button
-                type="submit"
-                className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-3 rounded-md font-medium disabled:opacity-50"
-                disabled={submitting}
-              >
-                {submitting ? 'Submitting...' : '📤 Submit Proof'}
-              </button>
+
+              {/* Instructions */}
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                <p className="text-sm text-blue-900 font-medium mb-2">
+                  {bounty.bountyType === 'farcaster_like' && '❤️ Like the cast, then click submit below for instant verification!'}
+                  {bounty.bountyType === 'farcaster_recast' && '🔄 Recast the post, then click submit below for instant verification!'}
+                  {bounty.bountyType === 'farcaster_comment' && '💬 Comment on the cast, then click submit below for instant verification!'}
+                </p>
+                <p className="text-xs text-blue-700">
+                  ⚡ Auto-verified via Neynar API - tokens ready to claim immediately!
+                </p>
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                  <p className="text-sm text-green-800 font-medium">{successMessage}</p>
+                </div>
+              )}
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-3 rounded-md font-medium disabled:opacity-50"
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-3 rounded-md font-medium disabled:opacity-50"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Verifying...' : '✅ Submit & Verify'}
+                </button>
+              </div>
             </div>
-          </form>
+          )}
+
+          {/* Custom Bounty Submission Form */}
+          {!isFarcasterBounty && (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Proof Link <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="url"
+                  value={proofUrl}
+                  onChange={(e) => setProofUrl(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                  placeholder="https://farcaster.xyz/..."
+                  disabled={submitting}
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Link to your post on Farcaster (farcaster.xyz), X, TikTok, or Instagram
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description <span className="text-gray-400">(Optional)</span>
+                </label>
+                <textarea
+                  value={proofDescription}
+                  onChange={(e) => setProofDescription(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                  placeholder="Add any additional context about your submission..."
+                  rows={3}
+                  disabled={submitting}
+                />
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-3 rounded-md font-medium disabled:opacity-50"
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-3 rounded-md font-medium disabled:opacity-50"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Submitting...' : '📤 Submit Proof'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>

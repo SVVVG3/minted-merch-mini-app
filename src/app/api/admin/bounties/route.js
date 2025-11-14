@@ -82,17 +82,39 @@ export const POST = withAdminAuth(async (request) => {
       maxSubmissionsPerAmbassador,
       expiresAt,
       category,
-      imageUrl
+      imageUrl,
+      bountyType,
+      targetCastUrl,
+      targetCastHash,
+      targetCastAuthorFid
     } = await request.json();
 
     const adminFid = request.adminAuth?.fid;
+    const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment'].includes(bountyType);
 
     // Validation
-    if (!title || !description || !requirements || !proofRequirements) {
+    if (!title || !description) {
       return NextResponse.json({
         success: false,
-        error: 'Title, description, requirements, and proof requirements are required'
+        error: 'Title and description are required'
       }, { status: 400 });
+    }
+
+    // Different validation for Farcaster vs custom bounties
+    if (isFarcasterBounty) {
+      if (!targetCastUrl || !targetCastHash || !targetCastAuthorFid) {
+        return NextResponse.json({
+          success: false,
+          error: 'Cast URL, hash, and author FID are required for Farcaster engagement bounties'
+        }, { status: 400 });
+      }
+    } else {
+      if (!requirements || !proofRequirements) {
+        return NextResponse.json({
+          success: false,
+          error: 'Requirements and proof requirements are required for custom bounties'
+        }, { status: 400 });
+      }
     }
 
     if (!rewardTokens || rewardTokens <= 0) {
@@ -116,15 +138,30 @@ export const POST = withAdminAuth(async (request) => {
       }, { status: 400 });
     }
 
-    console.log(`➕ Admin creating new bounty: "${title}"...`);
+    console.log(`➕ Admin creating new bounty: "${title}" (${bountyType || 'custom'})...`);
+
+    // Auto-generate requirements and proof requirements for Farcaster bounties
+    let finalRequirements = requirements;
+    let finalProofRequirements = proofRequirements;
+
+    if (isFarcasterBounty) {
+      const actionMap = {
+        'farcaster_like': 'like',
+        'farcaster_recast': 'recast',
+        'farcaster_comment': 'comment on'
+      };
+      const action = actionMap[bountyType];
+      finalRequirements = `${action.charAt(0).toUpperCase() + action.slice(1)} the specified Farcaster cast. Your engagement will be automatically verified.`;
+      finalProofRequirements = `Click submit after you ${action} the cast. Verification is instant via Neynar API.`;
+    }
 
     const { data: bounty, error } = await supabaseAdmin
       .from('bounties')
       .insert({
         title,
         description,
-        requirements,
-        proof_requirements: proofRequirements,
+        requirements: finalRequirements,
+        proof_requirements: finalProofRequirements,
         reward_tokens: rewardTokens,
         max_completions: maxCompletions,
         max_submissions_per_ambassador: maxSubmissionsPerAmbassador || null,
@@ -133,7 +170,11 @@ export const POST = withAdminAuth(async (request) => {
         expires_at: expiresAt || null,
         created_by_admin_fid: adminFid || null,
         category: category || null,
-        image_url: imageUrl || null
+        image_url: imageUrl || null,
+        bounty_type: bountyType || 'custom',
+        target_cast_url: targetCastUrl || null,
+        target_cast_hash: targetCastHash || null,
+        target_cast_author_fid: targetCastAuthorFid || null
       })
       .select()
       .single();

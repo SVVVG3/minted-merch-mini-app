@@ -7,6 +7,8 @@ import { verifyFarcasterUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkAmbassadorStatus, validateProofUrl, getAmbassadorSubmissionCount } from '@/lib/ambassadorHelpers';
 import { checkSubmissionRateLimit } from '@/lib/rateLimiter';
+import { verifyFarcasterBounty } from '@/lib/farcasterBountyVerification';
+import { sendPayoutReadyNotification } from '@/lib/ambassadorNotifications';
 
 export async function POST(request) {
   try {
@@ -39,13 +41,6 @@ export async function POST(request) {
       return NextResponse.json({
         success: false,
         error: 'Bounty ID is required'
-      }, { status: 400 });
-    }
-
-    if (!proofUrl) {
-      return NextResponse.json({
-        success: false,
-        error: 'Proof URL is required'
       }, { status: 400 });
     }
 
@@ -89,16 +84,7 @@ export async function POST(request) {
 
     console.log(`✅ Rate limit check passed: ${rateLimit.remaining} submissions remaining`);
 
-    // Validate proof URL
-    const urlValidation = await validateProofUrl(proofUrl);
-    if (!urlValidation.valid) {
-      return NextResponse.json({
-        success: false,
-        error: urlValidation.error
-      }, { status: 400 });
-    }
-
-    // Get bounty details
+    // Get bounty details first to determine if it's a Farcaster engagement bounty
     const { data: bounty, error: bountyError } = await supabaseAdmin
       .from('bounties')
       .select('*')
@@ -149,16 +135,68 @@ export async function POST(request) {
       }
     }
 
-    // Create submission
-    const { data: submission, error: submissionError } = await supabaseAdmin
+    // FARCASTER ENGAGEMENT BOUNTY AUTO-VERIFICATION
+    const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment'].includes(bounty.bounty_type);
+    let autoVerified = false;
+    let verificationDetails = null;
+
+    if (isFarcasterBounty) {
+      console.log(`🎯 Auto-verifying ${bounty.bounty_type} bounty for FID ${fid}`);
+
+      // Verify the Farcaster engagement
+      const verificationResult = await verifyFarcasterBounty(
+        bounty.bounty_type,
+        fid,
+        bounty.target_cast_hash,
+        bounty.target_cast_author_fid
+      );
+
+      if (!verificationResult.verified) {
+        console.log(`❌ Verification failed: ${verificationResult.error}`);
+        return NextResponse.json({
+          success: false,
+          error: verificationResult.error || 'Verification failed',
+          bountyType: bounty.bounty_type,
+          targetCastUrl: bounty.target_cast_url
+        }, { status: 400 });
+      }
+
+      autoVerified = true;
+      verificationDetails = verificationResult.details;
+      console.log(`✅ Auto-verification successful for ${bounty.bounty_type}`);
+
+    } else {
+      // For custom bounties, require proof URL
+      if (!proofUrl) {
+        return NextResponse.json({
+          success: false,
+          error: 'Proof URL is required for custom bounties'
+        }, { status: 400 });
+      }
+
+      // Validate proof URL for custom bounties
+      const urlValidation = await validateProofUrl(proofUrl);
+      if (!urlValidation.valid) {
+        return NextResponse.json({
+          success: false,
+          error: urlValidation.error
+        }, { status: 400 });
+      }
+    }
+
+    // Create submission with appropriate status
+    const { data: submission, error: submissionError} = await supabaseAdmin
       .from('bounty_submissions')
       .insert({
         bounty_id: bountyId,
         ambassador_id: ambassadorId,
-        proof_url: proofUrl,
-        proof_description: proofDescription || null,
-        submission_notes: submissionNotes || null,
-        status: 'pending'
+        ambassador_fid: fid,
+        proof_url: proofUrl || bounty.target_cast_url, // Use cast URL if no proof URL
+        proof_description: proofDescription || (autoVerified ? `Auto-verified ${bounty.bounty_type}` : null),
+        submission_notes: submissionNotes || (autoVerified ? JSON.stringify(verificationDetails) : null),
+        status: autoVerified ? 'approved' : 'pending',
+        reviewed_at: autoVerified ? new Date().toISOString() : null,
+        reviewed_by_admin_fid: autoVerified ? 0 : null // 0 = auto-verified by system
       })
       .select()
       .single();
@@ -171,7 +209,88 @@ export async function POST(request) {
       }, { status: 500 });
     }
 
-    console.log(`✅ Submission created successfully:`, submission.id);
+    console.log(`✅ Submission created: ${submission.id} (${autoVerified ? 'AUTO-APPROVED' : 'PENDING'})`);
+
+    // AUTO-CREATE PAYOUT FOR VERIFIED FARCASTER BOUNTIES
+    let payout = null;
+    if (autoVerified) {
+      console.log(`💰 Creating auto-payout for verified submission...`);
+
+      // Get ambassador wallet address
+      const { data: ambassador } = await supabaseAdmin
+        .from('ambassadors')
+        .select('wallet_address')
+        .eq('id', ambassadorId)
+        .single();
+
+      if (!ambassador?.wallet_address) {
+        console.error('❌ Ambassador has no wallet address');
+        return NextResponse.json({
+          success: false,
+          error: 'No wallet address found. Please set up your wallet in settings.'
+        }, { status: 400 });
+      }
+
+      // Generate EIP-712 signature for payout
+      const { signTypedData } = await import('ethers');
+      const { Wallet } = await import('ethers');
+
+      const adminWallet = new Wallet(process.env.ADMIN_WALLET_PRIVATE_KEY);
+
+      const domain = {
+        name: 'MintedMerch',
+        version: '1',
+        chainId: 8453, // Base mainnet
+        verifyingContract: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS
+      };
+
+      const types = {
+        ClaimPayout: [
+          { name: 'ambassador', type: 'address' },
+          { name: 'amount', type: 'uint256' },
+          { name: 'submissionId', type: 'bytes32' }
+        ]
+      };
+
+      const value = {
+        ambassador: ambassador.wallet_address,
+        amount: bounty.reward_tokens.toString(),
+        submissionId: submission.id
+      };
+
+      const signature = await adminWallet.signTypedData(domain, types, value);
+
+      // Create payout record
+      const { data: payoutData, error: payoutError } = await supabaseAdmin
+        .from('ambassador_payouts')
+        .insert({
+          submission_id: submission.id,
+          ambassador_id: ambassadorId,
+          amount_tokens: bounty.reward_tokens,
+          wallet_address: ambassador.wallet_address,
+          signature: signature,
+          status: 'claimable'
+        })
+        .select()
+        .single();
+
+      if (payoutError) {
+        console.error('❌ Error creating payout:', payoutError);
+      } else {
+        payout = payoutData;
+        console.log(`✅ Payout created: ${payout.id}`);
+
+        // Send notification
+        try {
+          await sendPayoutReadyNotification(fid, {
+            ...payout,
+            amountTokens: bounty.reward_tokens
+          });
+        } catch (notifError) {
+          console.error('⚠️ Failed to send payout notification:', notifError);
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -180,9 +299,16 @@ export async function POST(request) {
         bountyId: submission.bounty_id,
         status: submission.status,
         submittedAt: submission.submitted_at,
-        proofPlatform: urlValidation.platform
+        autoVerified,
+        payout: payout ? {
+          id: payout.id,
+          amountTokens: payout.amount_tokens,
+          status: payout.status
+        } : null
       },
-      message: 'Submission created successfully and is pending review'
+      message: autoVerified 
+        ? `✅ Verified! Your ${bounty.reward_tokens.toLocaleString()} $mintedmerch tokens are ready to claim!`
+        : 'Submission created successfully and is pending review'
     });
 
   } catch (error) {
