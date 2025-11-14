@@ -391,7 +391,7 @@ export async function parseCastUrl(castUrl) {
     // Fetch the cast directly to get all details using SDK v2 method
     console.log(`🔍 Fetching cast details from Neynar API...`);
     const client = getNeynarClient();
-    const castResponse = await client.lookUpCastByHashOrUrl({
+    const castResponse = await client.lookupCastByHashOrWarpcastUrl({
       identifier: hash,
       type: 'hash'  // Use string literal instead of enum
     });
