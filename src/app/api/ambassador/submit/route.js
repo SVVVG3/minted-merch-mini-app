@@ -269,6 +269,12 @@ export async function POST(request) {
 
       const signature = await adminWallet.signTypedData(domain, types, value);
 
+      // Set claim deadline (7 days from now)
+      const claimDeadline = new Date();
+      claimDeadline.setDate(claimDeadline.getDate() + 7);
+      
+      console.log(`⏰ Setting claim deadline: ${claimDeadline.toISOString()}`);
+
       // Create payout record
       const { data: payoutData, error: payoutError } = await supabaseAdmin
         .from('ambassador_payouts')
@@ -278,6 +284,7 @@ export async function POST(request) {
           amount_tokens: bounty.reward_tokens,
           wallet_address: walletAddress,
           claim_signature: signature,
+          claim_deadline: claimDeadline.toISOString(),
           status: 'claimable'
         })
         .select()
