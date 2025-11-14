@@ -9,6 +9,7 @@ import { checkAmbassadorStatus, validateProofUrl, getAmbassadorSubmissionCount }
 import { checkSubmissionRateLimit } from '@/lib/rateLimiter';
 import { verifyFarcasterBounty } from '@/lib/farcasterBountyVerification';
 import { sendPayoutReadyNotification } from '@/lib/ambassadorNotifications';
+import { generateClaimSignature, getDefaultClaimDeadline } from '@/lib/claimSignatureService';
 
 export async function POST(request) {
   try {
@@ -231,51 +232,47 @@ export async function POST(request) {
         // Don't fail - submission is already approved, payout can be created later
       } else {
         console.log(`💰 Using wallet address: ${walletAddress}`);
-        // Generate EIP-712 signature for payout
-      const { signTypedData } = await import('ethers');
-      const { Wallet } = await import('ethers');
+        
+        // Use default claim deadline (30 days - same as manual approvals)
+        const deadline = getDefaultClaimDeadline();
+        console.log(`⏰ Setting claim deadline: ${deadline.toISOString()} (30 days)`);
+        
+        // Convert token amount to wei (multiply by 10^18 for 18 decimals)
+        const amountInWei = (BigInt(bounty.reward_tokens) * BigInt(10 ** 18)).toString();
+        
+        // Generate Thirdweb SDK airdrop signature
+        const signatureData = await generateClaimSignature({
+          wallet: walletAddress,
+          amount: amountInWei,
+          payoutId: submission.id,
+          deadline
+        });
 
-      const adminWallet = new Wallet(process.env.ADMIN_WALLET_PRIVATE_KEY);
+        console.log(`✍️ Thirdweb SDK signature generated for auto-verified bounty:`, {
+          uid: signatureData.req.uid.slice(0, 10) + '...',
+          tokenAddress: signatureData.req.tokenAddress,
+          expirationTimestamp: signatureData.req.expirationTimestamp.toString(),
+          recipient: signatureData.req.contents[0].recipient,
+          amount: signatureData.req.contents[0].amount.toString(),
+          signatureLength: signatureData.signature.length
+        });
 
-      const domain = {
-        name: 'MintedMerch',
-        version: '1',
-        chainId: 8453, // Base mainnet
-        verifyingContract: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS
-      };
+        // Convert BigInt values to strings for JSON serialization
+        const serializableReq = {
+          ...signatureData.req,
+          expirationTimestamp: signatureData.req.expirationTimestamp.toString(),
+          contents: signatureData.req.contents.map(content => ({
+            ...content,
+            amount: content.amount.toString()
+          }))
+        };
 
-      const types = {
-        ClaimPayout: [
-          { name: 'ambassador', type: 'address' },
-          { name: 'amount', type: 'uint256' },
-          { name: 'submissionId', type: 'bytes32' }
-        ]
-      };
+        const claimDataJson = JSON.stringify({
+          req: serializableReq,
+          signature: signatureData.signature
+        });
 
-      // Convert UUID to bytes32 for EIP-712 signature
-      // UUID format: "56b7b312-2237-4688-afc6-6518933b1393"
-      // Remove hyphens and add 0x prefix, then pad to 32 bytes
-      const uuidWithoutHyphens = submission.id.replace(/-/g, '');
-      const submissionIdBytes32 = '0x' + uuidWithoutHyphens.padEnd(64, '0');
-      
-      console.log(`🔑 Generating signature for submission ${submission.id}`);
-      console.log(`   → bytes32: ${submissionIdBytes32}`);
-
-      const value = {
-        ambassador: walletAddress,
-        amount: bounty.reward_tokens.toString(),
-        submissionId: submissionIdBytes32
-      };
-
-      const signature = await adminWallet.signTypedData(domain, types, value);
-
-      // Set claim deadline (7 days from now)
-      const claimDeadline = new Date();
-      claimDeadline.setDate(claimDeadline.getDate() + 7);
-      
-      console.log(`⏰ Setting claim deadline: ${claimDeadline.toISOString()}`);
-
-      // Create payout record
+      // Create payout record with Thirdweb signature
       const { data: payoutData, error: payoutError } = await supabaseAdmin
         .from('ambassador_payouts')
         .insert({
@@ -283,8 +280,8 @@ export async function POST(request) {
           ambassador_id: ambassadorId,
           amount_tokens: bounty.reward_tokens,
           wallet_address: walletAddress,
-          claim_signature: signature,
-          claim_deadline: claimDeadline.toISOString(),
+          claim_signature: claimDataJson,
+          claim_deadline: deadline.toISOString(),
           status: 'claimable'
         })
         .select()
