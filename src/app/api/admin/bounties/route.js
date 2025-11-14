@@ -86,11 +86,12 @@ export const POST = withAdminAuth(async (request) => {
       bountyType,
       targetCastUrl,
       targetCastHash,
-      targetCastAuthorFid
+      targetCastAuthorFid,
+      targetAmbassadorFids
     } = await request.json();
 
     const adminFid = request.adminAuth?.fid;
-    const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment'].includes(bountyType);
+    const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(bountyType);
 
     // Validation
     if (!title || !description) {
@@ -145,14 +146,19 @@ export const POST = withAdminAuth(async (request) => {
     let finalProofRequirements = proofRequirements;
 
     if (isFarcasterBounty) {
-      const actionMap = {
-        'farcaster_like': 'like',
-        'farcaster_recast': 'recast',
-        'farcaster_comment': 'comment on'
-      };
-      const action = actionMap[bountyType];
-      finalRequirements = `${action.charAt(0).toUpperCase() + action.slice(1)} the specified Farcaster cast. Your engagement will be automatically verified.`;
-      finalProofRequirements = `Click submit after you ${action} the cast. Verification is instant via Neynar API.`;
+      if (bountyType === 'farcaster_engagement') {
+        finalRequirements = `Like, recast, AND comment on the specified Farcaster cast. All three actions are required and will be automatically verified.`;
+        finalProofRequirements = `Click submit after you complete all three actions (like + recast + comment). Verification is instant via Neynar API.`;
+      } else {
+        const actionMap = {
+          'farcaster_like': 'like',
+          'farcaster_recast': 'recast',
+          'farcaster_comment': 'comment on'
+        };
+        const action = actionMap[bountyType];
+        finalRequirements = `${action.charAt(0).toUpperCase() + action.slice(1)} the specified Farcaster cast. Your engagement will be automatically verified.`;
+        finalProofRequirements = `Click submit after you ${action} the cast. Verification is instant via Neynar API.`;
+      }
     }
 
     const { data: bounty, error } = await supabaseAdmin
@@ -174,7 +180,8 @@ export const POST = withAdminAuth(async (request) => {
         bounty_type: bountyType || 'custom',
         target_cast_url: targetCastUrl || null,
         target_cast_hash: targetCastHash || null,
-        target_cast_author_fid: targetCastAuthorFid || null
+        target_cast_author_fid: targetCastAuthorFid || null,
+        target_ambassador_fids: targetAmbassadorFids || null
       })
       .select()
       .single();

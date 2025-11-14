@@ -136,7 +136,7 @@ export async function POST(request) {
     }
 
     // FARCASTER ENGAGEMENT BOUNTY AUTO-VERIFICATION
-    const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment'].includes(bounty.bounty_type);
+    const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(bounty.bounty_type);
     let autoVerified = false;
     let verificationDetails = null;
 

@@ -233,8 +233,83 @@ export async function verifyCommentBounty(ambassadorFid, castHash, castAuthorFid
 }
 
 /**
+ * Verify if an ambassador completed ALL engagement actions (like + recast + comment)
+ * @param {number} ambassadorFid - Ambassador's Farcaster ID
+ * @param {string} castHash - Target cast hash (0x...)
+ * @param {number} castAuthorFid - Target cast author's FID
+ * @returns {Promise<{verified: boolean, error?: string, details?: object}>}
+ */
+export async function verifyAllEngagementBounty(ambassadorFid, castHash, castAuthorFid) {
+  try {
+    console.log(`🎯 Verifying ALL engagement (like + recast + comment) for FID ${ambassadorFid} on cast ${castHash}`);
+
+    if (!isNeynarAvailable()) {
+      return {
+        verified: false,
+        error: 'Neynar API not configured'
+      };
+    }
+
+    // Run all three verifications in parallel
+    const [likeResult, recastResult, commentResult] = await Promise.all([
+      verifyLikeBounty(ambassadorFid, castHash, castAuthorFid),
+      verifyRecastBounty(ambassadorFid, castHash, castAuthorFid),
+      verifyCommentBounty(ambassadorFid, castHash, castAuthorFid)
+    ]);
+
+    // Check which actions are missing
+    const missingActions = [];
+    if (!likeResult.verified) missingActions.push('like');
+    if (!recastResult.verified) missingActions.push('recast');
+    if (!commentResult.verified) missingActions.push('comment');
+
+    if (missingActions.length > 0) {
+      console.log(`❌ FID ${ambassadorFid} missing actions: ${missingActions.join(', ')}`);
+      return {
+        verified: false,
+        error: `Please complete all actions. Missing: ${missingActions.join(', ')} the cast.`,
+        details: {
+          ambassadorFid,
+          castHash,
+          castAuthorFid,
+          completed: {
+            like: likeResult.verified,
+            recast: recastResult.verified,
+            comment: commentResult.verified
+          },
+          missing: missingActions
+        }
+      };
+    }
+
+    console.log(`✅ FID ${ambassadorFid} completed ALL engagement actions on cast ${castHash}`);
+    return {
+      verified: true,
+      details: {
+        ambassadorFid,
+        castHash,
+        castAuthorFid,
+        completed: {
+          like: true,
+          recast: true,
+          comment: true
+        },
+        verifiedAt: new Date().toISOString()
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ Error verifying all engagement bounty:', error);
+    return {
+      verified: false,
+      error: `Verification failed: ${error.message}`
+    };
+  }
+}
+
+/**
  * Main verification router - calls appropriate function based on bounty type
- * @param {string} bountyType - Type of bounty (farcaster_like, farcaster_recast, farcaster_comment)
+ * @param {string} bountyType - Type of bounty (farcaster_like, farcaster_recast, farcaster_comment, farcaster_engagement)
  * @param {number} ambassadorFid - Ambassador's Farcaster ID
  * @param {string} castHash - Target cast hash
  * @param {number} castAuthorFid - Target cast author's FID
@@ -262,6 +337,9 @@ export async function verifyFarcasterBounty(bountyType, ambassadorFid, castHash,
     case 'farcaster_comment':
       return await verifyCommentBounty(ambassadorFid, castHash, castAuthorFid);
     
+    case 'farcaster_engagement':
+      return await verifyAllEngagementBounty(ambassadorFid, castHash, castAuthorFid);
+    
     default:
       return {
         verified: false,
@@ -275,7 +353,8 @@ export async function verifyFarcasterBounty(bountyType, ambassadorFid, castHash,
  * Supports formats:
  * - https://warpcast.com/username/0xhash
  * - https://warpcast.com/~/conversations/0xhash
- * @param {string} castUrl - Warpcast URL
+ * - https://farcaster.xyz/username/0xhash
+ * @param {string} castUrl - Farcaster cast URL (warpcast.com or farcaster.xyz)
  * @returns {Promise<{hash: string, authorFid: number, authorUsername: string, text: string} | null>}
  */
 export async function parseCastUrl(castUrl) {

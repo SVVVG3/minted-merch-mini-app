@@ -56,9 +56,23 @@ export async function GET(request) {
       }, { status: 500 });
     }
 
+    // Filter bounties based on targeting - only show bounties that:
+    // 1. Have no target (available to all), OR
+    // 2. Target this specific ambassador's FID
+    const filteredBounties = bounties.filter(bounty => {
+      if (!bounty.target_ambassador_fids || bounty.target_ambassador_fids.length === 0) {
+        // No targeting - available to all
+        return true;
+      }
+      // Check if this ambassador's FID is in the target list
+      return bounty.target_ambassador_fids.includes(fid);
+    });
+
+    console.log(`📊 Filtered bounties: ${bounties.length} total → ${filteredBounties.length} available to FID ${fid}`);
+
     // Enrich bounties with submission info
     const enrichedBounties = await Promise.all(
-      bounties.map(async (bounty) => {
+      filteredBounties.map(async (bounty) => {
         // Get ambassador's submission count for this bounty
         const ambassadorSubmissions = await getAmbassadorSubmissionCount(ambassadorId, bounty.id);
 
@@ -88,6 +102,8 @@ export async function GET(request) {
           expiresAt: bounty.expires_at,
           category: bounty.category,
           imageUrl: bounty.image_url,
+          bountyType: bounty.bounty_type,
+          targetCastUrl: bounty.target_cast_url,
           createdAt: bounty.created_at
         };
       })

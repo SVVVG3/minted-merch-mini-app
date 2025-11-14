@@ -4710,6 +4710,7 @@ export default function AdminDashboard() {
               setSelectedBountyForEdit(null);
             }}
             adminFetch={adminFetch}
+            ambassadorsData={ambassadorsData}
           />
         )}
 
@@ -5202,7 +5203,7 @@ export default function AdminDashboard() {
 }
 
 // CreateBountyModal Component
-function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
+function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadorsData }) {
   const [formData, setFormData] = useState({
     title: bounty?.title || '',
     description: bounty?.description || '',
@@ -5213,7 +5214,8 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
     maxSubmissionsPerAmbassador: bounty?.max_submissions_per_ambassador || '',
     expiresAt: bounty?.expires_at ? new Date(bounty.expires_at).toISOString().slice(0, 16) : '',
     bountyType: bounty?.bounty_type || 'custom',
-    targetCastUrl: bounty?.target_cast_url || ''
+    targetCastUrl: bounty?.target_cast_url || '',
+    targetAmbassadorFids: bounty?.target_ambassador_fids || [] // Array of FIDs for targeted bounties
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -5228,13 +5230,13 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
     if (!url.trim()) return;
 
     // Only fetch for Farcaster engagement bounties
-    if (!['farcaster_like', 'farcaster_recast', 'farcaster_comment'].includes(formData.bountyType)) {
+    if (!['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(formData.bountyType)) {
       return;
     }
 
-    // Basic URL validation
-    if (!url.includes('warpcast.com')) {
-      setError('Please enter a valid Warpcast URL');
+    // Basic URL validation - support both warpcast.com and farcaster.xyz
+    if (!url.includes('warpcast.com') && !url.includes('farcaster.xyz')) {
+      setError('Please enter a valid Farcaster cast URL (warpcast.com or farcaster.xyz)');
       return;
     }
 
@@ -5290,7 +5292,7 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
         return;
       }
       if (!castPreview) {
-        setError('Please enter a valid Warpcast URL and wait for it to load');
+        setError('Please enter a valid cast URL and wait for it to load');
         return;
       }
     } else {
@@ -5328,7 +5330,8 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
         ...formData,
         expiresAt: formData.expiresAt ? new Date(formData.expiresAt).toISOString() : null,
         targetCastHash: castPreview?.hash || null,
-        targetCastAuthorFid: castPreview?.authorFid || null
+        targetCastAuthorFid: castPreview?.authorFid || null,
+        targetAmbassadorFids: formData.targetAmbassadorFids.length > 0 ? formData.targetAmbassadorFids : null
       };
 
       const response = await adminFetch(endpoint, {
@@ -5422,10 +5425,22 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
                   />
                   <span className="text-sm">💬 Comment on a Farcaster Cast (Auto-Verified)</span>
                 </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="farcaster_engagement"
+                    checked={formData.bountyType === 'farcaster_engagement'}
+                    onChange={(e) => setFormData({...formData, bountyType: e.target.value})}
+                    className="mr-2"
+                  />
+                  <span className="text-sm">🔥 Like + Recast + Comment (All 3!) (Auto-Verified)</span>
+                </label>
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 {formData.bountyType === 'custom' 
                   ? 'Ambassadors submit proof links that require manual admin review.' 
+                  : formData.bountyType === 'farcaster_engagement'
+                  ? 'Maximum engagement! Ambassadors must like, recast, AND comment on the cast. All verified instantly via Neynar API.'
                   : 'Ambassadors complete the action on Farcaster, then click submit for instant verification via Neynar API.'}
               </p>
             </div>
@@ -5459,21 +5474,21 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
             </div>
 
             {/* Cast URL field for Farcaster bounties */}
-            {['farcaster_like', 'farcaster_recast', 'farcaster_comment'].includes(formData.bountyType) && (
+            {['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(formData.bountyType) && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Warpcast URL *
+                  Cast URL *
                 </label>
                 <input
                   type="url"
                   value={formData.targetCastUrl}
                   onChange={(e) => handleCastUrlChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                  placeholder="https://warpcast.com/username/0x..."
+                  placeholder="https://warpcast.com/username/0x... or https://farcaster.xyz/username/0x..."
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Paste the full Warpcast URL of the cast ambassadors should engage with
+                  Paste the full Farcaster cast URL (warpcast.com or farcaster.xyz)
                 </p>
                 {loadingCast && (
                   <div className="mt-2 text-sm text-gray-600">Loading cast...</div>
@@ -5594,6 +5609,36 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch }) {
               />
               <p className="text-xs text-gray-500 mt-1">
                 When should this bounty expire? Leave empty for no expiration.
+              </p>
+            </div>
+
+            {/* Target Specific Ambassadors */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Target Specific Ambassadors (Optional)
+              </label>
+              <select
+                multiple
+                value={formData.targetAmbassadorFids.map(String)}
+                onChange={(e) => {
+                  const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                  setFormData({...formData, targetAmbassadorFids: selected});
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] h-32"
+              >
+                {ambassadorsData.map(amb => (
+                  <option key={amb.fid} value={amb.fid}>
+                    @{amb.username} (FID: {amb.fid})
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Leave empty to make bounty available to ALL ambassadors. Hold Cmd/Ctrl to select multiple.
+                {formData.targetAmbassadorFids.length > 0 && (
+                  <span className="block mt-1 text-[#3eb489] font-medium">
+                    Selected: {formData.targetAmbassadorFids.length} ambassador{formData.targetAmbassadorFids.length !== 1 ? 's' : ''}
+                  </span>
+                )}
               </p>
             </div>
 

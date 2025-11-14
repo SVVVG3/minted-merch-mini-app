@@ -1189,7 +1189,7 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment'].includes(bounty.bountyType);
+  const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(bounty.bountyType);
 
   const handleOpenCast = () => {
     if (bounty.targetCastUrl) {
@@ -1319,7 +1319,7 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
                 className="w-full bg-[#8a63d2] hover:bg-[#7851c1] text-white px-4 py-3 rounded-md font-medium flex items-center justify-center gap-2"
               >
                 <span>🔗</span>
-                <span>View Cast on Warpcast</span>
+                <span>View Cast on Farcaster</span>
               </button>
 
               {/* Instructions */}
@@ -1328,6 +1328,7 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
                   {bounty.bountyType === 'farcaster_like' && '❤️ Like the cast, then click submit below for instant verification!'}
                   {bounty.bountyType === 'farcaster_recast' && '🔄 Recast the post, then click submit below for instant verification!'}
                   {bounty.bountyType === 'farcaster_comment' && '💬 Comment on the cast, then click submit below for instant verification!'}
+                  {bounty.bountyType === 'farcaster_engagement' && '🔥 Complete ALL THREE actions (Like + Recast + Comment), then click submit for instant verification!'}
                 </p>
                 <p className="text-xs text-blue-700">
                   ⚡ Auto-verified via Neynar API - tokens ready to claim immediately!
@@ -1383,7 +1384,7 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Link to your post on Farcaster (farcaster.xyz), X, TikTok, or Instagram
+                  Link to your post on Farcaster (farcaster.xyz), X, TikTok, Instagram, or Basescan (for token purchases)
                 </p>
               </div>
 

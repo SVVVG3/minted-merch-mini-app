@@ -70,7 +70,8 @@ export async function validateProofUrl(url) {
       farcaster: ['farcaster.xyz', 'www.farcaster.xyz', 'warpcast.com', 'www.warpcast.com'], // farcaster.xyz is preferred, warpcast.com for backward compatibility
       x: ['x.com', 'www.x.com', 'twitter.com', 'www.twitter.com'],
       tiktok: ['tiktok.com', 'www.tiktok.com', 'vm.tiktok.com'],
-      instagram: ['instagram.com', 'www.instagram.com', 'instagr.am']
+      instagram: ['instagram.com', 'www.instagram.com', 'instagr.am'],
+      basescan: ['basescan.org', 'www.basescan.org'] // Base blockchain explorer for token purchase proof
     };
 
     for (const [platform, domains] of Object.entries(platforms)) {
@@ -82,7 +83,7 @@ export async function validateProofUrl(url) {
     return {
       valid: false,
       platform: null,
-      error: 'URL must be from Farcaster, X, TikTok, or Instagram'
+      error: 'URL must be from Farcaster, X, TikTok, Instagram, or Basescan'
     };
 
   } catch (error) {

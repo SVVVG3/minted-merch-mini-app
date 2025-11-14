@@ -39,11 +39,21 @@ export async function sendNewBountyNotification(bountyData) {
   try {
     console.log(`🔔 Sending new bounty notification for: "${bountyData.title}"`);
 
-    // Get all active ambassadors
-    const ambassadorFids = await getAllActiveAmbassadors();
+    // Get ambassadors to notify - either all active or specific targets
+    let ambassadorFids;
+    
+    if (bountyData.target_ambassador_fids && Array.isArray(bountyData.target_ambassador_fids) && bountyData.target_ambassador_fids.length > 0) {
+      // Targeted bounty - only notify specific ambassadors
+      console.log(`🎯 Targeted bounty: notifying ${bountyData.target_ambassador_fids.length} specific ambassador(s)`);
+      ambassadorFids = bountyData.target_ambassador_fids;
+    } else {
+      // General bounty - notify all active ambassadors
+      console.log(`📢 General bounty: notifying all active ambassadors`);
+      ambassadorFids = await getAllActiveAmbassadors();
+    }
 
     if (ambassadorFids.length === 0) {
-      console.log('⚠️ No active ambassadors to notify');
+      console.log('⚠️ No ambassadors to notify');
       return {
         success: true,
         totalAmbassadors: 0,
