@@ -374,52 +374,46 @@ export async function parseCastUrl(castUrl) {
   try {
     console.log(`🔍 Parsing Farcaster cast URL: ${castUrl}`);
     
-    // Extract hash from URL - support both short hashes (8 chars) and full hashes (40 chars)
-    // Farcaster URLs can use either format: 0x10269f05 or 0x...40 chars
-    const hashMatch = castUrl.match(/0x[a-fA-F0-9]{8,}/);
-    if (!hashMatch) {
-      console.error('❌ Invalid cast URL: no hash found in URL');
+    // Validate URL format
+    if (!castUrl.includes('farcaster.xyz') && !castUrl.includes('warpcast.com')) {
+      console.error('❌ Invalid cast URL: must be from farcaster.xyz or warpcast.com');
       console.error(`   URL provided: ${castUrl}`);
-      console.error('   Expected format: https://farcaster.xyz/username/0xhash or https://warpcast.com/username/0xhash');
-      console.error('   Hash should be at least 8 hex characters (e.g., 0x10269f05)');
       return null;
     }
 
-    const hash = hashMatch[0];
-    console.log(`✅ Extracted cast hash: ${hash} (${hash.length - 2} hex chars)`);
-
-    // Fetch the cast directly to get all details using SDK v2 method
-    console.log(`🔍 Fetching cast details from Neynar API...`);
+    // Use the URL directly with Neynar API (handles short hashes internally)
+    console.log(`🔍 Fetching cast details from Neynar API using URL...`);
     const client = getNeynarClient();
     const castResponse = await client.lookupCastByHashOrUrl({
-      identifier: hash,
-      type: 'hash'  // Use string literal instead of enum
+      identifier: castUrl,  // Pass full URL, not just hash
+      type: 'url'  // Use 'url' type so Neynar resolves the short hash
     });
     
     if (!castResponse?.cast) {
       console.error('❌ Cast not found in Neynar');
-      console.error(`   Hash: ${hash}`);
+      console.error(`   URL: ${castUrl}`);
       console.error('   The cast may not exist, may be deleted, or Neynar may not have indexed it yet');
       return null;
     }
 
     const cast = castResponse.cast;
-    console.log(`✅ Cast found! Author: @${cast.author?.username}, FID: ${cast.author?.fid}`);
+    const hash = cast.hash;  // Get FULL hash from API response
+    console.log(`✅ Cast found! Hash: ${hash}, Author: @${cast.author?.username}, FID: ${cast.author?.fid}`);
     
     const authorFid = cast.author?.fid;
     const authorUsername = cast.author?.username;
     const text = cast.text || '';
 
-    if (!authorFid || !authorUsername) {
-      console.error('❌ Could not resolve author details from cast');
-      console.error(`   Cast response:`, cast);
+    if (!hash || !authorFid || !authorUsername) {
+      console.error('❌ Cast data incomplete: missing required information');
+      console.error(`   Hash: ${hash}, Author FID: ${authorFid}, Username: ${authorUsername}`);
       return null;
     }
 
-    console.log(`✅ Cast parsed: @${authorUsername} (FID: ${authorFid})`);
+    console.log(`✅ Cast parsed successfully: @${authorUsername} (FID: ${authorFid})`);
     
     return {
-      hash,
+      hash,  // Return FULL 40-char hash from API
       authorFid,
       authorUsername,
       text
