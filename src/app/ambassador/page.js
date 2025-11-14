@@ -527,8 +527,8 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
               <div className="sm:text-right space-y-3">
                 {/* Reward Card */}
                 <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl px-4 py-3 shadow-sm">
-                  <div className="text-xs text-green-700 font-semibold mb-1">Reward</div>
                   <div className="text-3xl font-bold text-green-600 flex items-center justify-end gap-1.5">
+                    <span className="text-xs text-green-700 font-semibold">Reward:</span>
                     {formatNumber(bounty.rewardTokens)} 
                     <img src="/splash.png" alt="Token" className="w-6 h-6 rounded-full" />
                   </div>
@@ -1339,13 +1339,11 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
 
           {/* Reward Banner */}
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl px-4 py-3 mb-5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-green-700">Reward</span>
-              <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
-                {formatNumber(bounty.rewardTokens)} 
-                <img src="/splash.png" alt="Token" className="w-5 h-5 rounded-full" />
-                <span className="text-sm font-medium">$mintedmerch</span>
-              </div>
+            <div className="text-2xl font-bold text-green-600 flex items-center gap-2">
+              <span className="text-sm font-semibold text-green-700">Reward:</span>
+              {formatNumber(bounty.rewardTokens)} 
+              <img src="/splash.png" alt="Token" className="w-5 h-5 rounded-full" />
+              <span className="text-sm font-medium">$mintedmerch</span>
             </div>
           </div>
 
@@ -1389,9 +1387,6 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
                       <span>Complete ALL THREE actions (Like + Recast + Comment), then submit!</span>
                     </>
                   )}
-                </p>
-                <p className="text-xs text-blue-600 mt-2 font-medium">
-                  ⚡ Auto-verified via Neynar API - tokens ready to claim immediately!
                 </p>
               </div>
 
