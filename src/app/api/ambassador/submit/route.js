@@ -305,6 +305,32 @@ export async function POST(request) {
         }
       } // end of wallet address check
 
+      // UPDATE AMBASSADOR STATS for auto-approved submissions
+      const { data: currentAmbassador } = await supabaseAdmin
+        .from('ambassadors')
+        .select('total_earned_tokens, total_bounties_completed')
+        .eq('id', ambassadorId)
+        .single();
+
+      const newTotalEarned = (currentAmbassador?.total_earned_tokens || 0) + bounty.reward_tokens;
+      const newTotalCompleted = (currentAmbassador?.total_bounties_completed || 0) + 1;
+
+      const { error: ambassadorUpdateError } = await supabaseAdmin
+        .from('ambassadors')
+        .update({
+          total_earned_tokens: newTotalEarned,
+          total_bounties_completed: newTotalCompleted,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', ambassadorId);
+
+      if (ambassadorUpdateError) {
+        console.error('❌ Error updating ambassador stats:', ambassadorUpdateError);
+        // Don't fail the whole request - submission and payout are already created
+      } else {
+        console.log(`📊 Ambassador stats updated: earned ${currentAmbassador?.total_earned_tokens || 0} → ${newTotalEarned}, completed ${currentAmbassador?.total_bounties_completed || 0} → ${newTotalCompleted}`);
+      }
+
       // INCREMENT BOUNTY COMPLETION COUNTER for auto-approved submissions
       const { error: updateError } = await supabaseAdmin
         .from('bounties')
