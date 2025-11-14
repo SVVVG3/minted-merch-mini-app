@@ -252,10 +252,19 @@ export async function POST(request) {
         ]
       };
 
+      // Convert UUID to bytes32 for EIP-712 signature
+      // UUID format: "56b7b312-2237-4688-afc6-6518933b1393"
+      // Remove hyphens and add 0x prefix, then pad to 32 bytes
+      const uuidWithoutHyphens = submission.id.replace(/-/g, '');
+      const submissionIdBytes32 = '0x' + uuidWithoutHyphens.padEnd(64, '0');
+      
+      console.log(`🔑 Generating signature for submission ${submission.id}`);
+      console.log(`   → bytes32: ${submissionIdBytes32}`);
+
       const value = {
         ambassador: walletAddress,
         amount: bounty.reward_tokens.toString(),
-        submissionId: submission.id
+        submissionId: submissionIdBytes32
       };
 
       const signature = await adminWallet.signTypedData(domain, types, value);
