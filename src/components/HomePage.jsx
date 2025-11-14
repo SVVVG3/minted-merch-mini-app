@@ -603,7 +603,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
               ) : (
                 <div className="space-y-0.5">
                   <div>
-                    Spin the wheel daily to qualify for random raffles!
+                    Shop using 1200+ coins across 20+ chains!
                   </div>
                   <div>
                     Hold 50M+{' '}
