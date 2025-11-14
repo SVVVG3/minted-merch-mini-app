@@ -12,9 +12,9 @@ let neynarClient = null;
  */
 function getNeynarClient() {
   if (!neynarClient) {
-    const apiKey = process.env.NEXT_PUBLIC_NEYNAR_API_KEY;
+    const apiKey = process.env.NEYNAR_API_KEY;
     if (!apiKey) {
-      throw new Error('NEXT_PUBLIC_NEYNAR_API_KEY is not configured');
+      throw new Error('NEYNAR_API_KEY is not configured');
     }
     neynarClient = new NeynarAPIClient(apiKey);
   }
@@ -26,7 +26,7 @@ function getNeynarClient() {
  * @returns {boolean}
  */
 function isNeynarAvailable() {
-  return !!(process.env.NEXT_PUBLIC_NEYNAR_API_KEY);
+  return !!(process.env.NEYNAR_API_KEY);
 }
 
 /**
