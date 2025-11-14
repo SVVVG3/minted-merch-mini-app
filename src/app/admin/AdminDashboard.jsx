@@ -5234,9 +5234,9 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
       return;
     }
 
-    // Basic URL validation - support both warpcast.com and farcaster.xyz
-    if (!url.includes('warpcast.com') && !url.includes('farcaster.xyz')) {
-      setError('Please enter a valid Farcaster cast URL (warpcast.com or farcaster.xyz)');
+    // Basic URL validation - support both farcaster.xyz and warpcast.com (legacy)
+    if (!url.includes('farcaster.xyz') && !url.includes('warpcast.com')) {
+      setError('Please enter a valid Farcaster cast URL');
       return;
     }
 
@@ -5277,13 +5277,26 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
       setError('Title is required');
       return;
     }
-    if (!formData.description.trim()) {
+
+    // Farcaster engagement bounties have different requirements
+    const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(formData.bountyType);
+    
+    // Auto-populate description for Farcaster bounties if empty
+    if (isFarcasterBounty && !formData.description.trim()) {
+      const autoDescriptions = {
+        'farcaster_like': 'Like the Farcaster cast',
+        'farcaster_recast': 'Recast the Farcaster post',
+        'farcaster_comment': 'Comment on the Farcaster cast',
+        'farcaster_engagement': 'Like, Recast, and Comment on the Farcaster cast'
+      };
+      formData.description = autoDescriptions[formData.bountyType];
+    }
+    
+    // Description is only required for custom bounties
+    if (!isFarcasterBounty && !formData.description.trim()) {
       setError('Description is required');
       return;
     }
-
-    // Farcaster engagement bounties have different requirements
-    const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment'].includes(formData.bountyType);
 
     if (isFarcasterBounty) {
       // For Farcaster bounties, cast URL is required
@@ -5461,15 +5474,17 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description *
+                Description {!['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(formData.bountyType) && '*'}
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                placeholder="General overview of the bounty..."
+                placeholder={['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(formData.bountyType) 
+                  ? "Auto-generated based on bounty type (or add custom description)..." 
+                  : "General overview of the bounty..."}
                 rows={3}
-                required
+                required={!['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(formData.bountyType)}
               />
             </div>
 
@@ -5484,11 +5499,11 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
                   value={formData.targetCastUrl}
                   onChange={(e) => handleCastUrlChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                  placeholder="https://warpcast.com/username/0x... or https://farcaster.xyz/username/0x..."
+                  placeholder="https://farcaster.xyz/username/0x..."
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Paste the full Farcaster cast URL (warpcast.com or farcaster.xyz)
+                  Paste the full Farcaster cast URL (from farcaster.xyz)
                 </p>
                 {loadingCast && (
                   <div className="mt-2 text-sm text-gray-600">Loading cast...</div>
@@ -5605,10 +5620,12 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
                 type="datetime-local"
                 value={formData.expiresAt}
                 onChange={(e) => setFormData({...formData, expiresAt: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                min={new Date().toISOString().slice(0, 16)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] cursor-pointer"
+                placeholder="Click to set date & time"
               />
               <p className="text-xs text-gray-500 mt-1">
-                When should this bounty expire? Leave empty for no expiration.
+                Click to select when this bounty expires. Leave empty for no expiration.
               </p>
             </div>
 
@@ -5628,7 +5645,7 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
               >
                 {ambassadorsData.map(amb => (
                   <option key={amb.fid} value={amb.fid}>
-                    @{amb.username} (FID: {amb.fid})
+                    @{amb.username}
                   </option>
                 ))}
               </select>

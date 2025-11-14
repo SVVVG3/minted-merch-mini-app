@@ -351,41 +351,49 @@ export async function verifyFarcasterBounty(bountyType, ambassadorFid, castHash,
 /**
  * Parse cast URL to extract hash, author FID, and cast details
  * Supports formats:
- * - https://warpcast.com/username/0xhash
- * - https://warpcast.com/~/conversations/0xhash
  * - https://farcaster.xyz/username/0xhash
- * @param {string} castUrl - Farcaster cast URL (warpcast.com or farcaster.xyz)
+ * - https://warpcast.com/username/0xhash (legacy, still supported)
+ * @param {string} castUrl - Farcaster cast URL
  * @returns {Promise<{hash: string, authorFid: number, authorUsername: string, text: string} | null>}
  */
 export async function parseCastUrl(castUrl) {
   try {
-    // Extract hash from URL
+    console.log(`🔍 Parsing Farcaster cast URL: ${castUrl}`);
+    
+    // Extract hash from URL - support both warpcast.com and farcaster.xyz
     const hashMatch = castUrl.match(/0x[a-fA-F0-9]{40}/);
     if (!hashMatch) {
-      console.error('❌ Invalid cast URL: no hash found');
+      console.error('❌ Invalid cast URL: no hash found in URL');
+      console.error(`   URL provided: ${castUrl}`);
+      console.error('   Expected format: https://farcaster.xyz/username/0xhash or https://warpcast.com/username/0xhash');
       return null;
     }
 
     const hash = hashMatch[0];
-    console.log(`📍 Extracted hash: ${hash}`);
+    console.log(`✅ Extracted cast hash: ${hash}`);
 
     // Fetch the cast directly to get all details
-    console.log(`🔍 Fetching cast details for hash: ${hash}`);
+    console.log(`🔍 Fetching cast details from Neynar API...`);
     const client = getNeynarClient();
     const castResponse = await client.lookUpCastByHashOrWarpcastUrl(hash, 'hash');
     
     if (!castResponse?.cast) {
-      console.error('❌ Cast not found');
+      console.error('❌ Cast not found in Neynar');
+      console.error(`   Hash: ${hash}`);
+      console.error('   The cast may not exist, may be deleted, or Neynar may not have indexed it yet');
       return null;
     }
 
     const cast = castResponse.cast;
+    console.log(`✅ Cast found! Author: @${cast.author?.username}, FID: ${cast.author?.fid}`);
+    
     const authorFid = cast.author?.fid;
     const authorUsername = cast.author?.username;
     const text = cast.text || '';
 
     if (!authorFid || !authorUsername) {
       console.error('❌ Could not resolve author details from cast');
+      console.error(`   Cast response:`, cast);
       return null;
     }
 

@@ -1,6 +1,6 @@
 // API endpoint to parse Farcaster cast URLs
 // POST /api/admin/parse-cast-url
-// Admin-only endpoint to extract cast hash and author info from Warpcast URLs
+// Admin-only endpoint to extract cast hash and author info from Farcaster URLs
 
 import { NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/adminAuth';
