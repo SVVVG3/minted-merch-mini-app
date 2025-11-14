@@ -5645,7 +5645,7 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
               >
                 {ambassadorsData.map(amb => (
                   <option key={amb.fid} value={amb.fid}>
-                    @{amb.username}
+                    @{amb.profiles?.username || `FID: ${amb.fid}`}
                   </option>
                 ))}
               </select>

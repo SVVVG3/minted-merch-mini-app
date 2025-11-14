@@ -351,7 +351,8 @@ export async function verifyFarcasterBounty(bountyType, ambassadorFid, castHash,
 /**
  * Parse cast URL to extract hash, author FID, and cast details
  * Supports formats:
- * - https://farcaster.xyz/username/0xhash
+ * - https://farcaster.xyz/username/0x10269f05 (short hash, 8 hex chars)
+ * - https://farcaster.xyz/username/0xabc123...40chars (full hash)
  * - https://warpcast.com/username/0xhash (legacy, still supported)
  * @param {string} castUrl - Farcaster cast URL
  * @returns {Promise<{hash: string, authorFid: number, authorUsername: string, text: string} | null>}
@@ -360,17 +361,19 @@ export async function parseCastUrl(castUrl) {
   try {
     console.log(`🔍 Parsing Farcaster cast URL: ${castUrl}`);
     
-    // Extract hash from URL - support both warpcast.com and farcaster.xyz
-    const hashMatch = castUrl.match(/0x[a-fA-F0-9]{40}/);
+    // Extract hash from URL - support both short hashes (8 chars) and full hashes (40 chars)
+    // Farcaster URLs can use either format: 0x10269f05 or 0x...40 chars
+    const hashMatch = castUrl.match(/0x[a-fA-F0-9]{8,}/);
     if (!hashMatch) {
       console.error('❌ Invalid cast URL: no hash found in URL');
       console.error(`   URL provided: ${castUrl}`);
       console.error('   Expected format: https://farcaster.xyz/username/0xhash or https://warpcast.com/username/0xhash');
+      console.error('   Hash should be at least 8 hex characters (e.g., 0x10269f05)');
       return null;
     }
 
     const hash = hashMatch[0];
-    console.log(`✅ Extracted cast hash: ${hash}`);
+    console.log(`✅ Extracted cast hash: ${hash} (${hash.length - 2} hex chars)`);
 
     // Fetch the cast directly to get all details
     console.log(`🔍 Fetching cast details from Neynar API...`);
