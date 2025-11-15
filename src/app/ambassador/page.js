@@ -466,15 +466,8 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
                     />
                   )}
                   <div className="flex-1 min-w-0">
-                    {/* Title with Bounty Type Badge */}
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-xl font-bold text-gray-900 truncate">{bounty.title}</h3>
-                      {isFarcasterBounty && (
-                        <span className="inline-flex items-center bg-[#8a63d2] text-white text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap">
-                          ⚡ Auto-Verify
-                        </span>
-                      )}
-                    </div>
+                    {/* Title */}
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">{bounty.title}</h3>
 
                     {/* Description */}
                     <p className="text-sm text-gray-600 mb-3">{bounty.description}</p>
