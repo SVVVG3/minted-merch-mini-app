@@ -76,45 +76,40 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
         <button
           onClick={(e) => {
             e.preventDefault();
-            console.log('🔗 Opening Farcaster with deep link...');
+            console.log('🔗 Opening Farcaster from PWA with proper deep link handling...');
             
-            // Try multiple approaches for PWA compatibility
-            const deepLinkUrl = `farcaster://sign-in?channelToken=${channelToken}`;
+            // Build deep link URLs
+            const schemeLink = `farcaster://sign-in?channelToken=${channelToken}`;
+            const webLink = `https://farcaster.xyz/~/sign-in-with-farcaster?channelToken=${channelToken}`;
             
-            // Method 1: Create temporary anchor and click it (works best in PWAs)
-            const link = document.createElement('a');
-            link.href = deepLinkUrl;
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            
+            // Method 1: Open scheme link in NEW WINDOW (_blank)
+            // This triggers system browser which handles intents properly in PWAs
             try {
-              link.click();
-              console.log('✅ Deep link clicked via anchor element');
-            } catch (error) {
-              console.error('❌ Anchor click failed:', error);
+              console.log('📱 Attempting to open Farcaster via _blank (system browser)...');
+              const win = window.open(schemeLink, '_blank', 'noopener,noreferrer');
               
-              // Method 2: Fallback to window.location
-              try {
-                window.location.href = deepLinkUrl;
-                console.log('✅ Deep link opened via window.location');
-              } catch (locError) {
-                console.error('❌ window.location failed:', locError);
-                
-                // Method 3: Last resort - window.open
-                try {
-                  window.open(deepLinkUrl, '_self');
-                  console.log('✅ Deep link opened via window.open');
-                } catch (openError) {
-                  console.error('❌ window.open failed:', openError);
-                }
+              if (win) {
+                console.log('✅ Deep link opened in new window');
+              } else {
+                console.log('⚠️ Popup blocked, trying fallback...');
               }
-            } finally {
-              // Clean up
+              
+              // Fallback: Try web link after short delay
               setTimeout(() => {
-                if (link.parentNode) {
-                  document.body.removeChild(link);
-                }
-              }, 100);
+                console.log('🌐 Opening Farcaster web link as fallback...');
+                window.open(webLink, '_blank', 'noopener,noreferrer');
+              }, 600);
+              
+            } catch (error) {
+              console.error('❌ window.open failed:', error);
+              
+              // Final fallback: Try direct navigation
+              try {
+                console.log('🔄 Trying direct navigation fallback...');
+                window.location.href = schemeLink;
+              } catch (navError) {
+                console.error('❌ All methods failed:', navError);
+              }
             }
           }}
           className="inline-flex items-center justify-center gap-2 w-full px-6 py-4 bg-[#6A3CFF] hover:bg-[#5A2FE6] active:bg-[#4A1FD6] text-white font-medium rounded-lg transition-colors mb-4"
