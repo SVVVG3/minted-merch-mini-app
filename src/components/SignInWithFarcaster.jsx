@@ -76,41 +76,34 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
         <button
           onClick={(e) => {
             e.preventDefault();
-            console.log('🔗 Opening Farcaster from PWA with proper deep link handling...');
+            console.log('🔗 Opening Farcaster from PWA - trying Android intent URL...');
             
-            // Build deep link URLs
-            const schemeLink = `farcaster://sign-in?channelToken=${channelToken}`;
-            const webLink = `https://farcaster.xyz/~/sign-in-with-farcaster?channelToken=${channelToken}`;
+            const encodedToken = encodeURIComponent(channelToken);
             
-            // Method 1: Open scheme link in NEW WINDOW (_blank)
-            // This triggers system browser which handles intents properly in PWAs
-            try {
-              console.log('📱 Attempting to open Farcaster via _blank (system browser)...');
-              const win = window.open(schemeLink, '_blank', 'noopener,noreferrer');
-              
-              if (win) {
-                console.log('✅ Deep link opened in new window');
-              } else {
-                console.log('⚠️ Popup blocked, trying fallback...');
-              }
-              
-              // Fallback: Try web link after short delay
-              setTimeout(() => {
-                console.log('🌐 Opening Farcaster web link as fallback...');
-                window.open(webLink, '_blank', 'noopener,noreferrer');
-              }, 600);
-              
-            } catch (error) {
-              console.error('❌ window.open failed:', error);
-              
-              // Final fallback: Try direct navigation
+            // Build URLs - prioritize Android intent format for PWAs
+            const intentUrl = `intent://sign-in?channelToken=${encodedToken}#Intent;scheme=farcaster;package=com.farcaster.warp;end`;
+            const schemeLink = `farcaster://sign-in?channelToken=${encodedToken}`;
+            const webLink = `https://farcaster.xyz/~/sign-in-with-farcaster?channelToken=${encodedToken}`;
+            
+            // Method 1: Try Android intent URL (most reliable for PWAs on Android)
+            console.log('🤖 Trying Android intent URL...');
+            window.location.href = intentUrl;
+            
+            // Method 2: Fallback to scheme link after brief delay
+            setTimeout(() => {
+              console.log('📱 Fallback: trying scheme link...');
               try {
-                console.log('🔄 Trying direct navigation fallback...');
-                window.location.href = schemeLink;
-              } catch (navError) {
-                console.error('❌ All methods failed:', navError);
+                window.open(schemeLink, '_blank');
+              } catch (e) {
+                console.log('Scheme link failed, trying web...');
               }
-            }
+            }, 500);
+            
+            // Method 3: Fallback to web link
+            setTimeout(() => {
+              console.log('🌐 Final fallback: opening web link...');
+              window.open(webLink, '_blank');
+            }, 1000);
           }}
           className="inline-flex items-center justify-center gap-2 w-full px-6 py-4 bg-[#6A3CFF] hover:bg-[#5A2FE6] active:bg-[#4A1FD6] text-white font-medium rounded-lg transition-colors mb-4"
         >
@@ -124,6 +117,22 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
         <p className="text-xs text-gray-500 mb-4">
           After signing in with Farcaster, return to this tab to continue
         </p>
+
+        {/* Manual Fallback: Copy Link Button */}
+        <button
+          onClick={() => {
+            const webLink = `https://farcaster.xyz/~/sign-in-with-farcaster?channelToken=${channelToken}`;
+            navigator.clipboard.writeText(webLink).then(() => {
+              alert('✅ Link copied! Open your browser and paste it to sign in.');
+            }).catch(() => {
+              // Fallback: show the link
+              prompt('Copy this link and open it in your browser:', webLink);
+            });
+          }}
+          className="w-full px-4 py-3 mb-3 text-sm text-[#6A3CFF] hover:text-[#5A2FE6] border-2 border-[#6A3CFF] hover:border-[#5A2FE6] rounded-lg hover:bg-purple-50 transition-colors font-medium"
+        >
+          📋 Copy Link (Manual Fallback)
+        </button>
 
         <button
           onClick={onCancel}
