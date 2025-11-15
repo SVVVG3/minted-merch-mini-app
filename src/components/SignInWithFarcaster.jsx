@@ -72,13 +72,13 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
 
         <a
           href={url}
-          target="_blank"
-          rel="noopener noreferrer"
           onClick={(e) => {
-            // Let the browser handle the deep link naturally
-            console.log('🔗 Opening Farcaster with official AuthKit URL via anchor...');
-            console.log('📍 AuthKit URL:', url);
-            // Don't preventDefault - let the anchor work normally
+            console.log('🔗 Tapping Open Farcaster button...');
+            console.log('📍 Full AuthKit URL:', url);
+            console.log('🔍 URL type:', url?.includes('farcaster://') ? 'Deep Link' : 'HTTPS');
+            console.log('📱 Display Mode:', window.matchMedia('(display-mode: standalone)').matches ? 'PWA' : 'Browser');
+            // Removed target="_blank" - let system handle the link naturally
+            // Don't preventDefault - let the anchor work
           }}
           className="inline-flex items-center justify-center gap-2 w-full px-6 py-4 bg-[#6A3CFF] hover:bg-[#5A2FE6] active:bg-[#4A1FD6] text-white font-medium rounded-lg transition-colors mb-4 no-underline"
         >
