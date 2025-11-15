@@ -7,10 +7,18 @@ import { AuthKitProvider as FarcasterAuthKitProvider } from '@farcaster/auth-kit
  * This allows users to sign in with Farcaster when not in the mini app
  */
 export function AuthKitProvider({ children }) {
-  // Get the current domain dynamically
-  const domain = typeof window !== 'undefined' ? window.location.host : 'app.mintedmerch.shop';
-  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
-  const fullUrl = `${protocol}//${domain}`;
+  // Use production domain always for consistency (especially important for PWAs)
+  // PWAs running from dGEN1 or other stores need a stable domain/siweUri
+  const PRODUCTION_DOMAIN = 'app.mintedmerch.shop';
+  const PRODUCTION_URL = `https://${PRODUCTION_DOMAIN}`;
+  
+  // Detect if we're in development
+  const isDevelopment = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  
+  // Use localhost for development, production domain for everything else (including PWAs)
+  const domain = isDevelopment ? window.location.host : PRODUCTION_DOMAIN;
+  const fullUrl = isDevelopment ? `${window.location.protocol}//${window.location.host}` : PRODUCTION_URL;
 
   const config = {
     // Relay server for AuthKit (required)
@@ -19,10 +27,10 @@ export function AuthKitProvider({ children }) {
     // RPC URL for Optimism Mainnet (required for SIWE)
     rpcUrl: 'https://mainnet.optimism.io',
     
-    // Your app's domain (for SIWE) - use current domain
+    // Your app's domain (for SIWE) - use consistent production domain
     domain: domain,
     
-    // SIWE URI (the full URL of your app)
+    // SIWE URI (the full URL of your app) - use consistent production URL
     siweUri: fullUrl,
     
     // Optional: API endpoint to verify the signature
@@ -32,7 +40,14 @@ export function AuthKitProvider({ children }) {
     version: 'v1',
   };
 
-  console.log('AuthKit config:', config);
+  if (typeof window !== 'undefined') {
+    console.log('🔐 AuthKit config:', {
+      domain: config.domain,
+      siweUri: config.siweUri,
+      isPWA: window.matchMedia('(display-mode: standalone)').matches,
+      actualHost: window.location.host
+    });
+  }
 
   return (
     <FarcasterAuthKitProvider config={config}>

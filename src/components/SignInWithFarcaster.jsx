@@ -19,19 +19,16 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
                   window.navigator.standalone === true;
 
     // If on mobile and NOT in PWA mode, automatically open the Farcaster deep link
-    if (mobile && !deepLinkOpened && !isPWA) {
-      console.log('📱 Mobile detected (browser mode), opening Farcaster app with deep link...');
+    if (mobile && !deepLinkOpened && !isPWA && url) {
+      console.log('📱 Mobile detected (browser mode), opening Farcaster app with official URL...');
+      console.log('📍 Using AuthKit URL:', url);
       
-      // Create Farcaster deep link with channel token
-      const deepLinkUrl = `farcaster://sign-in?channelToken=${channelToken}`;
-      const farcasterWebLink = `https://farcaster.xyz/~/sign-in-with-farcaster?channelToken=${channelToken}`;
-      
-      // Try to open the Farcaster app using custom URL scheme
+      // Try to open the Farcaster app using the official AuthKit URL
       const attemptDeepLink = () => {
         // Create a hidden iframe to trigger the deep link without navigating away
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
-        iframe.src = deepLinkUrl;
+        iframe.src = url; // Use official URL from AuthKit
         document.body.appendChild(iframe);
         
         // Clean up iframe after attempting
@@ -41,7 +38,7 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
         
         // If the app doesn't open (user doesn't have it or it failed), 
         // the manual button will be available for them to click
-        console.log('📱 Deep link attempted via iframe');
+        console.log('📱 Deep link attempted via iframe with official URL');
       };
 
       attemptDeepLink();
@@ -49,7 +46,7 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
     } else if (isPWA) {
       console.log('📱 Running in PWA mode - user must manually tap to open Farcaster');
     }
-  }, [channelToken, deepLinkOpened]);
+  }, [url, deepLinkOpened]);
 
   if (isMobile) {
     return (
@@ -76,33 +73,30 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
         <button
           onClick={(e) => {
             e.preventDefault();
-            console.log('🔗 Opening Farcaster from PWA - trying Android intent URL...');
+            console.log('🔗 Opening Farcaster with official AuthKit URL...');
+            console.log('📍 AuthKit URL:', url);
             
-            const encodedToken = encodeURIComponent(channelToken);
+            // Use the official URL from AuthKit (properly formatted by Farcaster)
+            // The url prop contains the correct Farcaster sign-in URL
             
-            // Build URLs - prioritize Android intent format for PWAs
-            const intentUrl = `intent://sign-in?channelToken=${encodedToken}#Intent;scheme=farcaster;package=com.farcaster.warp;end`;
-            const schemeLink = `farcaster://sign-in?channelToken=${encodedToken}`;
-            const webLink = `https://farcaster.xyz/~/sign-in-with-farcaster?channelToken=${encodedToken}`;
+            // Method 1: Try opening directly with window.location
+            console.log('🤖 Attempting to open with window.location.href...');
+            window.location.href = url;
             
-            // Method 1: Try Android intent URL (most reliable for PWAs on Android)
-            console.log('🤖 Trying Android intent URL...');
-            window.location.href = intentUrl;
-            
-            // Method 2: Fallback to scheme link after brief delay
+            // Method 2: Fallback to window.open after brief delay
             setTimeout(() => {
-              console.log('📱 Fallback: trying scheme link...');
+              console.log('📱 Fallback: trying window.open...');
               try {
-                window.open(schemeLink, '_blank');
+                window.open(url, '_blank');
               } catch (e) {
-                console.log('Scheme link failed, trying web...');
+                console.error('window.open failed:', e);
               }
             }, 500);
             
-            // Method 3: Fallback to web link
+            // Method 3: Fallback to web version
             setTimeout(() => {
               console.log('🌐 Final fallback: opening web link...');
-              window.open(webLink, '_blank');
+              window.open(url, '_blank');
             }, 1000);
           }}
           className="inline-flex items-center justify-center gap-2 w-full px-6 py-4 bg-[#6A3CFF] hover:bg-[#5A2FE6] active:bg-[#4A1FD6] text-white font-medium rounded-lg transition-colors mb-4"
@@ -121,12 +115,12 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
         {/* Manual Fallback: Copy Link Button */}
         <button
           onClick={() => {
-            const webLink = `https://farcaster.xyz/~/sign-in-with-farcaster?channelToken=${channelToken}`;
-            navigator.clipboard.writeText(webLink).then(() => {
+            // Use the official AuthKit URL for copying
+            navigator.clipboard.writeText(url).then(() => {
               alert('✅ Link copied! Open your browser and paste it to sign in.');
             }).catch(() => {
               // Fallback: show the link
-              prompt('Copy this link and open it in your browser:', webLink);
+              prompt('Copy this link and open it in your browser:', url);
             });
           }}
           className="w-full px-4 py-3 mb-3 text-sm text-[#6A3CFF] hover:text-[#5A2FE6] border-2 border-[#6A3CFF] hover:border-[#5A2FE6] rounded-lg hover:bg-purple-50 transition-colors font-medium"
