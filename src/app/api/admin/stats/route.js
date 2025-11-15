@@ -265,6 +265,18 @@ export const GET = withAdminAuth(async (request) => {
 
     console.log(`📊 Pending bounty submissions: ${pendingSubmissions || 0}`);
 
+    // Get completed bounty submissions count (approved)
+    const { count: completedBounties, error: completedError } = await supabaseAdmin
+      .from('bounty_submissions')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'approved');
+
+    if (completedError) {
+      console.error('Error fetching completed bounties:', completedError);
+    }
+
+    console.log(`📊 Completed bounties: ${completedBounties || 0}`);
+
     const stats = {
       totalUsers: totalUsers || 0,
       usersOnLeaderboard: usersOnLeaderboard || 0,
@@ -280,6 +292,7 @@ export const GET = withAdminAuth(async (request) => {
       walletsStaked: walletsStaked || 0,
       totalStaked: totalStaked,
       pendingSubmissions: pendingSubmissions || 0,
+      completedBounties: completedBounties || 0,
       lastRaffle: lastRaffle,
       topStreaks: topStreaks || [],
       topSpenders: topSpenders || []
