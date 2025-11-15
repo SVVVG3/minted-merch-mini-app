@@ -630,12 +630,12 @@ export function HomePage({ collection: initialCollection, products: initialProdu
           <div className="flex items-center pr-2">
             {isFarcasterLoading ? (
               // Placeholder while detecting environment to prevent logo flash
-              <div className="h-16 w-32 bg-gray-100 animate-pulse rounded" />
+              <div className="h-12 w-28 bg-gray-100 animate-pulse rounded" />
             ) : (
               <img 
                 src={isInFarcaster ? "/MintedMerchHeaderLogo.png" : "/MintedMerchSpinnerLogo.png"}
                 alt="Minted Merch" 
-                className="h-16"
+                className="h-12 max-w-[150px] object-contain"
               />
             )}
           </div>
