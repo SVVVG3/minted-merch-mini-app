@@ -74,9 +74,48 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
         </div>
 
         <button
-          onClick={() => {
-            // Use window.location.href to open deep link (works in PWAs)
-            window.location.href = `farcaster://sign-in?channelToken=${channelToken}`;
+          onClick={(e) => {
+            e.preventDefault();
+            console.log('🔗 Opening Farcaster with deep link...');
+            
+            // Try multiple approaches for PWA compatibility
+            const deepLinkUrl = `farcaster://sign-in?channelToken=${channelToken}`;
+            
+            // Method 1: Create temporary anchor and click it (works best in PWAs)
+            const link = document.createElement('a');
+            link.href = deepLinkUrl;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            
+            try {
+              link.click();
+              console.log('✅ Deep link clicked via anchor element');
+            } catch (error) {
+              console.error('❌ Anchor click failed:', error);
+              
+              // Method 2: Fallback to window.location
+              try {
+                window.location.href = deepLinkUrl;
+                console.log('✅ Deep link opened via window.location');
+              } catch (locError) {
+                console.error('❌ window.location failed:', locError);
+                
+                // Method 3: Last resort - window.open
+                try {
+                  window.open(deepLinkUrl, '_self');
+                  console.log('✅ Deep link opened via window.open');
+                } catch (openError) {
+                  console.error('❌ window.open failed:', openError);
+                }
+              }
+            } finally {
+              // Clean up
+              setTimeout(() => {
+                if (link.parentNode) {
+                  document.body.removeChild(link);
+                }
+              }, 100);
+            }
           }}
           className="inline-flex items-center justify-center gap-2 w-full px-6 py-4 bg-[#6A3CFF] hover:bg-[#5A2FE6] active:bg-[#4A1FD6] text-white font-medium rounded-lg transition-colors mb-4"
         >
