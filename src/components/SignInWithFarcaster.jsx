@@ -14,9 +14,13 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
     const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     setIsMobile(mobile);
 
-    // If on mobile, automatically open the Farcaster deep link
-    if (mobile && !deepLinkOpened) {
-      console.log('📱 Mobile detected, opening Farcaster app with deep link...');
+    // Check if we're running in PWA/standalone mode
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                  window.navigator.standalone === true;
+
+    // If on mobile and NOT in PWA mode, automatically open the Farcaster deep link
+    if (mobile && !deepLinkOpened && !isPWA) {
+      console.log('📱 Mobile detected (browser mode), opening Farcaster app with deep link...');
       
       // Create Farcaster deep link with channel token
       const deepLinkUrl = `farcaster://sign-in?channelToken=${channelToken}`;
@@ -42,6 +46,8 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
 
       attemptDeepLink();
       setDeepLinkOpened(true);
+    } else if (isPWA) {
+      console.log('📱 Running in PWA mode - user must manually tap to open Farcaster');
     }
   }, [channelToken, deepLinkOpened]);
 
@@ -68,9 +74,7 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
         </div>
 
         <a
-          href={`https://farcaster.xyz/~/sign-in-with-farcaster?channelToken=${channelToken}`}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={`farcaster://sign-in?channelToken=${channelToken}`}
           className="inline-flex items-center justify-center gap-2 w-full px-6 py-4 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-medium rounded-lg transition-colors mb-4"
         >
           {/* Official Farcaster Logo (2024 rebrand) */}
