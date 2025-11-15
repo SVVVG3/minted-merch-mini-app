@@ -70,28 +70,47 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
           </p>
         </div>
 
-        <a
-          href={url}
-          onClick={(e) => {
-            console.log('🔗 Tapping Open Farcaster button...');
-            console.log('📍 Full AuthKit URL:', url);
-            console.log('🔍 URL type:', url?.includes('farcaster://') ? 'Deep Link' : 'HTTPS');
-            console.log('📱 Display Mode:', window.matchMedia('(display-mode: standalone)').matches ? 'PWA' : 'Browser');
-            // Removed target="_blank" - let system handle the link naturally
-            // Don't preventDefault - let the anchor work
+        <button
+          onClick={() => {
+            const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+            
+            if (isPWA) {
+              // In PWA: try multiple methods to force system browser
+              try {
+                // Method 1: Try to open in system browser with _system (Cordova-style)
+                const opened = window.open(url, '_system');
+                if (!opened) {
+                  // Method 2: If that fails, try _blank with noopener
+                  window.open(url, '_blank', 'noopener,noreferrer');
+                }
+              } catch (err) {
+                // Method 3: Fallback to direct navigation
+                window.location.href = url;
+              }
+            } else {
+              // In regular browser: just navigate
+              window.location.href = url;
+            }
           }}
-          className="inline-flex items-center justify-center gap-2 w-full px-6 py-4 bg-[#6A3CFF] hover:bg-[#5A2FE6] active:bg-[#4A1FD6] text-white font-medium rounded-lg transition-colors mb-4 no-underline"
+          className="inline-flex items-center justify-center gap-2 w-full px-6 py-4 bg-[#6A3CFF] hover:bg-[#5A2FE6] active:bg-[#4A1FD6] text-white font-medium rounded-lg transition-colors mb-4"
         >
           {/* Official Farcaster Logo (2024 rebrand) */}
           <svg className="w-5 h-5" viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
           </svg>
           <span>Open Farcaster</span>
-        </a>
+        </button>
 
-        <p className="text-xs text-gray-500 mb-4">
-          After signing in with Farcaster, return to this tab to continue
-        </p>
+        <div className="text-xs text-gray-500 space-y-2 mb-4">
+          <p>
+            <strong>Tip:</strong> If a page opens asking you to install Farcaster, 
+            tap the <strong>"Go to Farcaster ↗"</strong> button in the top right corner 
+            to open the app.
+          </p>
+          <p>
+            After signing in with Farcaster, return here to continue.
+          </p>
+        </div>
 
         {/* Manual Fallback: Copy Link Button */}
         <button
