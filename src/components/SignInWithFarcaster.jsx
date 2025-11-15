@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSignIn, useProfile } from '@farcaster/auth-kit';
+import { QRCodeSVG } from 'qrcode.react';
 
 /**
  * Deep Link Handler component - handles both mobile deep links and desktop QR codes
@@ -70,13 +71,13 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
           </p>
         </div>
 
-        {/* QR Code iframe - same as desktop */}
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-4">
-          <iframe
-            src={url}
-            title="Farcaster Sign In"
-            className="w-full h-[500px] border-0"
-            allow="camera; publickey-credentials-get *"
+        {/* QR Code - direct render instead of iframe */}
+        <div className="bg-white rounded-lg border-2 border-gray-200 p-6 mb-4 flex justify-center">
+          <QRCodeSVG
+            value={url}
+            size={256}
+            level="M"
+            includeMargin={true}
           />
         </div>
 
@@ -102,13 +103,13 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
         </p>
       </div>
       
-      {/* QR Code iframe - larger size */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <iframe
-          src={url}
-          title="Farcaster Sign In"
-          className="w-full h-[500px] border-0"
-          allow="camera; publickey-credentials-get *"
+      {/* QR Code - direct render instead of iframe */}
+      <div className="bg-white rounded-lg border-2 border-gray-200 p-8 flex justify-center">
+        <QRCodeSVG
+          value={url}
+          size={320}
+          level="M"
+          includeMargin={true}
         />
       </div>
 
