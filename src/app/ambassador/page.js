@@ -477,7 +477,7 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
                     </div>
 
                     {/* Description */}
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{bounty.description}</p>
+                    <p className="text-sm text-gray-600 mb-3">{bounty.description}</p>
 
                     {/* Simplified Info for Farcaster bounties */}
                     {isFarcasterBounty ? (
