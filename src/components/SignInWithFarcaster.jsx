@@ -52,30 +52,30 @@ function DeepLinkHandler({ url, channelToken, onCancel }) {
   if (isMobile) {
     return (
       <>
-        <div className="text-center mb-4">
-          <div className="w-20 h-20 bg-black rounded-full flex items-center justify-center mx-auto mb-4 p-3">
+        <div className="text-center mb-3">
+          <div className="w-16 h-16 bg-black rounded-full flex items-center justify-center mx-auto mb-3 p-2">
             <img 
               src="/logo.png" 
               alt="Minted Merch" 
               className="w-full h-full object-contain"
             />
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">
+          <h3 className="text-lg font-bold text-gray-900 mb-2">
             Sign in with Farcaster
           </h3>
-          <p className="text-sm text-gray-700 mb-3 px-2">
+          <p className="text-xs text-gray-700 mb-2 px-2">
             Sign in with Farcaster to access your profile, daily check-ins, leaderboard, notifications, order history, and token gated discounts!
           </p>
           <p className="text-sm text-gray-600">
-            Scan this QR code with your phone's Farcaster app to sign in
+            Scan this QR code with your phone's Farcaster app
           </p>
         </div>
 
         {/* QR Code - direct render instead of iframe */}
-        <div className="bg-white rounded-lg border-2 border-gray-200 p-6 mb-4 flex justify-center">
+        <div className="bg-white rounded-lg border-2 border-gray-200 p-4 mb-4 flex justify-center">
           <QRCodeSVG
             value={url}
-            size={256}
+            size={220}
             level="M"
             includeMargin={true}
           />
@@ -296,9 +296,9 @@ export function SignInWithFarcaster({ onSignIn }) {
 
       {/* Modal with QR code or deep link */}
       {showModal && url && channelToken && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={handleCancel}>
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black bg-opacity-50 p-4 overflow-y-auto" onClick={handleCancel}>
           <div 
-            className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-8 relative"
+            className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 relative my-4"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}
