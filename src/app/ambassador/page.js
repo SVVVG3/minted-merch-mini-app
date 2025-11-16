@@ -530,7 +530,7 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
                 {/* Compact Info */}
                 <div className="text-xs text-gray-600 space-y-1 bg-gray-50 rounded-lg p-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Slots:</span>
+                    <span className="text-gray-500">Slots Remaining:</span>
                     <span className="font-semibold text-gray-700">{availableSlots}/{bounty.maxCompletions}</span>
                   </div>
                   {bounty.maxSubmissionsPerAmbassador && (
