@@ -1700,7 +1700,11 @@ export default function AdminDashboard() {
                 { label: 'Wallets Staked', value: dashboardStats.walletsStaked, icon: '🔒' },
                 { label: '$MINTEDMERCH Staked', value: formatTokenBalance(dashboardStats.totalStaked), icon: '📊' },
                 { label: 'Pending Bounty Submissions', value: dashboardStats.pendingSubmissions, icon: '📝' },
-                { label: 'Total Completed Bounties', value: dashboardStats.completedBounties, icon: '✅' }
+                { 
+                  label: 'Total Completed Bounties', 
+                  value: `${dashboardStats.completedBounties} / ${formatTokenBalance(dashboardStats.totalTokensPaid)}`, 
+                  icon: '✅' 
+                }
               ].map((stat) => (
                 <div key={stat.label} className="bg-white rounded-lg shadow p-6">
                   <div className="flex items-center">

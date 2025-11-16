@@ -265,7 +265,7 @@ export const GET = withAdminAuth(async (request) => {
 
     console.log(`📊 Pending bounty submissions: ${pendingSubmissions || 0}`);
 
-    // Get completed bounty submissions count (approved)
+    // Get completed bounty submissions count (approved) and total tokens paid
     const { count: completedBounties, error: completedError } = await supabaseAdmin
       .from('bounty_submissions')
       .select('id', { count: 'exact', head: true })
@@ -275,7 +275,20 @@ export const GET = withAdminAuth(async (request) => {
       console.error('Error fetching completed bounties:', completedError);
     }
 
-    console.log(`📊 Completed bounties: ${completedBounties || 0}`);
+    // Get total tokens paid out for completed bounties
+    const { data: payoutsData, error: payoutsError } = await supabaseAdmin
+      .from('ambassador_payouts')
+      .select('amount_tokens')
+      .in('status', ['claimable', 'processing', 'completed']); // All valid payouts
+
+    let totalTokensPaid = 0;
+    if (payoutsError) {
+      console.error('Error fetching bounty payouts:', payoutsError);
+    } else if (payoutsData) {
+      totalTokensPaid = payoutsData.reduce((sum, payout) => sum + (parseInt(payout.amount_tokens) || 0), 0);
+    }
+
+    console.log(`📊 Completed bounties: ${completedBounties || 0}, Total tokens paid: ${totalTokensPaid}`);
 
     const stats = {
       totalUsers: totalUsers || 0,
@@ -293,6 +306,7 @@ export const GET = withAdminAuth(async (request) => {
       totalStaked: totalStaked,
       pendingSubmissions: pendingSubmissions || 0,
       completedBounties: completedBounties || 0,
+      totalTokensPaid: totalTokensPaid || 0,
       lastRaffle: lastRaffle,
       topStreaks: topStreaks || [],
       topSpenders: topSpenders || []
