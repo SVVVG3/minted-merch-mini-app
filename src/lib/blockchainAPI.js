@@ -213,17 +213,18 @@ export async function checkNftHoldingsWithZapper(walletAddresses, contractAddres
  */
 export async function checkTokenBalanceDirectly(walletAddresses, contractAddresses, chainId) {
   // Multiple RPC endpoints for Base chain to distribute load and avoid rate limits
+  // NOTE: base.publicnode.com removed - returns incorrect 0 balances (2025-11-16)
   const rpcUrls = {
     1: ['https://eth.llamarpc.com', 'https://ethereum.publicnode.com'],
     8453: [
-      'https://base.publicnode.com',      // Most reliable public endpoint
-      'https://mainnet.base.org',         // Official Base endpoint
-      'https://base.llamarpc.com',        // LlamaRPC endpoint
-      'https://1rpc.io/base',             // 1RPC endpoint
-      'https://base-rpc.publicnode.com',  // Alternative public node
+      'https://mainnet.base.org',         // Official Base endpoint (most reliable)
+      'https://base.llamarpc.com',        // LlamaRPC endpoint (verified working)
+      'https://1rpc.io/base',             // 1RPC endpoint (verified working)
+      'https://base.meowrpc.com',         // MeowRPC endpoint (verified working)
       'https://base.blockpi.network/v1/rpc/public', // BlockPI endpoint
-      'https://base.meowrpc.com',         // MeowRPC endpoint
       'https://rpc.notadegen.com/base'    // NotADegen endpoint
+      // Removed: https://base.publicnode.com (returns wrong 0 balance)
+      // Removed: https://base-rpc.publicnode.com (same provider, likely same issue)
     ],
     137: ['https://polygon.llamarpc.com', 'https://polygon.publicnode.com'],
     42161: ['https://arb1.arbitrum.io/rpc', 'https://arbitrum.publicnode.com']
