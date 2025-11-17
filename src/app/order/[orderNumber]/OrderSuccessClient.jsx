@@ -7,7 +7,7 @@ import { shareOrder } from '@/lib/farcasterShare';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 export function OrderSuccessClient({ orderNumber }) {
-  const { isInFarcaster } = useFarcaster();
+  const { isInFarcaster, getSessionToken } = useFarcaster();
   const [orderData, setOrderData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,7 +32,11 @@ export function OrderSuccessClient({ orderNumber }) {
       
       console.log('Fetching order details for:', searchOrderNumber);
       
-      const response = await fetch(`/api/orders?orderNumber=${encodeURIComponent(searchOrderNumber)}`);
+      // 🔒 SECURITY: Include JWT token for authentication
+      const sessionToken = getSessionToken();
+      const headers = sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {};
+      
+      const response = await fetch(`/api/orders?orderNumber=${encodeURIComponent(searchOrderNumber)}`, { headers });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch order: ${response.status}`);
@@ -45,7 +49,7 @@ export function OrderSuccessClient({ orderNumber }) {
         console.log('Order data loaded:', data.order);
       } else {
         // Try without # prefix
-        const responseWithoutHash = await fetch(`/api/orders?orderNumber=${encodeURIComponent(orderNumber)}`);
+        const responseWithoutHash = await fetch(`/api/orders?orderNumber=${encodeURIComponent(orderNumber)}`, { headers });
         
         if (responseWithoutHash.ok) {
           const dataWithoutHash = await responseWithoutHash.json();

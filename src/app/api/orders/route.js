@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getOrder } from '@/lib/orders';
+import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 // Helper function to extract variant ID from GraphQL ID
 function extractVariantId(graphqlId) {
@@ -155,6 +156,25 @@ export async function GET(request) {
     }
 
     const order = orderResult.order;
+
+    // 🔒 SECURITY FIX: Verify authenticated user owns this order
+    // Orders contain PII (name, address, email) - must verify ownership
+    if (!order.fid) {
+      console.error(`⚠️ Order ${orderNumber} has no FID - cannot verify ownership`);
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Order data incomplete'
+        },
+        { status: 500 }
+      );
+    }
+
+    const authenticatedFid = await getAuthenticatedFid(request);
+    const authCheck = requireOwnFid(authenticatedFid, order.fid);
+    if (authCheck) return authCheck; // Returns 401 or 403 error if auth fails
+
+    console.log(`✅ User FID ${authenticatedFid} authorized to view order ${orderNumber}`);
 
     // Enrich line items with product titles if they exist
     let enrichedOrder = order;
