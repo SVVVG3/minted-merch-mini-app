@@ -7,15 +7,18 @@ import { shareOrder } from '@/lib/farcasterShare';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 export function OrderSuccessClient({ orderNumber }) {
-  const { isInFarcaster, getSessionToken } = useFarcaster();
+  const { isInFarcaster, getSessionToken, isReady } = useFarcaster();
   const [orderData, setOrderData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch order details on component mount
+  // Fetch order details on component mount - wait for Farcaster SDK to be ready
   useEffect(() => {
-    fetchOrderDetails();
-  }, [orderNumber]);
+    // Wait for Farcaster context to be ready before fetching
+    if (isReady) {
+      fetchOrderDetails();
+    }
+  }, [orderNumber, isReady]);
 
   const fetchOrderDetails = async () => {
     try {
@@ -34,7 +37,16 @@ export function OrderSuccessClient({ orderNumber }) {
       
       // 🔒 SECURITY: Include JWT token for authentication
       const sessionToken = getSessionToken();
-      const headers = sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {};
+      console.log('Session token available:', !!sessionToken);
+      
+      if (!sessionToken) {
+        console.warn('⚠️ No session token available - order lookup will fail');
+        setError('Authentication required. Please refresh the page and try again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      const headers = { 'Authorization': `Bearer ${sessionToken}` };
       
       const response = await fetch(`/api/orders?orderNumber=${encodeURIComponent(searchOrderNumber)}`, { headers });
       
@@ -48,7 +60,7 @@ export function OrderSuccessClient({ orderNumber }) {
         setOrderData(data.order);
         console.log('Order data loaded:', data.order);
       } else {
-        // Try without # prefix
+        // Try without # prefix (token already validated above)
         const responseWithoutHash = await fetch(`/api/orders?orderNumber=${encodeURIComponent(orderNumber)}`, { headers });
         
         if (responseWithoutHash.ok) {
