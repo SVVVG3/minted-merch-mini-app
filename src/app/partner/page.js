@@ -365,7 +365,7 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Order #{order.order_id}</h2>
+            <h2 className="text-xl font-bold">Order {order.order_id}</h2>
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700"
@@ -391,8 +391,6 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
                     {order.shipping_address.address2 && <div>{order.shipping_address.address2}</div>}
                     <div>{order.shipping_address.city}, {order.shipping_address.province} {order.shipping_address.zip}</div>
                     <div>{order.shipping_address.country}</div>
-                    {order.shipping_address.phone && <div>📞 {order.shipping_address.phone}</div>}
-                    {order.customer_email && <div>✉️ {order.customer_email}</div>}
                   </div>
                 </div>
               </div>
