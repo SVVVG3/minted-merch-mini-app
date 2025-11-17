@@ -5,7 +5,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { checkChatEligibility, generateChatInvitation } from '@/lib/chatEligibility';
 
 export function ChatEligibilityChecker() {
-  const { user, isInFarcaster } = useFarcaster();
+  const { user, isInFarcaster, getSessionToken, isReady } = useFarcaster();
   const [isChecking, setIsChecking] = useState(false);
   const [eligibilityResult, setEligibilityResult] = useState(null);
   const [invitationResult, setInvitationResult] = useState(null);
@@ -16,13 +16,31 @@ export function ChatEligibilityChecker() {
       return;
     }
 
+    if (!isReady) {
+      alert('Please wait for Farcaster to load');
+      return;
+    }
+
     setIsChecking(true);
     setEligibilityResult(null);
     setInvitationResult(null);
 
     try {
-      // Get user's wallet addresses (you'll need to implement this based on your user data)
-      const response = await fetch(`/api/user-wallet-data?fid=${user.fid}`);
+      // 🔒 SECURITY: Include JWT token for authentication
+      const sessionToken = getSessionToken();
+      if (!sessionToken) {
+        setEligibilityResult({
+          eligible: false,
+          message: 'Authentication required. Please refresh the page.'
+        });
+        setIsChecking(false);
+        return;
+      }
+
+      // Get user's wallet addresses
+      const response = await fetch(`/api/user-wallet-data?fid=${user.fid}`, {
+        headers: { 'Authorization': `Bearer ${sessionToken}` }
+      });
       const userData = await response.json();
       
       if (!userData.success || !userData.walletAddresses?.length) {

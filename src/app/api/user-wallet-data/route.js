@@ -4,6 +4,7 @@
 import { NextResponse } from 'next/server';
 import { fetchUserWalletData, fetchUserWalletDataFromDatabase } from '@/lib/walletUtils';
 import { setUserContext } from '@/lib/auth';
+import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 export async function GET(request) {
   try {
@@ -16,6 +17,14 @@ export async function GET(request) {
     if (!fid) {
       return NextResponse.json({ error: 'FID is required' }, { status: 400 });
     }
+
+    // 🔒 SECURITY FIX: Verify authenticated user can only access their own wallet data
+    // Wallet addresses are PII and must be protected
+    const authenticatedFid = await getAuthenticatedFid(request);
+    const authCheck = requireOwnFid(authenticatedFid, fid);
+    if (authCheck) return authCheck; // Returns 401 or 403 error if auth fails
+
+    console.log(`✅ User FID ${authenticatedFid} authorized to access their wallet data`);
 
     // 🔒 SECURITY: Set user context for RLS policies
     await setUserContext(parseInt(fid));

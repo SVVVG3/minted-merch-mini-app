@@ -5,21 +5,31 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { checkChatEligibility } from '@/lib/chatEligibility';
 
 export function ChatEligibilityBanner() {
-  const { user, isInFarcaster } = useFarcaster();
+  const { user, isInFarcaster, getSessionToken, isReady } = useFarcaster();
   const [isEligible, setIsEligible] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [hasChecked, setHasChecked] = useState(false);
 
   useEffect(() => {
     const checkEligibility = async () => {
-      if (!user?.fid || !isInFarcaster || hasChecked) return;
+      if (!user?.fid || !isInFarcaster || !isReady || hasChecked) return;
 
       console.log('🎫 Checking chat eligibility for banner, FID:', user.fid);
       setIsChecking(true);
       
       try {
+        // 🔒 SECURITY: Include JWT token for authentication
+        const sessionToken = getSessionToken();
+        if (!sessionToken) {
+          console.warn('⚠️ No session token available for chat eligibility check');
+          setIsChecking(false);
+          return;
+        }
+        
         // Get user's wallet addresses
-        const response = await fetch(`/api/user-wallet-data?fid=${user.fid}`);
+        const response = await fetch(`/api/user-wallet-data?fid=${user.fid}`, {
+          headers: { 'Authorization': `Bearer ${sessionToken}` }
+        });
         const userData = await response.json();
         
         console.log('🎫 User wallet data:', userData);
@@ -51,7 +61,7 @@ export function ChatEligibilityBanner() {
     // Small delay to avoid checking too early
     const timer = setTimeout(checkEligibility, 3000); // Increased delay
     return () => clearTimeout(timer);
-  }, [user?.fid, isInFarcaster, hasChecked]);
+  }, [user?.fid, isInFarcaster, isReady, hasChecked]);
 
   // Don't show banner if not in Farcaster, still checking, or not eligible
   if (!isInFarcaster || !user || isChecking || !isEligible) {
