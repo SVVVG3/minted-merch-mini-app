@@ -41,11 +41,18 @@ function getPacificComponents() {
   const parts = formatter.formatToParts(now);
   const getValue = (type) => parts.find(part => part.type === type)?.value;
   
+  let hour = parseInt(getValue('hour'));
+  // BUG FIX: Some formatters return 24 for midnight instead of 0
+  // This causes incorrect dayStart calculations between midnight-8AM
+  if (hour === 24) {
+    hour = 0;
+  }
+  
   return {
     year: parseInt(getValue('year')),
     month: parseInt(getValue('month')) - 1, // 0-indexed
     day: parseInt(getValue('day')),
-    hour: parseInt(getValue('hour')),
+    hour: hour,
     minute: parseInt(getValue('minute')),
     second: parseInt(getValue('second'))
   };
