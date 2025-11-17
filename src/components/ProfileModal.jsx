@@ -8,7 +8,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 
 export function ProfileModal({ isOpen, onClose }) {
   const router = useRouter();
-  const { user, isInFarcaster } = useFarcaster();
+  const { user, isInFarcaster, getSessionToken } = useFarcaster();
   const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod } = useWalletConnectContext();
   const [profileData, setProfileData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -186,7 +186,11 @@ export function ProfileModal({ isOpen, onClose }) {
     
     setOrdersLoading(true);
     try {
-      const response = await fetch(`/api/user-orders?fid=${user.fid}&includeArchived=true`);
+      // 🔒 SECURITY: Include JWT token for authentication
+      const sessionToken = getSessionToken();
+      const headers = sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {};
+      
+      const response = await fetch(`/api/user-orders?fid=${user.fid}&includeArchived=true`, { headers });
       if (response.ok) {
         const data = await response.json();
         if (data.orders && Array.isArray(data.orders)) {
@@ -260,11 +264,15 @@ export function ProfileModal({ isOpen, onClose }) {
       setProfileLoading(true);
       loadOrderHistory();
       
+      // 🔒 SECURITY: Include JWT token for authentication
+      const sessionToken = getSessionToken();
+      
       // Fetch profile data
       fetch('/api/user-profile', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(sessionToken && { 'Authorization': `Bearer ${sessionToken}` })
         },
         body: JSON.stringify({
           fid: user.fid

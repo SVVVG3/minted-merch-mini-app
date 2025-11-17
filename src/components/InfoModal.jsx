@@ -6,7 +6,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 
 export function InfoModal({ isOpen, onClose }) {
   const modalRef = useRef(null);
-  const { user } = useFarcaster();
+  const { user, getSessionToken } = useFarcaster();
   const [isMerchMogul, setIsMerchMogul] = useState(false);
   const [isCheckingBalance, setIsCheckingBalance] = useState(true);
 
@@ -20,9 +20,16 @@ export function InfoModal({ isOpen, onClose }) {
 
       try {
         setIsCheckingBalance(true);
+        
+        // 🔒 SECURITY: Include JWT token for authentication
+        const sessionToken = getSessionToken();
+        
         const profileResponse = await fetch('/api/user-profile', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(sessionToken && { 'Authorization': `Bearer ${sessionToken}` })
+          },
           body: JSON.stringify({ fid: user.fid })
         });
         

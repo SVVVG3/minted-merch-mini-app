@@ -5,7 +5,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/frame-sdk';
 
 export function ChatEligibilityPopup() {
-  const { user, isInFarcaster } = useFarcaster();
+  const { user, isInFarcaster, getSessionToken } = useFarcaster();
   const [showPopup, setShowPopup] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [eligibilityData, setEligibilityData] = useState(null);
@@ -45,10 +45,16 @@ export function ChatEligibilityPopup() {
         let cachedTokenBalance = 0;
         
         try {
+          // 🔒 SECURITY: Include JWT token for authentication
+          const sessionToken = getSessionToken();
+          
           // Get cached balance directly from database
           const profileResponse = await fetch('/api/user-profile', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(sessionToken && { 'Authorization': `Bearer ${sessionToken}` })
+            },
             body: JSON.stringify({ fid: user.fid })
           });
           const profileData = await profileResponse.json();
@@ -68,11 +74,11 @@ export function ChatEligibilityPopup() {
 
         if (hasMerchMogulsDiscount) {
           // Check if already a chat member to avoid duplicate invites
-          const token = localStorage.getItem('fc_session_token');
-          const headers = { 'Content-Type': 'application/json' };
-          if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-          }
+          const sessionToken = getSessionToken();
+          const headers = { 
+            'Content-Type': 'application/json',
+            ...(sessionToken && { 'Authorization': `Bearer ${sessionToken}` })
+          };
           
           const chatCheckResponse = await fetch('/api/check-chat-eligibility', {
             method: 'POST',

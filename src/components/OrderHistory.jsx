@@ -5,7 +5,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 export function OrderHistory({ isOpen, onClose }) {
-  const { getFid } = useFarcaster();
+  const { getFid, getSessionToken } = useFarcaster();
   const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState({ totalOrders: 0, totalSpent: 0, lastOrderDate: null });
   const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +26,11 @@ export function OrderHistory({ isOpen, onClose }) {
     try {
       console.log('📡 Loading order history for FID:', userFid);
       
-      const response = await fetch(`/api/user-orders?fid=${userFid}&limit=50&includeArchived=true`);
+      // 🔒 SECURITY: Include JWT token for authentication
+      const sessionToken = getSessionToken();
+      const headers = sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {};
+      
+      const response = await fetch(`/api/user-orders?fid=${userFid}&limit=50&includeArchived=true`, { headers });
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
