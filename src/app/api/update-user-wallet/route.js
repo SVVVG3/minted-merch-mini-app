@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { setUserContext } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { fetchUserWalletData } from '@/lib/walletUtils';
+import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 export async function POST(request) {
   try {
@@ -11,9 +12,14 @@ export async function POST(request) {
       return NextResponse.json({ error: 'FID is required' }, { status: 400 });
     }
 
-    console.log('🔄 Updating wallet data for FID:', fid);
+    // 🔒 SECURITY FIX: Verify JWT authentication before setting user context
+    const authenticatedFid = await getAuthenticatedFid(request);
+    const authCheck = requireOwnFid(authenticatedFid, fid);
+    if (authCheck) return authCheck; // Returns 401 or 403 error if auth fails
 
-    // 🔒 SECURITY: Set user context for RLS policies
+    console.log('🔄 Authenticated user updating wallet data for FID:', fid);
+
+    // Set user context for RLS policies (after JWT verification)
     await setUserContext(fid);
 
     // Fetch fresh wallet data from Neynar
@@ -84,7 +90,12 @@ export async function GET(request) {
       // Single user update
       console.log('🔄 GET request to update wallet data for FID:', targetFid);
       
-      // 🔒 SECURITY: Set user context for RLS policies
+      // 🔒 SECURITY FIX: Verify JWT authentication before accessing wallet data
+      const authenticatedFid = await getAuthenticatedFid(request);
+      const authCheck = requireOwnFid(authenticatedFid, targetFid);
+      if (authCheck) return authCheck; // Returns 401 or 403 error if auth fails
+      
+      // Set user context for RLS policies (after JWT verification)
       await setUserContext(targetFid);
       
       const walletData = await fetchUserWalletData(parseInt(targetFid));

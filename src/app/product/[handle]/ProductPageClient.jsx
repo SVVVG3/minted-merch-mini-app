@@ -22,7 +22,8 @@ export function ProductPageClient({ handle }) {
     getFid,
     getUsername,
     getDisplayName,
-    getPfpUrl
+    getPfpUrl,
+    getSessionToken
   } = useFarcaster();
 
   // Fetch product immediately on mount (without discounts)
@@ -69,11 +70,15 @@ export function ProductPageClient({ handle }) {
 
         console.log('Registering user profile with data:', userData);
         
+        // 🔒 SECURITY: Get session token for authentication
+        const sessionToken = getSessionToken();
+        
         // Register user profile
         const response = await fetch('/api/register-user', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...(sessionToken && { 'Authorization': `Bearer ${sessionToken}` })
           },
           body: JSON.stringify({ 
             fid: userFid,

@@ -157,7 +157,13 @@ export async function GET(request) {
       );
     }
 
-    console.log('🔍 Fetching orders for FID:', fid, 'limit:', limit, 'includeArchived:', includeArchived);
+    // 🔒 SECURITY FIX: Verify user can only access their own orders
+    const { getAuthenticatedFid, requireOwnFid } = await import('@/lib/userAuth');
+    const authenticatedFid = await getAuthenticatedFid(request);
+    const authCheck = requireOwnFid(authenticatedFid, fid);
+    if (authCheck) return authCheck; // Returns 401 or 403 error if auth fails
+
+    console.log('🔍 Fetching orders for authenticated user FID:', fid, 'limit:', limit, 'includeArchived:', includeArchived);
 
     // Get orders from database using admin client
     let query = supabaseAdmin

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { refreshUserTokenBalance } from '@/lib/tokenBalanceCache';
 import { fetchUserWalletData } from '@/lib/walletUtils';
+import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 export async function POST(request) {
   try {
@@ -13,7 +14,12 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    console.log(`🔄 Updating token balance for FID ${fid}`);
+    // 🔒 SECURITY FIX: Verify user can only update their own token balance
+    const authenticatedFid = await getAuthenticatedFid(request);
+    const authCheck = requireOwnFid(authenticatedFid, fid);
+    if (authCheck) return authCheck; // Returns 401 or 403 error if auth fails
+
+    console.log(`🔄 Authenticated user FID ${fid} updating their token balance`);
 
     // Get user's wallet addresses
     let userWalletAddresses = [];

@@ -6,6 +6,7 @@ import { fetchUserWalletData } from '@/lib/walletUtils';
 import { checkBankrClubMembership } from '@/lib/bankrAPI';
 import { createUserProfile } from '@/lib/supabase';
 import { fetchUserProfile } from '@/lib/neynar';
+import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 export async function POST(request) {
   try {
@@ -15,7 +16,12 @@ export async function POST(request) {
       return NextResponse.json({ error: 'FID is required' }, { status: 400 });
     }
 
-    console.log('Registering user:', { fid, username, displayName });
+    // 🔒 SECURITY FIX: Verify user can only register/update their own profile
+    const authenticatedFid = await getAuthenticatedFid(request);
+    const authCheck = requireOwnFid(authenticatedFid, fid);
+    if (authCheck) return authCheck; // Returns 401 or 403 error if auth fails
+
+    console.log('Authenticated user registering profile:', { fid, username, displayName });
 
     // Check if user has notifications enabled (check this FIRST)
     const hasNotifications = await hasNotificationTokenInNeynar(fid);

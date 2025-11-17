@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 export async function POST(request) {
   try {
@@ -11,6 +12,13 @@ export async function POST(request) {
         error: 'FID is required'
       }, { status: 400 });
     }
+
+    // 🔒 SECURITY FIX: Verify user can only access their own profile
+    const authenticatedFid = await getAuthenticatedFid(request);
+    const authCheck = requireOwnFid(authenticatedFid, fid);
+    if (authCheck) return authCheck; // Returns 401 or 403 error if auth fails
+
+    console.log(`✅ User FID ${authenticatedFid} authorized to access their profile`);
 
     // Get user profile with cached token balance and wallet addresses
     const { data: profile, error } = await supabaseAdmin
@@ -52,6 +60,11 @@ export async function GET(request) {
         error: 'FID is required'
       }, { status: 400 });
     }
+
+    // 🔒 SECURITY FIX: Verify user can only access their own profile
+    const authenticatedFid = await getAuthenticatedFid(request);
+    const authCheck = requireOwnFid(authenticatedFid, fid);
+    if (authCheck) return authCheck; // Returns 401 or 403 error if auth fails
 
     // Get user profile with notification status only (very lightweight)
     const { data: profile, error } = await supabaseAdmin

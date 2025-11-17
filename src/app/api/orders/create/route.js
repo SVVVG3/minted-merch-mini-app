@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createOrder } from '@/lib/orders';
+import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 export async function POST(request) {
   try {
@@ -23,7 +24,12 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // 🔒 SECURITY: Using supabaseAdmin client for order creation (admin access)
+    // 🔒 SECURITY FIX: Verify authenticated user can only create orders for themselves
+    const authenticatedFid = await getAuthenticatedFid(request);
+    const authCheck = requireOwnFid(authenticatedFid, orderData.fid);
+    if (authCheck) return authCheck; // Returns 401 or 403 error if auth fails
+
+    console.log(`✅ User FID ${authenticatedFid} authorized to create order for themselves`);
 
     // Create order in database
     const result = await createOrder(orderData);

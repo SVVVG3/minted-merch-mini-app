@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { updateOrderStatus } from '@/lib/orders';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function POST(request) {
+// 🔒 SECURITY FIX: Order status updates should be admin-only
+// This prevents unauthorized users from marking orders as shipped/delivered/cancelled
+export const POST = withAdminAuth(async (request) => {
   try {
     const { orderId, status, ...additionalData } = await request.json();
 
-    console.log(`Updating order ${orderId} status to ${status}`);
+    console.log(`Admin updating order ${orderId} status to ${status}`);
 
     // Validate required fields
     if (!orderId || !status) {
@@ -46,4 +49,4 @@ export async function POST(request) {
       error: 'Internal server error'
     }, { status: 500 });
   }
-} 
+}); 

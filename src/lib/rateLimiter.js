@@ -80,3 +80,68 @@ export async function checkRateLimit(key, maxAttempts, windowSeconds) {
     remaining: maxAttempts
   };
 }
+
+// In-memory rate limiter for IP-based limits (simple implementation)
+// For production: Use Redis or Cloudflare rate limiting
+const rateLimitStore = new Map();
+
+/**
+ * Simple IP-based rate limiter using in-memory storage
+ * @param {string} ip - IP address
+ * @param {string} endpoint - Endpoint identifier
+ * @param {number} maxRequests - Maximum requests allowed
+ * @param {number} windowMinutes - Time window in minutes
+ * @returns {{allowed: boolean, remaining: number, resetAt: Date}}
+ */
+export function checkIPRateLimit(ip, endpoint, maxRequests = 30, windowMinutes = 1) {
+  const key = `${ip}:${endpoint}`;
+  const now = Date.now();
+  const windowMs = windowMinutes * 60 * 1000;
+  
+  // Get or create rate limit entry
+  let entry = rateLimitStore.get(key);
+  
+  if (!entry || now > entry.resetAt) {
+    // Create new window
+    entry = {
+      count: 1,
+      resetAt: now + windowMs
+    };
+    rateLimitStore.set(key, entry);
+    
+    return {
+      allowed: true,
+      remaining: maxRequests - 1,
+      resetAt: new Date(entry.resetAt)
+    };
+  }
+  
+  // Increment count
+  entry.count++;
+  
+  const allowed = entry.count <= maxRequests;
+  const remaining = Math.max(0, maxRequests - entry.count);
+  
+  console.log(`🚦 IP Rate limit check for ${ip} on ${endpoint}:`, {
+    count: entry.count,
+    maxRequests,
+    remaining,
+    allowed
+  });
+  
+  return {
+    allowed,
+    remaining,
+    resetAt: new Date(entry.resetAt)
+  };
+}
+
+// Cleanup old entries periodically (run every hour)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateLimitStore.entries()) {
+    if (now > entry.resetAt) {
+      rateLimitStore.delete(key);
+    }
+  }
+}, 60 * 60 * 1000); // 1 hour

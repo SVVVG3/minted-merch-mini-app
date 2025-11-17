@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { checkIPRateLimit } from '@/lib/rateLimiter';
 
 async function shopifyAdminFetch(query, variables = {}) {
   const SHOPIFY_DOMAIN = process.env.SHOPIFY_SITE_DOMAIN;
@@ -516,6 +517,33 @@ async function calculateWithStorefrontAPI(cartItems, shippingAddress, email) {
 
 export async function POST(request) {
   try {
+    // 🔒 SECURITY FIX: Rate limiting to prevent Shopify API abuse
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 
+               request.headers.get('x-real-ip') || 
+               'unknown';
+    
+    const rateLimit = checkIPRateLimit(ip, 'shopify-checkout', 30, 1); // 30 requests per minute
+    
+    if (!rateLimit.allowed) {
+      console.warn(`🚫 Rate limit exceeded for IP ${ip} on /api/shopify/checkout`);
+      return NextResponse.json(
+        { 
+          error: 'Too many requests',
+          message: 'Please wait before making more checkout calculations',
+          retryAfter: Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000)
+        },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000).toString(),
+            'X-RateLimit-Limit': '30',
+            'X-RateLimit-Remaining': rateLimit.remaining.toString(),
+            'X-RateLimit-Reset': rateLimit.resetAt.toISOString()
+          }
+        }
+      );
+    }
+
     const { cartItems, shippingAddress, email } = await request.json();
 
     console.log('Checkout calculation request:', {

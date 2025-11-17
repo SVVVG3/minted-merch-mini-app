@@ -127,3 +127,60 @@ export function requireUserAuth(handler) {
   };
 }
 
+/**
+ * Higher-order function to wrap API routes with Farcaster authentication
+ * Similar to withAdminAuth but for regular users
+ * 
+ * @param {Function} handler - The API route handler function
+ * @returns {Function} Wrapped handler with authentication
+ * 
+ * @example
+ * export const POST = withFarcasterAuth(async (request) => {
+ *   const fid = request.userAuth.fid; // Authenticated FID available here
+ *   return NextResponse.json({ data: 'protected data' });
+ * });
+ */
+export function withFarcasterAuth(handler) {
+  return async function authenticatedHandler(request, context) {
+    try {
+      // Extract and verify FID from JWT token
+      const authenticatedFid = await getAuthenticatedFid(request);
+      
+      if (!authenticatedFid) {
+        console.warn('⚠️ API access attempt without valid authentication');
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'Authentication required',
+            message: 'You must be signed in to access this endpoint',
+            code: 'AUTH_REQUIRED'
+          },
+          { status: 401 }
+        );
+      }
+      
+      // Attach authenticated user data to request for handler to use
+      request.userAuth = { 
+        fid: authenticatedFid,
+        authenticated: true 
+      };
+      
+      console.log(`✅ Authenticated user FID ${authenticatedFid} accessing endpoint`);
+      
+      // Call the actual handler
+      return await handler(request, context);
+      
+    } catch (error) {
+      console.error('❌ Error in Farcaster auth middleware:', error);
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Authentication error',
+          message: 'An error occurred during authentication'
+        },
+        { status: 500 }
+      );
+    }
+  };
+}
+

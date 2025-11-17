@@ -25,7 +25,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 
 export function HomePage({ collection: initialCollection, products: initialProducts }) {
   const { itemCount, cartTotal } = useCart();
-  const { isInFarcaster, isReady, isLoading: isFarcasterLoading, getFid, getUsername, getDisplayName, getPfpUrl, user, context, hasNotifications, getNotificationDetails } = useFarcaster();
+  const { isInFarcaster, isReady, isLoading: isFarcasterLoading, getFid, getUsername, getDisplayName, getPfpUrl, user, context, hasNotifications, getNotificationDetails, getSessionToken } = useFarcaster();
   const { isDgen, isChecking: isDgenChecking } = useDgenWallet(); // Auto-connect dGEN1 wallet
   const { isConnected: isWalletConnected, connectionMethod } = useWalletConnectContext();
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -201,11 +201,15 @@ export function HomePage({ collection: initialCollection, products: initialProdu
 
         console.log('Registering user profile with data:', userData);
         
+        // 🔒 SECURITY: Get session token for authentication
+        const sessionToken = getSessionToken();
+        
         // Register user profile
         const response = await fetch('/api/register-user', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...(sessionToken && { 'Authorization': `Bearer ${sessionToken}` })
           },
           body: JSON.stringify({ 
             fid: userFid,
@@ -274,11 +278,15 @@ export function HomePage({ collection: initialCollection, products: initialProdu
         notificationCheckCount++;
         console.log(`🔔 Checking for newly enabled notifications (check #${notificationCheckCount})...`);
         
+        // 🔒 SECURITY: Get session token for authentication
+        const sessionToken = getSessionToken();
+        
         // Register user again to trigger notification check
         const response = await fetch('/api/register-user', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...(sessionToken && { 'Authorization': `Bearer ${sessionToken}` })
           },
           body: JSON.stringify({ 
             fid: userFid,
