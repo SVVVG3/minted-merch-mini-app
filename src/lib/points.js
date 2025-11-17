@@ -40,12 +40,23 @@ export async function getUserLeaderboardData(userFid) {
  */
 export async function initializeUserLeaderboard(userFid) {
   try {
-    // First, get the username from the profiles table
-    const { data: profile } = await supabaseAdmin
+    // 🔒 SECURITY FIX: First check if profile exists (required for foreign key constraint)
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('username')
       .eq('fid', userFid)
       .single();
+
+    // If profile doesn't exist, user needs to register first
+    if (profileError && profileError.code === 'PGRST116') {
+      console.warn(`⚠️ Cannot initialize leaderboard - profile not found for FID ${userFid}. User needs to register first.`);
+      return null;
+    }
+
+    if (profileError) {
+      console.error('Error checking profile for leaderboard init:', profileError);
+      return null;
+    }
 
     const username = profile?.username || null;
 
@@ -66,11 +77,16 @@ export async function initializeUserLeaderboard(userFid) {
       .single();
 
     if (error) {
-      console.error('Error initializing user leaderboard:', error);
+      // Log specific error codes for debugging
+      if (error.code === '23503') {
+        console.error(`❌ Foreign key constraint violation - profile FID ${userFid} does not exist in profiles table`);
+      } else {
+        console.error('Error initializing user leaderboard:', error);
+      }
       return null;
     }
 
-    console.log(`Initialized leaderboard for user ${userFid} with username: ${username}`);
+    console.log(`✅ Initialized leaderboard for user ${userFid} with username: ${username}`);
     return data;
   } catch (error) {
     console.error('Error in initializeUserLeaderboard:', error);
