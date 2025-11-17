@@ -8,7 +8,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 
 export function ProfileModal({ isOpen, onClose }) {
   const router = useRouter();
-  const { user, isInFarcaster, getSessionToken } = useFarcaster();
+  const { user, isInFarcaster, getSessionToken, isReady } = useFarcaster();
   const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod } = useWalletConnectContext();
   const [profileData, setProfileData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -188,7 +188,14 @@ export function ProfileModal({ isOpen, onClose }) {
     try {
       // 🔒 SECURITY: Include JWT token for authentication
       const sessionToken = getSessionToken();
-      const headers = sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {};
+      
+      if (!sessionToken) {
+        console.warn('⚠️ No session token available for order history load');
+        setOrdersLoading(false);
+        return;
+      }
+      
+      const headers = { 'Authorization': `Bearer ${sessionToken}` };
       
       const response = await fetch(`/api/user-orders?fid=${user.fid}&includeArchived=true`, { headers });
       if (response.ok) {
@@ -258,21 +265,28 @@ export function ProfileModal({ isOpen, onClose }) {
     checkAmbassadorStatus();
   }, [isOpen, user?.fid]);
 
-  // Load profile data when modal opens
+  // Load profile data when modal opens - wait for SDK to be ready
   useEffect(() => {
-    if (isOpen && user?.fid) {
+    if (isOpen && user?.fid && isReady) {
       setProfileLoading(true);
-      loadOrderHistory();
       
       // 🔒 SECURITY: Include JWT token for authentication
       const sessionToken = getSessionToken();
+      
+      if (!sessionToken) {
+        console.warn('⚠️ No session token available for profile load');
+        setProfileLoading(false);
+        return;
+      }
+      
+      loadOrderHistory();
       
       // Fetch profile data
       fetch('/api/user-profile', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(sessionToken && { 'Authorization': `Bearer ${sessionToken}` })
+          'Authorization': `Bearer ${sessionToken}`
         },
         body: JSON.stringify({
           fid: user.fid
@@ -291,7 +305,7 @@ export function ProfileModal({ isOpen, onClose }) {
           setProfileLoading(false);
         });
     }
-  }, [isOpen, user?.fid]);
+  }, [isOpen, user?.fid, isReady]);
 
   if (!isOpen) return null;
 
