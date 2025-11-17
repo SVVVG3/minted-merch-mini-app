@@ -204,12 +204,17 @@ export function HomePage({ collection: initialCollection, products: initialProdu
         // 🔒 SECURITY: Get session token for authentication
         const sessionToken = getSessionToken();
         
+        if (!sessionToken) {
+          console.warn('⚠️ No session token available - skipping registration (will retry on next page load)');
+          return;
+        }
+        
         // Register user profile
         const response = await fetch('/api/register-user', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(sessionToken && { 'Authorization': `Bearer ${sessionToken}` })
+            'Authorization': `Bearer ${sessionToken}`
           },
           body: JSON.stringify({ 
             fid: userFid,
@@ -281,12 +286,17 @@ export function HomePage({ collection: initialCollection, products: initialProdu
         // 🔒 SECURITY: Get session token for authentication
         const sessionToken = getSessionToken();
         
+        if (!sessionToken) {
+          console.warn('⚠️ No session token available - skipping notification check');
+          return;
+        }
+        
         // Register user again to trigger notification check
         const response = await fetch('/api/register-user', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(sessionToken && { 'Authorization': `Bearer ${sessionToken}` })
+            'Authorization': `Bearer ${sessionToken}`
           },
           body: JSON.stringify({ 
             fid: userFid,
