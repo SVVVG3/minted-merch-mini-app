@@ -24,11 +24,18 @@ export function InfoModal({ isOpen, onClose }) {
         // 🔒 SECURITY: Include JWT token for authentication
         const sessionToken = getSessionToken();
         
+        if (!sessionToken) {
+          console.warn('⚠️ No session token available for InfoModal Merch Mogul check');
+          setIsCheckingBalance(false);
+          setIsMerchMogul(false);
+          return;
+        }
+        
         const profileResponse = await fetch('/api/user-profile', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            ...(sessionToken && { 'Authorization': `Bearer ${sessionToken}` })
+            'Authorization': `Bearer ${sessionToken}`
           },
           body: JSON.stringify({ fid: user.fid })
         });

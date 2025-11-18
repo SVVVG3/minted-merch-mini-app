@@ -48,12 +48,18 @@ export function ChatEligibilityPopup() {
           // 🔒 SECURITY: Include JWT token for authentication
           const sessionToken = getSessionToken();
           
+          if (!sessionToken) {
+            console.warn('⚠️ No session token available for ChatEligibilityPopup profile check');
+            // Continue without showing popup - user may not be authenticated yet
+            return;
+          }
+          
           // Get cached balance directly from database
           const profileResponse = await fetch('/api/user-profile', {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
-              ...(sessionToken && { 'Authorization': `Bearer ${sessionToken}` })
+              'Authorization': `Bearer ${sessionToken}`
             },
             body: JSON.stringify({ fid: user.fid })
           });
