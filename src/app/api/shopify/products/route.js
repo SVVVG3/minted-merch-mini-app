@@ -77,19 +77,16 @@ export async function GET(request) {
           let userWalletAddresses = [];
           
           try {
-            const walletResponse = await fetch(`${baseUrl}/api/user-wallet-data?fid=${userFid}`);
-            if (walletResponse.ok) {
-              const walletData = await walletResponse.json();
-              console.log(`📱 Wallet API response: { success: ${walletData.success}, hasWallets: ${walletData.walletData?.all_wallet_addresses?.length > 0} }`);
-              
-              if (walletData.success && walletData.walletData?.all_wallet_addresses?.length > 0) {
-                userWalletAddresses = walletData.walletData.all_wallet_addresses;
-                console.log(`🔍 Found ${userWalletAddresses.length} wallet addresses`);
-              } else {
-                console.log(`📱 No wallet addresses found, but will still check FID-based discounts`);
-              }
+            // 🔒 SECURITY FIX: Call function directly instead of HTTP to avoid auth issues
+            // Server-side calls don't have JWT tokens, so we import the function directly
+            const { fetchUserWalletDataFromDatabase } = await import('@/lib/walletUtils');
+            const walletData = await fetchUserWalletDataFromDatabase(parseInt(userFid));
+            
+            if (walletData && walletData.all_wallet_addresses?.length > 0) {
+              userWalletAddresses = walletData.all_wallet_addresses;
+              console.log(`🔍 Found ${userWalletAddresses.length} wallet addresses`);
             } else {
-              console.log(`⚠️ Wallet API failed, but will still check FID-based discounts`);
+              console.log(`📱 No wallet addresses found, but will still check FID-based discounts`);
             }
           } catch (walletError) {
             console.log(`⚠️ Wallet API error: ${walletError.message}, but will still check FID-based discounts`);

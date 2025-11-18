@@ -62,11 +62,12 @@ export async function GET(request) {
       }, { status: 400 });
     }
 
-    // Get user's wallet addresses from your existing API
-    const walletResponse = await fetch(`${request.nextUrl.origin}/api/user-wallet-data?fid=${fid}`);
-    const walletData = await walletResponse.json();
+    // 🔒 SECURITY FIX: Call function directly instead of HTTP to avoid auth issues
+    // Server-side calls don't have JWT tokens, so we import the function directly
+    const { fetchUserWalletDataFromDatabase } = await import('@/lib/walletUtils');
+    const walletData = await fetchUserWalletDataFromDatabase(parseInt(fid));
 
-    if (!walletData.success) {
+    if (!walletData) {
       return NextResponse.json({
         success: false,
         error: 'Could not fetch user wallet data'
@@ -74,13 +75,13 @@ export async function GET(request) {
     }
 
     // Check eligibility
-    const eligibility = await checkChatEligibility(walletData.walletAddresses || [], parseInt(fid));
+    const eligibility = await checkChatEligibility(walletData.all_wallet_addresses || [], parseInt(fid));
     
     return NextResponse.json({
       success: true,
       fid: parseInt(fid),
       eligibility,
-      walletCount: walletData.walletAddresses?.length || 0
+      walletCount: walletData.all_wallet_addresses?.length || 0
     });
 
   } catch (error) {
