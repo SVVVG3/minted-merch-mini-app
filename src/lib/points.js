@@ -36,9 +36,10 @@ export async function getUserLeaderboardData(userFid) {
 /**
  * Initialize a new user in the leaderboard
  * @param {number} userFid - Farcaster ID of the user
+ * @param {object} userDataFromFrontend - Optional user data from frontend (username, displayName, pfpUrl)
  * @returns {object} Created leaderboard entry or null if error
  */
-export async function initializeUserLeaderboard(userFid) {
+export async function initializeUserLeaderboard(userFid, userDataFromFrontend = null) {
   try {
     // 🔒 SECURITY FIX: First check if profile exists (required for foreign key constraint)
     const { data: profile, error: profileError } = await supabaseAdmin
@@ -49,19 +50,48 @@ export async function initializeUserLeaderboard(userFid) {
 
     let username = profile?.username || null;
 
-    // If profile doesn't exist, CREATE IT automatically to avoid stuck spins
+    // If profile doesn't exist, CREATE IT automatically with REAL data to avoid stuck spins
     if (profileError && profileError.code === 'PGRST116') {
-      console.warn(`⚠️ Profile not found for FID ${userFid}. Auto-creating basic profile to prevent stuck spin...`);
+      console.warn(`⚠️ Profile not found for FID ${userFid}. Creating profile with real data...`);
       
-      // Create minimal profile so leaderboard initialization can proceed
+      let realUsername = `user_${userFid}`;
+      let realDisplayName = `User ${userFid}`;
+      let realPfpUrl = null;
+      let realBio = null;
+      
+      // 🔒 DEFENSE #2: PREFER user data from frontend (already has real Farcaster data from SDK)
+      if (userDataFromFrontend?.username) {
+        realUsername = userDataFromFrontend.username;
+        realDisplayName = userDataFromFrontend.displayName || realDisplayName;
+        realPfpUrl = userDataFromFrontend.pfpUrl;
+        console.log(`✅ Using real data from frontend SDK for FID ${userFid}: @${realUsername}`);
+      } else {
+        // FALLBACK: Only fetch from Neynar if frontend didn't provide data
+        console.warn(`⚠️ No frontend data available, fetching from Neynar for FID ${userFid}...`);
+        const { fetchBulkUserProfiles } = await import('./neynar.js');
+        const neynarResult = await fetchBulkUserProfiles([userFid]);
+        
+        if (neynarResult.success && neynarResult.users[userFid]) {
+          const userData = neynarResult.users[userFid];
+          realUsername = userData.username || realUsername;
+          realDisplayName = userData.display_name || realDisplayName;
+          realPfpUrl = userData.avatar_url;
+          realBio = userData.bio;
+          console.log(`✅ Fetched real data from Neynar for FID ${userFid}: @${realUsername}`);
+        } else {
+          console.warn(`⚠️ Could not fetch Neynar data for FID ${userFid}, using placeholder`);
+        }
+      }
+      
+      // Create profile with real data
       const { data: newProfile, error: createError } = await supabaseAdmin
         .from('profiles')
         .insert({
           fid: userFid,
-          username: `user_${userFid}`,
-          display_name: `User ${userFid}`,
-          bio: null,
-          pfp_url: null
+          username: realUsername,
+          display_name: realDisplayName,
+          bio: realBio,
+          pfp_url: realPfpUrl
         })
         .select('username')
         .single();
@@ -71,8 +101,8 @@ export async function initializeUserLeaderboard(userFid) {
         return null;
       }
 
-      console.log(`✅ Auto-created profile for FID ${userFid}`);
-      username = newProfile?.username || `user_${userFid}`;
+      console.log(`✅ Auto-created profile for FID ${userFid} with username: ${realUsername}`);
+      username = newProfile?.username || realUsername;
     } else if (profileError) {
       console.error('Error checking profile for leaderboard init:', profileError);
       return null;
@@ -199,7 +229,7 @@ function applyStreakBonus(basePoints, streak) {
  * @param {number} userFid - Farcaster ID of the user
  * @returns {object} Check-in result with points earned and streak info
  */
-export async function performDailyCheckin(userFid, txHash = null, skipBlockchainCheck = false) {
+export async function performDailyCheckin(userFid, txHash = null, skipBlockchainCheck = false, userDataFromFrontend = null) {
   try {
     // CRITICAL: Deduplicate by txHash to prevent race conditions
     if (txHash) {
@@ -251,7 +281,8 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
     // Get or create user data
     let userData = await getUserLeaderboardData(userFid);
     if (!userData) {
-      userData = await initializeUserLeaderboard(userFid);
+      // 🔒 DEFENSE #2: Pass user data from frontend (real Farcaster data)
+      userData = await initializeUserLeaderboard(userFid, userDataFromFrontend);
       if (!userData) {
         return {
           success: false,

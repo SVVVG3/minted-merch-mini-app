@@ -9,7 +9,8 @@ export async function POST(request) {
     console.log('🔍 DEBUG: Raw request body received:', JSON.stringify(body));
     
     // SECURITY FIX: Never trust client-provided skipBlockchainCheck
-    const { userFid, timezone, txHash } = body;
+    // 🔒 DEFENSE #2: Extract user data from frontend (real Farcaster data)
+    const { userFid, timezone, txHash, userData } = body;
     
     // Log ONLY malicious attempts to bypass security (skipBlockchainCheck: true)
     if (body.skipBlockchainCheck === true) {
@@ -86,7 +87,8 @@ export async function POST(request) {
 
     // SECURITY: ALWAYS enforce blockchain checks (skipBlockchainCheck = false)
     // Only admin endpoints and recover-stuck-spin (with its own security) can skip
-    const result = await performDailyCheckin(userFid, txHash, false);
+    // 🔒 DEFENSE #2: Pass userData from frontend for fallback profile creation
+    const result = await performDailyCheckin(userFid, txHash, false, userData);
 
     if (!result.success) {
       const statusCode = result.alreadyCheckedIn ? 409 : 500;

@@ -11,7 +11,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 
 
 export function SpinWheel({ onSpinComplete, isVisible = true }) {
-  const { isInFarcaster, isReady, getFid, user } = useFarcaster();
+  const { isInFarcaster, isReady, getFid, user, getUsername, getDisplayName, getPfpUrl } = useFarcaster();
   const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod, getWalletProvider } = useWalletConnectContext();
   const { address, isConnected } = useAccount();
   const { 
@@ -34,6 +34,7 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
   const [wheelGlow, setWheelGlow] = useState(false);
   const [screenShake, setScreenShake] = useState(false);
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [isProfileReady, setIsProfileReady] = useState(false); // Track if profile exists
   
   // Blockchain-specific state
   const [txStatus, setTxStatus] = useState(null); // 'pending', 'confirmed', 'failed'
@@ -82,6 +83,49 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
       }
     }
   };
+
+  // 🔒 DEFENSE #1: Check if profile is ready before allowing spin
+  useEffect(() => {
+    const userFid = user?.fid || (isReady ? getFid() : null);
+    
+    if (!userFid) {
+      setIsProfileReady(false);
+      return;
+    }
+    
+    // Check if registration has completed
+    const isRegistered = sessionStorage.getItem(`user_registered_${userFid}`);
+    
+    if (isRegistered) {
+      console.log('✅ Profile registration confirmed for FID:', userFid);
+      setIsProfileReady(true);
+    } else {
+      console.log('⏳ Waiting for profile registration to complete...');
+      setIsProfileReady(false);
+      
+      // Poll for registration completion (defensive - should complete quickly)
+      const pollInterval = setInterval(() => {
+        const nowRegistered = sessionStorage.getItem(`user_registered_${userFid}`);
+        if (nowRegistered) {
+          console.log('✅ Profile registration completed!');
+          setIsProfileReady(true);
+          clearInterval(pollInterval);
+        }
+      }, 500); // Check every 500ms
+      
+      // Timeout after 10 seconds (fallback - assume ready to prevent blocking)
+      const timeout = setTimeout(() => {
+        console.warn('⚠️ Registration check timed out - allowing spin anyway (defensive fallback)');
+        setIsProfileReady(true);
+        clearInterval(pollInterval);
+      }, 10000);
+      
+      return () => {
+        clearInterval(pollInterval);
+        clearTimeout(timeout);
+      };
+    }
+  }, [user, isReady, getFid]);
 
   // Load user's check-in status (works for both mini-app and AuthKit users)
   useEffect(() => {
@@ -240,10 +284,17 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
             throw new Error('Cannot determine user FID - authentication may have failed');
           }
           
+          // 🔒 DEFENSE #2: Include user data for fallback profile creation
           const requestBody = { 
             userFid: fidToUse, 
             txHash: hash,
-            skipBlockchainCheck: false
+            skipBlockchainCheck: false,
+            // Send real Farcaster data from SDK context
+            userData: {
+              username: getUsername(),
+              displayName: getDisplayName(),
+              pfpUrl: getPfpUrl()
+            }
           };
           console.log('👤 DEBUG: Request body being sent:', JSON.stringify(requestBody));
           
@@ -395,10 +446,17 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
         throw new Error('Cannot determine user FID - authentication may have failed');
       }
       
+      // 🔒 DEFENSE #2: Include user data for fallback profile creation
       const requestBody = {
         userFid: fidToUse,
         txHash: txHash,
-        skipBlockchainCheck: false
+        skipBlockchainCheck: false,
+        // Send real Farcaster data from SDK context
+        userData: {
+          username: getUsername(),
+          displayName: getDisplayName(),
+          pfpUrl: getPfpUrl()
+        }
       };
       console.log('👤 DEBUG (WC): Request body being sent:', JSON.stringify(requestBody));
       
@@ -1311,9 +1369,9 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
               {/* Main spin button */}
               <button
                 onClick={handleSpin}
-                disabled={!canSpin || isSpinning || (!isConnected && !isWalletConnected) || (isWalletConnected && !user && !isReady)}
+                disabled={!canSpin || isSpinning || !isProfileReady || (!isConnected && !isWalletConnected) || (isWalletConnected && !user && !isReady)}
                 className={`w-full px-8 py-4 rounded-xl font-bold transition-all duration-200 transform ${
-                  canSpin && !isSpinning && (isConnected || isWalletConnected) && (user || isReady)
+                  canSpin && !isSpinning && isProfileReady && (isConnected || isWalletConnected) && (user || isReady)
                     ? 'bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white shadow-lg hover:shadow-xl hover:scale-105 active:scale-95'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 } ${isSpinning ? 'animate-pulse' : ''}`}
@@ -1327,6 +1385,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
                     <span className="text-lg">Spinning the wheel...</span>
                     <span className="animate-bounce">🎰</span>
                   </span>
+                ) : !isProfileReady ? (
+                  <span className="text-lg">⏳ Setting up your profile...</span>
                 ) : (!isConnected && !isWalletConnected) ? (
                   <span className="text-lg">🔗 Connect Wallet to Spin</span>
                 ) : (isWalletConnected && !user && !isReady) ? (
