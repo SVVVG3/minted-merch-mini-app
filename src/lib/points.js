@@ -47,19 +47,38 @@ export async function initializeUserLeaderboard(userFid) {
       .eq('fid', userFid)
       .single();
 
-    // If profile doesn't exist, user needs to register first
-    if (profileError && profileError.code === 'PGRST116') {
-      console.warn(`⚠️ Cannot initialize leaderboard - profile not found for FID ${userFid}. User needs to register first.`);
-      return null;
-    }
+    let username = profile?.username || null;
 
-    if (profileError) {
+    // If profile doesn't exist, CREATE IT automatically to avoid stuck spins
+    if (profileError && profileError.code === 'PGRST116') {
+      console.warn(`⚠️ Profile not found for FID ${userFid}. Auto-creating basic profile to prevent stuck spin...`);
+      
+      // Create minimal profile so leaderboard initialization can proceed
+      const { data: newProfile, error: createError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
+          fid: userFid,
+          username: `user_${userFid}`,
+          display_name: `User ${userFid}`,
+          bio: null,
+          pfp_url: null
+        })
+        .select('username')
+        .single();
+
+      if (createError) {
+        console.error(`❌ Failed to auto-create profile for FID ${userFid}:`, createError);
+        return null;
+      }
+
+      console.log(`✅ Auto-created profile for FID ${userFid}`);
+      username = newProfile?.username || `user_${userFid}`;
+    } else if (profileError) {
       console.error('Error checking profile for leaderboard init:', profileError);
       return null;
     }
 
-    const username = profile?.username || null;
-
+    // Now create the leaderboard entry
     const { data, error } = await supabaseAdmin
       .from('user_leaderboard')
       .insert({
