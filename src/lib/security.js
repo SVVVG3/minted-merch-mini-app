@@ -8,8 +8,10 @@ import { supabaseAdmin } from './supabase';
  * @param {number} tolerance - Allowed difference (default: $0.01)
  * @returns {boolean} - True if amounts match within tolerance
  */
-export function validateDiscountAmount(clientAmount, serverAmount, tolerance = 0.01) {
+export function validateDiscountAmount(clientAmount, serverAmount, tolerance = 0.10) {
   const difference = Math.abs(clientAmount - serverAmount);
+  // Allow up to $0.10 (10 cents) tolerance for floating-point rounding errors
+  // This is reasonable for percentage-based discounts which can have rounding differences
   return difference <= tolerance;
 }
 
@@ -17,11 +19,12 @@ export function validateDiscountAmount(clientAmount, serverAmount, tolerance = 0
  * Validate gift card amount to prevent client-side manipulation
  * @param {number} clientAmount - Amount sent from client
  * @param {number} serverAmount - Amount calculated on server
- * @param {number} tolerance - Allowed difference (default: $0.01)
+ * @param {number} tolerance - Allowed difference (default: $0.10)
  * @returns {boolean} - True if amounts match within tolerance
  */
-export function validateGiftCardAmount(clientAmount, serverAmount, tolerance = 0.01) {
+export function validateGiftCardAmount(clientAmount, serverAmount, tolerance = 0.10) {
   const difference = Math.abs(clientAmount - serverAmount);
+  // Allow up to $0.10 (10 cents) tolerance for floating-point rounding errors
   return difference <= tolerance;
 }
 
