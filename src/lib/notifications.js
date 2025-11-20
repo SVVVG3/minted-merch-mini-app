@@ -225,10 +225,30 @@ export async function sendDailyCheckInReminders() {
 
     console.log(`📤 Sending check-in reminders to ${userFids.length} users...`);
 
-    // Send reminders to all users
-    const results = await Promise.allSettled(
-      userFids.map(userFid => sendCheckInReminder(userFid))
-    );
+    // 🔧 FIX: Send reminders in batches to avoid overwhelming database connection pool
+    const BATCH_SIZE = 50; // Process 50 users at a time
+    const allResults = [];
+    
+    for (let i = 0; i < userFids.length; i += BATCH_SIZE) {
+      const batch = userFids.slice(i, i + BATCH_SIZE);
+      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(userFids.length / BATCH_SIZE);
+      
+      console.log(`📦 Processing batch ${batchNumber}/${totalBatches} (${batch.length} users)...`);
+      
+      const batchResults = await Promise.allSettled(
+        batch.map(userFid => sendCheckInReminder(userFid))
+      );
+      
+      allResults.push(...batchResults);
+      
+      // Small delay between batches to prevent rate limiting
+      if (i + BATCH_SIZE < userFids.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    const results = allResults;
 
     // Count successes, failures, and skipped
     const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
@@ -532,10 +552,30 @@ export async function sendEveningCheckInReminders() {
 
     console.log(`📤 Sending evening check-in reminders to ${userFids.length} users...`);
 
-    // Send reminders to all users
-    const results = await Promise.allSettled(
-      userFids.map(userFid => sendEveningCheckInReminder(userFid))
-    );
+    // 🔧 FIX: Send reminders in batches to avoid overwhelming database connection pool
+    const BATCH_SIZE = 50; // Process 50 users at a time
+    const allResults = [];
+    
+    for (let i = 0; i < userFids.length; i += BATCH_SIZE) {
+      const batch = userFids.slice(i, i + BATCH_SIZE);
+      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(userFids.length / BATCH_SIZE);
+      
+      console.log(`📦 Processing batch ${batchNumber}/${totalBatches} (${batch.length} users)...`);
+      
+      const batchResults = await Promise.allSettled(
+        batch.map(userFid => sendEveningCheckInReminder(userFid))
+      );
+      
+      allResults.push(...batchResults);
+      
+      // Small delay between batches to prevent rate limiting
+      if (i + BATCH_SIZE < userFids.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    const results = allResults;
 
     // Count successes, failures, and skipped
     const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
