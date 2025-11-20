@@ -19,7 +19,7 @@ import { useDaimoPayUI } from '@daimo/pay';
 
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
-  const { getFid, getSessionToken, isInFarcaster, user, context } = useFarcaster();
+  const { getFid, getSessionToken, isInFarcaster, user, context, getUsername, getDisplayName, getPfpUrl } = useFarcaster();
   const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod, getWalletProvider } = useWalletConnectContext();
   const { resetPayment: resetDaimoPayment } = useDaimoPayUI();
   // Re-enable Base Account integration with safe defaults
@@ -1034,6 +1034,12 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         total: finalTotal, // Total amount that was actually paid
         paymentMethod: 'walletconnect',
         walletAddress: walletConnectAddress,
+        // 🔒 SAME FIX AS SPIN WHEEL: Send real Farcaster data from SDK
+        userData: userFid ? {
+          username: getUsername(),
+          displayName: getDisplayName(),
+          pfpUrl: getPfpUrl()
+        } : null
       };
 
       // Create order in Shopify (with authentication)
@@ -1180,7 +1186,13 @@ export function CheckoutFlow({ checkoutData, onBack }) {
           daimoPaymentId: event.paymentId || event.externalId,
           sourceChain: event.sourceChain,
           sourceToken: event.sourceToken
-        }
+        },
+        // 🔒 SAME FIX AS SPIN WHEEL: Send real Farcaster data from SDK
+        userData: userFid ? {
+          username: getUsername(),
+          displayName: getDisplayName(),
+          pfpUrl: getPfpUrl()
+        } : null
       };
 
       // Create order in Shopify (with authentication)
@@ -1381,7 +1393,13 @@ Transaction Hash: ${transactionHash}`;
           // Don't send amountUsed - server will calculate this
           balance: appliedGiftCard.balance
         }] : [],
-        total: paidTotal // CRITICAL: Total amount that was actually paid - used for payment reconciliation
+        total: paidTotal, // CRITICAL: Total amount that was actually paid - used for payment reconciliation
+        // 🔒 SAME FIX AS SPIN WHEEL: Send real Farcaster data from SDK
+        userData: userFid ? {
+          username: getUsername(),
+          displayName: getDisplayName(),
+          pfpUrl: getPfpUrl()
+        } : null
       };
 
       const sessionToken = getSessionToken();

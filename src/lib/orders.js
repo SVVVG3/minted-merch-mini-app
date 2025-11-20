@@ -4,8 +4,12 @@ import { validateDiscountCode } from './discounts';
 
 /**
  * Ensure user profile exists before order creation
+ * @param {number} fid - Farcaster ID
+ * @param {string} customerEmail - Customer email from order
+ * @param {string} customerName - Customer name from order
+ * @param {object} userDataFromFrontend - Real Farcaster data from SDK (username, displayName, pfpUrl)
  */
-async function ensureUserProfileExists(fid, customerEmail, customerName) {
+async function ensureUserProfileExists(fid, customerEmail, customerName, userDataFromFrontend = null) {
   try {
     console.log('🔍 Checking if user profile exists for FID:', fid);
 
@@ -26,13 +30,28 @@ async function ensureUserProfileExists(fid, customerEmail, customerName) {
       return { success: true, profile: existingProfile };
     }
 
-    // Profile doesn't exist, create it
+    // Profile doesn't exist, create it with REAL data
     console.log('👤 Creating user profile for FID:', fid);
+    
+    // 🔒 SAME FIX AS SPIN WHEEL: Use real data from frontend SDK FIRST
+    let realUsername = `user_${fid}`;
+    let realDisplayName = customerName || `User ${fid}`;
+    let realPfpUrl = null;
+    
+    if (userDataFromFrontend?.username) {
+      realUsername = userDataFromFrontend.username;
+      realDisplayName = userDataFromFrontend.displayName || realDisplayName;
+      realPfpUrl = userDataFromFrontend.pfpUrl;
+      console.log(`✅ Using real data from frontend SDK for FID ${fid}: @${realUsername}`);
+    } else {
+      console.warn(`⚠️ No frontend data available for FID ${fid}, using placeholder`);
+    }
     
     const profileData = {
       fid: fid,
-      username: `user_${fid}`, // Default username
-      display_name: customerName || `User ${fid}`,
+      username: realUsername,      // Real username from SDK!
+      display_name: realDisplayName,  // Real display name from SDK!
+      pfp_url: realPfpUrl,          // Real profile picture from SDK!
       email: customerEmail,
       email_updated_at: new Date().toISOString(),
       has_notifications: false, // Default to false, will be updated by registration flow
@@ -52,7 +71,7 @@ async function ensureUserProfileExists(fid, customerEmail, customerName) {
       return { success: false, error: createError.message };
     }
 
-    console.log('✅ User profile created successfully for FID:', fid);
+    console.log('✅ User profile created successfully for FID:', fid, 'with username:', realUsername);
     return { success: true, profile: newProfile };
 
   } catch (error) {
@@ -193,7 +212,8 @@ export async function createOrder(orderData) {
       const profileResult = await ensureUserProfileExists(
         orderData.fid, 
         orderData.customerEmail, 
-        orderData.customerName
+        orderData.customerName,
+        orderData.userData // 🔒 Pass real Farcaster data from frontend
       );
       
       if (!profileResult.success) {
