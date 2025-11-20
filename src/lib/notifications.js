@@ -55,11 +55,6 @@ export async function getUsersNeedingCheckInReminders() {
 
     const profilesData = allProfiles;
 
-    if (profilesError) {
-      console.error('Error fetching users with notifications:', profilesError);
-      return [];
-    }
-
     if (!profilesData || profilesData.length === 0) {
       console.log('No users with notifications enabled');
       return [];
@@ -465,11 +460,6 @@ export async function getUsersNeedingEveningReminders() {
     }
 
     const profilesData = allProfiles;
-
-    if (profilesError) {
-      console.error('Error fetching users with notifications:', profilesError);
-      return [];
-    }
 
     if (!profilesData || profilesData.length === 0) {
       console.log('No users with notifications enabled');
