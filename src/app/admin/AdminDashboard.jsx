@@ -3061,6 +3061,9 @@ export default function AdminDashboard() {
                         {notificationResult.success && notificationResult.stats && (
                           <p className="text-sm text-green-600 mt-1">
                             Sent to {notificationResult.stats.successCount} users
+                            {notificationResult.stats.skippedCount > 0 && 
+                              ` (${notificationResult.stats.skippedCount} skipped - notifications disabled)`
+                            }
                             {notificationResult.stats.failureCount > 0 && 
                               ` (${notificationResult.stats.failureCount} failed)`
                             }

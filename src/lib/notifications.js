@@ -251,21 +251,23 @@ export async function sendDailyCheckInReminders() {
     const results = allResults;
 
     // Count successes, failures, and skipped
-    const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+    // Note: Skipped notifications return { success: true, skipped: true }
+    const actuallySent = results.filter(r => r.status === 'fulfilled' && r.value.success && !r.value.skipped).length;
     const skippedCount = results.filter(r => r.status === 'fulfilled' && r.value.skipped).length;
-    const failureCount = results.length - successCount;
+    const actualFailures = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)).length;
 
     console.log(`📊 Check-in reminder results:`);
-    console.log(`   ✅ Successful: ${successCount}`);
-    console.log(`   ⏭️ Skipped (notifications disabled): ${skippedCount}`);
-    console.log(`   ❌ Failed: ${failureCount - skippedCount}`);
+    console.log(`   ✅ Successfully sent: ${actuallySent}`);
+    console.log(`   ⏭️  Skipped (notifications disabled): ${skippedCount}`);
+    console.log(`   ❌ Failed: ${actualFailures}`);
     console.log(`   📱 Total: ${results.length}`);
 
     return {
       success: true,
       totalUsers: userFids.length,
-      successCount: successCount,
-      failureCount: failureCount,
+      successCount: actuallySent,
+      failureCount: actualFailures,
+      skippedCount: skippedCount,
       results: results.map(r => r.status === 'fulfilled' ? r.value : { success: false, error: r.reason })
     };
 
@@ -578,21 +580,23 @@ export async function sendEveningCheckInReminders() {
     const results = allResults;
 
     // Count successes, failures, and skipped
-    const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+    // Note: Skipped notifications return { success: true, skipped: true }
+    const actuallySent = results.filter(r => r.status === 'fulfilled' && r.value.success && !r.value.skipped).length;
     const skippedCount = results.filter(r => r.status === 'fulfilled' && r.value.skipped).length;
-    const failureCount = results.length - successCount;
+    const actualFailures = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)).length;
 
     console.log(`📊 Evening check-in reminder results:`);
-    console.log(`   ✅ Successful: ${successCount}`);
-    console.log(`   ⏭️ Skipped (notifications disabled): ${skippedCount}`);
-    console.log(`   ❌ Failed: ${failureCount - skippedCount}`);
+    console.log(`   ✅ Successfully sent: ${actuallySent}`);
+    console.log(`   ⏭️  Skipped (notifications disabled): ${skippedCount}`);
+    console.log(`   ❌ Failed: ${actualFailures}`);
     console.log(`   📱 Total: ${results.length}`);
 
     return {
       success: true,
       totalUsers: userFids.length,
-      successCount: successCount,
-      failureCount: failureCount,
+      successCount: actuallySent,
+      failureCount: actualFailures,
+      skippedCount: skippedCount,
       results: results.map(r => r.status === 'fulfilled' ? r.value : { success: false, error: r.reason })
     };
 
