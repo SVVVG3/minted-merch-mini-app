@@ -63,15 +63,29 @@ export async function getUsersNeedingCheckInReminders() {
     console.log(`Found ${profilesData.length} users with notifications enabled`);
 
     // Get users who haven't checked in today
-    const { data: leaderboardData, error: leaderboardError } = await adminClient
-      .from('user_leaderboard')
-      .select('user_fid, last_checkin_date')
-      .in('user_fid', profilesData.map(p => p.fid));
+    // 🔧 FIX: Batch the .in() query to avoid PostgreSQL limit on array size (typically ~1000)
+    let leaderboardData = [];
+    const LEADERBOARD_BATCH_SIZE = 1000;
+    
+    for (let i = 0; i < profilesData.length; i += LEADERBOARD_BATCH_SIZE) {
+      const fidBatch = profilesData.slice(i, i + LEADERBOARD_BATCH_SIZE).map(p => p.fid);
+      
+      const { data: leaderboardBatch, error: leaderboardError } = await adminClient
+        .from('user_leaderboard')
+        .select('user_fid, last_checkin_date')
+        .in('user_fid', fidBatch);
 
-    if (leaderboardError) {
-      console.error('Error fetching leaderboard data:', leaderboardError);
-      return [];
+      if (leaderboardError) {
+        console.error('Error fetching leaderboard data batch:', leaderboardError);
+        continue; // Skip this batch but continue with others
+      }
+      
+      if (leaderboardBatch) {
+        leaderboardData.push(...leaderboardBatch);
+      }
     }
+    
+    console.log(`📊 Fetched leaderboard data for ${leaderboardData.length} users`);
 
     // Filter users who need reminders
     const usersNeedingReminders = profilesData.filter(profile => {
@@ -491,15 +505,29 @@ export async function getUsersNeedingEveningReminders() {
     console.log(`Found ${profilesData.length} users with notifications enabled`);
 
     // Get users who haven't checked in today
-    const { data: leaderboardData, error: leaderboardError } = await adminClient
-      .from('user_leaderboard')
-      .select('user_fid, last_checkin_date')
-      .in('user_fid', profilesData.map(p => p.fid));
+    // 🔧 FIX: Batch the .in() query to avoid PostgreSQL limit on array size (typically ~1000)
+    let leaderboardData = [];
+    const LEADERBOARD_BATCH_SIZE = 1000;
+    
+    for (let i = 0; i < profilesData.length; i += LEADERBOARD_BATCH_SIZE) {
+      const fidBatch = profilesData.slice(i, i + LEADERBOARD_BATCH_SIZE).map(p => p.fid);
+      
+      const { data: leaderboardBatch, error: leaderboardError } = await adminClient
+        .from('user_leaderboard')
+        .select('user_fid, last_checkin_date')
+        .in('user_fid', fidBatch);
 
-    if (leaderboardError) {
-      console.error('Error fetching leaderboard data:', leaderboardError);
-      return [];
+      if (leaderboardError) {
+        console.error('Error fetching leaderboard data batch:', leaderboardError);
+        continue; // Skip this batch but continue with others
+      }
+      
+      if (leaderboardBatch) {
+        leaderboardData.push(...leaderboardBatch);
+      }
     }
+    
+    console.log(`📊 Fetched leaderboard data for ${leaderboardData.length} users`);
 
     // Filter users who need evening reminders
     const usersNeedingReminders = profilesData.filter(profile => {
