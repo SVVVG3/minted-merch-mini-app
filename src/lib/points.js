@@ -52,7 +52,7 @@ export async function initializeUserLeaderboard(userFid, userDataFromFrontend = 
 
     // If profile doesn't exist, CREATE IT automatically with REAL data to avoid stuck spins
     if (profileError && profileError.code === 'PGRST116') {
-      console.warn(`⚠️ Profile not found for FID ${userFid}. Creating profile with real data...`);
+      console.log(`📝 Auto-creating profile for new user FID ${userFid}...`);
       
       let realUsername = `user_${userFid}`;
       let realDisplayName = `User ${userFid}`;
@@ -361,7 +361,7 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
           .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Within last 24 hours
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle(); // Use maybeSingle() instead of single() to avoid PGRST116 error when no rows found
 
         console.log('🔍 Pending transaction search result:', { pendingTx, findError });
 
@@ -417,8 +417,7 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
             }
           }
         } else {
-          console.log('⚠️ No pending transaction found, creating new one. FindError:', findError);
-          console.log('🔍 Search criteria was: user_fid =', userFid, 'transaction_type = daily_checkin, spin_tx_hash = null, spin_confirmed_at = null, spin_reserved_at IS NOT NULL');
+          // No pending transaction found (normal case) - create new one
           transactionData.spin_tx_hash = txHash;
           transactionData.spin_confirmed_at = new Date().toISOString();
           await logPointTransaction(transactionData);
