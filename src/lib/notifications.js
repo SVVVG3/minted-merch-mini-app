@@ -20,10 +20,40 @@ export async function getUsersNeedingCheckInReminders() {
     
     // Get all users who have notifications enabled and haven't received a reminder today
     // NOTE: last_daily_reminder_sent_date is stored as DATE in PST timezone
-    const { data: profilesData, error: profilesError } = await adminClient
-      .from('profiles')
-      .select('fid, last_daily_reminder_sent_date')
-      .eq('has_notifications', true);
+    // 🔧 FIX: Fetch ALL users, not just 1000 (Supabase default limit)
+    let allProfiles = [];
+    let from = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data: profilesBatch, error: profilesError } = await adminClient
+        .from('profiles')
+        .select('fid, last_daily_reminder_sent_date')
+        .eq('has_notifications', true)
+        .range(from, from + batchSize - 1);
+
+      if (profilesError) {
+        console.error('Error fetching users with notifications:', profilesError);
+        break;
+      }
+
+      if (profilesBatch && profilesBatch.length > 0) {
+        allProfiles = allProfiles.concat(profilesBatch);
+        console.log(`📥 Fetched batch: ${profilesBatch.length} users (total so far: ${allProfiles.length})`);
+        
+        // If we got fewer than batchSize, we've reached the end
+        if (profilesBatch.length < batchSize) {
+          hasMore = false;
+        } else {
+          from += batchSize;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
+
+    const profilesData = allProfiles;
 
     if (profilesError) {
       console.error('Error fetching users with notifications:', profilesError);
@@ -401,10 +431,40 @@ export async function getUsersNeedingEveningReminders() {
     const currentCheckInDay = getCurrentCheckInDay();
     
     // Get all users who have notifications enabled
-    const { data: profilesData, error: profilesError } = await adminClient
-      .from('profiles')
-      .select('fid, last_evening_reminder_sent_date')
-      .eq('has_notifications', true);
+    // 🔧 FIX: Fetch ALL users, not just 1000 (Supabase default limit)
+    let allProfiles = [];
+    let from = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data: profilesBatch, error: profilesError } = await adminClient
+        .from('profiles')
+        .select('fid, last_evening_reminder_sent_date')
+        .eq('has_notifications', true)
+        .range(from, from + batchSize - 1);
+
+      if (profilesError) {
+        console.error('Error fetching users with notifications:', profilesError);
+        break;
+      }
+
+      if (profilesBatch && profilesBatch.length > 0) {
+        allProfiles = allProfiles.concat(profilesBatch);
+        console.log(`📥 Fetched batch: ${profilesBatch.length} users (total so far: ${allProfiles.length})`);
+        
+        // If we got fewer than batchSize, we've reached the end
+        if (profilesBatch.length < batchSize) {
+          hasMore = false;
+        } else {
+          from += batchSize;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
+
+    const profilesData = allProfiles;
 
     if (profilesError) {
       console.error('Error fetching users with notifications:', profilesError);
