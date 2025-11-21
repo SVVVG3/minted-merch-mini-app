@@ -394,11 +394,19 @@ export async function createAfternoonCheckInReminderMessage(userFid) {
       message = `🎲 Add to your ${totalPoints} points! Spin the wheel before 8 AM PST tomorrow!`;
     }
 
-    return message;
+    return {
+      title: "☀️ Afternoon Check-in Reminder",
+      body: message,
+      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=afternoon_reminder&t=${Date.now()}`
+    };
 
   } catch (error) {
     console.error('Error creating afternoon check-in reminder message:', error);
-    return "🎡 Friendly reminder: Don't forget to spin the wheel and earn points today!";
+    return {
+      title: "☀️ Afternoon Check-in Reminder",
+      body: "🎡 Friendly reminder: Don't forget to spin the wheel and earn points today!",
+      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=afternoon_reminder&t=${Date.now()}`
+    };
   }
 }
 
