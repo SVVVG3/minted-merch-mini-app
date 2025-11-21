@@ -256,11 +256,6 @@ export async function sendDailyCheckInReminders() {
       );
       
       allResults.push(...batchResults);
-      
-      // Small delay between batches to prevent rate limiting
-      if (i + BATCH_SIZE < userFids.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
     }
     
     const results = allResults;
@@ -818,11 +813,6 @@ export async function sendAfternoonCheckInReminders() {
       );
       
       allResults.push(...batchResults);
-      
-      // Small delay between batches to prevent rate limiting
-      if (i + BATCH_SIZE < userFids.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
     }
     
     const results = allResults;
@@ -902,11 +892,6 @@ export async function sendEveningCheckInReminders() {
       );
       
       allResults.push(...batchResults);
-      
-      // Small delay between batches to prevent rate limiting
-      if (i + BATCH_SIZE < userFids.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
     }
     
     const results = allResults;
