@@ -627,7 +627,7 @@ async function checkBankrClubGating(discount, fid) {
       .from('profiles')
       .select('bankr_club_member, x_username, bankr_membership_updated_at')
       .eq('fid', fid)
-      .single();
+      .maybeSingle(); // Use maybeSingle() to avoid PGRST116 error for new users
 
     if (error) {
       console.error('❌ Error fetching profile for Bankr Club check:', error);

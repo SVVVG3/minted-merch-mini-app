@@ -177,7 +177,7 @@ export async function fetchUserWalletDataFromDatabase(fid) {
         x_username
       `)
       .eq('fid', parseInt(fid))
-      .single();
+      .maybeSingle(); // Use maybeSingle() to avoid PGRST116 error for new users
 
     if (profileError) {
       console.error('❌ Error fetching profile from database:', profileError);

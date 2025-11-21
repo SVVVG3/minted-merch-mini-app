@@ -133,7 +133,7 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
       .update(updateData)
       .eq('fid', fid)
       .select('fid, token_balance, wallet_balance, staked_balance, token_balance_updated_at')
-      .single();
+      .maybeSingle(); // Use maybeSingle() to avoid PGRST116 error for new users
 
     if (error) {
       console.error(`❌ Error updating token balance for FID ${fid}:`, error);
@@ -359,7 +359,7 @@ export async function refreshUserTokenBalance(fid, walletAddresses = [], forceRe
         .from('profiles')
         .select('all_wallet_addresses')
         .eq('fid', fid)
-        .single();
+        .maybeSingle(); // Use maybeSingle() to avoid PGRST116 error for new users
       
       if (error) {
         console.error(`❌ Error fetching wallet addresses for FID ${fid}:`, error);

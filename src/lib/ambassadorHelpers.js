@@ -15,7 +15,7 @@ export async function getAmbassadorWalletAddress(fid) {
       .from('profiles')
       .select('primary_eth_address, custody_address, verified_eth_addresses')
       .eq('fid', fid)
-      .single();
+      .maybeSingle(); // Use maybeSingle() to avoid PGRST116 error for new users
 
     if (profileError) {
       console.error(`❌ Error fetching profile for FID ${fid}:`, profileError);
