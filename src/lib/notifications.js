@@ -31,6 +31,7 @@ export async function getUsersNeedingCheckInReminders() {
         .from('profiles')
         .select('fid, last_daily_reminder_sent_date')
         .eq('has_notifications', true)
+        .order('fid', { ascending: true })  // ✅ FIX: Ensure consistent ordering for pagination
         .range(from, from + batchSize - 1);
 
       if (profilesError) {
@@ -473,6 +474,7 @@ export async function getUsersNeedingEveningReminders() {
         .from('profiles')
         .select('fid, last_evening_reminder_sent_date')
         .eq('has_notifications', true)
+        .order('fid', { ascending: true})  // ✅ FIX: Ensure consistent ordering for pagination
         .range(from, from + batchSize - 1);
 
       if (profilesError) {
