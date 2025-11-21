@@ -294,6 +294,24 @@ export function isNotificationTime() {
 }
 
 /**
+ * Check if it's currently afternoon notification time (2 PM PST/PDT)
+ * @returns {boolean} True if it's within 2:00-2:59 PM PST/PDT
+ */
+export function isAfternoonNotificationTime() {
+  const hour = getPacificHour();
+  
+  // Check if it's between 2:00 PM and 2:59 PM PST/PDT (14:00-14:59 in 24h format)
+  // This provides a 1-hour window for the cron job to execute
+  const isCorrectHour = hour === 14;
+  
+  if (!isCorrectHour) {
+    console.log(`⏰ Not afternoon notification time. Current PST hour: ${hour}, expected: 14`);
+  }
+  
+  return isCorrectHour;
+}
+
+/**
  * Check if it's currently evening notification time (8 PM PST/PDT)
  * @returns {boolean} True if it's within 8:00-8:59 PM PST/PDT
  */

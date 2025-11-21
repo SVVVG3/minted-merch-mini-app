@@ -10,6 +10,14 @@
       "schedule": "0 16 * * *"
     },
     {
+      "path": "/api/notifications/afternoon-checkin",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/notifications/afternoon-checkin",
+      "schedule": "0 22 * * *"
+    },
+    {
       "path": "/api/notifications/evening-checkin",
       "schedule": "0 3 * * *"
     },

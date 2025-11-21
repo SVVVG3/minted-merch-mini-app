@@ -3,7 +3,7 @@
 
 import { supabase, supabaseAdmin } from './supabase.js';
 import { sendNotificationWithNeynar } from './neynar.js';
-import { getCurrentPSTTime, formatPSTTime, isNotificationTime, isEveningNotificationTime } from './timezone.js';
+import { getCurrentPSTTime, formatPSTTime, isNotificationTime, isAfternoonNotificationTime, isEveningNotificationTime } from './timezone.js';
 
 /**
  * Get all users who have notifications enabled and haven't checked in today
@@ -315,6 +315,8 @@ async function logNotificationSent(userFid, type, message) {
     const updateData = {};
     if (type === 'checkin_reminder') {
       updateData.last_daily_reminder_sent_date = currentCheckInDay;
+    } else if (type === 'afternoon_checkin_reminder') {
+      updateData.last_afternoon_reminder_sent_date = currentCheckInDay;
     } else if (type === 'evening_checkin_reminder') {
       updateData.last_evening_reminder_sent_date = currentCheckInDay;
     }
@@ -345,6 +347,14 @@ export function shouldSendDailyNotifications() {
 }
 
 /**
+ * Check if it's time to send afternoon notifications (2 PM PST)
+ * @returns {boolean} True if it's afternoon notification time
+ */
+export function shouldSendAfternoonNotifications() {
+  return isAfternoonNotificationTime();
+}
+
+/**
  * Check if it's time to send evening notifications (8 PM PST)
  * @returns {boolean} True if it's evening notification time
  */
@@ -357,6 +367,97 @@ export function shouldSendEveningNotifications() {
  * @param {number} userFid - User's Farcaster ID
  * @returns {object} Notification message object
  */
+/**
+ * Create personalized afternoon check-in reminder message (2 PM PST)
+ * @param {number} userFid - User's Farcaster ID
+ * @returns {string} Personalized reminder message
+ */
+export async function createAfternoonCheckInReminderMessage(userFid) {
+  try {
+    // Get user's current streak and points
+    const { getUserLeaderboardData } = await import('./points.js');
+    const userData = await getUserLeaderboardData(userFid);
+
+    const currentStreak = userData?.checkin_streak || 0;
+    const totalPoints = userData?.total_points || 0;
+
+    // Create afternoon message with a sense of urgency (halfway through the day)
+    let message = "🎡 Afternoon reminder: Spin the wheel today to earn points!";
+    
+    if (currentStreak >= 7) {
+      message = `🔥 Your ${currentStreak}-day streak is waiting! Check in before 8 AM PST tomorrow!`;
+    } else if (currentStreak >= 3) {
+      message = `⚡ Keep building your ${currentStreak}-day streak! Don't forget to check in today!`;
+    } else if (currentStreak >= 1) {
+      message = `🎯 Afternoon check-in! Keep your ${currentStreak}-day streak going!`;
+    } else if (totalPoints > 0) {
+      message = `🎲 Add to your ${totalPoints} points! Spin the wheel before 8 AM PST tomorrow!`;
+    }
+
+    return message;
+
+  } catch (error) {
+    console.error('Error creating afternoon check-in reminder message:', error);
+    return "🎡 Friendly reminder: Don't forget to spin the wheel and earn points today!";
+  }
+}
+
+/**
+ * Send afternoon check-in reminder to a single user (2 PM PST)
+ * @param {number} userFid - User's Farcaster ID
+ * @returns {object} Result of sending the notification
+ */
+export async function sendAfternoonCheckInReminder(userFid) {
+  try {
+    console.log(`Sending afternoon check-in reminder to FID: ${userFid}`);
+
+    // Create personalized afternoon message
+    const message = await createAfternoonCheckInReminderMessage(userFid);
+
+    // Send notification via Neynar
+    const result = await sendNotificationWithNeynar(userFid, message);
+
+    if (result.success) {
+      // Check if it was actually sent or just skipped
+      if (result.skipped) {
+        console.log(`⏭️ Skipped FID ${userFid}: ${result.reason || 'Notifications not enabled'}`);
+        return {
+          success: false, // Count as failure for statistics
+          skipped: true,
+          userFid: userFid,
+          reason: result.reason || 'Notifications not enabled'
+        };
+      }
+      
+      console.log(`✅ Afternoon check-in reminder sent successfully to FID: ${userFid}`);
+      
+      // Log notification in database
+      await logNotificationSent(userFid, 'afternoon_checkin_reminder', message);
+      
+      return {
+        success: true,
+        userFid: userFid,
+        message: message
+      };
+    } else {
+      console.error(`❌ Failed to send afternoon check-in reminder to FID: ${userFid}`, result.error);
+      return {
+        success: false,
+        userFid: userFid,
+        error: result.error
+      };
+    }
+
+  } catch (error) {
+    console.error(`Error sending afternoon check-in reminder to FID: ${userFid}`, error);
+    return {
+      success: false,
+      userFid: userFid,
+      error: error.message
+    };
+  }
+}
+
 export async function createEveningCheckInReminderMessage(userFid) {
   try {
     // Get user's current streak and points
@@ -448,6 +549,115 @@ export async function sendEveningCheckInReminder(userFid) {
       userFid: userFid,
       error: error.message
     };
+  }
+}
+
+/**
+ * Get all users who need afternoon check-in reminders (2 PM PST)
+ * Similar to daily reminders but checks afternoon notification tracking
+ * @returns {array} Array of user FIDs who need afternoon reminders
+ */
+export async function getUsersNeedingAfternoonReminders() {
+  try {
+    const adminClient = supabaseAdmin || supabase;
+    const { getCurrentCheckInDay } = await import('./timezone.js');
+    const currentCheckInDay = getCurrentCheckInDay();
+    
+    // Get all users who have notifications enabled
+    // 🔧 FIX: Fetch ALL users, not just 1000 (Supabase default limit)
+    let allProfiles = [];
+    let from = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data: profilesBatch, error: profilesError } = await adminClient
+        .from('profiles')
+        .select('fid, last_afternoon_reminder_sent_date')
+        .eq('has_notifications', true)
+        .order('fid', { ascending: true })  // ✅ FIX: Ensure consistent ordering for pagination
+        .range(from, from + batchSize - 1);
+
+      if (profilesError) {
+        console.error('Error fetching users with notifications:', profilesError);
+        break;
+      }
+
+      if (profilesBatch && profilesBatch.length > 0) {
+        allProfiles = allProfiles.concat(profilesBatch);
+        console.log(`📥 Fetched batch: ${profilesBatch.length} users (total so far: ${allProfiles.length})`);
+        
+        // If we got fewer than batchSize, we've reached the end
+        if (profilesBatch.length < batchSize) {
+          hasMore = false;
+        } else {
+          from += batchSize;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
+
+    const profilesData = allProfiles;
+
+    if (!profilesData || profilesData.length === 0) {
+      console.log('No users with notifications enabled');
+      return [];
+    }
+
+    console.log(`Found ${profilesData.length} users with notifications enabled`);
+
+    // Get users who haven't checked in today
+    // 🔧 FIX: Batch the .in() query to avoid PostgreSQL limit on array size (typically ~1000)
+    let leaderboardData = [];
+    const LEADERBOARD_BATCH_SIZE = 1000;
+    
+    for (let i = 0; i < profilesData.length; i += LEADERBOARD_BATCH_SIZE) {
+      const fidBatch = profilesData.slice(i, i + LEADERBOARD_BATCH_SIZE).map(p => p.fid);
+      
+      const { data: leaderboardBatch, error: leaderboardError } = await adminClient
+        .from('user_leaderboard')
+        .select('user_fid, last_checkin_date')
+        .in('user_fid', fidBatch);
+
+      if (leaderboardError) {
+        console.error('Error fetching leaderboard data batch:', leaderboardError);
+        continue; // Skip this batch but continue with others
+      }
+      
+      if (leaderboardBatch) {
+        leaderboardData.push(...leaderboardBatch);
+      }
+    }
+    
+    console.log(`📊 Fetched leaderboard data for ${leaderboardData.length} users`);
+
+    // Filter users who need afternoon reminders
+    const usersNeedingReminders = profilesData.filter(profile => {
+      // DUPLICATE PREVENTION: Skip if we already sent an afternoon reminder today
+      if (profile.last_afternoon_reminder_sent_date === currentCheckInDay) {
+        return false;
+      }
+
+      const userLeaderboard = leaderboardData.find(lb => lb.user_fid === profile.fid);
+      
+      // If user has no leaderboard entry, they need a reminder
+      if (!userLeaderboard) {
+        return true;
+      }
+
+      // If user hasn't checked in today, they need an afternoon reminder
+      return userLeaderboard.last_checkin_date !== currentCheckInDay;
+    });
+
+    console.log(`${usersNeedingReminders.length} users need afternoon check-in reminders`);
+    console.log(`${profilesData.length - usersNeedingReminders.length} users filtered out (already checked in or already notified)`);
+    
+    return usersNeedingReminders;
+    
+  } catch (error) {
+    console.error('Error getting users needing afternoon reminders:', error);
+    return [];
   }
 }
 
@@ -556,6 +766,90 @@ export async function getUsersNeedingEveningReminders() {
   } catch (error) {
     console.error('Error in getUsersNeedingEveningReminders:', error);
     return [];
+  }
+}
+
+/**
+ * Send afternoon check-in reminders to all eligible users (2 PM PST)
+ * @returns {object} Summary of notification results
+ */
+export async function sendAfternoonCheckInReminders() {
+  try {
+    console.log('☀️ Starting afternoon check-in reminder process...');
+    console.log('📅 Current PST time:', formatPSTTime());
+
+    // Get users who need afternoon reminders (checks afternoon notification tracking)
+    const userFids = await getUsersNeedingAfternoonReminders();
+
+    if (userFids.length === 0) {
+      console.log('✅ No users need afternoon check-in reminders');
+      return {
+        success: true,
+        totalUsers: 0,
+        successCount: 0,
+        failureCount: 0,
+        results: []
+      };
+    }
+
+    console.log(`📤 Sending afternoon check-in reminders to ${userFids.length} users...`);
+
+    // 🔧 FIX: Send reminders in batches to avoid overwhelming database connection pool
+    const BATCH_SIZE = 50; // Process 50 users at a time
+    const allResults = [];
+    
+    for (let i = 0; i < userFids.length; i += BATCH_SIZE) {
+      const batch = userFids.slice(i, i + BATCH_SIZE);
+      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(userFids.length / BATCH_SIZE);
+      
+      console.log(`📦 Processing batch ${batchNumber}/${totalBatches} (${batch.length} users)...`);
+      
+      const batchResults = await Promise.allSettled(
+        batch.map(userFid => sendAfternoonCheckInReminder(userFid))
+      );
+      
+      allResults.push(...batchResults);
+      
+      // Small delay between batches to prevent rate limiting
+      if (i + BATCH_SIZE < userFids.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    const results = allResults;
+
+    // Count successes, failures, and skipped
+    // Note: Skipped notifications return { success: true, skipped: true }
+    const actuallySent = results.filter(r => r.status === 'fulfilled' && r.value.success && !r.value.skipped).length;
+    const skippedCount = results.filter(r => r.status === 'fulfilled' && r.value.skipped).length;
+    const actualFailures = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)).length;
+
+    console.log(`📊 Afternoon check-in reminder results:`);
+    console.log(`   ✅ Successfully sent: ${actuallySent}`);
+    console.log(`   ⏭️  Skipped (notifications disabled): ${skippedCount}`);
+    console.log(`   ❌ Failed: ${actualFailures}`);
+    console.log(`   📱 Total: ${results.length}`);
+
+    return {
+      success: true,
+      totalUsers: userFids.length,
+      successCount: actuallySent,
+      failureCount: actualFailures,
+      skippedCount: skippedCount,
+      results: results.map(r => r.status === 'fulfilled' ? r.value : { success: false, error: r.reason })
+    };
+
+  } catch (error) {
+    console.error('Error in sendAfternoonCheckInReminders:', error);
+    return {
+      success: false,
+      error: error.message,
+      totalUsers: 0,
+      successCount: 0,
+      failureCount: 0,
+      results: []
+    };
   }
 }
 
