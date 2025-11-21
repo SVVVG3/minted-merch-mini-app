@@ -179,7 +179,7 @@ export async function sendCheckInReminder(userFid) {
       if (result.skipped) {
         console.log(`⏭️ Skipped FID ${userFid}: ${result.reason || 'Notifications not enabled'}`);
         return {
-          success: false, // Count as failure for statistics
+          success: true, // ✅ Skipped is not a failure - it's expected when notifications are disabled
           skipped: true,
           userFid: userFid,
           reason: result.reason || 'Notifications not enabled'
@@ -430,7 +430,7 @@ export async function sendAfternoonCheckInReminder(userFid) {
       if (result.skipped) {
         console.log(`⏭️ Skipped FID ${userFid}: ${result.reason || 'Notifications not enabled'}`);
         return {
-          success: false, // Count as failure for statistics
+          success: true, // ✅ Skipped is not a failure - it's expected when notifications are disabled
           skipped: true,
           userFid: userFid,
           reason: result.reason || 'Notifications not enabled'
@@ -524,7 +524,7 @@ export async function sendEveningCheckInReminder(userFid) {
       if (result.skipped) {
         console.log(`⏭️ Skipped FID ${userFid}: ${result.reason || 'Notifications not enabled'}`);
         return {
-          success: false, // Count as failure for statistics
+          success: true, // ✅ Skipped is not a failure - it's expected when notifications are disabled
           skipped: true,
           userFid: userFid,
           reason: result.reason || 'Notifications not enabled'
