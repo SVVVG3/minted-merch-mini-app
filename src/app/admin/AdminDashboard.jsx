@@ -1327,6 +1327,8 @@ export default function AdminDashboard() {
     try {
       const endpoint = type === 'daily' 
         ? '/api/notifications/daily-checkin'
+        : type === 'afternoon'
+        ? '/api/notifications/afternoon-checkin'
         : '/api/notifications/evening-checkin';
       
       const response = await fetch(endpoint, {
@@ -3009,6 +3011,29 @@ export default function AdminDashboard() {
                       className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
                     >
                       {notificationLoading ? 'Sending...' : 'Send Daily Reminder'}
+                    </button>
+                  </div>
+
+                  {/* Afternoon Check-in Notifications */}
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center mb-3">
+                      <div className="bg-orange-100 p-2 rounded-lg mr-3">
+                        <span className="text-xl">☀️</span>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800">Afternoon Check-in Reminder</h4>
+                        <p className="text-xs text-gray-600">Normally sent at 2 PM PST</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-700 mb-3">
+                      Reminds users to check in during the afternoon.
+                    </p>
+                    <button
+                      onClick={() => confirmNotification('afternoon')}
+                      disabled={notificationLoading}
+                      className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                    >
+                      {notificationLoading ? 'Sending...' : 'Send Afternoon Reminder'}
                     </button>
                   </div>
 
@@ -4864,7 +4889,7 @@ export default function AdminDashboard() {
               
               <p className="text-gray-700 mb-4">
                 Are you sure you want to send <strong>
-                {showNotificationConfirm === 'daily' ? 'Daily Check-in' : 'Evening Check-in'}
+                {showNotificationConfirm === 'daily' ? 'Daily Check-in' : showNotificationConfirm === 'afternoon' ? 'Afternoon Check-in' : 'Evening Check-in'}
                 </strong> reminders to all eligible users?
               </p>
               

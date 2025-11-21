@@ -653,7 +653,7 @@ export async function getUsersNeedingAfternoonReminders() {
     console.log(`${usersNeedingReminders.length} users need afternoon check-in reminders`);
     console.log(`${profilesData.length - usersNeedingReminders.length} users filtered out (already checked in or already notified)`);
     
-    return usersNeedingReminders;
+    return usersNeedingReminders.map(u => u.fid);
     
   } catch (error) {
     console.error('Error getting users needing afternoon reminders:', error);
