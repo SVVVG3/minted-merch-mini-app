@@ -743,4 +743,98 @@ export async function sendNotificationWithNeynar(userFid, message) {
       details: error.response?.data
     };
   }
+}
+
+/**
+ * Send batch notifications to multiple users with the same message
+ * OPTIMIZED: Reduces API calls from N users to 1 call per message group
+ * @param {Array<number>} userFids - Array of user Farcaster IDs
+ * @param {Object} message - Message object with title, body, targetUrl
+ * @returns {Object} Result with individual delivery statuses
+ */
+export async function sendBatchNotificationWithNeynar(userFids, message) {
+  if (!isNeynarAvailable()) {
+    console.log('Neynar not available, skipping batch notification');
+    return { success: false, error: 'Neynar not configured' };
+  }
+
+  if (!userFids || userFids.length === 0) {
+    return { success: true, results: [] };
+  }
+
+  try {
+    console.log(`🔔 Sending batch notification via Neynar to ${userFids.length} users`);
+    console.log('Message:', message);
+
+    const notification = {
+      title: message.title,
+      body: message.body,
+      target_url: message.targetUrl,
+      uuid: generateUUID()
+    };
+
+    const response = await neynarClient.publishFrameNotifications({
+      targetFids: userFids,
+      notification: notification
+    });
+
+    console.log(`✅ Batch notification sent successfully to ${userFids.length} users`);
+    
+    // Parse response to get individual delivery statuses
+    const deliveries = response.notification_deliveries || [];
+    const results = userFids.map(fid => {
+      const delivery = deliveries.find(d => d.fid === fid);
+      
+      if (!delivery) {
+        return {
+          success: false,
+          userFid: fid,
+          error: 'No delivery status returned'
+        };
+      }
+
+      // Check delivery status
+      if (delivery.status === 'success') {
+        return {
+          success: true,
+          userFid: fid,
+          notificationId: notification.uuid
+        };
+      } else if (delivery.status === 'token_disabled') {
+        return {
+          success: true,
+          skipped: true,
+          userFid: fid,
+          reason: 'Notifications disabled by user'
+        };
+      } else {
+        return {
+          success: false,
+          userFid: fid,
+          error: delivery.status || 'Unknown error'
+        };
+      }
+    });
+
+    return {
+      success: true,
+      results: results,
+      notificationId: notification.uuid
+    };
+
+  } catch (error) {
+    console.error('❌ Error sending batch notification via Neynar:', error);
+    console.error('Full error details:', error.response?.data || error);
+    
+    // Return error for all users
+    return {
+      success: false,
+      error: error.message,
+      results: userFids.map(fid => ({
+        success: false,
+        userFid: fid,
+        error: error.message
+      }))
+    };
+  }
 } 

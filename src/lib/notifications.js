@@ -216,7 +216,8 @@ export async function sendCheckInReminder(userFid) {
 }
 
 /**
- * Send check-in reminders to all eligible users
+ * Send check-in reminders to all eligible users using BATCHED Neynar API
+ * OPTIMIZED: Groups users by message type and sends in batch (1,400 users = ~10 API calls instead of 1,400)
  * @returns {object} Summary of notification results
  */
 export async function sendDailyCheckInReminders() {
@@ -234,43 +235,118 @@ export async function sendDailyCheckInReminders() {
         totalUsers: 0,
         successCount: 0,
         failureCount: 0,
+        skippedCount: 0,
         results: []
       };
     }
 
-    console.log(`📤 Sending check-in reminders to ${userFids.length} users...`);
+    console.log(`📤 Sending check-in reminders to ${userFids.length} users using BATCH API...`);
 
-    // 🔧 FIX: Send reminders in batches to avoid overwhelming database connection pool
-    const BATCH_SIZE = 50; // Process 50 users at a time
-    const allResults = [];
+    // Step 1: Fetch all user leaderboard data in batches
+    const { getUserLeaderboardData } = await import('./points.js');
+    const adminClient = supabaseAdmin || supabase;
     
-    for (let i = 0; i < userFids.length; i += BATCH_SIZE) {
-      const batch = userFids.slice(i, i + BATCH_SIZE);
-      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-      const totalBatches = Math.ceil(userFids.length / BATCH_SIZE);
+    console.log('📊 Fetching leaderboard data for message personalization...');
+    let allLeaderboardData = [];
+    const LEADERBOARD_BATCH_SIZE = 1000;
+    
+    for (let i = 0; i < userFids.length; i += LEADERBOARD_BATCH_SIZE) {
+      const fidBatch = userFids.slice(i, i + LEADERBOARD_BATCH_SIZE);
+      const { data, error } = await adminClient
+        .from('user_leaderboard')
+        .select('user_fid, checkin_streak, total_points')
+        .in('user_fid', fidBatch);
       
-      console.log(`📦 Processing batch ${batchNumber}/${totalBatches} (${batch.length} users)...`);
-      
-      const batchResults = await Promise.allSettled(
-        batch.map(userFid => sendCheckInReminder(userFid))
-      );
-      
-      allResults.push(...batchResults);
+      if (!error && data) {
+        allLeaderboardData.push(...data);
+      }
     }
     
-    const results = allResults;
-
-    // Count successes, failures, and skipped
-    // Note: Skipped notifications return { success: true, skipped: true }
-    const actuallySent = results.filter(r => r.status === 'fulfilled' && r.value.success && !r.value.skipped).length;
-    const skippedCount = results.filter(r => r.status === 'fulfilled' && r.value.skipped).length;
-    const actualFailures = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)).length;
+    console.log(`✅ Fetched leaderboard data for ${allLeaderboardData.length} users`);
+    
+    // Step 2: Group users by message type
+    const messageGroups = new Map();
+    
+    for (const userFid of userFids) {
+      const userData = allLeaderboardData.find(d => d.user_fid === userFid);
+      const currentStreak = userData?.checkin_streak || 0;
+      const totalPoints = userData?.total_points || 0;
+      
+      // Determine message body
+      let messageBody;
+      if (currentStreak >= 7) {
+        messageBody = `🔥 ${currentStreak}-day streak! Don't break it - spin now for bonus points!`;
+      } else if (currentStreak >= 3) {
+        messageBody = `⚡ ${currentStreak}-day streak! Keep it going - spin for bonus points!`;
+      } else if (currentStreak >= 1) {
+        messageBody = `🎯 Day ${currentStreak + 1} awaits! Spin now to continue your streak!`;
+      } else if (totalPoints > 0) {
+        messageBody = `🎲 Daily spin available! Add to your ${totalPoints} points & keep moving up the leaderboard!`;
+      } else {
+        messageBody = "Spin the wheel to earn points and be entered into raffles for FREE merch!";
+      }
+      
+      // Group users by message body
+      if (!messageGroups.has(messageBody)) {
+        messageGroups.set(messageBody, []);
+      }
+      messageGroups.get(messageBody).push(userFid);
+    }
+    
+    console.log(`📊 Grouped users into ${messageGroups.size} message types`);
+    messageGroups.forEach((fids, message) => {
+      console.log(`   "${message.substring(0, 50)}..." → ${fids.length} users`);
+    });
+    
+    // Step 3: Send batch notifications for each message group
+    const { sendBatchNotificationWithNeynar } = await import('./neynar.js');
+    const allResults = [];
+    let groupNumber = 0;
+    
+    for (const [messageBody, fids] of messageGroups.entries()) {
+      groupNumber++;
+      console.log(`📤 Sending batch ${groupNumber}/${messageGroups.size}: ${fids.length} users...`);
+      
+      const message = {
+        title: "🎯 Daily Check-in Time",
+        body: messageBody,
+        targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=checkin_reminder&t=${Date.now()}`
+      };
+      
+      const batchResult = await sendBatchNotificationWithNeynar(fids, message);
+      
+      if (batchResult.success && batchResult.results) {
+        allResults.push(...batchResult.results);
+        
+        // Log successful notifications to database
+        const successfulFids = batchResult.results
+          .filter(r => r.success && !r.skipped)
+          .map(r => r.userFid);
+        
+        if (successfulFids.length > 0) {
+          await logBatchNotificationsSent(successfulFids, 'checkin_reminder');
+        }
+      } else {
+        // If batch failed, mark all as failures
+        allResults.push(...fids.map(fid => ({
+          success: false,
+          userFid: fid,
+          error: batchResult.error || 'Batch send failed'
+        })));
+      }
+    }
+    
+    // Step 4: Count results
+    const actuallySent = allResults.filter(r => r.success && !r.skipped).length;
+    const skippedCount = allResults.filter(r => r.skipped).length;
+    const actualFailures = allResults.filter(r => !r.success).length;
 
     console.log(`📊 Check-in reminder results:`);
     console.log(`   ✅ Successfully sent: ${actuallySent}`);
     console.log(`   ⏭️  Skipped (notifications disabled): ${skippedCount}`);
     console.log(`   ❌ Failed: ${actualFailures}`);
-    console.log(`   📱 Total: ${results.length}`);
+    console.log(`   📱 Total: ${allResults.length}`);
+    console.log(`   🚀 API calls made: ${messageGroups.size} (instead of ${userFids.length})`);
 
     return {
       success: true,
@@ -278,7 +354,7 @@ export async function sendDailyCheckInReminders() {
       successCount: actuallySent,
       failureCount: actualFailures,
       skippedCount: skippedCount,
-      results: results.map(r => r.status === 'fulfilled' ? r.value : { success: false, error: r.reason })
+      results: allResults
     };
 
   } catch (error) {
@@ -289,8 +365,47 @@ export async function sendDailyCheckInReminders() {
       totalUsers: 0,
       successCount: 0,
       failureCount: 0,
+      skippedCount: 0,
       results: []
     };
+  }
+}
+
+/**
+ * Log batch notifications sent to database (OPTIMIZED for batch operations)
+ * @param {Array<number>} userFids - Array of user Farcaster IDs
+ * @param {string} type - Notification type ('checkin_reminder', 'afternoon_checkin_reminder', or 'evening_checkin_reminder')
+ */
+async function logBatchNotificationsSent(userFids, type) {
+  try {
+    const adminClient = supabaseAdmin || supabase;
+    const { getCurrentCheckInDay } = await import('./timezone.js');
+    const currentCheckInDay = getCurrentCheckInDay();
+    
+    // Update the appropriate column based on notification type
+    const updateData = {};
+    if (type === 'checkin_reminder') {
+      updateData.last_daily_reminder_sent_date = currentCheckInDay;
+    } else if (type === 'afternoon_checkin_reminder') {
+      updateData.last_afternoon_reminder_sent_date = currentCheckInDay;
+    } else if (type === 'evening_checkin_reminder') {
+      updateData.last_evening_reminder_sent_date = currentCheckInDay;
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      const { error } = await adminClient
+        .from('profiles')
+        .update(updateData)
+        .in('fid', userFids);
+
+      if (error) {
+        console.error(`Error logging batch ${type}:`, error);
+      } else {
+        console.log(`📝 Logged ${type} notification for ${userFids.length} users on ${currentCheckInDay}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error logging batch notifications:', error);
   }
 }
 
@@ -773,7 +888,8 @@ export async function getUsersNeedingEveningReminders() {
 }
 
 /**
- * Send afternoon check-in reminders to all eligible users (2 PM PST)
+ * Send afternoon check-in reminders to all eligible users using BATCHED Neynar API (2 PM PST)
+ * OPTIMIZED: Groups users by message type and sends in batch
  * @returns {object} Summary of notification results
  */
 export async function sendAfternoonCheckInReminders() {
@@ -781,7 +897,6 @@ export async function sendAfternoonCheckInReminders() {
     console.log('☀️ Starting afternoon check-in reminder process...');
     console.log('📅 Current PST time:', formatPSTTime());
 
-    // Get users who need afternoon reminders (checks afternoon notification tracking)
     const userFids = await getUsersNeedingAfternoonReminders();
 
     if (userFids.length === 0) {
@@ -791,43 +906,101 @@ export async function sendAfternoonCheckInReminders() {
         totalUsers: 0,
         successCount: 0,
         failureCount: 0,
+        skippedCount: 0,
         results: []
       };
     }
 
-    console.log(`📤 Sending afternoon check-in reminders to ${userFids.length} users...`);
+    console.log(`📤 Sending afternoon check-in reminders to ${userFids.length} users using BATCH API...`);
 
-    // 🔧 FIX: Send reminders in batches to avoid overwhelming database connection pool
-    const BATCH_SIZE = 50; // Process 50 users at a time
-    const allResults = [];
+    // Fetch leaderboard data and group by message
+    const adminClient = supabaseAdmin || supabase;
+    let allLeaderboardData = [];
+    const LEADERBOARD_BATCH_SIZE = 1000;
     
-    for (let i = 0; i < userFids.length; i += BATCH_SIZE) {
-      const batch = userFids.slice(i, i + BATCH_SIZE);
-      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-      const totalBatches = Math.ceil(userFids.length / BATCH_SIZE);
+    for (let i = 0; i < userFids.length; i += LEADERBOARD_BATCH_SIZE) {
+      const fidBatch = userFids.slice(i, i + LEADERBOARD_BATCH_SIZE);
+      const { data, error } = await adminClient
+        .from('user_leaderboard')
+        .select('user_fid, checkin_streak, total_points')
+        .in('user_fid', fidBatch);
       
-      console.log(`📦 Processing batch ${batchNumber}/${totalBatches} (${batch.length} users)...`);
-      
-      const batchResults = await Promise.allSettled(
-        batch.map(userFid => sendAfternoonCheckInReminder(userFid))
-      );
-      
-      allResults.push(...batchResults);
+      if (!error && data) {
+        allLeaderboardData.push(...data);
+      }
     }
     
-    const results = allResults;
-
-    // Count successes, failures, and skipped
-    // Note: Skipped notifications return { success: true, skipped: true }
-    const actuallySent = results.filter(r => r.status === 'fulfilled' && r.value.success && !r.value.skipped).length;
-    const skippedCount = results.filter(r => r.status === 'fulfilled' && r.value.skipped).length;
-    const actualFailures = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)).length;
+    const messageGroups = new Map();
+    
+    for (const userFid of userFids) {
+      const userData = allLeaderboardData.find(d => d.user_fid === userFid);
+      const currentStreak = userData?.checkin_streak || 0;
+      const totalPoints = userData?.total_points || 0;
+      
+      let messageBody;
+      if (currentStreak >= 7) {
+        messageBody = `🔥 Your ${currentStreak}-day streak is waiting! Check in before 8 AM PST tomorrow!`;
+      } else if (currentStreak >= 3) {
+        messageBody = `⚡ Keep building your ${currentStreak}-day streak! Don't forget to check in today!`;
+      } else if (currentStreak >= 1) {
+        messageBody = `🎯 Afternoon check-in! Keep your ${currentStreak}-day streak going!`;
+      } else if (totalPoints > 0) {
+        messageBody = `🎲 Add to your ${totalPoints} points! Spin the wheel before 8 AM PST tomorrow!`;
+      } else {
+        messageBody = "🎡 Afternoon reminder: Spin the wheel today to earn points!";
+      }
+      
+      if (!messageGroups.has(messageBody)) {
+        messageGroups.set(messageBody, []);
+      }
+      messageGroups.get(messageBody).push(userFid);
+    }
+    
+    const { sendBatchNotificationWithNeynar } = await import('./neynar.js');
+    const allResults = [];
+    let groupNumber = 0;
+    
+    for (const [messageBody, fids] of messageGroups.entries()) {
+      groupNumber++;
+      console.log(`📤 Sending batch ${groupNumber}/${messageGroups.size}: ${fids.length} users...`);
+      
+      const message = {
+        title: "☀️ Afternoon Check-in Reminder",
+        body: messageBody,
+        targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=afternoon_reminder&t=${Date.now()}`
+      };
+      
+      const batchResult = await sendBatchNotificationWithNeynar(fids, message);
+      
+      if (batchResult.success && batchResult.results) {
+        allResults.push(...batchResult.results);
+        
+        const successfulFids = batchResult.results
+          .filter(r => r.success && !r.skipped)
+          .map(r => r.userFid);
+        
+        if (successfulFids.length > 0) {
+          await logBatchNotificationsSent(successfulFids, 'afternoon_checkin_reminder');
+        }
+      } else {
+        allResults.push(...fids.map(fid => ({
+          success: false,
+          userFid: fid,
+          error: batchResult.error || 'Batch send failed'
+        })));
+      }
+    }
+    
+    const actuallySent = allResults.filter(r => r.success && !r.skipped).length;
+    const skippedCount = allResults.filter(r => r.skipped).length;
+    const actualFailures = allResults.filter(r => !r.success).length;
 
     console.log(`📊 Afternoon check-in reminder results:`);
     console.log(`   ✅ Successfully sent: ${actuallySent}`);
     console.log(`   ⏭️  Skipped (notifications disabled): ${skippedCount}`);
     console.log(`   ❌ Failed: ${actualFailures}`);
-    console.log(`   📱 Total: ${results.length}`);
+    console.log(`   📱 Total: ${allResults.length}`);
+    console.log(`   🚀 API calls made: ${messageGroups.size}`);
 
     return {
       success: true,
@@ -835,7 +1008,7 @@ export async function sendAfternoonCheckInReminders() {
       successCount: actuallySent,
       failureCount: actualFailures,
       skippedCount: skippedCount,
-      results: results.map(r => r.status === 'fulfilled' ? r.value : { success: false, error: r.reason })
+      results: allResults
     };
 
   } catch (error) {
@@ -846,13 +1019,15 @@ export async function sendAfternoonCheckInReminders() {
       totalUsers: 0,
       successCount: 0,
       failureCount: 0,
+      skippedCount: 0,
       results: []
     };
   }
 }
 
 /**
- * Send evening check-in reminders to all eligible users
+ * Send evening check-in reminders to all eligible users using BATCHED Neynar API
+ * OPTIMIZED: Groups users by message type and sends in batch
  * @returns {object} Summary of notification results
  */
 export async function sendEveningCheckInReminders() {
@@ -860,7 +1035,6 @@ export async function sendEveningCheckInReminders() {
     console.log('🌅 Starting evening check-in reminder process...');
     console.log('📅 Current PST time:', formatPSTTime());
 
-    // Get users who need evening reminders (checks evening notification tracking)
     const userFids = await getUsersNeedingEveningReminders();
 
     if (userFids.length === 0) {
@@ -870,43 +1044,101 @@ export async function sendEveningCheckInReminders() {
         totalUsers: 0,
         successCount: 0,
         failureCount: 0,
+        skippedCount: 0,
         results: []
       };
     }
 
-    console.log(`📤 Sending evening check-in reminders to ${userFids.length} users...`);
+    console.log(`📤 Sending evening check-in reminders to ${userFids.length} users using BATCH API...`);
 
-    // 🔧 FIX: Send reminders in batches to avoid overwhelming database connection pool
-    const BATCH_SIZE = 50; // Process 50 users at a time
-    const allResults = [];
+    // Fetch leaderboard data and group by message
+    const adminClient = supabaseAdmin || supabase;
+    let allLeaderboardData = [];
+    const LEADERBOARD_BATCH_SIZE = 1000;
     
-    for (let i = 0; i < userFids.length; i += BATCH_SIZE) {
-      const batch = userFids.slice(i, i + BATCH_SIZE);
-      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-      const totalBatches = Math.ceil(userFids.length / BATCH_SIZE);
+    for (let i = 0; i < userFids.length; i += LEADERBOARD_BATCH_SIZE) {
+      const fidBatch = userFids.slice(i, i + LEADERBOARD_BATCH_SIZE);
+      const { data, error } = await adminClient
+        .from('user_leaderboard')
+        .select('user_fid, checkin_streak, total_points')
+        .in('user_fid', fidBatch);
       
-      console.log(`📦 Processing batch ${batchNumber}/${totalBatches} (${batch.length} users)...`);
-      
-      const batchResults = await Promise.allSettled(
-        batch.map(userFid => sendEveningCheckInReminder(userFid))
-      );
-      
-      allResults.push(...batchResults);
+      if (!error && data) {
+        allLeaderboardData.push(...data);
+      }
     }
     
-    const results = allResults;
-
-    // Count successes, failures, and skipped
-    // Note: Skipped notifications return { success: true, skipped: true }
-    const actuallySent = results.filter(r => r.status === 'fulfilled' && r.value.success && !r.value.skipped).length;
-    const skippedCount = results.filter(r => r.status === 'fulfilled' && r.value.skipped).length;
-    const actualFailures = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)).length;
+    const messageGroups = new Map();
+    
+    for (const userFid of userFids) {
+      const userData = allLeaderboardData.find(d => d.user_fid === userFid);
+      const currentStreak = userData?.checkin_streak || 0;
+      const totalPoints = userData?.total_points || 0;
+      
+      let messageBody;
+      if (currentStreak >= 7) {
+        messageBody = `🔥 Don't lose your ${currentStreak}-day streak! Check in before 8 AM PST tomorrow!`;
+      } else if (currentStreak >= 3) {
+        messageBody = `⚡ Keep your ${currentStreak}-day streak alive! Check in before 8 AM PST tomorrow!`;
+      } else if (currentStreak >= 1) {
+        messageBody = `🎯 Don't break your streak! Check in before 8 AM PST tomorrow for day ${currentStreak + 1}!`;
+      } else if (totalPoints > 0) {
+        messageBody = `🎲 Final reminder! Add to your ${totalPoints} points before 8 AM PST tomorrow!`;
+      } else {
+        messageBody = "⏰ Last chance today! Spin the wheel before 8 AM PST to earn points!";
+      }
+      
+      if (!messageGroups.has(messageBody)) {
+        messageGroups.set(messageBody, []);
+      }
+      messageGroups.get(messageBody).push(userFid);
+    }
+    
+    const { sendBatchNotificationWithNeynar } = await import('./neynar.js');
+    const allResults = [];
+    let groupNumber = 0;
+    
+    for (const [messageBody, fids] of messageGroups.entries()) {
+      groupNumber++;
+      console.log(`📤 Sending batch ${groupNumber}/${messageGroups.size}: ${fids.length} users...`);
+      
+      const message = {
+        title: "🌅 Daily Check-in Ending Soon",
+        body: messageBody,
+        targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=evening_checkin_reminder&t=${Date.now()}`
+      };
+      
+      const batchResult = await sendBatchNotificationWithNeynar(fids, message);
+      
+      if (batchResult.success && batchResult.results) {
+        allResults.push(...batchResult.results);
+        
+        const successfulFids = batchResult.results
+          .filter(r => r.success && !r.skipped)
+          .map(r => r.userFid);
+        
+        if (successfulFids.length > 0) {
+          await logBatchNotificationsSent(successfulFids, 'evening_checkin_reminder');
+        }
+      } else {
+        allResults.push(...fids.map(fid => ({
+          success: false,
+          userFid: fid,
+          error: batchResult.error || 'Batch send failed'
+        })));
+      }
+    }
+    
+    const actuallySent = allResults.filter(r => r.success && !r.skipped).length;
+    const skippedCount = allResults.filter(r => r.skipped).length;
+    const actualFailures = allResults.filter(r => !r.success).length;
 
     console.log(`📊 Evening check-in reminder results:`);
     console.log(`   ✅ Successfully sent: ${actuallySent}`);
     console.log(`   ⏭️  Skipped (notifications disabled): ${skippedCount}`);
     console.log(`   ❌ Failed: ${actualFailures}`);
-    console.log(`   📱 Total: ${results.length}`);
+    console.log(`   📱 Total: ${allResults.length}`);
+    console.log(`   🚀 API calls made: ${messageGroups.size}`);
 
     return {
       success: true,
@@ -914,7 +1146,7 @@ export async function sendEveningCheckInReminders() {
       successCount: actuallySent,
       failureCount: actualFailures,
       skippedCount: skippedCount,
-      results: results.map(r => r.status === 'fulfilled' ? r.value : { success: false, error: r.reason })
+      results: allResults
     };
 
   } catch (error) {
@@ -925,6 +1157,7 @@ export async function sendEveningCheckInReminders() {
       totalUsers: 0,
       successCount: 0,
       failureCount: 0,
+      skippedCount: 0,
       results: []
     };
   }
