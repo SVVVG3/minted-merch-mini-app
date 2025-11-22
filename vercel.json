@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "src/app/api/notifications/*/route.js": {
+    "app/api/notifications/**": {
       "maxDuration": 300
     }
   },
