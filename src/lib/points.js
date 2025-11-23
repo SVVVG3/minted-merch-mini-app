@@ -50,40 +50,30 @@ export async function initializeUserLeaderboard(userFid, userDataFromFrontend = 
 
     let username = profile?.username || null;
 
-    // If profile doesn't exist, CREATE IT automatically with REAL data to avoid stuck spins
+    // If profile doesn't exist, CREATE IT automatically (should be rare - users register on app open)
     if (profileError && profileError.code === 'PGRST116') {
-      console.log(`📝 Auto-creating profile for new user FID ${userFid}...`);
+      console.warn(`⚠️ Profile not found for FID ${userFid} - this should not happen! Creating placeholder...`);
       
+      // OPTIMIZED: Use placeholder data - NO Neynar API call needed
+      // User will update this automatically when they open the app and register
       let realUsername = `user_${userFid}`;
       let realDisplayName = `User ${userFid}`;
       let realPfpUrl = null;
       let realBio = null;
       
-      // 🔒 DEFENSE #2: PREFER user data from frontend (already has real Farcaster data from SDK)
+      // Prefer user data from frontend if available (already has real Farcaster data from SDK)
       if (userDataFromFrontend?.username) {
         realUsername = userDataFromFrontend.username;
         realDisplayName = userDataFromFrontend.displayName || realDisplayName;
         realPfpUrl = userDataFromFrontend.pfpUrl;
-        console.log(`✅ Using real data from frontend SDK for FID ${userFid}: @${realUsername}`);
+        realBio = userDataFromFrontend.bio;
+        console.log(`✅ Using frontend SDK data for FID ${userFid}: @${realUsername}`);
       } else {
-        // FALLBACK: Only fetch from Neynar if frontend didn't provide data
-        console.warn(`⚠️ No frontend data available, fetching from Neynar for FID ${userFid}...`);
-        const { fetchBulkUserProfiles } = await import('./neynar.js');
-        const neynarResult = await fetchBulkUserProfiles([userFid]);
-        
-        if (neynarResult.success && neynarResult.users[userFid]) {
-          const userData = neynarResult.users[userFid];
-          realUsername = userData.username || realUsername;
-          realDisplayName = userData.display_name || realDisplayName;
-          realPfpUrl = userData.avatar_url;
-          realBio = userData.bio;
-          console.log(`✅ Fetched real data from Neynar for FID ${userFid}: @${realUsername}`);
-        } else {
-          console.warn(`⚠️ Could not fetch Neynar data for FID ${userFid}, using placeholder`);
-        }
+        // No Neynar fallback - just use placeholder (will update on next app visit)
+        console.log(`📝 Creating placeholder profile for FID ${userFid} (will update on next app visit)`);
       }
       
-      // Create profile with real data
+      // Create profile - NO NEYNAR API CALL
       const { data: newProfile, error: createError } = await supabaseAdmin
         .from('profiles')
         .insert({
@@ -101,7 +91,7 @@ export async function initializeUserLeaderboard(userFid, userDataFromFrontend = 
         return null;
       }
 
-      console.log(`✅ Auto-created profile for FID ${userFid} with username: ${realUsername}`);
+      console.log(`✅ Created profile for FID ${userFid} with username: ${realUsername}`);
       username = newProfile?.username || realUsername;
     } else if (profileError) {
       console.error('Error checking profile for leaderboard init:', profileError);

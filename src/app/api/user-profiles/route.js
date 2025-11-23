@@ -53,17 +53,42 @@ export async function POST(request) {
     // Limit to 100 users max per request
     const limitedFids = fids.slice(0, 100);
     
-    const result = await fetchBulkUserProfiles(limitedFids);
+    // OPTIMIZATION: Read from database instead of calling Neynar API
+    // We already have all user profile data stored locally!
+    console.log(`🔍 Fetching ${limitedFids.length} user profiles from DATABASE (not Neynar)`);
     
-    if (!result.success) {
-      return NextResponse.json(result);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('fid, username, display_name, pfp_url, bio')
+      .in('fid', limitedFids);
+    
+    if (error) {
+      console.error('Error fetching profiles from database:', error);
+      return NextResponse.json({
+        success: false,
+        error: error.message
+      }, { status: 500 });
     }
+    
+    // Format response to match Neynar's structure for compatibility
+    const userMap = {};
+    (data || []).forEach(user => {
+      userMap[user.fid] = {
+        fid: user.fid,
+        username: user.username,
+        display_name: user.display_name,
+        avatar_url: user.pfp_url, // Match Neynar's field name
+        bio: user.bio || ''
+      };
+    });
+    
+    console.log(`✅ Fetched ${data?.length || 0} profiles from database (0 Neynar API calls)`);
 
     // Return users object keyed by FID for leaderboard compatibility
     return NextResponse.json({
       success: true,
-      users: result.users || {},
-      count: Object.keys(result.users || {}).length
+      users: userMap,
+      count: Object.keys(userMap).length
     });
     
   } catch (error) {
