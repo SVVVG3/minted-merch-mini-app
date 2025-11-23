@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { checkUserNotificationStatus } from '@/lib/neynar';
+import { checkUserNotificationStatus, checkBatchNotificationStatus } from '@/lib/neynar';
 import { formatPSTTime } from '@/lib/timezone';
 
 export async function POST(request) {
@@ -43,8 +43,8 @@ export async function POST(request) {
     }
     
     const { 
-      batchSize = 50, 
-      maxUsers = 200, // Conservative default for daily cron
+      batchSize = 100, // Optimized: batch size now matches Neynar's limit
+      maxUsers = 200, // OPTIMIZED: Same coverage, but with batching = only 2 API calls instead of 200
       forceFullSync = false,
       discoveryMode = false, // Check ALL users to find newly enabled notifications
       dryRun = false 
@@ -87,10 +87,12 @@ export async function POST(request) {
       
     } else {
       // Smart sync: prioritize users who haven't been checked recently
-      console.log('🎯 Smart sync mode: prioritizing stale users');
+      // OPTIMIZED: Changed from 7 days to 30 days - most active users are checked when they open the app
+      // NOTE: Neynar automatically filters disabled tokens, so stale data doesn't cause issues
+      console.log('🎯 Smart sync mode: prioritizing stale users (30+ days old)');
       
       const staleCutoff = new Date();
-      staleCutoff.setDate(staleCutoff.getDate() - 7); // 7 days old
+      staleCutoff.setDate(staleCutoff.getDate() - 30); // Changed from 7 to 30 days
       
       // Get users with stale notification status or no status at all
       const { data: staleUsers, error: staleError } = await supabaseAdmin
@@ -116,7 +118,7 @@ export async function POST(request) {
       if (recentError) throw recentError;
       
       usersToSync = [...staleUsers, ...recentUsers];
-      console.log(`📊 Found ${staleUsers.length} stale users, ${recentUsers.length} recent users to validate`);
+      console.log(`📊 Found ${staleUsers.length} stale users (30+ days old), ${recentUsers.length} recent users to validate`);
     }
 
     if (usersToSync.length === 0) {
@@ -139,120 +141,165 @@ export async function POST(request) {
       errorDetails: []
     };
 
-    // Process users in batches to avoid overwhelming Neynar API
+    // OPTIMIZED: Process users in batches using batch API calls
+    // OLD: N users = N API calls | NEW: N users = ceil(N/100) API calls (99% reduction)
     for (let i = 0; i < usersToSync.length; i += batchSize) {
       const batch = usersToSync.slice(i, i + batchSize);
       console.log(`📦 Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(usersToSync.length/batchSize)} (${batch.length} users)`);
 
-      for (const user of batch) {
-        try {
-          results.totalProcessed++;
-          
-          // Check current notification status with Neynar for BOTH platforms
-          const tokenStatus = await checkUserNotificationStatus(user.fid);
-          const previousFarcasterStatus = user.has_notifications;
-          const previousBaseStatus = user.has_base_notifications || false;
-          const currentFarcasterStatus = tokenStatus.hasFarcasterNotifications;
-          const currentBaseStatus = tokenStatus.hasBaseNotifications;
-          
-          // Check if EITHER platform status changed
-          const farcasterChanged = currentFarcasterStatus !== previousFarcasterStatus;
-          const baseChanged = currentBaseStatus !== previousBaseStatus;
-          const hasAnyChange = farcasterChanged || baseChanged;
-          
-          if (hasAnyChange) {
-            // Status changed - record the change
-            const changeDetails = [];
-            if (farcasterChanged) {
-              changeDetails.push(`Farcaster: ${previousFarcasterStatus} → ${currentFarcasterStatus}`);
-            }
-            if (baseChanged) {
-              changeDetails.push(`Base: ${previousBaseStatus} → ${currentBaseStatus}`);
-            }
-            
-            const change = {
+      try {
+        // OPTIMIZATION: Single batch API call for all users in this batch
+        const batchFids = batch.map(u => u.fid);
+        const batchResult = await checkBatchNotificationStatus(batchFids);
+        
+        if (!batchResult.success) {
+          console.error(`❌ Batch API call failed:`, batchResult.error);
+          // Mark all users in this batch as errors
+          batch.forEach(user => {
+            results.errors++;
+            results.errorDetails.push({
               fid: user.fid,
               username: user.username,
-              previousFarcasterStatus,
-              previousBaseStatus,
-              currentFarcasterStatus,
-              currentBaseStatus,
-              changeType: (currentFarcasterStatus || currentBaseStatus) ? 'newly_enabled' : 'newly_disabled',
-              changes: changeDetails.join(', '),
-              timestamp: new Date().toISOString()
-            };
+              error: batchResult.error || 'Batch API call failed'
+            });
+          });
+          continue; // Skip to next batch
+        }
+        
+        console.log(`✅ Batch API call succeeded: ${batchResult.results.size} users checked`);
+        
+        // Process each user's result from the batch
+        for (const user of batch) {
+          try {
+            results.totalProcessed++;
             
-            results.changes.push(change);
+            // Get this user's status from batch results
+            const tokenStatus = batchResult.results.get(user.fid);
             
-            // Count as enabled if EITHER platform is enabled
-            const wasEnabled = previousFarcasterStatus || previousBaseStatus;
-            const isNowEnabled = currentFarcasterStatus || currentBaseStatus;
-            
-            if (isNowEnabled && !wasEnabled) {
-              results.newlyEnabled++;
-              console.log(`🔔 ${user.username} (${user.fid}): NEWLY ENABLED - ${changeDetails.join(', ')}`);
-            } else if (!isNowEnabled && wasEnabled) {
-              results.newlyDisabled++;
-              console.log(`🔕 ${user.username} (${user.fid}): NEWLY DISABLED - ${changeDetails.join(', ')}`);
-            } else {
-              console.log(`🔄 ${user.username} (${user.fid}): STATUS CHANGED - ${changeDetails.join(', ')}`);
+            if (!tokenStatus) {
+              console.warn(`⚠️ No status returned for FID ${user.fid} in batch`);
+              results.errors++;
+              results.errorDetails.push({
+                fid: user.fid,
+                username: user.username,
+                error: 'No status in batch response'
+              });
+              continue;
             }
             
-            // Update database (unless in dry run mode)
-            if (!dryRun) {
-              const { error: updateError } = await supabaseAdmin
-                .from('profiles')
-                .update({
-                  has_notifications: currentFarcasterStatus,
-                  has_base_notifications: currentBaseStatus,
-                  notification_status_updated_at: new Date().toISOString(),
-                  // Only update source to cron_sync if it wasn't originally from a Farcaster event
-                  notification_status_source: user.notification_status_source === 'farcaster_event' ? 'farcaster_event' : 'cron_sync'
-                })
-                .eq('fid', user.fid);
+            const previousFarcasterStatus = user.has_notifications;
+            const previousBaseStatus = user.has_base_notifications || false;
+            const currentFarcasterStatus = tokenStatus.hasFarcasterNotifications;
+            const currentBaseStatus = tokenStatus.hasBaseNotifications;
+            
+            // Check if EITHER platform status changed
+            const farcasterChanged = currentFarcasterStatus !== previousFarcasterStatus;
+            const baseChanged = currentBaseStatus !== previousBaseStatus;
+            const hasAnyChange = farcasterChanged || baseChanged;
+            
+            if (hasAnyChange) {
+              // Status changed - record the change
+              const changeDetails = [];
+              if (farcasterChanged) {
+                changeDetails.push(`Farcaster: ${previousFarcasterStatus} → ${currentFarcasterStatus}`);
+              }
+              if (baseChanged) {
+                changeDetails.push(`Base: ${previousBaseStatus} → ${currentBaseStatus}`);
+              }
+              
+              const change = {
+                fid: user.fid,
+                username: user.username,
+                previousFarcasterStatus,
+                previousBaseStatus,
+                currentFarcasterStatus,
+                currentBaseStatus,
+                changeType: (currentFarcasterStatus || currentBaseStatus) ? 'newly_enabled' : 'newly_disabled',
+                changes: changeDetails.join(', '),
+                timestamp: new Date().toISOString()
+              };
+              
+              results.changes.push(change);
+              
+              // Count as enabled if EITHER platform is enabled
+              const wasEnabled = previousFarcasterStatus || previousBaseStatus;
+              const isNowEnabled = currentFarcasterStatus || currentBaseStatus;
+              
+              if (isNowEnabled && !wasEnabled) {
+                results.newlyEnabled++;
+                console.log(`🔔 ${user.username} (${user.fid}): NEWLY ENABLED - ${changeDetails.join(', ')}`);
+              } else if (!isNowEnabled && wasEnabled) {
+                results.newlyDisabled++;
+                console.log(`🔕 ${user.username} (${user.fid}): NEWLY DISABLED - ${changeDetails.join(', ')}`);
+              } else {
+                console.log(`🔄 ${user.username} (${user.fid}): STATUS CHANGED - ${changeDetails.join(', ')}`);
+              }
+              
+              // Update database (unless in dry run mode)
+              if (!dryRun) {
+                const { error: updateError } = await supabaseAdmin
+                  .from('profiles')
+                  .update({
+                    has_notifications: currentFarcasterStatus,
+                    has_base_notifications: currentBaseStatus,
+                    notification_status_updated_at: new Date().toISOString(),
+                    // Only update source to cron_sync if it wasn't originally from a Farcaster event
+                    notification_status_source: user.notification_status_source === 'farcaster_event' ? 'farcaster_event' : 'cron_sync'
+                  })
+                  .eq('fid', user.fid);
 
-              if (updateError) {
-                console.error(`❌ Failed to update ${user.fid}:`, updateError);
-                results.errors++;
-                results.errorDetails.push({
-                  fid: user.fid,
-                  error: updateError.message
-                });
+                if (updateError) {
+                  console.error(`❌ Failed to update ${user.fid}:`, updateError);
+                  results.errors++;
+                  results.errorDetails.push({
+                    fid: user.fid,
+                    error: updateError.message
+                  });
+                }
+              }
+              
+            } else {
+              // No change - just update the timestamp, preserving original source
+              results.unchanged++;
+              
+              if (!dryRun) {
+                await supabaseAdmin
+                  .from('profiles')
+                  .update({
+                    notification_status_updated_at: new Date().toISOString(),
+                    // Preserve the original source, only set to cron_sync if it was unknown
+                    notification_status_source: user.notification_status_source === 'farcaster_event' ? 'farcaster_event' : 
+                                               user.notification_status_source === 'miniapp_removed' ? 'miniapp_removed' : 'cron_sync'
+                  })
+                  .eq('fid', user.fid);
               }
             }
-            
-          } else {
-            // No change - just update the timestamp, preserving original source
-            results.unchanged++;
-            
-            if (!dryRun) {
-              await supabaseAdmin
-                .from('profiles')
-                .update({
-                  notification_status_updated_at: new Date().toISOString(),
-                  // Preserve the original source, only set to cron_sync if it was unknown
-                  notification_status_source: user.notification_status_source === 'farcaster_event' ? 'farcaster_event' : 
-                                             user.notification_status_source === 'miniapp_removed' ? 'miniapp_removed' : 'cron_sync'
-                })
-                .eq('fid', user.fid);
-            }
-          }
 
-        } catch (error) {
-          console.error(`❌ Error processing ${user.fid} (${user.username}):`, error);
+          } catch (error) {
+            console.error(`❌ Error processing ${user.fid} (${user.username}):`, error);
+            results.errors++;
+            results.errorDetails.push({
+              fid: user.fid,
+              username: user.username,
+              error: error.message
+            });
+          }
+        }
+
+      } catch (batchError) {
+        console.error(`❌ Error processing batch:`, batchError);
+        // Mark all users in this batch as errors
+        batch.forEach(user => {
           results.errors++;
           results.errorDetails.push({
             fid: user.fid,
             username: user.username,
-            error: error.message
+            error: batchError.message || 'Batch processing error'
           });
-        }
-
-        // Small delay to be nice to Neynar API
-        await new Promise(resolve => setTimeout(resolve, 150));
+        });
       }
 
-      // Longer delay between batches
+      // Longer delay between batches (batch API call already includes internal delays)
       if (i + batchSize < usersToSync.length) {
         console.log('⏱️  Pausing between batches...');
         await new Promise(resolve => setTimeout(resolve, 1000));

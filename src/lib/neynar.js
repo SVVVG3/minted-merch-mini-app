@@ -288,6 +288,113 @@ export async function checkUserNotificationStatus(targetFid) {
 }
 
 /**
+ * OPTIMIZED: Batch check notification status for multiple users at once
+ * Reduces API calls from N users to 1 call per 100 users (Neynar's batch limit)
+ * 
+ * @param {Array<number>} userFids - Array of user FIDs to check (up to 100 per batch)
+ * @returns {Object} Map of FID to notification status
+ * 
+ * @example
+ * const result = await checkBatchNotificationStatus([123, 456, 789]);
+ * // Returns: {
+ * //   success: true,
+ * //   results: Map {
+ * //     123 => { hasNotifications: true, hasFarcasterNotifications: true, ... },
+ * //     456 => { hasNotifications: false, hasFarcasterNotifications: false, ... },
+ * //     ...
+ * //   }
+ * // }
+ */
+export async function checkBatchNotificationStatus(userFids) {
+  if (!isNeynarAvailable()) {
+    console.log('Neynar not available, cannot check notification status');
+    return { 
+      success: false, 
+      error: 'Neynar not configured',
+      results: new Map()
+    };
+  }
+
+  if (!userFids || !Array.isArray(userFids) || userFids.length === 0) {
+    return { 
+      success: false, 
+      error: 'Invalid or empty FID array',
+      results: new Map()
+    };
+  }
+
+  try {
+    console.log(`🔍 Batch checking notification status for ${userFids.length} users`);
+    
+    // Neynar supports up to 100 FIDs per call
+    const BATCH_SIZE = 100;
+    const allResults = new Map();
+    
+    // Process in batches of 100
+    for (let i = 0; i < userFids.length; i += BATCH_SIZE) {
+      const batch = userFids.slice(i, i + BATCH_SIZE);
+      const fidsParam = batch.join(','); // "123,456,789"
+      
+      console.log(`📦 Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(userFids.length/BATCH_SIZE)}: ${batch.length} users`);
+      
+      // Single API call for entire batch
+      const response = await neynarClient.fetchNotificationTokens({
+        fids: fidsParam,
+        limit: 1000 // Max tokens to return
+      });
+      
+      const allTokens = response.notification_tokens || [];
+      console.log(`✅ Received ${allTokens.length} tokens from Neynar for ${batch.length} users`);
+      
+      // Process each user's tokens from batch response
+      for (const fid of batch) {
+        const userTokens = allTokens.filter(token => token.fid === fid);
+        const activeTokens = userTokens.filter(token => token.status === 'enabled');
+        
+        // Separate tokens by URL - this indicates which client they're for
+        // Farcaster/Warpcast: https://api.farcaster.xyz/v1/frame-notifications
+        // Base app: https://api.neynar.com/f/app_host/notify
+        const farcasterTokens = activeTokens.filter(token => 
+          token.url && token.url.includes('api.farcaster.xyz')
+        );
+        const baseTokens = activeTokens.filter(token => 
+          token.url && token.url.includes('api.neynar.com/f/app_host')
+        );
+        
+        allResults.set(fid, {
+          hasNotifications: activeTokens.length > 0,
+          hasFarcasterNotifications: farcasterTokens.length > 0,
+          hasBaseNotifications: baseTokens.length > 0,
+          tokenCount: activeTokens.length,
+          farcasterTokenCount: farcasterTokens.length,
+          baseTokenCount: baseTokens.length,
+          totalTokens: userTokens.length
+        });
+      }
+      
+      // Small delay between batches to respect rate limits (150ms = 400 RPM, well under 600 RPM limit)
+      if (i + BATCH_SIZE < userFids.length) {
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+    }
+    
+    console.log(`✅ Batch check complete: ${allResults.size} users processed`);
+    return { 
+      success: true, 
+      results: allResults 
+    };
+    
+  } catch (error) {
+    console.error('❌ Error batch checking notification status:', error);
+    return {
+      success: false,
+      error: error.message,
+      results: new Map()
+    };
+  }
+}
+
+/**
  * Send a notification to multiple users using Neynar's managed system
  */
 export async function sendNotificationToUsers(targetFids, notification) {
