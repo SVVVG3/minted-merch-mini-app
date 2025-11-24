@@ -135,16 +135,8 @@ export default function MintPageClient({ slug }) {
     }
     
     if (!sessionToken) {
-      // Try to wait a moment and check again
-      console.log('⏳ Session token not ready, waiting 2 seconds...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Check if token is now available
-      const { sessionToken: freshToken } = useFarcaster();
-      if (!freshToken) {
-        setMintError('Session token not available. Please refresh the page and try again.');
-        return;
-      }
+      setMintError('Session token not available. Please refresh the page and try again.');
+      return;
     }
 
     try {
