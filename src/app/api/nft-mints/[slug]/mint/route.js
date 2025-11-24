@@ -200,8 +200,8 @@ export async function POST(request, { params }) {
 
       console.log(`✅ Claim signature generated`);
 
-      // Convert BigInt values to strings for JSONB storage
-      const reqForStorage = {
+      // Convert BigInt values to strings for JSONB storage (like Ambassador system)
+      const serializableReq = {
         uid: claimSignatureData.req.uid,
         tokenAddress: claimSignatureData.req.tokenAddress,
         expirationTimestamp: claimSignatureData.req.expirationTimestamp.toString(), // BigInt -> string
@@ -211,7 +211,13 @@ export async function POST(request, { params }) {
         }))
       };
 
-      console.log(`💾 Storing claim data with req object`);
+      // Store req + signature together as a single JSON blob (like Ambassador system)
+      const claimDataJson = JSON.stringify({
+        req: serializableReq,
+        signature: claimSignatureData.signature
+      });
+
+      console.log(`💾 Storing claim data (req + signature together)`);
 
       // Update mint claim with signature data (use system context to bypass RLS)
       await setSystemContext();
@@ -219,8 +225,8 @@ export async function POST(request, { params }) {
       const { error: updateError } = await supabaseAdmin
         .from('nft_mint_claims')
         .update({
-          claim_signature: claimSignatureData.signature,
-          claim_req: reqForStorage, // Store the exact signed req object (with strings for BigInt)
+          claim_signature: claimDataJson, // Store BOTH req + signature together (like Ambassador)
+          claim_req: serializableReq, // Also keep separate for backwards compatibility
           claim_signature_generated_at: new Date().toISOString(),
           claim_signature_expires_at: deadline.toISOString()
         })

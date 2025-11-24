@@ -97,11 +97,21 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Check if signature exists and is still valid
-    let signature = claim.claim_signature;
-    let signatureExpiresAt = claim.claim_signature_expires_at;
-
-    if (!signature || new Date(signatureExpiresAt) < new Date()) {
+    // Parse claim signature (stored as JSON with req + signature, like Ambassador system)
+    let claimData;
+    
+    try {
+      // Try parsing as JSON first (new format)
+      claimData = JSON.parse(claim.claim_signature);
+      
+      if (!claimData.req || !claimData.signature) {
+        throw new Error('Invalid claim data format');
+      }
+      
+      console.log(`[${requestId}] ✅ Using existing valid signature`);
+      
+    } catch (parseError) {
+      // If parsing fails, regenerate signature (for old claims or corrupted data)
       console.log(`[${requestId}] 🔐 Generating new claim signature...`);
       
       // Generate new signature (30 days validity)
@@ -116,11 +126,8 @@ export async function GET(request, { params }) {
           deadline: Math.floor(deadline.getTime() / 1000)
         });
 
-        signature = claimSignatureData.signature;
-        signatureExpiresAt = deadline.toISOString();
-
         // Convert BigInt values to strings for storage
-        const reqForStorage = {
+        const serializableReq = {
           uid: claimSignatureData.req.uid,
           tokenAddress: claimSignatureData.req.tokenAddress,
           expirationTimestamp: claimSignatureData.req.expirationTimestamp.toString(),
@@ -130,24 +137,33 @@ export async function GET(request, { params }) {
           }))
         };
 
+        // Store req + signature together as a single JSON blob (like Ambassador)
+        const claimDataJson = JSON.stringify({
+          req: serializableReq,
+          signature: claimSignatureData.signature
+        });
+
         console.log(`[${requestId}] ✅ New signature generated`);
 
-        // Update claim with new signature AND new req object (using system context to bypass RLS for update)
+        // Update claim with new claim data (using system context to bypass RLS for update)
         const { setSystemContext } = await import('@/lib/auth');
         await setSystemContext();
         
         await supabaseAdmin
           .from('nft_mint_claims')
           .update({
-            claim_signature: signature,
+            claim_signature: claimDataJson, // Store BOTH req + signature together
+            claim_req: serializableReq, // Also keep separate for backwards compatibility
             claim_signature_generated_at: new Date().toISOString(),
-            claim_signature_expires_at: signatureExpiresAt,
-            claim_req: reqForStorage // Store the new req object that matches the signature
+            claim_signature_expires_at: deadline.toISOString()
           })
           .eq('id', claim.id);
 
-        // Update claim object with new req for immediate use
-        claim.claim_req = reqForStorage;
+        // Use the newly generated claim data
+        claimData = {
+          req: serializableReq,
+          signature: claimSignatureData.signature
+        };
 
         // Reset to user context
         await setUserContext(authenticatedFid);
@@ -159,8 +175,6 @@ export async function GET(request, { params }) {
           { status: 500 }
         );
       }
-    } else {
-      console.log(`[${requestId}] ✅ Using existing valid signature`);
     }
 
     // Airdrop contract address
@@ -168,27 +182,15 @@ export async function GET(request, { params }) {
     const AIRDROP_CONTRACT_ADDRESS = getAddress('0x8569755C6fa4127b3601846077FFB5D083586500');
     const CHAIN_ID = 8453; // Base
 
-    // Use the exact req object that was signed by Thirdweb
-    // If claim_req is missing (old claims), regenerate signature
-    let reqObject = claim.claim_req;
-    
-    if (!reqObject) {
-      console.log(`[${requestId}] ⚠️ No stored req object - this shouldn't happen for new claims`);
-      return NextResponse.json(
-        { error: 'Claim data incomplete. Please contact support.' },
-        { status: 500 }
-      );
-    }
-
     // Log access for audit trail
     console.log(`[${requestId}] 📋 Claim data accessed:`);
     console.log(`   Claim ID: ${claim.id}`);
     console.log(`   User FID: ${authenticatedFid}`);
     console.log(`   Wallet: ${claim.wallet_address}`);
     console.log(`   Amount: ${claim.campaign.token_reward_amount} wei`);
-    console.log(`   Signature expires: ${signatureExpiresAt}`);
+    console.log(`   Signature expires: ${claim.claim_signature_expires_at}`);
 
-    // Return claim data in format expected by thirdweb airdrop function
+    // Return claim data in format expected by thirdweb airdrop function (same as Ambassador)
     return NextResponse.json({
       success: true,
       claimData: {
@@ -196,16 +198,14 @@ export async function GET(request, { params }) {
         contractAddress: AIRDROP_CONTRACT_ADDRESS,
         chainId: CHAIN_ID,
         
-        // Use the EXACT req object that was signed (critical for EIP-712 verification)
-        req: reqObject,
-        
-        // EIP-712 signature
-        signature: signature,
+        // Use the EXACT req + signature that were generated together (critical for EIP-712 verification)
+        req: claimData.req,
+        signature: claimData.signature,
         
         // Metadata
         campaignTitle: claim.campaign.title,
         walletAddress: claim.wallet_address,
-        expiresAt: signatureExpiresAt
+        expiresAt: claim.claim_signature_expires_at
       }
     });
 
