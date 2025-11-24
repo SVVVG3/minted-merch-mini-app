@@ -215,7 +215,7 @@ export async function shareCheckIn({ spinResult, userStatus, isInFarcaster = fal
  */
 export async function shareProduct({ productHandle, productTitle, isInFarcaster = false }) {
   const productUrl = `${window.location.origin}/product/${productHandle}`;
-  const shareText = `Check out this ${productTitle} on @mintedmerch\n\nShop using 1200+ tokens across 20+ chains\n\n$mintedmerch - Where Tokens Meet Merch`;
+  const shareText = `Check out this ${productTitle} on /mintedmerch\n\nShop using 1200+ tokens across 20+ chains\n\n$mintedmerch - Where Tokens Meet Merch`;
 
   return shareToFarcaster({
     text: shareText,

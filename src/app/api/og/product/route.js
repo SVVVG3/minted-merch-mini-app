@@ -114,23 +114,12 @@ export async function GET(request) {
                 style={{
                   fontSize: '64px',
                   fontWeight: 'bold',
-                  marginBottom: '30px',
+                  marginBottom: '50px',
                   lineHeight: '1.1',
                   color: '#3eb489',
                 }}
               >
                 {title}
-              </div>
-              
-              <div
-                style={{
-                  fontSize: '48px',
-                  color: 'white',
-                  fontWeight: 'bold',
-                  marginBottom: '40px',
-                }}
-              >
-                {priceText}
               </div>
               
               <div
