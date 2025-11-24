@@ -252,6 +252,20 @@ export default function MintPageClient({ slug }) {
     }
   }, [isClaimConfirmed, claimTxHash]);
 
+  // Auto-scroll to show success screen after claim
+  useEffect(() => {
+    if (hasClaimed && showStakingTeaser) {
+      console.log('📜 Scrolling to show success screen...');
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        window.scrollTo({
+          top: document.documentElement.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 300);
+    }
+  }, [hasClaimed, showStakingTeaser]);
+
   // Handle NFT mint using Wagmi (like Ambassador program)
   const handleMint = async () => {
     console.log('🎨 Mint button clicked');
@@ -815,7 +829,7 @@ export default function MintPageClient({ slug }) {
             <div className="text-center space-y-2">
               <div className="text-5xl">🎉</div>
               <h3 className="text-2xl font-bold">You Minted!</h3>
-              <p className="text-gray-300">Share to unlock $mintedmerch</p>
+              <p className="text-gray-300">Share to claim $mintedmerch</p>
             </div>
 
             <button
