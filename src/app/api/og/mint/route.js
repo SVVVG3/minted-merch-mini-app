@@ -126,35 +126,14 @@ export async function GET(request) {
                   fontWeight: 'bold',
                   lineHeight: '1.2',
                   color: '#3eb489',
-                  marginBottom: '40px',
                 }}
               >
                 {text}
               </div>
-              
-              {/* Subtext */}
-              <div
-                style={{
-                  fontSize: '28px',
-                  color: '#888',
-                  marginBottom: '20px',
-                }}
-              >
-                Exclusive NFT drop
-              </div>
-              
-              <div
-                style={{
-                  fontSize: '24px',
-                  color: '#666',
-                }}
-              >
-                Claim 100k $MINTEDMERCH tokens
-              </div>
             </div>
           </div>
           
-          {/* Logo - Bottom Right Corner */}
+          {/* Logo - Bottom Right Corner with Green Border */}
           {logoImageSrc && (
             <div
               style={{
@@ -164,6 +143,12 @@ export async function GET(request) {
                 width: '120px',
                 height: '120px',
                 display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '3px solid #3eb489',
+                borderRadius: '16px',
+                backgroundColor: '#1a1a1a',
+                padding: '8px',
               }}
             >
               <img

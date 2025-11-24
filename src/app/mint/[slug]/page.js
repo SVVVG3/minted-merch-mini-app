@@ -24,10 +24,15 @@ export async function generateMetadata({ params }) {
 
     const { campaign } = await campaignResponse.json();
 
+    // Ensure image URL is absolute
+    const fullImageUrl = campaign.imageUrl?.startsWith('http') 
+      ? campaign.imageUrl 
+      : `${baseUrl}${campaign.imageUrl}`;
+
     // Build custom OG image URL with NFT artwork + text
     const ogImageParams = new URLSearchParams({
       slug: campaign.slug,
-      image: campaign.imageUrl,
+      image: fullImageUrl,
       text: campaign.metadata?.ogImageText || `Mint ${campaign.title}`
     });
 
