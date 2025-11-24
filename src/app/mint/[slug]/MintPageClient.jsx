@@ -729,11 +729,11 @@ export default function MintPageClient({ slug }) {
         {hasClaimed && showStakingTeaser && (
           <div className="space-y-3 font-mono">
             {/* Terminal Header */}
-            <div className="bg-black border-4 border-[#77fb82] rounded-lg p-4 shadow-lg shadow-[#77fb82]/20">
-              <div className="text-[#77fb82] space-y-2">
+            <div className="bg-black border-4 border-[#77fb82] rounded-lg p-5 shadow-lg shadow-[#77fb82]/20">
+              <div className="text-[#77fb82] space-y-3">
                 {/* ASCII Success Message */}
                 <div className="text-center">
-                  <pre className="text-[10px] leading-tight">
+                  <pre className="text-xs leading-snug">
 {`╔═══════════════════════════════╗
 ║   QUEST COMPLETED! 📟 ✓       ║
 ║   WELCOME TO MINTED MERCH     ║
@@ -742,9 +742,9 @@ export default function MintPageClient({ slug }) {
                 </div>
 
                 {/* Rewards Display */}
-                <div className="border-2 border-[#77fb82] p-3 bg-black/50">
-                  <p className="text-xs mb-2">{'>'} REWARDS_CLAIMED.EXE</p>
-                  <div className="space-y-1 text-xs">
+                <div className="border-2 border-[#77fb82] p-4 bg-black/50">
+                  <p className="text-sm mb-3">{'>'} REWARDS_CLAIMED.EXE</p>
+                  <div className="space-y-2 text-sm">
                     <p className="flex justify-between">
                       <span>TOKENS:</span>
                       <span className="text-white font-bold">100,000 $MINTEDMERCH</span>
@@ -761,21 +761,21 @@ export default function MintPageClient({ slug }) {
                 </div>
 
                 {/* What's Next Terminal Section */}
-                <div className="space-y-2 text-xs">
-                  <p className="text-white font-bold">{'>'} AVAILABLE_ACTIONS.TXT</p>
+                <div className="space-y-2 text-sm">
+                  <p className="text-white font-bold mb-2">{'>'} AVAILABLE_ACTIONS.TXT</p>
                   
                   {/* Daily Spin */}
-                  <div className="border border-[#77fb82] p-2 bg-black/30">
-                    <p className="font-bold mb-1">{'[1]'} SPIN_WHEEL.EXE</p>
-                    <p className="text-[10px] leading-tight">
+                  <div className="border border-[#77fb82] p-3 bg-black/30">
+                    <p className="font-bold mb-2">{'[1]'} SPIN_WHEEL.EXE</p>
+                    <p className="text-xs leading-snug">
                       Earn points, climb the leaderboard, and get entered into random raffles to win tokens, gift cards & FREE merch! Bonus points for merch purchases & multipliers for holders.
                     </p>
                   </div>
 
                   {/* Staking */}
-                  <div className="border border-[#77fb82] p-2 bg-black/30">
-                    <p className="font-bold mb-1">{'[2]'} STAKE_TOKENS.EXE</p>
-                    <p className="text-[10px] leading-tight">
+                  <div className="border border-[#77fb82] p-3 bg-black/30">
+                    <p className="font-bold mb-2">{'[2]'} STAKE_TOKENS.EXE</p>
+                    <p className="text-xs leading-snug">
                       Staking SOON! Hold 50M+ tokens → Earn Merch Mogul status → Unlock perks, discounts & group chat access.
                     </p>
                   </div>
