@@ -3,6 +3,10 @@ import { ImageResponse } from '@vercel/og';
 // Use Node.js runtime for ImageResponse compatibility
 export const runtime = 'nodejs';
 
+// Disable caching during development/testing
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 async function fetchImageAsDataUrl(imageUrl) {
   try {
     const response = await fetch(imageUrl);
@@ -51,7 +55,7 @@ export async function GET(request) {
       console.error('Error fetching logo:', error);
     }
     
-    return new ImageResponse(
+    const response = new ImageResponse(
       (
         <div
           style={{
@@ -168,6 +172,11 @@ export async function GET(request) {
         height: 800, // 3:2 aspect ratio required by Farcaster
       }
     );
+    
+    // Set cache headers to prevent stale images
+    response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+    
+    return response;
   } catch (error) {
     console.error('Error generating mint OG image:', error);
     
