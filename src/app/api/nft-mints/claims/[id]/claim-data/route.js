@@ -152,9 +152,14 @@ export async function GET(request, { params }) {
     const AIRDROP_CONTRACT_ADDRESS = '0x8569755C6fa4127b3601846077FFB5D083586500';
     const CHAIN_ID = 8453; // Base
 
+    // Convert claim ID to bytes32 (same as claimSignatureService.js)
+    const { keccak256, toHex } = await import('thirdweb/utils');
+    const uidBytes32 = keccak256(toHex(claim.id));
+
     // Log access for audit trail
     console.log(`[${requestId}] 📋 Claim data accessed:`);
     console.log(`   Claim ID: ${claim.id}`);
+    console.log(`   UID (bytes32): ${uidBytes32}`);
     console.log(`   User FID: ${authenticatedFid}`);
     console.log(`   Wallet: ${claim.wallet_address}`);
     console.log(`   Amount: ${claim.campaign.token_reward_amount} wei`);
@@ -170,7 +175,7 @@ export async function GET(request, { params }) {
         
         // Claim request parameters
         req: {
-          uid: claim.id, // Unique ID for this claim
+          uid: uidBytes32, // Unique ID for this claim (as bytes32)
           tokenAddress: '0xC47A79F4a5E036AaF41233CC6C1d9Beb98d87503', // $MINTEDMERCH token address
           expirationTimestamp: Math.floor(new Date(signatureExpiresAt).getTime() / 1000),
           contents: [
