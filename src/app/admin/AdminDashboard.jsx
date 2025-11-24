@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import UserModal from '@/components/UserModal';
 import { ChatAdminDashboard } from '@/components/ChatAdminDashboard';
+import NFTCampaignsAdmin from '@/components/NFTCampaignsAdmin';
 
 // CRITICAL SECURITY: Helper function to make authenticated admin API calls
 const adminFetch = async (url, options = {}) => {
@@ -1621,6 +1622,7 @@ export default function AdminDashboard() {
             <nav className="-mb-px flex space-x-8">
               {[
                 { key: 'dashboard', label: '📊 Dashboard' },
+                { key: 'nft-campaigns', label: '🎨 NFT Campaigns' },
                 { key: 'chat', label: '💬 Chat' },
                 { key: 'users', label: '👥 Users' },
                 { key: 'orders', label: '🛍️ Orders' },
@@ -4857,7 +4859,12 @@ export default function AdminDashboard() {
           </div>
         )}
 
-
+        {/* NFT Campaigns Tab */}
+        {activeTab === 'nft-campaigns' && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <NFTCampaignsAdmin />
+          </div>
+        )}
 
         {/* Chat Eligibility Tab */}
         {activeTab === 'chat' && (

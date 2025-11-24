@@ -79,6 +79,10 @@ DAIMO_PAY_INTEGRATION.md
 *SECRET*.md
 *_SECRET_*.md
 
+# NFT minting feature planning docs (keep private)
+NFT_MINTING_PLAN.md
+NFT_MINT_SECURITY_SUMMARY.md
+
 # Test files and debug endpoints (keep local only)
 test-*.js
 *-test.js
