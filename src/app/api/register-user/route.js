@@ -403,7 +403,14 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error('Error in register-user:', error);
+    console.error('❌ Error in register-user:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      fullError: error
+    });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
