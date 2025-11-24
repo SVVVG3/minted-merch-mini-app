@@ -363,6 +363,9 @@ export default function MintPageClient({ slug }) {
       const { claimData } = await claimDataResponse.json();
       console.log('✅ Claim data received:', claimData);
 
+      // Import Farcaster SDK
+      const { sdk } = await import('@/lib/frame');
+
       // Get wallet address
       const accounts = await sdk.wallet.ethProvider.request({
         method: 'eth_requestAccounts'
@@ -596,12 +599,12 @@ export default function MintPageClient({ slug }) {
         )}
 
         {/* STATE 2: Minted but not shared - Show Share Button (REQUIRED) */}
-        {userStatus?.hasMinted && !hasShared && (
+        {userStatus?.hasMinted && !hasShared && !showShareModal && (
           <div className="p-6 bg-gradient-to-r from-purple-900/50 to-blue-900/50 border border-purple-500 rounded-xl space-y-4">
             <div className="text-center space-y-2">
               <div className="text-4xl">🎉</div>
               <h3 className="text-2xl font-bold">NFT Minted!</h3>
-              <p className="text-gray-300">Share your mint to unlock token claim</p>
+              <p className="text-gray-300">Share your mint to claim $mintedmerch</p>
             </div>
             
             <button
