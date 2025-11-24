@@ -769,7 +769,7 @@ export default function MintPageClient({ slug }) {
             {/* Daily Spin CTA */}
             <button
               onClick={() => router.push('/')}
-              className="w-full py-3 bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-xl text-base font-bold hover:bg-purple-600 hover:scale-105 transition-all shadow-lg"
+              className="w-full py-4 bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-xl text-lg font-bold hover:bg-purple-600 hover:scale-105 transition-all shadow-lg"
             >
               Spin Daily Wheel
             </button>
@@ -777,7 +777,7 @@ export default function MintPageClient({ slug }) {
             {/* Start Shopping CTA */}
             <button
               onClick={() => router.push('/')}
-              className="w-full py-3 bg-[#3eb489] text-white rounded-xl text-base font-bold hover:bg-[#35a078] hover:scale-105 transition-all shadow-lg shadow-[#3eb489]/20"
+              className="w-full py-4 bg-[#3eb489] text-white rounded-xl text-lg font-bold hover:bg-[#35a078] hover:scale-105 transition-all shadow-lg shadow-[#3eb489]/20"
             >
               Start Shopping
             </button>
