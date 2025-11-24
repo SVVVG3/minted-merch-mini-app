@@ -357,7 +357,7 @@ export default function MintPageClient({ slug }) {
       </div>
 
       {/* Header Image */}
-      <div className="mb-4 relative h-24 rounded-xl overflow-hidden">
+      <div className="mb-2 relative h-24 rounded-xl overflow-hidden">
         <Image
           src="/BeeperXmintedmerch.png"
           alt="Beeper x Minted Merch"
