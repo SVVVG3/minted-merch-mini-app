@@ -743,7 +743,7 @@ export default function MintPageClient({ slug }) {
 
                 {/* Rewards Display */}
                 <div className="border-2 border-[#77fb82] p-4 bg-black/50">
-                  <p className="text-sm mb-3">{'>'} REWARDS_CLAIMED.EXE</p>
+                  <p className="text-sm mb-3">{'>'} REWARDS_CLAIMED</p>
                   <div className="space-y-2 text-sm">
                     <p className="flex justify-between">
                       <span>TOKENS:</span>
@@ -762,21 +762,21 @@ export default function MintPageClient({ slug }) {
 
                 {/* What's Next Terminal Section */}
                 <div className="space-y-2 text-sm">
-                  <p className="text-white font-bold mb-2">{'>'} AVAILABLE_ACTIONS.TXT</p>
+                  <p className="text-white font-bold mb-2">{'>'} AVAILABLE_ACTIONS</p>
                   
                   {/* Daily Spin */}
                   <div className="border border-[#77fb82] p-3 bg-black/30">
-                    <p className="font-bold mb-2">{'[1]'} SPIN_WHEEL.EXE</p>
+                    <p className="font-bold mb-2">{'[1]'} SPIN_WHEEL</p>
                     <p className="text-xs leading-snug">
-                      Earn points, climb the leaderboard, and get entered into random raffles to win tokens, gift cards & FREE merch! Bonus points for merch purchases & multipliers for holders.
+                      Earn points, climb the leaderboard, and get entered into random raffles to win tokens, gift cards & FREE merch! Bonus points for merch purchases & multipliers for $mintedmerch holders.
                     </p>
                   </div>
 
                   {/* Staking */}
                   <div className="border border-[#77fb82] p-3 bg-black/30">
-                    <p className="font-bold mb-2">{'[2]'} STAKE_TOKENS.EXE</p>
+                    <p className="font-bold mb-2">{'[2]'} STAKE_TOKENS</p>
                     <p className="text-xs leading-snug">
-                      Staking SOON! Hold 50M+ tokens → Earn Merch Mogul status → Unlock perks, discounts & group chat access.
+                      Stake to earn SOON! Hold 50M+ $mintedmerch → Earn Merch Mogul status → Unlock perks, discounts & group chat access.
                     </p>
                   </div>
                 </div>
@@ -791,7 +791,7 @@ export default function MintPageClient({ slug }) {
               }}
               className="w-full py-3 bg-[#77fb82] text-black rounded font-bold text-sm hover:bg-[#66ea71] transition-all border-2 border-[#77fb82] font-mono"
             >
-              {'>'} RUN SPIN_WHEEL.EXE
+              {'>'} RUN SPIN_WHEEL
             </button>
 
             <button
@@ -801,7 +801,7 @@ export default function MintPageClient({ slug }) {
               }}
               className="w-full py-3 bg-black text-[#77fb82] rounded font-bold text-sm hover:bg-gray-900 transition-all border-2 border-[#77fb82] font-mono"
             >
-              {'>'} BROWSE_SHOP.EXE
+              {'>'} BROWSE_SHOP
             </button>
           </div>
         )}
