@@ -729,20 +729,20 @@ export default function MintPageClient({ slug }) {
         {hasClaimed && showStakingTeaser && (
           <div className="space-y-3 font-mono">
             {/* Terminal Header */}
-            <div className="bg-black border-4 border-[#00ff00] rounded-lg p-4 shadow-lg shadow-[#00ff00]/20">
-              <div className="text-[#00ff00] space-y-2">
+            <div className="bg-black border-4 border-[#77fb82] rounded-lg p-4 shadow-lg shadow-[#77fb82]/20">
+              <div className="text-[#77fb82] space-y-2">
                 {/* ASCII Success Message */}
                 <div className="text-center">
                   <pre className="text-[10px] leading-tight">
 {`╔═══════════════════════════════╗
-║   QUEST COMPLETED! ✓          ║
+║   QUEST COMPLETED! 📟 ✓       ║
 ║   WELCOME TO MINTED MERCH     ║
 ╚═══════════════════════════════╝`}
                   </pre>
                 </div>
 
                 {/* Rewards Display */}
-                <div className="border-2 border-[#00ff00] p-3 bg-black/50">
+                <div className="border-2 border-[#77fb82] p-3 bg-black/50">
                   <p className="text-xs mb-2">{'>'} REWARDS_CLAIMED.EXE</p>
                   <div className="space-y-1 text-xs">
                     <p className="flex justify-between">
@@ -765,18 +765,18 @@ export default function MintPageClient({ slug }) {
                   <p className="text-white font-bold">{'>'} AVAILABLE_ACTIONS.TXT</p>
                   
                   {/* Daily Spin */}
-                  <div className="border border-[#00ff00] p-2 bg-black/30">
+                  <div className="border border-[#77fb82] p-2 bg-black/30">
                     <p className="font-bold mb-1">{'[1]'} SPIN_WHEEL.EXE</p>
                     <p className="text-[10px] leading-tight">
-                      Earn BP, climb leaderboard, win raffles for tokens, gift cards & FREE merch! Multipliers for holders.
+                      Earn points, climb the leaderboard, and get entered into random raffles to win tokens, gift cards & FREE merch! Bonus points for merch purchases & multipliers for holders.
                     </p>
                   </div>
 
                   {/* Staking */}
-                  <div className="border border-[#00ff00] p-2 bg-black/30">
+                  <div className="border border-[#77fb82] p-2 bg-black/30">
                     <p className="font-bold mb-1">{'[2]'} STAKE_TOKENS.EXE</p>
                     <p className="text-[10px] leading-tight">
-                      SOON! Hold 50M+ tokens → Merch Mogul status → Unlock perks, discounts & group chat access.
+                      Staking SOON! Hold 50M+ tokens → Earn Merch Mogul status → Unlock perks, discounts & group chat access.
                     </p>
                   </div>
                 </div>
@@ -789,7 +789,7 @@ export default function MintPageClient({ slug }) {
                 triggerHaptic('medium', isInFarcaster);
                 router.push('/');
               }}
-              className="w-full py-3 bg-[#00ff00] text-black rounded font-bold text-sm hover:bg-[#00dd00] transition-all border-2 border-[#00ff00] font-mono"
+              className="w-full py-3 bg-[#77fb82] text-black rounded font-bold text-sm hover:bg-[#66ea71] transition-all border-2 border-[#77fb82] font-mono"
             >
               {'>'} RUN SPIN_WHEEL.EXE
             </button>
@@ -799,7 +799,7 @@ export default function MintPageClient({ slug }) {
                 triggerHaptic('medium', isInFarcaster);
                 router.push('/');
               }}
-              className="w-full py-3 bg-black text-[#00ff00] rounded font-bold text-sm hover:bg-gray-900 transition-all border-2 border-[#00ff00] font-mono"
+              className="w-full py-3 bg-black text-[#77fb82] rounded font-bold text-sm hover:bg-gray-900 transition-all border-2 border-[#77fb82] font-mono"
             >
               {'>'} BROWSE_SHOP.EXE
             </button>
