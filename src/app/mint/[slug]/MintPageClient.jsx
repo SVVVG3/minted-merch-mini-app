@@ -647,7 +647,7 @@ export default function MintPageClient({ slug }) {
                   : 'bg-gray-700 text-gray-500 cursor-not-allowed'
               }`}
             >
-              {isMintConfirming ? 'Confirming...' : isMintTxPending ? 'Approve in wallet...' : isMinting ? 'Preparing...' : canMint ? 'Mint' : '❌ Mint Unavailable'}
+              {isMintConfirming ? 'Confirming...' : isMintTxPending ? 'Approve in wallet...' : isMinting ? 'Preparing...' : canMint ? 'Claim FREE Mint 📟' : '❌ Mint Unavailable'}
             </button>
             
             {mintError && (
