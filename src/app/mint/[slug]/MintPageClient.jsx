@@ -336,19 +336,19 @@ export default function MintPageClient({ slug }) {
   const canMint = userStatus?.canMint && !isMinting;
 
   return (
-    <div className="min-h-screen bg-black text-white px-4 py-8 max-w-2xl mx-auto">
+    <div className="min-h-screen bg-black text-white px-4 py-4 max-w-2xl mx-auto">
       {/* Header */}
-      <div className="mb-8 text-center">
+      <div className="mb-3 text-center">
         <button
           onClick={() => router.push('/')}
-          className="text-gray-400 hover:text-white mb-4 inline-block"
+          className="text-gray-400 hover:text-white inline-block"
         >
           ← Back to Shop
         </button>
       </div>
 
       {/* Header Image */}
-      <div className="mb-6 relative h-24 rounded-xl overflow-hidden">
+      <div className="mb-4 relative h-24 rounded-xl overflow-hidden">
         <Image
           src="/BeeperXmintedmerch.png"
           alt="Beeper x Minted Merch"
@@ -376,43 +376,43 @@ export default function MintPageClient({ slug }) {
       </div>
 
       {/* About Minted Merch Section - Moved above mint button */}
-      <div className="border border-gray-800 rounded-xl p-6 mb-8 space-y-6">
+      <div className="border border-gray-800 rounded-xl p-6 mb-8 space-y-4">
         {/* Spinner Logo */}
-        <div className="flex justify-center mb-4">
+        <div className="flex justify-center">
           <Image
             src="/MintedMerchSpinnerLogo.png"
             alt="Minted Merch"
-            width={120}
-            height={120}
+            width={240}
+            height={240}
             className="object-contain"
           />
         </div>
         
         <div className="space-y-3 text-gray-300 text-center">
-          <p className="text-xl font-bold text-white">Where Tokens Meet Merch</p>
+          <p className="text-lg font-bold text-white">Where Tokens Meet Merch</p>
           
           <div className="space-y-2 text-left">
             <div className="flex items-start gap-2">
-              <span>✅</span>
-              <span>Exclusive collabs & drops</span>
+              <span className="text-sm">✅</span>
+              <span className="text-sm">Exclusive collabs & drops</span>
             </div>
             <div className="flex items-start gap-2">
-              <span>✅</span>
-              <span>Shop with 1200+ coins across 20+ chains</span>
+              <span className="text-sm">✅</span>
+              <span className="text-sm">Shop with 1200+ coins across 20+ chains</span>
             </div>
             <div className="flex items-start gap-2">
-              <span>✅</span>
-              <span>Daily spins w/ leaderboard & raffles</span>
+              <span className="text-sm">✅</span>
+              <span className="text-sm">Daily spins w/ leaderboard & raffles</span>
             </div>
             <div className="flex items-start gap-2">
-              <span>✅</span>
-              <span>Win $mintedmerch, gift cards, & FREE merch</span>
+              <span className="text-sm">✅</span>
+              <span className="text-sm">Win $mintedmerch, gift cards, & FREE merch</span>
             </div>
           </div>
         </div>
 
         <div className="p-4 bg-gray-900 rounded-lg space-y-2">
-          <h3 className="text-lg font-bold">Become a Merch Mogul 🤌</h3>
+          <h3 className="text-lg font-bold text-center">Become a Merch Mogul 🤌</h3>
           <ul className="text-sm text-gray-400 space-y-1 ml-4">
             <li>• Exclusive Collab Partner Access</li>
             <li>• Custom Merch Orders</li>
