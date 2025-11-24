@@ -123,8 +123,17 @@ export default function MintPageClient({ slug }) {
 
   // Handle NFT mint
   const handleMint = async () => {
-    if (!farcasterUser || !farcasterToken) {
-      setMintError('Please sign in to mint');
+    console.log('🎨 Mint button clicked');
+    console.log('👤 Farcaster User:', farcasterUser);
+    console.log('🔑 Farcaster Token:', farcasterToken ? `${farcasterToken.substring(0, 20)}...` : 'UNDEFINED');
+    
+    if (!farcasterUser) {
+      setMintError('Please sign in to mint - User not found');
+      return;
+    }
+    
+    if (!farcasterToken) {
+      setMintError('Please sign in to mint - Token not available');
       return;
     }
 

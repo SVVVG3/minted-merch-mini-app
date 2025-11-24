@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { verifyFarcasterUser, setUserContext } from '@/lib/auth';
+import { getAuthenticatedFid } from '@/lib/userAuth';
+import { setUserContext } from '@/lib/auth';
 import { generateClaimSignature } from '@/lib/claimSignatureService';
 
 /**
@@ -29,15 +30,14 @@ export async function GET(request, { params }) {
     console.log(`[${requestId}] 🔐 Fetching claim data for claim: ${claimId}`);
 
     // 🔒 AUTHENTICATE USER (REQUIRED)
-    const farcasterUser = await verifyFarcasterUser(request);
-    if (!farcasterUser?.fid) {
+    const authenticatedFid = await getAuthenticatedFid(request);
+    if (!authenticatedFid) {
       return NextResponse.json(
         { error: 'Unauthorized - Farcaster authentication required' },
         { status: 401 }
       );
     }
 
-    const authenticatedFid = farcasterUser.fid;
     console.log(`[${requestId}] ✅ Authenticated as FID ${authenticatedFid}`);
 
     // Set user context for RLS (ensures user can only see their own claims)

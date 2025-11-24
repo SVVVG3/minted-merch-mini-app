@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { verifyFarcasterUser, setUserContext, setSystemContext } from '@/lib/auth';
+import { getAuthenticatedFid } from '@/lib/userAuth';
+import { setUserContext, setSystemContext } from '@/lib/auth';
 import { generateClaimSignature } from '@/lib/claimSignatureService';
 
 /**
@@ -34,15 +35,14 @@ export async function POST(request, { params }) {
     console.log(`   TX: ${transactionHash}`);
 
     // 🔒 AUTHENTICATE USER (REQUIRED)
-    const farcasterUser = await verifyFarcasterUser(request);
-    if (!farcasterUser?.fid) {
+    const authenticatedFid = await getAuthenticatedFid(request);
+    if (!authenticatedFid) {
       return NextResponse.json(
         { error: 'Unauthorized - Farcaster authentication required' },
         { status: 401 }
       );
     }
 
-    const authenticatedFid = farcasterUser.fid;
     console.log(`✅ Authenticated as FID ${authenticatedFid}`);
 
     // 🆕 AUTO-REGISTER USER IF FIRST TIME VISITOR

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { verifyFarcasterUser, setUserContext } from '@/lib/auth';
+import { getAuthenticatedFid } from '@/lib/userAuth';
+import { setUserContext } from '@/lib/auth';
 
 /**
  * GET /api/nft-mints/[slug]
@@ -54,20 +55,20 @@ export async function GET(request, { params }) {
 
     // If user is authenticated, check their mint/claim status
     try {
-      const farcasterUser = await verifyFarcasterUser(request);
+      const authenticatedFid = await getAuthenticatedFid(request);
       
-      if (farcasterUser?.fid) {
-        console.log(`🔍 Checking mint status for FID ${farcasterUser.fid}`);
+      if (authenticatedFid) {
+        console.log(`🔍 Checking mint status for FID ${authenticatedFid}`);
         
         // Set user context for RLS
-        await setUserContext(farcasterUser.fid);
+        await setUserContext(authenticatedFid);
 
         // Check if user has already minted this campaign
         const { data: existingClaim, error: claimError } = await supabaseAdmin
           .from('nft_mint_claims')
           .select('*')
           .eq('campaign_id', campaign.id)
-          .eq('user_fid', farcasterUser.fid)
+          .eq('user_fid', authenticatedFid)
           .single();
 
         if (existingClaim) {
