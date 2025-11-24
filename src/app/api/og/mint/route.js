@@ -154,8 +154,8 @@ export async function GET(request) {
                 src={logoImageSrc}
                 alt="Minted Merch Logo"
                 style={{
-                  width: '100%',
-                  height: '100%',
+                  width: '120px',
+                  height: '120px',
                   objectFit: 'contain',
                 }}
               />

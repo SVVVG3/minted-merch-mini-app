@@ -347,6 +347,17 @@ export default function MintPageClient({ slug }) {
         </button>
       </div>
 
+      {/* Header Image */}
+      <div className="mb-6 relative h-24 rounded-xl overflow-hidden">
+        <Image
+          src="/BeeperXmintedmerch.png"
+          alt="Beeper x Minted Merch"
+          fill
+          className="object-contain"
+          priority
+        />
+      </div>
+
       {/* NFT Image */}
       <div className="mb-8 relative aspect-square rounded-2xl overflow-hidden bg-gray-900">
         <Image
@@ -360,21 +371,55 @@ export default function MintPageClient({ slug }) {
 
       {/* Campaign Info */}
       <div className="mb-8 space-y-4">
-        <h1 className="text-4xl font-bold">{campaign.title}</h1>
+        <h1 className="text-3xl font-bold">{campaign.title}</h1>
         <p className="text-gray-300 text-lg">{campaign.description}</p>
+      </div>
+
+      {/* About Minted Merch Section - Moved above mint button */}
+      <div className="border border-gray-800 rounded-xl p-6 mb-8 space-y-6">
+        {/* Spinner Logo */}
+        <div className="flex justify-center mb-4">
+          <Image
+            src="/MintedMerchSpinnerLogo.png"
+            alt="Minted Merch"
+            width={120}
+            height={120}
+            className="object-contain"
+          />
+        </div>
         
-        {/* Stats */}
-        <div className="flex gap-4 text-sm">
-          {campaign.maxSupply && (
-            <div className="px-4 py-2 bg-gray-900 rounded-lg">
-              <span className="text-gray-400">Supply:</span>{' '}
-              <span className="font-bold">{campaign.totalMints}/{campaign.maxSupply}</span>
+        <div className="space-y-3 text-gray-300 text-center">
+          <p className="text-xl font-bold text-white">Where Tokens Meet Merch</p>
+          
+          <div className="space-y-2 text-left">
+            <div className="flex items-start gap-2">
+              <span>✅</span>
+              <span>Exclusive collabs & drops</span>
             </div>
-          )}
-          <div className="px-4 py-2 bg-gray-900 rounded-lg">
-            <span className="text-gray-400">Reward:</span>{' '}
-            <span className="font-bold">100,000 $MINTEDMERCH</span>
+            <div className="flex items-start gap-2">
+              <span>✅</span>
+              <span>Shop with 1200+ coins across 20+ chains</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span>✅</span>
+              <span>Daily spins w/ leaderboard & raffles</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span>✅</span>
+              <span>Win $mintedmerch, gift cards, & FREE merch</span>
+            </div>
           </div>
+        </div>
+
+        <div className="p-4 bg-gray-900 rounded-lg space-y-2">
+          <h3 className="text-lg font-bold">Become a Merch Mogul 🤌</h3>
+          <ul className="text-sm text-gray-400 space-y-1 ml-4">
+            <li>• Exclusive Collab Partner Access</li>
+            <li>• Custom Merch Orders</li>
+            <li>• Group Chat Access</li>
+            <li>• 15% off store wide</li>
+            <li>• Ambassador Program</li>
+          </ul>
         </div>
       </div>
 
@@ -392,7 +437,7 @@ export default function MintPageClient({ slug }) {
                   : 'bg-gray-700 text-gray-500 cursor-not-allowed'
               }`}
             >
-              {isMinting ? '🎨 Minting...' : canMint ? '🎨 Mint NFT' : '❌ Mint Unavailable'}
+              {isMinting ? 'Minting...' : canMint ? 'Mint' : '❌ Mint Unavailable'}
             </button>
             
             {mintError && (
@@ -482,43 +527,6 @@ export default function MintPageClient({ slug }) {
         )}
       </div>
 
-      {/* About Minted Merch Section */}
-      <div className="border-t border-gray-800 pt-8 space-y-6">
-        <h2 className="text-2xl font-bold">🎯 About Minted Merch</h2>
-        
-        <div className="space-y-3 text-gray-300">
-          <p>{campaign.metadata?.aboutMintedMerch || 'The ultimate crypto merch shop powered by your community.'}</p>
-          
-          <div className="space-y-2">
-            <div className="flex items-start gap-2">
-              <span>✅</span>
-              <span>Shop with USDC on Base</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span>✅</span>
-              <span>Earn $MINTEDMERCH rewards</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span>✅</span>
-              <span>Free shipping for holders</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span>✅</span>
-              <span>Exclusive collabs & drops</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4 bg-gray-900 rounded-lg space-y-2">
-          <h3 className="text-lg font-bold">💎 Become a Merch Mogul:</h3>
-          <ul className="text-sm text-gray-400 space-y-1 ml-4">
-            <li>• Stake tokens (coming soon)</li>
-            <li>• Unlock exclusive perks</li>
-            <li>• Get priority access</li>
-            <li>• Join our community</li>
-          </ul>
-        </div>
-      </div>
 
       {/* Share Modal (Displayed as overlay when showShareModal is true) */}
       {showShareModal && (
