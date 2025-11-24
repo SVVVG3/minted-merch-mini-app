@@ -725,77 +725,83 @@ export default function MintPageClient({ slug }) {
           </>
         )}
 
-        {/* STATE 4: Claimed - Show Success + Engagement CTAs */}
+        {/* STATE 4: Claimed - Terminal/Retro Style Success Screen */}
         {hasClaimed && showStakingTeaser && (
-          <div className="space-y-3">
-            {/* Success Header - Compact but readable */}
-            <div className="text-center space-y-0.5 py-1">
-              <div className="inline-flex items-center justify-center w-10 h-10 bg-gradient-to-br from-[#3eb489] to-emerald-600 rounded-full mb-1 shadow-lg shadow-[#3eb489]/50">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-black">You're In! 🎉</h2>
-              <p className="text-xs text-gray-400">Welcome to Minted Merch!</p>
-            </div>
-
-            {/* Claims Card - Compact but readable */}
-            <div className="p-3 bg-gradient-to-br from-[#3eb489]/20 via-emerald-900/20 to-[#3eb489]/10 border-2 border-[#3eb489] rounded-xl text-center relative overflow-hidden">
-              {/* Animated background effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
-              
-              <div className="relative z-10">
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">You Claimed</p>
-                <p className="text-xl font-black text-[#3eb489] mb-0.5">100,000 $MINTEDMERCH</p>
-                <p className="text-sm font-semibold text-white">& 1x WEN BEEPER MERCH NFT</p>
-              </div>
-            </div>
-
-            {/* What Can I Do Now? Section */}
-            <div className="pt-1">
-              <h3 className="text-base font-bold text-center mb-2 text-gray-300">What Can I Do Now?</h3>
-              
-              {/* Daily Spin Info */}
-              <div className="p-2.5 bg-gradient-to-br from-blue-900/30 to-cyan-900/30 border border-blue-500/50 rounded-lg mb-2">
-                <div className="text-center mb-1.5">
-                  <p className="font-bold text-blue-400 text-sm">🎰 SPIN THE WHEEL DAILY</p>
+          <div className="space-y-3 font-mono">
+            {/* Terminal Header */}
+            <div className="bg-black border-4 border-[#00ff00] rounded-lg p-4 shadow-lg shadow-[#00ff00]/20">
+              <div className="text-[#00ff00] space-y-2">
+                {/* ASCII Success Message */}
+                <div className="text-center">
+                  <pre className="text-[10px] leading-tight">
+{`╔═══════════════════════════════╗
+║   QUEST COMPLETED! ✓          ║
+║   WELCOME TO MINTED MERCH     ║
+╚═══════════════════════════════╝`}
+                  </pre>
                 </div>
-                <p className="text-xs text-gray-300 leading-tight text-center">
-                  Earn points & move up the leaderboard to be entered into random raffles for $MINTEDMERCH, gift cards, and FREE merch! Earn extra points for purchases with multipliers for $MINTEDMERCH holdings.
-                </p>
-              </div>
 
-              {/* Stake to Earn Message */}
-              <div className="p-2.5 bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-500/50 rounded-lg">
-                <div className="text-center mb-1.5">
-                  <p className="font-bold text-purple-400 text-sm">💎 STAKE TO EARN</p>
+                {/* Rewards Display */}
+                <div className="border-2 border-[#00ff00] p-3 bg-black/50">
+                  <p className="text-xs mb-2">{'>'} REWARDS_CLAIMED.EXE</p>
+                  <div className="space-y-1 text-xs">
+                    <p className="flex justify-between">
+                      <span>TOKENS:</span>
+                      <span className="text-white font-bold">100,000 $MINTEDMERCH</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span>NFT:</span>
+                      <span className="text-white font-bold">1x WEN BEEPER MERCH</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span>STATUS:</span>
+                      <span className="text-white font-bold">[CONFIRMED]</span>
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-300 leading-tight text-center">
-                  Staking launches SOON! Hold 50M+ tokens to become a <span className="text-[#3eb489] font-semibold">Merch Mogul</span> & unlock exclusive perks, discounts, and access to the group chat.
-                </p>
+
+                {/* What's Next Terminal Section */}
+                <div className="space-y-2 text-xs">
+                  <p className="text-white font-bold">{'>'} AVAILABLE_ACTIONS.TXT</p>
+                  
+                  {/* Daily Spin */}
+                  <div className="border border-[#00ff00] p-2 bg-black/30">
+                    <p className="font-bold mb-1">{'[1]'} SPIN_WHEEL.EXE</p>
+                    <p className="text-[10px] leading-tight">
+                      Earn BP, climb leaderboard, win raffles for tokens, gift cards & FREE merch! Multipliers for holders.
+                    </p>
+                  </div>
+
+                  {/* Staking */}
+                  <div className="border border-[#00ff00] p-2 bg-black/30">
+                    <p className="font-bold mb-1">{'[2]'} STAKE_TOKENS.EXE</p>
+                    <p className="text-[10px] leading-tight">
+                      SOON! Hold 50M+ tokens → Merch Mogul status → Unlock perks, discounts & group chat access.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Daily Spin CTA */}
+            {/* Terminal-style Buttons */}
             <button
               onClick={() => {
                 triggerHaptic('medium', isInFarcaster);
                 router.push('/');
               }}
-              className="w-full py-4 bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-xl text-lg font-bold hover:bg-purple-600 hover:scale-105 transition-all shadow-lg"
+              className="w-full py-3 bg-[#00ff00] text-black rounded font-bold text-sm hover:bg-[#00dd00] transition-all border-2 border-[#00ff00] font-mono"
             >
-              Spin Daily Wheel
+              {'>'} RUN SPIN_WHEEL.EXE
             </button>
 
-            {/* Start Shopping CTA */}
             <button
               onClick={() => {
                 triggerHaptic('medium', isInFarcaster);
                 router.push('/');
               }}
-              className="w-full py-4 bg-[#3eb489] text-white rounded-xl text-lg font-bold hover:bg-[#35a078] hover:scale-105 transition-all shadow-lg shadow-[#3eb489]/20"
+              className="w-full py-3 bg-black text-[#00ff00] rounded font-bold text-sm hover:bg-gray-900 transition-all border-2 border-[#00ff00] font-mono"
             >
-              Start Shopping
+              {'>'} BROWSE_SHOP.EXE
             </button>
           </div>
         )}
