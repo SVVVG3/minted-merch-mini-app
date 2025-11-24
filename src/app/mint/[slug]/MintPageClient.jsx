@@ -386,7 +386,7 @@ export default function MintPageClient({ slug }) {
 
       // Prepare airdrop contract call data
       // Function: airdropERC20WithSignature(AirdropRequest req, bytes signature)
-      const { Interface } = await import('ethers');
+      const { Interface, getAddress } = await import('ethers');
       
       const airdropABI = [
         'function airdropERC20WithSignature((bytes32 uid, address tokenAddress, uint256 expirationTimestamp, (address recipient, uint256 amount)[] contents) req, bytes signature)'
@@ -394,9 +394,22 @@ export default function MintPageClient({ slug }) {
       
       const iface = new Interface(airdropABI);
       
+      // Normalize addresses to proper checksum format (ethers is strict about this)
+      const normalizedReq = {
+        uid: claimData.req.uid,
+        tokenAddress: getAddress(claimData.req.tokenAddress), // Proper checksum
+        expirationTimestamp: claimData.req.expirationTimestamp,
+        contents: claimData.req.contents.map(item => ({
+          recipient: getAddress(item.recipient), // Proper checksum
+          amount: item.amount
+        }))
+      };
+      
+      console.log('📝 Normalized request:', normalizedReq);
+      
       // Encode the function call
       const encodedData = iface.encodeFunctionData('airdropERC20WithSignature', [
-        claimData.req,
+        normalizedReq,
         claimData.signature
       ]);
 
