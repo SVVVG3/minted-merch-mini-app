@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { shareToFarcaster } from '@/lib/farcasterShare';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Image from 'next/image';
 
 /**
@@ -19,6 +20,34 @@ import Image from 'next/image';
 export default function MintPageClient({ slug }) {
   const router = useRouter();
   const { user: farcasterUser, sessionToken, isInFarcaster, isReady } = useFarcaster();
+
+  // Wagmi hooks for NFT minting
+  const { 
+    writeContract: writeMintContract, 
+    data: mintTxHash, 
+    isPending: isMintTxPending,
+    error: mintWriteError 
+  } = useWriteContract();
+  const { 
+    isLoading: isMintConfirming, 
+    isSuccess: isMintConfirmed 
+  } = useWaitForTransactionReceipt({
+    hash: mintTxHash,
+  });
+
+  // Wagmi hooks for token claiming (like Ambassador program)
+  const { 
+    writeContract: writeClaimContract, 
+    data: claimTxHash, 
+    isPending: isClaimTxPending,
+    error: claimWriteError 
+  } = useWriteContract();
+  const { 
+    isLoading: isClaimConfirming, 
+    isSuccess: isClaimConfirmed 
+  } = useWaitForTransactionReceipt({
+    hash: claimTxHash,
+  });
 
   // Campaign data
   const [campaign, setCampaign] = useState(null);
@@ -37,7 +66,6 @@ export default function MintPageClient({ slug }) {
   const [hasShared, setHasShared] = useState(false);
 
   // Claim state
-  const [isClaiming, setIsClaiming] = useState(false);
   const [claimError, setClaimError] = useState(null);
   const [hasClaimed, setHasClaimed] = useState(false);
 
@@ -121,21 +149,103 @@ export default function MintPageClient({ slug }) {
     }
   }, [slug, sessionToken]);
 
-  // Handle NFT mint
+  // Watch for mint transaction confirmation
+  useEffect(() => {
+    if (isMintConfirmed && mintTxHash) {
+      console.log('✅ NFT mint confirmed! TX:', mintTxHash);
+      
+      // Record mint in backend
+      const recordMint = async () => {
+        try {
+          const { sdk } = await import('@/lib/frame');
+          const accounts = await sdk.wallet.ethProvider.request({
+            method: 'eth_requestAccounts'
+          });
+          const walletAddress = accounts[0];
+
+          console.log('💾 Recording mint in database...');
+          const response = await fetch(`/api/nft-mints/${slug}/mint`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionToken}`
+            },
+            body: JSON.stringify({
+              transactionHash: mintTxHash,
+              walletAddress,
+              tokenId: campaign.tokenId || '0'
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Mint recorded:', data);
+            
+            // Update state
+            setClaimId(data.claimId);
+            setUserStatus(prev => ({ ...prev, hasMinted: true, canMint: false }));
+            setShowShareModal(true);
+          } else {
+            console.error('⚠️  Failed to record mint');
+          }
+        } catch (err) {
+          console.error('❌ Error recording mint:', err);
+        } finally {
+          setIsMinting(false);
+        }
+      };
+
+      recordMint();
+    }
+  }, [isMintConfirmed, mintTxHash]);
+
+  // Watch for claim transaction confirmation
+  useEffect(() => {
+    if (isClaimConfirmed && claimTxHash) {
+      console.log('✅ Token claim confirmed! TX:', claimTxHash);
+      
+      // Mark as claimed in backend
+      const markClaimed = async () => {
+        try {
+          console.log('💾 Marking claim as complete in database...');
+          const response = await fetch(`/api/nft-mints/claims/${claimId}/mark-claimed`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionToken}`
+            },
+            body: JSON.stringify({
+              transactionHash: claimTxHash
+            })
+          });
+
+          if (response.ok) {
+            console.log('✅ Claim marked as complete!');
+            setHasClaimed(true);
+            setShowStakingTeaser(true);
+          } else {
+            console.error('⚠️  Failed to mark claim as complete');
+          }
+        } catch (err) {
+          console.error('❌ Error marking claim:', err);
+        }
+      };
+
+      markClaimed();
+    }
+  }, [isClaimConfirmed, claimTxHash]);
+
+  // Handle NFT mint using Wagmi (like Ambassador program)
   const handleMint = async () => {
     console.log('🎨 Mint button clicked');
-    console.log('👤 Farcaster User:', farcasterUser);
-    console.log('🔑 Session Token:', sessionToken ? `${sessionToken.substring(0, 20)}...` : 'UNDEFINED');
-    console.log('🔍 Is In Farcaster:', isInFarcaster);
-    console.log('🔍 Is Ready:', isReady);
     
-    if (!farcasterUser) {
-      setMintError('Please sign in to mint - User not found');
+    if (!farcasterUser || !sessionToken) {
+      setMintError('Please sign in to mint');
       return;
     }
-    
-    if (!sessionToken) {
-      setMintError('Session token not available. Please refresh the page and try again.');
+
+    if (!campaign) {
+      setMintError('Campaign data not loaded');
       return;
     }
 
@@ -144,9 +254,11 @@ export default function MintPageClient({ slug }) {
       setMintError(null);
 
       console.log('🎨 Starting mint process...');
+      console.log('📋 Contract:', campaign.contractAddress);
+      console.log('🎫 Token ID:', campaign.tokenId || 0);
 
-      // Get wallet address from Farcaster SDK
-      const { sdk } = await import('@farcaster/miniapp-sdk');
+      // Get wallet address
+      const { sdk } = await import('@/lib/frame');
       const accounts = await sdk.wallet.ethProvider.request({
         method: 'eth_requestAccounts'
       });
@@ -158,95 +270,57 @@ export default function MintPageClient({ slug }) {
       const walletAddress = accounts[0];
       console.log('💳 Wallet address:', walletAddress);
 
-      // 🎨 MINT NFT ON-CHAIN USING THIRDWEB
-      console.log('🔗 Minting NFT on-chain...');
-      console.log('📋 Contract:', campaign.contractAddress);
-      console.log('🎫 Token ID:', campaign.tokenId);
-      console.log('⛓️  Chain:', campaign.chainId || 8453); // Base mainnet
-
-      // Import Thirdweb SDK components
-      const { prepareContractCall, getContract, defineChain, encode } = await import('thirdweb');
-      const { claimTo } = await import('thirdweb/extensions/erc1155');
-      const { client } = await import('@/lib/thirdwebClient');
-
-      try {
-        // Define chain (Base mainnet = 8453)
-        const chain = defineChain(campaign.chainId || 8453);
-
-        // Get contract instance
-        const contract = getContract({
-          client,
-          chain,
-          address: campaign.contractAddress
-        });
-
-        // Prepare claim transaction for ERC1155
-        console.log('📝 Preparing claim transaction...');
-        console.log('   Token ID:', campaign.tokenId || 0);
-        console.log('   Quantity:', 1);
-        console.log('   Recipient:', walletAddress);
-        
-        const transaction = claimTo({
-          contract,
-          to: walletAddress,
-          tokenId: BigInt(campaign.tokenId || 0),
-          quantity: BigInt(1)
-        });
-
-        // Encode the transaction data
-        const encodedData = await encode(transaction);
-
-        // Send transaction using Farcaster wallet provider (like payment.js)
-        console.log('📤 Sending transaction via Farcaster wallet...');
-        const transactionHash = await sdk.wallet.ethProvider.request({
-          method: 'eth_sendTransaction',
-          params: [{
-            from: walletAddress,
-            to: campaign.contractAddress,
-            data: encodedData,
-            value: '0x0' // Free mint
-          }]
-        });
-
-        console.log('✅ NFT minted! TX:', transactionHash);
-
-        // Record mint in backend with real transaction hash
-        console.log('💾 Recording mint in database...');
-        const recordResponse = await fetch(`/api/nft-mints/${slug}/mint`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionToken}`
-          },
-          body: JSON.stringify({
-            transactionHash,
-            walletAddress,
-            tokenId: campaign.tokenId || '0'
-          })
-        });
-
-        if (!recordResponse.ok) {
-          const errorData = await recordResponse.json();
-          throw new Error(errorData.error || 'Failed to record mint');
+      // ERC1155 claim ABI (Thirdweb Edition Drop contract)
+      const erc1155ClaimABI = [
+        {
+          name: 'claim',
+          type: 'function',
+          inputs: [
+            { name: 'receiver', type: 'address' },
+            { name: 'tokenId', type: 'uint256' },
+            { name: 'quantity', type: 'uint256' },
+            { name: 'currency', type: 'address' },
+            { name: 'pricePerToken', type: 'uint256' },
+            { name: 'allowlistProof', type: 'tuple', components: [
+              { name: 'proof', type: 'bytes32[]' },
+              { name: 'quantityLimitPerWallet', type: 'uint256' },
+              { name: 'pricePerToken', type: 'uint256' },
+              { name: 'currency', type: 'address' }
+            ]},
+            { name: 'data', type: 'bytes' }
+          ],
+          outputs: []
         }
+      ];
 
-        const recordData = await recordResponse.json();
-        console.log('✅ Mint recorded:', recordData);
+      // Call Wagmi writeContract (triggers wallet approval)
+      console.log('📤 Calling writeContract...');
+      writeMintContract({
+        address: campaign.contractAddress,
+        abi: erc1155ClaimABI,
+        functionName: 'claim',
+        args: [
+          walletAddress, // receiver
+          BigInt(campaign.tokenId || 0), // tokenId
+          BigInt(1), // quantity
+          '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // currency (native token placeholder)
+          BigInt(0), // pricePerToken (free)
+          { // allowlistProof (empty for public claim)
+            proof: [],
+            quantityLimitPerWallet: BigInt(0),
+            pricePerToken: BigInt(0),
+            currency: '0x0000000000000000000000000000000000000000'
+          },
+          '0x' // data (empty)
+        ]
+      });
 
-        // Update state with claim ID and force userStatus update
-        setClaimId(recordData.claimId);
-        setUserStatus(prev => ({ ...prev, hasMinted: true, canMint: false }));
-        setShowShareModal(true);
-
-      } catch (mintError) {
-        console.error('❌ Minting failed:', mintError);
-        throw new Error(`Minting failed: ${mintError.message}`);
-      }
+      console.log('✅ Mint transaction sent - waiting for user approval...');
+      // Transaction will be handled by useEffect watching isMintConfirmed
 
     } catch (err) {
       console.error('❌ Mint error:', err);
       setMintError(err.message || 'Failed to mint NFT');
-    } finally {
       setIsMinting(false);
     }
   };
@@ -330,20 +404,16 @@ export default function MintPageClient({ slug }) {
     }
   };
 
-  // Handle token claim
+  // Handle token claim using Wagmi (same as Ambassador program)
   const handleClaim = async () => {
     console.log('💰 Claim button clicked!');
-    console.log('   Claim ID:', claimId);
-    console.log('   Session Token:', sessionToken ? 'Present' : 'Missing');
     
     if (!claimId || !sessionToken) {
-      console.error('❌ Missing claim ID or session token');
       setClaimError('Missing claim data. Please refresh and try again.');
       return;
     }
 
     try {
-      setIsClaiming(true);
       setClaimError(null);
 
       console.log('📡 Fetching claim data from API...');
@@ -363,100 +433,63 @@ export default function MintPageClient({ slug }) {
       const { claimData } = await claimDataResponse.json();
       console.log('✅ Claim data received:', claimData);
 
-      // Import Farcaster SDK
-      const { sdk } = await import('@/lib/frame');
-
-      // Get wallet address
-      const accounts = await sdk.wallet.ethProvider.request({
-        method: 'eth_requestAccounts'
-      });
-      
-      if (!accounts || !accounts[0]) {
-        throw new Error('No wallet connected');
-      }
-
-      const walletAddress = accounts[0];
-      console.log('💳 Wallet address:', walletAddress);
-
-      // 💰 CLAIM TOKENS ON-CHAIN USING THIRDWEB AIRDROP CONTRACT
-      console.log('🔗 Claiming tokens on-chain...');
-      console.log('📋 Contract:', claimData.contractAddress);
-      console.log('💎 Amount:', claimData.req.contents[0].amount);
-      console.log('🔍 Claim request:', claimData.req);
-
-      // Prepare airdrop contract call data
-      // Function: airdropERC20WithSignature(AirdropRequest req, bytes signature)
-      const { Interface, getAddress } = await import('ethers');
-      
-      const airdropABI = [
-        'function airdropERC20WithSignature((bytes32 uid, address tokenAddress, uint256 expirationTimestamp, (address recipient, uint256 amount)[] contents) req, bytes signature)'
-      ];
-      
-      const iface = new Interface(airdropABI);
-      
-      // Normalize addresses to proper checksum format (ethers is strict about this)
-      const normalizedReq = {
+      // Convert to BigInt (same as Ambassador program)
+      const reqWithBigInt = {
         uid: claimData.req.uid,
-        tokenAddress: getAddress(claimData.req.tokenAddress), // Proper checksum
-        expirationTimestamp: claimData.req.expirationTimestamp,
-        contents: claimData.req.contents.map(item => ({
-          recipient: getAddress(item.recipient), // Proper checksum
-          amount: item.amount
+        tokenAddress: claimData.req.tokenAddress,
+        expirationTimestamp: BigInt(claimData.req.expirationTimestamp),
+        contents: claimData.req.contents.map(content => ({
+          recipient: content.recipient,
+          amount: BigInt(content.amount)
         }))
       };
-      
-      console.log('📝 Normalized request:', normalizedReq);
-      
-      // Encode the function call
-      const encodedData = iface.encodeFunctionData('airdropERC20WithSignature', [
-        normalizedReq,
-        claimData.signature
-      ]);
 
-      console.log('📝 Encoded transaction data');
+      console.log('📝 Prepared claim request');
 
-      // Send transaction using Farcaster wallet provider (like NFT minting)
-      console.log('📤 Sending transaction via Farcaster wallet...');
-      const transactionHash = await sdk.wallet.ethProvider.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          from: walletAddress,
-          to: claimData.contractAddress,
-          data: encodedData,
-          value: '0x0' // No ETH value needed
-        }]
+      // Airdrop contract ABI (same as Ambassador program)
+      const airdropABI = [
+        {
+          name: 'airdropERC20WithSignature',
+          type: 'function',
+          inputs: [
+            {
+              name: 'req',
+              type: 'tuple',
+              components: [
+                { name: 'uid', type: 'bytes32' },
+                { name: 'tokenAddress', type: 'address' },
+                { name: 'expirationTimestamp', type: 'uint256' },
+                {
+                  name: 'contents',
+                  type: 'tuple[]',
+                  components: [
+                    { name: 'recipient', type: 'address' },
+                    { name: 'amount', type: 'uint256' }
+                  ]
+                }
+              ]
+            },
+            { name: 'signature', type: 'bytes' }
+          ],
+          outputs: []
+        }
+      ];
+
+      // Call Wagmi writeContract (triggers wallet approval)
+      console.log('📤 Calling writeContract...');
+      writeClaimContract({
+        address: claimData.contractAddress,
+        abi: airdropABI,
+        functionName: 'airdropERC20WithSignature',
+        args: [reqWithBigInt, claimData.signature]
       });
 
-      console.log('✅ Tokens claimed! TX:', transactionHash);
-
-      // Mark as claimed in backend
-      console.log('💾 Marking claim as complete in database...');
-      const markClaimedResponse = await fetch(`/api/nft-mints/claims/${claimId}/mark-claimed`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`
-        },
-        body: JSON.stringify({
-          transactionHash
-        })
-      });
-
-      if (!markClaimedResponse.ok) {
-        const errorData = await markClaimedResponse.json();
-        console.error('⚠️  Failed to mark as claimed:', errorData);
-        // Still show success since the on-chain claim worked
-      }
-
-      console.log('✅ Claim complete!');
-      setHasClaimed(true);
-      setShowStakingTeaser(true);
+      console.log('✅ Claim transaction sent - waiting for user approval...');
+      // Transaction will be handled by useEffect watching isClaimConfirmed
 
     } catch (err) {
       console.error('❌ Claim error:', err);
       setClaimError(err.message || 'Failed to claim tokens');
-    } finally {
-      setIsClaiming(false);
     }
   };
 
@@ -489,9 +522,12 @@ export default function MintPageClient({ slug }) {
     );
   }
 
-  // Calculate if user can mint
-  // Default to true if userStatus hasn't loaded yet, or use the API value
-  const canMint = (userStatus?.canMint !== false) && !isMinting;
+  // Calculate if user can mint (include Wagmi transaction states)
+  const isMintingProcess = isMinting || isMintTxPending || isMintConfirming;
+  const canMint = (userStatus?.canMint !== false) && !isMintingProcess;
+  
+  // Calculate if user is claiming (include Wagmi transaction states)
+  const isClaimingProcess = isClaimTxPending || isClaimConfirming;
 
   return (
     <div className="min-h-screen bg-black text-white px-4 py-4 max-w-2xl mx-auto">
@@ -595,7 +631,7 @@ export default function MintPageClient({ slug }) {
                   : 'bg-gray-700 text-gray-500 cursor-not-allowed'
               }`}
             >
-              {isMinting ? 'Minting...' : canMint ? 'Mint' : '❌ Mint Unavailable'}
+              {isMintConfirming ? 'Confirming...' : isMintTxPending ? 'Approve in wallet...' : isMinting ? 'Preparing...' : canMint ? 'Mint' : '❌ Mint Unavailable'}
             </button>
             
             {mintError && (
@@ -649,10 +685,10 @@ export default function MintPageClient({ slug }) {
           <>
             <button
               onClick={handleClaim}
-              disabled={isClaiming}
+              disabled={isClaimingProcess}
               className="w-full py-4 bg-[#3eb489] hover:bg-[#359970] text-white rounded-xl text-xl font-bold disabled:bg-gray-600 disabled:cursor-not-allowed transition-all"
             >
-              {isClaiming ? 'Claiming...' : 'Claim $mintedmerch'}
+              {isClaimConfirming ? 'Confirming...' : isClaimTxPending ? 'Approve in wallet...' : 'Claim $mintedmerch'}
             </button>
 
             {claimError && (
