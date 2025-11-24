@@ -18,7 +18,7 @@ import Image from 'next/image';
  */
 export default function MintPageClient({ slug }) {
   const router = useRouter();
-  const { user: farcasterUser, sessionToken, isInFarcaster } = useFarcaster();
+  const { user: farcasterUser, sessionToken, isInFarcaster, isReady } = useFarcaster();
 
   // Campaign data
   const [campaign, setCampaign] = useState(null);
