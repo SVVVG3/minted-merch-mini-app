@@ -371,7 +371,7 @@ export default function MintPageClient({ slug }) {
 
       {/* Campaign Info */}
       <div className="mb-8 space-y-4">
-        <h1 className="text-3xl font-bold">{campaign.title}</h1>
+        <h1 className="text-3xl font-bold text-center">{campaign.title}</h1>
         <p className="text-gray-300 text-lg">{campaign.description}</p>
       </div>
 
@@ -406,7 +406,7 @@ export default function MintPageClient({ slug }) {
             </div>
             <div className="flex items-start gap-2">
               <span className="text-sm">✅</span>
-              <span className="text-sm">Win $mintedmerch, gift cards, & FREE merch</span>
+              <span className="text-sm">Win $mintedmerch, gift cards, & merch</span>
             </div>
           </div>
         </div>

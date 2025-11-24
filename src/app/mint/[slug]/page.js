@@ -1,21 +1,32 @@
 import { Suspense } from 'react';
 import MintPageClient from './MintPageClient';
 
+// Mark route as dynamic to prevent static generation issues
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * Mint Page - Server Component for NFT Campaign
  * Handles metadata, OG images, and Farcaster frame embeds
  */
 export async function generateMetadata({ params }) {
   const { slug } = params;
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://app.mintedmerch.shop';
 
   try {
-    // Fetch campaign data
-    const campaignResponse = await fetch(`${baseUrl}/api/nft-mints/${slug}`, {
-      cache: 'no-store' // Always get fresh campaign data
+    // Fetch campaign data with absolute URL
+    const apiUrl = `${baseUrl}/api/nft-mints/${slug}`;
+    console.log('[Mint Metadata] Fetching:', apiUrl);
+    
+    const campaignResponse = await fetch(apiUrl, {
+      cache: 'no-store',
+      headers: {
+        'Accept': 'application/json'
+      }
     });
 
     if (!campaignResponse.ok) {
+      console.error('[Mint Metadata] API failed:', campaignResponse.status);
       return {
         title: 'NFT Mint - Minted Merch',
         description: 'Mint exclusive NFTs and earn tokens'
