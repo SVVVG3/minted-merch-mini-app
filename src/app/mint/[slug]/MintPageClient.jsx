@@ -253,13 +253,26 @@ export default function MintPageClient({ slug }) {
 
   // Handle share to Farcaster
   const handleShare = async () => {
+    console.log('🔘 Share button clicked!');
+    console.log('   Claim ID:', claimId);
+    console.log('   Session Token:', sessionToken ? 'Present' : 'Missing');
+    console.log('   Campaign:', campaign?.slug);
+    
     if (!claimId) {
-      console.error('No claim ID available');
+      console.error('❌ No claim ID available');
+      setMintError('Claim ID not found. Please refresh and try again.');
+      return;
+    }
+
+    if (!sessionToken) {
+      console.error('❌ No session token available');
+      setMintError('Session token not found. Please refresh and try again.');
       return;
     }
 
     try {
       setIsSharing(true);
+      setMintError(null);
 
       // Get share config from campaign metadata
       const shareText = campaign.metadata?.shareText || 
@@ -281,6 +294,8 @@ export default function MintPageClient({ slug }) {
         isInFarcaster
       });
 
+      console.log('🔍 Share result:', shareResult);
+
       if (shareResult) {
         console.log('✅ Share window opened');
 
@@ -298,11 +313,18 @@ export default function MintPageClient({ slug }) {
           console.log('✅ Marked as shared');
           setHasShared(true);
           setShowShareModal(false); // Close modal
+        } else {
+          const errorData = await markSharedResponse.json();
+          console.error('❌ Failed to mark as shared:', errorData);
+          setMintError(`Failed to mark share: ${errorData.error || 'Unknown error'}`);
         }
+      } else {
+        console.log('ℹ️ Share window not opened (user may have cancelled)');
       }
 
     } catch (err) {
       console.error('❌ Share error:', err);
+      setMintError(`Share failed: ${err.message}`);
     } finally {
       setIsSharing(false);
     }
@@ -310,7 +332,13 @@ export default function MintPageClient({ slug }) {
 
   // Handle token claim
   const handleClaim = async () => {
+    console.log('💰 Claim button clicked!');
+    console.log('   Claim ID:', claimId);
+    console.log('   Session Token:', sessionToken ? 'Present' : 'Missing');
+    
     if (!claimId || !sessionToken) {
+      console.error('❌ Missing claim ID or session token');
+      setClaimError('Missing claim data. Please refresh and try again.');
       return;
     }
 
@@ -318,9 +346,9 @@ export default function MintPageClient({ slug }) {
       setIsClaiming(true);
       setClaimError(null);
 
-      console.log('💰 Fetching claim data...');
+      console.log('📡 Fetching claim data from API...');
 
-      // Get claim signature and params
+      // Get claim signature and params from backend
       const claimDataResponse = await fetch(`/api/nft-mints/claims/${claimId}/claim-data`, {
         headers: {
           'Authorization': `Bearer ${sessionToken}`
@@ -335,12 +363,57 @@ export default function MintPageClient({ slug }) {
       const { claimData } = await claimDataResponse.json();
       console.log('✅ Claim data received:', claimData);
 
-      // TODO: Call airdrop contract with Thirdweb
-      console.log('⚠️  TODO: Implement Thirdweb airdrop claim');
-      const testClaimTxHash = '0x' + Math.random().toString(36).substring(2, 15);
-      console.log('📝 Test claim TX:', testClaimTxHash);
+      // Get wallet address
+      const accounts = await sdk.wallet.ethProvider.request({
+        method: 'eth_requestAccounts'
+      });
+      
+      if (!accounts || !accounts[0]) {
+        throw new Error('No wallet connected');
+      }
+
+      const walletAddress = accounts[0];
+      console.log('💳 Wallet address:', walletAddress);
+
+      // 💰 CLAIM TOKENS ON-CHAIN USING THIRDWEB AIRDROP CONTRACT
+      console.log('🔗 Claiming tokens on-chain...');
+      console.log('📋 Contract:', claimData.contractAddress);
+      console.log('💎 Amount:', claimData.amount);
+
+      // Prepare airdrop contract call data
+      // Function: airdropERC20WithSignature(AirdropRequest req, bytes signature)
+      const { Interface } = await import('ethers');
+      
+      const airdropABI = [
+        'function airdropERC20WithSignature((bytes32 uid, address tokenAddress, uint256 expirationTimestamp, (address recipient, uint256 amount)[] contents) req, bytes signature)'
+      ];
+      
+      const iface = new Interface(airdropABI);
+      
+      // Encode the function call
+      const encodedData = iface.encodeFunctionData('airdropERC20WithSignature', [
+        claimData.request,
+        claimData.signature
+      ]);
+
+      console.log('📝 Encoded transaction data');
+
+      // Send transaction using Farcaster wallet provider (like NFT minting)
+      console.log('📤 Sending transaction via Farcaster wallet...');
+      const transactionHash = await sdk.wallet.ethProvider.request({
+        method: 'eth_sendTransaction',
+        params: [{
+          from: walletAddress,
+          to: claimData.contractAddress,
+          data: encodedData,
+          value: '0x0' // No ETH value needed
+        }]
+      });
+
+      console.log('✅ Tokens claimed! TX:', transactionHash);
 
       // Mark as claimed in backend
+      console.log('💾 Marking claim as complete in database...');
       const markClaimedResponse = await fetch(`/api/nft-mints/claims/${claimId}/mark-claimed`, {
         method: 'POST',
         headers: {
@@ -348,15 +421,19 @@ export default function MintPageClient({ slug }) {
           'Authorization': `Bearer ${sessionToken}`
         },
         body: JSON.stringify({
-          transactionHash: testClaimTxHash
+          transactionHash
         })
       });
 
-      if (markClaimedResponse.ok) {
-        console.log('✅ Tokens claimed successfully!');
-        setHasClaimed(true);
-        setShowStakingTeaser(true);
+      if (!markClaimedResponse.ok) {
+        const errorData = await markClaimedResponse.json();
+        console.error('⚠️  Failed to mark as claimed:', errorData);
+        // Still show success since the on-chain claim worked
       }
+
+      console.log('✅ Claim complete!');
+      setHasClaimed(true);
+      setShowStakingTeaser(true);
 
     } catch (err) {
       console.error('❌ Claim error:', err);
@@ -530,14 +607,23 @@ export default function MintPageClient({ slug }) {
             <button
               onClick={handleShare}
               disabled={isSharing}
-              className="w-full py-4 bg-white text-black rounded-xl font-bold hover:bg-gray-200 hover:scale-105 transition-all"
+              className="w-full py-4 bg-[#6A3CFF] text-white rounded-xl font-bold hover:bg-[#5A2FE6] disabled:bg-gray-600 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
             >
-              {isSharing ? 'Opening Share...' : '📤 Share to Farcaster (Required)'}
+              {isSharing ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Opening Share...
+                </>
+              ) : (
+                <>
+                  {/* Official Farcaster Logo (2024 rebrand) */}
+                  <svg className="w-5 h-5" viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
+                  </svg>
+                  Share to Farcaster (Required)
+                </>
+              )}
             </button>
-            
-            <p className="text-xs text-center text-gray-400">
-              You must share your mint to claim 100,000 $MINTEDMERCH tokens
-            </p>
           </div>
         )}
 
@@ -547,9 +633,9 @@ export default function MintPageClient({ slug }) {
             <button
               onClick={handleClaim}
               disabled={isClaiming}
-              className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl text-xl font-bold hover:scale-105 transition-all"
+              className="w-full py-4 bg-[#3eb489] hover:bg-[#359970] text-white rounded-xl text-xl font-bold disabled:bg-gray-600 disabled:cursor-not-allowed transition-all"
             >
-              {isClaiming ? '💰 Claiming...' : '💰 Claim 100,000 $MINTEDMERCH'}
+              {isClaiming ? 'Claiming...' : 'Claim $mintedmerch'}
             </button>
 
             {claimError && (
@@ -605,15 +691,18 @@ export default function MintPageClient({ slug }) {
             <button
               onClick={handleShare}
               disabled={isSharing}
-              className="w-full py-4 bg-[#8465FF] text-white rounded-xl font-bold hover:bg-[#7555EF] transition-all flex items-center justify-center gap-2"
+              className="w-full py-4 bg-[#6A3CFF] text-white rounded-xl font-bold hover:bg-[#5A2FE6] disabled:bg-gray-600 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
             >
               {isSharing ? (
-                'Opening Share...'
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Opening Share...
+                </>
               ) : (
                 <>
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M10 0C4.48 0 0 4.48 0 10C0 15.52 4.48 20 10 20C15.52 20 20 15.52 20 10C20 4.48 15.52 0 10 0ZM10 18C5.59 18 2 14.41 2 10C2 5.59 5.59 2 10 2C14.41 2 18 5.59 18 10C18 14.41 14.41 18 10 18Z" fill="currentColor"/>
-                    <path d="M10 5L10 15M5 10L15 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  {/* Official Farcaster Logo (2024 rebrand) */}
+                  <svg className="w-5 h-5" viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
                   </svg>
                   Share to Farcaster
                 </>
