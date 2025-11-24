@@ -715,32 +715,40 @@ export default function MintPageClient({ slug }) {
           </>
         )}
 
-        {/* STATE 4: Claimed - Show Staking Teaser + Shop CTA */}
+        {/* STATE 4: Claimed - Show Success + Shop CTA */}
         {hasClaimed && showStakingTeaser && (
-          <div className="space-y-4">
-            {/* Success Message */}
-            <div className="p-6 bg-gradient-to-r from-green-900/50 to-emerald-900/50 border border-green-500 rounded-xl text-center space-y-2">
-              <div className="text-4xl">✅</div>
-              <h3 className="text-2xl font-bold">Tokens Claimed!</h3>
-              <p className="text-lg">You received 100,000 $MINTEDMERCH</p>
-            </div>
+          <div className="space-y-6">
+            {/* Combined Success Message + Staking Info */}
+            <div className="p-8 bg-gradient-to-br from-[#3eb489]/20 to-emerald-900/20 border-2 border-[#3eb489] rounded-2xl text-center space-y-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-[#3eb489] rounded-full mb-2">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              
+              <div>
+                <h3 className="text-3xl font-bold mb-2">Successfully Claimed!</h3>
+                <p className="text-2xl font-semibold text-[#3eb489] mb-4">
+                  100,000 $MINTEDMERCH
+                </p>
+              </div>
 
-            {/* Staking Teaser */}
-            <div className="p-6 bg-gradient-to-r from-purple-900/30 to-pink-900/30 border border-purple-500/50 rounded-xl space-y-3">
-              <div className="text-3xl text-center">💎</div>
-              <h4 className="text-xl font-bold text-center">Hold These Tokens!</h4>
-              <p className="text-center text-gray-300">
-                <strong>STAKING coming soon!</strong><br />
-                Earn rewards by holding your $MINTEDMERCH
-              </p>
+              <div className="pt-4 border-t border-gray-700">
+                <p className="text-sm text-gray-300 mb-1">
+                  <span className="font-semibold text-white">STAKING coming soon</span>
+                </p>
+                <p className="text-xs text-gray-400">
+                  Hold your tokens to earn rewards
+                </p>
+              </div>
             </div>
 
             {/* Start Shopping CTA */}
             <button
               onClick={() => router.push('/')}
-              className="w-full py-4 bg-white text-black rounded-xl text-xl font-bold hover:bg-gray-200 hover:scale-105 transition-all"
+              className="w-full py-4 bg-[#3eb489] text-white rounded-xl text-lg font-bold hover:bg-[#35a078] hover:scale-105 transition-all shadow-lg shadow-[#3eb489]/20"
             >
-              🛍️ Start Shopping
+              Start Shopping
             </button>
           </div>
         )}
