@@ -148,23 +148,26 @@ export async function GET(request, { params }) {
       console.log(`[${requestId}] ✅ Using existing valid signature`);
     }
 
-    // Convert claim ID to bytes32 (same as claimSignatureService.js)
-    const { keccak256, toHex } = await import('thirdweb/utils');
-    const uidBytes32 = keccak256(toHex(claim.id));
-
-    // Import getAddress for proper checksumming (Wagmi/Viem requirement)
+    // Airdrop contract address
     const { getAddress } = await import('viem');
-    
-    // Checksum all addresses for Wagmi/Viem strict validation
-    const AIRDROP_CONTRACT_ADDRESS = getAddress('0x8569755C6fa4127b3601846077FFB5D083586500'); // Existing airdrop contract
-    const checksummedTokenAddress = getAddress('0xC47A79F4a5E036AaF41233CC6C1d9Beb98d87503'); // $MINTEDMERCH token
-    const checksummedRecipient = getAddress(claim.wallet_address); // User's wallet
+    const AIRDROP_CONTRACT_ADDRESS = getAddress('0x8569755C6fa4127b3601846077FFB5D083586500');
     const CHAIN_ID = 8453; // Base
+
+    // Use the exact req object that was signed by Thirdweb
+    // If claim_req is missing (old claims), regenerate signature
+    let reqObject = claim.claim_req;
+    
+    if (!reqObject) {
+      console.log(`[${requestId}] ⚠️ No stored req object - this shouldn't happen for new claims`);
+      return NextResponse.json(
+        { error: 'Claim data incomplete. Please contact support.' },
+        { status: 500 }
+      );
+    }
 
     // Log access for audit trail
     console.log(`[${requestId}] 📋 Claim data accessed:`);
     console.log(`   Claim ID: ${claim.id}`);
-    console.log(`   UID (bytes32): ${uidBytes32}`);
     console.log(`   User FID: ${authenticatedFid}`);
     console.log(`   Wallet: ${claim.wallet_address}`);
     console.log(`   Amount: ${claim.campaign.token_reward_amount} wei`);
@@ -178,18 +181,8 @@ export async function GET(request, { params }) {
         contractAddress: AIRDROP_CONTRACT_ADDRESS,
         chainId: CHAIN_ID,
         
-        // Claim request parameters
-        req: {
-          uid: uidBytes32, // Unique ID for this claim (as bytes32)
-          tokenAddress: checksummedTokenAddress, // $MINTEDMERCH token address (checksummed for Wagmi/Viem)
-          expirationTimestamp: Math.floor(new Date(signatureExpiresAt).getTime() / 1000),
-          contents: [
-            {
-              recipient: checksummedRecipient, // Checksummed for Wagmi/Viem
-              amount: claim.campaign.token_reward_amount // In wei format
-            }
-          ]
-        },
+        // Use the EXACT req object that was signed (critical for EIP-712 verification)
+        req: reqObject,
         
         // EIP-712 signature
         signature: signature,

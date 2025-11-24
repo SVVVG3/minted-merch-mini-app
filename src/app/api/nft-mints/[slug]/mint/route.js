@@ -207,6 +207,7 @@ export async function POST(request, { params }) {
         .from('nft_mint_claims')
         .update({
           claim_signature: claimSignatureData.signature,
+          claim_req: claimSignatureData.req, // Store the exact signed req object from Thirdweb
           claim_signature_generated_at: new Date().toISOString(),
           claim_signature_expires_at: deadline.toISOString()
         })
