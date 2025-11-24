@@ -156,40 +156,79 @@ export default function MintPageClient({ slug }) {
       const walletAddress = accounts[0];
       console.log('💳 Wallet address:', walletAddress);
 
-      // TODO: Call Thirdweb to mint NFT
-      // For now, simulating with a test transaction
-      console.log('⚠️  TODO: Implement Thirdweb minting');
-      const testTxHash = '0x' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      console.log('📝 Test TX hash:', testTxHash);
+      // 🎨 MINT NFT ON-CHAIN USING THIRDWEB
+      console.log('🔗 Minting NFT on-chain...');
+      console.log('📋 Contract:', campaign.contractAddress);
+      console.log('🎫 Token ID:', campaign.tokenId);
+      console.log('⛓️  Chain:', campaign.chainId || 8453); // Base mainnet
 
-      // Record mint in backend
-      console.log('💾 Recording mint in database...');
-      const recordResponse = await fetch(`/api/nft-mints/${slug}/mint`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`
-        },
-        body: JSON.stringify({
-          transactionHash: testTxHash,
-          walletAddress: walletAddress,
-          tokenId: '0'
-        })
-      });
+      // Import Thirdweb SDK components
+      const { prepareContractCall, sendTransaction } = await import('thirdweb');
+      const { getContract } = await import('thirdweb');
+      const { defineChain } = await import('thirdweb');
+      const { claimTo } = await import('thirdweb/extensions/erc1155');
+      const { client } = await import('@/lib/thirdwebClient');
 
-      if (!recordResponse.ok) {
-        const errorData = await recordResponse.json();
-        throw new Error(errorData.error || 'Failed to record mint');
+      try {
+        // Define chain (Base mainnet = 8453)
+        const chain = defineChain(campaign.chainId || 8453);
+
+        // Get contract instance
+        const contract = getContract({
+          client,
+          chain,
+          address: campaign.contractAddress
+        });
+
+        // Prepare claim transaction for ERC1155
+        const transaction = claimTo({
+          contract,
+          to: walletAddress,
+          tokenId: BigInt(campaign.tokenId || 0),
+          quantity: BigInt(1)
+        });
+
+        // Send transaction using Farcaster wallet
+        console.log('📤 Sending transaction...');
+        const { transactionHash } = await sendTransaction({
+          transaction,
+          account: sdk.wallet.ethProvider // Farcaster wallet
+        });
+
+        console.log('✅ NFT minted! TX:', transactionHash);
+
+        // Record mint in backend with real transaction hash
+        console.log('💾 Recording mint in database...');
+        const recordResponse = await fetch(`/api/nft-mints/${slug}/mint`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+          },
+          body: JSON.stringify({
+            transactionHash,
+            walletAddress,
+            tokenId: campaign.tokenId || '0'
+          })
+        });
+
+        if (!recordResponse.ok) {
+          const errorData = await recordResponse.json();
+          throw new Error(errorData.error || 'Failed to record mint');
+        }
+
+        const recordData = await recordResponse.json();
+        console.log('✅ Mint recorded:', recordData);
+
+        // Update state with claim ID
+        setClaimId(recordData.claimId);
+        setHasMinted(true);
+        setShowShareModal(true);
+
+      } catch (mintError) {
+        console.error('❌ Minting failed:', mintError);
+        throw new Error(`Minting failed: ${mintError.message}`);
       }
-
-      const recordData = await recordResponse.json();
-      console.log('✅ Mint recorded:', recordData);
-
-      // Store claim ID for later
-      setClaimId(recordData.claim.id);
-
-      // Show share modal (REQUIRED to continue)
-      setShowShareModal(true);
 
     } catch (err) {
       console.error('❌ Mint error:', err);
@@ -347,7 +386,7 @@ export default function MintPageClient({ slug }) {
   return (
     <div className="min-h-screen bg-black text-white px-4 py-4 max-w-2xl mx-auto">
       {/* Header */}
-      <div className="mb-3 text-center">
+      <div className="mb-2 text-center">
         <button
           onClick={() => router.push('/')}
           className="text-gray-400 hover:text-white inline-block"
