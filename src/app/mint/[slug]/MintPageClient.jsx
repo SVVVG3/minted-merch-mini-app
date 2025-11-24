@@ -726,32 +726,39 @@ export default function MintPageClient({ slug }) {
                 </svg>
               </div>
               <h2 className="text-2xl font-black">You're In! 🎉</h2>
-              <p className="text-sm text-gray-400">Welcome to Minted Merch</p>
+              <p className="text-sm text-gray-400">Welcome to Minted Merch!</p>
             </div>
 
-            {/* Token Balance Card - Compact */}
+            {/* Claims Card - Compact */}
             <div className="p-4 bg-gradient-to-br from-[#3eb489]/20 via-emerald-900/20 to-[#3eb489]/10 border-2 border-[#3eb489] rounded-xl text-center relative overflow-hidden">
               {/* Animated background effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
               
               <div className="relative z-10">
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Your Balance</p>
-                <p className="text-3xl font-black text-[#3eb489] mb-1">100,000</p>
-                <p className="text-sm font-semibold text-white">$MINTEDMERCH</p>
+                <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">You Claimed</p>
+                <p className="text-2xl font-black text-[#3eb489] mb-1">100,000 $MINTEDMERCH</p>
+                <p className="text-sm font-semibold text-white">& 1x WEN BEEPER MERCH NFT</p>
               </div>
             </div>
 
             {/* Stake to Earn Message */}
-            <div className="p-3 bg-gradient-to-r from-amber-900/30 to-yellow-900/30 border border-amber-500/50 rounded-xl">
-              <div className="flex items-start gap-2">
-                <div className="text-xl flex-shrink-0">💎</div>
-                <div>
-                  <p className="font-bold text-amber-400 text-xs mb-1">STAKE TO EARN</p>
-                  <p className="text-xs text-gray-300 leading-relaxed">
-                    Staking launches SOON! Hold 50M+ tokens to become a <span className="text-[#3eb489] font-semibold">Merch Mogul</span> & unlock exclusive perks, discounts, and access to the group chat.
-                  </p>
-                </div>
+            <div className="p-3 bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-500/50 rounded-xl">
+              <div className="text-center mb-2">
+                <p className="font-bold text-purple-400 text-sm">💎 STAKE TO EARN</p>
               </div>
+              <p className="text-xs text-gray-300 leading-relaxed text-center">
+                Staking launches SOON! Hold 50M+ tokens to become a <span className="text-[#3eb489] font-semibold">Merch Mogul</span> & unlock exclusive perks, discounts, and access to the group chat.
+              </p>
+            </div>
+
+            {/* Daily Spin Info */}
+            <div className="p-3 bg-gradient-to-br from-blue-900/30 to-cyan-900/30 border border-blue-500/50 rounded-xl">
+              <div className="text-center mb-2">
+                <p className="font-bold text-blue-400 text-sm">🎰 DAILY SPIN WHEEL</p>
+              </div>
+              <p className="text-xs text-gray-300 leading-relaxed text-center">
+                Check in daily, spin the wheel, earn points & move up the leaderboard. Earn extra points for purchases with multipliers for $MINTEDMERCH holdings!
+              </p>
             </div>
 
             {/* Daily Spin CTA */}
