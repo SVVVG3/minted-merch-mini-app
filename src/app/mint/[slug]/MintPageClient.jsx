@@ -173,9 +173,7 @@ export default function MintPageClient({ slug }) {
       console.log('⛓️  Chain:', campaign.chainId || 8453); // Base mainnet
 
       // Import Thirdweb SDK components
-      const { prepareContractCall, sendTransaction } = await import('thirdweb');
-      const { getContract } = await import('thirdweb');
-      const { defineChain } = await import('thirdweb');
+      const { sendTransaction, getContract, defineChain } = await import('thirdweb');
       const { claimTo } = await import('thirdweb/extensions/erc1155');
       const { client } = await import('@/lib/thirdwebClient');
 
