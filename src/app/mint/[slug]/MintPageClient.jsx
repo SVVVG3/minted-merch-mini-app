@@ -718,7 +718,7 @@ export default function MintPageClient({ slug }) {
         {/* STATE 4: Claimed - Show Success + Engagement CTAs */}
         {hasClaimed && showStakingTeaser && (
           <div className="space-y-3">
-            {/* Success Header - Extra Compact */}
+            {/* Success Header - Compact but readable */}
             <div className="text-center space-y-0.5 py-1">
               <div className="inline-flex items-center justify-center w-10 h-10 bg-gradient-to-br from-[#3eb489] to-emerald-600 rounded-full mb-1 shadow-lg shadow-[#3eb489]/50">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -729,15 +729,15 @@ export default function MintPageClient({ slug }) {
               <p className="text-xs text-gray-400">Welcome to Minted Merch!</p>
             </div>
 
-            {/* Claims Card - Extra Compact */}
+            {/* Claims Card - Compact but readable */}
             <div className="p-3 bg-gradient-to-br from-[#3eb489]/20 via-emerald-900/20 to-[#3eb489]/10 border-2 border-[#3eb489] rounded-xl text-center relative overflow-hidden">
               {/* Animated background effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
               
               <div className="relative z-10">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">You Claimed</p>
+                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">You Claimed</p>
                 <p className="text-xl font-black text-[#3eb489] mb-0.5">100,000 $MINTEDMERCH</p>
-                <p className="text-xs font-semibold text-white">& 1x WEN BEEPER MERCH NFT</p>
+                <p className="text-sm font-semibold text-white">& 1x WEN BEEPER MERCH NFT</p>
               </div>
             </div>
 
@@ -750,7 +750,7 @@ export default function MintPageClient({ slug }) {
                 <div className="text-center mb-1">
                   <p className="font-bold text-blue-400 text-xs">🎰 SPIN THE WHEEL DAILY</p>
                 </div>
-                <p className="text-[10px] text-gray-300 leading-snug text-center">
+                <p className="text-xs text-gray-300 leading-tight text-center">
                   Earn points & move up the leaderboard to be entered into random raffles for $MINTEDMERCH, gift cards, and FREE merch! Earn extra points for purchases with multipliers for $MINTEDMERCH holdings.
                 </p>
               </div>
@@ -760,7 +760,7 @@ export default function MintPageClient({ slug }) {
                 <div className="text-center mb-1">
                   <p className="font-bold text-purple-400 text-xs">💎 STAKE TO EARN</p>
                 </div>
-                <p className="text-[10px] text-gray-300 leading-snug text-center">
+                <p className="text-xs text-gray-300 leading-tight text-center">
                   Staking launches SOON! Hold 50M+ tokens to become a <span className="text-[#3eb489] font-semibold">Merch Mogul</span> & unlock exclusive perks, discounts, and access to the group chat.
                 </p>
               </div>
