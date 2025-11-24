@@ -715,31 +715,63 @@ export default function MintPageClient({ slug }) {
           </>
         )}
 
-        {/* STATE 4: Claimed - Show Success + Shop CTA */}
+        {/* STATE 4: Claimed - Show Success + Engagement CTAs */}
         {hasClaimed && showStakingTeaser && (
-          <div className="space-y-6">
-            {/* Combined Success Message + Staking Info */}
-            <div className="p-8 bg-gradient-to-br from-[#3eb489]/20 to-emerald-900/20 border-2 border-[#3eb489] rounded-2xl text-center space-y-4">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-[#3eb489] rounded-full mb-2">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="space-y-4">
+            {/* Success Header */}
+            <div className="text-center space-y-2 py-4">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-[#3eb489] to-emerald-600 rounded-full mb-3 shadow-lg shadow-[#3eb489]/50">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              
-              <div>
-                <h3 className="text-3xl font-bold mb-2">Successfully Claimed!</h3>
-                <p className="text-2xl font-semibold text-[#3eb489] mb-4">
-                  100,000 $MINTEDMERCH
-                </p>
-              </div>
+              <h2 className="text-4xl font-black">You're In! 🎉</h2>
+              <p className="text-xl text-gray-400">Welcome to Minted Merch</p>
+            </div>
 
-              <div className="pt-4 border-t border-gray-700">
-                <p className="text-sm text-gray-300 mb-1">
-                  <span className="font-semibold text-white">STAKING coming soon</span>
-                </p>
-                <p className="text-xs text-gray-400">
-                  Hold your tokens to earn rewards
-                </p>
+            {/* Token Balance Card */}
+            <div className="p-6 bg-gradient-to-br from-[#3eb489]/20 via-emerald-900/20 to-[#3eb489]/10 border-2 border-[#3eb489] rounded-2xl text-center relative overflow-hidden">
+              {/* Animated background effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
+              
+              <div className="relative z-10">
+                <p className="text-sm text-gray-400 uppercase tracking-wider mb-2">Your Balance</p>
+                <p className="text-5xl font-black text-[#3eb489] mb-1">100,000</p>
+                <p className="text-lg font-semibold text-white">$MINTEDMERCH</p>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => router.push('/')}
+                className="p-4 bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl text-center hover:scale-105 transition-all shadow-lg"
+              >
+                <div className="text-3xl mb-2">🎰</div>
+                <div className="font-bold text-sm">Daily Spin</div>
+                <div className="text-xs text-purple-200">Win rewards</div>
+              </button>
+
+              <button
+                onClick={() => router.push('/chat')}
+                className="p-4 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl text-center hover:scale-105 transition-all shadow-lg"
+              >
+                <div className="text-3xl mb-2">💬</div>
+                <div className="font-bold text-sm">Join Chat</div>
+                <div className="text-xs text-blue-200">Meet the community</div>
+              </button>
+            </div>
+
+            {/* Hold Message */}
+            <div className="p-4 bg-gradient-to-r from-amber-900/30 to-yellow-900/30 border border-amber-500/50 rounded-xl">
+              <div className="flex items-start gap-3">
+                <div className="text-2xl flex-shrink-0">💎</div>
+                <div>
+                  <p className="font-bold text-amber-400 text-sm mb-1">HOLD TO EARN</p>
+                  <p className="text-xs text-gray-300 leading-relaxed">
+                    Staking launches soon! Hold 50M+ tokens to become a <span className="text-[#3eb489] font-semibold">Merch Mogul</span> & unlock exclusive perks, discounts, and early access to drops.
+                  </p>
+                </div>
               </div>
             </div>
 
