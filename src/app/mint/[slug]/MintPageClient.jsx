@@ -199,6 +199,22 @@ export default function MintPageClient({ slug }) {
     }
   }, [isMintConfirmed, mintTxHash]);
 
+  // Watch for Wagmi errors
+  useEffect(() => {
+    if (claimWriteError) {
+      console.error('❌ Wagmi claim error:', claimWriteError);
+      setClaimError(claimWriteError.message || 'Transaction failed');
+    }
+  }, [claimWriteError]);
+
+  useEffect(() => {
+    if (mintWriteError) {
+      console.error('❌ Wagmi mint error:', mintWriteError);
+      setMintError(mintWriteError.message || 'Transaction failed');
+      setIsMinting(false);
+    }
+  }, [mintWriteError]);
+
   // Watch for claim transaction confirmation
   useEffect(() => {
     if (isClaimConfirmed && claimTxHash) {
