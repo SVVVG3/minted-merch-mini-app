@@ -389,7 +389,8 @@ export default function MintPageClient({ slug }) {
   }
 
   // Calculate if user can mint
-  const canMint = userStatus?.canMint && !isMinting;
+  // Default to true if userStatus hasn't loaded yet, or use the API value
+  const canMint = (userStatus?.canMint !== false) && !isMinting;
 
   return (
     <div className="min-h-screen bg-black text-white px-4 py-4 max-w-2xl mx-auto">
