@@ -126,6 +126,8 @@ export default function MintPageClient({ slug }) {
     console.log('🎨 Mint button clicked');
     console.log('👤 Farcaster User:', farcasterUser);
     console.log('🔑 Session Token:', sessionToken ? `${sessionToken.substring(0, 20)}...` : 'UNDEFINED');
+    console.log('🔍 Is In Farcaster:', isInFarcaster);
+    console.log('🔍 Is Ready:', isReady);
     
     if (!farcasterUser) {
       setMintError('Please sign in to mint - User not found');
@@ -133,8 +135,16 @@ export default function MintPageClient({ slug }) {
     }
     
     if (!sessionToken) {
-      setMintError('Please sign in to mint - Token not available');
-      return;
+      // Try to wait a moment and check again
+      console.log('⏳ Session token not ready, waiting 2 seconds...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Check if token is now available
+      const { sessionToken: freshToken } = useFarcaster();
+      if (!freshToken) {
+        setMintError('Session token not available. Please refresh the page and try again.');
+        return;
+      }
     }
 
     try {
