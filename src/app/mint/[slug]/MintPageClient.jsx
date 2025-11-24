@@ -18,7 +18,7 @@ import Image from 'next/image';
  */
 export default function MintPageClient({ slug }) {
   const router = useRouter();
-  const { user: farcasterUser, farcasterToken, isInFarcaster } = useFarcaster();
+  const { user: farcasterUser, sessionToken, isInFarcaster } = useFarcaster();
 
   // Campaign data
   const [campaign, setCampaign] = useState(null);
@@ -46,14 +46,14 @@ export default function MintPageClient({ slug }) {
 
   // Auto-register user on page load
   useEffect(() => {
-    if (farcasterUser && farcasterToken) {
+    if (farcasterUser && sessionToken) {
       console.log('📝 Auto-registering user...');
       
       fetch('/api/register-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${farcasterToken}`
+          'Authorization': `Bearer ${sessionToken}`
         },
         body: JSON.stringify({
           fid: farcasterUser.fid,
@@ -67,11 +67,11 @@ export default function MintPageClient({ slug }) {
         .then(data => {
           console.log('✅ User registered/updated:', data);
         })
-        .catch(err => {
-          console.error('⚠️  Profile registration failed (non-blocking):', err);
-        });
+      .catch(err => {
+        console.error('⚠️  Profile registration failed (non-blocking):', err);
+      });
     }
-  }, [farcasterUser, farcasterToken]);
+  }, [farcasterUser, sessionToken]);
 
   // Fetch campaign data
   useEffect(() => {
@@ -80,8 +80,8 @@ export default function MintPageClient({ slug }) {
         setLoading(true);
         
         const headers = {};
-        if (farcasterToken) {
-          headers['Authorization'] = `Bearer ${farcasterToken}`;
+        if (sessionToken) {
+          headers['Authorization'] = `Bearer ${sessionToken}`;
         }
 
         const response = await fetch(`/api/nft-mints/${slug}`, { headers });
@@ -119,20 +119,20 @@ export default function MintPageClient({ slug }) {
     if (slug) {
       fetchCampaign();
     }
-  }, [slug, farcasterToken]);
+  }, [slug, sessionToken]);
 
   // Handle NFT mint
   const handleMint = async () => {
     console.log('🎨 Mint button clicked');
     console.log('👤 Farcaster User:', farcasterUser);
-    console.log('🔑 Farcaster Token:', farcasterToken ? `${farcasterToken.substring(0, 20)}...` : 'UNDEFINED');
+    console.log('🔑 Session Token:', sessionToken ? `${sessionToken.substring(0, 20)}...` : 'UNDEFINED');
     
     if (!farcasterUser) {
       setMintError('Please sign in to mint - User not found');
       return;
     }
     
-    if (!farcasterToken) {
+    if (!sessionToken) {
       setMintError('Please sign in to mint - Token not available');
       return;
     }
@@ -168,7 +168,7 @@ export default function MintPageClient({ slug }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${farcasterToken}`
+          'Authorization': `Bearer ${sessionToken}`
         },
         body: JSON.stringify({
           transactionHash: testTxHash,
@@ -256,7 +256,7 @@ export default function MintPageClient({ slug }) {
 
   // Handle token claim
   const handleClaim = async () => {
-    if (!claimId || !farcasterToken) {
+    if (!claimId || !sessionToken) {
       return;
     }
 
@@ -269,7 +269,7 @@ export default function MintPageClient({ slug }) {
       // Get claim signature and params
       const claimDataResponse = await fetch(`/api/nft-mints/claims/${claimId}/claim-data`, {
         headers: {
-          'Authorization': `Bearer ${farcasterToken}`
+          'Authorization': `Bearer ${sessionToken}`
         }
       });
 
@@ -291,7 +291,7 @@ export default function MintPageClient({ slug }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${farcasterToken}`
+          'Authorization': `Bearer ${sessionToken}`
         },
         body: JSON.stringify({
           transactionHash: testClaimTxHash
