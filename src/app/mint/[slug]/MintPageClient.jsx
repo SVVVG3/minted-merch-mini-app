@@ -381,7 +381,8 @@ export default function MintPageClient({ slug }) {
       // 💰 CLAIM TOKENS ON-CHAIN USING THIRDWEB AIRDROP CONTRACT
       console.log('🔗 Claiming tokens on-chain...');
       console.log('📋 Contract:', claimData.contractAddress);
-      console.log('💎 Amount:', claimData.amount);
+      console.log('💎 Amount:', claimData.req.contents[0].amount);
+      console.log('🔍 Claim request:', claimData.req);
 
       // Prepare airdrop contract call data
       // Function: airdropERC20WithSignature(AirdropRequest req, bytes signature)
@@ -395,7 +396,7 @@ export default function MintPageClient({ slug }) {
       
       // Encode the function call
       const encodedData = iface.encodeFunctionData('airdropERC20WithSignature', [
-        claimData.request,
+        claimData.req,
         claimData.signature
       ]);
 
