@@ -165,7 +165,7 @@ export async function GET(request) {
       ),
       {
         width: 1200,
-        height: 630, // Standard OG image size
+        height: 800, // 3:2 aspect ratio required by Farcaster
       }
     );
   } catch (error) {
@@ -191,7 +191,7 @@ export async function GET(request) {
       ),
       {
         width: 1200,
-        height: 630,
+        height: 800, // 3:2 aspect ratio required by Farcaster
       }
     );
   }
