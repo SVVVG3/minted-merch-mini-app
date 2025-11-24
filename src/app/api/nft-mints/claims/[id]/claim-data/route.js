@@ -119,9 +119,20 @@ export async function GET(request, { params }) {
         signature = claimSignatureData.signature;
         signatureExpiresAt = deadline.toISOString();
 
+        // Convert BigInt values to strings for storage
+        const reqForStorage = {
+          uid: claimSignatureData.req.uid,
+          tokenAddress: claimSignatureData.req.tokenAddress,
+          expirationTimestamp: claimSignatureData.req.expirationTimestamp.toString(),
+          contents: claimSignatureData.req.contents.map(content => ({
+            recipient: content.recipient,
+            amount: content.amount.toString()
+          }))
+        };
+
         console.log(`[${requestId}] ✅ New signature generated`);
 
-        // Update claim with new signature (using system context to bypass RLS for update)
+        // Update claim with new signature AND new req object (using system context to bypass RLS for update)
         const { setSystemContext } = await import('@/lib/auth');
         await setSystemContext();
         
@@ -130,9 +141,13 @@ export async function GET(request, { params }) {
           .update({
             claim_signature: signature,
             claim_signature_generated_at: new Date().toISOString(),
-            claim_signature_expires_at: signatureExpiresAt
+            claim_signature_expires_at: signatureExpiresAt,
+            claim_req: reqForStorage // Store the new req object that matches the signature
           })
           .eq('id', claim.id);
+
+        // Update claim object with new req for immediate use
+        claim.claim_req = reqForStorage;
 
         // Reset to user context
         await setUserContext(authenticatedFid);
