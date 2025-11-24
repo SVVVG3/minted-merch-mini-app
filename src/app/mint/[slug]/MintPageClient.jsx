@@ -717,50 +717,50 @@ export default function MintPageClient({ slug }) {
 
         {/* STATE 4: Claimed - Show Success + Engagement CTAs */}
         {hasClaimed && showStakingTeaser && (
-          <div className="space-y-4">
-            {/* Success Header - Compact */}
-            <div className="text-center space-y-1 py-2">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-[#3eb489] to-emerald-600 rounded-full mb-2 shadow-lg shadow-[#3eb489]/50">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="space-y-3">
+            {/* Success Header - Extra Compact */}
+            <div className="text-center space-y-0.5 py-1">
+              <div className="inline-flex items-center justify-center w-10 h-10 bg-gradient-to-br from-[#3eb489] to-emerald-600 rounded-full mb-1 shadow-lg shadow-[#3eb489]/50">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-2xl font-black">You're In! 🎉</h2>
-              <p className="text-sm text-gray-400">Welcome to Minted Merch!</p>
+              <h2 className="text-xl font-black">You're In! 🎉</h2>
+              <p className="text-xs text-gray-400">Welcome to Minted Merch!</p>
             </div>
 
-            {/* Claims Card - Compact */}
-            <div className="p-4 bg-gradient-to-br from-[#3eb489]/20 via-emerald-900/20 to-[#3eb489]/10 border-2 border-[#3eb489] rounded-xl text-center relative overflow-hidden">
+            {/* Claims Card - Extra Compact */}
+            <div className="p-3 bg-gradient-to-br from-[#3eb489]/20 via-emerald-900/20 to-[#3eb489]/10 border-2 border-[#3eb489] rounded-xl text-center relative overflow-hidden">
               {/* Animated background effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
               
               <div className="relative z-10">
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">You Claimed</p>
-                <p className="text-2xl font-black text-[#3eb489] mb-1">100,000 $MINTEDMERCH</p>
-                <p className="text-sm font-semibold text-white">& 1x WEN BEEPER MERCH NFT</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">You Claimed</p>
+                <p className="text-xl font-black text-[#3eb489] mb-0.5">100,000 $MINTEDMERCH</p>
+                <p className="text-xs font-semibold text-white">& 1x WEN BEEPER MERCH NFT</p>
               </div>
             </div>
 
             {/* What Can I Do Now? Section */}
-            <div className="pt-2">
-              <h3 className="text-lg font-bold text-center mb-3 text-gray-300">What Can I Do Now?</h3>
+            <div className="pt-1">
+              <h3 className="text-base font-bold text-center mb-2 text-gray-300">What Can I Do Now?</h3>
               
               {/* Daily Spin Info */}
-              <div className="p-3 bg-gradient-to-br from-blue-900/30 to-cyan-900/30 border border-blue-500/50 rounded-xl mb-3">
-                <div className="text-center mb-2">
-                  <p className="font-bold text-blue-400 text-sm">🎰 SPIN THE WHEEL DAILY</p>
+              <div className="p-2.5 bg-gradient-to-br from-blue-900/30 to-cyan-900/30 border border-blue-500/50 rounded-lg mb-2">
+                <div className="text-center mb-1">
+                  <p className="font-bold text-blue-400 text-xs">🎰 SPIN THE WHEEL DAILY</p>
                 </div>
-                <p className="text-xs text-gray-300 leading-relaxed text-center">
+                <p className="text-[10px] text-gray-300 leading-snug text-center">
                   Earn points & move up the leaderboard to be entered into random raffles for $MINTEDMERCH, gift cards, and FREE merch! Earn extra points for purchases with multipliers for $MINTEDMERCH holdings.
                 </p>
               </div>
 
               {/* Stake to Earn Message */}
-              <div className="p-3 bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-500/50 rounded-xl">
-                <div className="text-center mb-2">
-                  <p className="font-bold text-purple-400 text-sm">💎 STAKE TO EARN</p>
+              <div className="p-2.5 bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-500/50 rounded-lg">
+                <div className="text-center mb-1">
+                  <p className="font-bold text-purple-400 text-xs">💎 STAKE TO EARN</p>
                 </div>
-                <p className="text-xs text-gray-300 leading-relaxed text-center">
+                <p className="text-[10px] text-gray-300 leading-snug text-center">
                   Staking launches SOON! Hold 50M+ tokens to become a <span className="text-[#3eb489] font-semibold">Merch Mogul</span> & unlock exclusive perks, discounts, and access to the group chat.
                 </p>
               </div>
@@ -769,7 +769,7 @@ export default function MintPageClient({ slug }) {
             {/* Daily Spin CTA */}
             <button
               onClick={() => router.push('/')}
-              className="w-full py-4 bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-xl text-lg font-bold hover:bg-purple-600 hover:scale-105 transition-all shadow-lg"
+              className="w-full py-3 bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-xl text-base font-bold hover:bg-purple-600 hover:scale-105 transition-all shadow-lg"
             >
               Spin Daily Wheel
             </button>
@@ -777,7 +777,7 @@ export default function MintPageClient({ slug }) {
             {/* Start Shopping CTA */}
             <button
               onClick={() => router.push('/')}
-              className="w-full py-4 bg-[#3eb489] text-white rounded-xl text-lg font-bold hover:bg-[#35a078] hover:scale-105 transition-all shadow-lg shadow-[#3eb489]/20"
+              className="w-full py-3 bg-[#3eb489] text-white rounded-xl text-base font-bold hover:bg-[#35a078] hover:scale-105 transition-all shadow-lg shadow-[#3eb489]/20"
             >
               Start Shopping
             </button>
