@@ -195,7 +195,7 @@ export async function POST(request, { params }) {
         wallet: walletAddress.toLowerCase(),
         amount: campaign.token_reward_amount, // Already in wei format
         payoutId: mintClaim.id,
-        deadline: Math.floor(deadline.getTime() / 1000) // Unix timestamp
+        deadline // Pass Date object directly (like Ambassador system)
       });
 
       console.log(`✅ Claim signature generated`);

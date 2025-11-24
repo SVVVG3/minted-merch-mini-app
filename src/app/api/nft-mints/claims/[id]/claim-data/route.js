@@ -123,7 +123,7 @@ export async function GET(request, { params }) {
           wallet: claim.wallet_address.toLowerCase(),
           amount: claim.campaign.token_reward_amount,
           payoutId: claim.id,
-          deadline: Math.floor(deadline.getTime() / 1000)
+          deadline // Pass Date object directly (like Ambassador system)
         });
 
         // Convert BigInt values to strings for storage
