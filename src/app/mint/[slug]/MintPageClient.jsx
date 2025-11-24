@@ -165,7 +165,7 @@ export default function MintPageClient({ slug }) {
       console.log('⛓️  Chain:', campaign.chainId || 8453); // Base mainnet
 
       // Import Thirdweb SDK components
-      const { sendTransaction, getContract, defineChain } = await import('thirdweb');
+      const { prepareContractCall, getContract, defineChain, encode } = await import('thirdweb');
       const { claimTo } = await import('thirdweb/extensions/erc1155');
       const { client } = await import('@/lib/thirdwebClient');
 
@@ -190,15 +190,22 @@ export default function MintPageClient({ slug }) {
           contract,
           to: walletAddress,
           tokenId: BigInt(campaign.tokenId || 0),
-          quantity: BigInt(1),
-          from: walletAddress // Explicitly set the sender
+          quantity: BigInt(1)
         });
 
-        // Send transaction using Farcaster wallet
-        console.log('📤 Sending transaction...');
-        const { transactionHash } = await sendTransaction({
-          transaction,
-          account: walletAddress // Use wallet address directly
+        // Encode the transaction data
+        const encodedData = await encode(transaction);
+
+        // Send transaction using Farcaster wallet provider (like payment.js)
+        console.log('📤 Sending transaction via Farcaster wallet...');
+        const transactionHash = await sdk.wallet.ethProvider.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: walletAddress,
+            to: campaign.contractAddress,
+            data: encodedData,
+            value: '0x0' // Free mint
+          }]
         });
 
         console.log('✅ NFT minted! TX:', transactionHash);
