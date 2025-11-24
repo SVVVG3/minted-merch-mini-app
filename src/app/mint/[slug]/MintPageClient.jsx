@@ -747,8 +747,8 @@ export default function MintPageClient({ slug }) {
               
               {/* Daily Spin Info */}
               <div className="p-2.5 bg-gradient-to-br from-blue-900/30 to-cyan-900/30 border border-blue-500/50 rounded-lg mb-2">
-                <div className="text-center mb-1">
-                  <p className="font-bold text-blue-400 text-xs">🎰 SPIN THE WHEEL DAILY</p>
+                <div className="text-center mb-1.5">
+                  <p className="font-bold text-blue-400 text-sm">🎰 SPIN THE WHEEL DAILY</p>
                 </div>
                 <p className="text-xs text-gray-300 leading-tight text-center">
                   Earn points & move up the leaderboard to be entered into random raffles for $MINTEDMERCH, gift cards, and FREE merch! Earn extra points for purchases with multipliers for $MINTEDMERCH holdings.
@@ -757,8 +757,8 @@ export default function MintPageClient({ slug }) {
 
               {/* Stake to Earn Message */}
               <div className="p-2.5 bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-500/50 rounded-lg">
-                <div className="text-center mb-1">
-                  <p className="font-bold text-purple-400 text-xs">💎 STAKE TO EARN</p>
+                <div className="text-center mb-1.5">
+                  <p className="font-bold text-purple-400 text-sm">💎 STAKE TO EARN</p>
                 </div>
                 <p className="text-xs text-gray-300 leading-tight text-center">
                   Staking launches SOON! Hold 50M+ tokens to become a <span className="text-[#3eb489] font-semibold">Merch Mogul</span> & unlock exclusive perks, discounts, and access to the group chat.
