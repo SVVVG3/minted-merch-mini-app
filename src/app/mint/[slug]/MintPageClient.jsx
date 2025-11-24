@@ -181,18 +181,24 @@ export default function MintPageClient({ slug }) {
         });
 
         // Prepare claim transaction for ERC1155
+        console.log('📝 Preparing claim transaction...');
+        console.log('   Token ID:', campaign.tokenId || 0);
+        console.log('   Quantity:', 1);
+        console.log('   Recipient:', walletAddress);
+        
         const transaction = claimTo({
           contract,
           to: walletAddress,
           tokenId: BigInt(campaign.tokenId || 0),
-          quantity: BigInt(1)
+          quantity: BigInt(1),
+          from: walletAddress // Explicitly set the sender
         });
 
         // Send transaction using Farcaster wallet
         console.log('📤 Sending transaction...');
         const { transactionHash } = await sendTransaction({
           transaction,
-          account: sdk.wallet.ethProvider // Farcaster wallet
+          account: walletAddress // Use wallet address directly
         });
 
         console.log('✅ NFT minted! TX:', transactionHash);
