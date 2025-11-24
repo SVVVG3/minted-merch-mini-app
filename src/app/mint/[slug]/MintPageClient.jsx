@@ -226,9 +226,9 @@ export default function MintPageClient({ slug }) {
         const recordData = await recordResponse.json();
         console.log('✅ Mint recorded:', recordData);
 
-        // Update state with claim ID
+        // Update state with claim ID and force userStatus update
         setClaimId(recordData.claimId);
-        setHasMinted(true);
+        setUserStatus(prev => ({ ...prev, hasMinted: true, canMint: false }));
         setShowShareModal(true);
 
       } catch (mintError) {
