@@ -6,6 +6,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { shareToFarcaster } from '@/lib/farcasterShare';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Image from 'next/image';
+import { triggerHaptic } from '@/lib/haptics';
 
 /**
  * MintPageClient - Main UI for NFT Mint Campaign
@@ -254,6 +255,7 @@ export default function MintPageClient({ slug }) {
   // Handle NFT mint using Wagmi (like Ambassador program)
   const handleMint = async () => {
     console.log('🎨 Mint button clicked');
+    triggerHaptic('medium', isInFarcaster);
     
     if (!farcasterUser || !sessionToken) {
       setMintError('Please sign in to mint');
@@ -344,6 +346,7 @@ export default function MintPageClient({ slug }) {
   // Handle share to Farcaster
   const handleShare = async () => {
     console.log('🔘 Share button clicked!');
+    triggerHaptic('medium', isInFarcaster);
     console.log('   Claim ID:', claimId);
     console.log('   Session Token:', sessionToken ? 'Present' : 'Missing');
     console.log('   Campaign:', campaign?.slug);
@@ -423,6 +426,7 @@ export default function MintPageClient({ slug }) {
   // Handle token claim using Wagmi (same as Ambassador program)
   const handleClaim = async () => {
     console.log('💰 Claim button clicked!');
+    triggerHaptic('medium', isInFarcaster);
     
     if (!claimId || !sessionToken) {
       setClaimError('Missing claim data. Please refresh and try again.');
@@ -528,7 +532,10 @@ export default function MintPageClient({ slug }) {
         <div className="text-center">
           <p className="text-red-500 text-xl mb-4">❌ {error || 'Campaign not found'}</p>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => {
+              triggerHaptic('medium', isInFarcaster);
+              router.push('/');
+            }}
             className="px-6 py-3 bg-white text-black rounded-lg hover:bg-gray-200"
           >
             Back to Shop
@@ -550,7 +557,10 @@ export default function MintPageClient({ slug }) {
       {/* Header */}
       <div className="mb-2 text-center">
         <button
-          onClick={() => router.push('/')}
+          onClick={() => {
+            triggerHaptic('light', isInFarcaster);
+            router.push('/');
+          }}
           className="text-gray-400 hover:text-white inline-block"
         >
           ← Back to Shop
@@ -768,7 +778,10 @@ export default function MintPageClient({ slug }) {
 
             {/* Daily Spin CTA */}
             <button
-              onClick={() => router.push('/')}
+              onClick={() => {
+                triggerHaptic('medium', isInFarcaster);
+                router.push('/');
+              }}
               className="w-full py-4 bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-xl text-lg font-bold hover:bg-purple-600 hover:scale-105 transition-all shadow-lg"
             >
               Spin Daily Wheel
@@ -776,7 +789,10 @@ export default function MintPageClient({ slug }) {
 
             {/* Start Shopping CTA */}
             <button
-              onClick={() => router.push('/')}
+              onClick={() => {
+                triggerHaptic('medium', isInFarcaster);
+                router.push('/');
+              }}
               className="w-full py-4 bg-[#3eb489] text-white rounded-xl text-lg font-bold hover:bg-[#35a078] hover:scale-105 transition-all shadow-lg shadow-[#3eb489]/20"
             >
               Start Shopping
