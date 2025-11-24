@@ -420,6 +420,15 @@ export default function MintPageClient({ slug }) {
           console.log('✅ Marked as shared');
           setHasShared(true);
           setShowShareModal(false); // Close modal
+          
+          // Auto-scroll to show Claim button
+          setTimeout(() => {
+            console.log('📜 Scrolling to show Claim button...');
+            window.scrollTo({
+              top: document.documentElement.scrollHeight,
+              behavior: 'smooth'
+            });
+          }, 400);
         } else {
           const errorData = await markSharedResponse.json();
           console.error('❌ Failed to mark as shared:', errorData);
