@@ -200,6 +200,19 @@ export async function POST(request, { params }) {
 
       console.log(`✅ Claim signature generated`);
 
+      // Convert BigInt values to strings for JSONB storage
+      const reqForStorage = {
+        uid: claimSignatureData.req.uid,
+        tokenAddress: claimSignatureData.req.tokenAddress,
+        expirationTimestamp: claimSignatureData.req.expirationTimestamp.toString(), // BigInt -> string
+        contents: claimSignatureData.req.contents.map(content => ({
+          recipient: content.recipient,
+          amount: content.amount.toString() // BigInt -> string
+        }))
+      };
+
+      console.log(`💾 Storing claim data with req object`);
+
       // Update mint claim with signature data (use system context to bypass RLS)
       await setSystemContext();
       
@@ -207,7 +220,7 @@ export async function POST(request, { params }) {
         .from('nft_mint_claims')
         .update({
           claim_signature: claimSignatureData.signature,
-          claim_req: claimSignatureData.req, // Store the exact signed req object from Thirdweb
+          claim_req: reqForStorage, // Store the exact signed req object (with strings for BigInt)
           claim_signature_generated_at: new Date().toISOString(),
           claim_signature_expires_at: deadline.toISOString()
         })
