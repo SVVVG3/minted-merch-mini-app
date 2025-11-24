@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { shareToFarcaster } from '@/lib/farcasterShare';
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Image from 'next/image';
 
 /**

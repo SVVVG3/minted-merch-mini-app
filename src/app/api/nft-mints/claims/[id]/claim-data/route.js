@@ -148,13 +148,18 @@ export async function GET(request, { params }) {
       console.log(`[${requestId}] ✅ Using existing valid signature`);
     }
 
-    // Airdrop contract address (existing contract used for Ambassador program)
-    const AIRDROP_CONTRACT_ADDRESS = '0x8569755C6fa4127b3601846077FFB5D083586500';
-    const CHAIN_ID = 8453; // Base
-
     // Convert claim ID to bytes32 (same as claimSignatureService.js)
     const { keccak256, toHex } = await import('thirdweb/utils');
     const uidBytes32 = keccak256(toHex(claim.id));
+
+    // Import getAddress for proper checksumming (Wagmi/Viem requirement)
+    const { getAddress } = await import('viem');
+    
+    // Checksum all addresses for Wagmi/Viem strict validation
+    const AIRDROP_CONTRACT_ADDRESS = getAddress('0x8569755C6fa4127b3601846077FFB5D083586500'); // Existing airdrop contract
+    const checksummedTokenAddress = getAddress('0xC47A79F4a5E036AaF41233CC6C1d9Beb98d87503'); // $MINTEDMERCH token
+    const checksummedRecipient = getAddress(claim.wallet_address); // User's wallet
+    const CHAIN_ID = 8453; // Base
 
     // Log access for audit trail
     console.log(`[${requestId}] 📋 Claim data accessed:`);
@@ -176,11 +181,11 @@ export async function GET(request, { params }) {
         // Claim request parameters
         req: {
           uid: uidBytes32, // Unique ID for this claim (as bytes32)
-          tokenAddress: '0xC47A79F4a5E036AaF41233CC6C1d9Beb98d87503', // $MINTEDMERCH token address
+          tokenAddress: checksummedTokenAddress, // $MINTEDMERCH token address (checksummed for Wagmi/Viem)
           expirationTimestamp: Math.floor(new Date(signatureExpiresAt).getTime() / 1000),
           contents: [
             {
-              recipient: claim.wallet_address.toLowerCase(),
+              recipient: checksummedRecipient, // Checksummed for Wagmi/Viem
               amount: claim.campaign.token_reward_amount // In wei format
             }
           ]
