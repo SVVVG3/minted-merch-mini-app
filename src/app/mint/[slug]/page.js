@@ -58,20 +58,30 @@ export async function generateMetadata({ params }) {
     return {
       title: campaign.title,
       description: campaign.description || 'Mint this exclusive NFT and claim tokens!',
+      metadataBase: new URL(baseUrl),
+      other: {
+        'fc:frame': JSON.stringify(frame)
+      },
       openGraph: {
         title: campaign.title,
         description: campaign.description,
-        images: [dynamicImageUrl],
-        url: `${baseUrl}/mint/${slug}`
+        siteName: 'Minted Merch',
+        images: [
+          {
+            url: dynamicImageUrl,
+            width: 1200,
+            height: 630,
+            alt: campaign.title
+          }
+        ],
+        url: `${baseUrl}/mint/${slug}`,
+        type: 'website'
       },
       twitter: {
         card: 'summary_large_image',
         title: campaign.title,
         description: campaign.description,
         images: [dynamicImageUrl]
-      },
-      other: {
-        'fc:frame': JSON.stringify(frame)
       }
     };
   } catch (error) {

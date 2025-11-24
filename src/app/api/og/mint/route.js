@@ -138,17 +138,16 @@ export async function GET(request) {
             <div
               style={{
                 position: 'absolute',
-                bottom: '40px',
-                right: '40px',
-                width: '120px',
-                height: '120px',
+                bottom: '30px',
+                right: '30px',
+                width: '160px',
+                height: '160px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 border: '3px solid #3eb489',
-                borderRadius: '16px',
-                backgroundColor: '#1a1a1a',
-                padding: '8px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(62, 180, 137, 0.1)',
               }}
             >
               <img
