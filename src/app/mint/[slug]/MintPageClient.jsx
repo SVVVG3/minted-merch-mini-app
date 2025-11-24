@@ -252,8 +252,10 @@ export default function MintPageClient({ slug }) {
       const shareText = campaign.metadata?.shareText || 
         `Just minted ${campaign.title}! 🎨\n\nMint yours and claim tokens 👇`;
       
-      const shareEmbeds = campaign.metadata?.shareEmbeds || 
-        [window.location.origin];
+      // Prepend mint page URL to show custom OG image
+      const mintPageUrl = `${window.location.origin}/mint/${slug}`;
+      const additionalEmbeds = campaign.metadata?.shareEmbeds || [];
+      const shareEmbeds = [mintPageUrl, ...additionalEmbeds];
 
       console.log('📤 Sharing to Farcaster...');
       console.log('   Text:', shareText);
@@ -274,7 +276,7 @@ export default function MintPageClient({ slug }) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${farcasterToken}`
+            'Authorization': `Bearer ${sessionToken}`
           },
           body: JSON.stringify({})
         });
@@ -578,25 +580,31 @@ export default function MintPageClient({ slug }) {
 
       {/* Share Modal (Displayed as overlay when showShareModal is true) */}
       {showShareModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-900 rounded-2xl p-8 max-w-md w-full space-y-6">
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50">
+          <div className="bg-black border border-gray-800 rounded-2xl p-8 max-w-md w-full space-y-6">
             <div className="text-center space-y-2">
               <div className="text-5xl">🎉</div>
               <h3 className="text-2xl font-bold">You Minted!</h3>
-              <p className="text-gray-300">Share your mint to unlock your token claim!</p>
+              <p className="text-gray-300">Share to unlock $mintedmerch</p>
             </div>
 
             <button
               onClick={handleShare}
               disabled={isSharing}
-              className="w-full py-4 bg-white text-black rounded-xl font-bold hover:bg-gray-200 transition-all"
+              className="w-full py-4 bg-[#8465FF] text-white rounded-xl font-bold hover:bg-[#7555EF] transition-all flex items-center justify-center gap-2"
             >
-              {isSharing ? 'Opening Share...' : '📤 Share to Farcaster'}
+              {isSharing ? (
+                'Opening Share...'
+              ) : (
+                <>
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 0C4.48 0 0 4.48 0 10C0 15.52 4.48 20 10 20C15.52 20 20 15.52 20 10C20 4.48 15.52 0 10 0ZM10 18C5.59 18 2 14.41 2 10C2 5.59 5.59 2 10 2C14.41 2 18 5.59 18 10C18 14.41 14.41 18 10 18Z" fill="currentColor"/>
+                    <path d="M10 5L10 15M5 10L15 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  Share to Farcaster
+                </>
+              )}
             </button>
-
-            <p className="text-xs text-center text-gray-500">
-              Required to claim tokens
-            </p>
           </div>
         </div>
       )}
