@@ -182,7 +182,7 @@ export default function MintPageClient({ slug }) {
             console.log('✅ Mint recorded:', data);
             
             // Update state
-            setClaimId(data.claimId);
+            setClaimId(data.claim.id); // Fix: API returns data.claim.id, not data.claimId
             setUserStatus(prev => ({ ...prev, hasMinted: true, canMint: false }));
             setShowShareModal(true);
           } else {
@@ -749,7 +749,7 @@ export default function MintPageClient({ slug }) {
 
       {/* Share Modal (Displayed as overlay when showShareModal is true) */}
       {showShareModal && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50" style={{ pointerEvents: 'auto' }}>
           <div className="bg-black border border-gray-800 rounded-2xl p-8 max-w-md w-full space-y-6">
             <div className="text-center space-y-2">
               <div className="text-5xl">🎉</div>
@@ -758,8 +758,14 @@ export default function MintPageClient({ slug }) {
             </div>
 
             <button
-              onClick={handleShare}
+              onClick={(e) => {
+                console.log('🖱️ Share button CLICKED!', { isSharing, claimId, sessionToken: !!sessionToken });
+                e.preventDefault();
+                e.stopPropagation();
+                handleShare();
+              }}
               disabled={isSharing}
+              style={{ pointerEvents: isSharing ? 'none' : 'auto' }}
               className="w-full py-4 bg-[#6A3CFF] text-white rounded-xl font-bold hover:bg-[#5A2FE6] disabled:bg-gray-600 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
             >
               {isSharing ? (
