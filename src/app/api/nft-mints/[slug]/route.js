@@ -25,6 +25,15 @@ export async function GET(request, { params }) {
 
     console.log(`📋 Fetching NFT campaign: ${slug}`);
 
+    // Check if supabaseAdmin is initialized
+    if (!supabaseAdmin) {
+      console.error('❌ Supabase admin client not initialized - missing SUPABASE_SERVICE_ROLE_KEY');
+      return NextResponse.json(
+        { error: 'Database configuration error' },
+        { status: 500 }
+      );
+    }
+
     // Fetch campaign data (public can view active campaigns due to RLS)
     const { data: campaign, error: campaignError } = await supabaseAdmin
       .from('nft_mints')
@@ -34,7 +43,15 @@ export async function GET(request, { params }) {
       .single();
 
     if (campaignError || !campaign) {
-      console.error('❌ Campaign not found:', campaignError);
+      console.error('❌ Campaign not found:', {
+        error: campaignError,
+        code: campaignError?.code,
+        message: campaignError?.message,
+        details: campaignError?.details,
+        hint: campaignError?.hint,
+        slug,
+        campaign
+      });
       return NextResponse.json(
         { error: 'Campaign not found or inactive' },
         { status: 404 }
