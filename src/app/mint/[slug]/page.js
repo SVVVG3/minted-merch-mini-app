@@ -57,7 +57,7 @@ export async function generateMetadata({ params }) {
         title: campaign.metadata?.buttonText || "WEN MERCH?", // Custom button text
         action: {
           type: "launch_frame",
-          url: baseUrl, // Link to main page
+          url: `${baseUrl}/mint/${slug}`, // Link to mint page for testing
           name: "Minted Merch",
           splashImageUrl: `${baseUrl}/splash.png`,
           splashBackgroundColor: "#000000"
