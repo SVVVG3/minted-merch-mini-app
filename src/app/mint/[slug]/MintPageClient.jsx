@@ -302,50 +302,79 @@ export default function MintPageClient({ slug }) {
       const walletAddress = accounts[0];
       console.log('💳 Wallet address:', walletAddress);
 
-      // Use Thirdweb to get transaction data, then send via Wagmi
-      console.log('📤 Preparing claim with Thirdweb SDK...');
-      
-      const { getContract, getRpcClient, encode } = await import('thirdweb');
-      const { claimTo } = await import('thirdweb/extensions/erc1155');
-      const { base } = await import('thirdweb/chains');
-      const { client } = await import('@/lib/thirdwebClient');
-      
-      const contract = getContract({
-        client,
-        chain: base,
-        address: campaign.contractAddress
+      // Fetch allowlist proof from our backend
+      console.log('🔍 Fetching allowlist proof from backend...');
+      const proofResponse = await fetch(`/api/nft-mints/${slug}/get-proof`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({
+          walletAddress: walletAddress,
+          tokenId: campaign.tokenId || 0
+        })
       });
 
-      console.log('📋 Contract initialized:', campaign.contractAddress);
-
-      // Prepare the claim transaction (handles allowlist proof automatically)
-      const transaction = claimTo({
-        contract,
-        to: walletAddress,
-        tokenId: BigInt(campaign.tokenId || 0),
-        amount: 1n
-      });
-
-      console.log('✅ Transaction prepared with Thirdweb claimTo');
-      console.log('   Transaction object:', transaction);
-      
-      // Get encoded transaction data
-      try {
-        const encodedTx = await encode(transaction);
-        
-        console.log('📤 Sending transaction via Wagmi...');
-        console.log('   To:', campaign.contractAddress);
-        console.log('   Data:', encodedTx);
-
-        // Send via Wagmi
-        writeMintContract({
-          address: campaign.contractAddress,
-          data: encodedTx
-        });
-      } catch (encodeError) {
-        console.error('❌ Encode error:', encodeError);
-        throw encodeError;
+      if (!proofResponse.ok) {
+        const errorData = await proofResponse.json().catch(() => ({}));
+        console.error('❌ Failed to fetch allowlist proof:', errorData);
+        throw new Error(errorData.error || 'You are not eligible to mint this NFT');
       }
+
+      const proofData = await proofResponse.json();
+      console.log('✅ Allowlist proof received:', proofData);
+
+      // ERC1155 claim ABI
+      const erc1155ClaimABI = [
+        {
+          name: 'claim',
+          type: 'function',
+          inputs: [
+            { name: 'receiver', type: 'address' },
+            { name: 'tokenId', type: 'uint256' },
+            { name: 'quantity', type: 'uint256' },
+            { name: 'currency', type: 'address' },
+            { name: 'pricePerToken', type: 'uint256' },
+            { name: 'allowlistProof', type: 'tuple', components: [
+              { name: 'proof', type: 'bytes32[]' },
+              { name: 'quantityLimitPerWallet', type: 'uint256' },
+              { name: 'pricePerToken', type: 'uint256' },
+              { name: 'currency', type: 'address' }
+            ]},
+            { name: 'data', type: 'bytes' }
+          ],
+          outputs: []
+        }
+      ];
+
+      // Build allowlist proof
+      const allowlistProof = {
+        proof: proofData.proof || [],
+        quantityLimitPerWallet: BigInt(proofData.quantityLimitPerWallet || 0),
+        pricePerToken: BigInt(proofData.pricePerToken || 0),
+        currency: proofData.currency || '0x0000000000000000000000000000000000000000'
+      };
+
+      console.log('📤 Sending transaction via Wagmi...');
+      console.log('   Contract:', campaign.contractAddress);
+      console.log('   Proof:', allowlistProof);
+
+      // Send via Wagmi
+      writeMintContract({
+        address: campaign.contractAddress,
+        abi: erc1155ClaimABI,
+        functionName: 'claim',
+        args: [
+          walletAddress,
+          BigInt(campaign.tokenId || 0),
+          BigInt(1),
+          proofData.currency || '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+          BigInt(proofData.pricePerToken || 0),
+          allowlistProof,
+          '0x'
+        ]
+      });
 
       console.log('✅ Mint transaction sent - waiting for user approval...');
       // Transaction will be handled by useEffect watching isMintConfirmed
