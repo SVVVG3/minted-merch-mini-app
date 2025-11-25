@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { authenticateRequest } from '@/lib/auth';
+import { getAuthenticatedFid } from '@/lib/userAuth';
+import { setUserContext } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getContract } from 'thirdweb';
 import { getActiveClaimCondition } from 'thirdweb/extensions/erc1155';
@@ -23,9 +24,9 @@ export async function POST(request, { params }) {
     const { walletAddress, tokenId } = body;
 
     // Authenticate request
-    const { authenticatedFid, error: authError } = await authenticateRequest(request);
-    if (authError) {
-      console.log(`[${requestId}] ❌ Auth failed:`, authError);
+    const authenticatedFid = await getAuthenticatedFid(request);
+    if (!authenticatedFid) {
+      console.log(`[${requestId}] ❌ Auth failed: No FID`);
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
