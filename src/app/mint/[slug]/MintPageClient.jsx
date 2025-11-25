@@ -2,16 +2,11 @@
 
 import { shareToFarcaster } from "@/lib/farcasterShare";
 import { triggerHaptic } from "@/lib/haptics";
-import { client } from "@/lib/thirdwebClient";
 import { useFarcaster } from "@/lib/useFarcaster";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getContract } from "thirdweb";
-import { base } from "thirdweb/chains";
-import { claimTo } from "thirdweb/extensions/erc1155";
 import {
-  useSendTransaction,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
@@ -37,11 +32,11 @@ export default function MintPageClient({ slug }) {
 
   // Wagmi hooks for NFT minting
   const {
-    sendTransaction: sendMintTx,
+    writeContract: writeMintContract,
     data: mintTxHash,
     isPending: isMintTxPending,
     error: mintWriteError,
-  } = useSendTransaction();
+  } = useWriteContract();
   const { isLoading: isMintConfirming, isSuccess: isMintConfirmed } =
     useWaitForTransactionReceipt({
       hash: mintTxHash,
@@ -300,7 +295,7 @@ export default function MintPageClient({ slug }) {
       setIsMinting(true);
       setMintError(null);
 
-      console.log("🎨 Starting mint process with Thirdweb claimTo...");
+      console.log("🎨 Starting mint process...");
       console.log("📋 Contract:", campaign.contractAddress);
       console.log("🎫 Token ID:", campaign.tokenId || 0);
 
@@ -317,41 +312,85 @@ export default function MintPageClient({ slug }) {
       const walletAddress = accounts[0];
       console.log("💳 Wallet address:", walletAddress);
 
-      // Get contract instance
-      const contract = getContract({
-        client,
-        chain: base,
+      // Fetch allowlist proof from backend (uses Thirdweb getClaimParams)
+      console.log("🔍 Fetching allowlist proof from backend...");
+      const proofResponse = await fetch(`/api/nft-mints/${slug}/get-proof`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({
+          walletAddress,
+          tokenId: campaign.tokenId || "0",
+        }),
+      });
+
+      if (!proofResponse.ok) {
+        const errorData = await proofResponse.json().catch(() => ({}));
+        console.error("❌ Failed to fetch allowlist proof:", errorData);
+        throw new Error(
+          errorData.error || "You are not eligible to mint this NFT"
+        );
+      }
+
+      const proofData = await proofResponse.json();
+      console.log("✅ Allowlist proof received:", proofData);
+
+      // ERC1155 claim ABI
+      const erc1155ClaimABI = [
+        {
+          name: "claim",
+          type: "function",
+          inputs: [
+            { name: "receiver", type: "address" },
+            { name: "tokenId", type: "uint256" },
+            { name: "quantity", type: "uint256" },
+            { name: "currency", type: "address" },
+            { name: "pricePerToken", type: "uint256" },
+            {
+              name: "allowlistProof",
+              type: "tuple",
+              components: [
+                { name: "proof", type: "bytes32[]" },
+                { name: "quantityLimitPerWallet", type: "uint256" },
+                { name: "pricePerToken", type: "uint256" },
+                { name: "currency", type: "address" },
+              ],
+            },
+            { name: "data", type: "bytes" },
+          ],
+          outputs: [],
+        },
+      ];
+
+      // Build allowlist proof
+      const allowlistProof = {
+        proof: proofData.proof || [],
+        quantityLimitPerWallet: BigInt(proofData.quantityLimitPerWallet || 1),
+        pricePerToken: BigInt(proofData.pricePerToken || 0),
+        currency:
+          proofData.currency ||
+          "0x0000000000000000000000000000000000000000",
+      };
+
+      console.log("📤 Sending transaction via Wagmi...");
+      console.log("   Proof length:", allowlistProof.proof.length);
+
+      // Send via Wagmi writeContract
+      writeMintContract({
         address: campaign.contractAddress,
-      });
-
-      console.log("📦 Preparing claimTo transaction...");
-
-      // Use Thirdweb's claimTo - it handles allowlist proofs automatically!
-      const transaction = claimTo({
-        contract,
-        to: walletAddress,
-        tokenId: BigInt(campaign.tokenId || 0),
-        quantity: BigInt(1),
-      });
-
-      console.log("📤 Encoding transaction data...");
-
-      // Encode the transaction to get raw tx data
-      const { encode } = await import("thirdweb");
-      const encodedData = await encode(transaction);
-
-      console.log("✅ Transaction encoded:", {
-        to: encodedData.to,
-        data: encodedData.data?.substring(0, 10) + "...",
-        value: encodedData.value?.toString(),
-      });
-
-      // Send via Wagmi's sendTransaction
-      sendMintTx({
-        to: encodedData.to,
-        data: encodedData.data,
-        value: encodedData.value || 0n,
-        chainId: 8453, // Base
+        abi: erc1155ClaimABI,
+        functionName: "claim",
+        args: [
+          walletAddress,
+          BigInt(campaign.tokenId || 0),
+          BigInt(1),
+          allowlistProof.currency,
+          allowlistProof.pricePerToken,
+          allowlistProof,
+          "0x",
+        ],
       });
 
       console.log("✅ Mint transaction sent - waiting for user approval...");
