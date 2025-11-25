@@ -1,23 +1,21 @@
-import { Suspense } from 'react';
-import MintPageClient from './MintPageClient';
+import { redirect } from 'next/navigation';
 
-// Mark route as dynamic to prevent static generation issues
+// Mark route as dynamic
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 /**
- * Mint Page - Server Component for NFT Campaign
- * Handles metadata, OG images, and Farcaster frame embeds
+ * Share Page - Redirects to mint page but provides custom frame metadata
+ * This page is ONLY for Farcaster frame embeds when sharing
+ * The frame button points to main page, but direct links go to mint page
  */
 export async function generateMetadata({ params }) {
   const { slug } = params;
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://app.mintedmerch.shop';
 
   try {
-    // Fetch campaign data with absolute URL
+    // Fetch campaign data
     const apiUrl = `${baseUrl}/api/nft-mints/${slug}`;
-    console.log('[Mint Metadata] Fetching:', apiUrl);
-    
     const campaignResponse = await fetch(apiUrl, {
       cache: 'no-store',
       headers: {
@@ -26,7 +24,6 @@ export async function generateMetadata({ params }) {
     });
 
     if (!campaignResponse.ok) {
-      console.error('[Mint Metadata] API failed:', campaignResponse.status);
       return {
         title: 'NFT Mint - Minted Merch',
         description: 'Mint exclusive NFTs and earn tokens'
@@ -40,7 +37,7 @@ export async function generateMetadata({ params }) {
       ? campaign.imageUrl 
       : `${baseUrl}${campaign.imageUrl}`;
 
-    // Build custom OG image URL with NFT artwork + text
+    // Build custom OG image URL
     const ogImageParams = new URLSearchParams({
       slug: campaign.slug,
       image: fullImageUrl,
@@ -49,15 +46,15 @@ export async function generateMetadata({ params }) {
 
     const dynamicImageUrl = `${baseUrl}/api/og/mint?${ogImageParams}`;
 
-    // Create Farcaster frame embed
+    // Create Farcaster frame embed - button links to MAIN PAGE
     const frame = {
       version: "next",
-      imageUrl: dynamicImageUrl, // Custom NFT image with text overlay
+      imageUrl: dynamicImageUrl,
       button: {
-        title: campaign.metadata?.buttonText || "WEN MERCH?", // Custom button text
+        title: campaign.metadata?.buttonText || "WEN MERCH?",
         action: {
           type: "launch_frame",
-          url: `${baseUrl}/mint/${slug}`, // Link to mint page
+          url: baseUrl, // Link to main page
           name: "Minted Merch",
           splashImageUrl: `${baseUrl}/splash.png`,
           splashBackgroundColor: "#000000"
@@ -84,7 +81,7 @@ export async function generateMetadata({ params }) {
             alt: campaign.title
           }
         ],
-        url: `${baseUrl}/mint/${slug}`,
+        url: `${baseUrl}/mint/${slug}`, // OG url points to mint page
         type: 'website'
       },
       twitter: {
@@ -95,7 +92,7 @@ export async function generateMetadata({ params }) {
       }
     };
   } catch (error) {
-    console.error('Error generating mint page metadata:', error);
+    console.error('Error generating share page metadata:', error);
     return {
       title: 'NFT Mint - Minted Merch',
       description: 'Mint exclusive NFTs and earn tokens'
@@ -103,19 +100,9 @@ export async function generateMetadata({ params }) {
   }
 }
 
-export default function MintPage({ params }) {
+// Redirect to actual mint page
+export default function SharePage({ params }) {
   const { slug } = params;
-
-  return (
-    <div className="min-h-screen bg-black">
-      <Suspense fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-white text-xl">Loading campaign...</div>
-        </div>
-      }>
-        <MintPageClient slug={slug} />
-      </Suspense>
-    </div>
-  );
+  redirect(`/mint/${slug}`);
 }
 
