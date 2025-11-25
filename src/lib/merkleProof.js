@@ -6,10 +6,10 @@ import allowlistData from "./beeper-allowlist.json";
  * Generate Merkle proof for a wallet address from the allowlist snapshot
  * Matches Thirdweb's DropERC1155 snapshot merkle tree structure
  *
- * Leaf structure: keccak256(abi.encodePacked(address, maxClaimable, price, currency))
- * This MUST match the exact encoding used when the allowlist was uploaded to Thirdweb
+ * Leaf structure: keccak256(abi.encodePacked(address, tokenId, maxClaimable, price, currency))
+ * Note: Thirdweb's DropERC1155 includes tokenId in the leaf encoding
  */
-export function generateMerkleProof(walletAddress) {
+export function generateMerkleProof(walletAddress, tokenId = 0) {
   try {
     const entries = allowlistData;
 
@@ -28,11 +28,17 @@ export function generateMerkleProof(walletAddress) {
     console.log(`✅ Wallet found in allowlist:`, entry);
 
     // Create leaf nodes using Thirdweb's encoding format
-    // CRITICAL: Must match contract's encoding: abi.encodePacked(address, maxClaimable, price, currency)
+    // CRITICAL: Must match contract's encoding: abi.encodePacked(address, tokenId, maxClaimable, price, currency)
     const leaves = entries.map((e) => {
       const encoded = encodePacked(
-        ["address", "uint256", "uint256", "address"],
-        [e.address, BigInt(e.maxClaimable), BigInt(e.price), e.currencyAddress]
+        ["address", "uint256", "uint256", "uint256", "address"],
+        [
+          e.address,
+          BigInt(tokenId),
+          BigInt(e.maxClaimable),
+          BigInt(e.price),
+          e.currencyAddress,
+        ]
       );
       return keccak256(encoded);
     });
@@ -45,9 +51,10 @@ export function generateMerkleProof(walletAddress) {
 
     // Get proof for this wallet using the same encoding
     const leafEncoded = encodePacked(
-      ["address", "uint256", "uint256", "address"],
+      ["address", "uint256", "uint256", "uint256", "address"],
       [
         entry.address,
+        BigInt(tokenId),
         BigInt(entry.maxClaimable),
         BigInt(entry.price),
         entry.currencyAddress,

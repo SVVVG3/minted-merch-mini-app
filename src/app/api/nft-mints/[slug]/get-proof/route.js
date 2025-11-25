@@ -1,14 +1,16 @@
-import { NextResponse } from 'next/server';
-import { getAuthenticatedFid } from '@/lib/userAuth';
-import { setUserContext } from '@/lib/auth';
-import { supabaseAdmin } from '@/lib/supabase';
-import { generateMerkleProof } from '@/lib/merkleProof';
+import { supabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedFid } from "@/lib/userAuth";
+import { NextResponse } from "next/server";
+import { createThirdwebClient, getContract } from "thirdweb";
+import { base } from "thirdweb/chains";
+import { getClaimParams } from "thirdweb/extensions/erc1155";
 
 /**
  * POST /api/nft-mints/[slug]/get-proof
- * 
- * Fetches allowlist proof for a wallet address from Thirdweb
- * Required for private/allowlisted NFT mints
+ *
+ * Fetches allowlist proof using Thirdweb v5 SDK
+ * Uses getClaimParams which automatically fetches the correct Merkle proof from Thirdweb
+ * This ensures the proof matches the on-chain Merkle root exactly
  */
 export async function POST(request, { params }) {
   const requestId = Math.random().toString(36).substring(7);
@@ -24,7 +26,7 @@ export async function POST(request, { params }) {
     if (!authenticatedFid) {
       console.log(`[${requestId}] ❌ Auth failed: No FID`);
       return NextResponse.json(
-        { error: 'Authentication required' },
+        { error: "Authentication required" },
         { status: 401 }
       );
     }
@@ -37,23 +39,23 @@ export async function POST(request, { params }) {
     // Validate inputs
     if (!walletAddress) {
       return NextResponse.json(
-        { error: 'Wallet address is required' },
+        { error: "Wallet address is required" },
         { status: 400 }
       );
     }
 
     // Fetch campaign from database
     const { data: campaign, error: campaignError } = await supabaseAdmin
-      .from('nft_mints')
-      .select('*')
-      .eq('slug', slug)
-      .eq('is_active', true)
+      .from("nft_mints")
+      .select("*")
+      .eq("slug", slug)
+      .eq("is_active", true)
       .single();
 
     if (campaignError || !campaign) {
       console.error(`[${requestId}] ❌ Campaign not found:`, campaignError);
       return NextResponse.json(
-        { error: 'Campaign not found' },
+        { error: "Campaign not found" },
         { status: 404 }
       );
     }
@@ -61,47 +63,101 @@ export async function POST(request, { params }) {
     console.log(`[${requestId}] 📋 Campaign:`, campaign.title);
     console.log(`[${requestId}] 📍 Contract:`, campaign.contract_address);
 
-    // Generate Merkle proof from allowlist
-    console.log(`[${requestId}] 🔍 Generating Merkle proof from allowlist...`);
-    
-    try {
-      // Generate proof using our Merkle tree utility
-      const proofResult = generateMerkleProof(walletAddress);
+    // Fetch Merkle proof using Thirdweb v5 SDK
+    console.log(`[${requestId}] 🔍 Fetching claim params from Thirdweb SDK...`);
 
-      if (!proofResult) {
-        console.log(`[${requestId}] ❌ Wallet not on allowlist`);
+    try {
+      // Create Thirdweb client (use secret key for server-side calls)
+      const client = createThirdwebClient({
+        secretKey: process.env.THIRDWEB_SECRET_KEY,
+      });
+
+      // Get contract instance
+      const contract = getContract({
+        client,
+        chain: base,
+        address: campaign.contract_address,
+      });
+
+      console.log(`[${requestId}] 📡 Calling getClaimParams...`);
+
+      // getClaimParams automatically fetches the Merkle proof from Thirdweb's backend
+      // This ensures we get the EXACT proof that matches the on-chain Merkle root
+      const claimParams = await getClaimParams({
+        contract,
+        to: walletAddress,
+        tokenId: BigInt(tokenId || 0),
+        quantity: BigInt(1),
+        from: walletAddress, // Required for allowlist verification
+      });
+
+      console.log(`[${requestId}] ✅ Claim params received from Thirdweb`);
+      console.log(
+        `[${requestId}]    Has allowlist proof:`,
+        !!claimParams.allowlistProof
+      );
+
+      if (claimParams.allowlistProof) {
+        console.log(
+          `[${requestId}]    Proof length:`,
+          claimParams.allowlistProof.proof?.length || 0
+        );
+      }
+
+      // Extract the allowlist proof
+      const allowlistProof = claimParams.allowlistProof;
+
+      if (
+        !allowlistProof ||
+        !allowlistProof.proof ||
+        allowlistProof.proof.length === 0
+      ) {
+        console.log(
+          `[${requestId}] ❌ No allowlist proof - wallet may not be eligible`
+        );
         return NextResponse.json(
-          { error: 'Your wallet is not on the allowlist for this mint.' },
+          { error: "Your wallet is not on the allowlist for this mint." },
           { status: 403 }
         );
       }
 
-      console.log(`[${requestId}] ✅ Merkle proof generated successfully`);
-      console.log(`[${requestId}]    Proof length:`, proofResult.proof.length);
-      console.log(`[${requestId}]    Merkle root:`, proofResult.merkleRoot);
-
       return NextResponse.json({
-        proof: proofResult.proof,
-        quantityLimitPerWallet: proofResult.quantityLimitPerWallet,
-        pricePerToken: proofResult.pricePerToken,
-        currency: proofResult.currency
+        proof: allowlistProof.proof,
+        quantityLimitPerWallet:
+          allowlistProof.quantityLimitPerWallet?.toString() || "1",
+        pricePerToken: allowlistProof.pricePerToken?.toString() || "0",
+        currency:
+          allowlistProof.currency ||
+          "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       });
+    } catch (thirdwebError) {
+      console.error(`[${requestId}] ❌ Thirdweb SDK error:`, thirdwebError);
+      console.error(`[${requestId}]    Error details:`, thirdwebError.message);
 
-    } catch (error) {
-      console.error(`[${requestId}] ❌ Error generating proof:`, error);
-      
+      // If Thirdweb returns an error, it might mean the wallet isn't eligible
+      if (
+        thirdwebError.message?.includes("not eligible") ||
+        thirdwebError.message?.includes("allowlist")
+      ) {
+        return NextResponse.json(
+          { error: "Your wallet is not on the allowlist for this mint." },
+          { status: 403 }
+        );
+      }
+
       return NextResponse.json(
-        { error: 'Failed to generate allowlist proof. Please contact support.' },
+        {
+          error:
+            "Failed to fetch claim parameters from Thirdweb. Please try again.",
+        },
         { status: 500 }
       );
     }
-
   } catch (error) {
     console.error(`[${requestId}] ❌ Error:`, error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
 }
-
