@@ -61,37 +61,74 @@ export async function POST(request, { params }) {
     console.log(`[${requestId}] 📋 Campaign:`, campaign.title);
     console.log(`[${requestId}] 📍 Contract:`, campaign.contract_address);
 
-    // Generate Merkle proof from allowlist
-    console.log(`[${requestId}] 🔍 Generating Merkle proof from allowlist...`);
+    // Fetch proof from Thirdweb Engine API
+    console.log(`[${requestId}] 🔍 Fetching proof from Thirdweb...`);
     
     try {
-      // Generate proof using our Merkle tree utility
-      const proofResult = generateMerkleProof(walletAddress);
+      // Try Thirdweb's Engine API for getting claimer proofs
+      const chainId = 8453; // Base mainnet
+      const apiUrl = `https://8453.rpc.thirdweb.com/${process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID}/extensions/erc1155-claimable/getClaimerProofs`;
+      
+      console.log(`[${requestId}] 📞 Calling Thirdweb API...`);
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contract: campaign.contract_address,
+          claimer: walletAddress,
+          tokenId: tokenId || '0'
+        })
+      });
 
-      if (!proofResult) {
-        console.log(`[${requestId}] ❌ Wallet not on allowlist`);
-        return NextResponse.json(
-          { error: 'Your wallet is not on the allowlist for this mint.' },
-          { status: 403 }
-        );
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[${requestId}] ❌ Thirdweb API error:`, response.status, errorText);
+        
+        // Fallback to local generation
+        console.log(`[${requestId}] 🔄 Falling back to local proof generation...`);
+        const proofResult = generateMerkleProof(walletAddress);
+
+        if (!proofResult) {
+          return NextResponse.json(
+            { error: 'Your wallet is not on the allowlist for this mint.' },
+            { status: 403 }
+          );
+        }
+
+        return NextResponse.json({
+          proof: proofResult.proof,
+          quantityLimitPerWallet: proofResult.quantityLimitPerWallet,
+          pricePerToken: proofResult.pricePerToken,
+          currency: proofResult.currency
+        });
       }
 
-      console.log(`[${requestId}] ✅ Merkle proof generated successfully`);
-      console.log(`[${requestId}]    Proof length:`, proofResult.proof.length);
-      console.log(`[${requestId}]    Merkle root:`, proofResult.merkleRoot);
+      const proofData = await response.json();
+      console.log(`[${requestId}] ✅ Thirdweb proof received:`, JSON.stringify(proofData, null, 2));
+
+      // Extract proof details
+      const proof = proofData.proof || [];
+      const maxClaimable = proofData.maxClaimable || proofData.quantityLimitPerWallet || '1';
+      const price = proofData.price || proofData.pricePerToken || '0';
+      const currency = proofData.currencyAddress || proofData.currency || '0x0000000000000000000000000000000000000000';
+
+      console.log(`[${requestId}] ✅ Proof length:`, proof.length);
 
       return NextResponse.json({
-        proof: proofResult.proof,
-        quantityLimitPerWallet: proofResult.quantityLimitPerWallet,
-        pricePerToken: proofResult.pricePerToken,
-        currency: proofResult.currency
+        proof,
+        quantityLimitPerWallet: maxClaimable,
+        pricePerToken: price,
+        currency
       });
 
     } catch (error) {
-      console.error(`[${requestId}] ❌ Error generating proof:`, error);
+      console.error(`[${requestId}] ❌ Error fetching proof:`, error);
       
       return NextResponse.json(
-        { error: 'Failed to generate allowlist proof. Please contact support.' },
+        { error: 'Failed to fetch allowlist proof. Please contact support.' },
         { status: 500 }
       );
     }
