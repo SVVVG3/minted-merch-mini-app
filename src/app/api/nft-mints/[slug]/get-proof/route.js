@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedFid } from '@/lib/userAuth';
 import { setUserContext } from '@/lib/auth';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getContract } from 'thirdweb';
 import { getActiveClaimCondition } from 'thirdweb/extensions/erc1155';
 import { fetchProofsERC1155, tokenMerkleRoot } from 'thirdweb/extensions/airdrop';
@@ -48,7 +48,7 @@ export async function POST(request, { params }) {
 
     // Fetch campaign from database
     const { data: campaign, error: campaignError } = await supabaseAdmin
-      .from('nft_mint_campaigns')
+      .from('nft_mints')
       .select('*')
       .eq('slug', slug)
       .eq('is_active', true)
