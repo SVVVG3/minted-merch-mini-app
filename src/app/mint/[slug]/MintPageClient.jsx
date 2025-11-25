@@ -7,7 +7,7 @@ import { shareToFarcaster } from '@/lib/farcasterShare';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSendTransaction } from 'wagmi';
 import Image from 'next/image';
 import { triggerHaptic } from '@/lib/haptics';
-import { getContract, prepareContractCall } from 'thirdweb';
+import { getContract } from 'thirdweb';
 import { claimTo } from 'thirdweb/extensions/erc1155';
 import { base } from 'thirdweb/chains';
 import { client } from '@/lib/thirdwebClient';
@@ -28,11 +28,11 @@ export default function MintPageClient({ slug }) {
 
   // Wagmi hooks for NFT minting
   const { 
-    writeContract: writeMintContract, 
+    sendTransaction: sendMintTx, 
     data: mintTxHash, 
     isPending: isMintTxPending,
     error: mintWriteError 
-  } = useWriteContract();
+  } = useSendTransaction();
   const { 
     isLoading: isMintConfirming, 
     isSuccess: isMintConfirmed 
@@ -325,18 +325,22 @@ export default function MintPageClient({ slug }) {
 
       console.log('📤 Encoding transaction data...');
       
-      // Prepare the transaction for Wagmi
-      const preparedTx = await prepareContractCall(transaction);
+      // Encode the transaction to get raw tx data
+      const { encode } = await import('thirdweb');
+      const encodedData = await encode(transaction);
       
-      console.log('✅ Transaction prepared, sending via Wagmi...');
+      console.log('✅ Transaction encoded:', {
+        to: encodedData.to,
+        data: encodedData.data?.substring(0, 10) + '...',
+        value: encodedData.value?.toString()
+      });
 
-      // Send via Wagmi
-      writeMintContract({
-        address: campaign.contractAddress,
-        abi: preparedTx.abi,
-        functionName: preparedTx.method,
-        args: preparedTx.params,
-        value: preparedTx.value || 0n
+      // Send via Wagmi's sendTransaction
+      sendMintTx({
+        to: encodedData.to,
+        data: encodedData.data,
+        value: encodedData.value || 0n,
+        chainId: 8453 // Base
       });
 
       console.log('✅ Mint transaction sent - waiting for user approval...');
