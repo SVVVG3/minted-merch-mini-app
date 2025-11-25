@@ -266,7 +266,7 @@ export default function MintPageClient({ slug }) {
     }
   }, [hasClaimed, showStakingTeaser]);
 
-  // Handle NFT mint using Wagmi (like Ambassador program)
+  // Handle NFT mint using Thirdweb's claimTo (automatically handles allowlist proofs)
   const handleMint = async () => {
     console.log('🎨 Mint button clicked');
     triggerHaptic('medium', isInFarcaster);
@@ -285,7 +285,7 @@ export default function MintPageClient({ slug }) {
       setIsMinting(true);
       setMintError(null);
 
-      console.log('🎨 Starting mint process...');
+      console.log('🎨 Starting mint process with Thirdweb SDK...');
       console.log('📋 Contract:', campaign.contractAddress);
       console.log('🎫 Token ID:', campaign.tokenId || 0);
 
@@ -302,32 +302,55 @@ export default function MintPageClient({ slug }) {
       const walletAddress = accounts[0];
       console.log('💳 Wallet address:', walletAddress);
 
-      // Fetch allowlist proof from our backend
-      console.log('🔍 Fetching allowlist proof from backend...');
-      const proofResponse = await fetch(`/api/nft-mints/${slug}/get-proof`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`
-        },
-        body: JSON.stringify({
-          walletAddress: walletAddress,
-          tokenId: campaign.tokenId || 0
-        })
+      // Use Thirdweb v5 SDK to prepare the claim transaction
+      // claimTo automatically fetches the correct Merkle proof from Thirdweb's backend
+      console.log('🔍 Preparing claimTo transaction with Thirdweb SDK...');
+      
+      const { createThirdwebClient, getContract } = await import('thirdweb');
+      const { base } = await import('thirdweb/chains');
+      const { claimTo } = await import('thirdweb/extensions/erc1155');
+      const { encode } = await import('thirdweb');
+
+      // Create Thirdweb client (public client for frontend)
+      const thirdwebClient = createThirdwebClient({
+        clientId: process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID
       });
 
-      if (!proofResponse.ok) {
-        const errorData = await proofResponse.json().catch(() => ({}));
-        console.error('❌ Failed to fetch allowlist proof:', errorData);
-        throw new Error(errorData.error || 'You are not eligible to mint this NFT');
-      }
+      // Get contract instance
+      const contract = getContract({
+        client: thirdwebClient,
+        chain: base,
+        address: campaign.contractAddress
+      });
 
-      const proofData = await proofResponse.json();
-      console.log('✅ Allowlist proof received:', proofData);
+      console.log('📤 Calling claimTo (automatically fetches Merkle proof)...');
+      
+      // claimTo automatically:
+      // 1. Fetches the active claim condition
+      // 2. Gets the Merkle proof from Thirdweb's backend if allowlist is enabled
+      // 3. Prepares the transaction with all correct parameters
+      // CRITICAL: 'from' parameter is required for allowlist drops
+      const transaction = claimTo({
+        contract,
+        to: walletAddress,
+        tokenId: BigInt(campaign.tokenId || 0),
+        quantity: BigInt(1),
+        from: walletAddress, // Required for allowlist verification
+      });
 
-      // ERC1155 claim ABI
-      const erc1155ClaimABI = [
-        {
+      console.log('✅ Transaction prepared by Thirdweb');
+
+      // Encode the transaction to get the calldata
+      const encodedData = await encode(transaction);
+      
+      console.log('📤 Sending transaction via Wagmi...');
+      console.log('   Transaction data length:', encodedData.length);
+
+      // Send the pre-encoded transaction via Wagmi
+      // This preserves the exact allowlist proof that Thirdweb generated
+      writeMintContract({
+        address: campaign.contractAddress,
+        abi: [{
           name: 'claim',
           type: 'function',
           inputs: [
@@ -345,35 +368,9 @@ export default function MintPageClient({ slug }) {
             { name: 'data', type: 'bytes' }
           ],
           outputs: []
-        }
-      ];
-
-      // Build allowlist proof
-      const allowlistProof = {
-        proof: proofData.proof || [],
-        quantityLimitPerWallet: BigInt(proofData.quantityLimitPerWallet || 0),
-        pricePerToken: BigInt(proofData.pricePerToken || 0),
-        currency: proofData.currency || '0x0000000000000000000000000000000000000000'
-      };
-
-      console.log('📤 Sending transaction via Wagmi...');
-      console.log('   Contract:', campaign.contractAddress);
-      console.log('   Proof:', allowlistProof);
-
-      // Send via Wagmi
-      writeMintContract({
-        address: campaign.contractAddress,
-        abi: erc1155ClaimABI,
+        }],
         functionName: 'claim',
-        args: [
-          walletAddress,
-          BigInt(campaign.tokenId || 0),
-          BigInt(1),
-          proofData.currency || '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-          BigInt(proofData.pricePerToken || 0),
-          allowlistProof,
-          '0x'
-        ]
+        data: encodedData // Use Thirdweb's encoded transaction data
       });
 
       console.log('✅ Mint transaction sent - waiting for user approval...');
@@ -381,7 +378,19 @@ export default function MintPageClient({ slug }) {
 
     } catch (err) {
       console.error('❌ Mint error:', err);
-      setMintError(err.message || 'Failed to mint NFT');
+      
+      // Provide better error messages for common failures
+      let errorMessage = err.message || 'Failed to mint NFT';
+      
+      if (err.message?.includes('allowlist') || err.message?.includes('not eligible')) {
+        errorMessage = 'Your wallet is not on the allowlist for this mint.';
+      } else if (err.message?.includes('User rejected')) {
+        errorMessage = 'Transaction cancelled';
+      } else if (err.message?.includes('!Qty')) {
+        errorMessage = 'You have already minted or reached your limit.';
+      }
+      
+      setMintError(errorMessage);
       setIsMinting(false);
     }
   };
