@@ -332,6 +332,7 @@ export default function MintPageClient({ slug }) {
         to: walletAddress,
         tokenId: BigInt(campaign.tokenId || 0),
         quantity: BigInt(1),
+        from: walletAddress,
       });
 
       console.log("📤 Encoding transaction data...");
