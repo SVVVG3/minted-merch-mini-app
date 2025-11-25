@@ -50,7 +50,6 @@ export async function generateMetadata({ params }) {
     const dynamicImageUrl = `${baseUrl}/api/og/mint?${ogImageParams}`;
 
     // Create Farcaster frame embed
-    // TEMPORARY: Button links to MINT PAGE for testing (normally would link to main page)
     const frame = {
       version: "next",
       imageUrl: dynamicImageUrl, // Custom NFT image with text overlay
@@ -58,7 +57,7 @@ export async function generateMetadata({ params }) {
         title: campaign.metadata?.buttonText || "WEN MERCH?", // Custom button text
         action: {
           type: "launch_frame",
-          url: `${baseUrl}/mint/${slug}`, // TEMPORARY: Link to mint page for testing
+          url: baseUrl, // Link to main page
           name: "Minted Merch",
           splashImageUrl: `${baseUrl}/splash.png`,
           splashBackgroundColor: "#000000"
