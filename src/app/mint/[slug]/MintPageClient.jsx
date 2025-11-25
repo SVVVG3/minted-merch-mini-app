@@ -6,10 +6,7 @@ import { useFarcaster } from "@/lib/useFarcaster";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  useWaitForTransactionReceipt,
-  useWriteContract,
-} from "wagmi";
+import { useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 
 /**
  * MintPageClient - Main UI for NFT Mint Campaign
@@ -312,8 +309,8 @@ export default function MintPageClient({ slug }) {
       const walletAddress = accounts[0];
       console.log("💳 Wallet address:", walletAddress);
 
-      // Fetch allowlist proof from backend (uses Thirdweb getClaimParams)
-      console.log("🔍 Fetching allowlist proof from backend...");
+      // Fetch claim params from backend (uses Thirdweb getClaimParams)
+      console.log("🔍 Fetching claim params from backend...");
       const proofResponse = await fetch(`/api/nft-mints/${slug}/get-proof`, {
         method: "POST",
         headers: {
@@ -322,20 +319,24 @@ export default function MintPageClient({ slug }) {
         },
         body: JSON.stringify({
           walletAddress,
-          tokenId: campaign.tokenId || "0",
+          tokenId: campaign.tokenId || 0,
         }),
       });
 
       if (!proofResponse.ok) {
         const errorData = await proofResponse.json().catch(() => ({}));
-        console.error("❌ Failed to fetch allowlist proof:", errorData);
+        console.error("❌ Failed to fetch claim params:", errorData);
         throw new Error(
           errorData.error || "You are not eligible to mint this NFT"
         );
       }
 
-      const proofData = await proofResponse.json();
-      console.log("✅ Allowlist proof received:", proofData);
+      const { pricePerToken, currency, allowlistProof } =
+        await proofResponse.json();
+      console.log("✅ Claim params received from Thirdweb");
+      console.log("   Price per token:", pricePerToken);
+      console.log("   Currency:", currency);
+      console.log("   Proof length:", allowlistProof.proof.length);
 
       // ERC1155 claim ABI
       const erc1155ClaimABI = [
@@ -364,20 +365,17 @@ export default function MintPageClient({ slug }) {
         },
       ];
 
-      // Build allowlist proof
-      const allowlistProof = {
-        proof: proofData.proof || [],
-        quantityLimitPerWallet: BigInt(proofData.quantityLimitPerWallet || 1),
-        pricePerToken: BigInt(proofData.pricePerToken || 0),
-        currency:
-          proofData.currency ||
-          "0x0000000000000000000000000000000000000000",
+      // Build allowlist proof tuple from Thirdweb's claim params (as-is)
+      const allowlistProofTuple = {
+        proof: allowlistProof.proof,
+        quantityLimitPerWallet: BigInt(allowlistProof.quantityLimitPerWallet),
+        pricePerToken: BigInt(allowlistProof.pricePerToken),
+        currency: allowlistProof.currency,
       };
 
       console.log("📤 Sending transaction via Wagmi...");
-      console.log("   Proof length:", allowlistProof.proof.length);
 
-      // Send via Wagmi writeContract
+      // Send via Wagmi using the exact params from Thirdweb
       writeMintContract({
         address: campaign.contractAddress,
         abi: erc1155ClaimABI,
@@ -386,9 +384,9 @@ export default function MintPageClient({ slug }) {
           walletAddress,
           BigInt(campaign.tokenId || 0),
           BigInt(1),
-          allowlistProof.currency,
-          allowlistProof.pricePerToken,
-          allowlistProof,
+          currency, // Use main currency from claimParams
+          BigInt(pricePerToken), // Use main pricePerToken from claimParams
+          allowlistProofTuple, // Use allowlist proof tuple
           "0x",
         ],
       });

@@ -101,10 +101,7 @@ export async function POST(request, { params }) {
         `[${requestId}]    Price per token:`,
         claimParams.pricePerToken?.toString()
       );
-      console.log(
-        `[${requestId}]    Currency:`,
-        claimParams.currency
-      );
+      console.log(`[${requestId}]    Currency:`, claimParams.currency);
 
       if (claimParams.allowlistProof) {
         console.log(
@@ -113,13 +110,11 @@ export async function POST(request, { params }) {
         );
       }
 
-      // Extract the allowlist proof
-      const allowlistProof = claimParams.allowlistProof;
-
+      // Check if wallet is on allowlist
       if (
-        !allowlistProof ||
-        !allowlistProof.proof ||
-        allowlistProof.proof.length === 0
+        !claimParams.allowlistProof ||
+        !claimParams.allowlistProof.proof ||
+        claimParams.allowlistProof.proof.length === 0
       ) {
         console.log(
           `[${requestId}] ❌ No allowlist proof - wallet may not be eligible`
@@ -130,23 +125,19 @@ export async function POST(request, { params }) {
         );
       }
 
-      // Use the MAIN claimParams pricePerToken, not the allowlistProof one
-      // The allowlistProof.pricePerToken is often uint256 max
-      
-      // Convert 0xEeee...EEeE (Thirdweb's native token representation) to zero address
-      let currency = claimParams.currency || "0x0000000000000000000000000000000000000000";
-      if (currency === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") {
-        currency = "0x0000000000000000000000000000000000000000";
-      }
-      
-      console.log(`[${requestId}]    Converted currency:`, currency);
-      
+      // Return claim params as-is (convert BigInt to string for JSON serialization)
       return NextResponse.json({
-        proof: allowlistProof.proof,
-        quantityLimitPerWallet:
-          allowlistProof.quantityLimitPerWallet?.toString() || "1",
         pricePerToken: claimParams.pricePerToken?.toString() || "0",
-        currency,
+        currency: claimParams.currency,
+        allowlistProof: {
+          proof: claimParams.allowlistProof.proof,
+          quantityLimitPerWallet:
+            claimParams.allowlistProof.quantityLimitPerWallet?.toString() ||
+            "1",
+          pricePerToken:
+            claimParams.allowlistProof.pricePerToken?.toString() || "0",
+          currency: claimParams.allowlistProof.currency,
+        },
       });
     } catch (thirdwebError) {
       console.error(`[${requestId}] ❌ Thirdweb SDK error:`, thirdwebError);
