@@ -302,11 +302,10 @@ export default function MintPageClient({ slug }) {
       const walletAddress = accounts[0];
       console.log('💳 Wallet address:', walletAddress);
 
-      // Use Thirdweb SDK to prepare claim transaction
-      // claimTo handles allowlist proofs automatically
+      // Use Thirdweb to get transaction data, then send via Wagmi
       console.log('📤 Preparing claim with Thirdweb SDK...');
       
-      const { getContract, encode } = await import('thirdweb');
+      const { getContract, getRpcClient, encode } = await import('thirdweb');
       const { claimTo } = await import('thirdweb/extensions/erc1155');
       const { base } = await import('thirdweb/chains');
       const { client } = await import('@/lib/thirdwebClient');
@@ -319,30 +318,34 @@ export default function MintPageClient({ slug }) {
 
       console.log('📋 Contract initialized:', campaign.contractAddress);
 
-      // Prepare the claim transaction
-      // Note: parameter is "amount" not "quantity"
+      // Prepare the claim transaction (handles allowlist proof automatically)
       const transaction = claimTo({
         contract,
         to: walletAddress,
         tokenId: BigInt(campaign.tokenId || 0),
-        amount: BigInt(1)
+        amount: 1n
       });
 
       console.log('✅ Transaction prepared with Thirdweb claimTo');
+      console.log('   Transaction object:', transaction);
       
-      // Encode the transaction to get calldata
-      const encodedData = await encode(transaction);
-      
-      console.log('📤 Sending to wallet via Wagmi...');
-      console.log('   Contract:', campaign.contractAddress);
-      console.log('   Encoded data length:', encodedData.length);
+      // Get encoded transaction data
+      try {
+        const encodedTx = await encode(transaction);
+        
+        console.log('📤 Sending transaction via Wagmi...');
+        console.log('   To:', campaign.contractAddress);
+        console.log('   Data:', encodedTx);
 
-      // Send transaction via Wagmi
-      writeMintContract({
-        address: campaign.contractAddress,
-        data: encodedData,
-        value: BigInt(0)
-      });
+        // Send via Wagmi
+        writeMintContract({
+          address: campaign.contractAddress,
+          data: encodedTx
+        });
+      } catch (encodeError) {
+        console.error('❌ Encode error:', encodeError);
+        throw encodeError;
+      }
 
       console.log('✅ Mint transaction sent - waiting for user approval...');
       // Transaction will be handled by useEffect watching isMintConfirmed
