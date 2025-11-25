@@ -2,11 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAuthenticatedFid } from '@/lib/userAuth';
 import { setUserContext } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getContract } from 'thirdweb';
-import { getActiveClaimCondition } from 'thirdweb/extensions/erc1155';
-import { fetchProofsERC1155, tokenMerkleRoot } from 'thirdweb/extensions/airdrop';
-import { base } from 'thirdweb/chains';
-import { client } from '@/lib/thirdwebClient';
+import { generateMerkleProof } from '@/lib/merkleProof';
 
 /**
  * POST /api/nft-mints/[slug]/get-proof
@@ -65,108 +61,40 @@ export async function POST(request, { params }) {
     console.log(`[${requestId}] 📋 Campaign:`, campaign.title);
     console.log(`[${requestId}] 📍 Contract:`, campaign.contract_address);
 
-    // Get contract instance
-    const contract = getContract({
-      client,
-      chain: base,
-      address: campaign.contract_address
-    });
-
-    // Fetch active claim condition to get merkle root and other details
-    console.log(`[${requestId}] 🔍 Fetching active claim condition...`);
+    // Generate Merkle proof from local CSV
+    console.log(`[${requestId}] 🔍 Generating Merkle proof from allowlist...`);
     
     try {
-      const claimCondition = await getActiveClaimCondition({
-        contract,
-        tokenId: BigInt(tokenId || 0)
+      // Generate proof using our Merkle tree utility
+      const proofResult = generateMerkleProof(
+        walletAddress,
+        'src/lib/beeper-allowlist.csv'
+      );
+
+      if (!proofResult) {
+        console.log(`[${requestId}] ❌ Wallet not on allowlist`);
+        return NextResponse.json(
+          { error: 'Your wallet is not on the allowlist for this mint.' },
+          { status: 403 }
+        );
+      }
+
+      console.log(`[${requestId}] ✅ Merkle proof generated successfully`);
+      console.log(`[${requestId}]    Proof length:`, proofResult.proof.length);
+      console.log(`[${requestId}]    Merkle root:`, proofResult.merkleRoot);
+
+      return NextResponse.json({
+        proof: proofResult.proof,
+        quantityLimitPerWallet: proofResult.quantityLimitPerWallet,
+        pricePerToken: proofResult.pricePerToken,
+        currency: proofResult.currency
       });
 
-      console.log(`[${requestId}] ✅ Claim condition received`);
-      console.log(`[${requestId}]    Merkle root:`, claimCondition.merkleRoot);
-      console.log(`[${requestId}]    Currency:`, claimCondition.currency);
-      console.log(`[${requestId}]    Price:`, claimCondition.pricePerToken?.toString());
-      console.log(`[${requestId}]    Quantity limit:`, claimCondition.quantityLimitPerWallet?.toString());
-
-      // If there's no merkle root, it's a public claim (no allowlist)
-      if (!claimCondition.merkleRoot || claimCondition.merkleRoot === '0x0000000000000000000000000000000000000000000000000000000000000000') {
-        console.log(`[${requestId}] ℹ️  No merkle root - public claim`);
-        return NextResponse.json({
-          proof: [],
-          quantityLimitPerWallet: claimCondition.quantityLimitPerWallet?.toString() || '1',
-          pricePerToken: claimCondition.pricePerToken?.toString() || '0',
-          currency: claimCondition.currency || '0x0000000000000000000000000000000000000000'
-        });
-      }
-
-      // For allowlisted claims, try using Thirdweb SDK first
-      console.log(`[${requestId}] 🔍 Fetching Merkle proof using Thirdweb SDK...`);
-      
-      try {
-        const merkleRoot = await tokenMerkleRoot({
-          contract,
-          tokenAddress: campaign.contract_address
-        });
-        
-        console.log(`[${requestId}] 📋 Retrieved merkle root:`, merkleRoot);
-        
-        const proofs = await fetchProofsERC1155({
-          contract,
-          recipient: walletAddress,
-          merkleRoot
-        });
-        
-        console.log(`[${requestId}] ✅ Merkle proof received from SDK`);
-        console.log(`[${requestId}]    Proof:`, proofs);
-        
-        return NextResponse.json({
-          proof: proofs || [],
-          quantityLimitPerWallet: claimCondition.quantityLimitPerWallet?.toString() || '1',
-          pricePerToken: claimCondition.pricePerToken?.toString() || '0',
-          currency: claimCondition.currency || '0x0000000000000000000000000000000000000000'
-        });
-        
-      } catch (sdkError) {
-        console.error(`[${requestId}] ⚠️  SDK proof fetch failed, trying alternative method:`, sdkError.message);
-        
-        // Fallback: try direct API call
-        const chainId = 8453; // Base mainnet
-        const apiUrl = `https://${chainId}.rpc.thirdweb.com/${process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID}/contract/${campaign.contract_address}/erc1155/claim-conditions/${tokenId || 0}/getClaimerProofs?claimer=${walletAddress}`;
-        
-        console.log(`[${requestId}] 🔄 Trying direct API:`, apiUrl);
-        
-        const proofResponse = await fetch(apiUrl);
-
-        if (!proofResponse.ok) {
-          const errorText = await proofResponse.text();
-          console.error(`[${requestId}] ❌ API proof fetch failed:`, errorText);
-          
-          // Wallet not on allowlist
-          if (proofResponse.status === 404 || errorText.includes('not found')) {
-            return NextResponse.json(
-              { error: 'Your wallet is not on the allowlist for this mint.' },
-              { status: 403 }
-            );
-          }
-          
-          throw new Error(`Both SDK and API proof fetch failed`);
-        }
-
-        const proofData = await proofResponse.json();
-        console.log(`[${requestId}] ✅ Merkle proof received from API`);
-
-        return NextResponse.json({
-          proof: proofData.proof || [],
-          quantityLimitPerWallet: proofData.maxClaimable || claimCondition.quantityLimitPerWallet?.toString() || '1',
-          pricePerToken: proofData.price || claimCondition.pricePerToken?.toString() || '0',
-          currency: proofData.currencyAddress || claimCondition.currency || '0x0000000000000000000000000000000000000000'
-        });
-      }
-
     } catch (error) {
-      console.error(`[${requestId}] ❌ Error:`, error);
+      console.error(`[${requestId}] ❌ Error generating proof:`, error);
       
       return NextResponse.json(
-        { error: 'Failed to fetch allowlist proof. Please contact support.' },
+        { error: 'Failed to generate allowlist proof. Please contact support.' },
         { status: 500 }
       );
     }
