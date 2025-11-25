@@ -306,7 +306,7 @@ export default function MintPageClient({ slug }) {
       // claimTo handles allowlist proofs automatically
       console.log('📤 Preparing claim with Thirdweb SDK...');
       
-      const { getContract, sendTransaction, prepareContractCall } = await import('thirdweb');
+      const { getContract, encode } = await import('thirdweb');
       const { claimTo } = await import('thirdweb/extensions/erc1155');
       const { base } = await import('thirdweb/chains');
       const { client } = await import('@/lib/thirdwebClient');
@@ -330,18 +330,18 @@ export default function MintPageClient({ slug }) {
 
       console.log('✅ Transaction prepared with Thirdweb claimTo');
       
-      // Prepare transaction data for Wagmi
-      const prepared = await prepareContractCall(transaction);
+      // Encode the transaction to get calldata
+      const encodedData = await encode(transaction);
       
       console.log('📤 Sending to wallet via Wagmi...');
-      console.log('   Contract:', prepared.to);
-      console.log('   Data length:', prepared.data?.length);
+      console.log('   Contract:', campaign.contractAddress);
+      console.log('   Encoded data length:', encodedData.length);
 
       // Send transaction via Wagmi
       writeMintContract({
-        address: prepared.to,
-        data: prepared.data,
-        value: prepared.value || BigInt(0)
+        address: campaign.contractAddress,
+        data: encodedData,
+        value: BigInt(0)
       });
 
       console.log('✅ Mint transaction sent - waiting for user approval...');
