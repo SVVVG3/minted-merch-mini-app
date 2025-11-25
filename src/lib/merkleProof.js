@@ -1,5 +1,5 @@
 import { MerkleTree } from 'merkletreejs';
-import { keccak256 } from 'viem';
+import { keccak256, encodePacked } from 'viem';
 import allowlistData from './beeper-allowlist.json';
 
 /**
@@ -22,10 +22,13 @@ export function generateMerkleProof(walletAddress) {
 
     console.log(`✅ Wallet found in allowlist:`, entry);
 
-    // Create leaf nodes (hash of address)
-    // Thirdweb uses keccak256(address) for ERC1155 snapshot leaves
+    // Create leaf nodes
+    // Thirdweb uses keccak256(abi.encodePacked(address, maxClaimable, price, currency))
     const leaves = entries.map(e => 
-      keccak256(e.address)
+      keccak256(encodePacked(
+        ['address', 'uint256', 'uint256', 'address'],
+        [e.address, BigInt(e.maxClaimable), BigInt(e.price), e.currencyAddress]
+      ))
     );
 
     // Create Merkle tree
@@ -35,7 +38,10 @@ export function generateMerkleProof(walletAddress) {
     console.log(`🌳 Merkle root: ${root}`);
 
     // Get proof for this wallet
-    const leaf = keccak256(walletAddress.toLowerCase());
+    const leaf = keccak256(encodePacked(
+      ['address', 'uint256', 'uint256', 'address'],
+      [walletAddress.toLowerCase(), BigInt(entry.maxClaimable), BigInt(entry.price), entry.currencyAddress]
+    ));
     const proof = tree.getHexProof(leaf);
 
     console.log(`✅ Generated proof with ${proof.length} elements`);
