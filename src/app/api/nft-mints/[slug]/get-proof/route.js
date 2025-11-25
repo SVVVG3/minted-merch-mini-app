@@ -97,6 +97,14 @@ export async function POST(request, { params }) {
         `[${requestId}]    Has allowlist proof:`,
         !!claimParams.allowlistProof
       );
+      console.log(
+        `[${requestId}]    Price per token:`,
+        claimParams.pricePerToken?.toString()
+      );
+      console.log(
+        `[${requestId}]    Currency:`,
+        claimParams.currency
+      );
 
       if (claimParams.allowlistProof) {
         console.log(
@@ -122,14 +130,14 @@ export async function POST(request, { params }) {
         );
       }
 
+      // Use the MAIN claimParams pricePerToken, not the allowlistProof one
+      // The allowlistProof.pricePerToken is often uint256 max
       return NextResponse.json({
         proof: allowlistProof.proof,
         quantityLimitPerWallet:
           allowlistProof.quantityLimitPerWallet?.toString() || "1",
-        pricePerToken: allowlistProof.pricePerToken?.toString() || "0",
-        currency:
-          allowlistProof.currency ||
-          "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+        pricePerToken: claimParams.pricePerToken?.toString() || "0",
+        currency: claimParams.currency || "0x0000000000000000000000000000000000000000",
       });
     } catch (thirdwebError) {
       console.error(`[${requestId}] ❌ Thirdweb SDK error:`, thirdwebError);
