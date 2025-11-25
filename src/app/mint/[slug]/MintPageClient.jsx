@@ -444,10 +444,10 @@ export default function MintPageClient({ slug }) {
         campaign.metadata?.shareText ||
         `Just minted ${campaign.title}! 🎨\n\nMint yours and claim tokens 👇`;
 
-      // Prepend mint page URL to show custom OG image
-      const mintPageUrl = `${window.location.origin}/mint/${slug}`;
+      // Use share page URL (frame button links to main page)
+      const sharePageUrl = `${window.location.origin}/share/${slug}`;
       const additionalEmbeds = campaign.metadata?.shareEmbeds || [];
-      const shareEmbeds = [mintPageUrl, ...additionalEmbeds];
+      const shareEmbeds = [sharePageUrl, ...additionalEmbeds];
 
       console.log("📤 Sharing to Farcaster...");
       console.log("   Text:", shareText);
