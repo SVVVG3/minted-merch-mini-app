@@ -61,15 +61,12 @@ export async function POST(request, { params }) {
     console.log(`[${requestId}] 📋 Campaign:`, campaign.title);
     console.log(`[${requestId}] 📍 Contract:`, campaign.contract_address);
 
-    // Generate Merkle proof from local CSV
+    // Generate Merkle proof from allowlist
     console.log(`[${requestId}] 🔍 Generating Merkle proof from allowlist...`);
     
     try {
       // Generate proof using our Merkle tree utility
-      const proofResult = generateMerkleProof(
-        walletAddress,
-        'src/lib/beeper-allowlist.csv'
-      );
+      const proofResult = generateMerkleProof(walletAddress);
 
       if (!proofResult) {
         console.log(`[${requestId}] ❌ Wallet not on allowlist`);

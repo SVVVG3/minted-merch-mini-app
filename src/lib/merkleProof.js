@@ -1,30 +1,15 @@
 import { MerkleTree } from 'merkletreejs';
 import { keccak256 } from 'viem';
-import fs from 'fs';
-import path from 'path';
+import allowlistData from './beeper-allowlist.json';
 
 /**
  * Generate Merkle proof for a wallet address from the allowlist snapshot
  * Matches Thirdweb's snapshot merkle tree structure
  */
-export function generateMerkleProof(walletAddress, csvPath) {
+export function generateMerkleProof(walletAddress) {
   try {
-    // Read and parse CSV
-    const csvFilePath = path.join(process.cwd(), csvPath);
-    const csvContent = fs.readFileSync(csvFilePath, 'utf-8');
-    const lines = csvContent.trim().split('\n');
+    const entries = allowlistData;
     
-    // Parse CSV (skip header)
-    const entries = lines.slice(1).map(line => {
-      const [address, maxClaimable, price, currencyAddress] = line.split(',');
-      return {
-        address: address.toLowerCase(),
-        maxClaimable: maxClaimable || '1',
-        price: price || '0',
-        currencyAddress: currencyAddress || '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
-      };
-    });
-
     console.log(`📋 Loaded ${entries.length} addresses from allowlist`);
 
     // Find the wallet in the allowlist
