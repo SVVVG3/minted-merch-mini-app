@@ -302,6 +302,29 @@ export default function MintPageClient({ slug }) {
       const walletAddress = accounts[0];
       console.log('💳 Wallet address:', walletAddress);
 
+      // Fetch allowlist proof from backend API
+      console.log('🔍 Fetching allowlist proof...');
+      const proofResponse = await fetch(`/api/nft-mints/${slug}/get-proof`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({
+          walletAddress: walletAddress,
+          tokenId: campaign.tokenId || 0
+        })
+      });
+
+      if (!proofResponse.ok) {
+        const errorData = await proofResponse.json().catch(() => ({}));
+        console.error('❌ Failed to fetch allowlist proof:', errorData);
+        throw new Error(errorData.error || 'You are not eligible to mint this NFT. Make sure your wallet is on the allowlist.');
+      }
+
+      const proofData = await proofResponse.json();
+      console.log('✅ Allowlist proof received:', proofData);
+
       // ERC1155 claim ABI (Thirdweb Edition Drop contract)
       const erc1155ClaimABI = [
         {
@@ -325,6 +348,16 @@ export default function MintPageClient({ slug }) {
         }
       ];
 
+      // Build allowlist proof from Thirdweb response
+      const allowlistProof = {
+        proof: proofData.proof || [],
+        quantityLimitPerWallet: BigInt(proofData.quantityLimitPerWallet || 0),
+        pricePerToken: BigInt(proofData.pricePerToken || 0),
+        currency: proofData.currency || '0x0000000000000000000000000000000000000000'
+      };
+
+      console.log('📋 Allowlist proof:', allowlistProof);
+
       // Call Wagmi writeContract (triggers wallet approval)
       console.log('📤 Calling writeContract...');
       writeMintContract({
@@ -335,14 +368,9 @@ export default function MintPageClient({ slug }) {
           walletAddress, // receiver
           BigInt(campaign.tokenId || 0), // tokenId
           BigInt(1), // quantity
-          '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // currency (native token placeholder)
-          BigInt(0), // pricePerToken (free)
-          { // allowlistProof (empty for public claim)
-            proof: [],
-            quantityLimitPerWallet: BigInt(0),
-            pricePerToken: BigInt(0),
-            currency: '0x0000000000000000000000000000000000000000'
-          },
+          proofData.currency || '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // currency from proof
+          BigInt(proofData.pricePerToken || 0), // pricePerToken from proof
+          allowlistProof, // Real allowlist proof from Thirdweb
           '0x' // data (empty)
         ]
       });
