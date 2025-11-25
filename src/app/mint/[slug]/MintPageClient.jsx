@@ -4,13 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { shareToFarcaster } from '@/lib/farcasterShare';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSendTransaction } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Image from 'next/image';
 import { triggerHaptic } from '@/lib/haptics';
-import { getContract } from 'thirdweb';
-import { claimTo } from 'thirdweb/extensions/erc1155';
-import { base } from 'thirdweb/chains';
-import { client } from '@/lib/thirdwebClient';
 
 /**
  * MintPageClient - Main UI for NFT Mint Campaign
@@ -28,11 +24,11 @@ export default function MintPageClient({ slug }) {
 
   // Wagmi hooks for NFT minting
   const { 
-    sendTransaction: sendMintTx, 
+    writeContract: writeMintContract, 
     data: mintTxHash, 
     isPending: isMintTxPending,
     error: mintWriteError 
-  } = useSendTransaction();
+  } = useWriteContract();
   const { 
     isLoading: isMintConfirming, 
     isSuccess: isMintConfirmed 
@@ -289,7 +285,7 @@ export default function MintPageClient({ slug }) {
       setIsMinting(true);
       setMintError(null);
 
-      console.log('🎨 Starting mint process with Thirdweb claimTo...');
+      console.log('🎨 Starting mint process...');
       console.log('📋 Contract:', campaign.contractAddress);
       console.log('🎫 Token ID:', campaign.tokenId || 0);
 
@@ -306,41 +302,53 @@ export default function MintPageClient({ slug }) {
       const walletAddress = accounts[0];
       console.log('💳 Wallet address:', walletAddress);
 
-      // Get contract instance
-      const contract = getContract({
-        client,
-        chain: base,
-        address: campaign.contractAddress
-      });
+      // ERC1155 claim ABI
+      const erc1155ClaimABI = [
+        {
+          name: 'claim',
+          type: 'function',
+          inputs: [
+            { name: 'receiver', type: 'address' },
+            { name: 'tokenId', type: 'uint256' },
+            { name: 'quantity', type: 'uint256' },
+            { name: 'currency', type: 'address' },
+            { name: 'pricePerToken', type: 'uint256' },
+            { name: 'allowlistProof', type: 'tuple', components: [
+              { name: 'proof', type: 'bytes32[]' },
+              { name: 'quantityLimitPerWallet', type: 'uint256' },
+              { name: 'pricePerToken', type: 'uint256' },
+              { name: 'currency', type: 'address' }
+            ]},
+            { name: 'data', type: 'bytes' }
+          ],
+          outputs: []
+        }
+      ];
 
-      console.log('📦 Preparing claimTo transaction...');
-      
-      // Use Thirdweb's claimTo - it handles allowlist proofs automatically!
-      const transaction = claimTo({
-        contract,
-        to: walletAddress,
-        tokenId: BigInt(campaign.tokenId || 0),
-        quantity: BigInt(1)
-      });
+      // Try with EMPTY proof array (test if public mint works)
+      const allowlistProof = {
+        proof: [],
+        quantityLimitPerWallet: 0n,
+        pricePerToken: 0n,
+        currency: '0x0000000000000000000000000000000000000000'
+      };
 
-      console.log('📤 Encoding transaction data...');
-      
-      // Encode the transaction to get raw tx data
-      const { encode } = await import('thirdweb');
-      const encodedData = await encode(transaction);
-      
-      console.log('✅ Transaction encoded:', {
-        to: encodedData.to,
-        data: encodedData.data?.substring(0, 10) + '...',
-        value: encodedData.value?.toString()
-      });
+      console.log('📤 Sending transaction with EMPTY proof (testing)...');
 
-      // Send via Wagmi's sendTransaction
-      sendMintTx({
-        to: encodedData.to,
-        data: encodedData.data,
-        value: encodedData.value || 0n,
-        chainId: 8453 // Base
+      // Send via Wagmi
+      writeMintContract({
+        address: campaign.contractAddress,
+        abi: erc1155ClaimABI,
+        functionName: 'claim',
+        args: [
+          walletAddress,
+          BigInt(campaign.tokenId || 0),
+          BigInt(1),
+          '0x0000000000000000000000000000000000000000', // Native token
+          0n, // Free
+          allowlistProof,
+          '0x'
+        ]
       });
 
       console.log('✅ Mint transaction sent - waiting for user approval...');
