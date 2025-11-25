@@ -1,16 +1,24 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useFarcaster } from '@/lib/useFarcaster';
-import { shareToFarcaster } from '@/lib/farcasterShare';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import Image from 'next/image';
-import { triggerHaptic } from '@/lib/haptics';
+import { shareToFarcaster } from "@/lib/farcasterShare";
+import { triggerHaptic } from "@/lib/haptics";
+import { client } from "@/lib/thirdwebClient";
+import { useFarcaster } from "@/lib/useFarcaster";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { getContract } from "thirdweb";
+import { base } from "thirdweb/chains";
+import { claimTo } from "thirdweb/extensions/erc1155";
+import {
+  useSendTransaction,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from "wagmi";
 
 /**
  * MintPageClient - Main UI for NFT Mint Campaign
- * 
+ *
  * User Flow:
  * 1. Load campaign data + auto-register user
  * 2. Mint NFT (WalletConnect)
@@ -20,35 +28,36 @@ import { triggerHaptic } from '@/lib/haptics';
  */
 export default function MintPageClient({ slug }) {
   const router = useRouter();
-  const { user: farcasterUser, sessionToken, isInFarcaster, isReady } = useFarcaster();
+  const {
+    user: farcasterUser,
+    sessionToken,
+    isInFarcaster,
+    isReady,
+  } = useFarcaster();
 
   // Wagmi hooks for NFT minting
-  const { 
-    writeContract: writeMintContract, 
-    data: mintTxHash, 
+  const {
+    sendTransaction: sendMintTx,
+    data: mintTxHash,
     isPending: isMintTxPending,
-    error: mintWriteError 
-  } = useWriteContract();
-  const { 
-    isLoading: isMintConfirming, 
-    isSuccess: isMintConfirmed 
-  } = useWaitForTransactionReceipt({
-    hash: mintTxHash,
-  });
+    error: mintWriteError,
+  } = useSendTransaction();
+  const { isLoading: isMintConfirming, isSuccess: isMintConfirmed } =
+    useWaitForTransactionReceipt({
+      hash: mintTxHash,
+    });
 
   // Wagmi hooks for token claiming (like Ambassador program)
-  const { 
-    writeContract: writeClaimContract, 
-    data: claimTxHash, 
+  const {
+    writeContract: writeClaimContract,
+    data: claimTxHash,
     isPending: isClaimTxPending,
-    error: claimWriteError 
+    error: claimWriteError,
   } = useWriteContract();
-  const { 
-    isLoading: isClaimConfirming, 
-    isSuccess: isClaimConfirmed 
-  } = useWaitForTransactionReceipt({
-    hash: claimTxHash,
-  });
+  const { isLoading: isClaimConfirming, isSuccess: isClaimConfirmed } =
+    useWaitForTransactionReceipt({
+      hash: claimTxHash,
+    });
 
   // Campaign data
   const [campaign, setCampaign] = useState(null);
@@ -76,29 +85,29 @@ export default function MintPageClient({ slug }) {
   // Auto-register user on page load
   useEffect(() => {
     if (farcasterUser && sessionToken) {
-      console.log('📝 Auto-registering user...');
-      
-      fetch('/api/register-user', {
-        method: 'POST',
+      console.log("📝 Auto-registering user...");
+
+      fetch("/api/register-user", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
         },
         body: JSON.stringify({
           fid: farcasterUser.fid,
           username: farcasterUser.username,
           displayName: farcasterUser.displayName || farcasterUser.username,
           bio: farcasterUser.bio || null,
-          pfpUrl: farcasterUser.pfpUrl || null
-        })
+          pfpUrl: farcasterUser.pfpUrl || null,
+        }),
       })
-        .then(res => res.json())
-        .then(data => {
-          console.log('✅ User registered/updated:', data);
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("✅ User registered/updated:", data);
         })
-      .catch(err => {
-        console.error('⚠️  Profile registration failed (non-blocking):', err);
-      });
+        .catch((err) => {
+          console.error("⚠️  Profile registration failed (non-blocking):", err);
+        });
     }
   }, [farcasterUser, sessionToken]);
 
@@ -107,24 +116,24 @@ export default function MintPageClient({ slug }) {
     async function fetchCampaign() {
       try {
         setLoading(true);
-        
+
         const headers = {};
         if (sessionToken) {
-          headers['Authorization'] = `Bearer ${sessionToken}`;
+          headers["Authorization"] = `Bearer ${sessionToken}`;
         }
 
         const response = await fetch(`/api/nft-mints/${slug}`, { headers });
-        
+
         if (!response.ok) {
-          throw new Error('Campaign not found');
+          throw new Error("Campaign not found");
         }
 
         const data = await response.json();
-        console.log('📋 Campaign data:', data);
-        
+        console.log("📋 Campaign data:", data);
+
         setCampaign(data.campaign);
         setUserStatus(data.userStatus);
-        
+
         // Set initial state based on user status
         if (data.userStatus.claimId) {
           setClaimId(data.userStatus.claimId);
@@ -136,9 +145,8 @@ export default function MintPageClient({ slug }) {
           setHasClaimed(true);
           setShowStakingTeaser(true);
         }
-        
       } catch (err) {
-        console.error('❌ Error fetching campaign:', err);
+        console.error("❌ Error fetching campaign:", err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -153,44 +161,48 @@ export default function MintPageClient({ slug }) {
   // Watch for mint transaction confirmation
   useEffect(() => {
     if (isMintConfirmed && mintTxHash) {
-      console.log('✅ NFT mint confirmed! TX:', mintTxHash);
-      
+      console.log("✅ NFT mint confirmed! TX:", mintTxHash);
+
       // Record mint in backend
       const recordMint = async () => {
         try {
-          const { sdk } = await import('@/lib/frame');
+          const { sdk } = await import("@/lib/frame");
           const accounts = await sdk.wallet.ethProvider.request({
-            method: 'eth_requestAccounts'
+            method: "eth_requestAccounts",
           });
           const walletAddress = accounts[0];
 
-          console.log('💾 Recording mint in database...');
+          console.log("💾 Recording mint in database...");
           const response = await fetch(`/api/nft-mints/${slug}/mint`, {
-            method: 'POST',
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${sessionToken}`
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${sessionToken}`,
             },
             body: JSON.stringify({
               transactionHash: mintTxHash,
               walletAddress,
-              tokenId: campaign.tokenId || '0'
-            })
+              tokenId: campaign.tokenId || "0",
+            }),
           });
 
           if (response.ok) {
             const data = await response.json();
-            console.log('✅ Mint recorded:', data);
-            
+            console.log("✅ Mint recorded:", data);
+
             // Update state
             setClaimId(data.claim.id); // Fix: API returns data.claim.id, not data.claimId
-            setUserStatus(prev => ({ ...prev, hasMinted: true, canMint: false }));
+            setUserStatus((prev) => ({
+              ...prev,
+              hasMinted: true,
+              canMint: false,
+            }));
             setShowShareModal(true);
           } else {
-            console.error('⚠️  Failed to record mint');
+            console.error("⚠️  Failed to record mint");
           }
         } catch (err) {
-          console.error('❌ Error recording mint:', err);
+          console.error("❌ Error recording mint:", err);
         } finally {
           setIsMinting(false);
         }
@@ -203,15 +215,15 @@ export default function MintPageClient({ slug }) {
   // Watch for Wagmi errors
   useEffect(() => {
     if (claimWriteError) {
-      console.error('❌ Wagmi claim error:', claimWriteError);
-      setClaimError(claimWriteError.message || 'Transaction failed');
+      console.error("❌ Wagmi claim error:", claimWriteError);
+      setClaimError(claimWriteError.message || "Transaction failed");
     }
   }, [claimWriteError]);
 
   useEffect(() => {
     if (mintWriteError) {
-      console.error('❌ Wagmi mint error:', mintWriteError);
-      setMintError(mintWriteError.message || 'Transaction failed');
+      console.error("❌ Wagmi mint error:", mintWriteError);
+      setMintError(mintWriteError.message || "Transaction failed");
       setIsMinting(false);
     }
   }, [mintWriteError]);
@@ -219,32 +231,35 @@ export default function MintPageClient({ slug }) {
   // Watch for claim transaction confirmation
   useEffect(() => {
     if (isClaimConfirmed && claimTxHash) {
-      console.log('✅ Token claim confirmed! TX:', claimTxHash);
-      
+      console.log("✅ Token claim confirmed! TX:", claimTxHash);
+
       // Mark as claimed in backend
       const markClaimed = async () => {
         try {
-          console.log('💾 Marking claim as complete in database...');
-          const response = await fetch(`/api/nft-mints/claims/${claimId}/mark-claimed`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${sessionToken}`
-            },
-            body: JSON.stringify({
-              transactionHash: claimTxHash
-            })
-          });
+          console.log("💾 Marking claim as complete in database...");
+          const response = await fetch(
+            `/api/nft-mints/claims/${claimId}/mark-claimed`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${sessionToken}`,
+              },
+              body: JSON.stringify({
+                transactionHash: claimTxHash,
+              }),
+            }
+          );
 
           if (response.ok) {
-            console.log('✅ Claim marked as complete!');
+            console.log("✅ Claim marked as complete!");
             setHasClaimed(true);
             setShowStakingTeaser(true);
           } else {
-            console.error('⚠️  Failed to mark claim as complete');
+            console.error("⚠️  Failed to mark claim as complete");
           }
         } catch (err) {
-          console.error('❌ Error marking claim:', err);
+          console.error("❌ Error marking claim:", err);
         }
       };
 
@@ -255,29 +270,29 @@ export default function MintPageClient({ slug }) {
   // Auto-scroll to show success screen after claim
   useEffect(() => {
     if (hasClaimed && showStakingTeaser) {
-      console.log('📜 Scrolling to show success screen...');
+      console.log("📜 Scrolling to show success screen...");
       // Small delay to ensure DOM is updated
       setTimeout(() => {
         window.scrollTo({
           top: document.documentElement.scrollHeight,
-          behavior: 'smooth'
+          behavior: "smooth",
         });
       }, 300);
     }
   }, [hasClaimed, showStakingTeaser]);
 
-  // Handle NFT mint using Wagmi (like Ambassador program)
+  // Handle NFT mint using Thirdweb's claimTo (automatically handles allowlist proofs)
   const handleMint = async () => {
-    console.log('🎨 Mint button clicked');
-    triggerHaptic('medium', isInFarcaster);
-    
+    console.log("🎨 Mint button clicked");
+    triggerHaptic("medium", isInFarcaster);
+
     if (!farcasterUser || !sessionToken) {
-      setMintError('Please sign in to mint');
+      setMintError("Please sign in to mint");
       return;
     }
 
     if (!campaign) {
-      setMintError('Campaign data not loaded');
+      setMintError("Campaign data not loaded");
       return;
     }
 
@@ -285,99 +300,101 @@ export default function MintPageClient({ slug }) {
       setIsMinting(true);
       setMintError(null);
 
-      console.log('🎨 Starting mint process...');
-      console.log('📋 Contract:', campaign.contractAddress);
-      console.log('🎫 Token ID:', campaign.tokenId || 0);
+      console.log("🎨 Starting mint process with Thirdweb claimTo...");
+      console.log("📋 Contract:", campaign.contractAddress);
+      console.log("🎫 Token ID:", campaign.tokenId || 0);
 
       // Get wallet address
-      const { sdk } = await import('@/lib/frame');
+      const { sdk } = await import("@/lib/frame");
       const accounts = await sdk.wallet.ethProvider.request({
-        method: 'eth_requestAccounts'
+        method: "eth_requestAccounts",
       });
-      
+
       if (!accounts || !accounts[0]) {
-        throw new Error('No wallet connected');
+        throw new Error("No wallet connected");
       }
 
       const walletAddress = accounts[0];
-      console.log('💳 Wallet address:', walletAddress);
+      console.log("💳 Wallet address:", walletAddress);
 
-      // ERC1155 claim ABI
-      const erc1155ClaimABI = [
-        {
-          name: 'claim',
-          type: 'function',
-          inputs: [
-            { name: 'receiver', type: 'address' },
-            { name: 'tokenId', type: 'uint256' },
-            { name: 'quantity', type: 'uint256' },
-            { name: 'currency', type: 'address' },
-            { name: 'pricePerToken', type: 'uint256' },
-            { name: 'allowlistProof', type: 'tuple', components: [
-              { name: 'proof', type: 'bytes32[]' },
-              { name: 'quantityLimitPerWallet', type: 'uint256' },
-              { name: 'pricePerToken', type: 'uint256' },
-              { name: 'currency', type: 'address' }
-            ]},
-            { name: 'data', type: 'bytes' }
-          ],
-          outputs: []
-        }
-      ];
-
-      // Try with EMPTY proof array (test if public mint works)
-      const allowlistProof = {
-        proof: [],
-        quantityLimitPerWallet: 0n,
-        pricePerToken: 0n,
-        currency: '0x0000000000000000000000000000000000000000'
-      };
-
-      console.log('📤 Sending transaction with EMPTY proof (testing)...');
-
-      // Send via Wagmi
-      writeMintContract({
+      // Get contract instance
+      const contract = getContract({
+        client,
+        chain: base,
         address: campaign.contractAddress,
-        abi: erc1155ClaimABI,
-        functionName: 'claim',
-        args: [
-          walletAddress,
-          BigInt(campaign.tokenId || 0),
-          BigInt(1),
-          '0x0000000000000000000000000000000000000000', // Native token
-          0n, // Free
-          allowlistProof,
-          '0x'
-        ]
       });
 
-      console.log('✅ Mint transaction sent - waiting for user approval...');
-      // Transaction will be handled by useEffect watching isMintConfirmed
+      console.log("📦 Preparing claimTo transaction...");
 
+      // Use Thirdweb's claimTo - it handles allowlist proofs automatically!
+      const transaction = claimTo({
+        contract,
+        to: walletAddress,
+        tokenId: BigInt(campaign.tokenId || 0),
+        quantity: BigInt(1),
+      });
+
+      console.log("📤 Encoding transaction data...");
+
+      // Encode the transaction to get raw tx data
+      const { encode } = await import("thirdweb");
+      const encodedData = await encode(transaction);
+
+      console.log("✅ Transaction encoded:", {
+        to: encodedData.to,
+        data: encodedData.data?.substring(0, 10) + "...",
+        value: encodedData.value?.toString(),
+      });
+
+      // Send via Wagmi's sendTransaction
+      sendMintTx({
+        to: encodedData.to,
+        data: encodedData.data,
+        value: encodedData.value || 0n,
+        chainId: 8453, // Base
+      });
+
+      console.log("✅ Mint transaction sent - waiting for user approval...");
+      // Transaction will be handled by useEffect watching isMintConfirmed
     } catch (err) {
-      console.error('❌ Mint error:', err);
-      setMintError(err.message || 'Failed to mint NFT');
+      console.error("❌ Mint error:", err);
+
+      // Provide better error messages for common failures
+      let errorMessage = err.message || "Failed to mint NFT";
+
+      if (
+        err.message?.includes("allowlist") ||
+        err.message?.includes("not eligible")
+      ) {
+        errorMessage = "Your wallet is not on the allowlist for this mint.";
+      } else if (err.message?.includes("User rejected")) {
+        errorMessage = "Transaction cancelled";
+      } else if (err.message?.includes("!Qty")) {
+        errorMessage = "You have already minted or reached your limit.";
+      }
+
+      setMintError(errorMessage);
       setIsMinting(false);
     }
   };
 
   // Handle share to Farcaster
   const handleShare = async () => {
-    console.log('🔘 Share button clicked!');
-    triggerHaptic('medium', isInFarcaster);
-    console.log('   Claim ID:', claimId);
-    console.log('   Session Token:', sessionToken ? 'Present' : 'Missing');
-    console.log('   Campaign:', campaign?.slug);
-    
+    console.log("🔘 Share button clicked!");
+    triggerHaptic("medium", isInFarcaster);
+    console.log("   Claim ID:", claimId);
+    console.log("   Session Token:", sessionToken ? "Present" : "Missing");
+    console.log("   Campaign:", campaign?.slug);
+
     if (!claimId) {
-      console.error('❌ No claim ID available');
-      setMintError('Claim ID not found. Please refresh and try again.');
+      console.error("❌ No claim ID available");
+      setMintError("Claim ID not found. Please refresh and try again.");
       return;
     }
 
     if (!sessionToken) {
-      console.error('❌ No session token available');
-      setMintError('Session token not found. Please refresh and try again.');
+      console.error("❌ No session token available");
+      setMintError("Session token not found. Please refresh and try again.");
       return;
     }
 
@@ -386,64 +403,69 @@ export default function MintPageClient({ slug }) {
       setMintError(null);
 
       // Get share config from campaign metadata
-      const shareText = campaign.metadata?.shareText || 
+      const shareText =
+        campaign.metadata?.shareText ||
         `Just minted ${campaign.title}! 🎨\n\nMint yours and claim tokens 👇`;
-      
+
       // Prepend mint page URL to show custom OG image
       const mintPageUrl = `${window.location.origin}/mint/${slug}`;
       const additionalEmbeds = campaign.metadata?.shareEmbeds || [];
       const shareEmbeds = [mintPageUrl, ...additionalEmbeds];
 
-      console.log('📤 Sharing to Farcaster...');
-      console.log('   Text:', shareText);
-      console.log('   Embeds:', shareEmbeds);
+      console.log("📤 Sharing to Farcaster...");
+      console.log("   Text:", shareText);
+      console.log("   Embeds:", shareEmbeds);
 
       // Open Farcaster compose window
       const shareResult = await shareToFarcaster({
         text: shareText,
         embeds: shareEmbeds,
-        isInFarcaster
+        isInFarcaster,
       });
 
-      console.log('🔍 Share result:', shareResult);
+      console.log("🔍 Share result:", shareResult);
 
       if (shareResult) {
-        console.log('✅ Share window opened');
+        console.log("✅ Share window opened");
 
         // Mark as shared in backend (unlocks claim button)
-        const markSharedResponse = await fetch(`/api/nft-mints/claims/${claimId}/mark-shared`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionToken}`
-          },
-          body: JSON.stringify({})
-        });
+        const markSharedResponse = await fetch(
+          `/api/nft-mints/claims/${claimId}/mark-shared`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${sessionToken}`,
+            },
+            body: JSON.stringify({}),
+          }
+        );
 
         if (markSharedResponse.ok) {
-          console.log('✅ Marked as shared');
+          console.log("✅ Marked as shared");
           setHasShared(true);
           setShowShareModal(false); // Close modal
-          
+
           // Auto-scroll to show Claim button
           setTimeout(() => {
-            console.log('📜 Scrolling to show Claim button...');
+            console.log("📜 Scrolling to show Claim button...");
             window.scrollTo({
               top: document.documentElement.scrollHeight,
-              behavior: 'smooth'
+              behavior: "smooth",
             });
           }, 400);
         } else {
           const errorData = await markSharedResponse.json();
-          console.error('❌ Failed to mark as shared:', errorData);
-          setMintError(`Failed to mark share: ${errorData.error || 'Unknown error'}`);
+          console.error("❌ Failed to mark as shared:", errorData);
+          setMintError(
+            `Failed to mark share: ${errorData.error || "Unknown error"}`
+          );
         }
       } else {
-        console.log('ℹ️ Share window not opened (user may have cancelled)');
+        console.log("ℹ️ Share window not opened (user may have cancelled)");
       }
-
     } catch (err) {
-      console.error('❌ Share error:', err);
+      console.error("❌ Share error:", err);
       setMintError(`Share failed: ${err.message}`);
     } finally {
       setIsSharing(false);
@@ -452,91 +474,93 @@ export default function MintPageClient({ slug }) {
 
   // Handle token claim using Wagmi (same as Ambassador program)
   const handleClaim = async () => {
-    console.log('💰 Claim button clicked!');
-    triggerHaptic('medium', isInFarcaster);
-    
+    console.log("💰 Claim button clicked!");
+    triggerHaptic("medium", isInFarcaster);
+
     if (!claimId || !sessionToken) {
-      setClaimError('Missing claim data. Please refresh and try again.');
+      setClaimError("Missing claim data. Please refresh and try again.");
       return;
     }
 
     try {
       setClaimError(null);
 
-      console.log('📡 Fetching claim data from API...');
+      console.log("📡 Fetching claim data from API...");
 
       // Get claim signature and params from backend
-      const claimDataResponse = await fetch(`/api/nft-mints/claims/${claimId}/claim-data`, {
-        headers: {
-          'Authorization': `Bearer ${sessionToken}`
+      const claimDataResponse = await fetch(
+        `/api/nft-mints/claims/${claimId}/claim-data`,
+        {
+          headers: {
+            Authorization: `Bearer ${sessionToken}`,
+          },
         }
-      });
+      );
 
       if (!claimDataResponse.ok) {
         const errorData = await claimDataResponse.json();
-        throw new Error(errorData.error || 'Failed to fetch claim data');
+        throw new Error(errorData.error || "Failed to fetch claim data");
       }
 
       const { claimData } = await claimDataResponse.json();
-      console.log('✅ Claim data received:', claimData);
+      console.log("✅ Claim data received:", claimData);
 
       // Convert to BigInt (same as Ambassador program)
       const reqWithBigInt = {
         uid: claimData.req.uid,
         tokenAddress: claimData.req.tokenAddress,
         expirationTimestamp: BigInt(claimData.req.expirationTimestamp),
-        contents: claimData.req.contents.map(content => ({
+        contents: claimData.req.contents.map((content) => ({
           recipient: content.recipient,
-          amount: BigInt(content.amount)
-        }))
+          amount: BigInt(content.amount),
+        })),
       };
 
-      console.log('📝 Prepared claim request');
+      console.log("📝 Prepared claim request");
 
       // Airdrop contract ABI (same as Ambassador program)
       const airdropABI = [
         {
-          name: 'airdropERC20WithSignature',
-          type: 'function',
+          name: "airdropERC20WithSignature",
+          type: "function",
           inputs: [
             {
-              name: 'req',
-              type: 'tuple',
+              name: "req",
+              type: "tuple",
               components: [
-                { name: 'uid', type: 'bytes32' },
-                { name: 'tokenAddress', type: 'address' },
-                { name: 'expirationTimestamp', type: 'uint256' },
+                { name: "uid", type: "bytes32" },
+                { name: "tokenAddress", type: "address" },
+                { name: "expirationTimestamp", type: "uint256" },
                 {
-                  name: 'contents',
-                  type: 'tuple[]',
+                  name: "contents",
+                  type: "tuple[]",
                   components: [
-                    { name: 'recipient', type: 'address' },
-                    { name: 'amount', type: 'uint256' }
-                  ]
-                }
-              ]
+                    { name: "recipient", type: "address" },
+                    { name: "amount", type: "uint256" },
+                  ],
+                },
+              ],
             },
-            { name: 'signature', type: 'bytes' }
+            { name: "signature", type: "bytes" },
           ],
-          outputs: []
-        }
+          outputs: [],
+        },
       ];
 
       // Call Wagmi writeContract (triggers wallet approval)
-      console.log('📤 Calling writeContract...');
+      console.log("📤 Calling writeContract...");
       writeClaimContract({
         address: claimData.contractAddress,
         abi: airdropABI,
-        functionName: 'airdropERC20WithSignature',
-        args: [reqWithBigInt, claimData.signature]
+        functionName: "airdropERC20WithSignature",
+        args: [reqWithBigInt, claimData.signature],
       });
 
-      console.log('✅ Claim transaction sent - waiting for user approval...');
+      console.log("✅ Claim transaction sent - waiting for user approval...");
       // Transaction will be handled by useEffect watching isClaimConfirmed
-
     } catch (err) {
-      console.error('❌ Claim error:', err);
-      setClaimError(err.message || 'Failed to claim tokens');
+      console.error("❌ Claim error:", err);
+      setClaimError(err.message || "Failed to claim tokens");
     }
   };
 
@@ -557,11 +581,13 @@ export default function MintPageClient({ slug }) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <p className="text-red-500 text-xl mb-4">❌ {error || 'Campaign not found'}</p>
+          <p className="text-red-500 text-xl mb-4">
+            ❌ {error || "Campaign not found"}
+          </p>
           <button
             onClick={() => {
-              triggerHaptic('medium', isInFarcaster);
-              router.push('/');
+              triggerHaptic("medium", isInFarcaster);
+              router.push("/");
             }}
             className="px-6 py-3 bg-white text-black rounded-lg hover:bg-gray-200"
           >
@@ -574,8 +600,8 @@ export default function MintPageClient({ slug }) {
 
   // Calculate if user can mint (include Wagmi transaction states)
   const isMintingProcess = isMinting || isMintTxPending || isMintConfirming;
-  const canMint = (userStatus?.canMint !== false) && !isMintingProcess;
-  
+  const canMint = userStatus?.canMint !== false && !isMintingProcess;
+
   // Calculate if user is claiming (include Wagmi transaction states)
   const isClaimingProcess = isClaimTxPending || isClaimConfirming;
 
@@ -585,8 +611,8 @@ export default function MintPageClient({ slug }) {
       <div className="mb-2 text-center">
         <button
           onClick={() => {
-            triggerHaptic('light', isInFarcaster);
-            router.push('/');
+            triggerHaptic("light", isInFarcaster);
+            router.push("/");
           }}
           className="text-gray-400 hover:text-white inline-block"
         >
@@ -634,10 +660,12 @@ export default function MintPageClient({ slug }) {
             className="object-contain"
           />
         </div>
-        
+
         <div className="space-y-3 text-gray-300 text-center">
-          <p className="text-lg font-bold text-white">Where Tokens Meet Merch</p>
-          
+          <p className="text-lg font-bold text-white">
+            Where Tokens Meet Merch
+          </p>
+
           <div className="space-y-2 text-left">
             <div className="flex items-start gap-2">
               <span className="text-sm">✅</span>
@@ -645,21 +673,29 @@ export default function MintPageClient({ slug }) {
             </div>
             <div className="flex items-start gap-2">
               <span className="text-sm">✅</span>
-              <span className="text-sm">Shop with 1200+ coins across 20+ chains</span>
+              <span className="text-sm">
+                Shop with 1200+ coins across 20+ chains
+              </span>
             </div>
             <div className="flex items-start gap-2">
               <span className="text-sm">✅</span>
-              <span className="text-sm">Free daily spins w/ leaderboard & raffles</span>
+              <span className="text-sm">
+                Free daily spins w/ leaderboard & raffles
+              </span>
             </div>
             <div className="flex items-start gap-2">
               <span className="text-sm">✅</span>
-              <span className="text-sm">Win $mintedmerch, gift cards, & merch</span>
+              <span className="text-sm">
+                Win $mintedmerch, gift cards, & merch
+              </span>
             </div>
           </div>
         </div>
 
         <div className="p-4 bg-gray-900 rounded-lg space-y-2">
-          <h3 className="text-lg font-bold text-center">Become a Merch Mogul 🤌</h3>
+          <h3 className="text-lg font-bold text-center">
+            Become a Merch Mogul 🤌
+          </h3>
           <ul className="text-sm text-gray-400 space-y-1 ml-4">
             <li>• Exclusive Collab Partner Access</li>
             <li>• Custom Merch Orders</li>
@@ -680,24 +716,34 @@ export default function MintPageClient({ slug }) {
               disabled={!canMint}
               className={`w-full py-4 rounded-xl text-xl font-bold transition-all ${
                 canMint
-                  ? 'bg-white text-black hover:bg-gray-200 hover:scale-105'
-                  : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                  ? "bg-white text-black hover:bg-gray-200 hover:scale-105"
+                  : "bg-gray-700 text-gray-500 cursor-not-allowed"
               }`}
             >
-              {isMintConfirming ? 'Confirming...' : isMintTxPending ? 'Approve in wallet...' : isMinting ? 'Preparing...' : canMint ? 'Claim FREE Mint 📟' : '❌ Mint Unavailable'}
+              {isMintConfirming
+                ? "Confirming..."
+                : isMintTxPending
+                ? "Approve in wallet..."
+                : isMinting
+                ? "Preparing..."
+                : canMint
+                ? "Claim FREE Mint 📟"
+                : "❌ Mint Unavailable"}
             </button>
-            
+
             {mintError && (
               <div className="p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
                 {mintError}
               </div>
             )}
 
-            {!canMint && campaign.maxSupply && campaign.totalMints >= campaign.maxSupply && (
-              <p className="text-center text-gray-400">
-                Maximum supply reached ({campaign.maxSupply} mints)
-              </p>
-            )}
+            {!canMint &&
+              campaign.maxSupply &&
+              campaign.totalMints >= campaign.maxSupply && (
+                <p className="text-center text-gray-400">
+                  Maximum supply reached ({campaign.maxSupply} mints)
+                </p>
+              )}
           </>
         )}
 
@@ -707,9 +753,11 @@ export default function MintPageClient({ slug }) {
             <div className="text-center space-y-2">
               <div className="text-4xl">🎉</div>
               <h3 className="text-2xl font-bold">NFT Minted!</h3>
-              <p className="text-gray-300">Share your mint to claim $mintedmerch</p>
+              <p className="text-gray-300">
+                Share your mint to claim $mintedmerch
+              </p>
             </div>
-            
+
             <button
               onClick={handleShare}
               disabled={isSharing}
@@ -723,8 +771,16 @@ export default function MintPageClient({ slug }) {
               ) : (
                 <>
                   {/* Official Farcaster Logo (2024 rebrand) */}
-                  <svg className="w-5 h-5" viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
+                  <svg
+                    className="w-5 h-5"
+                    viewBox="0 0 520 457"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"
+                      fill="currentColor"
+                    />
                   </svg>
                   Share to Farcaster (Required)
                 </>
@@ -741,7 +797,11 @@ export default function MintPageClient({ slug }) {
               disabled={isClaimingProcess}
               className="w-full py-4 bg-[#3eb489] hover:bg-[#359970] text-white rounded-xl text-xl font-bold disabled:bg-gray-600 disabled:cursor-not-allowed transition-all"
             >
-              {isClaimConfirming ? 'Confirming...' : isClaimTxPending ? 'Approve in wallet...' : 'Claim $mintedmerch'}
+              {isClaimConfirming
+                ? "Confirming..."
+                : isClaimTxPending
+                ? "Approve in wallet..."
+                : "Claim $mintedmerch"}
             </button>
 
             {claimError && (
@@ -761,7 +821,7 @@ export default function MintPageClient({ slug }) {
                 {/* ASCII Success Message */}
                 <div className="text-center">
                   <pre className="text-xs leading-snug">
-{`╔═══════════════════════════════╗
+                    {`╔═══════════════════════════════╗
 ║  BEEP BEEP 📟 QUEST COMPLETED ✓║
 ║   WELCOME TO MINTED MERCH     ║
 ╚═══════════════════════════════╝`}
@@ -770,15 +830,19 @@ export default function MintPageClient({ slug }) {
 
                 {/* Rewards Display */}
                 <div className="border-2 border-[#77fb82] p-3 bg-black/50">
-                  <p className="text-sm mb-2">{'>'} REWARDS_CLAIMED</p>
+                  <p className="text-sm mb-2">{">"} REWARDS_CLAIMED</p>
                   <div className="space-y-1.5 text-sm">
                     <p className="flex justify-between">
                       <span>TOKENS:</span>
-                      <span className="text-white font-bold">100,000 $MINTEDMERCH</span>
+                      <span className="text-white font-bold">
+                        100,000 $MINTEDMERCH
+                      </span>
                     </p>
                     <p className="flex justify-between">
                       <span>NFT:</span>
-                      <span className="text-white font-bold">1x WEN BEEPER MERCH</span>
+                      <span className="text-white font-bold">
+                        1x WEN BEEPER MERCH
+                      </span>
                     </p>
                     <p className="flex justify-between">
                       <span>STATUS:</span>
@@ -789,29 +853,38 @@ export default function MintPageClient({ slug }) {
 
                 {/* What's Next Terminal Section */}
                 <div className="space-y-1.5 text-sm">
-                  <p className="text-white font-bold mb-1.5">{'>'} AVAILABLE_ACTIONS</p>
-                  
+                  <p className="text-white font-bold mb-1.5">
+                    {">"} AVAILABLE_ACTIONS
+                  </p>
+
                   {/* Daily Spin */}
                   <div className="border border-[#77fb82] p-2 bg-black/30">
-                    <p className="font-bold mb-1 text-sm">{'[1]'} FREE_SPINS</p>
+                    <p className="font-bold mb-1 text-sm">{"[1]"} FREE_SPINS</p>
                     <p className="text-xs leading-snug">
-                      Spin daily, earn points, climb the leaderboard, and get entered into random raffles to win tokens, gift cards & FREE merch!
+                      Spin daily, earn points, climb the leaderboard, and get
+                      entered into random raffles to win tokens, gift cards &
+                      FREE merch!
                     </p>
                   </div>
 
                   {/* Shop Merch */}
                   <div className="border border-[#77fb82] p-2 bg-black/30">
-                    <p className="font-bold mb-1 text-sm">{'[2]'} SHOP_MERCH</p>
+                    <p className="font-bold mb-1 text-sm">{"[2]"} SHOP_MERCH</p>
                     <p className="text-xs leading-snug">
-                      Earn bonus points for merch purchases & multipliers for holding $mintedmerch.
+                      Earn bonus points for merch purchases & multipliers for
+                      holding $mintedmerch.
                     </p>
                   </div>
 
                   {/* Staking */}
                   <div className="border border-[#77fb82] p-2 bg-black/30">
-                    <p className="font-bold mb-1 text-sm">{'[3]'} STAKE_TOKENS</p>
+                    <p className="font-bold mb-1 text-sm">
+                      {"[3]"} STAKE_TOKENS
+                    </p>
                     <p className="text-xs leading-snug">
-                      Stake to earn SOON! Hold 50M+ $mintedmerch → Earn Merch Mogul status → Unlock perks, discounts & group chat access.
+                      Stake to earn SOON! Hold 50M+ $mintedmerch → Earn Merch
+                      Mogul status → Unlock perks, discounts & group chat
+                      access.
                     </p>
                   </div>
                 </div>
@@ -821,31 +894,33 @@ export default function MintPageClient({ slug }) {
             {/* Terminal-style Buttons */}
             <button
               onClick={() => {
-                triggerHaptic('medium', isInFarcaster);
-                router.push('/');
+                triggerHaptic("medium", isInFarcaster);
+                router.push("/");
               }}
               className="w-full py-3 bg-[#77fb82] text-black rounded font-bold text-sm hover:bg-[#66ea71] transition-all border-2 border-[#77fb82] font-mono"
             >
-              {'>'} RUN FREE_SPIN
+              {">"} RUN FREE_SPIN
             </button>
 
             <button
               onClick={() => {
-                triggerHaptic('medium', isInFarcaster);
-                router.push('/');
+                triggerHaptic("medium", isInFarcaster);
+                router.push("/");
               }}
               className="w-full py-3 bg-black text-[#77fb82] rounded font-bold text-sm hover:bg-gray-900 transition-all border-2 border-[#77fb82] font-mono"
             >
-              {'>'} SHOP_MERCH
+              {">"} SHOP_MERCH
             </button>
           </div>
         )}
       </div>
 
-
       {/* Share Modal (Displayed as overlay when showShareModal is true) */}
       {showShareModal && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50" style={{ pointerEvents: 'auto' }}>
+        <div
+          className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"
+          style={{ pointerEvents: "auto" }}
+        >
           <div className="bg-black border border-gray-800 rounded-2xl p-8 max-w-md w-full space-y-6">
             <div className="text-center space-y-2">
               <div className="text-5xl">🎉</div>
@@ -855,13 +930,17 @@ export default function MintPageClient({ slug }) {
 
             <button
               onClick={(e) => {
-                console.log('🖱️ Share button CLICKED!', { isSharing, claimId, sessionToken: !!sessionToken });
+                console.log("🖱️ Share button CLICKED!", {
+                  isSharing,
+                  claimId,
+                  sessionToken: !!sessionToken,
+                });
                 e.preventDefault();
                 e.stopPropagation();
                 handleShare();
               }}
               disabled={isSharing}
-              style={{ pointerEvents: isSharing ? 'none' : 'auto' }}
+              style={{ pointerEvents: isSharing ? "none" : "auto" }}
               className="w-full py-4 bg-[#6A3CFF] text-white rounded-xl font-bold hover:bg-[#5A2FE6] disabled:bg-gray-600 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
             >
               {isSharing ? (
@@ -872,8 +951,16 @@ export default function MintPageClient({ slug }) {
               ) : (
                 <>
                   {/* Official Farcaster Logo (2024 rebrand) */}
-                  <svg className="w-5 h-5" viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
+                  <svg
+                    className="w-5 h-5"
+                    viewBox="0 0 520 457"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"
+                      fill="currentColor"
+                    />
                   </svg>
                   Share to Farcaster
                 </>
@@ -885,4 +972,3 @@ export default function MintPageClient({ slug }) {
     </div>
   );
 }
-
