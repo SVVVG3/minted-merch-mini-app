@@ -302,77 +302,46 @@ export default function MintPageClient({ slug }) {
       const walletAddress = accounts[0];
       console.log('💳 Wallet address:', walletAddress);
 
-      // Fetch allowlist proof from backend API
-      console.log('🔍 Fetching allowlist proof...');
-      const proofResponse = await fetch(`/api/nft-mints/${slug}/get-proof`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`
-        },
-        body: JSON.stringify({
-          walletAddress: walletAddress,
-          tokenId: campaign.tokenId || 0
-        })
+      // Use Thirdweb SDK to prepare claim transaction
+      // claimTo handles allowlist proofs automatically
+      console.log('📤 Preparing claim with Thirdweb SDK...');
+      
+      const { getContract, sendTransaction, prepareContractCall } = await import('thirdweb');
+      const { claimTo } = await import('thirdweb/extensions/erc1155');
+      const { base } = await import('thirdweb/chains');
+      const { client } = await import('@/lib/thirdwebClient');
+      
+      const contract = getContract({
+        client,
+        chain: base,
+        address: campaign.contractAddress
       });
 
-      if (!proofResponse.ok) {
-        const errorData = await proofResponse.json().catch(() => ({}));
-        console.error('❌ Failed to fetch allowlist proof:', errorData);
-        throw new Error(errorData.error || 'You are not eligible to mint this NFT. Make sure your wallet is on the allowlist.');
-      }
+      console.log('📋 Contract initialized:', campaign.contractAddress);
 
-      const proofData = await proofResponse.json();
-      console.log('✅ Allowlist proof received:', proofData);
+      // Prepare the claim transaction
+      // Note: parameter is "amount" not "quantity"
+      const transaction = claimTo({
+        contract,
+        to: walletAddress,
+        tokenId: BigInt(campaign.tokenId || 0),
+        amount: BigInt(1)
+      });
 
-      // ERC1155 claim ABI (Thirdweb Edition Drop contract)
-      const erc1155ClaimABI = [
-        {
-          name: 'claim',
-          type: 'function',
-          inputs: [
-            { name: 'receiver', type: 'address' },
-            { name: 'tokenId', type: 'uint256' },
-            { name: 'quantity', type: 'uint256' },
-            { name: 'currency', type: 'address' },
-            { name: 'pricePerToken', type: 'uint256' },
-            { name: 'allowlistProof', type: 'tuple', components: [
-              { name: 'proof', type: 'bytes32[]' },
-              { name: 'quantityLimitPerWallet', type: 'uint256' },
-              { name: 'pricePerToken', type: 'uint256' },
-              { name: 'currency', type: 'address' }
-            ]},
-            { name: 'data', type: 'bytes' }
-          ],
-          outputs: []
-        }
-      ];
+      console.log('✅ Transaction prepared with Thirdweb claimTo');
+      
+      // Prepare transaction data for Wagmi
+      const prepared = await prepareContractCall(transaction);
+      
+      console.log('📤 Sending to wallet via Wagmi...');
+      console.log('   Contract:', prepared.to);
+      console.log('   Data length:', prepared.data?.length);
 
-      // Build allowlist proof from Thirdweb response
-      const allowlistProof = {
-        proof: proofData.proof || [],
-        quantityLimitPerWallet: BigInt(proofData.quantityLimitPerWallet || 0),
-        pricePerToken: BigInt(proofData.pricePerToken || 0),
-        currency: proofData.currency || '0x0000000000000000000000000000000000000000'
-      };
-
-      console.log('📋 Allowlist proof:', allowlistProof);
-
-      // Call Wagmi writeContract (triggers wallet approval)
-      console.log('📤 Calling writeContract...');
+      // Send transaction via Wagmi
       writeMintContract({
-        address: campaign.contractAddress,
-        abi: erc1155ClaimABI,
-        functionName: 'claim',
-        args: [
-          walletAddress, // receiver
-          BigInt(campaign.tokenId || 0), // tokenId
-          BigInt(1), // quantity
-          proofData.currency || '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // currency from proof
-          BigInt(proofData.pricePerToken || 0), // pricePerToken from proof
-          allowlistProof, // Real allowlist proof from Thirdweb
-          '0x' // data (empty)
-        ]
+        address: prepared.to,
+        data: prepared.data,
+        value: prepared.value || BigInt(0)
       });
 
       console.log('✅ Mint transaction sent - waiting for user approval...');
