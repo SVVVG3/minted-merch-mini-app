@@ -132,12 +132,21 @@ export async function POST(request, { params }) {
 
       // Use the MAIN claimParams pricePerToken, not the allowlistProof one
       // The allowlistProof.pricePerToken is often uint256 max
+      
+      // Convert 0xEeee...EEeE (Thirdweb's native token representation) to zero address
+      let currency = claimParams.currency || "0x0000000000000000000000000000000000000000";
+      if (currency === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") {
+        currency = "0x0000000000000000000000000000000000000000";
+      }
+      
+      console.log(`[${requestId}]    Converted currency:`, currency);
+      
       return NextResponse.json({
         proof: allowlistProof.proof,
         quantityLimitPerWallet:
           allowlistProof.quantityLimitPerWallet?.toString() || "1",
         pricePerToken: claimParams.pricePerToken?.toString() || "0",
-        currency: claimParams.currency || "0x0000000000000000000000000000000000000000",
+        currency,
       });
     } catch (thirdwebError) {
       console.error(`[${requestId}] ❌ Thirdweb SDK error:`, thirdwebError);
