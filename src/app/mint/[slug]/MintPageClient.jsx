@@ -758,7 +758,7 @@ export default function MintPageClient({ slug }) {
                 <div className="text-center">
                   <pre className="text-xs leading-snug">
 {`╔═══════════════════════════════╗
-║   QUEST COMPLETED! 📟 ✓       ║
+║  BEEP BEEP 📟 QUEST COMPLETED ✓║
 ║   WELCOME TO MINTED MERCH     ║
 ╚═══════════════════════════════╝`}
                   </pre>
@@ -832,7 +832,7 @@ export default function MintPageClient({ slug }) {
               }}
               className="w-full py-3 bg-black text-[#77fb82] rounded font-bold text-sm hover:bg-gray-900 transition-all border-2 border-[#77fb82] font-mono"
             >
-              {'>'} BROWSE_SHOP
+              {'>'} SHOP_MERCH
             </button>
           </div>
         )}
