@@ -326,20 +326,8 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       console.log('Pending discount from URL:', pendingDiscount);
 
       // Check if user has notifications enabled (required for database discount auto-population)
-      // Use a lightweight profile check instead of the debug endpoint to avoid errors
-      let hasNotifications = false;
-      try {
-        const response = await fetch('/api/user/profile?' + new URLSearchParams({
-          fid: fid.toString()
-        }));
-        const profileData = await response.json();
-        hasNotifications = profileData.profile?.has_notifications || false;
-        console.log('User notification status:', hasNotifications);
-      } catch (error) {
-        console.warn('Could not check notification status:', error);
-        // Default to false if we can't check - this is not critical
-        hasNotifications = false;
-      }
+      // Use SDK context directly - no API call needed
+      const userHasNotifications = hasNotifications();
 
       // Determine which discount to prioritize
       let activeDiscount = null;
@@ -411,7 +399,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       }
 
       // Priority 3: Best available discount from database - ONLY FOR USERS WITH NOTIFICATIONS
-      if (!activeDiscount && hasNotifications) {
+      if (!activeDiscount && userHasNotifications) {
         console.log('✅ User has notifications enabled - loading database discounts');
         
         const bestDiscountResult = await getBestAvailableDiscount(fid, 'site_wide'); // Only site-wide discounts on homepage
@@ -431,7 +419,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
 
       // Load welcome discount status (for display purposes)
       let welcomeDiscountResult = { hasDiscount: false };
-      if (hasNotifications) {
+      if (userHasNotifications) {
         welcomeDiscountResult = await hasDiscountOfType(fid, 'welcome');
         console.log('Welcome discount status:', welcomeDiscountResult);
       }
@@ -439,10 +427,10 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       setUserDiscounts({
         isLoading: false,
         bestDiscount: activeDiscount,
-        availableDiscounts: hasNotifications ? (await getBestAvailableDiscount(fid, 'site_wide')).alternativeCodes || [] : [],
+        availableDiscounts: userHasNotifications ? (await getBestAvailableDiscount(fid, 'site_wide')).alternativeCodes || [] : [],
         eligibleTokenGatedDiscounts, // Store all eligible token-gated discounts
         hasWelcomeDiscount: welcomeDiscountResult.hasDiscount,
-        hasNotifications, // Store notification status for UI decisions
+        hasNotifications: userHasNotifications, // Store notification status for UI decisions
         discountSource,
         error: null
       });
@@ -457,7 +445,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
 
       // Store user context for CartContext to use
       sessionStorage.setItem('userDiscountContext', JSON.stringify({
-        hasNotifications,
+        hasNotifications: userHasNotifications,
         lastChecked: new Date().toISOString(),
         fid
       }));
