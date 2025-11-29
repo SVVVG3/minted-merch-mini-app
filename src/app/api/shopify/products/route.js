@@ -4,6 +4,12 @@ import { getProductByHandle } from '@/lib/shopify';
 import { getBestAvailableDiscount } from '@/lib/discounts';
 import { supabase } from '@/lib/supabase';
 
+// Cache product data for 5 minutes on Vercel CDN when no user-specific data is requested
+// This dramatically reduces function invocations for product page loads
+const CACHE_HEADERS = {
+  'Cache-Control': 's-maxage=300, stale-while-revalidate=600',
+};
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -225,7 +231,11 @@ export async function GET(request) {
 
     console.log(`✅ Product data ready: ${shopifyProduct.title}${availableDiscounts?.best ? ` with ${availableDiscounts.best.code}` : ''}`);
 
-    return NextResponse.json(enhancedProduct);
+    // Only cache when no user-specific data is requested (no fid = no personalized discounts)
+    // This allows caching for anonymous product views while keeping personalized responses fresh
+    const responseHeaders = fid ? {} : CACHE_HEADERS;
+    
+    return NextResponse.json(enhancedProduct, { headers: responseHeaders });
   } catch (error) {
     console.error('Error fetching product:', error);
     return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500 });
