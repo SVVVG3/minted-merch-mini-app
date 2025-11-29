@@ -225,6 +225,30 @@ export async function sendDailyCheckInReminders() {
     console.log('🚀 Starting daily check-in reminder process...');
     console.log('📅 Current PST time:', formatPSTTime());
 
+    // Step 0: Reset stale streaks BEFORE fetching user data
+    // Users who missed yesterday's check-in window should have their streak reset to 0
+    // This ensures notifications show correct streak info and dashboard stats are accurate
+    const { getCurrentCheckInDay } = await import('./timezone.js');
+    const currentCheckInDay = getCurrentCheckInDay();
+    const currentDate = new Date(currentCheckInDay);
+    currentDate.setDate(currentDate.getDate() - 1);
+    const yesterdayCheckInDay = currentDate.toISOString().split('T')[0];
+    
+    console.log(`🔄 Resetting stale streaks (last_checkin_date < ${yesterdayCheckInDay})...`);
+    
+    const adminClient = supabaseAdmin || supabase;
+    const { error: resetError, count: resetCount } = await adminClient
+      .from('user_leaderboard')
+      .update({ checkin_streak: 0 })
+      .lt('last_checkin_date', yesterdayCheckInDay)
+      .select('user_fid', { count: 'exact', head: true });
+      
+    if (resetError) {
+      console.error('❌ Error resetting stale streaks:', resetError);
+    } else {
+      console.log(`✅ Reset ${resetCount || 0} stale streaks to 0`);
+    }
+
     // Get users who need reminders
     const userFids = await getUsersNeedingCheckInReminders();
 
@@ -244,7 +268,7 @@ export async function sendDailyCheckInReminders() {
 
     // Step 1: Fetch all user leaderboard data in batches
     const { getUserLeaderboardData } = await import('./points.js');
-    const adminClient = supabaseAdmin || supabase;
+    // adminClient already defined above for streak reset
     
     console.log('📊 Fetching leaderboard data for message personalization...');
     let allLeaderboardData = [];
