@@ -8,6 +8,7 @@ import { shareCheckIn } from '@/lib/farcasterShare';
 import { getTimeUntilReset } from '@/lib/timezone';
 import { ethers } from 'ethers';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { deduplicateRequest, clearCachedResult } from '@/lib/requestDeduplication';
 
 
 export function SpinWheel({ onSpinComplete, isVisible = true }) {
@@ -295,11 +296,24 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     }
   }, [writeError]);
 
-  const loadUserStatus = async (userFid) => {
+  const loadUserStatus = async (userFid, forceRefresh = false) => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/points/checkin?userFid=${userFid}`);
-      const result = await response.json();
+      
+      // If force refresh (after spin), clear the cache first
+      if (forceRefresh) {
+        clearCachedResult(`checkin-status-${userFid}`);
+      }
+      
+      // Use deduplication to prevent duplicate API calls when CheckInButton and SpinWheel mount close together
+      const result = await deduplicateRequest(
+        `checkin-status-${userFid}`,
+        async () => {
+          const response = await fetch(`/api/points/checkin?userFid=${userFid}`);
+          return response.json();
+        },
+        5000 // 5 second cache - short enough to stay fresh, long enough to dedupe
+      );
       
       if (result.success) {
         setUserStatus(result.data);
@@ -820,7 +834,8 @@ export function SpinWheel({ onSpinComplete, isVisible = true }) {
     setWheelGlow(false);
     setScreenShake(false);
     if (userStatus) {
-      loadUserStatus(getFid());
+      // Force refresh to get updated status after spin
+      loadUserStatus(getFid(), true);
     }
   };
 

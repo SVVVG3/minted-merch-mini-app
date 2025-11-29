@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { CheckInModal } from './CheckInModal';
 import { haptics } from '@/lib/haptics';
+import { deduplicateRequest, clearCachedResult } from '@/lib/requestDeduplication';
 
 export function CheckInButton() {
   const { user, isReady, getFid } = useFarcaster();
@@ -55,8 +56,15 @@ export function CheckInButton() {
   const loadUserStatus = async (userFid) => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/points/checkin?userFid=${userFid}`);
-      const result = await response.json();
+      // Use deduplication to prevent duplicate API calls when CheckInButton and SpinWheel mount close together
+      const result = await deduplicateRequest(
+        `checkin-status-${userFid}`,
+        async () => {
+          const response = await fetch(`/api/points/checkin?userFid=${userFid}`);
+          return response.json();
+        },
+        5000 // 5 second cache - short enough to stay fresh, long enough to dedupe
+      );
       
       if (result.success) {
         setUserStatus(result.data);
@@ -85,6 +93,8 @@ export function CheckInButton() {
     if (user && isReady) {
       const userFid = getFid();
       if (userFid) {
+        // Clear cache to get fresh data after spin
+        clearCachedResult(`checkin-status-${userFid}`);
         loadUserStatus(userFid);
       }
     }

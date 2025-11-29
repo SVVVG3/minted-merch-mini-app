@@ -12,23 +12,18 @@ const requestResults = new Map();
  * @returns {Promise} The result of the request
  */
 export async function deduplicateRequest(key, requestFn, cacheTtl = 30000) {
-  console.log(`🔒 Deduplication check for key: ${key}`);
-  
   // Check if we have a cached result
   const cachedResult = requestResults.get(key);
   if (cachedResult && Date.now() - cachedResult.timestamp < cacheTtl) {
-    console.log(`💾 Using cached result for ${key} (${Math.round((Date.now() - cachedResult.timestamp) / 1000)}s old)`);
     return cachedResult.data;
   }
   
   // Check if request is already in progress
   if (pendingRequests.has(key)) {
-    console.log(`⏳ Request already in progress for ${key}, waiting...`);
     return await pendingRequests.get(key);
   }
   
   // Make the request and store the promise
-  console.log(`🚀 Making new request for ${key}`);
   const requestPromise = (async () => {
     try {
       const result = await requestFn();
@@ -39,10 +34,9 @@ export async function deduplicateRequest(key, requestFn, cacheTtl = 30000) {
         timestamp: Date.now()
       });
       
-      console.log(`✅ Request completed for ${key}`);
       return result;
     } catch (error) {
-      console.error(`❌ Request failed for ${key}:`, error);
+      console.error(`Request failed for ${key}:`, error);
       throw error;
     } finally {
       // Remove from pending requests
@@ -61,14 +55,8 @@ export async function deduplicateRequest(key, requestFn, cacheTtl = 30000) {
  * @param {string} key - The key to clear from cache
  */
 export function clearCachedResult(key) {
-  if (requestResults.has(key)) {
-    requestResults.delete(key);
-    console.log(`🗑️ Cleared cached result for key: ${key}`);
-  }
-  if (pendingRequests.has(key)) {
-    pendingRequests.delete(key);
-    console.log(`🗑️ Cleared pending request for key: ${key}`);
-  }
+  requestResults.delete(key);
+  pendingRequests.delete(key);
 }
 
 /**
@@ -77,5 +65,4 @@ export function clearCachedResult(key) {
 export function clearAllCachedResults() {
   requestResults.clear();
   pendingRequests.clear();
-  console.log('🗑️ Cleared all cached results');
 }
