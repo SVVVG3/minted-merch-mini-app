@@ -28,6 +28,8 @@
     "@farcaster/miniapp-wagmi-connector": "^1.0.0",
     "@farcaster/quick-auth": "^0.0.8",
     "@neynar/nodejs-sdk": "^3.19.0",
+    "@neynar/react": "^1.2.22",
+    "@pigment-css/react": "^0.0.30",
     "@reown/appkit": "^1.8.10",
     "@reown/appkit-common": "^1.8.10",
     "@reown/appkit-universal-connector": "^1.8.10",

@@ -6,22 +6,25 @@ import { AuthKitProvider } from '@/components/AuthKitProvider';
 import { WalletConnectProvider } from '@/components/WalletConnectProvider';
 import { DaimoPayProvider } from '@/components/DaimoPayProvider';
 import { CartProvider } from '@/lib/CartContext';
+import { MiniAppProvider } from '@neynar/react';
 
 export function Providers({ children }) {
   return (
-    <AuthKitProvider>
-      <WagmiProvider>
-        <BaseAccountProvider>
-          <WalletConnectProvider>
-            <DaimoPayProvider>
-              <CartProvider>
-                {children}
-              </CartProvider>
-            </DaimoPayProvider>
-          </WalletConnectProvider>
-        </BaseAccountProvider>
-      </WagmiProvider>
-    </AuthKitProvider>
+    <MiniAppProvider>
+      <AuthKitProvider>
+        <WagmiProvider>
+          <BaseAccountProvider>
+            <WalletConnectProvider>
+              <DaimoPayProvider>
+                <CartProvider>
+                  {children}
+                </CartProvider>
+              </DaimoPayProvider>
+            </WalletConnectProvider>
+          </BaseAccountProvider>
+        </WagmiProvider>
+      </AuthKitProvider>
+    </MiniAppProvider>
   );
 }
 

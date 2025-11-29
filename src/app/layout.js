@@ -1,6 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-// import "@neynar/react/dist/style.css";
+import "@neynar/react/dist/style.css";
 import { FrameInit } from "@/components/FrameInit";
 import { GoogleMapsScript } from "@/components/GoogleMapsScript";
 import { FarcasterHeader } from "@/components/FarcasterHeader";
@@ -8,7 +8,6 @@ import { PriceTicker } from "@/components/PriceTicker";
 import { ChatEligibilityBanner } from "@/components/ChatEligibilityBanner";
 import { ChatEligibilityPopup } from "@/components/ChatEligibilityPopup";
 import { Providers } from "@/components/Providers";
-// import { MiniAppProvider } from '@neynar/react';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
