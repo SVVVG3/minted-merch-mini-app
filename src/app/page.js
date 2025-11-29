@@ -1,20 +1,16 @@
 import { getCollectionByHandle, getCollections } from '@/lib/shopify';
 import { HomePage } from '@/components/HomePage';
 
+// Enable Incremental Static Regeneration - cache page for 5 minutes
+// This dramatically reduces Vercel function invocations for the homepage
+export const revalidate = 300; // 5 minutes
+
 export async function generateMetadata({ searchParams }) {
-  console.log('🔍 generateMetadata called with searchParams:', searchParams);
-  console.log('🔍 searchParams type:', typeof searchParams);
-  console.log('🔍 searchParams keys:', Object.keys(searchParams || {}));
-  
   // Fix URL construction to avoid double slashes
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
   
   // Check if this is a collection share URL
   const sharedCollectionHandle = searchParams?.collection;
-  const cacheBust = searchParams?.t;
-  
-  console.log('📋 Collection handle from URL:', sharedCollectionHandle);
-  console.log('📋 Cache bust from URL:', cacheBust);
   
   if (sharedCollectionHandle) {
     try {
@@ -25,11 +21,7 @@ export async function generateMetadata({ searchParams }) {
         const title = collection.title || sharedCollectionHandle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         const description = collection.description || `Shop the ${title} collection with USDC on Base blockchain. Crypto merch with instant payments.`;
         const imageUrl = collection.image?.url;
-        
-        console.log('=== Collection Metadata Debug ===');
-        console.log('Collection:', collection.title);
-        console.log('Collection image object:', collection.image);
-        console.log('Image URL extracted:', imageUrl);
+        const cacheBust = searchParams?.t;
         
         // Build OG image URL with collection data
         const ogParams = new URLSearchParams({
@@ -51,7 +43,6 @@ export async function generateMetadata({ searchParams }) {
         ogParams.append('t', cacheBust || Date.now().toString());
         
         const dynamicImageUrl = `${baseUrl}/api/og/collection?${ogParams.toString()}`;
-        console.log('OG Image URL:', dynamicImageUrl);
         
         // Create frame embed with dynamic collection image
         const frame = {
@@ -98,9 +89,6 @@ export async function generateMetadata({ searchParams }) {
     const basePoints = parseInt(searchParams.base || '30');
     const streakBonus = parseInt(searchParams.bonus || '0');
     const cacheBust = searchParams.t;
-    
-    console.log('=== Check-in Share Metadata Generation ===');
-    console.log('Check-in data:', { points, streak, totalPoints, basePoints, streakBonus });
     
     // Extract multiplier information from URL parameters
     const multiplier = parseFloat(searchParams.multiplier || '1');
@@ -261,18 +249,10 @@ export default async function Page({ searchParams }) {
       }
     }
 
-    const timestamp = Date.now();
-    console.log(`[${timestamp}] Fetching collection:`, targetHandle);
-    
     collection = await getCollectionByHandle(targetHandle);
     if (collection && collection.products) {
       products = collection.products.edges.map(edge => edge.node);
     }
-
-    console.log(`[${timestamp}] Collection:`, collection?.title);
-    console.log(`[${timestamp}] Products count:`, products.length);
-    console.log(`[${timestamp}] Product titles:`, products.map(p => p.title));
-    console.log(`[${timestamp}] Collection handle used:`, targetHandle);
   } catch (error) {
     console.error('Error fetching collection:', error);
   }
