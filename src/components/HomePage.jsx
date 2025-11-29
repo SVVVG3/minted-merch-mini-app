@@ -416,15 +416,40 @@ export function HomePage({ collection: initialCollection, products: initialProdu
         console.log('💡 Users can still manually enter discount codes in the cart');
       }
 
-      // Note: Welcome discount and database discount checks are skipped on client-side
-      // as they require supabaseAdmin. Token-gated discounts (checked via API above) are the priority.
+      // Load welcome discount status and available discounts via API (for users with notifications)
+      let welcomeDiscountResult = { hasDiscount: false };
+      let availableDiscounts = [];
+      
+      if (userHasNotifications) {
+        try {
+          // Check for welcome discount via API
+          const welcomeResponse = await fetch(`/api/user-discounts?fid=${fid}&mode=check&type=welcome`);
+          const welcomeData = await welcomeResponse.json();
+          welcomeDiscountResult = { hasDiscount: welcomeData.hasDiscount || false };
+          console.log('Welcome discount status:', welcomeDiscountResult);
+          
+          // Get best available discount via API (only if no token-gated discount found)
+          if (!activeDiscount) {
+            const bestResponse = await fetch(`/api/user-discounts?fid=${fid}&mode=best&scope=site_wide`);
+            const bestData = await bestResponse.json();
+            if (bestData.success && bestData.discountCode) {
+              activeDiscount = bestData.discountCode;
+              discountSource = 'user_account';
+              console.log('🎯 Using best available discount from account:', activeDiscount.code);
+            }
+            availableDiscounts = bestData.alternativeCodes || [];
+          }
+        } catch (error) {
+          console.warn('Could not load database discounts:', error);
+        }
+      }
 
       setUserDiscounts({
         isLoading: false,
         bestDiscount: activeDiscount,
-        availableDiscounts: [], // Database discounts require server-side check
+        availableDiscounts: availableDiscounts,
         eligibleTokenGatedDiscounts, // Store all eligible token-gated discounts
-        hasWelcomeDiscount: false, // Would require server-side check
+        hasWelcomeDiscount: welcomeDiscountResult.hasDiscount,
         hasNotifications: userHasNotifications, // Store notification status for UI decisions
         discountSource,
         error: null
