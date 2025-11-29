@@ -40,15 +40,6 @@ export function AuthKitProvider({ children }) {
     version: 'v1',
   };
 
-  if (typeof window !== 'undefined') {
-    console.log('🔐 AuthKit config:', {
-      domain: config.domain,
-      siweUri: config.siweUri,
-      isPWA: window.matchMedia('(display-mode: standalone)').matches,
-      actualHost: window.location.host
-    });
-  }
-
   return (
     <FarcasterAuthKitProvider config={config}>
       {children}

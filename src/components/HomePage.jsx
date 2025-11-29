@@ -17,7 +17,6 @@ import { useDgenWallet } from '@/lib/useDgenWallet';
 import { useWalletConnectContext } from './WalletConnectProvider';
 import { shareCollection } from '@/lib/farcasterShare';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
-import { getBestAvailableDiscount, hasDiscountOfType } from '@/lib/discounts';
 import { sdk } from '@farcaster/miniapp-sdk';
 // Token-gating functions moved to API routes to avoid client-side Node.js imports
 // import { getEligibleAutoApplyDiscounts } from '@/lib/tokenGating';
@@ -417,19 +416,15 @@ export function HomePage({ collection: initialCollection, products: initialProdu
         console.log('💡 Users can still manually enter discount codes in the cart');
       }
 
-      // Load welcome discount status (for display purposes)
-      let welcomeDiscountResult = { hasDiscount: false };
-      if (userHasNotifications) {
-        welcomeDiscountResult = await hasDiscountOfType(fid, 'welcome');
-        console.log('Welcome discount status:', welcomeDiscountResult);
-      }
+      // Note: Welcome discount and database discount checks are skipped on client-side
+      // as they require supabaseAdmin. Token-gated discounts (checked via API above) are the priority.
 
       setUserDiscounts({
         isLoading: false,
         bestDiscount: activeDiscount,
-        availableDiscounts: userHasNotifications ? (await getBestAvailableDiscount(fid, 'site_wide')).alternativeCodes || [] : [],
+        availableDiscounts: [], // Database discounts require server-side check
         eligibleTokenGatedDiscounts, // Store all eligible token-gated discounts
-        hasWelcomeDiscount: welcomeDiscountResult.hasDiscount,
+        hasWelcomeDiscount: false, // Would require server-side check
         hasNotifications: userHasNotifications, // Store notification status for UI decisions
         discountSource,
         error: null
