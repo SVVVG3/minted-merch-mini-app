@@ -1,10 +1,6 @@
 import { getCollectionByHandle, getCollections } from '@/lib/shopify';
 import { HomePage } from '@/components/HomePage';
 
-// Enable Incremental Static Regeneration - cache page for 5 minutes
-// This dramatically reduces Vercel function invocations for the homepage
-export const revalidate = 300; // 5 minutes
-
 export async function generateMetadata({ searchParams }) {
   // Fix URL construction to avoid double slashes
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
