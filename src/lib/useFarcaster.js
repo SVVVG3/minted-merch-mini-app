@@ -20,49 +20,30 @@ export function useFarcaster() {
   useEffect(() => {
     async function loadContext() {
       try {
-        console.log('🔍 Loading Farcaster context...');
-        console.log('🔍 SDK object:', sdk);
         const farcasterContext = await sdk.context;
-        
-        console.log('🔍 Farcaster context loaded:', JSON.stringify(farcasterContext, null, 2));
-        console.log('🔍 Context type:', typeof farcasterContext);
-        console.log('🔍 Context keys:', farcasterContext ? Object.keys(farcasterContext) : 'null');
-        console.log('🔍 Context.user:', farcasterContext?.user);
         
         setContext(farcasterContext);
         setIsInFarcaster(!!farcasterContext);
         
         if (farcasterContext && farcasterContext.user) {
-          console.log('✅ Farcaster user data (mini app):', farcasterContext.user);
-          console.log('✅ FID:', farcasterContext.user.fid);
           setUser(farcasterContext.user);
           setIsReady(true);
         } else if (farcasterContext) {
-          // We're in Farcaster but no user data yet - THIS SHOULDN'T HAPPEN
-          console.error('⚠️ CRITICAL: In Farcaster but no user data available!');
-          console.error('⚠️ Context exists but context.user is:', farcasterContext.user);
-          console.error('⚠️ Full context:', farcasterContext);
-          
-          // Try to extract user from alternate locations
+          // We're in Farcaster but no user data - try alternate locations
           if (farcasterContext.client?.user) {
-            console.log('🔄 Found user in context.client.user:', farcasterContext.client.user);
             setUser(farcasterContext.client.user);
           } else if (window.farcasterUser) {
-            console.log('🔄 Found user in window.farcasterUser:', window.farcasterUser);
             setUser(window.farcasterUser);
           }
-          
           setIsReady(true);
         } else {
           // Not in Farcaster mini app environment
-          console.log('ℹ️ Not in Farcaster mini app environment');
           setIsReady(true);
         }
       } catch (error) {
-        console.error('❌ Error loading Farcaster context:', error);
-        console.error('❌ Error details:', error.message, error.stack);
+        console.error('Error loading Farcaster context:', error.message);
         setIsInFarcaster(false);
-        setIsReady(true); // Still mark as ready even if there's an error
+        setIsReady(true);
       } finally {
         setIsLoading(false);
       }
@@ -74,18 +55,15 @@ export function useFarcaster() {
   // If user signed in via AuthKit (non-mini-app), use that profile
   useEffect(() => {
     if (!isInFarcaster && isAuthKitAuthenticated && authKitProfile) {
-      console.log('✅ Using AuthKit profile:', authKitProfile);
       setUser({
         fid: authKitProfile.fid,
         username: authKitProfile.username,
         displayName: authKitProfile.displayName,
         pfpUrl: authKitProfile.pfpUrl,
         bio: authKitProfile.bio,
-        isAuthKit: true, // Flag to indicate this is AuthKit authentication
+        isAuthKit: true,
       });
     } else if (!isInFarcaster && !isAuthKitAuthenticated) {
-      // Clear user if AuthKit auth is lost
-      console.log('ℹ️ AuthKit not authenticated, clearing user');
       setUser(null);
     }
   }, [isInFarcaster, isAuthKitAuthenticated, authKitProfile]);
@@ -99,7 +77,6 @@ export function useFarcaster() {
       // Check if we already have a valid session token
       const existingToken = localStorage.getItem('fc_session_token');
       if (existingToken && sessionToken) {
-        // 🔒 SECURITY FIX: Validate token expiration before skipping Quick Auth
         try {
           const parts = existingToken.split('.');
           if (parts.length === 3) {
@@ -108,26 +85,18 @@ export function useFarcaster() {
             const now = Date.now();
             
             if (expiresAt > now) {
-              console.log('✅ Session token already exists and is valid, skipping Quick Auth');
-              return;
+              return; // Token valid, skip Quick Auth
             } else {
-              console.warn('⚠️ Session token expired, will fetch fresh token');
               localStorage.removeItem('fc_session_token');
-              // Continue to Quick Auth
             }
           }
         } catch (error) {
-          console.error('❌ Error validating existing token:', error);
           localStorage.removeItem('fc_session_token');
-          // Continue to Quick Auth
         }
       }
       
       // Check if we've already attempted (component-level)
-      if (hasAttemptedMiniAppAuth.current) {
-        console.log('⏭️ Already attempted Quick Auth in this session');
-        return;
-      }
+      if (hasAttemptedMiniAppAuth.current) return;
       
       // Check if another instance is currently attempting (global lock)
       const attemptLock = localStorage.getItem('quick_auth_attempting');
@@ -135,133 +104,79 @@ export function useFarcaster() {
       const now = Date.now();
       
       // If lock is less than 5 seconds old, another instance is working on it
-      if (attemptLock && (now - lockTimestamp) < 5000) {
-        console.log('⏭️ Another instance is currently attempting Quick Auth');
-        return;
-      }
+      if (attemptLock && (now - lockTimestamp) < 5000) return;
       
       // Set locks to prevent duplicate attempts
       hasAttemptedMiniAppAuth.current = true;
       localStorage.setItem('quick_auth_attempting', now.toString());
       
       try {
-        console.log('🔐 Getting Quick Auth session for Mini App...');
-        
-        // DEBUG: Log SDK capabilities
-        console.log('🔍 SDK Debug Info:', {
-          sdkExists: !!sdk,
-          sdkKeys: sdk ? Object.keys(sdk) : 'N/A',
-          actionsExists: !!sdk?.actions,
-          actionsKeys: sdk?.actions ? Object.keys(sdk.actions) : 'N/A',
-          quickAuthExists: !!sdk?.quickAuth,
-          quickAuthKeys: sdk?.quickAuth ? Object.keys(sdk.quickAuth) : 'N/A',
-        });
-        
-        // SECURITY FIX: Use Quick Auth from Farcaster SDK
-        // This returns a cryptographically signed JWT from Farcaster
-        // Try multiple possible API paths
+        // Try multiple Quick Auth methods from Farcaster SDK
         let quickAuthToken = null;
         
         // Method 1: Try sdk.quickAuth.getToken()
         if (sdk?.quickAuth?.getToken) {
           try {
-            console.log('🔐 Attempting Method 1: sdk.quickAuth.getToken()...');
             const result = await sdk.quickAuth.getToken();
             quickAuthToken = result?.token || result;
-            console.log('✅ Quick Auth Method 1 succeeded');
-          } catch (error) {
-            console.warn('⚠️ Quick Auth Method 1 failed:', error.message);
-          }
+          } catch (error) { /* Method not available */ }
         }
         
         // Method 2: Try sdk.actions.signIn()
         if (!quickAuthToken && sdk?.actions?.signIn) {
           try {
-            console.log('🔐 Attempting Method 2: sdk.actions.signIn()...');
             const result = await sdk.actions.signIn();
             quickAuthToken = result?.token || result;
-            console.log('✅ Quick Auth Method 2 succeeded');
-          } catch (error) {
-            console.warn('⚠️ Quick Auth Method 2 failed:', error.message);
-          }
+          } catch (error) { /* Method not available */ }
         }
         
         // Method 3: Try sdk.actions.getAuthToken()
         if (!quickAuthToken && sdk?.actions?.getAuthToken) {
           try {
-            console.log('🔐 Attempting Method 3: sdk.actions.getAuthToken()...');
             const result = await sdk.actions.getAuthToken();
             quickAuthToken = result?.token || result;
-            console.log('✅ Quick Auth Method 3 succeeded');
-          } catch (error) {
-            console.warn('⚠️ Quick Auth Method 3 failed:', error.message);
-          }
+          } catch (error) { /* Method not available */ }
         }
         
         // If we got a token, send it to backend
         if (quickAuthToken) {
-          console.log('✅ Quick Auth token obtained from Farcaster SDK');
-          
-          // Send to backend for verification
           const response = await fetch('/api/auth/session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              farcasterToken: quickAuthToken
-            })
+            body: JSON.stringify({ farcasterToken: quickAuthToken })
           });
           
           const result = await response.json();
           
           if (result.success && result.token) {
-            console.log('✅ Session token obtained for Mini App user');
             setSessionToken(result.token);
             localStorage.setItem('fc_session_token', result.token);
             return;
           } else {
-            console.error('❌ Failed to get session token:', result.error);
+            console.error('Failed to get session token:', result.error);
           }
-        } else {
-          console.error('❌ No Quick Auth method available in SDK');
-          console.error('❌ Available SDK structure:', {
-            sdkMethods: sdk ? Object.keys(sdk) : 'undefined',
-            actionsMethods: sdk?.actions ? Object.keys(sdk.actions) : 'undefined'
-          });
-          console.error('❌ Cannot authenticate without Quick Auth - Mini App SDK may need update');
-          // Note: Legacy insecure fallback has been REMOVED for security
-          // Users must have a compatible SDK version with Quick Auth support
         }
       } catch (error) {
-        console.error('❌ Error getting Mini App session:', error);
+        console.error('Error getting Mini App session:', error.message);
       } finally {
-        // Clean up the global lock regardless of success/failure
         localStorage.removeItem('quick_auth_attempting');
-        console.log('🧹 Cleaned up Quick Auth lock');
       }
     }
     
     getMiniAppSession();
   }, [isInFarcaster, user?.fid, sessionToken]);
   
-  // PHASE 2 FIX: Get session token for Desktop/AuthKit with signature verification
+  // Get session token for Desktop/AuthKit with signature verification
   useEffect(() => {
     async function getAuthKitSession() {
       if (isInFarcaster || !isAuthKitAuthenticated || !authKitProfile?.fid || sessionToken) return;
-      
-      // CRITICAL: Need valid signature data from AuthKit
-      if (!authKitData || !validSignature) {
-        console.warn('⚠️ AuthKit authenticated but no signature data available yet');
-        return;
-      }
+      if (!authKitData || !validSignature) return;
       
       try {
-        console.log('🔐 Getting session for AuthKit user with signature verification...');
-        
         const response = await fetch('/api/auth/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            // SECURITY FIX: Send cryptographic proof from AuthKit
             authKitData: {
               message: authKitData.message,
               signature: authKitData.signature,
@@ -276,58 +191,41 @@ export function useFarcaster() {
         const result = await response.json();
         
         if (result.success && result.token) {
-          console.log('✅ Session token obtained for AuthKit user');
           setSessionToken(result.token);
           localStorage.setItem('fc_session_token', result.token);
         } else {
-          console.error('❌ Failed to get session token:', result.error);
+          console.error('Failed to get AuthKit session token:', result.error);
         }
       } catch (error) {
-        console.error('❌ Error getting AuthKit session:', error);
+        console.error('Error getting AuthKit session:', error.message);
       }
     }
     
     getAuthKitSession();
   }, [isInFarcaster, isAuthKitAuthenticated, authKitProfile?.fid, authKitData, validSignature, sessionToken]);
   
-  // PHASE 2: Load session token from localStorage on mount
-  // NOTE: For Mini App, we'll always fetch a fresh token (see getMiniAppSession useEffect)
-  // This is mainly for desktop/AuthKit where we want to persist tokens across page loads
+  // Load session token from localStorage on mount (for desktop/AuthKit)
   useEffect(() => {
     // Don't load stored token for Mini App - always fetch fresh
-    if (isInFarcaster) {
-      console.log('📦 Mini App detected - will fetch fresh session token');
-      return;
-    }
+    if (isInFarcaster) return;
     
     const storedToken = localStorage.getItem('fc_session_token');
     if (storedToken && !sessionToken) {
-      // 🔒 SECURITY FIX: Validate JWT before using it
       try {
-        // Decode JWT to check expiration
         const parts = storedToken.split('.');
         if (parts.length === 3) {
           const payload = JSON.parse(atob(parts[1]));
-          const expiresAt = payload.exp * 1000; // Convert to milliseconds
-          const now = Date.now();
+          const expiresAt = payload.exp * 1000;
           
-          if (expiresAt > now) {
-            // Token is still valid
-            console.log('📦 Loaded valid session token from localStorage');
+          if (expiresAt > Date.now()) {
             setSessionToken(storedToken);
           } else {
-            // Token is expired
-            console.warn('⚠️ Stored JWT is expired, clearing it');
             localStorage.removeItem('fc_session_token');
-            // Don't set sessionToken - will trigger re-authentication
           }
         } else {
-          // Invalid JWT format
-          console.error('❌ Invalid JWT format in localStorage, clearing it');
           localStorage.removeItem('fc_session_token');
         }
       } catch (error) {
-        console.error('❌ Error validating stored JWT:', error);
         localStorage.removeItem('fc_session_token');
       }
     }
