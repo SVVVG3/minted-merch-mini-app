@@ -205,15 +205,6 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
         </button>
       </div>
 
-      {/* Logo - Using Spinner Logo, centered */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-        <img 
-          src="/MintedMerchSpinnerLogo.png" 
-          alt="Minted Merch" 
-          style={{ height: '50px', objectFit: 'contain' }}
-        />
-      </div>
-
       {/* Main Staking Card */}
       <div style={{
         backgroundColor: 'rgba(62, 180, 137, 0.1)',
@@ -225,7 +216,7 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
         {/* Title with image */}
         <div style={{
           textAlign: 'center',
-          marginBottom: '16px'
+          marginBottom: '8px'
         }}>
           <span style={{
             fontSize: '28px',
@@ -235,7 +226,7 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
           }}>
             STAKE TO EARN
           </span>
-          <div style={{ marginTop: '12px' }}>
+          <div>
             <img 
               src="/mintedmerch-logo-ticker.png" 
               alt="$MINTEDMERCH" 
@@ -348,7 +339,7 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
           </div>
         )}
 
-        {/* Stake Button */}
+        {/* Stake Button - Changes based on staking status */}
         <button
           onClick={handleOpenStakingTerminal}
           style={{
@@ -367,7 +358,7 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
             gap: '8px'
           }}
         >
-          {stakingData?.staking?.is_staker ? 'Manage Stake' : 'Start Staking'}
+          {stakingData?.staking?.is_staker ? 'Spin To Claim' : 'Start Staking'}
         </button>
       </div>
 
