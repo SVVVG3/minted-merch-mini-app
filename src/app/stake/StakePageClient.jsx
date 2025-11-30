@@ -148,25 +148,35 @@ export function StakePageClient() {
         <button
           onClick={handleShare}
           style={{
-            background: 'transparent',
-            border: '1px solid #3eb489',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            backgroundColor: '#6A3CFF',
+            border: 'none',
             borderRadius: '8px',
-            padding: '8px 16px',
-            color: '#3eb489',
+            padding: '10px 16px',
+            color: '#fff',
             cursor: 'pointer',
-            fontSize: '14px'
+            fontSize: '14px',
+            fontWeight: '500'
           }}
         >
-          Share 📤
+          Share
+          {/* Official Farcaster Logo (2024 rebrand) */}
+          <svg style={{ width: '16px', height: '16px' }} viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M88.75 0H431.25L520 88.75V368.25L431.25 457H88.75L0 368.25V88.75L88.75 0Z" fill="white"/>
+            <path d="M148.75 118.75H371.25V338.25H325V198.75H267.5V338.25H195V198.75H148.75V118.75Z" fill="#6A3CFF"/>
+          </svg>
         </button>
       </div>
 
-      {/* Logo */}
+      {/* Logo - Using Spinner Logo for better horizontal fit */}
       <div style={{ textAlign: 'center', marginBottom: '20px' }}>
         <img 
-          src="/logo.png" 
+          src="/MintedMerchSpinnerLogo.png" 
           alt="Minted Merch" 
-          style={{ height: '60px', objectFit: 'contain' }}
+          style={{ height: '50px', objectFit: 'contain' }}
         />
       </div>
 
@@ -184,11 +194,22 @@ export function StakePageClient() {
           fontWeight: 'bold',
           color: '#3eb489',
           textAlign: 'center',
-          marginBottom: '16px',
+          marginBottom: '24px',
           textTransform: 'uppercase'
         }}>
           STAKE TO EARN $mintedmerch
         </h1>
+
+        {/* Tagline */}
+        <p style={{
+          fontSize: '18px',
+          color: '#3eb489',
+          textAlign: 'center',
+          fontWeight: '600',
+          marginBottom: '16px'
+        }}>
+          Where Staking Meets Merch!
+        </p>
 
         {/* Description */}
         <p style={{
@@ -198,7 +219,6 @@ export function StakePageClient() {
           lineHeight: '1.6',
           marginBottom: '24px'
         }}>
-          <span style={{ color: '#3eb489' }}>Where Staking Meets Merch!</span>{' '}
           Stake 50M+ $mintedmerch to unlock exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
         </p>
 
@@ -311,13 +331,12 @@ export function StakePageClient() {
         borderRadius: '16px',
         padding: '24px'
       }}>
-        <h2 style={{
+        <p style={{
           fontSize: '16px',
           fontWeight: 'bold',
           color: '#3eb489',
           textAlign: 'center',
-          marginBottom: '16px',
-          lineHeight: '1.5'
+          lineHeight: '1.6'
         }}>
           SPIN-TO-CLAIM ONCE PER DAY FOR A CHANCE TO WIN THE{' '}
           <span style={{ color: '#fff' }}>MONTHLY MEGA MERCH PACK JACKPOT</span>,{' '}
@@ -327,75 +346,7 @@ export function StakePageClient() {
           <span style={{ color: '#fff' }}>1M $mintedmerch DAILY JACKPOT</span>{' '}
           OR THE{' '}
           <span style={{ color: '#fff' }}>100K $mintedmerch BONUSES</span>!
-        </h2>
-
-        {/* Prize List */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-          marginTop: '20px'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '12px',
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            borderRadius: '8px'
-          }}>
-            <span style={{ fontSize: '24px' }}>🏆</span>
-            <div>
-              <div style={{ color: '#3eb489', fontWeight: 'bold' }}>Monthly Mega Merch Pack</div>
-              <div style={{ color: '#888', fontSize: '14px' }}>Hat, Shirt, Hoodie - NFT to claim</div>
-            </div>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '12px',
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            borderRadius: '8px'
-          }}>
-            <span style={{ fontSize: '24px' }}>🎁</span>
-            <div>
-              <div style={{ color: '#3eb489', fontWeight: 'bold' }}>4x Mini Merch Packs</div>
-              <div style={{ color: '#888', fontSize: '14px' }}>Hat or Shirt (winner's choice) - NFT to claim</div>
-            </div>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '12px',
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            borderRadius: '8px'
-          }}>
-            <span style={{ fontSize: '24px' }}>💰</span>
-            <div>
-              <div style={{ color: '#3eb489', fontWeight: 'bold' }}>1M $mintedmerch Daily Jackpot</div>
-              <div style={{ color: '#888', fontSize: '14px' }}>One winner per day</div>
-            </div>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '12px',
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            borderRadius: '8px'
-          }}>
-            <span style={{ fontSize: '24px' }}>⚡</span>
-            <div>
-              <div style={{ color: '#3eb489', fontWeight: 'bold' }}>100K $mintedmerch Bonuses</div>
-              <div style={{ color: '#888', fontSize: '14px' }}>3 winners per day</div>
-            </div>
-          </div>
-        </div>
+        </p>
       </div>
 
       {/* More Info Link */}
