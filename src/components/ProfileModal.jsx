@@ -440,7 +440,7 @@ export function ProfileModal({ isOpen, onClose }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-bold text-teal-800">Staking Rewards</h4>
-                      <p className="text-xs text-teal-600">Stake $mintedmerch to earn daily rewards</p>
+                      <p className="text-xs text-teal-600">Stake to earn $mintedmerch and a chance to win prizes daily</p>
                     </div>
                   </div>
                   <button
