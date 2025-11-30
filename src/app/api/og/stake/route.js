@@ -20,10 +20,6 @@ async function fetchImageAsDataUrl(imageUrl) {
 
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const username = searchParams.get('username');
-    const stakedAmount = searchParams.get('staked') || '0';
-    
     const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
     
     // Fetch logo image
@@ -32,6 +28,14 @@ export async function GET(request) {
       logoImageSrc = await fetchImageAsDataUrl(`${baseUrl}/logo.png`);
     } catch (error) {
       console.error('Error fetching logo:', error);
+    }
+    
+    // Fetch the $mintedmerch ticker logo
+    let tickerLogoSrc = null;
+    try {
+      tickerLogoSrc = await fetchImageAsDataUrl(`${baseUrl}/mintedmerch-logo-ticker.png`);
+    } catch (error) {
+      console.error('Error fetching ticker logo:', error);
     }
     
     return new ImageResponse(
@@ -59,103 +63,89 @@ export async function GET(request) {
               alignItems: 'center',
               justifyContent: 'center',
               textAlign: 'center',
-              maxWidth: '900px',
             }}
           >
-            {/* Logo */}
-            {logoImageSrc && (
-              <img
-                src={logoImageSrc}
-                alt="Minted Merch"
-                style={{
-                  width: '120px',
-                  height: '120px',
-                  objectFit: 'contain',
-                  marginBottom: '30px',
-                }}
-              />
-            )}
-            
-            {/* Title */}
+            {/* "STAKE TO EARN" Title */}
             <div
               style={{
-                fontSize: '56px',
+                fontSize: '72px',
                 fontWeight: 'bold',
                 color: '#3eb489',
                 marginBottom: '30px',
                 textTransform: 'uppercase',
               }}
             >
-              STAKE TO EARN $mintedmerch
+              STAKE TO EARN
             </div>
             
-            {/* Subtitle */}
-            <div
-              style={{
-                fontSize: '28px',
-                color: '#ffffff',
-                marginBottom: '40px',
-                lineHeight: '1.4',
-                maxWidth: '800px',
-              }}
-            >
-              Where Staking Meets Merch! Stake 50M+ $mintedmerch to unlock exclusive benefits!
-            </div>
-            
-            {/* Benefits Box */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                backgroundColor: 'rgba(62, 180, 137, 0.15)',
-                border: '2px solid #3eb489',
-                borderRadius: '20px',
-                padding: '30px 50px',
-                alignItems: 'center',
-              }}
-            >
-              <div style={{ fontSize: '24px', color: '#3eb489', marginBottom: '15px' }}>
-                🎁 Collab Partnerships • Custom Orders • Chat Access • 15% Off
+            {/* $MINTEDMERCH Ticker Logo */}
+            {tickerLogoSrc ? (
+              <img
+                src={tickerLogoSrc}
+                alt="$MINTEDMERCH"
+                style={{
+                  height: '80px',
+                  objectFit: 'contain',
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  fontSize: '56px',
+                  fontWeight: 'bold',
+                  color: '#3eb489',
+                }}
+              >
+                $MINTEDMERCH
               </div>
-              <div style={{ fontSize: '20px', color: '#888' }}>
-                Spin daily for merch packs & $mintedmerch rewards!
-              </div>
-            </div>
+            )}
           </div>
           
-          {/* Username badge if provided */}
-          {username && (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '30px',
-                left: '30px',
-                backgroundColor: 'rgba(62, 180, 137, 0.2)',
-                border: '2px solid #3eb489',
-                borderRadius: '12px',
-                padding: '15px 25px',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <span style={{ fontSize: '20px', color: '#3eb489' }}>
-                @{username} • {stakedAmount} staked
-              </span>
-            </div>
-          )}
-          
-          {/* Logo watermark in bottom right */}
+          {/* Logo in Bottom Right Corner */}
           <div
             style={{
               position: 'absolute',
-              bottom: '30px',
-              right: '30px',
-              fontSize: '18px',
-              color: '#3eb489',
-              opacity: 0.7,
+              bottom: '60px',
+              right: '60px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
             }}
           >
-            app.mintedmerch.shop/stake
+            {logoImageSrc && (
+              <div
+                style={{
+                  width: '100px',
+                  height: '100px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                  marginBottom: '10px',
+                }}
+              >
+                <img
+                  src={logoImageSrc}
+                  alt="Minted Merch"
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    objectFit: 'contain',
+                  }}
+                />
+              </div>
+            )}
+            <div
+              style={{
+                fontSize: '16px',
+                color: '#3eb489',
+                opacity: 0.8,
+              }}
+            >
+              app.mintedmerch.shop/stake
+            </div>
           </div>
         </div>
       ),
@@ -184,9 +174,8 @@ export async function GET(request) {
             fontFamily: 'Arial, sans-serif',
           }}
         >
-          <div style={{ fontSize: 80, color: '#3eb489' }}>💰</div>
-          <div style={{ fontSize: 48, marginTop: 20, color: '#3eb489' }}>STAKE TO EARN</div>
-          <div style={{ fontSize: 32, color: '#3eb489', marginTop: 20 }}>$mintedmerch</div>
+          <div style={{ fontSize: 72, color: '#3eb489', fontWeight: 'bold' }}>STAKE TO EARN</div>
+          <div style={{ fontSize: 56, color: '#3eb489', marginTop: 20 }}>$MINTEDMERCH</div>
         </div>
       ),
       {
@@ -196,4 +185,3 @@ export async function GET(request) {
     );
   }
 }
-

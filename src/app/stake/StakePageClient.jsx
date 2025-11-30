@@ -7,7 +7,7 @@ import { haptics } from '@/lib/haptics';
 import Link from 'next/link';
 
 // Staking terminal deep link URL
-const STAKING_TERMINAL_URL = 'https://tunnel.betrmint.fun';
+const STAKING_TERMINAL_URL = 'https://betrmint.fun/mm-stake';
 // Coin mini app URL
 const COIN_MINIAPP_URL = 'https://coin.mintedmerch.shop';
 
@@ -101,13 +101,15 @@ export function StakePageClient() {
     }
   };
 
-  // Handle opening coin mini app
+  // Handle opening coin mini app (opens as mini app, not external browser)
   const handleOpenCoinMiniApp = async () => {
     await haptics.light(isInFarcaster);
     try {
-      if (isInFarcaster && sdk?.actions?.openUrl) {
-        // Use Farcaster SDK to open mini app URL (stays in Farcaster)
-        await sdk.actions.openUrl(COIN_MINIAPP_URL);
+      if (isInFarcaster && sdk?.actions?.openMiniApp) {
+        // Use Farcaster SDK to open as mini app (stays in Farcaster)
+        await sdk.actions.openMiniApp({
+          url: COIN_MINIAPP_URL
+        });
       } else {
         // Fallback to regular navigation
         window.location.href = COIN_MINIAPP_URL;
@@ -130,7 +132,7 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
       if (isInFarcaster && sdk?.actions?.composeCast) {
         await sdk.actions.composeCast({
           text: shareText,
-          embeds: [{ url: shareUrl }]
+          embeds: [shareUrl]
         });
       } else if (navigator.share) {
         await navigator.share({
@@ -220,24 +222,38 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
         padding: '24px',
         marginBottom: '20px'
       }}>
-        {/* Title */}
-        <h1 style={{
-          fontSize: '28px',
-          fontWeight: 'bold',
-          color: '#3eb489',
-          textAlign: 'center',
-          marginBottom: '16px',
-          textTransform: 'uppercase'
-        }}>
-          STAKE TO EARN $mintedmerch
-        </h1>
-
-        {/* Separator Line */}
+        {/* Title with image */}
         <div style={{
-          width: '60px',
+          textAlign: 'center',
+          marginBottom: '16px'
+        }}>
+          <span style={{
+            fontSize: '28px',
+            fontWeight: 'bold',
+            color: '#3eb489',
+            textTransform: 'uppercase'
+          }}>
+            STAKE TO EARN
+          </span>
+          <div style={{ marginTop: '8px' }}>
+            <img 
+              src="/mintedmerch-logo-ticker.png" 
+              alt="$MINTEDMERCH" 
+              style={{ 
+                height: '32px', 
+                objectFit: 'contain',
+                display: 'inline-block'
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Full Width Separator Line */}
+        <div style={{
+          width: '100%',
           height: '2px',
           backgroundColor: '#3eb489',
-          margin: '0 auto 16px auto'
+          marginBottom: '16px'
         }} />
 
         {/* Tagline */}
@@ -351,7 +367,7 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
             gap: '8px'
           }}
         >
-          {stakingData?.staking?.is_staker ? 'Manage Stake' : 'Start Staking'} 💰
+          {stakingData?.staking?.is_staker ? 'Manage Stake' : 'Start Staking'}
         </button>
       </div>
 
