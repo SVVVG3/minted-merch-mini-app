@@ -9,7 +9,7 @@ import Link from 'next/link';
 const STAKING_TERMINAL_URL = 'https://tunnel.betrmint.fun';
 
 export function StakePageClient() {
-  const { isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl } = useFarcaster();
+  const { isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, getSessionToken } = useFarcaster();
   const [stakingData, setStakingData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,9 +24,28 @@ export function StakePageClient() {
         return;
       }
 
+      // 🔒 SECURITY: Get session token for authenticated request
+      const sessionToken = getSessionToken();
+      if (!sessionToken) {
+        console.log('⚠️ No session token available - showing default state');
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const response = await fetch(`/api/staking/user?fid=${fid}`);
+        const response = await fetch(`/api/staking/user?fid=${fid}`, {
+          headers: {
+            'Authorization': `Bearer ${sessionToken}`
+          }
+        });
         const data = await response.json();
+        
+        if (response.status === 401 || response.status === 403) {
+          console.warn('🚫 Authentication failed for staking data');
+          setError(null); // Don't show error, just default state
+          setIsLoading(false);
+          return;
+        }
         
         if (data.success) {
           setStakingData(data);
@@ -42,7 +61,7 @@ export function StakePageClient() {
     }
 
     loadStakingData();
-  }, [isReady, getFid]);
+  }, [isReady, getFid, getSessionToken]);
 
   // Format large numbers
   const formatNumber = (num) => {

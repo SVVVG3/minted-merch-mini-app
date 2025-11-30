@@ -1,23 +1,35 @@
-// API: Get staking details for a user (public endpoint)
+// API: Get staking details for authenticated user
 // GET /api/staking/user?fid=<user_fid>
+// 
+// SECURITY: Users can only access their own staking data.
+// Requires JWT authentication via Authorization header.
 
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, supabase } from '@/lib/supabase';
 import { getUserStakingDetails, getUserStakedBalance } from '@/lib/stakingBalanceAPI';
+import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const fid = searchParams.get('fid');
+    const requestedFid = searchParams.get('fid');
 
-    if (!fid) {
+    if (!requestedFid) {
       return NextResponse.json(
         { error: 'FID is required' },
         { status: 400 }
       );
     }
 
-    console.log(`📊 Fetching staking data for FID ${fid}`);
+    // SECURITY: Verify user is authenticated and requesting their own data
+    const authenticatedFid = await getAuthenticatedFid(request);
+    const authError = requireOwnFid(authenticatedFid, requestedFid);
+    if (authError) {
+      return authError; // Returns 401 or 403 response
+    }
+
+    const fid = requestedFid;
+    console.log(`📊 Fetching staking data for authenticated FID ${fid}`);
 
     const client = supabaseAdmin || supabase;
     
