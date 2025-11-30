@@ -22,12 +22,20 @@ export async function GET(request) {
   try {
     const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
     
-    // Fetch the custom staking embed image (user's custom design)
+    // Fetch the custom staking embed image
     let stakingImageSrc = null;
     try {
       stakingImageSrc = await fetchImageAsDataUrl(`${baseUrl}/StakingEmbedImage.png`);
     } catch (error) {
       console.error('Error fetching staking image:', error);
+    }
+    
+    // Fetch logo image for bottom right corner
+    let logoImageSrc = null;
+    try {
+      logoImageSrc = await fetchImageAsDataUrl(`${baseUrl}/logo.png`);
+    } catch (error) {
+      console.error('Error fetching logo:', error);
     }
     
     return new ImageResponse(
@@ -40,8 +48,10 @@ export async function GET(request) {
             alignItems: 'center',
             justifyContent: 'center',
             backgroundColor: '#000000',
+            position: 'relative',
           }}
         >
+          {/* Main Staking Image */}
           {stakingImageSrc ? (
             <img
               src={stakingImageSrc}
@@ -82,6 +92,43 @@ export async function GET(request) {
                 }}
               >
                 $MINTEDMERCH
+              </div>
+            </div>
+          )}
+          
+          {/* Logo in Bottom Right Corner */}
+          {logoImageSrc && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '30px',
+                right: '30px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <div
+                style={{
+                  width: '100px',
+                  height: '100px',
+                  borderRadius: '16px',
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid rgba(62, 180, 137, 0.5)',
+                }}
+              >
+                <img
+                  src={logoImageSrc}
+                  alt="Minted Merch"
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    objectFit: 'contain',
+                  }}
+                />
               </div>
             </div>
           )}
