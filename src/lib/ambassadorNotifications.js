@@ -1,7 +1,8 @@
 // Ambassador notification system
 // Handles sending Farcaster notifications for ambassador activities
+// OPTIMIZED: Now uses batch API for multi-user notifications to reduce credit consumption
 
-import { sendNotificationWithNeynar } from './neynar.js';
+import { sendBatchNotificationWithNeynar, sendNotificationWithNeynar } from './neynar.js';
 import { supabaseAdmin } from './supabase.js';
 
 /**
@@ -32,6 +33,7 @@ export async function getAllActiveAmbassadors() {
 
 /**
  * Send new bounty notification to all active ambassadors
+ * OPTIMIZED: Uses batch API - 1 API call instead of N calls (where N = number of ambassadors)
  * @param {object} bountyData - The bounty data (from database)
  * @returns {Promise<object>} Summary of notification results
  */
@@ -70,26 +72,31 @@ export async function sendNewBountyNotification(bountyData) {
       targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/ambassador?from=new_bounty&t=${Date.now()}`
     };
 
-    console.log(`📤 Sending notifications to ${ambassadorFids.length} ambassadors...`);
+    console.log(`📤 Sending BATCH notification to ${ambassadorFids.length} ambassadors (1 API call)...`);
 
-    // Send notifications to all ambassadors
-    const results = await Promise.allSettled(
-      ambassadorFids.map(fid => sendNotificationWithNeynar(fid, message))
-    );
+    // OPTIMIZED: Single batch API call instead of N individual calls
+    // Before: 10 ambassadors = 10 API calls = 1,000 credits
+    // After: 10 ambassadors = 1 API call = 100 credits
+    const batchResult = await sendBatchNotificationWithNeynar(ambassadorFids, message);
 
-    // Count successes and failures
-    const successCount = results.filter(r => 
-      r.status === 'fulfilled' && r.value.success && !r.value.skipped
-    ).length;
-    const skippedCount = results.filter(r => 
-      r.status === 'fulfilled' && r.value.skipped
-    ).length;
-    const failureCount = results.length - successCount - skippedCount;
+    // Count successes and failures from batch result
+    let successCount = 0;
+    let skippedCount = 0;
+    let failureCount = 0;
+
+    if (batchResult.success && batchResult.results) {
+      successCount = batchResult.results.filter(r => r.success && !r.skipped).length;
+      skippedCount = batchResult.results.filter(r => r.skipped).length;
+      failureCount = batchResult.results.filter(r => !r.success && !r.skipped).length;
+    } else {
+      failureCount = ambassadorFids.length;
+    }
 
     console.log(`📊 New bounty notification results:`);
     console.log(`   ✅ Successful: ${successCount}`);
     console.log(`   ⏭️ Skipped: ${skippedCount}`);
     console.log(`   ❌ Failed: ${failureCount}`);
+    console.log(`   🚀 API calls: 1 (instead of ${ambassadorFids.length})`);
 
     return {
       success: true,
