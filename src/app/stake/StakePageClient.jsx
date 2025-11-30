@@ -3,10 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { haptics } from '@/lib/haptics';
 import Link from 'next/link';
 
 // Staking terminal deep link URL
 const STAKING_TERMINAL_URL = 'https://tunnel.betrmint.fun';
+// Coin mini app URL
+const COIN_MINIAPP_URL = 'https://coin.mintedmerch.shop';
 
 export function StakePageClient() {
   const { isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, getSessionToken } = useFarcaster();
@@ -76,8 +79,14 @@ export function StakePageClient() {
     return num.toLocaleString();
   };
 
+  // Handle back to shop
+  const handleBackToShop = async () => {
+    await haptics.light(isInFarcaster);
+  };
+
   // Handle opening the staking terminal
   const handleOpenStakingTerminal = async () => {
+    await haptics.medium(isInFarcaster);
     try {
       if (isInFarcaster && sdk?.actions?.openUrl) {
         // Use Farcaster SDK to open external URL
@@ -92,10 +101,30 @@ export function StakePageClient() {
     }
   };
 
+  // Handle opening coin mini app
+  const handleOpenCoinMiniApp = async () => {
+    await haptics.light(isInFarcaster);
+    try {
+      if (isInFarcaster && sdk?.actions?.openUrl) {
+        // Use Farcaster SDK to open mini app URL (stays in Farcaster)
+        await sdk.actions.openUrl(COIN_MINIAPP_URL);
+      } else {
+        // Fallback to regular navigation
+        window.location.href = COIN_MINIAPP_URL;
+      }
+    } catch (err) {
+      console.error('Error opening coin mini app:', err);
+      window.location.href = COIN_MINIAPP_URL;
+    }
+  };
+
   // Handle sharing stake page
   const handleShare = async () => {
+    await haptics.light(isInFarcaster);
     const shareUrl = 'https://app.mintedmerch.shop/stake';
-    const shareText = '💰 Stake $mintedmerch to earn rewards and unlock exclusive merch benefits!';
+    const shareText = `Minted Merch - Where Staking Meets Merch
+
+Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and have a chance to win bonuses of 100K, daily Yield Jackpots of 1M, and physical merch packs shipped to you at no cost!`;
     
     try {
       if (isInFarcaster && sdk?.actions?.composeCast) {
@@ -134,14 +163,18 @@ export function StakePageClient() {
         justifyContent: 'space-between',
         marginBottom: '20px'
       }}>
-        <Link href="/" style={{
-          color: '#3eb489',
-          textDecoration: 'none',
-          fontSize: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
+        <Link 
+          href="/" 
+          onClick={handleBackToShop}
+          style={{
+            color: '#3eb489',
+            textDecoration: 'none',
+            fontSize: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
           ← Back to Shop
         </Link>
         
@@ -152,7 +185,7 @@ export function StakePageClient() {
             alignItems: 'center',
             justifyContent: 'center',
             gap: '8px',
-            backgroundColor: '#6A3CFF',
+            backgroundColor: '#8B5CF6',
             border: 'none',
             borderRadius: '8px',
             padding: '10px 16px',
@@ -163,16 +196,15 @@ export function StakePageClient() {
           }}
         >
           Share
-          {/* Official Farcaster Logo (2024 rebrand) */}
-          <svg style={{ width: '16px', height: '16px' }} viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M88.75 0H431.25L520 88.75V368.25L431.25 457H88.75L0 368.25V88.75L88.75 0Z" fill="white"/>
-            <path d="M148.75 118.75H371.25V338.25H325V198.75H267.5V338.25H195V198.75H148.75V118.75Z" fill="#6A3CFF"/>
+          {/* Official Farcaster Arch Logo */}
+          <svg style={{ width: '18px', height: '18px' }} viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
           </svg>
         </button>
       </div>
 
-      {/* Logo - Using Spinner Logo for better horizontal fit */}
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+      {/* Logo - Using Spinner Logo, centered */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
         <img 
           src="/MintedMerchSpinnerLogo.png" 
           alt="Minted Merch" 
@@ -194,11 +226,19 @@ export function StakePageClient() {
           fontWeight: 'bold',
           color: '#3eb489',
           textAlign: 'center',
-          marginBottom: '24px',
+          marginBottom: '16px',
           textTransform: 'uppercase'
         }}>
           STAKE TO EARN $mintedmerch
         </h1>
+
+        {/* Separator Line */}
+        <div style={{
+          width: '60px',
+          height: '2px',
+          backgroundColor: '#3eb489',
+          margin: '0 auto 16px auto'
+        }} />
 
         {/* Tagline */}
         <p style={{
@@ -305,7 +345,6 @@ export function StakePageClient() {
             fontSize: '18px',
             fontWeight: 'bold',
             cursor: 'pointer',
-            marginBottom: '16px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -314,14 +353,6 @@ export function StakePageClient() {
         >
           {stakingData?.staking?.is_staker ? 'Manage Stake' : 'Start Staking'} 💰
         </button>
-
-        <p style={{
-          fontSize: '12px',
-          color: '#666',
-          textAlign: 'center'
-        }}>
-          Opens the Staking Terminal in a new window
-        </p>
       </div>
 
       {/* Prizes Section */}
@@ -349,25 +380,26 @@ export function StakePageClient() {
         </p>
       </div>
 
-      {/* More Info Link */}
+      {/* More Info Button */}
       <div style={{
         textAlign: 'center',
         marginTop: '20px'
       }}>
-        <a
-          href="https://docs.mintedmerch.shop/staking"
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={handleOpenCoinMiniApp}
           style={{
+            background: 'transparent',
+            border: 'none',
             color: '#3eb489',
             textDecoration: 'underline',
-            fontSize: '14px'
+            fontSize: '14px',
+            cursor: 'pointer',
+            padding: '8px'
           }}
         >
           More Info →
-        </a>
+        </button>
       </div>
     </div>
   );
 }
-
