@@ -234,19 +234,34 @@ export async function sendDailyCheckInReminders() {
     currentDate.setDate(currentDate.getDate() - 1);
     const yesterdayCheckInDay = currentDate.toISOString().split('T')[0];
     
-    console.log(`🔄 Resetting stale streaks (last_checkin_date < ${yesterdayCheckInDay})...`);
+    console.log(`🔄 Resetting stale streaks (last_checkin_date < ${yesterdayCheckInDay} AND checkin_streak > 0)...`);
     
     const adminClient = supabaseAdmin || supabase;
-    const { error: resetError, count: resetCount } = await adminClient
+    
+    // First, count how many will be reset (for accurate logging)
+    const { count: staleCount, error: countError } = await adminClient
+      .from('user_leaderboard')
+      .select('user_fid', { count: 'exact', head: true })
+      .lt('last_checkin_date', yesterdayCheckInDay)
+      .gt('checkin_streak', 0);
+    
+    if (countError) {
+      console.error('❌ Error counting stale streaks:', countError);
+    } else {
+      console.log(`📊 Found ${staleCount || 0} users with stale streaks to reset`);
+    }
+    
+    // Now perform the reset (only on users with streak > 0)
+    const { error: resetError } = await adminClient
       .from('user_leaderboard')
       .update({ checkin_streak: 0 })
       .lt('last_checkin_date', yesterdayCheckInDay)
-      .select('user_fid', { count: 'exact', head: true });
+      .gt('checkin_streak', 0);
       
     if (resetError) {
       console.error('❌ Error resetting stale streaks:', resetError);
     } else {
-      console.log(`✅ Reset ${resetCount || 0} stale streaks to 0`);
+      console.log(`✅ Reset ${staleCount || 0} stale streaks to 0`);
     }
 
     // Get users who need reminders
