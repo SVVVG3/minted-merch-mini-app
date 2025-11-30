@@ -187,7 +187,7 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
             alignItems: 'center',
             justifyContent: 'center',
             gap: '8px',
-            backgroundColor: '#8B5CF6',
+            backgroundColor: '#6A3CFF',
             border: 'none',
             borderRadius: '8px',
             padding: '10px 16px',
