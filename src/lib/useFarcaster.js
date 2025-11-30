@@ -1,56 +1,52 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { sdk } from './frame';
+import { useMiniApp } from '@neynar/react';
 import { useProfile, useSignIn } from '@farcaster/auth-kit';
 
 export function useFarcaster() {
-  const [context, setContext] = useState(null);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isInFarcaster, setIsInFarcaster] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [sessionToken, setSessionToken] = useState(null);
   const hasAttemptedMiniAppAuth = useRef(false); // Track if we've tried to get Mini App token
+  
+  // Use Neynar's MiniAppProvider for SDK access (enables analytics tracking)
+  const { isSDKLoaded, context: neynarContext, sdk } = useMiniApp();
+  
+  // Derive state from Neynar's context
+  const context = neynarContext;
+  const isInFarcaster = isSDKLoaded && !!neynarContext;
   
   // AuthKit profile and sign-in data for non-mini-app environments
   const { isAuthenticated: isAuthKitAuthenticated, profile: authKitProfile} = useProfile();
   const { data: authKitData, validSignature } = useSignIn(); // Get signature data
 
   useEffect(() => {
-    async function loadContext() {
-      try {
-        const farcasterContext = await sdk.context;
-        
-        setContext(farcasterContext);
-        setIsInFarcaster(!!farcasterContext);
-        
-        if (farcasterContext && farcasterContext.user) {
-          setUser(farcasterContext.user);
-          setIsReady(true);
-        } else if (farcasterContext) {
-          // We're in Farcaster but no user data - try alternate locations
-          if (farcasterContext.client?.user) {
-            setUser(farcasterContext.client.user);
-          } else if (window.farcasterUser) {
-            setUser(window.farcasterUser);
-          }
-          setIsReady(true);
-        } else {
-          // Not in Farcaster mini app environment
-          setIsReady(true);
-        }
-      } catch (error) {
-        console.error('Error loading Farcaster context:', error.message);
-        setIsInFarcaster(false);
-        setIsReady(true);
-      } finally {
-        setIsLoading(false);
-      }
+    // Use Neynar's context instead of direct SDK
+    if (!isSDKLoaded) {
+      setIsLoading(true);
+      return;
     }
-
-    loadContext();
-  }, []);
+    
+    setIsLoading(false);
+    
+    if (neynarContext && neynarContext.user) {
+      setUser(neynarContext.user);
+      setIsReady(true);
+    } else if (neynarContext) {
+      // We're in Farcaster but no user data - try alternate locations
+      if (neynarContext.client?.user) {
+        setUser(neynarContext.client.user);
+      } else if (typeof window !== 'undefined' && window.farcasterUser) {
+        setUser(window.farcasterUser);
+      }
+      setIsReady(true);
+    } else {
+      // Not in Farcaster mini app environment
+      setIsReady(true);
+    }
+  }, [isSDKLoaded, neynarContext]);
 
   // If user signed in via AuthKit (non-mini-app), use that profile
   useEffect(() => {
@@ -164,7 +160,7 @@ export function useFarcaster() {
     }
     
     getMiniAppSession();
-  }, [isInFarcaster, user?.fid, sessionToken]);
+  }, [isInFarcaster, user?.fid, sessionToken, sdk]);
   
   // Get session token for Desktop/AuthKit with signature verification
   useEffect(() => {
