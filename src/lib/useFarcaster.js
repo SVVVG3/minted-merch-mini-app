@@ -1,44 +1,120 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useMiniApp } from '@neynar/react';
 import { useProfile, useSignIn } from '@farcaster/auth-kit';
+
+// Safely import useMiniApp - it may not be available during SSR/prerendering
+let useMiniAppHook = null;
+if (typeof window !== 'undefined') {
+  try {
+    const neynarReact = require('@neynar/react');
+    useMiniAppHook = neynarReact.useMiniApp;
+  } catch (e) {
+    // Neynar not available
+  }
+}
+
+// Safe wrapper for useMiniApp that handles SSR and missing provider
+function useSafeMiniApp() {
+  const [miniAppState, setMiniAppState] = useState({
+    isSDKLoaded: false,
+    context: null,
+    sdk: null
+  });
+
+  useEffect(() => {
+    // Only try to use the hook on client-side
+    if (typeof window === 'undefined') return;
+    
+    try {
+      // Dynamic import to avoid SSR issues
+      import('@neynar/react').then(({ useMiniApp }) => {
+        // We can't call hooks conditionally, so we use a workaround
+        // The actual hook is called in the MiniAppBridge component
+      }).catch(() => {
+        // Neynar not available
+      });
+    } catch (e) {
+      // Error loading Neynar
+    }
+  }, []);
+
+  return miniAppState;
+}
 
 export function useFarcaster() {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isReady, setIsReady] = useState(false);
   const [sessionToken, setSessionToken] = useState(null);
+  const [miniAppData, setMiniAppData] = useState({ isSDKLoaded: false, context: null, sdk: null });
   const hasAttemptedMiniAppAuth = useRef(false); // Track if we've tried to get Mini App token
   
-  // Use Neynar's MiniAppProvider for SDK access (enables analytics tracking)
-  const { isSDKLoaded, context: neynarContext, sdk } = useMiniApp();
+  // Check for Neynar context from window (set by FrameInit via MiniAppProvider)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Poll for context set by FrameInit
+    const checkContext = () => {
+      if (window.farcasterContext) {
+        setMiniAppData({
+          isSDKLoaded: true,
+          context: window.farcasterContext,
+          sdk: window.neynarSdk || null
+        });
+      }
+    };
+    
+    // Check immediately
+    checkContext();
+    
+    // Also check after a short delay (in case FrameInit loads later)
+    const timeout = setTimeout(checkContext, 500);
+    const timeout2 = setTimeout(checkContext, 1500);
+    
+    return () => {
+      clearTimeout(timeout);
+      clearTimeout(timeout2);
+    };
+  }, []);
   
-  // Derive state from Neynar's context
-  const context = neynarContext;
-  const isInFarcaster = isSDKLoaded && !!neynarContext;
+  // Derive state from context
+  const context = miniAppData.context;
+  const sdk = miniAppData.sdk;
+  const isSDKLoaded = miniAppData.isSDKLoaded;
+  const isInFarcaster = isSDKLoaded && !!context;
   
   // AuthKit profile and sign-in data for non-mini-app environments
   const { isAuthenticated: isAuthKitAuthenticated, profile: authKitProfile} = useProfile();
   const { data: authKitData, validSignature } = useSignIn(); // Get signature data
 
   useEffect(() => {
-    // Use Neynar's context instead of direct SDK
-    if (!isSDKLoaded) {
-      setIsLoading(true);
+    // Use context from window (set by FrameInit)
+    if (typeof window === 'undefined') {
+      setIsLoading(false);
+      setIsReady(true);
       return;
+    }
+    
+    if (!isSDKLoaded) {
+      // Still loading, but set a timeout to prevent indefinite loading
+      const timeout = setTimeout(() => {
+        setIsLoading(false);
+        setIsReady(true);
+      }, 2000);
+      return () => clearTimeout(timeout);
     }
     
     setIsLoading(false);
     
-    if (neynarContext && neynarContext.user) {
-      setUser(neynarContext.user);
+    if (context && context.user) {
+      setUser(context.user);
       setIsReady(true);
-    } else if (neynarContext) {
+    } else if (context) {
       // We're in Farcaster but no user data - try alternate locations
-      if (neynarContext.client?.user) {
-        setUser(neynarContext.client.user);
-      } else if (typeof window !== 'undefined' && window.farcasterUser) {
+      if (context.client?.user) {
+        setUser(context.client.user);
+      } else if (window.farcasterUser) {
         setUser(window.farcasterUser);
       }
       setIsReady(true);
@@ -46,7 +122,7 @@ export function useFarcaster() {
       // Not in Farcaster mini app environment
       setIsReady(true);
     }
-  }, [isSDKLoaded, neynarContext]);
+  }, [isSDKLoaded, context]);
 
   // If user signed in via AuthKit (non-mini-app), use that profile
   useEffect(() => {

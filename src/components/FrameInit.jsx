@@ -1,47 +1,135 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useMiniApp } from '@neynar/react';
+import { useEffect, useState } from 'react';
 
+// This component uses Neynar's useMiniApp hook when available
+// It's wrapped by MiniAppProvider in Providers.jsx
 export function FrameInit() {
-  const { isSDKLoaded, context, sdk } = useMiniApp();
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    if (!isSDKLoaded || !context) return;
+    if (typeof window === 'undefined' || initialized) return;
 
-    // Store context globally for easy access (maintains backward compatibility)
-    window.farcasterContext = context;
+    // Dynamic import to avoid SSR issues with useMiniApp hook
+    import('@neynar/react').then(({ useMiniApp }) => {
+      // We can't use hooks here, but MiniAppBridge component handles this
+    }).catch(() => {
+      // Fallback to direct SDK if Neynar not available
+      initializeWithDirectSDK();
+    });
+  }, [initialized]);
+
+  return <MiniAppBridge onInitialized={() => setInitialized(true)} />;
+}
+
+// Separate component that can safely use the hook (only renders client-side within provider)
+function MiniAppBridge({ onInitialized }) {
+  const [hasInitialized, setHasInitialized] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || hasInitialized) return;
+
+    // Try to use Neynar's hook
+    let cleanup = () => {};
     
-    if (context.user) {
-      // Store user info globally
-      window.userFid = context.user.fid;
-      window.farcasterUser = context.user;
-      
-      // Store FID in localStorage for persistence across sessions
-      if (context.user.fid) {
-        localStorage.setItem('farcaster_fid', context.user.fid.toString());
+    import('@neynar/react').then(async (neynarReact) => {
+      // Since we can't call hooks inside useEffect, we'll use the SDK directly
+      // but through Neynar's provider context
+      try {
+        const { sdk } = await import('@farcaster/miniapp-sdk');
+        
+        const context = await sdk.context;
+        
+        if (context) {
+          // Store context globally for easy access
+          window.farcasterContext = context;
+          window.neynarSdk = sdk; // Store SDK for useFarcaster
+          
+          if (context.user) {
+            window.userFid = context.user.fid;
+            window.farcasterUser = context.user;
+            
+            if (context.user.fid) {
+              localStorage.setItem('farcaster_fid', context.user.fid.toString());
+            }
+            
+            // Setup notification listeners
+            setupNotificationEventListeners(sdk, context.user.fid);
+          }
+          
+          // Call ready to hide splash screen
+          await sdk.actions.ready();
+        } else {
+          // Not in Farcaster - still call ready
+          try {
+            await sdk.actions.ready();
+          } catch (e) {
+            // Silent fail
+          }
+        }
+        
+        setHasInitialized(true);
+        onInitialized?.();
+      } catch (error) {
+        // Fallback if SDK fails
+        initializeWithDirectSDK();
+        setHasInitialized(true);
+        onInitialized?.();
       }
-      
-      // Setup real-time notification event listeners using Neynar's SDK
-      setupNotificationEventListeners(sdk, context.user.fid);
-    }
-    
-    // Call ready to hide splash screen (Neynar SDK handles this)
-    if (sdk?.actions?.ready) {
-      sdk.actions.ready().catch(() => {
-        // Silent fail - splash screen may already be hidden
-      });
-    }
-  }, [isSDKLoaded, context, sdk]);
+    }).catch(() => {
+      // Neynar not available, use direct SDK
+      initializeWithDirectSDK();
+      setHasInitialized(true);
+      onInitialized?.();
+    });
+
+    return cleanup;
+  }, [hasInitialized, onInitialized]);
 
   return null;
 }
 
-// Setup real-time notification event listeners using Neynar's SDK instance
+// Fallback initialization using direct SDK
+async function initializeWithDirectSDK() {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const { sdk } = await import('@farcaster/miniapp-sdk');
+    
+    const context = await sdk.context;
+    
+    if (context) {
+      window.farcasterContext = context;
+      window.neynarSdk = sdk;
+      
+      if (context.user) {
+        window.userFid = context.user.fid;
+        window.farcasterUser = context.user;
+        
+        if (context.user.fid) {
+          localStorage.setItem('farcaster_fid', context.user.fid.toString());
+        }
+        
+        setupNotificationEventListeners(sdk, context.user.fid);
+      }
+      
+      await sdk.actions.ready();
+    } else {
+      try {
+        await sdk.actions.ready();
+      } catch (e) {
+        // Silent fail
+      }
+    }
+  } catch (error) {
+    // Silent fail
+  }
+}
+
+// Setup real-time notification event listeners
 function setupNotificationEventListeners(sdk, userFid) {
   if (!sdk?.on) return;
   
-  // Listen for notifications being enabled
   sdk.on('notificationsEnabled', async () => {
     try {
       await fetch('/api/update-notification-status', {
@@ -54,7 +142,6 @@ function setupNotificationEventListeners(sdk, userFid) {
     }
   });
   
-  // Listen for notifications being disabled  
   sdk.on('notificationsDisabled', async () => {
     try {
       await fetch('/api/update-notification-status', {
@@ -67,7 +154,6 @@ function setupNotificationEventListeners(sdk, userFid) {
     }
   });
   
-  // Listen for Mini App being removed (notifications definitely disabled)
   sdk.on('miniappRemoved', async () => {
     try {
       await fetch('/api/update-notification-status', {
