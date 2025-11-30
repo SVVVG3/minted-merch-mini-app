@@ -14,7 +14,7 @@ export async function generateMetadata() {
     version: "next",
     imageUrl: ogImageUrl,
     button: {
-      title: "Stake $mintedmerch 💰",
+      title: "Stake $mintedmerch",
       action: {
         type: "launch_frame",
         url: `${baseUrl}/stake`,

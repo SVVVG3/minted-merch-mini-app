@@ -235,12 +235,12 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
           }}>
             STAKE TO EARN
           </span>
-          <div style={{ marginTop: '8px' }}>
+          <div style={{ marginTop: '12px' }}>
             <img 
               src="/mintedmerch-logo-ticker.png" 
               alt="$MINTEDMERCH" 
               style={{ 
-                height: '32px', 
+                height: '80px', 
                 objectFit: 'contain',
                 display: 'inline-block'
               }}
