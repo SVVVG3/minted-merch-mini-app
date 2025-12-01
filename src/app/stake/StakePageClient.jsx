@@ -5,6 +5,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { haptics } from '@/lib/haptics';
 import Link from 'next/link';
+import { StakingLaunchMint } from '@/components/StakingLaunchMint';
 
 // Staking terminal deep link URL
 const STAKING_TERMINAL_URL = 'https://betrmint.fun/mm-stake';
@@ -339,6 +340,9 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
           {stakingData?.staking?.is_staker ? 'Spin To Claim' : 'Start Staking'}
         </button>
       </div>
+
+      {/* Staking Launch Celebration NFT Mint */}
+      <StakingLaunchMint />
 
       {/* Benefits Section - Where Staking Meets Merch */}
       <div style={{
