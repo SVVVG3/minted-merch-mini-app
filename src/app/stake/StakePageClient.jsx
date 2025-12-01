@@ -205,7 +205,7 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
         </button>
       </div>
 
-      {/* Main Staking Card */}
+      {/* Main Staking Card - Title, Stats, Button */}
       <div style={{
         backgroundColor: 'rgba(62, 180, 137, 0.1)',
         border: '2px solid #3eb489',
@@ -244,30 +244,8 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
           width: '100%',
           height: '2px',
           backgroundColor: '#3eb489',
-          marginBottom: '16px'
-        }} />
-
-        {/* Tagline */}
-        <p style={{
-          fontSize: '18px',
-          color: '#3eb489',
-          textAlign: 'center',
-          fontWeight: '600',
-          marginBottom: '16px'
-        }}>
-          Where Staking Meets Merch!
-        </p>
-
-        {/* Description */}
-        <p style={{
-          fontSize: '16px',
-          color: '#fff',
-          textAlign: 'center',
-          lineHeight: '1.6',
           marginBottom: '24px'
-        }}>
-          Stake 50M+ $mintedmerch to unlock exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
-        </p>
+        }} />
 
         {/* User Stats */}
         {isLoading ? (
@@ -360,6 +338,33 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
         >
           {stakingData?.staking?.is_staker ? 'Spin To Claim' : 'Start Staking'}
         </button>
+      </div>
+
+      {/* Benefits Section - Where Staking Meets Merch */}
+      <div style={{
+        backgroundColor: 'rgba(62, 180, 137, 0.1)',
+        border: '2px solid #3eb489',
+        borderRadius: '16px',
+        padding: '24px',
+        marginBottom: '20px'
+      }}>
+        <p style={{
+          fontSize: '18px',
+          color: '#3eb489',
+          textAlign: 'center',
+          fontWeight: '600',
+          marginBottom: '16px'
+        }}>
+          Where Staking Meets Merch!
+        </p>
+        <p style={{
+          fontSize: '16px',
+          color: '#fff',
+          textAlign: 'center',
+          lineHeight: '1.6'
+        }}>
+          Stake 50M+ $mintedmerch to unlock exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
+        </p>
       </div>
 
       {/* Prizes Section */}
