@@ -124,7 +124,7 @@ export function StakingLaunchMint() {
             body: JSON.stringify({
               transactionHash: mintTxHash,
               walletAddress,
-              tokenId: campaign?.tokenId || '1',
+              tokenId: campaign?.tokenId || '0',
             }),
           });
 
@@ -212,7 +212,7 @@ export function StakingLaunchMint() {
         },
         body: JSON.stringify({
           walletAddress,
-          tokenId: campaign?.tokenId || 1,
+          tokenId: campaign?.tokenId || 0,
         }),
       });
 
@@ -261,7 +261,7 @@ export function StakingLaunchMint() {
         functionName: 'claim',
         args: [
           walletAddress,
-          BigInt(campaign?.tokenId || 1),
+          BigInt(campaign?.tokenId || 0),
           BigInt(1),
           currency,
           BigInt(pricePerToken),
