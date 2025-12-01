@@ -433,17 +433,6 @@ export function StakingLaunchMint() {
       padding: '24px',
       marginBottom: '20px'
     }}>
-      {/* Header */}
-      <h3 style={{
-        fontSize: '20px',
-        fontWeight: 'bold',
-        color: '#3eb489',
-        textAlign: 'center',
-        marginBottom: '16px'
-      }}>
-        🚀 Staking Launch Celebration
-      </h3>
-
       {/* NFT Image */}
       <div style={{
         position: 'relative',
@@ -504,7 +493,7 @@ export function StakingLaunchMint() {
             {isMintConfirming ? 'Confirming...' :
              isMintTxPending ? 'Approve in wallet...' :
              isMinting ? 'Preparing...' :
-             canMint ? 'Mint NFT 🚀' : '❌ Mint Unavailable'}
+             canMint ? 'Mint' : '❌ Mint Unavailable'}
           </button>
 
           {mintError && (

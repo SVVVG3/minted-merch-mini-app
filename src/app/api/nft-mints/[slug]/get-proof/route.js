@@ -103,40 +103,29 @@ export async function POST(request, { params }) {
       );
       console.log(`[${requestId}]    Currency:`, claimParams.currency);
 
-      if (claimParams.allowlistProof) {
-        console.log(
-          `[${requestId}]    Proof length:`,
-          claimParams.allowlistProof.proof?.length || 0
-        );
+      const proofLength = claimParams.allowlistProof?.proof?.length || 0;
+      console.log(`[${requestId}]    Proof length:`, proofLength);
+      
+      // For public mints (no allowlist), proof will be empty - that's okay!
+      // The contract itself determines eligibility based on claim conditions
+      if (proofLength === 0) {
+        console.log(`[${requestId}] ℹ️ No allowlist proof - this is a public mint`);
       }
 
-      // Check if wallet is on allowlist
-      if (
-        !claimParams.allowlistProof ||
-        !claimParams.allowlistProof.proof ||
-        claimParams.allowlistProof.proof.length === 0
-      ) {
-        console.log(
-          `[${requestId}] ❌ No allowlist proof - wallet may not be eligible`
-        );
-        return NextResponse.json(
-          { error: "Your wallet is not on the allowlist for this mint." },
-          { status: 403 }
-        );
-      }
-
-      // Return claim params as-is (convert BigInt to string for JSON serialization)
+      // Return claim params (convert BigInt to string for JSON serialization)
+      // For public mints, allowlistProof will have empty/default values
       return NextResponse.json({
         pricePerToken: claimParams.pricePerToken?.toString() || "0",
         currency: claimParams.currency,
         allowlistProof: {
-          proof: claimParams.allowlistProof.proof,
+          proof: claimParams.allowlistProof?.proof || [],
           quantityLimitPerWallet:
-            claimParams.allowlistProof.quantityLimitPerWallet?.toString() ||
-            "1",
+            claimParams.allowlistProof?.quantityLimitPerWallet?.toString() ||
+            "0", // 0 means unlimited for public mints
           pricePerToken:
-            claimParams.allowlistProof.pricePerToken?.toString() || "0",
-          currency: claimParams.allowlistProof.currency,
+            claimParams.allowlistProof?.pricePerToken?.toString() || 
+            claimParams.pricePerToken?.toString() || "0",
+          currency: claimParams.allowlistProof?.currency || claimParams.currency,
         },
       });
     } catch (thirdwebError) {
