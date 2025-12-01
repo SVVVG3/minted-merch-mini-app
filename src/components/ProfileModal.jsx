@@ -431,7 +431,7 @@ export function ProfileModal({ isOpen, onClose }) {
                 )}
               </div>
 
-              {/* Staking Section */}
+              {/* Staking Section - TEMPORARILY HIDDEN until staking launch
               <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-4 shadow-sm">
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center space-x-3">
@@ -467,6 +467,7 @@ export function ProfileModal({ isOpen, onClose }) {
                   </button>
                 </div>
               </div>
+              */}
               
               {/* Ambassador Dashboard Link */}
               {isAmbassador && (
