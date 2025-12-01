@@ -296,7 +296,7 @@ export function StakingLaunchMint() {
       setMintError(null);
 
       const shareText = campaign?.metadata?.shareText || 
-        `🚀 Just minted my Staking Launch Day NFT!\n\nCelebrating the launch of $mintedmerch staking - mint yours and claim 100K tokens! 👇`;
+        `Just minted this commemorative NFT to celebrate the launch of $mintedmerch staking!\n\nEarn rewards & win prizes! Stake 50M+ to unlock exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.\n\nMint yours and claim 100K tokens! 👇`;
       const sharePageUrl = `${window.location.origin}/share/${CAMPAIGN_SLUG}`;
 
       const shareResult = await shareToFarcaster({
@@ -560,7 +560,7 @@ export function StakingLaunchMint() {
           >
             {isClaimConfirming ? 'Confirming...' :
              isClaimTxPending ? 'Approve in wallet...' :
-             'Claim 100K $mintedmerch 💰'}
+             'Claim 100K $mintedmerch'}
           </button>
 
           {claimError && (
@@ -580,10 +580,10 @@ export function StakingLaunchMint() {
           textAlign: 'center'
         }}>
           <p style={{ color: '#3eb489', fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>
-            ✅ Complete!
+            Mint & Claim Complete!
           </p>
           <p style={{ color: '#888', fontSize: '14px' }}>
-            You've minted the NFT and claimed 100K $mintedmerch!
+            You've minted the commemorative NFT and claimed 100K $mintedmerch - thank you for celebrating with us!
           </p>
         </div>
       )}
