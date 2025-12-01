@@ -306,13 +306,22 @@ export async function sendDailyCheckInReminders() {
     // Step 2: Group users by message type
     const messageGroups = new Map();
     
+    let skippedNoStreak = 0;
+    
     for (const userFid of userFids) {
       const userData = allLeaderboardData.find(d => d.user_fid === userFid);
       const currentStreak = userData?.checkin_streak || 0;
-      const totalPoints = userData?.total_points || 0;
+      
+      // OPTIMIZATION: Skip users with no active streak (currentStreak === 0)
+      // These users have very low engagement (<1% open rate) and account for ~75% of notifications
+      // This saves ~500K+ Neynar credits per day
+      if (currentStreak === 0) {
+        skippedNoStreak++;
+        continue;
+      }
       
       // Determine message body - OPTIMIZED: Use ranges instead of exact numbers to reduce API calls
-      // This reduces message groups from ~63 to 6, saving ~90% on Neynar API calls
+      // Now only 4 groups (streak holders only)
       let messageBody;
       if (currentStreak >= 30) {
         messageBody = "🏆 Legendary streak! You're in the top 1% - keep it going!";
@@ -320,12 +329,8 @@ export async function sendDailyCheckInReminders() {
         messageBody = "🔥 You're on fire! Don't break your streak - spin now!";
       } else if (currentStreak >= 3) {
         messageBody = "⚡ Nice streak! Keep it going - spin for bonus points!";
-      } else if (currentStreak >= 1) {
-        messageBody = "🎯 Keep your streak going! Spin now to continue!";
-      } else if (totalPoints > 0) {
-        messageBody = "🎲 Daily spin available! Keep moving up the leaderboard!";
       } else {
-        messageBody = "Spin the wheel to earn points and be entered into raffles for FREE merch!";
+        messageBody = "🎯 Keep your streak going! Spin now to continue!";
       }
       
       // Group users by message body
@@ -334,6 +339,10 @@ export async function sendDailyCheckInReminders() {
       }
       messageGroups.get(messageBody).push(userFid);
     }
+    
+    console.log(`⏭️ Skipped ${skippedNoStreak} users with no active streak (0-day streak)`);
+    const totalToNotify = userFids.length - skippedNoStreak;
+    console.log(`📬 Will notify ${totalToNotify} users with active streaks`);
     
     console.log(`📊 Grouped users into ${messageGroups.size} message types`);
     messageGroups.forEach((fids, message) => {
@@ -974,12 +983,22 @@ export async function sendAfternoonCheckInReminders() {
     
     const messageGroups = new Map();
     
+    let skippedNoStreak = 0;
+    
     for (const userFid of userFids) {
       const userData = allLeaderboardData.find(d => d.user_fid === userFid);
       const currentStreak = userData?.checkin_streak || 0;
-      const totalPoints = userData?.total_points || 0;
+      
+      // OPTIMIZATION: Skip users with no active streak (currentStreak === 0)
+      // These users have very low engagement (<1% open rate) and account for ~75% of notifications
+      // This saves ~500K+ Neynar credits per day
+      if (currentStreak === 0) {
+        skippedNoStreak++;
+        continue;
+      }
       
       // OPTIMIZED: Use ranges instead of exact numbers to reduce API calls
+      // Now only 4 groups (streak holders only)
       let messageBody;
       if (currentStreak >= 30) {
         messageBody = "🏆 Legendary streak! Don't forget to check in before 8 AM PST!";
@@ -987,12 +1006,8 @@ export async function sendAfternoonCheckInReminders() {
         messageBody = "🔥 You're on fire! Check in before 8 AM PST tomorrow!";
       } else if (currentStreak >= 3) {
         messageBody = "⚡ Nice streak! Don't forget to check in today!";
-      } else if (currentStreak >= 1) {
-        messageBody = "🎯 Keep your streak going! Check in today!";
-      } else if (totalPoints > 0) {
-        messageBody = "🎲 Daily spin available! Keep moving up the leaderboard!";
       } else {
-        messageBody = "🎡 Afternoon reminder: Spin the wheel today to earn points!";
+        messageBody = "🎯 Keep your streak going! Check in today!";
       }
       
       if (!messageGroups.has(messageBody)) {
@@ -1000,6 +1015,10 @@ export async function sendAfternoonCheckInReminders() {
       }
       messageGroups.get(messageBody).push(userFid);
     }
+    
+    console.log(`⏭️ Skipped ${skippedNoStreak} users with no active streak (0-day streak)`);
+    const totalToNotify = userFids.length - skippedNoStreak;
+    console.log(`📬 Will notify ${totalToNotify} users with active streaks`);
     
     const { sendBatchNotificationWithNeynar } = await import('./neynar.js');
     const allResults = [];
@@ -1115,12 +1134,22 @@ export async function sendEveningCheckInReminders() {
     
     const messageGroups = new Map();
     
+    let skippedNoStreak = 0;
+    
     for (const userFid of userFids) {
       const userData = allLeaderboardData.find(d => d.user_fid === userFid);
       const currentStreak = userData?.checkin_streak || 0;
-      const totalPoints = userData?.total_points || 0;
+      
+      // OPTIMIZATION: Skip users with no active streak (currentStreak === 0)
+      // These users have very low engagement (<1% open rate) and account for ~75% of notifications
+      // This saves ~500K+ Neynar credits per day
+      if (currentStreak === 0) {
+        skippedNoStreak++;
+        continue;
+      }
       
       // OPTIMIZED: Use ranges instead of exact numbers to reduce API calls
+      // Now only 4 groups (streak holders only)
       let messageBody;
       if (currentStreak >= 30) {
         messageBody = "🏆 Last chance! Don't lose your legendary streak - spin now!";
@@ -1128,12 +1157,8 @@ export async function sendEveningCheckInReminders() {
         messageBody = "🔥 Don't lose your streak! Check in before 8 AM PST tomorrow!";
       } else if (currentStreak >= 3) {
         messageBody = "⚡ Keep your streak alive! Check in before 8 AM PST tomorrow!";
-      } else if (currentStreak >= 1) {
-        messageBody = "🎯 Don't break your streak! Check in before 8 AM PST tomorrow!";
-      } else if (totalPoints > 0) {
-        messageBody = "🎲 Final reminder! Spin the wheel before 8 AM PST tomorrow!";
       } else {
-        messageBody = "⏰ Last chance today! Spin the wheel before 8 AM PST to earn points!";
+        messageBody = "🎯 Don't break your streak! Check in before 8 AM PST tomorrow!";
       }
       
       if (!messageGroups.has(messageBody)) {
@@ -1141,6 +1166,10 @@ export async function sendEveningCheckInReminders() {
       }
       messageGroups.get(messageBody).push(userFid);
     }
+    
+    console.log(`⏭️ Skipped ${skippedNoStreak} users with no active streak (0-day streak)`);
+    const totalToNotify = userFids.length - skippedNoStreak;
+    console.log(`📬 Will notify ${totalToNotify} users with active streaks`);
     
     const { sendBatchNotificationWithNeynar } = await import('./neynar.js');
     const allResults = [];
