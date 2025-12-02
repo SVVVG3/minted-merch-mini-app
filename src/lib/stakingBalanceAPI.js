@@ -166,6 +166,128 @@ export async function getGlobalTotalStaked() {
   }
 }
 
+/**
+ * Get all staker balances as a map of wallet address -> balance
+ * Used for enriching leaderboard data with live staking info
+ * @returns {Promise<Map<string, number>>} Map of lowercase wallet address to staked balance
+ */
+export async function getAllStakerBalances() {
+  try {
+    const query = `
+      query GetAllStakerBalances {
+        stakerBalances(first: 1000, orderBy: timestamp_, orderDirection: desc) {
+          staker
+          balance
+          timestamp_
+        }
+      }
+    `;
+
+    const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query })
+    });
+
+    if (!response.ok) {
+      throw new Error(`GraphQL request failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.errors) {
+      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+    }
+
+    const stakerBalances = result.data?.stakerBalances || [];
+    
+    // Get latest balance per staker
+    const balanceMap = new Map();
+    for (const entry of stakerBalances) {
+      const staker = entry.staker.toLowerCase();
+      if (!balanceMap.has(staker)) {
+        balanceMap.set(staker, parseFloat(entry.balance) / Math.pow(10, 18));
+      }
+    }
+
+    console.log(`📊 Loaded ${balanceMap.size} staker balances from subgraph`);
+    return balanceMap;
+
+  } catch (error) {
+    console.error('📊 Error fetching all staker balances:', error);
+    return new Map();
+  }
+}
+
+/**
+ * Get staking statistics (total staked and unique staker count) from live subgraph
+ * @returns {Promise<{totalStaked: number, uniqueStakers: number}>}
+ */
+export async function getStakingStats() {
+  try {
+    // Query all staker balances
+    const query = `
+      query GetStakingStats {
+        stakerBalances(first: 1000, orderBy: timestamp_, orderDirection: desc) {
+          staker
+          balance
+          timestamp_
+        }
+      }
+    `;
+
+    const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query })
+    });
+
+    if (!response.ok) {
+      throw new Error(`GraphQL request failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.errors) {
+      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+    }
+
+    const stakerBalances = result.data?.stakerBalances || [];
+    
+    // Get latest balance per staker (since subgraph stores historical entries)
+    const latestBalancePerStaker = new Map();
+    for (const entry of stakerBalances) {
+      const staker = entry.staker.toLowerCase();
+      // Since ordered by timestamp desc, first entry per staker is the latest
+      if (!latestBalancePerStaker.has(staker)) {
+        latestBalancePerStaker.set(staker, parseFloat(entry.balance) / Math.pow(10, 18));
+      }
+    }
+    
+    // Sum up latest balances and count active stakers (balance > 0)
+    let totalStaked = 0;
+    let uniqueStakers = 0;
+    for (const balance of latestBalancePerStaker.values()) {
+      if (balance > 0) {
+        totalStaked += balance;
+        uniqueStakers++;
+      }
+    }
+
+    console.log(`📊 Staking stats from subgraph: ${totalStaked.toLocaleString()} tokens across ${uniqueStakers} active stakers`);
+
+    return { totalStaked, uniqueStakers };
+
+  } catch (error) {
+    console.error('📊 Error querying staking stats:', error);
+    return { totalStaked: 0, uniqueStakers: 0 };
+  }
+}
+
 export async function getUserStakingDetails(walletAddresses) {
   if (!walletAddresses || walletAddresses.length === 0) {
     return {

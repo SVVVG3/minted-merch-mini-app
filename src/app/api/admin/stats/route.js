@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { withAdminAuth } from '@/lib/adminAuth';
 import { formatPSTTime, getCurrent8AMPST } from '@/lib/timezone';
+import { getGlobalTotalStaked, getStakingStats } from '@/lib/stakingBalanceAPI';
 
 // Use service role client to bypass RLS for admin endpoints
 const supabaseAdmin = createClient(
@@ -222,36 +223,9 @@ export const GET = withAdminAuth(async (request) => {
       console.error('Error fetching total revenue:', revenueError);
     }
 
-    // Get staking statistics
-    // Count users with staked tokens (staked_balance > 0)
-    const { count: walletsStaked, error: walletsStakedError } = await supabaseAdmin
-      .from('profiles')
-      .select('fid', { count: 'exact', head: true })
-      .gt('staked_balance', 0);
-
-    if (walletsStakedError) {
-      console.error('Error fetching wallets staked count:', walletsStakedError);
-    }
-
-    // Get total amount of $MINTEDMERCH staked
-    const { data: stakedData, error: stakedError } = await supabaseAdmin
-      .from('profiles')
-      .select('staked_balance')
-      .gt('staked_balance', 0);
-
-    let totalStaked = 0;
-    if (!stakedError && stakedData) {
-      totalStaked = stakedData.reduce((sum, profile) => {
-        const balance = parseFloat(profile.staked_balance) || 0;
-        return sum + balance;
-      }, 0);
-    }
-
-    if (stakedError) {
-      console.error('Error fetching total staked:', stakedError);
-    }
-
-    console.log(`📊 Staking stats: ${walletsStaked || 0} wallets with ${totalStaked.toLocaleString()} tokens staked`);
+    // Get staking statistics from LIVE subgraph (not stale database)
+    const { totalStaked, uniqueStakers: walletsStaked } = await getStakingStats();
+    console.log(`📊 Live staking stats from subgraph: ${walletsStaked} wallets with ${totalStaked.toLocaleString()} tokens staked`);
 
     // Get pending bounty submissions count
     const { count: pendingSubmissions, error: submissionsError } = await supabaseAdmin
