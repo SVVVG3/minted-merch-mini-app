@@ -284,10 +284,10 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
               textAlign: 'center'
             }}>
               <div style={{ color: '#888', fontSize: '12px', marginBottom: '4px' }}>
-                Rewards Claimed
+                Total Staked
               </div>
               <div style={{ color: '#3eb489', fontSize: '24px', fontWeight: 'bold' }}>
-                {stakingData.staking.rewards_claimed_formatted}
+                {stakingData.staking.global_total_staked_formatted || '0'}
               </div>
               <div style={{ color: '#666', fontSize: '12px' }}>
                 $mintedmerch

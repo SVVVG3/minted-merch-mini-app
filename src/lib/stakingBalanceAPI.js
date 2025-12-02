@@ -89,6 +89,55 @@ export async function getUserStakedBalance(walletAddresses) {
  * @param {Array<string>} walletAddresses - User's wallet addresses
  * @returns {Promise<Object>} Detailed staking info
  */
+/**
+ * Get the global total staked across all users
+ * @returns {Promise<number>} Total staked balance in tokens (not wei)
+ */
+export async function getGlobalTotalStaked() {
+  try {
+    // Query all staker balances and sum them
+    const query = `
+      query GetGlobalStaked {
+        stakerBalances(first: 1000, orderBy: balance, orderDirection: desc) {
+          balance
+        }
+      }
+    `;
+
+    const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query })
+    });
+
+    if (!response.ok) {
+      throw new Error(`GraphQL request failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.errors) {
+      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+    }
+
+    const stakerBalances = result.data?.stakerBalances || [];
+    const totalStaked = stakerBalances.reduce((sum, stakerBalance) => {
+      const balance = parseFloat(stakerBalance.balance) / Math.pow(10, 18);
+      return sum + balance;
+    }, 0);
+
+    console.log(`📊 Global total staked: ${totalStaked.toLocaleString()} tokens across ${stakerBalances.length} stakers`);
+
+    return totalStaked;
+
+  } catch (error) {
+    console.error('📊 Error querying global staked balance:', error);
+    return 0;
+  }
+}
+
 export async function getUserStakingDetails(walletAddresses) {
   if (!walletAddresses || walletAddresses.length === 0) {
     return {

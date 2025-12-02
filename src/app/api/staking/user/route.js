@@ -6,7 +6,7 @@
 
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, supabase } from '@/lib/supabase';
-import { getUserStakingDetails, getUserStakedBalance } from '@/lib/stakingBalanceAPI';
+import { getUserStakingDetails, getUserStakedBalance, getGlobalTotalStaked } from '@/lib/stakingBalanceAPI';
 import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 export async function GET(request) {
@@ -42,6 +42,14 @@ export async function GET(request) {
 
     if (profileError) {
       console.log(`ℹ️ No profile found for FID ${fid}, returning zero staking data`);
+      // Still fetch global staked even for new users
+      const globalTotalStaked = await getGlobalTotalStaked();
+      const formatNumber = (num) => {
+        if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(2) + 'B';
+        if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + 'M';
+        if (num >= 1_000) return (num / 1_000).toFixed(2) + 'K';
+        return num.toLocaleString();
+      };
       return NextResponse.json({
         success: true,
         user: {
@@ -53,8 +61,8 @@ export async function GET(request) {
         staking: {
           total_staked: 0,
           total_staked_formatted: '0',
-          rewards_claimed: 0,
-          rewards_claimed_formatted: '0',
+          global_total_staked: globalTotalStaked,
+          global_total_staked_formatted: formatNumber(globalTotalStaked),
           is_staker: false,
           stake_count: 0
         },
@@ -90,6 +98,9 @@ export async function GET(request) {
       stakingDetails = await getUserStakingDetails(walletAddresses);
     }
 
+    // Get global total staked across all users
+    const globalTotalStaked = await getGlobalTotalStaked();
+
     // Format numbers for display
     const formatNumber = (num) => {
       if (num >= 1_000_000_000) {
@@ -114,9 +125,8 @@ export async function GET(request) {
       staking: {
         total_staked: stakingDetails.totalStaked || profile.staked_balance || 0,
         total_staked_formatted: formatNumber(stakingDetails.totalStaked || profile.staked_balance || 0),
-        // Note: Rewards data would need to come from the subgraph - for now using placeholder
-        rewards_claimed: 0, // TODO: Query rewards from subgraph when available
-        rewards_claimed_formatted: '0',
+        global_total_staked: globalTotalStaked,
+        global_total_staked_formatted: formatNumber(globalTotalStaked),
         is_staker: (stakingDetails.totalStaked || profile.staked_balance || 0) > 0,
         stake_count: stakingDetails.stakes?.length || 0
       },
