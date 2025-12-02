@@ -171,6 +171,7 @@ export const GET = withAdminAuth(async (request, context) => {
     // Fetch LIVE staking balances from subgraph
     console.log('📊 Fetching live staking balances from subgraph...');
     const liveStakerBalances = await getAllStakerBalances();
+    console.log(`📊 Subgraph returned ${liveStakerBalances.size} staker balances`);
     
     // Build a map of FID -> live staked balance by matching wallet addresses
     // First, get all wallet addresses for all users in our dataset
@@ -178,41 +179,60 @@ export const GET = withAdminAuth(async (request, context) => {
       isHoldingsQuery ? entry.fid : entry.user_fid
     ).filter(fid => fid);
     
-    // Fetch all profiles with wallet addresses
-    const { data: profilesWithWallets, error: walletsError } = await supabaseAdmin
-      .from('profiles')
-      .select('fid, all_wallet_addresses')
-      .in('fid', allFids);
+    console.log(`📊 Need to fetch wallet addresses for ${allFids.length} FIDs`);
     
-    if (walletsError) {
-      console.error('Error fetching wallet addresses:', walletsError);
+    // Fetch all profiles with wallet addresses in batches (Supabase .in() has limits)
+    const BATCH_SIZE = 500;
+    let allProfilesWithWallets = [];
+    
+    for (let i = 0; i < allFids.length; i += BATCH_SIZE) {
+      const batchFids = allFids.slice(i, i + BATCH_SIZE);
+      const { data: batchProfiles, error: batchError } = await supabaseAdmin
+        .from('profiles')
+        .select('fid, all_wallet_addresses')
+        .in('fid', batchFids);
+      
+      if (batchError) {
+        console.error(`Error fetching wallet addresses batch ${i / BATCH_SIZE + 1}:`, batchError);
+      } else if (batchProfiles) {
+        allProfilesWithWallets = allProfilesWithWallets.concat(batchProfiles);
+      }
     }
+    
+    console.log(`📊 Fetched ${allProfilesWithWallets.length} profiles with wallet addresses`);
     
     // Create FID -> live staked balance map
     const fidToLiveStakedBalance = new Map();
-    if (profilesWithWallets) {
-      for (const profile of profilesWithWallets) {
-        let walletAddresses = [];
-        try {
-          walletAddresses = Array.isArray(profile.all_wallet_addresses)
-            ? profile.all_wallet_addresses
-            : JSON.parse(profile.all_wallet_addresses || '[]');
-        } catch (e) {
-          walletAddresses = [];
-        }
-        
-        // Sum up staked balances for all wallet addresses
-        let totalStaked = 0;
-        for (const wallet of walletAddresses) {
-          if (typeof wallet === 'string' && wallet.startsWith('0x')) {
-            const balance = liveStakerBalances.get(wallet.toLowerCase()) || 0;
-            totalStaked += balance;
-          }
-        }
-        fidToLiveStakedBalance.set(profile.fid, totalStaked);
+    let matchedWallets = 0;
+    let totalMatchedBalance = 0;
+    
+    for (const profile of allProfilesWithWallets) {
+      let walletAddresses = [];
+      try {
+        walletAddresses = Array.isArray(profile.all_wallet_addresses)
+          ? profile.all_wallet_addresses
+          : JSON.parse(profile.all_wallet_addresses || '[]');
+      } catch (e) {
+        walletAddresses = [];
       }
+      
+      // Sum up staked balances for all wallet addresses
+      let totalStaked = 0;
+      for (const wallet of walletAddresses) {
+        if (typeof wallet === 'string' && wallet.startsWith('0x')) {
+          const balance = liveStakerBalances.get(wallet.toLowerCase()) || 0;
+          if (balance > 0) {
+            matchedWallets++;
+            totalMatchedBalance += balance;
+          }
+          totalStaked += balance;
+        }
+      }
+      fidToLiveStakedBalance.set(profile.fid, totalStaked);
     }
+    
     console.log(`📊 Mapped live staking balances for ${fidToLiveStakedBalance.size} users`);
+    console.log(`📊 Found ${matchedWallets} wallets with staked balance, total: ${totalMatchedBalance.toLocaleString()} tokens`);
     
     // Transform the data to flatten profile information, add token holdings, and apply multipliers
     const transformedData = leaderboardData.map((entry, index) => {
