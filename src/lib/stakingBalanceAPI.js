@@ -64,15 +64,29 @@ export async function getUserStakedBalance(walletAddresses) {
       throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
     }
 
-    // Sum up all staked balances for the user's wallets
+    // IMPORTANT: Only use the LATEST balance per wallet (subgraph stores historical entries)
     const stakerBalances = result.data?.stakerBalances || [];
-    const totalStaked = stakerBalances.reduce((sum, stakerBalance) => {
-      // Convert from wei to tokens (divide by 10^18)
-      const balance = parseFloat(stakerBalance.balance) / Math.pow(10, 18);
-      return sum + balance;
-    }, 0);
+    const latestBalancePerWallet = new Map();
+    
+    for (const entry of stakerBalances) {
+      const wallet = entry.staker.toLowerCase();
+      const timestamp = parseInt(entry.timestamp_);
+      // Keep only the entry with the highest timestamp for each wallet
+      if (!latestBalancePerWallet.has(wallet) || timestamp > latestBalancePerWallet.get(wallet).timestamp) {
+        latestBalancePerWallet.set(wallet, {
+          balance: parseFloat(entry.balance) / Math.pow(10, 18),
+          timestamp: timestamp
+        });
+      }
+    }
+    
+    // Sum up latest balances only
+    let totalStaked = 0;
+    for (const { balance } of latestBalancePerWallet.values()) {
+      totalStaked += balance;
+    }
 
-    console.log(`📊 Total staked balance: ${totalStaked.toLocaleString()} tokens across ${stakerBalances.length} wallet(s)`);
+    console.log(`📊 Total staked balance: ${totalStaked.toLocaleString()} tokens across ${latestBalancePerWallet.size} wallet(s)`);
 
     return totalStaked;
 
@@ -95,11 +109,13 @@ export async function getUserStakedBalance(walletAddresses) {
  */
 export async function getGlobalTotalStaked() {
   try {
-    // Query all staker balances and sum them
+    // Query all staker balances - need to get staker address to dedupe
     const query = `
       query GetGlobalStaked {
-        stakerBalances(first: 1000, orderBy: balance, orderDirection: desc) {
+        stakerBalances(first: 1000, orderBy: timestamp_, orderDirection: desc) {
+          staker
           balance
+          timestamp_
         }
       }
     `;
@@ -123,12 +139,24 @@ export async function getGlobalTotalStaked() {
     }
 
     const stakerBalances = result.data?.stakerBalances || [];
-    const totalStaked = stakerBalances.reduce((sum, stakerBalance) => {
-      const balance = parseFloat(stakerBalance.balance) / Math.pow(10, 18);
-      return sum + balance;
-    }, 0);
+    
+    // IMPORTANT: Only use the LATEST balance per staker (subgraph stores historical entries)
+    const latestBalancePerStaker = new Map();
+    for (const entry of stakerBalances) {
+      const staker = entry.staker.toLowerCase();
+      // Since ordered by timestamp desc, first entry per staker is the latest
+      if (!latestBalancePerStaker.has(staker)) {
+        latestBalancePerStaker.set(staker, parseFloat(entry.balance) / Math.pow(10, 18));
+      }
+    }
+    
+    // Sum up latest balances
+    let totalStaked = 0;
+    for (const balance of latestBalancePerStaker.values()) {
+      totalStaked += balance;
+    }
 
-    console.log(`📊 Global total staked: ${totalStaked.toLocaleString()} tokens across ${stakerBalances.length} stakers`);
+    console.log(`📊 Global total staked: ${totalStaked.toLocaleString()} tokens across ${latestBalancePerStaker.size} unique stakers`);
 
     return totalStaked;
 
@@ -187,14 +215,26 @@ export async function getUserStakingDetails(walletAddresses) {
     }
 
     const stakerBalances = result.data?.stakerBalances || [];
-    const formattedBalances = stakerBalances.map(balance => ({
-      wallet: balance.staker,
-      amount: parseFloat(balance.balance) / Math.pow(10, 18),
-      timestamp: new Date(parseInt(balance.timestamp_) * 1000).toISOString(),
-      id: balance.id
-    }));
-
+    
+    // IMPORTANT: Only use the LATEST balance per wallet (subgraph stores historical entries)
+    // Since results are ordered by timestamp desc, first entry per wallet is the latest
+    const latestBalancePerWallet = new Map();
+    for (const entry of stakerBalances) {
+      const wallet = entry.staker.toLowerCase();
+      if (!latestBalancePerWallet.has(wallet)) {
+        latestBalancePerWallet.set(wallet, {
+          wallet: wallet,
+          amount: parseFloat(entry.balance) / Math.pow(10, 18),
+          timestamp: new Date(parseInt(entry.timestamp_) * 1000).toISOString(),
+          id: entry.id
+        });
+      }
+    }
+    
+    const formattedBalances = Array.from(latestBalancePerWallet.values());
     const totalStaked = formattedBalances.reduce((sum, balance) => sum + balance.amount, 0);
+
+    console.log(`📊 User staked balance: ${totalStaked.toLocaleString()} tokens across ${formattedBalances.length} wallet(s)`);
 
     return {
       totalStaked,
