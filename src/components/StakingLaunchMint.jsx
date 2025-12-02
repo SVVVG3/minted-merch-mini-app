@@ -204,14 +204,45 @@ export function StakingLaunchMint() {
   // Watch for Wagmi errors
   useEffect(() => {
     if (mintWriteError) {
-      setMintError(mintWriteError.message || 'Transaction failed');
+      // Clean up error messages for better UX
+      let errorMessage = 'Transaction failed';
+      const rawMessage = mintWriteError.message || '';
+      
+      if (rawMessage.includes('User rejected') || rawMessage.includes('user rejected')) {
+        errorMessage = 'Transaction cancelled';
+      } else if (rawMessage.includes('insufficient funds')) {
+        errorMessage = 'Insufficient funds for transaction';
+      } else if (rawMessage.includes('nonce')) {
+        errorMessage = 'Transaction error - please try again';
+      } else if (rawMessage.length > 100) {
+        // Truncate very long error messages
+        errorMessage = 'Transaction failed - please try again';
+      } else {
+        errorMessage = rawMessage;
+      }
+      
+      setMintError(errorMessage);
       setIsMinting(false);
     }
   }, [mintWriteError]);
 
   useEffect(() => {
     if (claimWriteError) {
-      setClaimError(claimWriteError.message || 'Transaction failed');
+      // Clean up error messages for better UX
+      let errorMessage = 'Transaction failed';
+      const rawMessage = claimWriteError.message || '';
+      
+      if (rawMessage.includes('User rejected') || rawMessage.includes('user rejected')) {
+        errorMessage = 'Transaction cancelled';
+      } else if (rawMessage.includes('insufficient funds')) {
+        errorMessage = 'Insufficient funds for gas';
+      } else if (rawMessage.length > 100) {
+        errorMessage = 'Claim failed - please try again';
+      } else {
+        errorMessage = rawMessage;
+      }
+      
+      setClaimError(errorMessage);
     }
   }, [claimWriteError]);
 
