@@ -134,6 +134,7 @@ export function StakingLaunchMint() {
             // Reset flow states for this new mint cycle
             setHasShared(false);
             setHasClaimed(false);
+            setMintError(null);
             // Update user status - increment count, check if can still mint more
             setUserStatus(prev => {
               const newCount = (prev?.mintCount || 0) + 1;
@@ -142,13 +143,21 @@ export function StakingLaunchMint() {
               return { 
                 ...prev, 
                 hasMinted: true, 
+                hasShared: false,
+                hasClaimed: false,
                 mintCount: newCount,
                 canMint: isUnlimited || newCount < limit
               };
             });
+          } else {
+            // API returned an error - show it to user
+            const errorData = await response.json().catch(() => ({}));
+            console.error('Error recording mint:', errorData);
+            setMintError(errorData.error || 'Failed to record mint. Please try again.');
           }
         } catch (err) {
           console.error('Error recording mint:', err);
+          setMintError('Failed to record mint. Please try again.');
         } finally {
           setIsMinting(false);
         }
@@ -633,6 +642,12 @@ export function StakingLaunchMint() {
              isMinting ? 'Preparing...' :
              `Mint Again (${userStatus?.mintCount || 0}/${userStatus?.mintLimit || '∞'})`}
           </button>
+
+          {mintError && (
+            <p style={{ color: '#ef4444', fontSize: '14px', textAlign: 'center', marginTop: '12px' }}>
+              {mintError}
+            </p>
+          )}
         </>
       )}
 
