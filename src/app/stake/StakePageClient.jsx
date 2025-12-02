@@ -212,7 +212,7 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
         border: '2px solid #3eb489',
         borderRadius: '16px',
         padding: '24px',
-        marginBottom: '20px'
+        marginBottom: '10px'
       }}>
         {/* Title with image */}
         <div style={{
@@ -223,7 +223,7 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
             src="/StakeToEarnTitle.png" 
             alt="STAKE TO EARN" 
             style={{ 
-              height: '40px', 
+              height: '80px', 
               objectFit: 'contain',
               display: 'inline-block'
             }}
