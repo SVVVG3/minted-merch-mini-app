@@ -131,7 +131,21 @@ export function StakingLaunchMint() {
           if (response.ok) {
             const data = await response.json();
             setClaimId(data.claim.id);
-            setUserStatus(prev => ({ ...prev, hasMinted: true, canMint: false }));
+            // Reset flow states for this new mint cycle
+            setHasShared(false);
+            setHasClaimed(false);
+            // Update user status - increment count, check if can still mint more
+            setUserStatus(prev => {
+              const newCount = (prev?.mintCount || 0) + 1;
+              const limit = prev?.mintLimit;
+              const isUnlimited = !limit || limit === 0;
+              return { 
+                ...prev, 
+                hasMinted: true, 
+                mintCount: newCount,
+                canMint: isUnlimited || newCount < limit
+              };
+            });
           }
         } catch (err) {
           console.error('Error recording mint:', err);
@@ -158,6 +172,17 @@ export function StakingLaunchMint() {
             body: JSON.stringify({ transactionHash: claimTxHash }),
           });
           setHasClaimed(true);
+          
+          // Re-fetch campaign to get updated canMint status
+          const headers = {};
+          if (sessionToken) {
+            headers['Authorization'] = `Bearer ${sessionToken}`;
+          }
+          const refreshResponse = await fetch(`/api/nft-mints/${CAMPAIGN_SLUG}`, { headers });
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            setUserStatus(refreshData.userStatus);
+          }
         } catch (err) {
           console.error('Error marking claimed:', err);
         }
@@ -571,8 +596,48 @@ export function StakingLaunchMint() {
         </>
       )}
 
-      {/* STATE 4: Claimed - Success */}
-      {hasClaimed && (
+      {/* STATE 4a: Claimed and can mint more - show success + mint again button */}
+      {hasClaimed && userStatus?.canMint && (
+        <>
+          <div style={{
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            borderRadius: '12px',
+            padding: '16px',
+            textAlign: 'center',
+            marginBottom: '16px'
+          }}>
+            <p style={{ color: '#3eb489', fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>
+              Mint & Claim Complete!
+            </p>
+            <p style={{ color: '#888', fontSize: '14px' }}>
+              You've minted the commemorative NFT and claimed 100K $mintedmerch - thank you for celebrating with us!
+            </p>
+          </div>
+          <button
+            onClick={handleMint}
+            disabled={isMintingProcess}
+            style={{
+              width: '100%',
+              backgroundColor: '#fff',
+              color: '#000',
+              border: 'none',
+              borderRadius: '12px',
+              padding: '14px 24px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              cursor: isMintingProcess ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {isMintConfirming ? 'Confirming...' :
+             isMintTxPending ? 'Approve in wallet...' :
+             isMinting ? 'Preparing...' :
+             `Mint Again (${userStatus?.mintCount || 0}/${userStatus?.mintLimit || '∞'})`}
+          </button>
+        </>
+      )}
+
+      {/* STATE 4b: Claimed and reached limit - show complete */}
+      {hasClaimed && !userStatus?.canMint && (
         <div style={{
           backgroundColor: 'rgba(0,0,0,0.3)',
           borderRadius: '12px',
