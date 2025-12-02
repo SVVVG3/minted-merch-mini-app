@@ -177,6 +177,8 @@ export async function POST(request, { params }) {
     // This prevents users from claiming tokens without actually minting the NFT
     console.log(`🔍 Verifying transaction on-chain: ${transactionHash}`);
     
+    let actualQuantity = 0; // Will be set from on-chain verification
+    
     try {
       const { createPublicClient, http } = await import('viem');
       const { base } = await import('viem/chains');
@@ -227,11 +229,81 @@ export async function POST(request, { params }) {
         );
       }
       
+      // 🔒 VERIFY QUANTITY FROM TRANSACTION LOGS
+      // Parse ERC1155 TransferSingle events to verify actual quantity minted
+      const { decodeEventLog } = await import('viem');
+      const transferSingleAbi = [{
+        type: 'event',
+        name: 'TransferSingle',
+        inputs: [
+          { indexed: true, name: 'operator', type: 'address' },
+          { indexed: true, name: 'from', type: 'address' },
+          { indexed: true, name: 'to', type: 'address' },
+          { indexed: false, name: 'id', type: 'uint256' },
+          { indexed: false, name: 'value', type: 'uint256' }
+        ]
+      }];
+      
+      let verifiedQuantity = 0;
+      const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+      
+      for (const log of receipt.logs) {
+        // Only check logs from the NFT contract
+        if (log.address.toLowerCase() !== contractAddress) continue;
+        
+        try {
+          const decoded = decodeEventLog({
+            abi: transferSingleAbi,
+            data: log.data,
+            topics: log.topics
+          });
+          
+          // Check if this is a mint (from zero address) to the user's wallet
+          if (decoded.eventName === 'TransferSingle' &&
+              decoded.args.from.toLowerCase() === ZERO_ADDRESS &&
+              decoded.args.to.toLowerCase() === walletAddress.toLowerCase()) {
+            // Verify correct token ID
+            if (decoded.args.id.toString() === tokenId) {
+              verifiedQuantity += Number(decoded.args.value);
+              console.log(`   Found mint event: tokenId=${decoded.args.id}, quantity=${decoded.args.value}`);
+            }
+          }
+        } catch (decodeError) {
+          // Not a TransferSingle event, skip
+          continue;
+        }
+      }
+      
+      if (verifiedQuantity === 0) {
+        console.error(`❌ No valid mint events found in transaction`);
+        return NextResponse.json(
+          { error: 'No valid NFT mint found in transaction. Make sure you minted the correct NFT.' },
+          { status: 400 }
+        );
+      }
+      
+      // 🔒 USE VERIFIED QUANTITY - ignore user-supplied quantity
+      if (verifiedQuantity !== mintQuantity) {
+        console.warn(`⚠️ Quantity mismatch: user claimed ${mintQuantity}, but verified ${verifiedQuantity} on-chain`);
+      }
+      actualQuantity = verifiedQuantity; // Always trust on-chain data
+      
       console.log(`✅ Transaction verified on-chain:`);
       console.log(`   Status: ${receipt.status}`);
       console.log(`   To: ${receipt.to}`);
       console.log(`   From: ${receipt.from}`);
       console.log(`   Block: ${receipt.blockNumber}`);
+      console.log(`   Verified Quantity: ${actualQuantity}`);
+      
+      // 🔒 RE-CHECK MINT LIMIT with verified on-chain quantity
+      if (!isUnlimited && (currentMintCount + actualQuantity) > mintLimit) {
+        const remaining = mintLimit - currentMintCount;
+        console.error(`❌ On-chain quantity (${actualQuantity}) would exceed limit: ${currentMintCount} + ${actualQuantity} > ${mintLimit}`);
+        return NextResponse.json(
+          { error: `Transaction minted ${actualQuantity} NFTs but you can only mint ${remaining} more. Contact support.` },
+          { status: 400 }
+        );
+      }
       
     } catch (verifyError) {
       console.error(`❌ Error verifying transaction:`, verifyError);
@@ -253,12 +325,13 @@ export async function POST(request, { params }) {
     // Record mint in database
     console.log(`💾 Recording mint in database...`);
     
+    // 🔒 SECURITY: Use actualQuantity (verified on-chain), NOT user-supplied mintQuantity
     // Calculate scaled reward amount for batch mint
     const baseRewardAmount = BigInt(campaign.token_reward_amount);
-    const scaledRewardAmount = (baseRewardAmount * BigInt(mintQuantity)).toString();
+    const scaledRewardAmount = (baseRewardAmount * BigInt(actualQuantity)).toString();
     
     console.log(`   Base reward: ${campaign.token_reward_amount}`);
-    console.log(`   Scaled reward (x${mintQuantity}): ${scaledRewardAmount}`);
+    console.log(`   Scaled reward (x${actualQuantity}): ${scaledRewardAmount}`);
     
     const { data: mintClaim, error: mintError } = await supabaseAdmin
       .from('nft_mint_claims')
@@ -268,7 +341,7 @@ export async function POST(request, { params }) {
         wallet_address: walletAddress.toLowerCase(),
         transaction_hash: transactionHash,
         token_id: tokenId,
-        quantity: mintQuantity, // Store quantity for batch mints
+        quantity: actualQuantity, // 🔒 VERIFIED quantity from on-chain
         token_reward_amount: scaledRewardAmount, // Store scaled reward amount
         has_shared: false,
         has_claimed: false
@@ -277,6 +350,14 @@ export async function POST(request, { params }) {
       .single();
 
     if (mintError) {
+      // Check for duplicate transaction hash
+      if (mintError.code === '23505' || mintError.message?.includes('duplicate') || mintError.message?.includes('unique')) {
+        console.error(`❌ Duplicate transaction hash: ${transactionHash}`);
+        return NextResponse.json(
+          { error: 'This transaction has already been used to claim. Each mint transaction can only be used once.' },
+          { status: 400 }
+        );
+      }
       console.error('❌ Error recording mint:', mintError);
       return NextResponse.json(
         { error: 'Failed to record mint' },
@@ -284,7 +365,7 @@ export async function POST(request, { params }) {
       );
     }
 
-    console.log(`✅ Mint recorded: ${mintClaim.id} (quantity: ${mintQuantity})`);
+    console.log(`✅ Mint recorded: ${mintClaim.id} (quantity: ${actualQuantity})`);
 
     // Generate claim signature for token reward
     console.log(`🔐 Generating claim signature...`);
@@ -347,13 +428,13 @@ export async function POST(request, { params }) {
       console.log(`   Campaign: ${campaign.title}`);
       console.log(`   User FID: ${authenticatedFid}`);
       console.log(`   Claim ID: ${mintClaim.id}`);
-      console.log(`   Quantity: ${mintQuantity}`);
-      console.log(`   Total mints: ${campaign.total_mints + mintQuantity}`);
+      console.log(`   Quantity: ${actualQuantity} (verified on-chain)`);
+      console.log(`   Total mints: ${campaign.total_mints + actualQuantity}`);
 
       // Return success with claim data
       return NextResponse.json({
         success: true,
-        message: `NFT mint recorded successfully (x${mintQuantity})`,
+        message: `NFT mint recorded successfully (x${actualQuantity})`,
         claim: {
           id: mintClaim.id,
           campaignId: campaign.id,
@@ -361,7 +442,7 @@ export async function POST(request, { params }) {
           hasShared: false,
           hasClaimed: false,
           canClaim: false, // Must share first
-          quantity: mintQuantity,
+          quantity: actualQuantity, // 🔒 Verified quantity
           tokenRewardAmount: scaledRewardAmount, // Scaled reward for batch
           signatureExpiresAt: deadline.toISOString()
         }
@@ -382,7 +463,7 @@ export async function POST(request, { params }) {
           hasShared: false,
           hasClaimed: false,
           canClaim: false,
-          quantity: mintQuantity,
+          quantity: actualQuantity, // 🔒 Verified quantity
           tokenRewardAmount: scaledRewardAmount
         }
       }, { status: 201 });
