@@ -493,7 +493,7 @@ export function StakingLaunchMint() {
         marginBottom: '16px',
         lineHeight: '1.5'
       }}>
-        Mint this commemorative NFT to celebrate the launch of $mintedmerch staking and claim <span style={{ color: '#3eb489', fontWeight: 'bold' }}>100,000 $mintedmerch</span>!
+        Mint the first half of this commemorative NFT to celebrate the launch of $mintedmerch staking and claim <span style={{ color: '#3eb489', fontWeight: 'bold' }}>100,000 $mintedmerch</span>! Collect both pieces to receive the full ticket.
       </p>
 
       {/* Price */}
