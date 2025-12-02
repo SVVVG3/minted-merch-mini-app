@@ -543,10 +543,7 @@ Mint yours and claim 100K $mintedmerch! 👇`;
           Where Staking Meets Merch!
         </p>
         <p style={{ marginBottom: '12px' }}>
-          You can now share in the success of Minted Merch.
-        </p>
-        <p style={{ marginBottom: '12px' }}>
-          To celebrate the launch, we are dropping an exclusive quest:
+          You can now share in the success of Minted Merch. To celebrate the launch, we are dropping an exclusive quest:
         </p>
         <div style={{ textAlign: 'left', paddingLeft: '16px', marginBottom: '8px' }}>
           <p style={{ marginBottom: '8px' }}>
@@ -556,7 +553,7 @@ Mint yours and claim 100K $mintedmerch! 👇`;
             2. Mint the second half of the Neon Ticket tomorrow on <span style={{ color: '#00FFFF' }}>@betrmint</span>
           </p>
           <p>
-            3. Mint the FULL TICKET NFT for free after collecting 1 and 2 to qualify for <span style={{ color: '#3eb489', fontWeight: 'bold' }}>2000 points</span> on the Minted Merch leaderboard and a chance to win a <span style={{ color: '#fff', fontWeight: 'bold' }}>Betr Hoodie & Hat Merch Pack</span>!
+            3. Mint the FULL TICKET NFT for free after collecting 1 and 2 to qualify for <span style={{ color: '#3eb489', fontWeight: 'bold' }}>2000 points</span> on the Minted Merch leaderboard and a chance to win a <span style={{ color: '#FF1493' }}>Betr</span> <span style={{ color: '#00FFFF' }}>Hoodie & Hat Merch Pack</span>!
           </p>
         </div>
       </div>
@@ -751,7 +748,7 @@ Mint yours and claim 100K $mintedmerch! 👇`;
         </>
       )}
 
-      {/* STATE 4a: Claimed and can mint more - show success + mint again button */}
+      {/* STATE 4a: Claimed and can mint more - show success + quantity selector + mint again button */}
       {hasClaimed && userStatus?.canMint && (
         <>
           <div style={{
@@ -768,6 +765,88 @@ Mint yours and claim 100K $mintedmerch! 👇`;
               You've minted {userStatus?.lastMintQuantity || 1} NFT{(userStatus?.lastMintQuantity || 1) > 1 ? 's' : ''} and claimed {((userStatus?.lastMintQuantity || 1) * 100).toLocaleString()}K $mintedmerch - thank you for celebrating with us!
             </p>
           </div>
+
+          {/* Quantity Selector for Mint Again */}
+          {userStatus?.mintLimit > 1 && ((userStatus?.mintLimit || 10) - (userStatus?.mintCount || 0)) > 1 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '16px',
+              marginBottom: '16px'
+            }}>
+              <span style={{ color: '#888', fontSize: '14px' }}>Quantity:</span>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+                borderRadius: '8px',
+                padding: '4px'
+              }}>
+                <button
+                  onClick={() => setMintQuantity(q => Math.max(1, q - 1))}
+                  disabled={mintQuantity <= 1}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    backgroundColor: mintQuantity <= 1 ? '#333' : '#3eb489',
+                    color: mintQuantity <= 1 ? '#666' : '#000',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    cursor: mintQuantity <= 1 ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  −
+                </button>
+                <span style={{
+                  minWidth: '40px',
+                  textAlign: 'center',
+                  color: '#fff',
+                  fontSize: '18px',
+                  fontWeight: 'bold'
+                }}>
+                  {mintQuantity}
+                </span>
+                <button
+                  onClick={() => {
+                    const maxAllowed = (userStatus?.mintLimit || 10) - (userStatus?.mintCount || 0);
+                    setMintQuantity(q => Math.min(maxAllowed, q + 1));
+                  }}
+                  disabled={mintQuantity >= ((userStatus?.mintLimit || 10) - (userStatus?.mintCount || 0))}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    backgroundColor: mintQuantity >= ((userStatus?.mintLimit || 10) - (userStatus?.mintCount || 0)) ? '#333' : '#3eb489',
+                    color: mintQuantity >= ((userStatus?.mintLimit || 10) - (userStatus?.mintCount || 0)) ? '#666' : '#000',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    cursor: mintQuantity >= ((userStatus?.mintLimit || 10) - (userStatus?.mintCount || 0)) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Total Cost Display for Mint Again */}
+          {mintQuantity > 1 && (
+            <p style={{
+              fontSize: '12px',
+              color: '#888',
+              textAlign: 'center',
+              marginBottom: '12px'
+            }}>
+              Total: <span style={{ color: '#fff', fontWeight: 'bold' }}>{(0.0005 * mintQuantity).toFixed(4)} ETH</span>
+              {' • '}Claim: <span style={{ color: '#3eb489', fontWeight: 'bold' }}>{(100 * mintQuantity).toLocaleString()}K $mintedmerch</span>
+            </p>
+          )}
+
           <button
             onClick={handleMint}
             disabled={isMintingProcess}
@@ -786,7 +865,9 @@ Mint yours and claim 100K $mintedmerch! 👇`;
             {isMintConfirming ? 'Confirming...' :
              isMintTxPending ? 'Approve in wallet...' :
              isMinting ? 'Preparing...' :
-             `Mint Again (${userStatus?.mintCount || 0}/${userStatus?.mintLimit || '∞'})`}
+             mintQuantity > 1 
+               ? `Mint ${mintQuantity} (${userStatus?.mintCount || 0}/${userStatus?.mintLimit || '∞'})`
+               : `Mint Again (${userStatus?.mintCount || 0}/${userStatus?.mintLimit || '∞'})`}
           </button>
 
           {mintError && (
