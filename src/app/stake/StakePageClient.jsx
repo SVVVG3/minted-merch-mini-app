@@ -211,8 +211,8 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
         backgroundColor: 'rgba(62, 180, 137, 0.1)',
         border: '2px solid #3eb489',
         borderRadius: '16px',
-        padding: '24px',
-        marginBottom: '10px'
+        padding: '24px 24px 12px 24px',
+        marginBottom: '20px'
       }}>
         {/* Title with combined image */}
         <div style={{
