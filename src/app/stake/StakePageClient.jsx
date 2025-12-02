@@ -127,7 +127,7 @@ export function StakePageClient() {
     const shareUrl = 'https://app.mintedmerch.shop/stake';
     const shareText = `Minted Merch - Where Staking Meets Merch
 
-Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and have a chance to win bonuses of 100K, daily Yield Jackpots of 1M, and physical merch packs shipped to you at no cost!`;
+Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance to win bonuses of 100K, Daily Yield Jackpots of 1M $mintedmerch, and physical Mini & Mega Merch Packs!`;
     
     try {
       if (isInFarcaster && sdk?.actions?.composeCast) {
@@ -266,7 +266,7 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
               padding: '16px',
               textAlign: 'center'
             }}>
-              <div style={{ color: '#888', fontSize: '14px', marginBottom: '4px' }}>
+              <div style={{ color: '#888', fontSize: '12px', marginBottom: '4px' }}>
                 Your Stake
               </div>
               <div style={{ color: '#3eb489', fontSize: '24px', fontWeight: 'bold' }}>
