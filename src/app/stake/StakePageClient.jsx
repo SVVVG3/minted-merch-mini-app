@@ -85,20 +85,20 @@ export function StakePageClient() {
     await haptics.light(isInFarcaster);
   };
 
-  // Handle opening the staking terminal
+  // Handle opening the staking terminal (opens as mini app)
   const handleOpenStakingTerminal = async () => {
     await haptics.medium(isInFarcaster);
     try {
-      if (isInFarcaster && sdk?.actions?.openUrl) {
-        // Use Farcaster SDK to open external URL
-        await sdk.actions.openUrl(STAKING_TERMINAL_URL);
+      if (isInFarcaster && sdk?.actions?.openMiniApp) {
+        // Use Farcaster SDK to open as mini app
+        await sdk.actions.openMiniApp({ url: STAKING_TERMINAL_URL });
       } else {
-        // Fallback to regular window.open
-        window.open(STAKING_TERMINAL_URL, '_blank');
+        // Fallback to navigation
+        window.location.href = STAKING_TERMINAL_URL;
       }
     } catch (err) {
       console.error('Error opening staking terminal:', err);
-      window.open(STAKING_TERMINAL_URL, '_blank');
+      window.location.href = STAKING_TERMINAL_URL;
     }
   };
 
