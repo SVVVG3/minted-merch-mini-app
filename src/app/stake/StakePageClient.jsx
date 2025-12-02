@@ -253,7 +253,18 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
             Loading your staking data...
           </div>
-        ) : stakingData && stakingData.staking.is_staker ? (
+        ) : !getFid() ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '20px',
+            color: '#888',
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            borderRadius: '12px',
+            marginBottom: '24px'
+          }}>
+            Connect with Farcaster to see your staking stats
+          </div>
+        ) : (
           <div style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
@@ -270,7 +281,7 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
                 Your Stake
               </div>
               <div style={{ color: '#3eb489', fontSize: '24px', fontWeight: 'bold' }}>
-                {stakingData.staking.total_staked_formatted}
+                {stakingData?.staking?.total_staked_formatted || '0'}
               </div>
               <div style={{ color: '#666', fontSize: '12px' }}>
                 $mintedmerch
@@ -287,34 +298,12 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
                 Total Staked
               </div>
               <div style={{ color: '#3eb489', fontSize: '24px', fontWeight: 'bold' }}>
-                {stakingData.staking.global_total_staked_formatted || '0'}
+                {stakingData?.staking?.global_total_staked_formatted || '0'}
               </div>
               <div style={{ color: '#666', fontSize: '12px' }}>
                 $mintedmerch
               </div>
             </div>
-          </div>
-        ) : !getFid() ? (
-          <div style={{
-            textAlign: 'center',
-            padding: '20px',
-            color: '#888',
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            borderRadius: '12px',
-            marginBottom: '24px'
-          }}>
-            Connect with Farcaster to see your staking stats
-          </div>
-        ) : (
-          <div style={{
-            textAlign: 'center',
-            padding: '20px',
-            color: '#888',
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            borderRadius: '12px',
-            marginBottom: '24px'
-          }}>
-            You haven't staked yet. Stake $mintedmerch to earn rewards!
           </div>
         )}
 

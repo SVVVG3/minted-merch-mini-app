@@ -553,7 +553,7 @@ Mint yours and claim 100K $mintedmerch! 👇`;
             2. Mint the second half of the Neon Ticket tomorrow on <span style={{ color: '#00FFFF' }}>@betrmint</span>
           </p>
           <p>
-            3. Mint the FULL TICKET NFT for free after collecting 1 and 2 to qualify for <span style={{ color: '#3eb489', fontWeight: 'bold' }}>2000 points</span> on the Minted Merch leaderboard and a chance to win a <span style={{ color: '#FF1493' }}>Betr</span> <span style={{ color: '#00FFFF' }}>Hoodie & Hat Merch Pack</span>!
+            3. Mint the FULL TICKET NFT for free after collecting 1 and 2 to qualify for <span style={{ color: '#3eb489', fontWeight: 'bold' }}>2000 points</span> on the Minted Merch leaderboard and a chance to win a <span style={{ color: '#FF1493' }}>Betr</span> <span style={{ color: '#00FFFF' }}>Hoodie</span> <span style={{ color: '#FF1493' }}>&amp; Hat</span> <span style={{ color: '#00FFFF' }}>Merch Pack</span>!
           </p>
         </div>
       </div>
