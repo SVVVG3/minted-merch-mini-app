@@ -114,6 +114,10 @@ export async function GET(request) {
     };
 
     // Format response
+    // IMPORTANT: Use ?? (nullish coalescing) instead of || to handle 0 correctly
+    // When user unstakes everything, totalStaked is 0, not null/undefined
+    const userStakedAmount = stakingDetails.totalStaked ?? profile.staked_balance ?? 0;
+    
     const response = {
       success: true,
       user: {
@@ -123,17 +127,17 @@ export async function GET(request) {
         pfp_url: profile.pfp_url
       },
       staking: {
-        total_staked: stakingDetails.totalStaked || profile.staked_balance || 0,
-        total_staked_formatted: formatNumber(stakingDetails.totalStaked || profile.staked_balance || 0),
+        total_staked: userStakedAmount,
+        total_staked_formatted: formatNumber(userStakedAmount),
         global_total_staked: globalTotalStaked,
         global_total_staked_formatted: formatNumber(globalTotalStaked),
-        is_staker: (stakingDetails.totalStaked || profile.staked_balance || 0) > 0,
+        is_staker: userStakedAmount > 0,
         stake_count: stakingDetails.stakes?.length || 0
       },
       balances: {
         total: profile.token_balance || 0,
         wallet: profile.wallet_balance || 0,
-        staked: stakingDetails.totalStaked || profile.staked_balance || 0
+        staked: userStakedAmount
       }
     };
 
