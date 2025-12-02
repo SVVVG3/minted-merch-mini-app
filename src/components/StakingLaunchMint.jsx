@@ -56,6 +56,9 @@ export function StakingLaunchMint() {
   
   const [claimError, setClaimError] = useState(null);
   const [hasClaimed, setHasClaimed] = useState(false);
+  
+  // Quantity for batch minting
+  const [mintQuantity, setMintQuantity] = useState(1);
 
   // Fetch campaign data on load
   useEffect(() => {
@@ -125,6 +128,7 @@ export function StakingLaunchMint() {
               transactionHash: mintTxHash,
               walletAddress,
               tokenId: campaign?.tokenId || '0',
+              quantity: mintQuantity, // Pass quantity for batch mints
             }),
           });
 
@@ -135,9 +139,10 @@ export function StakingLaunchMint() {
             setHasShared(false);
             setHasClaimed(false);
             setMintError(null);
-            // Update user status - increment count, check if can still mint more
+            // Update user status - increment count by quantity from response, check if can still mint more
+            const responseQuantity = data.claim?.quantity || mintQuantity;
             setUserStatus(prev => {
-              const newCount = (prev?.mintCount || 0) + 1;
+              const newCount = (prev?.mintCount || 0) + responseQuantity;
               const limit = prev?.mintLimit;
               const isUnlimited = !limit || limit === 0;
               return { 
@@ -146,9 +151,12 @@ export function StakingLaunchMint() {
                 hasShared: false,
                 hasClaimed: false,
                 mintCount: newCount,
-                canMint: isUnlimited || newCount < limit
+                canMint: isUnlimited || newCount < limit,
+                lastMintQuantity: responseQuantity // Track how many were just minted for claim
               };
             });
+            // Reset quantity to 1 for next potential mint
+            setMintQuantity(1);
           } else {
             // API returned an error - show it to user
             const errorData = await response.json().catch(() => ({}));
@@ -320,6 +328,9 @@ export function StakingLaunchMint() {
         currency: allowlistProof.currency,
       };
 
+      // Calculate total value for batch mint
+      const totalValue = BigInt(pricePerToken) * BigInt(mintQuantity);
+      
       writeMintContract({
         address: campaign.contractAddress,
         abi: erc1155ClaimABI,
@@ -327,13 +338,13 @@ export function StakingLaunchMint() {
         args: [
           walletAddress,
           BigInt(campaign?.tokenId || 0),
-          BigInt(1),
+          BigInt(mintQuantity), // Mint multiple at once
           currency,
           BigInt(pricePerToken),
           allowlistProofTuple,
           '0x',
         ],
-        value: BigInt(pricePerToken), // For paid mint
+        value: totalValue, // Total cost for batch mint
       });
 
     } catch (err) {
@@ -361,7 +372,11 @@ export function StakingLaunchMint() {
       setMintError(null);
 
       const shareText = campaign?.metadata?.shareText || 
-        `Just minted this commemorative NFT to celebrate the launch of $mintedmerch staking!\n\nEarn rewards & win prizes! Stake 50M+ to unlock exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.\n\nMint yours and claim 100K tokens! 👇`;
+        `I just minted part one of the two part Neon Ticket NFT Quest to celebrate the launch of @mintedmerch staking, powered by @betrmint.
+
+Earn rewards & win prizes! Stake 50M+ to unlock exclusive collab partnerships, custom orders, group chat access, and 15% off store wide!
+
+Mint yours and claim 100K $mintedmerch! 👇`;
       const sharePageUrl = `${window.location.origin}/share/${CAMPAIGN_SLUG}`;
 
       const shareResult = await shareToFarcaster({
@@ -517,15 +532,34 @@ export function StakingLaunchMint() {
       </div>
 
       {/* Description */}
-      <p style={{
+      <div style={{
         fontSize: '14px',
         color: '#fff',
         textAlign: 'center',
         marginBottom: '16px',
-        lineHeight: '1.5'
+        lineHeight: '1.6'
       }}>
-        Mint the first half of this commemorative NFT to celebrate the launch of $mintedmerch staking and claim <span style={{ color: '#3eb489', fontWeight: 'bold' }}>100,000 $mintedmerch</span>! Collect both pieces to receive the full ticket.
-      </p>
+        <p style={{ color: '#3eb489', fontWeight: 'bold', fontSize: '16px', marginBottom: '12px' }}>
+          Where Staking Meets Merch!
+        </p>
+        <p style={{ marginBottom: '12px' }}>
+          You can now share in the success of Minted Merch.
+        </p>
+        <p style={{ marginBottom: '12px' }}>
+          To celebrate the launch, we are dropping an exclusive quest:
+        </p>
+        <div style={{ textAlign: 'left', paddingLeft: '16px', marginBottom: '8px' }}>
+          <p style={{ marginBottom: '8px' }}>
+            1. Mint the first half of the Neon Ticket below and claim <span style={{ color: '#3eb489', fontWeight: 'bold' }}>100K $mintedmerch</span>
+          </p>
+          <p style={{ marginBottom: '8px' }}>
+            2. Mint the second half of the Neon Ticket tomorrow on <span style={{ color: '#00FFFF' }}>@betrmint</span>
+          </p>
+          <p>
+            3. Mint the FULL TICKET NFT for free after collecting 1 and 2 to qualify for <span style={{ color: '#3eb489', fontWeight: 'bold' }}>2000 points</span> on the Minted Merch leaderboard and a chance to win a <span style={{ color: '#fff', fontWeight: 'bold' }}>Betr Hoodie & Hat Merch Pack</span>!
+          </p>
+        </div>
+      </div>
 
       {/* Price */}
       <p style={{
@@ -537,9 +571,90 @@ export function StakingLaunchMint() {
         Mint Price: <span style={{ color: '#fff', fontWeight: 'bold' }}>0.0005 ETH</span>
       </p>
 
-      {/* STATE 1: Not Minted - Show Mint Button */}
+      {/* STATE 1: Not Minted - Show Quantity Selector + Mint Button */}
       {!userStatus?.hasMinted && (
         <>
+          {/* Quantity Selector */}
+          {canMint && userStatus?.mintLimit > 1 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '16px',
+              marginBottom: '16px'
+            }}>
+              <span style={{ color: '#888', fontSize: '14px' }}>Quantity:</span>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+                borderRadius: '8px',
+                padding: '4px'
+              }}>
+                <button
+                  onClick={() => setMintQuantity(q => Math.max(1, q - 1))}
+                  disabled={mintQuantity <= 1}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    backgroundColor: mintQuantity <= 1 ? '#333' : '#3eb489',
+                    color: mintQuantity <= 1 ? '#666' : '#000',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    cursor: mintQuantity <= 1 ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  −
+                </button>
+                <span style={{
+                  minWidth: '40px',
+                  textAlign: 'center',
+                  color: '#fff',
+                  fontSize: '18px',
+                  fontWeight: 'bold'
+                }}>
+                  {mintQuantity}
+                </span>
+                <button
+                  onClick={() => {
+                    const maxAllowed = (userStatus?.mintLimit || 10) - (userStatus?.mintCount || 0);
+                    setMintQuantity(q => Math.min(maxAllowed, q + 1));
+                  }}
+                  disabled={mintQuantity >= ((userStatus?.mintLimit || 10) - (userStatus?.mintCount || 0))}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    backgroundColor: mintQuantity >= ((userStatus?.mintLimit || 10) - (userStatus?.mintCount || 0)) ? '#333' : '#3eb489',
+                    color: mintQuantity >= ((userStatus?.mintLimit || 10) - (userStatus?.mintCount || 0)) ? '#666' : '#000',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    cursor: mintQuantity >= ((userStatus?.mintLimit || 10) - (userStatus?.mintCount || 0)) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Total Cost Display */}
+          {canMint && mintQuantity > 1 && (
+            <p style={{
+              fontSize: '12px',
+              color: '#888',
+              textAlign: 'center',
+              marginBottom: '12px'
+            }}>
+              Total: <span style={{ color: '#fff', fontWeight: 'bold' }}>{(0.0005 * mintQuantity).toFixed(4)} ETH</span>
+              {' • '}Claim: <span style={{ color: '#3eb489', fontWeight: 'bold' }}>{(100 * mintQuantity).toLocaleString()}K $mintedmerch</span>
+            </p>
+          )}
+
           <button
             onClick={handleMint}
             disabled={!canMint}
@@ -558,7 +673,7 @@ export function StakingLaunchMint() {
             {isMintConfirming ? 'Confirming...' :
              isMintTxPending ? 'Approve in wallet...' :
              isMinting ? 'Preparing...' :
-             canMint ? 'Mint' : '❌ Mint Unavailable'}
+             canMint ? (mintQuantity > 1 ? `Mint ${mintQuantity}` : 'Mint') : '❌ Mint Unavailable'}
           </button>
 
           {mintError && (
@@ -625,7 +740,7 @@ export function StakingLaunchMint() {
           >
             {isClaimConfirming ? 'Confirming...' :
              isClaimTxPending ? 'Approve in wallet...' :
-             'Claim 100K $mintedmerch'}
+             `Claim ${((userStatus?.lastMintQuantity || 1) * 100).toLocaleString()}K $mintedmerch`}
           </button>
 
           {claimError && (
@@ -650,7 +765,7 @@ export function StakingLaunchMint() {
               Mint & Claim Complete!
             </p>
             <p style={{ color: '#888', fontSize: '14px' }}>
-              You've minted the commemorative NFT and claimed 100K $mintedmerch - thank you for celebrating with us!
+              You've minted {userStatus?.lastMintQuantity || 1} NFT{(userStatus?.lastMintQuantity || 1) > 1 ? 's' : ''} and claimed {((userStatus?.lastMintQuantity || 1) * 100).toLocaleString()}K $mintedmerch - thank you for celebrating with us!
             </p>
           </div>
           <button

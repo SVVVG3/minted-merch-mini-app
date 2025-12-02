@@ -88,7 +88,8 @@ export async function GET(request, { params }) {
           .eq('user_fid', authenticatedFid)
           .order('created_at', { ascending: false });
 
-        const mintCount = existingClaims?.length || 0;
+        // Calculate total quantity minted (sum of quantities, or count if no quantity field)
+        const mintCount = existingClaims?.reduce((sum, claim) => sum + (claim.quantity || 1), 0) || 0;
         const mintLimit = campaign.mint_limit_per_fid; // null or 0 = unlimited
         const isUnlimited = !mintLimit || mintLimit === 0;
         const canMintMore = isUnlimited || mintCount < mintLimit;
@@ -96,8 +97,8 @@ export async function GET(request, { params }) {
         // Get the most recent claim for status display
         const latestClaim = existingClaims?.[0];
 
-        if (mintCount > 0) {
-          console.log(`✅ User has minted ${mintCount} time(s), limit: ${isUnlimited ? 'unlimited' : mintLimit}`);
+        if (existingClaims?.length > 0) {
+          console.log(`✅ User has minted ${mintCount} total (across ${existingClaims.length} claims), limit: ${isUnlimited ? 'unlimited' : mintLimit}`);
           userStatus = {
             hasMinted: true,
             hasShared: latestClaim?.has_shared || false,
@@ -109,7 +110,8 @@ export async function GET(request, { params }) {
             sharedAt: latestClaim?.shared_at,
             claimedAt: latestClaim?.claimed_at,
             mintCount,
-            mintLimit: isUnlimited ? null : mintLimit
+            mintLimit: isUnlimited ? null : mintLimit,
+            lastMintQuantity: latestClaim?.quantity || 1 // For proportional claim display
           };
         } else {
           console.log(`ℹ️ User has not minted yet`);

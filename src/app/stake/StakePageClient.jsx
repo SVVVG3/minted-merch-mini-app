@@ -339,6 +339,17 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
         >
           {stakingData?.staking?.is_staker ? 'Spin To Claim' : 'Start Staking'}
         </button>
+        
+        {/* Powered By betrmint */}
+        <p style={{
+          fontSize: '12px',
+          textAlign: 'center',
+          marginTop: '12px',
+          marginBottom: '0'
+        }}>
+          <span style={{ color: '#FF1493' }}>Powered By</span>{' '}
+          <span style={{ color: '#00FFFF' }}>@betrmint</span>
+        </p>
       </div>
 
       {/* Staking Launch Celebration NFT Mint */}

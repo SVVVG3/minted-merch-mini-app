@@ -119,9 +119,13 @@ export async function GET(request, { params }) {
       deadline.setDate(deadline.getDate() + 30);
 
       try {
+        // Use claim's stored reward amount (scaled for batch mints) or fall back to campaign default
+        const rewardAmount = claim.token_reward_amount || claim.campaign.token_reward_amount;
+        console.log(`[${requestId}] 💰 Reward amount: ${rewardAmount} (quantity: ${claim.quantity || 1})`);
+        
         const claimSignatureData = await generateClaimSignature({
           wallet: claim.wallet_address.toLowerCase(),
-          amount: claim.campaign.token_reward_amount,
+          amount: rewardAmount,
           payoutId: claim.id,
           deadline // Pass Date object directly (like Ambassador system)
         });
@@ -183,11 +187,13 @@ export async function GET(request, { params }) {
     const CHAIN_ID = 8453; // Base
 
     // Log access for audit trail
+    const rewardAmount = claim.token_reward_amount || claim.campaign.token_reward_amount;
     console.log(`[${requestId}] 📋 Claim data accessed:`);
     console.log(`   Claim ID: ${claim.id}`);
     console.log(`   User FID: ${authenticatedFid}`);
     console.log(`   Wallet: ${claim.wallet_address}`);
-    console.log(`   Amount: ${claim.campaign.token_reward_amount} wei`);
+    console.log(`   Quantity: ${claim.quantity || 1}`);
+    console.log(`   Amount: ${rewardAmount} wei`);
     console.log(`   Signature expires: ${claim.claim_signature_expires_at}`);
 
     // Return claim data in format expected by thirdweb airdrop function (same as Ambassador)

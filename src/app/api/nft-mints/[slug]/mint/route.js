@@ -20,7 +20,7 @@ import { generateClaimSignature } from '@/lib/claimSignatureService';
 export async function POST(request, { params }) {
   try {
     const { slug } = params;
-    const { transactionHash, walletAddress, tokenId = '0' } = await request.json();
+    const { transactionHash, walletAddress, tokenId = '0', quantity = 1 } = await request.json();
 
     // Validate inputs
     if (!slug || !transactionHash || !walletAddress) {
@@ -30,9 +30,19 @@ export async function POST(request, { params }) {
       );
     }
 
+    // Validate quantity
+    const mintQuantity = Math.max(1, parseInt(quantity) || 1);
+    if (mintQuantity > 100) {
+      return NextResponse.json(
+        { error: 'Maximum quantity per mint is 100' },
+        { status: 400 }
+      );
+    }
+
     console.log(`🎨 Recording mint for campaign: ${slug}`);
     console.log(`   Wallet: ${walletAddress}`);
     console.log(`   TX: ${transactionHash}`);
+    console.log(`   Quantity: ${mintQuantity}`);
 
     // 🔒 AUTHENTICATE USER (REQUIRED)
     const authenticatedFid = await getAuthenticatedFid(request);
@@ -136,24 +146,32 @@ export async function POST(request, { params }) {
     }
 
     // Check if user has reached their mint limit for this campaign
-    const { data: existingClaims, count: mintCount } = await supabaseAdmin
+    // Sum up quantities from all previous mints
+    const { data: existingClaims } = await supabaseAdmin
       .from('nft_mint_claims')
-      .select('id', { count: 'exact' })
+      .select('id, quantity')
       .eq('campaign_id', campaign.id)
       .eq('user_fid', authenticatedFid);
 
+    // Calculate total quantity minted so far (sum of all quantities, or count if no quantity column yet)
+    const currentMintCount = existingClaims?.reduce((sum, claim) => sum + (claim.quantity || 1), 0) || 0;
+    
     const mintLimit = campaign.mint_limit_per_fid; // null or 0 = unlimited
     const isUnlimited = !mintLimit || mintLimit === 0;
     
-    if (!isUnlimited && mintCount >= mintLimit) {
-      console.error(`❌ User has reached mint limit: ${mintCount}/${mintLimit}`);
+    // Check if this batch would exceed the limit
+    if (!isUnlimited && (currentMintCount + mintQuantity) > mintLimit) {
+      const remaining = mintLimit - currentMintCount;
+      console.error(`❌ Mint would exceed limit: ${currentMintCount} + ${mintQuantity} > ${mintLimit}`);
       return NextResponse.json(
-        { error: `You have already minted the maximum allowed (${mintLimit}) for this campaign` },
+        { error: remaining > 0 
+            ? `You can only mint ${remaining} more (${currentMintCount}/${mintLimit} used)` 
+            : `You have already minted the maximum allowed (${mintLimit}) for this campaign` },
         { status: 400 }
       );
     }
     
-    console.log(`✅ User mint count: ${mintCount || 0}, limit: ${isUnlimited ? 'unlimited' : mintLimit}`);
+    console.log(`✅ User mint count: ${currentMintCount}, adding: ${mintQuantity}, limit: ${isUnlimited ? 'unlimited' : mintLimit}`);
 
     // 🔒 VERIFY TRANSACTION ON-CHAIN
     // This prevents users from claiming tokens without actually minting the NFT
@@ -235,6 +253,13 @@ export async function POST(request, { params }) {
     // Record mint in database
     console.log(`💾 Recording mint in database...`);
     
+    // Calculate scaled reward amount for batch mint
+    const baseRewardAmount = BigInt(campaign.token_reward_amount);
+    const scaledRewardAmount = (baseRewardAmount * BigInt(mintQuantity)).toString();
+    
+    console.log(`   Base reward: ${campaign.token_reward_amount}`);
+    console.log(`   Scaled reward (x${mintQuantity}): ${scaledRewardAmount}`);
+    
     const { data: mintClaim, error: mintError } = await supabaseAdmin
       .from('nft_mint_claims')
       .insert({
@@ -243,6 +268,8 @@ export async function POST(request, { params }) {
         wallet_address: walletAddress.toLowerCase(),
         transaction_hash: transactionHash,
         token_id: tokenId,
+        quantity: mintQuantity, // Store quantity for batch mints
+        token_reward_amount: scaledRewardAmount, // Store scaled reward amount
         has_shared: false,
         has_claimed: false
       })
@@ -257,7 +284,7 @@ export async function POST(request, { params }) {
       );
     }
 
-    console.log(`✅ Mint recorded: ${mintClaim.id}`);
+    console.log(`✅ Mint recorded: ${mintClaim.id} (quantity: ${mintQuantity})`);
 
     // Generate claim signature for token reward
     console.log(`🔐 Generating claim signature...`);
@@ -269,7 +296,7 @@ export async function POST(request, { params }) {
     try {
       const claimSignatureData = await generateClaimSignature({
         wallet: walletAddress.toLowerCase(),
-        amount: campaign.token_reward_amount, // Already in wei format
+        amount: scaledRewardAmount, // Scaled reward amount for batch mint
         payoutId: mintClaim.id,
         deadline // Pass Date object directly (like Ambassador system)
       });
@@ -320,12 +347,13 @@ export async function POST(request, { params }) {
       console.log(`   Campaign: ${campaign.title}`);
       console.log(`   User FID: ${authenticatedFid}`);
       console.log(`   Claim ID: ${mintClaim.id}`);
-      console.log(`   Total mints: ${campaign.total_mints + 1}`); // +1 because trigger updates after this
+      console.log(`   Quantity: ${mintQuantity}`);
+      console.log(`   Total mints: ${campaign.total_mints + mintQuantity}`);
 
       // Return success with claim data
       return NextResponse.json({
         success: true,
-        message: 'NFT mint recorded successfully',
+        message: `NFT mint recorded successfully (x${mintQuantity})`,
         claim: {
           id: mintClaim.id,
           campaignId: campaign.id,
@@ -333,7 +361,8 @@ export async function POST(request, { params }) {
           hasShared: false,
           hasClaimed: false,
           canClaim: false, // Must share first
-          tokenRewardAmount: campaign.token_reward_amount,
+          quantity: mintQuantity,
+          tokenRewardAmount: scaledRewardAmount, // Scaled reward for batch
           signatureExpiresAt: deadline.toISOString()
         }
       });
@@ -353,7 +382,8 @@ export async function POST(request, { params }) {
           hasShared: false,
           hasClaimed: false,
           canClaim: false,
-          tokenRewardAmount: campaign.token_reward_amount
+          quantity: mintQuantity,
+          tokenRewardAmount: scaledRewardAmount
         }
       }, { status: 201 });
     }
