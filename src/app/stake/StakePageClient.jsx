@@ -214,31 +214,20 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
         padding: '24px',
         marginBottom: '10px'
       }}>
-        {/* Title with image */}
+        {/* Title with combined image */}
         <div style={{
           textAlign: 'center',
           marginBottom: '8px'
         }}>
           <img 
-            src="/StakeToEarnTitle.png" 
-            alt="STAKE TO EARN" 
+            src="/StakeToEarnMintedMerch.png" 
+            alt="STAKE TO EARN $MINTEDMERCH" 
             style={{ 
-              height: '80px', 
+              height: '140px', 
               objectFit: 'contain',
               display: 'inline-block'
             }}
           />
-          <div>
-            <img 
-              src="/mintedmerch-logo-ticker.png" 
-              alt="$MINTEDMERCH" 
-              style={{ 
-                height: '80px', 
-                objectFit: 'contain',
-                display: 'inline-block'
-              }}
-            />
-          </div>
         </div>
 
         {/* Full Width Separator Line */}
