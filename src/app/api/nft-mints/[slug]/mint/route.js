@@ -135,21 +135,25 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Check if user has already minted (RLS will only show their own claims)
-    const { data: existingClaim } = await supabaseAdmin
+    // Check if user has reached their mint limit for this campaign
+    const { data: existingClaims, count: mintCount } = await supabaseAdmin
       .from('nft_mint_claims')
-      .select('id')
+      .select('id', { count: 'exact' })
       .eq('campaign_id', campaign.id)
-      .eq('user_fid', authenticatedFid)
-      .single();
+      .eq('user_fid', authenticatedFid);
 
-    if (existingClaim) {
-      console.error(`❌ User has already minted: ${existingClaim.id}`);
+    const mintLimit = campaign.mint_limit_per_fid; // null or 0 = unlimited
+    const isUnlimited = !mintLimit || mintLimit === 0;
+    
+    if (!isUnlimited && mintCount >= mintLimit) {
+      console.error(`❌ User has reached mint limit: ${mintCount}/${mintLimit}`);
       return NextResponse.json(
-        { error: 'You have already minted this NFT' },
+        { error: `You have already minted the maximum allowed (${mintLimit}) for this campaign` },
         { status: 400 }
       );
     }
+    
+    console.log(`✅ User mint count: ${mintCount || 0}, limit: ${isUnlimited ? 'unlimited' : mintLimit}`);
 
     // TODO: Verify NFT ownership via Zapper API or on-chain call
     // For MVP, we trust the transaction hash provided by user

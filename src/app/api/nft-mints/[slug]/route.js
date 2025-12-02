@@ -80,30 +80,42 @@ export async function GET(request, { params }) {
         // Set user context for RLS
         await setUserContext(authenticatedFid);
 
-        // Check if user has already minted this campaign
-        const { data: existingClaim, error: claimError } = await supabaseAdmin
+        // Check user's existing mints for this campaign
+        const { data: existingClaims, error: claimError } = await supabaseAdmin
           .from('nft_mint_claims')
           .select('*')
           .eq('campaign_id', campaign.id)
           .eq('user_fid', authenticatedFid)
-          .single();
+          .order('created_at', { ascending: false });
 
-        if (existingClaim) {
-          console.log(`✅ User has minted: ${existingClaim.id}`);
+        const mintCount = existingClaims?.length || 0;
+        const mintLimit = campaign.mint_limit_per_fid; // null or 0 = unlimited
+        const isUnlimited = !mintLimit || mintLimit === 0;
+        const canMintMore = isUnlimited || mintCount < mintLimit;
+
+        // Get the most recent claim for status display
+        const latestClaim = existingClaims?.[0];
+
+        if (mintCount > 0) {
+          console.log(`✅ User has minted ${mintCount} time(s), limit: ${isUnlimited ? 'unlimited' : mintLimit}`);
           userStatus = {
             hasMinted: true,
-            hasShared: existingClaim.has_shared,
-            hasClaimed: existingClaim.has_claimed,
-            canMint: false, // Already minted
-            canClaim: existingClaim.has_shared && !existingClaim.has_claimed, // Can claim if shared but not claimed yet
-            claimId: existingClaim.id,
-            mintedAt: existingClaim.minted_at,
-            sharedAt: existingClaim.shared_at,
-            claimedAt: existingClaim.claimed_at
+            hasShared: latestClaim?.has_shared || false,
+            hasClaimed: latestClaim?.has_claimed || false,
+            canMint: canMintMore, // Can mint more if under limit
+            canClaim: latestClaim?.has_shared && !latestClaim?.has_claimed,
+            claimId: latestClaim?.id,
+            mintedAt: latestClaim?.minted_at,
+            sharedAt: latestClaim?.shared_at,
+            claimedAt: latestClaim?.claimed_at,
+            mintCount,
+            mintLimit: isUnlimited ? null : mintLimit
           };
         } else {
           console.log(`ℹ️ User has not minted yet`);
           userStatus.canMint = true;
+          userStatus.mintCount = 0;
+          userStatus.mintLimit = isUnlimited ? null : mintLimit;
         }
       }
     } catch (authError) {
