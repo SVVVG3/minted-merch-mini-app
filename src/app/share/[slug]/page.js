@@ -46,7 +46,12 @@ export async function generateMetadata({ params }) {
 
     const dynamicImageUrl = `${baseUrl}/api/og/mint?${ogImageParams}`;
 
-    // Create Farcaster frame embed - button links to MAIN PAGE
+    // Create Farcaster frame embed - button links to campaign-specific page or main page
+    // For staking-launch, link to stake page
+    const buttonUrl = campaign.metadata?.buttonUrl 
+      ? `${baseUrl}${campaign.metadata.buttonUrl}`
+      : (slug === 'staking-launch' ? `${baseUrl}/stake` : baseUrl);
+    
     const frame = {
       version: "next",
       imageUrl: dynamicImageUrl,
@@ -54,7 +59,7 @@ export async function generateMetadata({ params }) {
         title: campaign.metadata?.buttonText || "WEN MERCH?",
         action: {
           type: "launch_frame",
-          url: baseUrl, // Link to main page
+          url: buttonUrl,
           name: "Minted Merch",
           splashImageUrl: `${baseUrl}/splash.png`,
           splashBackgroundColor: "#000000"
