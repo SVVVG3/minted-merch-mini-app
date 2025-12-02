@@ -155,10 +155,82 @@ export async function POST(request, { params }) {
     
     console.log(`✅ User mint count: ${mintCount || 0}, limit: ${isUnlimited ? 'unlimited' : mintLimit}`);
 
-    // TODO: Verify NFT ownership via Zapper API or on-chain call
-    // For MVP, we trust the transaction hash provided by user
-    // In production, you should verify the transaction actually happened
-    console.log(`⚠️  Skipping on-chain verification for MVP (trusting tx hash)`);
+    // 🔒 VERIFY TRANSACTION ON-CHAIN
+    // This prevents users from claiming tokens without actually minting the NFT
+    console.log(`🔍 Verifying transaction on-chain: ${transactionHash}`);
+    
+    try {
+      const { createPublicClient, http } = await import('viem');
+      const { base } = await import('viem/chains');
+      
+      const publicClient = createPublicClient({
+        chain: base,
+        transport: http(process.env.ALCHEMY_BASE_RPC_URL || 'https://mainnet.base.org')
+      });
+      
+      // Get transaction receipt
+      const receipt = await publicClient.getTransactionReceipt({
+        hash: transactionHash
+      });
+      
+      if (!receipt) {
+        console.error(`❌ Transaction not found: ${transactionHash}`);
+        return NextResponse.json(
+          { error: 'Transaction not found on chain. Please wait for confirmation and try again.' },
+          { status: 400 }
+        );
+      }
+      
+      // Verify transaction was successful
+      if (receipt.status !== 'success') {
+        console.error(`❌ Transaction failed: ${transactionHash}`);
+        return NextResponse.json(
+          { error: 'Transaction failed on chain' },
+          { status: 400 }
+        );
+      }
+      
+      // Verify transaction was to the correct contract
+      const contractAddress = campaign.contract_address.toLowerCase();
+      if (receipt.to?.toLowerCase() !== contractAddress) {
+        console.error(`❌ Transaction was not to the mint contract. Expected: ${contractAddress}, Got: ${receipt.to}`);
+        return NextResponse.json(
+          { error: 'Transaction was not to the correct mint contract' },
+          { status: 400 }
+        );
+      }
+      
+      // Verify transaction was from the user's wallet
+      if (receipt.from?.toLowerCase() !== walletAddress.toLowerCase()) {
+        console.error(`❌ Transaction was not from user's wallet. Expected: ${walletAddress}, Got: ${receipt.from}`);
+        return NextResponse.json(
+          { error: 'Transaction was not from your wallet' },
+          { status: 400 }
+        );
+      }
+      
+      console.log(`✅ Transaction verified on-chain:`);
+      console.log(`   Status: ${receipt.status}`);
+      console.log(`   To: ${receipt.to}`);
+      console.log(`   From: ${receipt.from}`);
+      console.log(`   Block: ${receipt.blockNumber}`);
+      
+    } catch (verifyError) {
+      console.error(`❌ Error verifying transaction:`, verifyError);
+      
+      // If transaction is pending, tell user to wait
+      if (verifyError.message?.includes('not found') || verifyError.message?.includes('could not be found')) {
+        return NextResponse.json(
+          { error: 'Transaction not yet confirmed. Please wait a moment and try again.' },
+          { status: 400 }
+        );
+      }
+      
+      return NextResponse.json(
+        { error: 'Failed to verify transaction on chain' },
+        { status: 500 }
+      );
+    }
 
     // Record mint in database
     console.log(`💾 Recording mint in database...`);
