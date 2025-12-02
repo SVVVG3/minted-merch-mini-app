@@ -16,6 +16,17 @@ import Image from 'next/image';
 
 const CAMPAIGN_SLUG = 'staking-launch';
 
+// Format token amounts properly (100K, 2M, 1.5B, etc.)
+const formatTokenAmount = (amountInK) => {
+  // amountInK is the amount in thousands (e.g., 100 for 100K, 2000 for 2M)
+  if (amountInK >= 1_000_000) {
+    return (amountInK / 1_000_000).toFixed(amountInK % 1_000_000 === 0 ? 0 : 1) + 'B';
+  } else if (amountInK >= 1_000) {
+    return (amountInK / 1_000).toFixed(amountInK % 1_000 === 0 ? 0 : 1) + 'M';
+  }
+  return amountInK.toLocaleString() + 'K';
+};
+
 export function StakingLaunchMint() {
   const { user: farcasterUser, sessionToken, isInFarcaster, isReady } = useFarcaster();
   
@@ -547,13 +558,13 @@ Mint yours and claim 100K $mintedmerch! 👇`;
         </p>
         <div style={{ textAlign: 'left', paddingLeft: '16px', marginBottom: '8px' }}>
           <p style={{ marginBottom: '8px' }}>
-            1. Mint the first half of the Neon Ticket below and claim <span style={{ color: '#3eb489', fontWeight: 'bold' }}>100K $mintedmerch</span>
+            1. Mint the first half of the Neon Ticket (or up to 20) below and claim <span style={{ color: '#3eb489', fontWeight: 'bold' }}>100K $mintedmerch</span> for each mint
           </p>
           <p style={{ marginBottom: '8px' }}>
             2. Mint the second half of the Neon Ticket tomorrow on <span style={{ color: '#00FFFF' }}>@betrmint</span>
           </p>
           <p>
-            3. Mint the FULL TICKET NFT for free after collecting 1 and 2 to qualify for <span style={{ color: '#3eb489', fontWeight: 'bold' }}>2000 points</span> on the Minted Merch leaderboard and a chance to win a <span style={{ color: '#FF1493' }}>Betr</span> <span style={{ color: '#00FFFF' }}>Hoodie</span> <span style={{ color: '#FF1493' }}>&amp; Hat</span> <span style={{ color: '#00FFFF' }}>Merch Pack</span>!
+            3. Mint the FULL TICKET NFT for free after collecting 1 and 2 to qualify for <span style={{ color: '#3eb489', fontWeight: 'bold' }}>1000 points</span> on the Minted Merch leaderboard (per FULL TICKET NFT) and a chance to win a <span style={{ color: '#FF1493' }}>Betr</span> <span style={{ color: '#00FFFF' }}>Hoodie</span> <span style={{ color: '#FF1493' }}>&amp; Hat</span> <span style={{ color: '#00FFFF' }}>Merch Pack</span>!
           </p>
         </div>
       </div>
@@ -648,7 +659,7 @@ Mint yours and claim 100K $mintedmerch! 👇`;
               marginBottom: '12px'
             }}>
               Total: <span style={{ color: '#fff', fontWeight: 'bold' }}>{(0.0005 * mintQuantity).toFixed(4)} ETH</span>
-              {' • '}Claim: <span style={{ color: '#3eb489', fontWeight: 'bold' }}>{(100 * mintQuantity).toLocaleString()}K $mintedmerch</span>
+              {' • '}Claim: <span style={{ color: '#3eb489', fontWeight: 'bold' }}>{formatTokenAmount(100 * mintQuantity)} $mintedmerch</span>
             </p>
           )}
 
@@ -737,7 +748,7 @@ Mint yours and claim 100K $mintedmerch! 👇`;
           >
             {isClaimConfirming ? 'Confirming...' :
              isClaimTxPending ? 'Approve in wallet...' :
-             `Claim ${((userStatus?.lastMintQuantity || 1) * 100).toLocaleString()}K $mintedmerch`}
+             `Claim ${formatTokenAmount((userStatus?.lastMintQuantity || 1) * 100)} $mintedmerch`}
           </button>
 
           {claimError && (
@@ -762,7 +773,7 @@ Mint yours and claim 100K $mintedmerch! 👇`;
               Mint & Claim Complete!
             </p>
             <p style={{ color: '#888', fontSize: '14px' }}>
-              You've minted {userStatus?.lastMintQuantity || 1} NFT{(userStatus?.lastMintQuantity || 1) > 1 ? 's' : ''} and claimed {((userStatus?.lastMintQuantity || 1) * 100).toLocaleString()}K $mintedmerch - thank you for celebrating with us!
+              You've minted {userStatus?.lastMintQuantity || 1} NFT{(userStatus?.lastMintQuantity || 1) > 1 ? 's' : ''} and claimed {formatTokenAmount((userStatus?.lastMintQuantity || 1) * 100)} $mintedmerch - thank you for celebrating with us!
             </p>
           </div>
 
@@ -843,7 +854,7 @@ Mint yours and claim 100K $mintedmerch! 👇`;
               marginBottom: '12px'
             }}>
               Total: <span style={{ color: '#fff', fontWeight: 'bold' }}>{(0.0005 * mintQuantity).toFixed(4)} ETH</span>
-              {' • '}Claim: <span style={{ color: '#3eb489', fontWeight: 'bold' }}>{(100 * mintQuantity).toLocaleString()}K $mintedmerch</span>
+              {' • '}Claim: <span style={{ color: '#3eb489', fontWeight: 'bold' }}>{formatTokenAmount(100 * mintQuantity)} $mintedmerch</span>
             </p>
           )}
 
