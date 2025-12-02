@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { StakingLaunchMint } from '@/components/StakingLaunchMint';
 
 // Staking terminal deep link URL
-const STAKING_TERMINAL_URL = 'https://betrmint.fun/mm-stake';
+const STAKING_TERMINAL_URL = 'https://farcaster.xyz/miniapps/yG210D-5eNqL/betrmint/mm-stake';
 // Coin mini app URL
 const COIN_MINIAPP_URL = 'https://coin.mintedmerch.shop';
 
@@ -89,9 +89,9 @@ export function StakePageClient() {
   const handleOpenStakingTerminal = async () => {
     await haptics.medium(isInFarcaster);
     try {
-      if (isInFarcaster && sdk?.actions?.openMiniApp) {
-        // Use Farcaster SDK to open as mini app
-        await sdk.actions.openMiniApp({ url: STAKING_TERMINAL_URL });
+      if (isInFarcaster && sdk?.actions?.openUrl) {
+        // Use Farcaster SDK to deeplink to betrmint mini app
+        await sdk.actions.openUrl(STAKING_TERMINAL_URL);
       } else {
         // Fallback to navigation
         window.location.href = STAKING_TERMINAL_URL;
