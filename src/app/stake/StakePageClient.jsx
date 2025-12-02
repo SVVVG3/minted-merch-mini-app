@@ -284,7 +284,7 @@ Stake your $mintedmerch now and Spin-to-Claim daily to compound rewards, and hav
               textAlign: 'center'
             }}>
               <div style={{ color: '#888', fontSize: '14px', marginBottom: '4px' }}>
-                Rewards Earned
+                Rewards Claimed
               </div>
               <div style={{ color: '#3eb489', fontSize: '24px', fontWeight: 'bold' }}>
                 {stakingData.staking.rewards_claimed_formatted}
