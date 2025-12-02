@@ -219,14 +219,15 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           textAlign: 'center',
           marginBottom: '8px'
         }}>
-          <span style={{
-            fontSize: '28px',
-            fontWeight: 'bold',
-            color: '#3eb489',
-            textTransform: 'uppercase'
-          }}>
-            STAKE TO EARN
-          </span>
+          <img 
+            src="/StakeToEarnTitle.png" 
+            alt="STAKE TO EARN" 
+            style={{ 
+              height: '40px', 
+              objectFit: 'contain',
+              display: 'inline-block'
+            }}
+          />
           <div>
             <img 
               src="/mintedmerch-logo-ticker.png" 
@@ -336,8 +337,8 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           marginTop: '12px',
           marginBottom: '0'
         }}>
-          <span style={{ color: '#FF1493' }}>Powered By</span>{' '}
-          <span style={{ color: '#00FFFF' }}>@betrmint</span>
+          <span style={{ color: '#E742AE' }}>Powered By</span>{' '}
+          <span style={{ color: '#69E3F1' }}>@betrmint</span>
         </p>
       </div>
 
