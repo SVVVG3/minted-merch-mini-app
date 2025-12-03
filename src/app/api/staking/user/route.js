@@ -45,7 +45,11 @@ export async function GET(request) {
       // Still fetch global staked even for new users
       const globalTotalStaked = await getGlobalTotalStaked();
       const formatNumber = (num) => {
-        if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(2) + 'B';
+        if (num >= 1_000_000_000) {
+          const formatted = (num / 1_000_000_000).toFixed(3);
+          const trimmed = formatted.replace(/(\.\d{2})0+$/, '$1');
+          return trimmed + 'B';
+        }
         if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + 'M';
         if (num >= 1_000) return (num / 1_000).toFixed(2) + 'K';
         return num.toLocaleString();
@@ -104,7 +108,11 @@ export async function GET(request) {
     // Format numbers for display
     const formatNumber = (num) => {
       if (num >= 1_000_000_000) {
-        return (num / 1_000_000_000).toFixed(2) + 'B';
+        // Use 3 decimal places for billions to show more precision (2.001B not 2.00B)
+        const formatted = (num / 1_000_000_000).toFixed(3);
+        // Remove trailing zeros but keep at least 2 decimal places
+        const trimmed = formatted.replace(/(\.\d{2})0+$/, '$1');
+        return trimmed + 'B';
       } else if (num >= 1_000_000) {
         return (num / 1_000_000).toFixed(2) + 'M';
       } else if (num >= 1_000) {
