@@ -367,6 +367,22 @@ export async function POST(request, { params }) {
 
     console.log(`✅ Mint recorded: ${mintClaim.id} (quantity: ${actualQuantity})`);
 
+    // Update campaign total_mints counter (increment by actual quantity, not just 1)
+    const { error: updateCampaignError } = await supabaseAdmin
+      .from('nft_mints')
+      .update({ 
+        total_mints: (campaign.total_mints || 0) + actualQuantity,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', campaign.id);
+
+    if (updateCampaignError) {
+      console.error('⚠️ Error updating campaign total_mints:', updateCampaignError);
+      // Don't fail the request, the mint was successful
+    } else {
+      console.log(`📊 Campaign total_mints updated: ${campaign.total_mints || 0} → ${(campaign.total_mints || 0) + actualQuantity}`);
+    }
+
     // Generate claim signature for token reward
     console.log(`🔐 Generating claim signature...`);
     
