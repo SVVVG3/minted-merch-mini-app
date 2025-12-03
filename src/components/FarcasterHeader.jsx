@@ -49,7 +49,7 @@ export function FarcasterHeader() {
               <a href="/stake" className="underline font-bold hover:text-yellow-200 transition-colors">Staking is LIVE</a>
             </div>
             <div>
-              Hold 50M+ {' '}
+              Stake 50M+ {' '}
               <button 
                 onClick={handleCoinClick}
                 className="underline hover:text-green-200 transition-colors font-medium"

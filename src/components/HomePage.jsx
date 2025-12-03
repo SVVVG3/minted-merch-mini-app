@@ -519,7 +519,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
             <div className="text-center">
               {!user && isReady ? (
                 <div>
-                  Sign in with Farcaster to access your profile, daily check-ins, leaderboard, notifications, order history, and token gated discounts! Hold 50M+{' '}
+                  Sign in with Farcaster to access your profile, daily check-ins, leaderboard, notifications, order history, and token gated discounts! Stake 50M+{' '}
                   <a 
                     href="https://coin.mintedmerch.shop" 
                     target="_blank" 
@@ -537,7 +537,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
                     <a href="/stake" className="underline font-bold hover:text-yellow-200 transition-colors">Staking is LIVE</a>
                   </div>
                   <div>
-                    Hold 50M+{' '}
+                    Stake 50M+{' '}
                     <a 
                       href="https://coin.mintedmerch.shop" 
                       target="_blank" 
