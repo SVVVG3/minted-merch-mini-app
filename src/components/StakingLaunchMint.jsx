@@ -387,7 +387,7 @@ export function StakingLaunchMint() {
 
 Earn rewards & win prizes! Stake 50M+ to unlock exclusive collab partnerships, custom orders, group chat access, and 15% off store wide!
 
-Mint yours and claim 100K $mintedmerch! 👇`;
+Mint yours now and claim 100K free $mintedmerch! 👇`;
       const sharePageUrl = `${window.location.origin}/share/${CAMPAIGN_SLUG}`;
 
       const shareResult = await shareToFarcaster({
