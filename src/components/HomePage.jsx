@@ -533,7 +533,8 @@ export function HomePage({ collection: initialCollection, products: initialProdu
               ) : (
                 <div className="space-y-0.5">
                   <div>
-                    Shop using 1200+ coins across 20+ chains!
+                    Shop using 1200+ coins across 20+ chains!{' '}
+                    <a href="/stake" className="underline font-bold hover:text-yellow-200 transition-colors">Staking is LIVE</a>
                   </div>
                   <div>
                     Hold 50M+{' '}
