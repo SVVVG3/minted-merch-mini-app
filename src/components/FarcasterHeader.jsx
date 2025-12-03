@@ -16,6 +16,20 @@ export function FarcasterHeader() {
     return null;
   }
 
+  // Handle staking link click with haptics
+  const handleStakingClick = async (e) => {
+    e.preventDefault();
+    try {
+      const capabilities = await sdk.getCapabilities();
+      if (capabilities.includes('haptics.selectionChanged')) {
+        await sdk.haptics.selectionChanged();
+      }
+    } catch (error) {
+      console.log('Haptics not available:', error);
+    }
+    window.location.href = '/stake';
+  };
+
   // Handle coin mini app click
   const handleCoinClick = async () => {
     // Add haptic feedback for coin link selection
@@ -46,7 +60,7 @@ export function FarcasterHeader() {
           <div className="space-y-0.5">
             <div>
               Shop using 1200+ coins across 20+ chains!{' '}
-              <a href="/stake" className="underline font-bold hover:text-yellow-200 transition-colors">Staking is LIVE</a>
+              <button onClick={handleStakingClick} className="underline font-bold hover:text-yellow-200 transition-colors">Staking is LIVE</button>
             </div>
             <div>
               Stake 50M+ {' '}
