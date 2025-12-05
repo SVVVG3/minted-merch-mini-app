@@ -447,8 +447,8 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
       const token = localStorage.getItem('fc_session_token');
       if (!token) return;
 
-      // Use the ambassador claim-complete endpoint (works for all payouts)
-      const response = await fetch(`/api/ambassador/payouts/${payoutId}/claim-complete`, {
+      // Use mogul-specific claim-complete endpoint
+      const response = await fetch(`/api/mogul/payouts/${payoutId}/claim-complete`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -488,8 +488,8 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
         return;
       }
 
-      // Fetch claim data from ambassador endpoint (works for all payouts)
-      const response = await fetch(`/api/ambassador/payouts/${payoutId}/claim-data`, {
+      // Fetch claim data from mogul-specific endpoint
+      const response = await fetch(`/api/mogul/payouts/${payoutId}/claim-data`, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${token}` }
       });
