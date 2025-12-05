@@ -234,7 +234,19 @@ export async function GET(request) {
     // IMPORTANT: Use ?? (nullish coalescing) instead of || to handle 0 correctly
     // When user unstakes everything, totalStaked is 0, not null/undefined
     const userStakedAmount = stakingDetails.totalStaked ?? profile.staked_balance ?? 0;
-    const walletBalance = profile.wallet_balance || 0;
+    
+    // Calculate wallet balance = total token balance - staked amount
+    // This ensures we show only unstaked tokens in "Your Balance"
+    const totalTokenBalance = profile.token_balance || 0;
+    const walletBalance = Math.max(0, totalTokenBalance - userStakedAmount);
+    
+    console.log(`📊 Balance breakdown for FID ${fid}:`);
+    console.log(`   Total tokens: ${totalTokenBalance.toLocaleString()}`);
+    console.log(`   Staked: ${userStakedAmount.toLocaleString()}`);
+    console.log(`   Wallet (unstaked): ${walletBalance.toLocaleString()}`);
+    console.log(`   Circulating supply: ${circulatingSupply.toLocaleString()}`);
+    console.log(`   Global staked: ${globalTotalStaked.toLocaleString()}`);
+    console.log(`   Staked %: ${stakedPercentage}%`);
     
     const response = {
       success: true,
@@ -257,8 +269,8 @@ export async function GET(request) {
         stake_count: stakingDetails.stakes?.length || 0
       },
       balances: {
-        total: profile.token_balance || 0,
-        total_formatted: formatNumberFull(profile.token_balance || 0),
+        total: totalTokenBalance,
+        total_formatted: formatNumberFull(totalTokenBalance),
         wallet: walletBalance,
         wallet_formatted: formatNumberFull(walletBalance),
         staked: userStakedAmount,

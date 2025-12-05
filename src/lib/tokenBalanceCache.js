@@ -57,9 +57,10 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
             baseChainId
           );
         
-        // The blockchain API returns balance in tokens (already divided by 10^18)
-        walletBalance = balanceResult || 0;
-        console.log(`✅ Fetched wallet balance: ${walletBalance} tokens`);
+        // The blockchain API returns TOTAL balance including staked tokens
+        // (Some staking contracts keep tokens in user wallets but "locked")
+        const rawBalance = balanceResult || 0;
+        console.log(`✅ Fetched raw balance from RPC: ${rawBalance} tokens`);
         
         // Fetch staked balance from subgraph
         stakedBalance = 0;
@@ -69,13 +70,19 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
           console.log(`📊 Fetched staked balance: ${stakedBalance} tokens`);
         } catch (stakingError) {
           console.warn('⚠️ Could not fetch staked balance:', stakingError.message);
-          console.log('📊 Continuing with wallet balance only');
-          // Continue with just wallet balance if staking query fails
+          console.log('📊 Continuing with raw balance only');
+          // Continue with just raw balance if staking query fails
         }
         
-        // Combine wallet + staked balance for total holdings
-        const tokensBalance = walletBalance + stakedBalance;
-        console.log(`💰 Total balance (wallet + staked): ${tokensBalance} tokens`);
+        // IMPORTANT: Calculate wallet balance by SUBTRACTING staked from raw
+        // This prevents double-counting since raw balance may include staked tokens
+        walletBalance = Math.max(0, rawBalance - stakedBalance);
+        console.log(`💰 Wallet balance (raw - staked): ${walletBalance} tokens`);
+        
+        // Total holdings = raw balance from blockchain (already includes staked)
+        // OR wallet + staked if we needed to add them
+        const tokensBalance = rawBalance; // Use raw balance as total (already includes staked)
+        console.log(`💰 Total balance: ${tokensBalance} tokens (wallet: ${walletBalance} + staked: ${stakedBalance})`);
         
         finalBalance = tokensBalance;
         } catch (error) {
