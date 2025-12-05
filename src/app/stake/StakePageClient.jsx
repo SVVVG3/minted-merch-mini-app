@@ -238,7 +238,7 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           marginBottom: '24px'
         }} />
 
-        {/* User Stats */}
+        {/* Enhanced Staking Stats */}
         {isLoading ? (
           <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
             Loading your staking data...
@@ -256,48 +256,67 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           </div>
         ) : (
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '16px',
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            borderRadius: '12px',
+            padding: '16px',
             marginBottom: '24px'
           }}>
-            <div style={{
-              backgroundColor: 'rgba(0,0,0,0.3)',
-              borderRadius: '12px',
-              padding: '16px',
-              textAlign: 'center'
-            }}>
-              <div style={{ color: '#888', fontSize: '12px', marginBottom: '4px' }}>
-                Your Stake
+            {/* Stats Table */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Total Staked with Percentage */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#888', fontSize: '14px', fontWeight: '500' }}>Total Staked:</span>
+                <span style={{ color: '#fff', fontSize: '14px', textAlign: 'right' }}>
+                  {stakingData?.staking?.global_total_staked_full || '0'} $mintedmerch
+                  {stakingData?.staking?.staked_percentage && (
+                    <span style={{ color: '#888' }}> ({stakingData.staking.staked_percentage}%)</span>
+                  )}
+                </span>
               </div>
-              <div style={{ color: '#3eb489', fontSize: '24px', fontWeight: 'bold' }}>
-                {stakingData?.staking?.total_staked_formatted || '0'}
+              
+              {/* Your Stake */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#888', fontSize: '14px', fontWeight: '500' }}>Your Stake:</span>
+                <span style={{ color: '#fff', fontSize: '14px' }}>
+                  {stakingData?.balances?.staked_formatted || '0'} $mintedmerch
+                </span>
               </div>
-              <div style={{ color: '#666', fontSize: '12px' }}>
-                $mintedmerch
-              </div>
-            </div>
-            
-            <div style={{
-              backgroundColor: 'rgba(0,0,0,0.3)',
-              borderRadius: '12px',
-              padding: '16px',
-              textAlign: 'center'
-            }}>
-              <div style={{ color: '#888', fontSize: '12px', marginBottom: '4px' }}>
-                Total Staked
-              </div>
-              <div style={{ color: '#3eb489', fontSize: '24px', fontWeight: 'bold' }}>
-                {stakingData?.staking?.global_total_staked_formatted || '0'}
-              </div>
-              <div style={{ color: '#666', fontSize: '12px' }}>
-                $mintedmerch
+              
+              {/* Your Balance */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#888', fontSize: '14px', fontWeight: '500' }}>Your Balance:</span>
+                <span style={{ color: '#fff', fontSize: '14px' }}>
+                  {stakingData?.balances?.wallet_formatted || '0'} $mintedmerch
+                </span>
               </div>
             </div>
           </div>
         )}
 
-        {/* Stake Button - Changes based on staking status */}
+        {/* Stake/Unstake Button */}
+        <button
+          onClick={handleOpenStakingTerminal}
+          style={{
+            width: '100%',
+            backgroundColor: 'transparent',
+            color: '#3eb489',
+            border: '2px solid #3eb489',
+            borderRadius: '12px',
+            padding: '14px 24px',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            marginBottom: '12px'
+          }}
+        >
+          Stake / Unstake
+        </button>
+
+        {/* Spin To Claim Button */}
         <button
           onClick={handleOpenStakingTerminal}
           style={{
@@ -316,7 +335,7 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
             gap: '8px'
           }}
         >
-          {stakingData?.staking?.is_staker ? 'Spin To Claim' : 'Start Staking'}
+          Spin To Claim
         </button>
         
         {/* Powered By betrmint */}
