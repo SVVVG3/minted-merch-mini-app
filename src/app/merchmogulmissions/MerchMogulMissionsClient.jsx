@@ -5,6 +5,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { ProfileModal } from '@/components/ProfileModal';
 import { triggerHaptic } from '@/lib/haptics';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Link from 'next/link';
 
 export default function MerchMogulMissions() {
@@ -14,7 +15,7 @@ export default function MerchMogulMissions() {
   const [tokenBalance, setTokenBalance] = useState(0);
   const [profile, setProfile] = useState(null);
   const [bounties, setBounties] = useState([]);
-  const [submissions, setSubmissions] = useState([]);
+  const [payouts, setPayouts] = useState([]);
   const [activeTab, setActiveTab] = useState('bounties');
   const [selectedBounty, setSelectedBounty] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -71,10 +72,10 @@ export default function MerchMogulMissions() {
       setTokenBalance(bountiesData.mogulStatus?.tokenBalance || 0);
       setBounties(bountiesData.data || []);
 
-      // Load profile and submissions
+      // Load profile and payouts
       await Promise.all([
         loadProfile(token),
-        loadSubmissions(token)
+        loadPayouts(token)
       ]);
 
       setLoading(false);
@@ -99,17 +100,18 @@ export default function MerchMogulMissions() {
     }
   };
 
-  const loadSubmissions = async (token) => {
+  const loadPayouts = async (token) => {
     try {
-      const response = await fetch('/api/mogul/submissions', {
+      const response = await fetch('/api/mogul/payouts', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
       if (data.success) {
-        setSubmissions(data.data || []);
+        setPayouts(data.data || []);
+        console.log('✅ Loaded mogul payouts:', data.data?.length || 0);
       }
     } catch (error) {
-      console.error('Error loading submissions:', error);
+      console.error('Error loading payouts:', error);
     }
   };
 
@@ -310,7 +312,7 @@ export default function MerchMogulMissions() {
             )}
 
             {activeTab === 'payouts' && (
-              <PayoutsTab submissions={submissions} />
+              <PayoutsTab payouts={payouts} onRefresh={handleRefresh} isInFarcaster={isInFarcaster} />
             )}
           </div>
         </div>
@@ -420,11 +422,149 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
   );
 }
 
-// Payouts Tab - shows completed missions and their payouts
-function PayoutsTab({ submissions }) {
+// Payouts Tab - shows claimable and completed payouts
+function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
+  const [claiming, setClaiming] = useState(null);
+  const [claimError, setClaimError] = useState(null);
+  const [claimSuccess, setClaimSuccess] = useState(null);
+  
+  // Wagmi hooks for claim transactions
+  const { writeContract, data: hash, error: writeError, isPending: isWritePending } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
+  
   const formatNumber = (num) => new Intl.NumberFormat('en-US').format(num);
 
-  if (submissions.length === 0) {
+  // Handle claim completion when transaction confirms
+  useEffect(() => {
+    if (isConfirmed && hash && claiming) {
+      markPayoutComplete(claiming, hash);
+    }
+  }, [isConfirmed, hash, claiming]);
+
+  // Mark payout as complete after on-chain claim
+  const markPayoutComplete = async (payoutId, txHash) => {
+    try {
+      const token = localStorage.getItem('fc_session_token');
+      if (!token) return;
+
+      // Use the ambassador claim-complete endpoint (works for all payouts)
+      const response = await fetch(`/api/ambassador/payouts/${payoutId}/claim-complete`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ transactionHash: txHash })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        console.log(`✅ Payout ${payoutId} marked as complete`);
+        triggerHaptic('success', isInFarcaster);
+        setClaimSuccess(payoutId);
+        setTimeout(() => {
+          setClaimSuccess(null);
+          onRefresh();
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error marking payout complete:', error);
+    } finally {
+      setClaiming(null);
+    }
+  };
+
+  // Handle claim button click
+  const handleClaim = async (payoutId) => {
+    try {
+      setClaiming(payoutId);
+      setClaimError(null);
+      triggerHaptic('light', isInFarcaster);
+
+      const token = localStorage.getItem('fc_session_token');
+      if (!token) {
+        setClaimError('Authentication required');
+        setClaiming(null);
+        return;
+      }
+
+      // Fetch claim data from ambassador endpoint (works for all payouts)
+      const response = await fetch(`/api/ambassador/payouts/${payoutId}/claim-data`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch claim data');
+      }
+
+      console.log('📝 Claim data fetched, executing transaction...');
+
+      // Execute on-chain claim
+      const AIRDROP_CONTRACT = '0xf2EA9F4CF58E2E3536ec7492b1b3AaCDe2851f42';
+      const AIRDROP_ABI = [{
+        name: 'claim',
+        type: 'function',
+        stateMutability: 'nonpayable',
+        inputs: [
+          { name: 'req', type: 'tuple', components: [
+            { name: 'uid', type: 'bytes32' },
+            { name: 'tokenAddress', type: 'address' },
+            { name: 'expirationTimestamp', type: 'uint256' },
+            { name: 'contents', type: 'tuple[]', components: [
+              { name: 'recipient', type: 'address' },
+              { name: 'amount', type: 'uint256' }
+            ]}
+          ]},
+          { name: 'signature', type: 'bytes' }
+        ],
+        outputs: []
+      }];
+
+      const claimData = result.data;
+      const reqForContract = {
+        uid: claimData.req.uid,
+        tokenAddress: claimData.req.tokenAddress,
+        expirationTimestamp: BigInt(claimData.req.expirationTimestamp),
+        contents: claimData.req.contents.map(c => ({
+          recipient: c.recipient,
+          amount: BigInt(c.amount)
+        }))
+      };
+
+      writeContract({
+        address: AIRDROP_CONTRACT,
+        abi: AIRDROP_ABI,
+        functionName: 'claim',
+        args: [reqForContract, claimData.signature],
+        chainId: 8453,
+      });
+
+    } catch (error) {
+      console.error('Error claiming payout:', error);
+      setClaimError(error.message || 'Failed to claim');
+      setClaiming(null);
+    }
+  };
+
+  // Get status display
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'claimable':
+        return { bg: 'bg-purple-100 text-purple-800', icon: '🎁', text: 'CLAIM' };
+      case 'pending':
+        return { bg: 'bg-yellow-100 text-yellow-800', icon: '⏳', text: 'PENDING' };
+      case 'completed':
+        return { bg: 'bg-green-100 text-green-800', icon: '✅', text: 'CLAIMED' };
+      case 'failed':
+        return { bg: 'bg-red-100 text-red-800', icon: '❌', text: 'FAILED' };
+      default:
+        return { bg: 'bg-gray-100 text-gray-800', icon: '💰', text: status.toUpperCase() };
+    }
+  };
+
+  if (payouts.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-6xl mb-4">💰</div>
@@ -435,48 +575,86 @@ function PayoutsTab({ submissions }) {
   }
 
   // Calculate totals
-  const totalEarned = submissions
-    .filter(s => s.status === 'approved')
-    .reduce((sum, s) => sum + (s.rewardTokens || 0), 0);
+  const totalClaimed = payouts
+    .filter(p => p.status === 'completed')
+    .reduce((sum, p) => sum + (p.amountTokens || 0), 0);
+  const totalClaimable = payouts
+    .filter(p => p.status === 'claimable')
+    .reduce((sum, p) => sum + (p.amountTokens || 0), 0);
 
   return (
     <div className="space-y-3">
       {/* Summary */}
-      <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
-        <div className="flex justify-between items-center">
-          <span className="text-green-800 font-medium">Total Earned</span>
-          <span className="text-green-800 font-bold text-lg">{formatNumber(totalEarned)} $mintedmerch</span>
-        </div>
-      </div>
-
-      {/* Payout list */}
-      {submissions.map((submission) => (
-        <div key={submission.id} className="border rounded-xl p-4 bg-gray-50">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-semibold text-gray-900">{submission.bountyTitle}</h4>
-              <p className="text-sm text-gray-500">
-                {new Date(submission.submittedAt).toLocaleDateString()}
-              </p>
-            </div>
-            <div className="text-right">
-              <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
-                submission.status === 'approved' ? 'bg-green-100 text-green-800' :
-                submission.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-red-100 text-red-800'
-              }`}>
-                {submission.status === 'approved' ? '💰 Paid' :
-                 submission.status === 'pending' ? '⏳ Processing' : '❌ Failed'}
-              </span>
-              {submission.status === 'approved' && (
-                <p className="text-sm text-green-600 mt-1 font-semibold">
-                  +{formatNumber(submission.rewardTokens)} tokens
-                </p>
-              )}
-            </div>
+      {totalClaimable > 0 && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4">
+          <div className="flex justify-between items-center">
+            <span className="text-purple-800 font-medium">🎁 Ready to Claim</span>
+            <span className="text-purple-800 font-bold text-lg">{formatNumber(totalClaimable)} $mintedmerch</span>
           </div>
         </div>
-      ))}
+      )}
+      
+      {totalClaimed > 0 && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+          <div className="flex justify-between items-center">
+            <span className="text-green-800 font-medium">✅ Total Claimed</span>
+            <span className="text-green-800 font-bold text-lg">{formatNumber(totalClaimed)} $mintedmerch</span>
+          </div>
+        </div>
+      )}
+
+      {claimError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-red-700">
+          {claimError}
+        </div>
+      )}
+
+      {/* Payout list */}
+      {payouts.map((payout) => {
+        const status = getStatusBadge(payout.status);
+        const isClaiming = claiming === payout.id;
+        const isThisConfirmed = claimSuccess === payout.id;
+
+        return (
+          <div key={payout.id} className="border rounded-xl p-4 bg-gray-50">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-semibold text-gray-900">{payout.bounty?.title || 'Mission Payout'}</h4>
+                <p className="text-sm text-gray-500">
+                  {new Date(payout.createdAt).toLocaleDateString()}
+                </p>
+                <p className="text-lg font-bold text-[#3eb489] mt-1">
+                  +{formatNumber(payout.amountTokens)} tokens
+                </p>
+              </div>
+              <div className="text-right">
+                {payout.status === 'claimable' ? (
+                  <button
+                    onClick={() => handleClaim(payout.id)}
+                    disabled={isClaiming || isConfirming || isThisConfirmed}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                      isThisConfirmed
+                        ? 'bg-green-600 text-white'
+                        : isClaiming || isConfirming
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-[#3eb489] hover:bg-[#359970] text-white'
+                    }`}
+                  >
+                    {isThisConfirmed ? '✅ Claimed!' :
+                     isClaiming ? '⏳ Preparing...' :
+                     isConfirming ? '⏳ Confirming...' :
+                     '🎁 Claim'}
+                  </button>
+                ) : (
+                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${status.bg}`}>
+                    {status.icon} {status.text}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
