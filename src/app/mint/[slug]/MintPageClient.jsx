@@ -1014,9 +1014,18 @@ export default function MintPageClient({ slug }) {
                 <p className="text-sm text-gray-400">
                   You can mint more above! ({userStatus?.mintCount || 0}/{userStatus?.mintLimit || '∞'} minted)
                 </p>
-                <p className="text-xs text-gray-500">
+                <button
+                  onClick={() => {
+                    triggerHaptic("light", isInFarcaster);
+                    window.scrollTo({
+                      top: 0,
+                      behavior: "smooth",
+                    });
+                  }}
+                  className="text-xs text-[#3eb489] hover:text-[#4dc99a] transition-colors cursor-pointer"
+                >
                   ↑ Scroll Up to Mint ↑
-                </p>
+                </button>
               </>
             )}
           </div>
