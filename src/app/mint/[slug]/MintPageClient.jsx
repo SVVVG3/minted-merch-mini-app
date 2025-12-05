@@ -287,10 +287,10 @@ export default function MintPageClient({ slug }) {
     }
   }, [isClaimConfirmed, claimTxHash]);
 
-  // Auto-scroll to show success screen after claim - ONLY for Beeper campaign (has terminal-style success)
+  // Auto-scroll to bottom when user has minted (to show staking + success sections)
   useEffect(() => {
-    if (hasClaimed && showStakingTeaser && campaign?.metadata?.successAscii) {
-      console.log("📜 Scrolling to show success screen (Beeper-style)...");
+    if (userStatus?.hasMinted) {
+      console.log("📜 User has minted - scrolling to show staking & success sections...");
       // Small delay to ensure DOM is updated
       setTimeout(() => {
         window.scrollTo({
@@ -299,7 +299,7 @@ export default function MintPageClient({ slug }) {
         });
       }, 300);
     }
-  }, [hasClaimed, showStakingTeaser, campaign?.metadata?.successAscii]);
+  }, [userStatus?.hasMinted]);
 
   // Handle NFT mint using Thirdweb's claimTo (automatically handles allowlist proofs)
   const handleMint = async () => {
@@ -888,81 +888,7 @@ export default function MintPageClient({ slug }) {
             )}
           </>
         )}
-
-        {/* STATE 4: Claimed - Clean Success Screen (use ASCII only for Beeper) */}
-        {hasClaimed && showStakingTeaser && (
-          campaign.metadata?.successAscii ? (
-            // Beeper-style ASCII success screen
-            <div className="space-y-2.5 font-mono">
-              <div className="bg-black border-4 border-[#77fb82] rounded-lg p-3.5 shadow-lg shadow-[#77fb82]/20">
-                <div className="text-[#77fb82] space-y-2.5">
-                  <div className="text-center">
-                    <pre className="text-xs leading-snug">{campaign.metadata.successAscii}</pre>
-                  </div>
-                  <div className="border-2 border-[#77fb82] p-3 bg-black/50">
-                    <p className="text-sm mb-2">{">"} REWARDS_CLAIMED</p>
-                    <div className="space-y-1.5 text-sm">
-                      <p className="flex justify-between">
-                        <span>TOKENS:</span>
-                        <span className="text-white font-bold">
-                          {userStatus?.tokenRewardAmount ? `${Number(userStatus.tokenRewardAmount).toLocaleString()} $MINTEDMERCH` : `${(campaign.tokenRewardAmount || 100000).toLocaleString()} $MINTEDMERCH`}
-                        </span>
-                      </p>
-                      <p className="flex justify-between">
-                        <span>NFT:</span>
-                        <span className="text-white font-bold">{userStatus?.mintCount || 1}x {campaign.title}</span>
-                      </p>
-                      <p className="flex justify-between">
-                        <span>STATUS:</span>
-                        <span className="text-white font-bold">[CONFIRMED]</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            // Clean Minted Merch success screen (default)
-            <div className="bg-gradient-to-b from-gray-900 to-black border border-[#3eb489] rounded-xl p-6 text-center space-y-4">
-              <h3 className="text-2xl font-bold text-[#3eb489]">Mint & Claim Complete!</h3>
-              <p className="text-gray-300">
-                You've minted {userStatus?.mintCount || 1} NFT{(userStatus?.mintCount || 1) > 1 ? 's' : ''} and claimed{' '}
-                <span className="text-[#3eb489] font-bold">
-                  {formatTokenReward(userStatus?.mintCount || 1)}
-                </span>
-                {' '}- thank you for supporting Minted Merch!
-              </p>
-              {userStatus?.canMint && (
-                <p className="text-sm text-gray-400">
-                  You can mint more above! ({userStatus?.mintCount || 0}/{userStatus?.mintLimit || '∞'} minted)
-                </p>
-              )}
-            </div>
-          )
-        )}
       </div>
-
-      {/* Where Staking Meets Merch Section - Show FIRST after user has minted */}
-      {userStatus?.hasMinted && (
-        <div className="border border-[#3eb489]/50 rounded-xl p-6 mb-8 space-y-4" style={{ backgroundColor: 'rgba(62, 180, 137, 0.1)' }}>
-          <p className="text-lg font-bold text-center" style={{ color: '#3eb489' }}>
-            Where Staking Meets Merch!
-          </p>
-          <p className="text-gray-300 text-sm text-center">
-            Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a Merch Mogul and unlock: exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
-          </p>
-          <button
-            onClick={() => {
-              triggerHaptic("light", isInFarcaster);
-              router.push("/stake");
-            }}
-            className="w-full py-3 rounded-lg font-bold transition-all hover:scale-105"
-            style={{ backgroundColor: '#3eb489', color: '#000' }}
-          >
-            Start Staking →
-          </button>
-        </div>
-      )}
 
       {/* About Minted Merch Section */}
       <div className="border border-gray-800 rounded-xl p-6 mb-8 space-y-4">
@@ -1022,26 +948,79 @@ export default function MintPageClient({ slug }) {
         </div>
       </div>
 
-      {/* Where Staking Meets Merch Section - Show at bottom for users who haven't minted */}
-      {!userStatus?.hasMinted && (
-        <div className="border border-[#3eb489]/50 rounded-xl p-6 mb-8 space-y-4" style={{ backgroundColor: 'rgba(62, 180, 137, 0.1)' }}>
-          <p className="text-lg font-bold text-center" style={{ color: '#3eb489' }}>
-            Where Staking Meets Merch!
-          </p>
-          <p className="text-gray-300 text-sm text-center">
-            Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a Merch Mogul and unlock: exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
-          </p>
-          <button
-            onClick={() => {
-              triggerHaptic("light", isInFarcaster);
-              router.push("/stake");
-            }}
-            className="w-full py-3 rounded-lg font-bold transition-all hover:scale-105"
-            style={{ backgroundColor: '#3eb489', color: '#000' }}
-          >
-            Start Staking →
-          </button>
-        </div>
+      {/* Where Staking Meets Merch Section - Always visible, below About section */}
+      <div className="border border-[#3eb489]/50 rounded-xl p-6 mb-8 space-y-4" style={{ backgroundColor: 'rgba(62, 180, 137, 0.1)' }}>
+        <p className="text-lg font-bold text-center" style={{ color: '#3eb489' }}>
+          Where Staking Meets Merch!
+        </p>
+        <p className="text-gray-300 text-sm text-center">
+          Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a Merch Mogul and unlock: exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
+        </p>
+        <button
+          onClick={() => {
+            triggerHaptic("light", isInFarcaster);
+            router.push("/stake");
+          }}
+          className="w-full py-3 rounded-lg font-bold transition-all hover:scale-105"
+          style={{ backgroundColor: '#3eb489', color: '#000' }}
+        >
+          Start Staking →
+        </button>
+      </div>
+
+      {/* Success Section - Show at bottom when user has claimed */}
+      {hasClaimed && showStakingTeaser && (
+        campaign.metadata?.successAscii ? (
+          // Beeper-style ASCII success screen
+          <div className="space-y-2.5 font-mono mb-8">
+            <div className="bg-black border-4 border-[#77fb82] rounded-lg p-3.5 shadow-lg shadow-[#77fb82]/20">
+              <div className="text-[#77fb82] space-y-2.5">
+                <div className="text-center">
+                  <pre className="text-xs leading-snug">{campaign.metadata.successAscii}</pre>
+                </div>
+                <div className="border-2 border-[#77fb82] p-3 bg-black/50">
+                  <p className="text-sm mb-2">{">"} REWARDS_CLAIMED</p>
+                  <div className="space-y-1.5 text-sm">
+                    <p className="flex justify-between">
+                      <span>TOKENS:</span>
+                      <span className="text-white font-bold">{formatTokenReward(userStatus?.mintCount || 1)}</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span>NFT:</span>
+                      <span className="text-white font-bold">{userStatus?.mintCount || 1}x {campaign.title}</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span>STATUS:</span>
+                      <span className="text-white font-bold">[CONFIRMED]</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Clean Minted Merch success screen (default)
+          <div className="bg-gradient-to-b from-gray-900 to-black border border-[#3eb489] rounded-xl p-6 text-center space-y-4 mb-8">
+            <h3 className="text-2xl font-bold text-[#3eb489]">Mint & Claim Complete!</h3>
+            <p className="text-gray-300">
+              You've minted {userStatus?.mintCount || 1} NFT{(userStatus?.mintCount || 1) > 1 ? 's' : ''} and claimed{' '}
+              <span className="text-[#3eb489] font-bold">
+                {formatTokenReward(userStatus?.mintCount || 1)}
+              </span>
+              {' '}- thank you for supporting Minted Merch!
+            </p>
+            {userStatus?.canMint && (
+              <>
+                <p className="text-sm text-gray-400">
+                  You can mint more above! ({userStatus?.mintCount || 0}/{userStatus?.mintLimit || '∞'} minted)
+                </p>
+                <p className="text-xs text-gray-500">
+                  ↑ Scroll Up to Mint ↑
+                </p>
+              </>
+            )}
+          </div>
+        )
       )}
 
       {/* Share Modal (Displayed as overlay when showShareModal is true) */}
