@@ -261,31 +261,31 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
             padding: '16px',
             marginBottom: '24px'
           }}>
-            {/* Stats Table */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Stats List - Single Line Each */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {/* Total Staked with Percentage */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#888', fontSize: '14px', fontWeight: '500' }}>Total Staked:</span>
-                <span style={{ color: '#fff', fontSize: '14px', textAlign: 'right' }}>
+              <div style={{ fontSize: '13px' }}>
+                <span style={{ color: '#888' }}>Total Staked: </span>
+                <span style={{ color: '#fff' }}>
                   {stakingData?.staking?.global_total_staked_full || '0'} $mintedmerch
-                  {stakingData?.staking?.staked_percentage && (
-                    <span style={{ color: '#888' }}> ({stakingData.staking.staked_percentage}%)</span>
-                  )}
                 </span>
+                {stakingData?.staking?.staked_percentage && (
+                  <span style={{ color: '#888' }}> ({stakingData.staking.staked_percentage}%)</span>
+                )}
               </div>
               
               {/* Your Stake */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#888', fontSize: '14px', fontWeight: '500' }}>Your Stake:</span>
-                <span style={{ color: '#fff', fontSize: '14px' }}>
+              <div style={{ fontSize: '13px' }}>
+                <span style={{ color: '#888' }}>Your Stake: </span>
+                <span style={{ color: '#fff' }}>
                   {stakingData?.balances?.staked_formatted || '0'} $mintedmerch
                 </span>
               </div>
               
               {/* Your Balance */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#888', fontSize: '14px', fontWeight: '500' }}>Your Balance:</span>
-                <span style={{ color: '#fff', fontSize: '14px' }}>
+              <div style={{ fontSize: '13px' }}>
+                <span style={{ color: '#888' }}>Your Balance: </span>
+                <span style={{ color: '#fff' }}>
                   {stakingData?.balances?.wallet_formatted || '0'} $mintedmerch
                 </span>
               </div>

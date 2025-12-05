@@ -33,6 +33,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 async function getCirculatingSupply() {
   // Check cache
   if (circulatingSupplyCache.value && (Date.now() - circulatingSupplyCache.timestamp) < CACHE_DURATION) {
+    console.log(`📊 Using cached circulating supply: ${circulatingSupplyCache.value.toLocaleString()}`);
     return circulatingSupplyCache.value;
   }
 
@@ -53,9 +54,16 @@ async function getCirculatingSupply() {
     const totalSupplyResult = await totalSupplyResponse.json();
     const totalSupply = parseInt(totalSupplyResult.result, 16) / 1e18;
 
-    // Get excluded balances
+    // Get excluded balances with small delays to avoid rate limiting
     let excludedBalance = 0;
-    for (const address of EXCLUDED_ADDRESSES) {
+    for (let i = 0; i < EXCLUDED_ADDRESSES.length; i++) {
+      const address = EXCLUDED_ADDRESSES[i];
+      
+      // Small delay between calls to avoid rate limiting
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
       const paddedAddress = address.slice(2).toLowerCase().padStart(64, '0');
       const balanceResponse = await fetch(rpcUrl, {
         method: 'POST',
@@ -64,12 +72,14 @@ async function getCirculatingSupply() {
           jsonrpc: '2.0',
           method: 'eth_call',
           params: [{ to: TOKEN_CONTRACT, data: `0x70a08231${paddedAddress}` }, 'latest'], // balanceOf()
-          id: 1
+          id: i + 2
         })
       });
       const balanceResult = await balanceResponse.json();
       if (balanceResult.result) {
-        excludedBalance += parseInt(balanceResult.result, 16) / 1e18;
+        const balance = parseInt(balanceResult.result, 16) / 1e18;
+        excludedBalance += balance;
+        console.log(`   ${address.slice(0, 10)}...: ${balance.toLocaleString()}`);
       }
     }
 
@@ -78,12 +88,16 @@ async function getCirculatingSupply() {
     // Cache the result
     circulatingSupplyCache = { value: circulatingSupply, timestamp: Date.now() };
     
-    console.log(`📊 Circulating supply: ${circulatingSupply.toLocaleString()} (Total: ${totalSupply.toLocaleString()}, Excluded: ${excludedBalance.toLocaleString()})`);
+    console.log(`📊 Circulating supply calculated:`);
+    console.log(`   Total Supply: ${totalSupply.toLocaleString()}`);
+    console.log(`   Excluded: ${excludedBalance.toLocaleString()}`);
+    console.log(`   Circulating: ${circulatingSupply.toLocaleString()}`);
     
     return circulatingSupply;
   } catch (error) {
     console.error('Error calculating circulating supply:', error);
-    return 18_600_000_000; // Fallback to approximate value
+    // Fallback: ~18.4B circulating (100B total - ~81.6B excluded)
+    return 18_400_000_000;
   }
 }
 
