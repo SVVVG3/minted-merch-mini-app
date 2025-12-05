@@ -24,18 +24,28 @@ const EXCLUDED_ADDRESSES = [
 ];
 
 // Cache for circulating supply (refresh every 10 minutes)
-// IMPORTANT: Set value to null to force recalculation on deploy
 let circulatingSupplyCache = { value: null, timestamp: 0 };
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+
+// CORRECT circulating supply should be ~18.4B (100B - 81.6B excluded)
+// If cached value is significantly different, invalidate it
+const EXPECTED_CIRCULATING_MIN = 15_000_000_000; // 15B
+const EXPECTED_CIRCULATING_MAX = 25_000_000_000; // 25B
 
 /**
  * Get circulating supply = Total Supply - LP - Community Wallets
  */
 async function getCirculatingSupply() {
-  // Check cache
+  // Check cache - but invalidate if value seems wrong (was calculated when RPCs were failing)
   if (circulatingSupplyCache.value && (Date.now() - circulatingSupplyCache.timestamp) < CACHE_DURATION) {
-    console.log(`📊 Using cached circulating supply: ${circulatingSupplyCache.value.toLocaleString()}`);
-    return circulatingSupplyCache.value;
+    // SANITY CHECK: Circulating supply should be ~18.4B
+    // If cached value is outside expected range, force recalculate
+    if (circulatingSupplyCache.value < EXPECTED_CIRCULATING_MIN || circulatingSupplyCache.value > EXPECTED_CIRCULATING_MAX) {
+      console.log(`⚠️ Cached circulating supply ${circulatingSupplyCache.value.toLocaleString()} is outside expected range, forcing recalculation`);
+    } else {
+      console.log(`📊 Using cached circulating supply: ${circulatingSupplyCache.value.toLocaleString()}`);
+      return circulatingSupplyCache.value;
+    }
   }
 
   try {
@@ -55,33 +65,55 @@ async function getCirculatingSupply() {
     const totalSupplyResult = await totalSupplyResponse.json();
     const totalSupply = parseInt(totalSupplyResult.result, 16) / 1e18;
 
-    // Get excluded balances with small delays to avoid rate limiting
+    // Get excluded balances with delays to avoid rate limiting
+    // IMPORTANT: Use longer delays to ensure all balances are fetched correctly
     let excludedBalance = 0;
+    const balanceDetails = [];
+    
     for (let i = 0; i < EXCLUDED_ADDRESSES.length; i++) {
       const address = EXCLUDED_ADDRESSES[i];
       
-      // Small delay between calls to avoid rate limiting
+      // Longer delay between calls (200ms) to prevent rate limiting
       if (i > 0) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
       
       const paddedAddress = address.slice(2).toLowerCase().padStart(64, '0');
-      const balanceResponse = await fetch(rpcUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'eth_call',
-          params: [{ to: TOKEN_CONTRACT, data: `0x70a08231${paddedAddress}` }, 'latest'], // balanceOf()
-          id: i + 2
-        })
-      });
-      const balanceResult = await balanceResponse.json();
-      if (balanceResult.result) {
-        const balance = parseInt(balanceResult.result, 16) / 1e18;
-        excludedBalance += balance;
-        console.log(`   ${address.slice(0, 10)}...: ${balance.toLocaleString()}`);
+      
+      try {
+        const balanceResponse = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_call',
+            params: [{ to: TOKEN_CONTRACT, data: `0x70a08231${paddedAddress}` }, 'latest'],
+            id: i + 2
+          })
+        });
+        const balanceResult = await balanceResponse.json();
+        
+        if (balanceResult.result && balanceResult.result !== '0x') {
+          const balance = parseInt(balanceResult.result, 16) / 1e18;
+          excludedBalance += balance;
+          balanceDetails.push({ address: address.slice(0, 10), balance });
+          console.log(`   ${address.slice(0, 10)}...: ${balance.toLocaleString()}`);
+        } else {
+          console.warn(`   ⚠️ ${address.slice(0, 10)}...: No balance returned`);
+        }
+      } catch (err) {
+        console.error(`   ❌ ${address.slice(0, 10)}...: Error fetching balance:`, err.message);
       }
+    }
+    
+    // SANITY CHECK: We should have excluded ~81.5B tokens
+    // If excluded is too low, something went wrong with RPC calls
+    const EXPECTED_EXCLUDED_MIN = 75_000_000_000; // 75B minimum
+    if (excludedBalance < EXPECTED_EXCLUDED_MIN) {
+      console.error(`❌ Excluded balance ${excludedBalance.toLocaleString()} is too low! Expected at least ${EXPECTED_EXCLUDED_MIN.toLocaleString()}`);
+      console.error(`   This likely means some RPC calls failed. Using fallback.`);
+      // Return fallback instead of caching bad data
+      return 18_400_000_000;
     }
 
     const circulatingSupply = totalSupply - excludedBalance;
