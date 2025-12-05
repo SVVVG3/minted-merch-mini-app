@@ -738,10 +738,11 @@ export default function MintPageClient({ slug }) {
       {/* Main Action Section - MOVED UP: Mint button before info sections */}
       <div className="space-y-4 mb-8">
         {/* STATE 1: Can Mint - Show Quantity Selector + Mint Button */}
-        {((!userStatus?.hasMinted) || (hasClaimed && canMint)) && (
+        {/* Show when: hasn't minted yet, OR minting in progress, OR (claimed and can mint more) */}
+        {((!userStatus?.hasMinted) || isMintingProcess || (hasClaimed && userStatus?.canMint)) && (
           <>
-            {/* Quantity Selector - Only show if mint limit > 1 or unlimited */}
-            {canMint && (userStatus?.mintLimit === null || userStatus?.mintLimit > 1 || !userStatus?.mintLimit) && (
+            {/* Quantity Selector - Only show if mint limit > 1 or unlimited AND not currently minting */}
+            {!isMintingProcess && canMint && (userStatus?.mintLimit === null || userStatus?.mintLimit > 1 || !userStatus?.mintLimit) && (
               <div className="flex items-center justify-center gap-4 mb-4">
                 <span className="text-gray-400 text-sm">Quantity:</span>
                 <div className="flex items-center bg-gray-800 rounded-lg overflow-hidden">
@@ -781,8 +782,8 @@ export default function MintPageClient({ slug }) {
               </div>
             )}
 
-            {/* Total Cost Display - Show when quantity > 1 */}
-            {canMint && mintQuantity > 1 && (
+            {/* Total Cost Display - Show when quantity > 1 and not minting */}
+            {!isMintingProcess && canMint && mintQuantity > 1 && (
               <p className="text-xs text-gray-400 text-center mb-3">
                 Total: <span className="text-white font-bold">{(mintPrice * mintQuantity).toFixed(4)} ETH</span>
                 {' • '}Claim: <span className="text-[#3eb489] font-bold">{formatTokenAmount(100 * mintQuantity)} $mintedmerch</span>
@@ -791,24 +792,37 @@ export default function MintPageClient({ slug }) {
             
             <button
               onClick={handleMint}
-              disabled={!canMint}
-              className={`w-full py-4 rounded-xl text-xl font-bold transition-all ${
-                canMint
+              disabled={!canMint || isMintingProcess}
+              className={`w-full py-4 rounded-xl text-xl font-bold transition-all flex items-center justify-center gap-3 ${
+                isMintingProcess
+                  ? "bg-gray-600 text-white cursor-wait"
+                  : canMint
                   ? "bg-white text-black hover:bg-gray-200 hover:scale-105"
                   : "bg-gray-700 text-gray-500 cursor-not-allowed"
               }`}
             >
-              {isMintConfirming
-                ? "Confirming..."
-                : isMintTxPending
-                ? "Approve in wallet..."
-                : isMinting
-                ? "Preparing..."
-                : canMint
-                ? (mintQuantity > 1 
-                    ? `Mint ${mintQuantity}`
-                    : (campaign.metadata?.mintButtonText || campaign.metadata?.buttonText || "Mint"))
-                : "❌ Mint Unavailable"}
+              {isMintConfirming ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Confirming...
+                </>
+              ) : isMintTxPending ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
+                  Approve in wallet...
+                </>
+              ) : isMinting ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
+                  Preparing...
+                </>
+              ) : canMint ? (
+                mintQuantity > 1 
+                  ? `Mint ${mintQuantity}`
+                  : (campaign.metadata?.mintButtonText || campaign.metadata?.buttonText || "Mint")
+              ) : (
+                "❌ Mint Unavailable"
+              )}
             </button>
 
             {mintError && (
