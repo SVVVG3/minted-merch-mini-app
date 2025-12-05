@@ -7,14 +7,15 @@ export async function generateMetadata() {
   const title = '💎 Merch Mogul Missions - Minted Merch';
   const description = 'Complete interaction bounties to earn $mintedmerch tokens! Exclusive missions for Merch Moguls holding 50M+ tokens.';
   
-  const imageUrl = `${baseUrl}/MerchMogulMissionsDashboardLogo.png`;
+  // Use dynamic OG image API for properly sized embed
+  const imageUrl = `${baseUrl}/api/og/mogul-missions`;
   
   // Create frame embed for Farcaster
   const frame = {
     version: "next",
     imageUrl: imageUrl,
     button: {
-      title: "💎 View Missions",
+      title: "View Missions 🤌",
       action: {
         type: "launch_frame",
         url: `${baseUrl}/merchmogulmissions`,
