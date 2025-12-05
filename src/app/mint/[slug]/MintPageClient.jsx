@@ -63,8 +63,7 @@ export default function MintPageClient({ slug }) {
   const [claimId, setClaimId] = useState(null);
   const [mintQuantity, setMintQuantity] = useState(1);
 
-  // Share state
-  const [showShareModal, setShowShareModal] = useState(false);
+  // Share state (no modal - inline like StakingLaunchMint)
   const [isSharing, setIsSharing] = useState(false);
   const [hasShared, setHasShared] = useState(false);
 
@@ -186,6 +185,10 @@ export default function MintPageClient({ slug }) {
             // Update state with full data from API response
             setClaimId(data.claim.id);
             const responseQuantity = data.claim?.quantity || mintQuantity;
+            // Reset share/claim states for this new mint cycle (like StakingLaunchMint)
+            setHasShared(false);
+            setHasClaimed(false);
+            setMintError(null);
             setUserStatus((prev) => {
               const newCount = (prev?.mintCount || 0) + responseQuantity;
               const limit = prev?.mintLimit;
@@ -200,7 +203,7 @@ export default function MintPageClient({ slug }) {
                 lastMintQuantity: responseQuantity
               };
             });
-            setShowShareModal(true);
+            // No modal - inline Share button will appear via STATE 2
           } else {
             console.error("⚠️  Failed to record mint");
           }
@@ -517,16 +520,7 @@ export default function MintPageClient({ slug }) {
         if (markSharedResponse.ok) {
           console.log("✅ Marked as shared");
           setHasShared(true);
-          setShowShareModal(false); // Close modal
-
-          // Auto-scroll to show Claim button
-          setTimeout(() => {
-            console.log("📜 Scrolling to show Claim button...");
-            window.scrollTo({
-              top: document.documentElement.scrollHeight,
-              behavior: "smooth",
-            });
-          }, 400);
+          // Claim button will appear via STATE 3
         } else {
           const errorData = await markSharedResponse.json();
           console.error("❌ Failed to mark as shared:", errorData);
@@ -834,7 +828,7 @@ export default function MintPageClient({ slug }) {
         )}
 
         {/* STATE 2: Minted but not shared - Show Share Button (REQUIRED) */}
-        {userStatus?.hasMinted && !hasShared && !showShareModal && (
+        {userStatus?.hasMinted && !hasShared && (
           <div className="p-6 bg-gradient-to-r from-purple-900/50 to-blue-900/50 border border-purple-500 rounded-xl space-y-4">
             <div className="text-center space-y-2">
               <div className="text-4xl">🎉</div>
@@ -954,18 +948,18 @@ export default function MintPageClient({ slug }) {
           Where Staking Meets Merch!
         </p>
         <p className="text-gray-300 text-sm text-center">
-          Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a Merch Mogul and unlock: exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
+          Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a <span style={{ color: '#3eb489' }}>Merch Mogul</span> and unlock: exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
         </p>
         
-        <p className="text-xs font-bold text-center leading-relaxed pt-1" style={{ color: '#3eb489' }}>
+        <p className="text-xs font-bold text-center leading-relaxed pt-1 text-white">
           SPIN-TO-CLAIM ONCE PER DAY FOR A CHANCE TO WIN THE{' '}
-          <span className="text-white">MONTHLY MEGA MERCH PACK JACKPOT</span>,{' '}
+          <span style={{ color: '#3eb489' }}>MONTHLY MEGA MERCH PACK JACKPOT</span>,{' '}
           ONE OF FOUR{' '}
-          <span className="text-white">MINI MERCH PACKS</span>,{' '}
+          <span style={{ color: '#3eb489' }}>MINI MERCH PACKS</span>,{' '}
           THE{' '}
-          <span className="text-white">1M $mintedmerch DAILY JACKPOT</span>{' '}
+          <span style={{ color: '#3eb489' }}>1M $mintedmerch DAILY JACKPOT</span>{' '}
           OR THE{' '}
-          <span className="text-white">100K $mintedmerch BONUSES</span>!
+          <span style={{ color: '#3eb489' }}>100K $mintedmerch BONUSES</span>!
         </p>
         
         <button
@@ -1044,60 +1038,6 @@ export default function MintPageClient({ slug }) {
         )
       )}
 
-      {/* Share Modal (Displayed as overlay when showShareModal is true) */}
-      {showShareModal && (
-        <div
-          className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"
-          style={{ pointerEvents: "auto" }}
-        >
-          <div className="bg-black border border-gray-800 rounded-2xl p-8 max-w-md w-full space-y-6">
-            <div className="text-center space-y-2">
-              <div className="text-5xl">🎉</div>
-              <h3 className="text-2xl font-bold">You Minted!</h3>
-              <p className="text-gray-300">Share to claim $mintedmerch</p>
-            </div>
-
-            <button
-              onClick={(e) => {
-                console.log("🖱️ Share button CLICKED!", {
-                  isSharing,
-                  claimId,
-                  sessionToken: !!sessionToken,
-                });
-                e.preventDefault();
-                e.stopPropagation();
-                handleShare();
-              }}
-              disabled={isSharing}
-              style={{ pointerEvents: isSharing ? "none" : "auto" }}
-              className="w-full py-4 bg-[#6A3CFF] text-white rounded-xl font-bold hover:bg-[#5A2FE6] disabled:bg-gray-600 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
-            >
-              {isSharing ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  Opening Share...
-                </>
-              ) : (
-                <>
-                  {/* Official Farcaster Logo (2024 rebrand) */}
-                  <svg
-                    className="w-5 h-5"
-                    viewBox="0 0 520 457"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  Share to Farcaster
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
