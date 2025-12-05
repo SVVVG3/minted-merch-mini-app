@@ -2,27 +2,18 @@
 // Verifies user holds required NFTs before allowing mint
 
 import { supabaseAdmin } from '@/lib/supabase';
-import { verifyJwt } from '@/lib/auth';
+import { getAuthenticatedFid } from '@/lib/userAuth';
 import { checkNftGatedEligibility } from '@/lib/blockchainAPI';
 
 export async function POST(request, { params }) {
   try {
     const { slug } = await params;
     
-    // Verify authentication
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader?.replace('Bearer ', '');
-    
-    if (!token) {
+    // Verify authentication using standard auth helper
+    const fid = await getAuthenticatedFid(request);
+    if (!fid) {
       return Response.json({ error: 'Authentication required' }, { status: 401 });
     }
-
-    const decoded = await verifyJwt(token);
-    if (!decoded?.fid) {
-      return Response.json({ error: 'Invalid authentication' }, { status: 401 });
-    }
-
-    const fid = decoded.fid;
 
     // Get request body
     const body = await request.json();
@@ -77,8 +68,8 @@ export async function POST(request, { params }) {
     const { data: existingMints, error: mintsError } = await supabaseAdmin
       .from('nft_mint_claims')
       .select('quantity')
-      .eq('nft_mint_id', campaign.id)
-      .eq('fid', fid);
+      .eq('campaign_id', campaign.id)
+      .eq('user_fid', fid);
 
     const totalMinted = existingMints?.reduce((sum, claim) => sum + (claim.quantity || 1), 0) || 0;
     const remainingAllowed = Math.max(0, cappedQuantity - totalMinted);
