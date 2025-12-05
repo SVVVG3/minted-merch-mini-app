@@ -58,14 +58,14 @@ export async function GET(request) {
             }}
           />
           
-          {/* Main Logo */}
+          {/* Main Logo - sized to fit properly */}
           {logoImageSrc ? (
             <img
               src={logoImageSrc}
               alt="Merch Mogul Missions"
               style={{
-                maxWidth: '85%',
-                maxHeight: '60%',
+                maxWidth: '70%',
+                maxHeight: '45%',
                 objectFit: 'contain',
               }}
             />
@@ -82,7 +82,7 @@ export async function GET(request) {
             >
               <div
                 style={{
-                  fontSize: '72px',
+                  fontSize: '64px',
                   fontWeight: 'bold',
                   color: '#3eb489',
                   marginBottom: '20px',
@@ -92,7 +92,7 @@ export async function GET(request) {
               </div>
               <div
                 style={{
-                  fontSize: '64px',
+                  fontSize: '56px',
                   fontWeight: 'bold',
                   color: '#3eb489',
                 }}
@@ -105,40 +105,14 @@ export async function GET(request) {
           {/* Tagline */}
           <div
             style={{
-              marginTop: '30px',
-              fontSize: '32px',
+              marginTop: '40px',
+              fontSize: '36px',
               color: 'rgba(255, 255, 255, 0.9)',
               fontWeight: '500',
               display: 'flex',
             }}
           >
-            Complete bounties • Earn $mintedmerch
-          </div>
-          
-          {/* Bottom badge */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '40px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              backgroundColor: 'rgba(62, 180, 137, 0.2)',
-              borderRadius: '50px',
-              padding: '12px 24px',
-              border: '2px solid rgba(62, 180, 137, 0.5)',
-            }}
-          >
-            <div
-              style={{
-                fontSize: '24px',
-                color: '#3eb489',
-                fontWeight: 'bold',
-                display: 'flex',
-              }}
-            >
-              50M+ $mintedmerch holders only
-            </div>
+            Complete missions • Earn $mintedmerch
           </div>
         </div>
       ),
@@ -166,9 +140,9 @@ export async function GET(request) {
             color: 'white',
           }}
         >
-          <div style={{ fontSize: 72, color: '#3eb489', fontWeight: 'bold' }}>💎 MERCH MOGUL</div>
-          <div style={{ fontSize: 64, color: '#3eb489', marginTop: 20, fontWeight: 'bold' }}>MISSIONS</div>
-          <div style={{ fontSize: 32, color: 'rgba(255,255,255,0.8)', marginTop: 30 }}>Complete bounties • Earn $mintedmerch</div>
+          <div style={{ fontSize: 64, color: '#3eb489', fontWeight: 'bold' }}>💎 MERCH MOGUL</div>
+          <div style={{ fontSize: 56, color: '#3eb489', marginTop: 20, fontWeight: 'bold' }}>MISSIONS</div>
+          <div style={{ fontSize: 36, color: 'rgba(255,255,255,0.9)', marginTop: 40 }}>Complete missions • Earn $mintedmerch</div>
         </div>
       ),
       {
