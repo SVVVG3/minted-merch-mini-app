@@ -949,7 +949,7 @@ export default function MintPageClient({ slug }) {
       </div>
 
       {/* Where Staking Meets Merch Section - Always visible, below About section */}
-      <div className="border border-[#3eb489]/50 rounded-xl p-6 mb-8 space-y-4" style={{ backgroundColor: 'rgba(62, 180, 137, 0.1)' }}>
+      <div className="border border-[#3eb489]/50 rounded-xl p-6 mb-6 space-y-4" style={{ backgroundColor: 'rgba(62, 180, 137, 0.1)' }}>
         <p className="text-lg font-bold text-center" style={{ color: '#3eb489' }}>
           Where Staking Meets Merch!
         </p>
@@ -965,6 +965,30 @@ export default function MintPageClient({ slug }) {
           style={{ backgroundColor: '#3eb489', color: '#000' }}
         >
           Start Staking →
+        </button>
+      </div>
+
+      {/* Spin-To-Claim Prizes Section */}
+      <div className="border border-[#3eb489]/50 rounded-xl p-6 mb-8" style={{ backgroundColor: 'rgba(62, 180, 137, 0.1)' }}>
+        <p className="text-base font-bold text-center leading-relaxed" style={{ color: '#3eb489' }}>
+          🎰 SPIN-TO-CLAIM ONCE PER DAY FOR A CHANCE TO WIN THE{' '}
+          <span className="text-white">MONTHLY MEGA MERCH PACK JACKPOT</span>,{' '}
+          ONE OF FOUR{' '}
+          <span className="text-white">MINI MERCH PACKS</span>,{' '}
+          THE{' '}
+          <span className="text-white">1M $mintedmerch DAILY JACKPOT</span>{' '}
+          OR THE{' '}
+          <span className="text-white">100K $mintedmerch BONUSES</span>! 🎰
+        </p>
+        <button
+          onClick={() => {
+            triggerHaptic("light", isInFarcaster);
+            router.push("/");
+          }}
+          className="w-full mt-4 py-3 rounded-lg font-bold transition-all hover:scale-105 border-2 border-[#3eb489]"
+          style={{ backgroundColor: 'transparent', color: '#3eb489' }}
+        >
+          Spin Now →
         </button>
       </div>
 
