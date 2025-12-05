@@ -6,7 +6,7 @@
 
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, supabase } from '@/lib/supabase';
-import { getUserStakingDetails, getUserStakedBalance, getGlobalTotalStaked } from '@/lib/stakingBalanceAPI';
+import { getUserStakingDetails, getUserStakedBalance, getGlobalTotalStaked, getUserLifetimeClaimed } from '@/lib/stakingBalanceAPI';
 import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 
 // Token contract address
@@ -23,9 +23,10 @@ const EXCLUDED_ADDRESSES = [
   '0xcf965A96d55476e7345e948601921207549c0393', // Community Wallet 6
 ];
 
-// Cache for circulating supply (refresh every 5 minutes)
+// Cache for circulating supply (refresh every 10 minutes)
+// IMPORTANT: Set value to null to force recalculation on deploy
 let circulatingSupplyCache = { value: null, timestamp: 0 };
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
 /**
  * Get circulating supply = Total Supply - LP - Community Wallets
@@ -240,10 +241,17 @@ export async function GET(request) {
     const totalTokenBalance = profile.token_balance || 0;
     const walletBalance = Math.max(0, totalTokenBalance - userStakedAmount);
     
+    // Get lifetime claimed rewards from GraphQL
+    let lifetimeClaimed = 0;
+    if (walletAddresses.length > 0) {
+      lifetimeClaimed = await getUserLifetimeClaimed(walletAddresses);
+    }
+    
     console.log(`📊 Balance breakdown for FID ${fid}:`);
     console.log(`   Total tokens: ${totalTokenBalance.toLocaleString()}`);
     console.log(`   Staked: ${userStakedAmount.toLocaleString()}`);
     console.log(`   Wallet (unstaked): ${walletBalance.toLocaleString()}`);
+    console.log(`   Lifetime claimed: ${lifetimeClaimed.toLocaleString()}`);
     console.log(`   Circulating supply: ${circulatingSupply.toLocaleString()}`);
     console.log(`   Global staked: ${globalTotalStaked.toLocaleString()}`);
     console.log(`   Staked %: ${stakedPercentage}%`);
@@ -266,7 +274,9 @@ export async function GET(request) {
         circulating_supply: circulatingSupply,
         staked_percentage: stakedPercentage,
         is_staker: userStakedAmount > 0,
-        stake_count: stakingDetails.stakes?.length || 0
+        stake_count: stakingDetails.stakes?.length || 0,
+        lifetime_claimed: lifetimeClaimed,
+        lifetime_claimed_formatted: formatNumberFull(lifetimeClaimed)
       },
       balances: {
         total: totalTokenBalance,

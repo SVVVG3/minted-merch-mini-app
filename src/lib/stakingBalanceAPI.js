@@ -288,6 +288,76 @@ export async function getStakingStats() {
   }
 }
 
+/**
+ * Get user's lifetime claimed rewards from the staking contract
+ * @param {Array<string>} walletAddresses - User's wallet addresses (lowercase)
+ * @returns {Promise<number>} Total claimed rewards in tokens (not wei)
+ */
+export async function getUserLifetimeClaimed(walletAddresses) {
+  if (!walletAddresses || walletAddresses.length === 0) {
+    return 0;
+  }
+
+  const normalizedAddresses = walletAddresses
+    .filter(addr => typeof addr === 'string' && addr.startsWith('0x'))
+    .map(addr => addr.toLowerCase());
+
+  if (normalizedAddresses.length === 0) {
+    return 0;
+  }
+
+  try {
+    const query = `
+      query GetLifetimeClaimed($addresses: [String!]!) {
+        rewardClaimeds(where: { staker_in: $addresses }, first: 1000) {
+          staker
+          amount
+          timestamp_
+        }
+      }
+    `;
+
+    const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: {
+          addresses: normalizedAddresses
+        }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`GraphQL request failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.errors) {
+      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+    }
+
+    const claimEvents = result.data?.rewardClaimeds || [];
+    
+    // Sum all claimed rewards
+    let totalClaimed = 0;
+    for (const event of claimEvents) {
+      totalClaimed += parseFloat(event.amount) / Math.pow(10, 18);
+    }
+
+    console.log(`📊 Lifetime claimed: ${totalClaimed.toLocaleString()} tokens from ${claimEvents.length} claim events`);
+
+    return totalClaimed;
+
+  } catch (error) {
+    console.error('📊 Error querying lifetime claimed:', error);
+    return 0;
+  }
+}
+
 export async function getUserStakingDetails(walletAddresses) {
   if (!walletAddresses || walletAddresses.length === 0) {
     return {
