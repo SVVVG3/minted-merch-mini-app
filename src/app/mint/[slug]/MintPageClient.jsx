@@ -61,6 +61,7 @@ export default function MintPageClient({ slug }) {
   const [isMinting, setIsMinting] = useState(false);
   const [mintError, setMintError] = useState(null);
   const [claimId, setClaimId] = useState(null);
+  const [mintQuantity, setMintQuantity] = useState(1);
 
   // Share state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -311,6 +312,7 @@ export default function MintPageClient({ slug }) {
 
       // Fetch claim params from backend (uses Thirdweb getClaimParams)
       console.log("🔍 Fetching claim params from backend...");
+      console.log("📊 Mint quantity:", mintQuantity);
       const proofResponse = await fetch(`/api/nft-mints/${slug}/get-proof`, {
         method: "POST",
         headers: {
@@ -320,6 +322,7 @@ export default function MintPageClient({ slug }) {
         body: JSON.stringify({
           walletAddress,
           tokenId: campaign.tokenId || 0,
+          quantity: mintQuantity,
         }),
       });
 
@@ -376,6 +379,9 @@ export default function MintPageClient({ slug }) {
       console.log("📤 Sending transaction via Wagmi...");
 
       // Send via Wagmi using the exact params from Thirdweb
+      // Scale value for batch mints
+      const totalValue = BigInt(pricePerToken) * BigInt(mintQuantity);
+      
       writeMintContract({
         address: campaign.contractAddress,
         abi: erc1155ClaimABI,
@@ -383,12 +389,13 @@ export default function MintPageClient({ slug }) {
         args: [
           walletAddress,
           BigInt(campaign.tokenId || 0),
-          BigInt(1),
+          BigInt(mintQuantity), // Use selected quantity
           currency, // Use main currency from claimParams
           BigInt(pricePerToken), // Use main pricePerToken from claimParams
           allowlistProofTuple, // Use allowlist proof tuple
           "0x",
         ],
+        value: totalValue, // Total cost for batch mint
       });
 
       console.log("✅ Mint transaction sent - waiting for user approval...");
@@ -658,12 +665,12 @@ export default function MintPageClient({ slug }) {
       </div>
 
       {/* Header Image - Use collab logo if specified in metadata, otherwise spinner logo */}
-      <div className="mb-2 relative h-24 rounded-xl overflow-hidden flex justify-center items-center">
+      <div className="mb-4 relative rounded-xl overflow-hidden flex justify-center items-center">
         <Image
           src={campaign.metadata?.headerImage || "/MintedMerchSpinnerLogo.png"}
           alt={campaign.metadata?.headerAlt || "Minted Merch"}
-          width={campaign.metadata?.headerImage ? 400 : 120}
-          height={96}
+          width={400}
+          height={campaign.metadata?.headerImage ? 100 : 200}
           className="object-contain"
           priority
         />
@@ -746,9 +753,50 @@ export default function MintPageClient({ slug }) {
 
       {/* Main Action Section */}
       <div className="space-y-4 mb-12">
-        {/* STATE 1: Not Minted - Show Mint Button */}
+        {/* STATE 1: Not Minted - Show Quantity Selector + Mint Button */}
         {!userStatus?.hasMinted && (
           <>
+            {/* Quantity Selector - Only show if mint limit > 1 or unlimited */}
+            {canMint && (campaign.mintLimitPerFid === null || campaign.mintLimitPerFid === 0 || campaign.mintLimitPerFid > 1) && (
+              <div className="flex items-center justify-center gap-4 mb-4">
+                <span className="text-gray-400 text-sm">Quantity:</span>
+                <div className="flex items-center bg-gray-800 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setMintQuantity(Math.max(1, mintQuantity - 1))}
+                    disabled={mintQuantity <= 1}
+                    className={`px-4 py-2 text-lg font-bold transition-colors ${
+                      mintQuantity <= 1 ? "text-gray-600 cursor-not-allowed" : "text-white hover:bg-gray-700"
+                    }`}
+                  >
+                    −
+                  </button>
+                  <span className="px-4 py-2 text-white font-bold min-w-[3rem] text-center">
+                    {mintQuantity}
+                  </span>
+                  <button
+                    onClick={() => {
+                      const maxAllowed = campaign.mintLimitPerFid || 20;
+                      const remaining = maxAllowed - (userStatus?.mintCount || 0);
+                      setMintQuantity(Math.min(remaining, mintQuantity + 1));
+                    }}
+                    disabled={mintQuantity >= ((campaign.mintLimitPerFid || 20) - (userStatus?.mintCount || 0))}
+                    className={`px-4 py-2 text-lg font-bold transition-colors ${
+                      mintQuantity >= ((campaign.mintLimitPerFid || 20) - (userStatus?.mintCount || 0))
+                        ? "text-gray-600 cursor-not-allowed"
+                        : "text-white hover:bg-gray-700"
+                    }`}
+                  >
+                    +
+                  </button>
+                </div>
+                {campaign.mintLimitPerFid && campaign.mintLimitPerFid > 0 && (
+                  <span className="text-gray-500 text-sm">
+                    ({userStatus?.mintCount || 0}/{campaign.mintLimitPerFid} minted)
+                  </span>
+                )}
+              </div>
+            )}
+            
             <button
               onClick={handleMint}
               disabled={!canMint}
@@ -765,7 +813,9 @@ export default function MintPageClient({ slug }) {
                 : isMinting
                 ? "Preparing..."
                 : canMint
-                ? (campaign.metadata?.mintButtonText || campaign.metadata?.buttonText || "Mint NFT")
+                ? (mintQuantity > 1 
+                    ? `${campaign.metadata?.mintButtonText || campaign.metadata?.buttonText || "Mint"} (${mintQuantity})`
+                    : (campaign.metadata?.mintButtonText || campaign.metadata?.buttonText || "Mint NFT"))
                 : "❌ Mint Unavailable"}
             </button>
 

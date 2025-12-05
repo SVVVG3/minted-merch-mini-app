@@ -19,7 +19,7 @@ export async function POST(request, { params }) {
   try {
     const { slug } = params;
     const body = await request.json();
-    const { walletAddress, tokenId } = body;
+    const { walletAddress, tokenId, quantity = 1 } = body;
 
     // Authenticate request
     const authenticatedFid = await getAuthenticatedFid(request);
@@ -35,6 +35,7 @@ export async function POST(request, { params }) {
     console.log(`[${requestId}] Campaign slug:`, slug);
     console.log(`[${requestId}] Wallet:`, walletAddress);
     console.log(`[${requestId}] Token ID:`, tokenId);
+    console.log(`[${requestId}] Quantity:`, quantity);
 
     // Validate inputs
     if (!walletAddress) {
@@ -86,7 +87,7 @@ export async function POST(request, { params }) {
       const claimParams = await getClaimParams({
         contract,
         to: walletAddress,
-        quantity: BigInt(1),
+        quantity: BigInt(quantity),
         type: "erc1155",
         tokenId: BigInt(tokenId || 0),
         from: walletAddress, // Required for allowlist verification
