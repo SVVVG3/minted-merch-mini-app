@@ -258,8 +258,8 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           <div style={{
             backgroundColor: 'rgba(0,0,0,0.3)',
             borderRadius: '12px',
-            padding: '16px',
-            marginBottom: '24px'
+            padding: '8px 16px',
+            marginBottom: '12px'
           }}>
             {/* Stats List - Labels left, Values right */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
