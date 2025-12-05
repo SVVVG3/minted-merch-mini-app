@@ -949,7 +949,7 @@ export default function MintPageClient({ slug }) {
       </div>
 
       {/* Combined Staking & Spin-To-Claim Section */}
-      <div className="border border-[#3eb489]/50 rounded-xl p-6 mb-8 space-y-4" style={{ backgroundColor: 'rgba(62, 180, 137, 0.1)' }}>
+      <div className="border border-[#3eb489]/50 rounded-xl p-6 mb-8 space-y-2" style={{ backgroundColor: 'rgba(62, 180, 137, 0.1)' }}>
         <p className="text-lg font-bold text-center" style={{ color: '#3eb489' }}>
           Where Staking Meets Merch!
         </p>
@@ -957,15 +957,15 @@ export default function MintPageClient({ slug }) {
           Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a Merch Mogul and unlock: exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
         </p>
         
-        <p className="text-base font-bold text-center leading-relaxed pt-2" style={{ color: '#3eb489' }}>
-          🎰 SPIN-TO-CLAIM ONCE PER DAY FOR A CHANCE TO WIN THE{' '}
+        <p className="text-xs font-bold text-center leading-relaxed pt-1" style={{ color: '#3eb489' }}>
+          SPIN-TO-CLAIM ONCE PER DAY FOR A CHANCE TO WIN THE{' '}
           <span className="text-white">MONTHLY MEGA MERCH PACK JACKPOT</span>,{' '}
           ONE OF FOUR{' '}
           <span className="text-white">MINI MERCH PACKS</span>,{' '}
           THE{' '}
           <span className="text-white">1M $mintedmerch DAILY JACKPOT</span>{' '}
           OR THE{' '}
-          <span className="text-white">100K $mintedmerch BONUSES</span>! 🎰
+          <span className="text-white">100K $mintedmerch BONUSES</span>!
         </p>
         
         <button
