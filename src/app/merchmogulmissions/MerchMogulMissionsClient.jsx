@@ -231,7 +231,10 @@ export default function MerchMogulMissions() {
               ← Back to Shop
             </button>
             <button
-              onClick={() => setShowProfileModal(true)}
+              onClick={() => {
+                triggerHaptic('light', isInFarcaster);
+                setShowProfileModal(true);
+              }}
               className="flex items-center gap-2 bg-white/20 rounded-full px-3 py-1"
             >
               {profile?.pfpUrl && (
