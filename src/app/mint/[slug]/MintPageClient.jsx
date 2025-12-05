@@ -183,13 +183,23 @@ export default function MintPageClient({ slug }) {
             const data = await response.json();
             console.log("✅ Mint recorded:", data);
 
-            // Update state
-            setClaimId(data.claim.id); // Fix: API returns data.claim.id, not data.claimId
-            setUserStatus((prev) => ({
-              ...prev,
-              hasMinted: true,
-              canMint: false,
-            }));
+            // Update state with full data from API response
+            setClaimId(data.claim.id);
+            const responseQuantity = data.claim?.quantity || mintQuantity;
+            setUserStatus((prev) => {
+              const newCount = (prev?.mintCount || 0) + responseQuantity;
+              const limit = prev?.mintLimit;
+              const isUnlimited = !limit || limit === 0;
+              return {
+                ...prev,
+                hasMinted: true,
+                hasShared: false,
+                hasClaimed: false,
+                mintCount: newCount,
+                canMint: isUnlimited || newCount < limit,
+                lastMintQuantity: responseQuantity
+              };
+            });
             setShowShareModal(true);
           } else {
             console.error("⚠️  Failed to record mint");
@@ -277,10 +287,10 @@ export default function MintPageClient({ slug }) {
     }
   }, [isClaimConfirmed, claimTxHash]);
 
-  // Auto-scroll to show success screen after claim
+  // Auto-scroll to show success screen after claim - ONLY for Beeper campaign (has terminal-style success)
   useEffect(() => {
-    if (hasClaimed && showStakingTeaser) {
-      console.log("📜 Scrolling to show success screen...");
+    if (hasClaimed && showStakingTeaser && campaign?.metadata?.successAscii) {
+      console.log("📜 Scrolling to show success screen (Beeper-style)...");
       // Small delay to ensure DOM is updated
       setTimeout(() => {
         window.scrollTo({
@@ -289,7 +299,7 @@ export default function MintPageClient({ slug }) {
         });
       }, 300);
     }
-  }, [hasClaimed, showStakingTeaser]);
+  }, [hasClaimed, showStakingTeaser, campaign?.metadata?.successAscii]);
 
   // Handle NFT mint using Thirdweb's claimTo (automatically handles allowlist proofs)
   const handleMint = async () => {
@@ -668,16 +678,24 @@ export default function MintPageClient({ slug }) {
   // Calculate if user is claiming (include Wagmi transaction states)
   const isClaimingProcess = isClaimTxPending || isClaimConfirming;
 
-  // Helper function to format token rewards (e.g., 100000 * 3 mints = "300K $mintedmerch")
-  const formatTokenReward = (mintCount, baseReward) => {
-    const total = mintCount * baseReward;
-    if (total >= 1000000) {
-      return `${(total / 1000000).toFixed(total % 1000000 === 0 ? 0 : 1)}M $mintedmerch`;
-    } else if (total >= 1000) {
-      return `${(total / 1000).toFixed(total % 1000 === 0 ? 0 : 0)}K $mintedmerch`;
+  // Format token amounts (100K, 2M, 1.5B, etc.) - amountInK is amount in thousands
+  const formatTokenAmount = (amountInK) => {
+    if (amountInK >= 1_000_000) {
+      return (amountInK / 1_000_000).toFixed(amountInK % 1_000_000 === 0 ? 0 : 1) + 'B';
+    } else if (amountInK >= 1_000) {
+      return (amountInK / 1_000).toFixed(amountInK % 1_000 === 0 ? 0 : 1) + 'M';
     }
-    return `${total.toLocaleString()} $mintedmerch`;
+    return amountInK.toLocaleString() + 'K';
   };
+
+  // Helper function to format token rewards for display
+  // Each mint = 100K tokens
+  const formatTokenReward = (mintCount) => {
+    return `${formatTokenAmount(100 * mintCount)} $mintedmerch`;
+  };
+  
+  // Get mint price from campaign (default 0.0005 ETH)
+  const mintPrice = campaign?.metadata?.mintPrice || 0.0005;
 
   return (
     <div className="min-h-screen bg-black text-white px-4 py-4 max-w-2xl mx-auto">
@@ -768,6 +786,14 @@ export default function MintPageClient({ slug }) {
                 )}
               </div>
             )}
+
+            {/* Total Cost Display - Show when quantity > 1 */}
+            {canMint && mintQuantity > 1 && (
+              <p className="text-xs text-gray-400 text-center mb-3">
+                Total: <span className="text-white font-bold">{(mintPrice * mintQuantity).toFixed(4)} ETH</span>
+                {' • '}Claim: <span className="text-[#3eb489] font-bold">{formatTokenAmount(100 * mintQuantity)} $mintedmerch</span>
+              </p>
+            )}
             
             <button
               onClick={handleMint}
@@ -786,8 +812,8 @@ export default function MintPageClient({ slug }) {
                 ? "Preparing..."
                 : canMint
                 ? (mintQuantity > 1 
-                    ? `${campaign.metadata?.mintButtonText || campaign.metadata?.buttonText || "Mint"} (${mintQuantity})`
-                    : (campaign.metadata?.mintButtonText || campaign.metadata?.buttonText || "Mint NFT"))
+                    ? `Mint ${mintQuantity}`
+                    : (campaign.metadata?.mintButtonText || campaign.metadata?.buttonText || "Mint"))
                 : "❌ Mint Unavailable"}
             </button>
 
@@ -902,13 +928,13 @@ export default function MintPageClient({ slug }) {
               <p className="text-gray-300">
                 You've minted {userStatus?.mintCount || 1} NFT{(userStatus?.mintCount || 1) > 1 ? 's' : ''} and claimed{' '}
                 <span className="text-[#3eb489] font-bold">
-                  {formatTokenReward(userStatus?.mintCount || 1, campaign.tokenRewardAmount || 100000)}
+                  {formatTokenReward(userStatus?.mintCount || 1)}
                 </span>
                 {' '}- thank you for supporting Minted Merch!
               </p>
-              {canMint && (
+              {userStatus?.canMint && (
                 <p className="text-sm text-gray-400">
-                  You can mint more below! ({userStatus?.mintCount || 0}/{userStatus?.mintLimit || '∞'} minted)
+                  You can mint more above! ({userStatus?.mintCount || 0}/{userStatus?.mintLimit || '∞'} minted)
                 </p>
               )}
             </div>
