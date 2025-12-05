@@ -1,5 +1,5 @@
-// Admin API - Ambassador Payouts Management
-// GET: List all payouts
+// Admin API - Ambassador & Mogul Payouts Management
+// GET: List all payouts (from both ambassadors and merch moguls)
 // PUT: Update payout status (mark as completed with tx hash)
 
 import { NextResponse } from 'next/server';
@@ -31,8 +31,10 @@ export const GET = withAdminAuth(async (request) => {
         bounty_submissions (
           id,
           proof_url,
+          ambassador_fid,
           bounties (
-            title
+            title,
+            bounty_type
           )
         )
       `)
@@ -55,10 +57,60 @@ export const GET = withAdminAuth(async (request) => {
       }, { status: 500 });
     }
 
-    console.log(`✅ Fetched ${payouts.length} payouts`);
+    // For mogul payouts (ambassador_id is null), fetch profile info from submission's ambassador_fid
+    const mogulFids = payouts
+      .filter(p => !p.ambassador_id && p.bounty_submissions?.ambassador_fid)
+      .map(p => p.bounty_submissions.ambassador_fid);
+    
+    let mogulProfiles = {};
+    if (mogulFids.length > 0) {
+      const { data: profiles } = await supabaseAdmin
+        .from('profiles')
+        .select('fid, username, display_name, pfp_url')
+        .in('fid', [...new Set(mogulFids)]);
+      
+      if (profiles) {
+        mogulProfiles = profiles.reduce((acc, p) => {
+          acc[p.fid] = p;
+          return acc;
+        }, {});
+      }
+    }
+
+    // Enrich payouts with mogul profile info and type
+    const enrichedPayouts = payouts.map(payout => {
+      const isMogulPayout = !payout.ambassador_id && payout.bounty_submissions?.ambassador_fid;
+      const bountyType = payout.bounty_submissions?.bounties?.bounty_type || 'custom';
+      const isInteractionBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(bountyType);
+      
+      if (isMogulPayout) {
+        const mogulProfile = mogulProfiles[payout.bounty_submissions.ambassador_fid];
+        return {
+          ...payout,
+          payoutType: 'mogul',
+          bountyType,
+          isInteractionBounty,
+          // Create ambassadors-like structure for UI compatibility
+          ambassadors: mogulProfile ? {
+            id: null,
+            fid: payout.bounty_submissions.ambassador_fid,
+            profiles: mogulProfile
+          } : null
+        };
+      }
+      
+      return {
+        ...payout,
+        payoutType: 'ambassador',
+        bountyType,
+        isInteractionBounty
+      };
+    });
+
+    console.log(`✅ Fetched ${payouts.length} payouts (${enrichedPayouts.filter(p => p.payoutType === 'mogul').length} from moguls)`);
 
     // Calculate total amounts by status
-    const summary = payouts.reduce((acc, payout) => {
+    const summary = enrichedPayouts.reduce((acc, payout) => {
       const status = payout.status;
       if (!acc[status]) {
         acc[status] = { count: 0, total: 0 };
@@ -70,7 +122,7 @@ export const GET = withAdminAuth(async (request) => {
 
     return NextResponse.json({
       success: true,
-      payouts,
+      payouts: enrichedPayouts,
       summary
     });
 

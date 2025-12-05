@@ -4580,11 +4580,18 @@ export default function AdminDashboard() {
                             {payoutsData.map((payout) => (
                               <tr key={payout.id} className="hover:bg-gray-50">
                                 <td className="px-6 py-4">
-                                  <div 
-                                    className="text-sm font-medium text-blue-600 cursor-pointer hover:underline"
-                                    onClick={() => openUserModal(payout.ambassadors?.fid)}
-                                  >
-                                    @{payout.ambassadors?.profiles?.username}
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className="text-sm font-medium text-blue-600 cursor-pointer hover:underline"
+                                      onClick={() => openUserModal(payout.ambassadors?.fid)}
+                                    >
+                                      @{payout.ambassadors?.profiles?.username || 'Unknown'}
+                                    </div>
+                                    {payout.payoutType === 'mogul' && (
+                                      <span className="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-800 rounded-full">
+                                        💎 Mogul
+                                      </span>
+                                    )}
                                   </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
