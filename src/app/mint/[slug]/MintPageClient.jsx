@@ -782,8 +782,8 @@ export default function MintPageClient({ slug }) {
               </div>
             )}
 
-            {/* Total Cost Display - Show when quantity > 1 and not minting */}
-            {!isMintingProcess && canMint && mintQuantity > 1 && (
+            {/* Total Cost Display - Always show when not minting */}
+            {!isMintingProcess && canMint && (
               <p className="text-xs text-gray-400 text-center mb-3">
                 Total: <span className="text-white font-bold">{(mintPrice * mintQuantity).toFixed(4)} ETH</span>
                 {' • '}Claim: <span className="text-[#3eb489] font-bold">{formatTokenAmount(100 * mintQuantity)} $mintedmerch</span>
@@ -819,7 +819,7 @@ export default function MintPageClient({ slug }) {
               ) : canMint ? (
                 mintQuantity > 1 
                   ? `Mint ${mintQuantity}`
-                  : (campaign.metadata?.mintButtonText || campaign.metadata?.buttonText || "Mint")
+                  : "Mint"
               ) : (
                 "❌ Mint Unavailable"
               )}
@@ -841,12 +841,11 @@ export default function MintPageClient({ slug }) {
           </>
         )}
 
-        {/* STATE 2: Minted but not shared - Show Share Button (REQUIRED) */}
+        {/* STATE 2: Minted but not shared - Show Share Button */}
         {userStatus?.hasMinted && !hasShared && (
-          <div className="p-6 bg-gradient-to-r from-purple-900/50 to-blue-900/50 border border-purple-500 rounded-xl space-y-4">
+          <div className="p-6 border border-[#3eb489] rounded-xl space-y-4" style={{ backgroundColor: 'rgba(62, 180, 137, 0.15)' }}>
             <div className="text-center space-y-2">
-              <div className="text-4xl">🎉</div>
-              <h3 className="text-2xl font-bold">NFT Minted!</h3>
+              <h3 className="text-2xl font-bold" style={{ color: '#3eb489' }}>Thank You For Minting!</h3>
               <p className="text-gray-300">
                 Share your mint to claim $mintedmerch
               </p>
@@ -867,7 +866,7 @@ export default function MintPageClient({ slug }) {
                   <svg className="w-5 h-5" viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
                   </svg>
-                  Share to Farcaster (Required)
+                  Share to Farcaster
                 </>
               )}
             </button>
