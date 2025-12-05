@@ -74,6 +74,12 @@ export default function MintPageClient({ slug }) {
   // Staking teaser
   const [showStakingTeaser, setShowStakingTeaser] = useState(false);
 
+  // NFT-gated eligibility state
+  const [isNftGated, setIsNftGated] = useState(false);
+  const [eligibilityChecked, setEligibilityChecked] = useState(false);
+  const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
+  const [eligibilityResult, setEligibilityResult] = useState(null);
+
   // Auto-register user on page load
   useEffect(() => {
     if (farcasterUser && sessionToken) {
@@ -125,6 +131,13 @@ export default function MintPageClient({ slug }) {
 
         setCampaign(data.campaign);
         setUserStatus(data.userStatus);
+
+        // Check if campaign requires NFT gating
+        const metadata = data.campaign.metadata || {};
+        if (metadata.requiresNftGating && metadata.requiredNfts?.length > 0) {
+          setIsNftGated(true);
+          console.log("🔒 Campaign requires NFT gating:", metadata.requiredNfts);
+        }
 
         // Set initial state based on user status
         if (data.userStatus.claimId) {
@@ -303,6 +316,67 @@ export default function MintPageClient({ slug }) {
       }, 300);
     }
   }, [hasClaimed]);
+
+  // Handle NFT eligibility check for gated campaigns
+  const handleCheckEligibility = async () => {
+    console.log("🔒 Check eligibility button clicked");
+    triggerHaptic("medium", isInFarcaster);
+
+    if (!farcasterUser || !sessionToken) {
+      setMintError("Please sign in to check eligibility");
+      return;
+    }
+
+    try {
+      setIsCheckingEligibility(true);
+      setMintError(null);
+
+      // Get wallet address(es) from Farcaster
+      const { sdk } = await import("@/lib/frame");
+      const accounts = await sdk.wallet.ethProvider.request({
+        method: "eth_requestAccounts",
+      });
+
+      if (!accounts || !accounts[0]) {
+        throw new Error("No wallet connected. Please connect your wallet.");
+      }
+
+      const walletAddresses = [accounts[0]];
+      console.log("💳 Checking eligibility for wallet:", walletAddresses);
+
+      // Call eligibility check API
+      const response = await fetch(`/api/nft-mints/${slug}/check-eligibility`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({ walletAddresses }),
+      });
+
+      const data = await response.json();
+      console.log("🔒 Eligibility result:", data);
+
+      setEligibilityChecked(true);
+      setEligibilityResult(data);
+
+      if (data.eligible) {
+        // Update mint quantity max based on eligibility
+        setMintQuantity(1);
+        // Update userStatus with eligible quantity as new mint limit
+        setUserStatus((prev) => ({
+          ...prev,
+          mintLimit: data.eligibleQuantity,
+          canMint: true,
+        }));
+      }
+    } catch (err) {
+      console.error("❌ Error checking eligibility:", err);
+      setMintError(err.message || "Failed to check eligibility");
+    } finally {
+      setIsCheckingEligibility(false);
+    }
+  };
 
   // Handle NFT mint using Thirdweb's claimTo (automatically handles allowlist proofs)
   const handleMint = async () => {
@@ -737,9 +811,113 @@ export default function MintPageClient({ slug }) {
 
       {/* Main Action Section - MOVED UP: Mint button before info sections */}
       <div className="space-y-4 mb-8">
+        {/* NFT-GATED: Check Eligibility First */}
+        {isNftGated && !eligibilityChecked && !userStatus?.hasMinted && (
+          <div className="space-y-4">
+            <div className="p-4 bg-gradient-to-b from-gray-900 to-black border border-[#3eb489]/50 rounded-xl text-center space-y-3">
+              <div className="text-[#3eb489] text-2xl">🎫</div>
+              <h3 className="text-lg font-bold text-white">NFT-Gated Mint</h3>
+              <p className="text-gray-300 text-sm">
+                This mint requires you to hold specific NFTs. Check your eligibility to see how many you can mint!
+              </p>
+              {campaign.metadata?.requiredNfts && (
+                <div className="text-xs text-gray-500 space-y-1">
+                  <p className="font-bold text-gray-400">Required NFTs (one of each):</p>
+                  {campaign.metadata.requiredNfts.map((nft, index) => (
+                    <p key={index}>• {nft.name}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <button
+              onClick={handleCheckEligibility}
+              disabled={isCheckingEligibility}
+              className="w-full py-4 bg-[#3eb489] hover:bg-[#359970] text-black rounded-xl text-xl font-bold disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
+            >
+              {isCheckingEligibility ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
+                  Checking Eligibility...
+                </>
+              ) : (
+                "Check Eligibility"
+              )}
+            </button>
+
+            {mintError && (
+              <div className="p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
+                {mintError}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* NFT-GATED: Not Eligible */}
+        {isNftGated && eligibilityChecked && !eligibilityResult?.eligible && !userStatus?.hasMinted && (
+          <div className="space-y-4">
+            <div className="p-6 bg-gradient-to-b from-red-950 to-black border border-red-500/50 rounded-xl text-center space-y-4">
+              <div className="text-red-400 text-3xl">❌</div>
+              <h3 className="text-xl font-bold text-red-400">Not Eligible</h3>
+              <p className="text-gray-300 text-sm">
+                {eligibilityResult?.message || "You need to hold the required NFTs to mint."}
+              </p>
+              {eligibilityResult?.holdings && (
+                <div className="text-xs text-gray-500 space-y-1 mt-2">
+                  <p className="font-bold text-gray-400">Your Holdings:</p>
+                  {eligibilityResult.holdings.map((holding, index) => (
+                    <p key={index} className={holding.balance > 0 ? "text-green-400" : "text-red-400"}>
+                      {holding.name}: {holding.balance} {holding.balance > 0 ? "✓" : "✗"}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <button
+              onClick={() => {
+                triggerHaptic("light", isInFarcaster);
+                router.push("/");
+              }}
+              className="w-full py-4 bg-[#3eb489] hover:bg-[#359970] text-black rounded-xl text-xl font-bold transition-all"
+            >
+              Spin Daily For Free →
+            </button>
+            
+            <button
+              onClick={() => {
+                setEligibilityChecked(false);
+                setEligibilityResult(null);
+              }}
+              className="w-full py-2 text-gray-400 hover:text-white text-sm transition-colors"
+            >
+              ← Check Again
+            </button>
+          </div>
+        )}
+
+        {/* NFT-GATED: Eligible - Show Mint Button */}
+        {isNftGated && eligibilityChecked && eligibilityResult?.eligible && !userStatus?.hasMinted && (
+          <div className="p-4 bg-gradient-to-b from-green-950 to-black border border-[#3eb489]/50 rounded-xl text-center space-y-2 mb-4">
+            <div className="text-[#3eb489] text-2xl">✅</div>
+            <h3 className="text-lg font-bold text-[#3eb489]">You're Eligible!</h3>
+            <p className="text-gray-300 text-sm">{eligibilityResult.message}</p>
+            {eligibilityResult.holdings && (
+              <div className="text-xs text-gray-500 space-y-1 mt-2">
+                {eligibilityResult.holdings.map((holding, index) => (
+                  <p key={index} className="text-green-400">
+                    {holding.name}: {holding.balance} ✓
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* STATE 1: Can Mint - Show Quantity Selector + Mint Button */}
         {/* Show when: hasn't minted yet, OR minting in progress, OR (claimed and can mint more) */}
-        {((!userStatus?.hasMinted) || isMintingProcess || (hasClaimed && userStatus?.canMint)) && (
+        {/* For NFT-gated: only show after eligibility is confirmed */}
+        {((!isNftGated || (eligibilityChecked && eligibilityResult?.eligible)) && ((!userStatus?.hasMinted) || isMintingProcess || (hasClaimed && userStatus?.canMint))) && (
           <>
             {/* Quantity Selector - Only show if mint limit > 1 or unlimited (null), NOT for limit of 1 */}
             {!isMintingProcess && canMint && (userStatus?.mintLimit === null || userStatus?.mintLimit > 1) && (

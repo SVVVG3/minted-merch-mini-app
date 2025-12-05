@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthenticatedFid } from '@/lib/userAuth';
 import { setUserContext, setSystemContext } from '@/lib/auth';
 import { generateClaimSignature } from '@/lib/claimSignatureService';
+import { checkNftGatedEligibility } from '@/lib/blockchainAPI';
 
 /**
  * POST /api/nft-mints/[slug]/mint
@@ -143,6 +144,50 @@ export async function POST(request, { params }) {
         { error: 'Campaign has ended' },
         { status: 400 }
       );
+    }
+
+    // 🔒 NFT-GATED ELIGIBILITY CHECK (SERVER-SIDE SECURITY)
+    // This prevents users from bypassing the frontend eligibility check
+    const metadata = campaign.metadata || {};
+    if (metadata.requiresNftGating && metadata.requiredNfts && metadata.requiredNfts.length > 0) {
+      console.log(`🔒 Campaign requires NFT gating - verifying eligibility at mint time`);
+      
+      // Get all user's wallet addresses
+      const { data: userWallets } = await supabaseAdmin
+        .from('connected_wallets')
+        .select('address')
+        .eq('fid', authenticatedFid);
+      
+      const allWalletAddresses = [
+        walletAddress.toLowerCase(),
+        ...(userWallets?.map(w => w.address.toLowerCase()) || [])
+      ].filter((addr, index, self) => self.indexOf(addr) === index); // Dedupe
+      
+      console.log(`   Checking ${allWalletAddresses.length} wallets for NFT holdings`);
+      
+      const eligibilityResult = await checkNftGatedEligibility(
+        allWalletAddresses,
+        metadata.requiredNfts
+      );
+      
+      if (!eligibilityResult.eligible) {
+        console.error(`❌ User not eligible for NFT-gated mint: ${eligibilityResult.message}`);
+        return NextResponse.json(
+          { error: `You are not eligible to mint. ${eligibilityResult.message}` },
+          { status: 403 }
+        );
+      }
+      
+      // Also verify quantity doesn't exceed eligible sets
+      if (mintQuantity > eligibilityResult.eligibleQuantity) {
+        console.error(`❌ Requested quantity (${mintQuantity}) exceeds eligible sets (${eligibilityResult.eligibleQuantity})`);
+        return NextResponse.json(
+          { error: `You can only mint ${eligibilityResult.eligibleQuantity} NFT${eligibilityResult.eligibleQuantity > 1 ? 's' : ''} based on your holdings.` },
+          { status: 403 }
+        );
+      }
+      
+      console.log(`✅ NFT eligibility verified: ${eligibilityResult.eligibleQuantity} complete sets`);
     }
 
     // Check if user has reached their mint limit for this campaign

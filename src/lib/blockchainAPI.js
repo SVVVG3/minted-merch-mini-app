@@ -154,6 +154,178 @@ async function checkNftBalanceDirectly(walletAddresses, contractAddresses, chain
 }
 
 /**
+ * Check ERC1155 balance for a specific token ID
+ * Uses balanceOf(address, uint256) with function selector 0x00fdd58e
+ * 
+ * @param {Array} walletAddresses - Array of wallet addresses to check
+ * @param {string} contractAddress - ERC1155 contract address
+ * @param {string|number} tokenId - The specific token ID to check
+ * @param {number} chainId - Chain ID (default: 8453 for Base)
+ * @returns {Promise<Object>} Balance result with total across all wallets
+ */
+export async function checkERC1155Balance(walletAddresses, contractAddress, tokenId, chainId = 8453) {
+  const rpcUrls = {
+    1: ['https://eth.llamarpc.com', 'https://ethereum.publicnode.com'],
+    8453: [
+      'https://mainnet.base.org',
+      'https://base.llamarpc.com',
+      'https://1rpc.io/base',
+      'https://base.meowrpc.com'
+    ],
+    137: ['https://polygon.llamarpc.com'],
+    42161: ['https://arb1.arbitrum.io/rpc']
+  };
+
+  const availableRpcs = rpcUrls[chainId] || rpcUrls[8453];
+  
+  // Filter valid addresses
+  const validAddresses = walletAddresses.filter(addr => 
+    typeof addr === 'string' && addr.startsWith('0x') && addr.length === 42
+  );
+
+  if (validAddresses.length === 0) {
+    console.warn('❌ No valid Ethereum addresses for ERC1155 check');
+    return { success: false, totalBalance: 0, error: 'No valid wallet addresses' };
+  }
+
+  console.log('🎫 Checking ERC1155 balance:', {
+    contractAddress,
+    tokenId,
+    chainId,
+    walletCount: validAddresses.length
+  });
+
+  let totalBalance = 0;
+  const balancesByWallet = {};
+
+  for (const walletAddress of validAddresses) {
+    let lastError = null;
+    
+    // Try multiple RPC endpoints
+    for (let rpcIndex = 0; rpcIndex < availableRpcs.length; rpcIndex++) {
+      const rpcUrl = availableRpcs[rpcIndex];
+      
+      try {
+        // ERC1155 balanceOf(address account, uint256 id)
+        // Function selector: 0x00fdd58e
+        // Encode: address (32 bytes padded) + tokenId (32 bytes padded)
+        const paddedAddress = walletAddress.slice(2).toLowerCase().padStart(64, '0');
+        const paddedTokenId = BigInt(tokenId).toString(16).padStart(64, '0');
+        const data = `0x00fdd58e${paddedAddress}${paddedTokenId}`;
+
+        const response = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_call',
+            params: [{ to: contractAddress, data }, 'latest'],
+            id: 1
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+          throw new Error(result.error.message || 'RPC error');
+        }
+
+        if (result.result && result.result !== '0x') {
+          const balance = parseInt(result.result, 16);
+          balancesByWallet[walletAddress] = balance;
+          totalBalance += balance;
+          
+          if (balance > 0) {
+            console.log(`🎫 Wallet ${walletAddress.slice(0, 8)}... has ${balance} of token ID ${tokenId}`);
+          }
+        } else {
+          balancesByWallet[walletAddress] = 0;
+        }
+        
+        // Success - break out of RPC retry loop
+        break;
+        
+      } catch (error) {
+        lastError = error;
+        console.warn(`⚠️ RPC ${rpcIndex + 1}/${availableRpcs.length} failed for ERC1155 check:`, error.message);
+        
+        if (rpcIndex === availableRpcs.length - 1) {
+          console.error(`❌ All RPCs failed for wallet ${walletAddress}`);
+          balancesByWallet[walletAddress] = 0;
+        }
+      }
+    }
+  }
+
+  console.log(`🎫 Total ERC1155 balance for token ID ${tokenId}: ${totalBalance}`);
+
+  return {
+    success: true,
+    totalBalance,
+    balancesByWallet,
+    contractAddress,
+    tokenId,
+    chainId,
+    method: 'direct_rpc_erc1155'
+  };
+}
+
+/**
+ * Check eligibility for NFT-gated minting (multiple ERC1155 collections)
+ * Returns the number of "complete sets" the user holds
+ * 
+ * @param {Array} walletAddresses - User's wallet addresses
+ * @param {Array} requiredNfts - Array of { contractAddress, tokenId, chainId, name }
+ * @returns {Promise<Object>} Eligibility result with complete sets count
+ */
+export async function checkNftGatedEligibility(walletAddresses, requiredNfts) {
+  console.log('🔒 Checking NFT-gated eligibility:', {
+    walletCount: walletAddresses.length,
+    requiredNfts: requiredNfts.map(n => `${n.name} (${n.contractAddress.slice(0, 8)}...#${n.tokenId})`)
+  });
+
+  const holdings = [];
+  
+  // Check balance for each required NFT
+  for (const nft of requiredNfts) {
+    const result = await checkERC1155Balance(
+      walletAddresses,
+      nft.contractAddress,
+      nft.tokenId,
+      nft.chainId || 8453
+    );
+    
+    holdings.push({
+      name: nft.name,
+      contractAddress: nft.contractAddress,
+      tokenId: nft.tokenId,
+      balance: result.totalBalance,
+      balancesByWallet: result.balancesByWallet || {}
+    });
+  }
+
+  // Calculate complete sets (minimum balance across all required NFTs)
+  const balances = holdings.map(h => h.balance);
+  const completeSets = Math.min(...balances);
+  const eligible = completeSets > 0;
+
+  console.log('🔒 NFT-gated eligibility result:', {
+    eligible,
+    completeSets,
+    holdings: holdings.map(h => `${h.name}: ${h.balance}`)
+  });
+
+  return {
+    eligible,
+    eligibleQuantity: completeSets,
+    holdings,
+    message: eligible 
+      ? `You have ${completeSets} complete set${completeSets > 1 ? 's' : ''} and can mint up to ${completeSets} NFT${completeSets > 1 ? 's' : ''}!`
+      : 'You need to hold at least 1 of each required NFT to mint.'
+  };
+}
+
+/**
  * Check if user holds specific NFTs using Zapper API
  * @param {Array} walletAddresses - Array of wallet addresses to check
  * @param {Array} contractAddresses - Array of NFT contract addresses
