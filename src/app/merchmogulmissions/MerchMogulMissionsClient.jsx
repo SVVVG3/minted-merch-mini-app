@@ -237,10 +237,10 @@ export default function MerchMogulMissions() {
               className="h-24 object-contain"
             />
           </div>
-          <p className="text-white/80 text-center text-sm">Complete interaction bounties to earn $mintedmerch</p>
+          <p className="text-white/80 text-center text-sm">Complete missions to earn $mintedmerch!</p>
           
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mt-4">
+          <div className="grid grid-cols-3 gap-4 mt-4 mb-4">
             <div className="bg-white/20 rounded-xl p-3 text-center">
               <p className="text-2xl font-bold">{profile?.stats?.completedBounties || 0}</p>
               <p className="text-xs text-white/80">Completed</p>
@@ -270,12 +270,12 @@ export default function MerchMogulMissions() {
               🎯 Missions
             </button>
             <button
-              onClick={() => { setActiveTab('history'); triggerHaptic('light', isInFarcaster); }}
+              onClick={() => { setActiveTab('payouts'); triggerHaptic('light', isInFarcaster); }}
               className={`flex-1 py-4 text-center font-semibold transition-colors ${
-                activeTab === 'history' ? 'text-[#3eb489] border-b-2 border-[#3eb489]' : 'text-gray-500'
+                activeTab === 'payouts' ? 'text-[#3eb489] border-b-2 border-[#3eb489]' : 'text-gray-500'
               }`}
             >
-              📜 History
+              💰 Payouts
             </button>
           </div>
 
@@ -294,8 +294,8 @@ export default function MerchMogulMissions() {
               />
             )}
 
-            {activeTab === 'history' && (
-              <HistoryTab submissions={submissions} />
+            {activeTab === 'payouts' && (
+              <PayoutsTab submissions={submissions} />
             )}
           </div>
         </div>
@@ -405,22 +405,36 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
   );
 }
 
-// History Tab
-function HistoryTab({ submissions }) {
+// Payouts Tab - shows completed missions and their payouts
+function PayoutsTab({ submissions }) {
   const formatNumber = (num) => new Intl.NumberFormat('en-US').format(num);
 
   if (submissions.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="text-6xl mb-4">📜</div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Submissions Yet</h3>
-        <p className="text-gray-600">Complete missions to see your history here.</p>
+        <div className="text-6xl mb-4">💰</div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Payouts Yet</h3>
+        <p className="text-gray-600">Complete missions to earn $mintedmerch tokens!</p>
       </div>
     );
   }
 
+  // Calculate totals
+  const totalEarned = submissions
+    .filter(s => s.status === 'approved')
+    .reduce((sum, s) => sum + (s.rewardTokens || 0), 0);
+
   return (
     <div className="space-y-3">
+      {/* Summary */}
+      <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+        <div className="flex justify-between items-center">
+          <span className="text-green-800 font-medium">Total Earned</span>
+          <span className="text-green-800 font-bold text-lg">{formatNumber(totalEarned)} $mintedmerch</span>
+        </div>
+      </div>
+
+      {/* Payout list */}
       {submissions.map((submission) => (
         <div key={submission.id} className="border rounded-xl p-4 bg-gray-50">
           <div className="flex items-center justify-between">
@@ -436,11 +450,11 @@ function HistoryTab({ submissions }) {
                 submission.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                 'bg-red-100 text-red-800'
               }`}>
-                {submission.status === 'approved' ? '✅ Approved' :
-                 submission.status === 'pending' ? '⏳ Pending' : '❌ Rejected'}
+                {submission.status === 'approved' ? '💰 Paid' :
+                 submission.status === 'pending' ? '⏳ Processing' : '❌ Failed'}
               </span>
               {submission.status === 'approved' && (
-                <p className="text-sm text-green-600 mt-1">
+                <p className="text-sm text-green-600 mt-1 font-semibold">
                   +{formatNumber(submission.rewardTokens)} tokens
                 </p>
               )}
