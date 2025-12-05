@@ -191,18 +191,24 @@ export default function MerchMogulMissions() {
             <p className="text-2xl font-bold text-gray-900">{formatNumber(tokenBalance)} tokens</p>
             <p className="text-sm text-gray-500 mt-1">Need {formatNumber(50_000_000 - tokenBalance)} more</p>
           </div>
-          <Link 
-            href="/stake"
-            className="inline-block w-full bg-[#3eb489] text-white py-3 px-6 rounded-xl font-semibold hover:bg-[#359970] transition-colors"
+          <button 
+            onClick={() => {
+              triggerHaptic('light', isInFarcaster);
+              window.location.href = '/stake';
+            }}
+            className="w-full bg-[#3eb489] text-white py-3 px-6 rounded-xl font-semibold hover:bg-[#359970] transition-colors"
           >
             Stake to Earn More →
-          </Link>
-          <Link 
-            href="/"
-            className="block mt-4 text-gray-500 hover:text-gray-700"
+          </button>
+          <button 
+            onClick={() => {
+              triggerHaptic('light', isInFarcaster);
+              window.location.href = '/';
+            }}
+            className="block mt-4 text-gray-500 hover:text-gray-700 mx-auto"
           >
             ← Back to Shop
-          </Link>
+          </button>
         </div>
       </div>
     );
@@ -215,9 +221,15 @@ export default function MerchMogulMissions() {
       <div className="bg-gradient-to-r from-purple-600 to-[#3eb489] text-white p-4">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-3">
-            <Link href="/" className="text-white/80 hover:text-white text-sm">
+            <button
+              onClick={() => {
+                triggerHaptic('light', isInFarcaster);
+                window.location.href = '/';
+              }}
+              className="text-white/80 hover:text-white text-sm"
+            >
               ← Back to Shop
-            </Link>
+            </button>
             <button
               onClick={() => setShowProfileModal(true)}
               className="flex items-center gap-2 bg-white/20 rounded-full px-3 py-1"
