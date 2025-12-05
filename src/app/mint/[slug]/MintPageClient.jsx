@@ -668,6 +668,17 @@ export default function MintPageClient({ slug }) {
   // Calculate if user is claiming (include Wagmi transaction states)
   const isClaimingProcess = isClaimTxPending || isClaimConfirming;
 
+  // Helper function to format token rewards (e.g., 100000 * 3 mints = "300K $mintedmerch")
+  const formatTokenReward = (mintCount, baseReward) => {
+    const total = mintCount * baseReward;
+    if (total >= 1000000) {
+      return `${(total / 1000000).toFixed(total % 1000000 === 0 ? 0 : 1)}M $mintedmerch`;
+    } else if (total >= 1000) {
+      return `${(total / 1000).toFixed(total % 1000 === 0 ? 0 : 0)}K $mintedmerch`;
+    }
+    return `${total.toLocaleString()} $mintedmerch`;
+  };
+
   return (
     <div className="min-h-screen bg-black text-white px-4 py-4 max-w-2xl mx-auto">
       {/* Header */}
@@ -718,7 +729,7 @@ export default function MintPageClient({ slug }) {
         {((!userStatus?.hasMinted) || (hasClaimed && canMint)) && (
           <>
             {/* Quantity Selector - Only show if mint limit > 1 or unlimited */}
-            {canMint && (campaign.mintLimitPerFid === null || campaign.mintLimitPerFid === 0 || campaign.mintLimitPerFid > 1) && (
+            {canMint && (userStatus?.mintLimit === null || userStatus?.mintLimit > 1 || !userStatus?.mintLimit) && (
               <div className="flex items-center justify-center gap-4 mb-4">
                 <span className="text-gray-400 text-sm">Quantity:</span>
                 <div className="flex items-center bg-gray-800 rounded-lg overflow-hidden">
@@ -736,13 +747,13 @@ export default function MintPageClient({ slug }) {
                   </span>
                   <button
                     onClick={() => {
-                      const maxAllowed = campaign.mintLimitPerFid || 20;
+                      const maxAllowed = userStatus?.mintLimit || 20;
                       const remaining = maxAllowed - (userStatus?.mintCount || 0);
                       setMintQuantity(Math.min(remaining, mintQuantity + 1));
                     }}
-                    disabled={mintQuantity >= ((campaign.mintLimitPerFid || 20) - (userStatus?.mintCount || 0))}
+                    disabled={userStatus?.mintLimit && mintQuantity >= (userStatus.mintLimit - (userStatus?.mintCount || 0))}
                     className={`px-4 py-2 text-lg font-bold transition-colors ${
-                      mintQuantity >= ((campaign.mintLimitPerFid || 20) - (userStatus?.mintCount || 0))
+                      userStatus?.mintLimit && mintQuantity >= (userStatus.mintLimit - (userStatus?.mintCount || 0))
                         ? "text-gray-600 cursor-not-allowed"
                         : "text-white hover:bg-gray-700"
                     }`}
@@ -750,9 +761,9 @@ export default function MintPageClient({ slug }) {
                     +
                   </button>
                 </div>
-                {campaign.mintLimitPerFid && campaign.mintLimitPerFid > 0 && (
+                {userStatus?.mintLimit && (
                   <span className="text-gray-500 text-sm">
-                    ({userStatus?.mintCount || 0}/{campaign.mintLimitPerFid} minted)
+                    ({userStatus?.mintCount || 0}/{userStatus.mintLimit} minted)
                   </span>
                 )}
               </div>
@@ -887,24 +898,45 @@ export default function MintPageClient({ slug }) {
           ) : (
             // Clean Minted Merch success screen (default)
             <div className="bg-gradient-to-b from-gray-900 to-black border border-[#3eb489] rounded-xl p-6 text-center space-y-4">
-              <div className="text-4xl">🎉</div>
               <h3 className="text-2xl font-bold text-[#3eb489]">Mint & Claim Complete!</h3>
               <p className="text-gray-300">
                 You've minted {userStatus?.mintCount || 1} NFT{(userStatus?.mintCount || 1) > 1 ? 's' : ''} and claimed{' '}
                 <span className="text-[#3eb489] font-bold">
-                  {userStatus?.tokenRewardAmount ? Number(userStatus.tokenRewardAmount).toLocaleString() : (campaign.tokenRewardAmount || 100000).toLocaleString()} $mintedmerch
+                  {formatTokenReward(userStatus?.mintCount || 1, campaign.tokenRewardAmount || 100000)}
                 </span>
                 {' '}- thank you for supporting Minted Merch!
               </p>
               {canMint && (
                 <p className="text-sm text-gray-400">
-                  You can mint more below! ({userStatus?.mintCount || 0}/{campaign.mintLimitPerFid || '∞'} minted)
+                  You can mint more below! ({userStatus?.mintCount || 0}/{userStatus?.mintLimit || '∞'} minted)
                 </p>
               )}
             </div>
           )
         )}
       </div>
+
+      {/* Where Staking Meets Merch Section - Show FIRST after user has minted */}
+      {userStatus?.hasMinted && (
+        <div className="border border-[#3eb489]/50 rounded-xl p-6 mb-8 space-y-4" style={{ backgroundColor: 'rgba(62, 180, 137, 0.1)' }}>
+          <p className="text-lg font-bold text-center" style={{ color: '#3eb489' }}>
+            Where Staking Meets Merch!
+          </p>
+          <p className="text-gray-300 text-sm text-center">
+            Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a Merch Mogul and unlock: exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
+          </p>
+          <button
+            onClick={() => {
+              triggerHaptic("light", isInFarcaster);
+              router.push("/stake");
+            }}
+            className="w-full py-3 rounded-lg font-bold transition-all hover:scale-105"
+            style={{ backgroundColor: '#3eb489', color: '#000' }}
+          >
+            Start Staking →
+          </button>
+        </div>
+      )}
 
       {/* About Minted Merch Section */}
       <div className="border border-gray-800 rounded-xl p-6 mb-8 space-y-4">
@@ -964,25 +996,27 @@ export default function MintPageClient({ slug }) {
         </div>
       </div>
 
-      {/* Where Staking Meets Merch Section */}
-      <div className="border border-teal-500/50 rounded-xl p-6 mb-8 space-y-4" style={{ backgroundColor: 'rgba(13, 148, 136, 0.1)' }}>
-        <p className="text-lg font-bold text-center" style={{ color: '#2dd4bf' }}>
-          Where Staking Meets Merch!
-        </p>
-        <p className="text-gray-300 text-sm text-center">
-          Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a Merch Mogul and unlock: exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
-        </p>
-        <button
-          onClick={() => {
-            triggerHaptic("light", isInFarcaster);
-            router.push("/stake");
-          }}
-          className="w-full py-3 rounded-lg font-bold transition-all hover:scale-105"
-          style={{ backgroundColor: '#2dd4bf', color: '#000' }}
-        >
-          Start Staking →
-        </button>
-      </div>
+      {/* Where Staking Meets Merch Section - Show at bottom for users who haven't minted */}
+      {!userStatus?.hasMinted && (
+        <div className="border border-[#3eb489]/50 rounded-xl p-6 mb-8 space-y-4" style={{ backgroundColor: 'rgba(62, 180, 137, 0.1)' }}>
+          <p className="text-lg font-bold text-center" style={{ color: '#3eb489' }}>
+            Where Staking Meets Merch!
+          </p>
+          <p className="text-gray-300 text-sm text-center">
+            Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a Merch Mogul and unlock: exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
+          </p>
+          <button
+            onClick={() => {
+              triggerHaptic("light", isInFarcaster);
+              router.push("/stake");
+            }}
+            className="w-full py-3 rounded-lg font-bold transition-all hover:scale-105"
+            style={{ backgroundColor: '#3eb489', color: '#000' }}
+          >
+            Start Staking →
+          </button>
+        </div>
+      )}
 
       {/* Share Modal (Displayed as overlay when showShareModal is true) */}
       {showShareModal && (
