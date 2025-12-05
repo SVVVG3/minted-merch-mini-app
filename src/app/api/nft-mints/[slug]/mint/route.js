@@ -4,6 +4,7 @@ import { getAuthenticatedFid } from '@/lib/userAuth';
 import { setUserContext, setSystemContext } from '@/lib/auth';
 import { generateClaimSignature } from '@/lib/claimSignatureService';
 import { checkNftGatedEligibility } from '@/lib/blockchainAPI';
+import { awardNftMintPoints } from '@/lib/points';
 
 /**
  * POST /api/nft-mints/[slug]/mint
@@ -491,6 +492,26 @@ export async function POST(request, { params }) {
       console.log(`   Claim ID: ${mintClaim.id}`);
       console.log(`   Quantity: ${actualQuantity} (verified on-chain)`);
       console.log(`   Total mints: ${campaign.total_mints + actualQuantity}`);
+
+      // 🏆 AWARD LEADERBOARD POINTS FOR MINTING (1000 points per NFT)
+      try {
+        const pointsResult = await awardNftMintPoints(
+          authenticatedFid,
+          actualQuantity,
+          slug,
+          transactionHash,
+          1000 // 1000 points per mint
+        );
+        
+        if (pointsResult.success) {
+          console.log(`🏆 Awarded ${pointsResult.pointsEarned} leaderboard points to FID ${authenticatedFid}`);
+        } else {
+          console.error('⚠️ Failed to award mint points:', pointsResult.error);
+        }
+      } catch (pointsError) {
+        console.error('⚠️ Error awarding mint points (non-blocking):', pointsError);
+        // Don't fail the mint, just log the error
+      }
 
       // Return success with claim data
       return NextResponse.json({

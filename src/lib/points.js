@@ -443,6 +443,96 @@ export async function performDailyCheckin(userFid, txHash = null, skipBlockchain
 }
 
 /**
+ * Award points for NFT mint
+ * @param {number} userFid - Farcaster ID of the user
+ * @param {number} quantity - Number of NFTs minted
+ * @param {string} campaignSlug - Campaign slug for reference
+ * @param {string} transactionHash - On-chain transaction hash
+ * @param {number} pointsPerMint - Points to award per NFT (default: 1000)
+ * @returns {object} Result of point addition
+ */
+export async function awardNftMintPoints(userFid, quantity, campaignSlug, transactionHash, pointsPerMint = 1000) {
+  try {
+    const totalPoints = pointsPerMint * quantity;
+    
+    console.log(`🏆 Awarding ${totalPoints} points for ${quantity} NFT mint(s) to FID ${userFid}`);
+
+    // Get or create user data
+    let userData = await getUserLeaderboardData(userFid);
+    if (!userData) {
+      userData = await initializeUserLeaderboard(userFid);
+      if (!userData) {
+        return {
+          success: false,
+          error: 'Failed to initialize user leaderboard'
+        };
+      }
+    }
+
+    // Update user leaderboard
+    const newTotalPoints = (userData.total_points || 0) + totalPoints;
+    const newMintPoints = (userData.points_from_mints || 0) + totalPoints;
+
+    const { data: updatedData, error } = await supabaseAdmin
+      .from('user_leaderboard')
+      .update({
+        total_points: newTotalPoints,
+        points_from_mints: newMintPoints,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_fid', userFid)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error updating leaderboard for NFT mint:', error);
+      return {
+        success: false,
+        error: 'Failed to update leaderboard'
+      };
+    }
+
+    // Log the point transaction
+    try {
+      await logPointTransaction({
+        userFid: userFid,
+        transactionType: 'nft_mint',
+        pointsEarned: totalPoints,
+        pointsBefore: userData.total_points || 0,
+        pointsAfter: newTotalPoints,
+        description: `NFT mint: ${quantity}x ${campaignSlug} (+${totalPoints} points)`,
+        referenceId: `mint-${campaignSlug}-${transactionHash}`,
+        metadata: {
+          campaignSlug,
+          quantity,
+          pointsPerMint,
+          transactionHash
+        }
+      });
+    } catch (logError) {
+      console.error('⚠️ Error logging mint points transaction:', logError);
+      // Don't fail the point award, just log the error
+    }
+
+    console.log(`✅ NFT mint points awarded: FID ${userFid} now has ${newTotalPoints} total points (+${totalPoints})`);
+
+    return {
+      success: true,
+      pointsEarned: totalPoints,
+      totalPoints: newTotalPoints,
+      pointsFromMints: newMintPoints
+    };
+
+  } catch (error) {
+    console.error('❌ Error in awardNftMintPoints:', error);
+    return {
+      success: false,
+      error: 'Unexpected error awarding mint points'
+    };
+  }
+}
+
+/**
  * Add points to user from purchase and update purchase tracking
  * @param {number} userFid - Farcaster ID of the user
  * @param {number} orderTotal - Order total in dollars
