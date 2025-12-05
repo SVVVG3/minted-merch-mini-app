@@ -262,9 +262,9 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
             marginBottom: '24px'
           }}>
             {/* Stats List - Labels left, Values right */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {/* Total Staked with Percentage */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
                 <span style={{ color: '#3eb489', fontWeight: '600' }}>Total Staked:</span>
                 <span style={{ color: '#fff', textAlign: 'right' }}>
                   {stakingData?.staking?.global_total_staked_full || '0'} $mintedmerch
@@ -275,7 +275,7 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
               </div>
               
               {/* Your Stake */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
                 <span style={{ color: '#3eb489', fontWeight: '600' }}>Your Stake:</span>
                 <span style={{ color: '#fff' }}>
                   {stakingData?.balances?.staked_formatted || '0'} $mintedmerch
@@ -283,7 +283,7 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
               </div>
               
               {/* Your Balance (unstaked wallet balance) */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
                 <span style={{ color: '#3eb489', fontWeight: '600' }}>Your Balance:</span>
                 <span style={{ color: '#fff' }}>
                   {stakingData?.balances?.wallet_formatted || '0'} $mintedmerch
@@ -291,7 +291,7 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
               </div>
               
               {/* Lifetime Claimed */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
                 <span style={{ color: '#3eb489', fontWeight: '600' }}>Lifetime Claimed:</span>
                 <span style={{ color: '#fff' }}>
                   {stakingData?.staking?.lifetime_claimed_formatted || '0'} $mintedmerch
