@@ -741,8 +741,8 @@ export default function MintPageClient({ slug }) {
         {/* Show when: hasn't minted yet, OR minting in progress, OR (claimed and can mint more) */}
         {((!userStatus?.hasMinted) || isMintingProcess || (hasClaimed && userStatus?.canMint)) && (
           <>
-            {/* Quantity Selector - Only show if mint limit > 1 or unlimited AND not currently minting */}
-            {!isMintingProcess && canMint && (userStatus?.mintLimit === null || userStatus?.mintLimit > 1 || !userStatus?.mintLimit) && (
+            {/* Quantity Selector - Only show if mint limit > 1 or unlimited (null), NOT for limit of 1 */}
+            {!isMintingProcess && canMint && (userStatus?.mintLimit === null || userStatus?.mintLimit > 1) && (
               <div className="flex items-center justify-center gap-4 mb-4">
                 <span className="text-gray-400 text-sm">Quantity:</span>
                 <div className="flex items-center bg-gray-800 rounded-lg overflow-hidden">
