@@ -948,29 +948,16 @@ export default function MintPageClient({ slug }) {
         </div>
       </div>
 
-      {/* Where Staking Meets Merch Section - Always visible, below About section */}
-      <div className="border border-[#3eb489]/50 rounded-xl p-6 mb-6 space-y-4" style={{ backgroundColor: 'rgba(62, 180, 137, 0.1)' }}>
+      {/* Combined Staking & Spin-To-Claim Section */}
+      <div className="border border-[#3eb489]/50 rounded-xl p-6 mb-8 space-y-4" style={{ backgroundColor: 'rgba(62, 180, 137, 0.1)' }}>
         <p className="text-lg font-bold text-center" style={{ color: '#3eb489' }}>
           Where Staking Meets Merch!
         </p>
         <p className="text-gray-300 text-sm text-center">
           Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a Merch Mogul and unlock: exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
         </p>
-        <button
-          onClick={() => {
-            triggerHaptic("light", isInFarcaster);
-            router.push("/stake");
-          }}
-          className="w-full py-3 rounded-lg font-bold transition-all hover:scale-105"
-          style={{ backgroundColor: '#3eb489', color: '#000' }}
-        >
-          Start Staking →
-        </button>
-      </div>
-
-      {/* Spin-To-Claim Prizes Section */}
-      <div className="border border-[#3eb489]/50 rounded-xl p-6 mb-8" style={{ backgroundColor: 'rgba(62, 180, 137, 0.1)' }}>
-        <p className="text-base font-bold text-center leading-relaxed" style={{ color: '#3eb489' }}>
+        
+        <p className="text-base font-bold text-center leading-relaxed pt-2" style={{ color: '#3eb489' }}>
           🎰 SPIN-TO-CLAIM ONCE PER DAY FOR A CHANCE TO WIN THE{' '}
           <span className="text-white">MONTHLY MEGA MERCH PACK JACKPOT</span>,{' '}
           ONE OF FOUR{' '}
@@ -980,15 +967,16 @@ export default function MintPageClient({ slug }) {
           OR THE{' '}
           <span className="text-white">100K $mintedmerch BONUSES</span>! 🎰
         </p>
+        
         <button
           onClick={() => {
             triggerHaptic("light", isInFarcaster);
-            router.push("/");
+            router.push("/stake");
           }}
-          className="w-full mt-4 py-3 rounded-lg font-bold transition-all hover:scale-105 border-2 border-[#3eb489]"
-          style={{ backgroundColor: 'transparent', color: '#3eb489' }}
+          className="w-full py-3 rounded-lg font-bold transition-all hover:scale-105"
+          style={{ backgroundColor: '#3eb489', color: '#000' }}
         >
-          Spin Now →
+          Stake Now →
         </button>
       </div>
 
