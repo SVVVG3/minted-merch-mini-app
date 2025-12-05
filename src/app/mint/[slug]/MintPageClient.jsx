@@ -657,12 +657,13 @@ export default function MintPageClient({ slug }) {
         </button>
       </div>
 
-      {/* Header Image */}
-      <div className="mb-2 relative h-24 rounded-xl overflow-hidden">
+      {/* Header Image - Use collab logo if specified in metadata, otherwise spinner logo */}
+      <div className="mb-2 relative h-24 rounded-xl overflow-hidden flex justify-center items-center">
         <Image
-          src="/BeeperXmintedmerch.png"
-          alt="Beeper x Minted Merch"
-          fill
+          src={campaign.metadata?.headerImage || "/MintedMerchSpinnerLogo.png"}
+          alt={campaign.metadata?.headerAlt || "Minted Merch"}
+          width={campaign.metadata?.headerImage ? 400 : 120}
+          height={96}
           className="object-contain"
           priority
         />
@@ -764,7 +765,7 @@ export default function MintPageClient({ slug }) {
                 : isMinting
                 ? "Preparing..."
                 : canMint
-                ? "Claim FREE Mint 📟"
+                ? (campaign.metadata?.mintButtonText || campaign.metadata?.buttonText || "Mint NFT")
                 : "❌ Mint Unavailable"}
             </button>
 
@@ -878,7 +879,7 @@ export default function MintPageClient({ slug }) {
                     <p className="flex justify-between">
                       <span>NFT:</span>
                       <span className="text-white font-bold">
-                        1x WEN BEEPER MERCH
+                        1x {campaign.title}
                       </span>
                     </p>
                     <p className="flex justify-between">
