@@ -1,9 +1,12 @@
-// Ambassador notification system
-// Handles sending Farcaster notifications for ambassador activities
+// Ambassador and Merch Mogul notification system
+// Handles sending Farcaster notifications for ambassador and mogul activities
 // OPTIMIZED: Now uses batch API for multi-user notifications to reduce credit consumption
 
 import { sendBatchNotificationWithNeynar, sendNotificationWithNeynar } from './neynar.js';
 import { supabaseAdmin } from './supabase.js';
+
+// Interaction bounty types - these go to Merch Moguls
+const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'];
 
 /**
  * Get all active ambassadors' FIDs
@@ -32,52 +35,97 @@ export async function getAllActiveAmbassadors() {
 }
 
 /**
- * Send new bounty notification to all active ambassadors
- * OPTIMIZED: Uses batch API - 1 API call instead of N calls (where N = number of ambassadors)
+ * Get all Merch Moguls' FIDs (users with 50M+ tokens)
+ * @returns {Promise<number[]>} Array of FIDs for Merch Moguls
+ */
+export async function getAllMerchMoguls() {
+  try {
+    const MOGUL_TOKEN_THRESHOLD = 50_000_000;
+    
+    const { data: profiles, error } = await supabaseAdmin
+      .from('profiles')
+      .select('fid')
+      .gte('token_balance', MOGUL_TOKEN_THRESHOLD);
+
+    if (error) {
+      console.error('❌ Error fetching Merch Moguls:', error);
+      return [];
+    }
+
+    const fids = profiles.map(p => p.fid);
+    console.log(`💎 Found ${fids.length} Merch Moguls`);
+    return fids;
+
+  } catch (error) {
+    console.error('❌ Error in getAllMerchMoguls:', error);
+    return [];
+  }
+}
+
+/**
+ * Send new bounty notification - routes to correct recipients based on bounty type
+ * - Interaction bounties (like, recast, comment, engagement) → Merch Moguls
+ * - Custom bounties → Ambassadors
+ * OPTIMIZED: Uses batch API - 1 API call instead of N calls
  * @param {object} bountyData - The bounty data (from database)
  * @returns {Promise<object>} Summary of notification results
  */
 export async function sendNewBountyNotification(bountyData) {
   try {
-    console.log(`🔔 Sending new bounty notification for: "${bountyData.title}"`);
-
-    // Get ambassadors to notify - either all active or specific targets
-    let ambassadorFids;
+    const bountyType = bountyData.bounty_type || bountyData.bountyType || 'custom';
+    const isInteractionBounty = INTERACTION_BOUNTY_TYPES.includes(bountyType);
     
-    if (bountyData.target_ambassador_fids && Array.isArray(bountyData.target_ambassador_fids) && bountyData.target_ambassador_fids.length > 0) {
-      // Targeted bounty - only notify specific ambassadors
-      console.log(`🎯 Targeted bounty: notifying ${bountyData.target_ambassador_fids.length} specific ambassador(s)`);
-      ambassadorFids = bountyData.target_ambassador_fids;
+    console.log(`🔔 Sending new bounty notification for: "${bountyData.title}" (type: ${bountyType})`);
+
+    let recipientFids;
+    let recipientType;
+    let targetUrl;
+    
+    if (isInteractionBounty) {
+      // INTERACTION BOUNTY → Notify Merch Moguls
+      console.log(`💎 Interaction bounty: notifying Merch Moguls`);
+      recipientFids = await getAllMerchMoguls();
+      recipientType = 'moguls';
+      targetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/merchmogulmissions?from=new_mission&t=${Date.now()}`;
     } else {
-      // General bounty - notify all active ambassadors
-      console.log(`📢 General bounty: notifying all active ambassadors`);
-      ambassadorFids = await getAllActiveAmbassadors();
+      // CUSTOM BOUNTY → Notify Ambassadors
+      if (bountyData.target_ambassador_fids && Array.isArray(bountyData.target_ambassador_fids) && bountyData.target_ambassador_fids.length > 0) {
+        // Targeted bounty - only notify specific ambassadors
+        console.log(`🎯 Targeted custom bounty: notifying ${bountyData.target_ambassador_fids.length} specific ambassador(s)`);
+        recipientFids = bountyData.target_ambassador_fids;
+      } else {
+        // General custom bounty - notify all active ambassadors
+        console.log(`📢 Custom bounty: notifying all active ambassadors`);
+        recipientFids = await getAllActiveAmbassadors();
+      }
+      recipientType = 'ambassadors';
+      targetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/ambassador?from=new_bounty&t=${Date.now()}`;
     }
 
-    if (ambassadorFids.length === 0) {
-      console.log('⚠️ No ambassadors to notify');
+    if (recipientFids.length === 0) {
+      console.log(`⚠️ No ${recipientType} to notify`);
       return {
         success: true,
-        totalAmbassadors: 0,
+        totalRecipients: 0,
         successCount: 0,
-        failureCount: 0
+        failureCount: 0,
+        recipientType
       };
     }
 
     // Create notification message
     const rewardAmount = bountyData.reward_tokens || bountyData.rewardTokens;
+    const title = isInteractionBounty ? "💎 New Mission!" : "🎯 New Bounty!";
     const message = {
-      title: "🎯 New Bounty!", // Keep under 32 chars
+      title, // Keep under 32 chars
       body: `${bountyData.title} - Earn ${rewardAmount.toLocaleString()} $mintedmerch tokens!`,
-      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/ambassador?from=new_bounty&t=${Date.now()}`
+      targetUrl
     };
 
-    console.log(`📤 Sending BATCH notification to ${ambassadorFids.length} ambassadors (1 API call)...`);
+    console.log(`📤 Sending BATCH notification to ${recipientFids.length} ${recipientType} (1 API call)...`);
 
-    // OPTIMIZED: Single batch API call instead of N individual calls
-    // Before: 10 ambassadors = 10 API calls = 1,000 credits
-    // After: 10 ambassadors = 1 API call = 100 credits
-    const batchResult = await sendBatchNotificationWithNeynar(ambassadorFids, message);
+    // OPTIMIZED: Single batch API call
+    const batchResult = await sendBatchNotificationWithNeynar(recipientFids, message);
 
     // Count successes and failures from batch result
     let successCount = 0;
@@ -89,22 +137,24 @@ export async function sendNewBountyNotification(bountyData) {
       skippedCount = batchResult.results.filter(r => r.skipped).length;
       failureCount = batchResult.results.filter(r => !r.success && !r.skipped).length;
     } else {
-      failureCount = ambassadorFids.length;
+      failureCount = recipientFids.length;
     }
 
-    console.log(`📊 New bounty notification results:`);
+    console.log(`📊 New bounty notification results (${recipientType}):`);
     console.log(`   ✅ Successful: ${successCount}`);
     console.log(`   ⏭️ Skipped: ${skippedCount}`);
     console.log(`   ❌ Failed: ${failureCount}`);
-    console.log(`   🚀 API calls: 1 (instead of ${ambassadorFids.length})`);
+    console.log(`   🚀 API calls: 1 (instead of ${recipientFids.length})`);
 
     return {
       success: true,
-      totalAmbassadors: ambassadorFids.length,
+      totalRecipients: recipientFids.length,
       successCount,
       failureCount,
       skippedCount,
-      bountyTitle: bountyData.title
+      bountyTitle: bountyData.title,
+      recipientType,
+      bountyType
     };
 
   } catch (error) {
@@ -112,7 +162,7 @@ export async function sendNewBountyNotification(bountyData) {
     return {
       success: false,
       error: error.message,
-      totalAmbassadors: 0,
+      totalRecipients: 0,
       successCount: 0,
       failureCount: 0
     };

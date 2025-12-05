@@ -1,18 +1,19 @@
-// API endpoint to list active bounties for ambassadors
-// GET /api/ambassador/bounties
-// Returns CUSTOM bounties only (interaction bounties are for Merch Moguls via /merchmogulmissions)
+// API endpoint to list interaction bounties for Merch Moguls
+// GET /api/mogul/bounties
+// Returns only interaction bounties (farcaster_like, farcaster_recast, farcaster_comment, farcaster_engagement)
+// SECURITY: Requires JWT authentication and 50M+ token balance
 
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { checkAmbassadorStatus, getAmbassadorSubmissionCount } from '@/lib/ambassadorHelpers';
+import { checkMogulStatus, getMogulSubmissionCount } from '@/lib/mogulHelpers';
 
-// Interaction bounty types - these are excluded from ambassador dashboard (shown on /merchmogulmissions instead)
+// Interaction bounty types
 const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'];
 
 export async function GET(request) {
   try {
-    // Verify authentication
+    // SECURITY: Verify JWT authentication
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({
@@ -32,27 +33,27 @@ export async function GET(request) {
     }
 
     const fid = authResult.fid;
-    console.log(`🎯 Fetching bounties for FID: ${fid}`);
+    console.log(`🎯 Fetching mogul bounties for FID: ${fid}`);
 
-    // Check if user is an ambassador
-    const { isAmbassador, ambassadorId } = await checkAmbassadorStatus(fid);
+    // SECURITY: Check if user is a Merch Mogul (50M+ tokens)
+    const { isMogul, tokenBalance } = await checkMogulStatus(fid);
 
-    if (!isAmbassador) {
+    if (!isMogul) {
       return NextResponse.json({
         success: false,
-        error: 'User is not an active ambassador'
+        error: 'Merch Mogul status required (50M+ $mintedmerch tokens)',
+        tokenBalance,
+        requiredBalance: 50_000_000
       }, { status: 403 });
     }
 
-    // Get all active CUSTOM bounties only (exclude interaction bounties - those are for Merch Moguls)
+    // Get all active INTERACTION bounties only
     const { data: bounties, error: bountiesError } = await supabaseAdmin
       .from('bounties')
       .select('*')
       .eq('is_active', true)
-      .eq('bounty_type', 'custom') // Only custom bounties for ambassadors
+      .in('bounty_type', INTERACTION_BOUNTY_TYPES)
       .order('created_at', { ascending: false });
-    
-    console.log(`📋 Fetched ${bounties?.length || 0} custom bounties (excluding interaction bounties for moguls)`);
 
     if (bountiesError) {
       console.error('❌ Error fetching bounties:', bountiesError);
@@ -62,31 +63,21 @@ export async function GET(request) {
       }, { status: 500 });
     }
 
-    // Filter bounties based on targeting - only show bounties that:
-    // 1. Have no target (available to all), OR
-    // 2. Target this specific ambassador's FID
-    const filteredBounties = bounties.filter(bounty => {
-      if (!bounty.target_ambassador_fids || bounty.target_ambassador_fids.length === 0) {
-        // No targeting - available to all
-        return true;
-      }
-      // Check if this ambassador's FID is in the target list
-      return bounty.target_ambassador_fids.includes(fid);
-    });
-
-    console.log(`📊 Filtered bounties: ${bounties.length} total → ${filteredBounties.length} available to FID ${fid}`);
+    // Filter bounties - for moguls, we don't use target_ambassador_fids
+    // All interaction bounties are available to all moguls
+    console.log(`📊 Found ${bounties.length} active interaction bounties`);
 
     // Enrich bounties with submission info
     const enrichedBounties = await Promise.all(
-      filteredBounties.map(async (bounty) => {
-        // Get ambassador's submission count for this bounty
-        const ambassadorSubmissions = await getAmbassadorSubmissionCount(ambassadorId, bounty.id);
+      bounties.map(async (bounty) => {
+        // Get mogul's submission count for this bounty
+        const mogulSubmissions = await getMogulSubmissionCount(fid, bounty.id);
 
         // Check if bounty is still accepting submissions
         const slotsRemaining = bounty.max_completions - bounty.current_completions;
         const canSubmit = slotsRemaining > 0 && 
           (bounty.max_submissions_per_ambassador === null || 
-           ambassadorSubmissions < bounty.max_submissions_per_ambassador);
+           mogulSubmissions < bounty.max_submissions_per_ambassador);
 
         // Check if bounty has expired
         const isExpired = bounty.expires_at && new Date(bounty.expires_at) < new Date();
@@ -96,18 +87,15 @@ export async function GET(request) {
           title: bounty.title,
           description: bounty.description,
           requirements: bounty.requirements,
-          proofRequirements: bounty.proof_requirements,
           rewardTokens: bounty.reward_tokens,
           maxCompletions: bounty.max_completions,
           currentCompletions: bounty.current_completions,
           slotsRemaining,
-          maxSubmissionsPerAmbassador: bounty.max_submissions_per_ambassador,
-          ambassadorSubmissions,
+          maxSubmissionsPerUser: bounty.max_submissions_per_ambassador,
+          userSubmissions: mogulSubmissions,
           canSubmit: canSubmit && !isExpired,
           isExpired,
           expiresAt: bounty.expires_at,
-          category: bounty.category,
-          imageUrl: bounty.image_url,
           bountyType: bounty.bounty_type,
           targetCastUrl: bounty.target_cast_url,
           createdAt: bounty.created_at
@@ -115,17 +103,21 @@ export async function GET(request) {
       })
     );
 
-    // Filter out expired bounties
-    const activeBounties = enrichedBounties.filter(b => !b.isExpired);
+    // Filter out expired bounties and bounties where user reached limit
+    const availableBounties = enrichedBounties.filter(b => !b.isExpired);
 
     return NextResponse.json({
       success: true,
-      data: activeBounties,
-      total: activeBounties.length
+      data: availableBounties,
+      total: availableBounties.length,
+      mogulStatus: {
+        isMogul: true,
+        tokenBalance
+      }
     });
 
   } catch (error) {
-    console.error('❌ Error in bounties endpoint:', error);
+    console.error('❌ Error in mogul bounties endpoint:', error);
     return NextResponse.json({
       success: false,
       error: 'Internal server error'
