@@ -751,6 +751,26 @@ export default function MintPageClient({ slug }) {
         </div>
       </div>
 
+      {/* Where Staking Meets Merch Section */}
+      <div className="border border-teal-500/50 rounded-xl p-6 mb-8 space-y-4" style={{ backgroundColor: 'rgba(13, 148, 136, 0.1)' }}>
+        <p className="text-lg font-bold text-center" style={{ color: '#2dd4bf' }}>
+          Where Staking Meets Merch!
+        </p>
+        <p className="text-gray-300 text-sm text-center">
+          Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a Merch Mogul and unlock: exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
+        </p>
+        <button
+          onClick={() => {
+            triggerHaptic("light", isInFarcaster);
+            router.push("/stake");
+          }}
+          className="w-full py-3 rounded-lg font-bold transition-all hover:scale-105"
+          style={{ backgroundColor: '#2dd4bf', color: '#000' }}
+        >
+          Start Staking →
+        </button>
+      </div>
+
       {/* Main Action Section */}
       <div className="space-y-4 mb-12">
         {/* STATE 1: Not Minted - Show Quantity Selector + Mint Button */}

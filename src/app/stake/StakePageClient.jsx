@@ -357,7 +357,7 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           textAlign: 'center',
           lineHeight: '1.6'
         }}>
-          Stake 50M+ $mintedmerch to unlock exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
+          Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a Merch Mogul and unlock: exclusive collab partnerships, the ability to place custom orders, group chat access, and 15% off store wide.
         </p>
       </div>
 
