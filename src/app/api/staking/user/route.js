@@ -249,24 +249,9 @@ export async function GET(request) {
     // When user unstakes everything, totalStaked is 0, not null/undefined
     const userStakedAmount = stakingDetails.totalStaked ?? profile.staked_balance ?? 0;
     
-    // Calculate wallet balance = total token balance - staked amount
-    // This ensures we show only unstaked tokens in "Your Balance"
-    // NOTE: If DB token_balance is stale (less than staked), wallet will be 0
-    // The correct total should be wallet + staked
-    const dbTokenBalance = profile.token_balance || 0;
-    
-    // If staked > DB balance, the DB is stale - assume wallet balance from wallet_balance column
-    // or calculate as: if DB has wallet_balance column, use that; otherwise set to 0
-    let walletBalance;
-    if (userStakedAmount > dbTokenBalance) {
-      // DB token_balance is stale - use wallet_balance column if available
-      walletBalance = profile.wallet_balance || 0;
-      console.log(`⚠️ DB token_balance (${dbTokenBalance.toLocaleString()}) < staked (${userStakedAmount.toLocaleString()}), using wallet_balance: ${walletBalance.toLocaleString()}`);
-    } else {
-      walletBalance = Math.max(0, dbTokenBalance - userStakedAmount);
-    }
-    
-    // Total token balance for display should be wallet + staked
+    // Use wallet_balance from DB (this is the unstaked amount in user's wallets)
+    // Total = wallet_balance + staked (they are stored separately)
+    const walletBalance = profile.wallet_balance || 0;
     const totalTokenBalance = walletBalance + userStakedAmount;
     
     // Get lifetime claimed rewards from GraphQL
