@@ -814,21 +814,16 @@ export default function MintPageClient({ slug }) {
         {/* NFT-GATED: Check Eligibility First */}
         {isNftGated && !eligibilityChecked && !userStatus?.hasMinted && (
           <div className="space-y-4">
-            <div className="p-4 bg-gradient-to-b from-gray-900 to-black border border-[#3eb489]/50 rounded-xl text-center space-y-3">
-              <div className="text-[#3eb489] text-2xl">🎫</div>
-              <h3 className="text-lg font-bold text-white">NFT-Gated Mint</h3>
-              <p className="text-gray-300 text-sm">
-                This mint requires you to hold specific NFTs. Check your eligibility to see how many you can mint!
-              </p>
-              {campaign.metadata?.requiredNfts && (
+            {campaign.metadata?.requiredNfts && (
+              <div className="p-4 bg-gradient-to-b from-gray-900 to-black border border-[#3eb489]/50 rounded-xl text-center space-y-2">
+                <p className="font-bold text-gray-300 text-sm">Must Be Holding To Mint:</p>
                 <div className="text-xs text-gray-500 space-y-1">
-                  <p className="font-bold text-gray-400">Required NFTs (one of each):</p>
                   {campaign.metadata.requiredNfts.map((nft, index) => (
                     <p key={index}>• {nft.name}</p>
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
             
             <button
               onClick={handleCheckEligibility}
@@ -857,8 +852,7 @@ export default function MintPageClient({ slug }) {
         {isNftGated && eligibilityChecked && !eligibilityResult?.eligible && !userStatus?.hasMinted && (
           <div className="space-y-4">
             <div className="p-6 bg-gradient-to-b from-red-950 to-black border border-red-500/50 rounded-xl text-center space-y-4">
-              <div className="text-red-400 text-3xl">❌</div>
-              <h3 className="text-xl font-bold text-red-400">Not Eligible</h3>
+              <h3 className="text-xl font-bold text-red-400">❌ Not Eligible</h3>
               <p className="text-gray-300 text-sm">
                 {eligibilityResult?.message || "You need to hold the required NFTs to mint."}
               </p>
@@ -899,8 +893,7 @@ export default function MintPageClient({ slug }) {
         {/* NFT-GATED: Eligible - Show Mint Button */}
         {isNftGated && eligibilityChecked && eligibilityResult?.eligible && !userStatus?.hasMinted && (
           <div className="p-4 bg-gradient-to-b from-green-950 to-black border border-[#3eb489]/50 rounded-xl text-center space-y-2 mb-4">
-            <div className="text-[#3eb489] text-2xl">✅</div>
-            <h3 className="text-lg font-bold text-[#3eb489]">You're Eligible!</h3>
+            <h3 className="text-lg font-bold text-[#3eb489]">✅ You're Eligible!</h3>
             <p className="text-gray-300 text-sm">{eligibilityResult.message}</p>
             {eligibilityResult.holdings && (
               <div className="text-xs text-gray-500 space-y-1 mt-2">
