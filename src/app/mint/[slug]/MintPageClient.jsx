@@ -216,7 +216,24 @@ export default function MintPageClient({ slug }) {
   useEffect(() => {
     if (mintWriteError) {
       console.error("❌ Wagmi mint error:", mintWriteError);
-      setMintError(mintWriteError.message || "Transaction failed");
+      
+      // Parse the error and show a cleaner message
+      const errorMsg = mintWriteError.message || "";
+      let cleanError = "Transaction failed. Please try again.";
+      
+      if (errorMsg.includes("User rejected") || errorMsg.includes("rejected the request")) {
+        cleanError = "Transaction cancelled.";
+      } else if (errorMsg.includes("insufficient funds")) {
+        cleanError = "Insufficient funds in your wallet.";
+      } else if (errorMsg.includes("!Qty") || errorMsg.includes("exceeds maximum")) {
+        cleanError = "You have reached your mint limit.";
+      } else if (errorMsg.includes("not eligible") || errorMsg.includes("allowlist")) {
+        cleanError = "Your wallet is not eligible for this mint.";
+      } else if (errorMsg.includes("sold out") || errorMsg.includes("max supply")) {
+        cleanError = "This NFT is sold out.";
+      }
+      
+      setMintError(cleanError);
       setIsMinting(false);
     }
   }, [mintWriteError]);
@@ -403,21 +420,23 @@ export default function MintPageClient({ slug }) {
     } catch (err) {
       console.error("❌ Mint error:", err);
 
-      // Provide better error messages for common failures
-      let errorMessage = err.message || "Failed to mint NFT";
+      // Provide clean error messages for common failures
+      const errorMsg = err.message || "";
+      let cleanError = "Failed to mint NFT. Please try again.";
 
-      if (
-        err.message?.includes("allowlist") ||
-        err.message?.includes("not eligible")
-      ) {
-        errorMessage = "Your wallet is not on the allowlist for this mint.";
-      } else if (err.message?.includes("User rejected")) {
-        errorMessage = "Transaction cancelled";
-      } else if (err.message?.includes("!Qty")) {
-        errorMessage = "You have already minted or reached your limit.";
+      if (errorMsg.includes("User rejected") || errorMsg.includes("rejected the request")) {
+        cleanError = "Transaction cancelled.";
+      } else if (errorMsg.includes("allowlist") || errorMsg.includes("not eligible")) {
+        cleanError = "Your wallet is not eligible for this mint.";
+      } else if (errorMsg.includes("!Qty") || errorMsg.includes("exceeds maximum")) {
+        cleanError = "You have reached your mint limit.";
+      } else if (errorMsg.includes("insufficient funds")) {
+        cleanError = "Insufficient funds in your wallet.";
+      } else if (errorMsg.includes("No wallet connected")) {
+        cleanError = "Please connect your wallet to mint.";
       }
 
-      setMintError(errorMessage);
+      setMintError(cleanError);
       setIsMinting(false);
     }
   };
@@ -773,8 +792,9 @@ export default function MintPageClient({ slug }) {
 
       {/* Main Action Section */}
       <div className="space-y-4 mb-12">
-        {/* STATE 1: Not Minted - Show Quantity Selector + Mint Button */}
-        {!userStatus?.hasMinted && (
+        {/* STATE 1: Can Mint - Show Quantity Selector + Mint Button */}
+        {/* Show when user hasn't minted yet, OR when they've completed the flow but can still mint more */}
+        {((!userStatus?.hasMinted) || (hasClaimed && canMint)) && (
           <>
             {/* Quantity Selector - Only show if mint limit > 1 or unlimited */}
             {canMint && (campaign.mintLimitPerFid === null || campaign.mintLimitPerFid === 0 || campaign.mintLimitPerFid > 1) && (
@@ -926,11 +946,11 @@ export default function MintPageClient({ slug }) {
             {/* Terminal Header */}
             <div className="bg-black border-4 border-[#77fb82] rounded-lg p-3.5 shadow-lg shadow-[#77fb82]/20">
               <div className="text-[#77fb82] space-y-2.5">
-                {/* ASCII Success Message */}
+                {/* ASCII Success Message - Dynamic based on campaign */}
                 <div className="text-center">
                   <pre className="text-xs leading-snug">
-                    {`╔═══════════════════════════════╗
-║  BEEP BEEP 📟 QUEST COMPLETED ✓║
+                    {campaign.metadata?.successAscii || `╔═══════════════════════════════╗
+║     🎉 MINT COMPLETE! ✓       ║
 ║   WELCOME TO MINTED MERCH     ║
 ╚═══════════════════════════════╝`}
                   </pre>
@@ -943,13 +963,13 @@ export default function MintPageClient({ slug }) {
                     <p className="flex justify-between">
                       <span>TOKENS:</span>
                       <span className="text-white font-bold">
-                        100,000 $MINTEDMERCH
+                        {userStatus?.tokenRewardAmount ? `${Number(userStatus.tokenRewardAmount).toLocaleString()} $MINTEDMERCH` : `${(campaign.tokenRewardAmount || 100000).toLocaleString()} $MINTEDMERCH`}
                       </span>
                     </p>
                     <p className="flex justify-between">
                       <span>NFT:</span>
                       <span className="text-white font-bold">
-                        1x {campaign.title}
+                        {userStatus?.mintCount || 1}x {campaign.title}
                       </span>
                     </p>
                     <p className="flex justify-between">
