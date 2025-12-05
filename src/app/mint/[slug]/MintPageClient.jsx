@@ -290,10 +290,10 @@ export default function MintPageClient({ slug }) {
     }
   }, [isClaimConfirmed, claimTxHash]);
 
-  // Auto-scroll to bottom when user has minted (to show staking + success sections)
+  // Auto-scroll to bottom when user has claimed (to show success + staking sections)
   useEffect(() => {
-    if (userStatus?.hasMinted) {
-      console.log("📜 User has minted - scrolling to show staking & success sections...");
+    if (hasClaimed) {
+      console.log("📜 User has claimed - scrolling to show success & staking sections...");
       // Small delay to ensure DOM is updated
       setTimeout(() => {
         window.scrollTo({
@@ -302,7 +302,7 @@ export default function MintPageClient({ slug }) {
         });
       }, 300);
     }
-  }, [userStatus?.hasMinted]);
+  }, [hasClaimed]);
 
   // Handle NFT mint using Thirdweb's claimTo (automatically handles allowlist proofs)
   const handleMint = async () => {
