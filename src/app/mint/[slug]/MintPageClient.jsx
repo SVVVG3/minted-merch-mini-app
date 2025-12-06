@@ -817,8 +817,9 @@ export default function MintPageClient({ slug }) {
       {/* Main Action Section - MOVED UP: Mint button before info sections */}
       <div className="space-y-4 mb-8">
         {/* NFT-GATED: Check Eligibility First */}
-        {/* Show when: NFT-gated AND not checked yet AND (hasn't minted OR can mint more) */}
-        {isNftGated && !eligibilityChecked && (!userStatus?.hasMinted || userStatus?.canMint) && (
+        {/* Show when: NFT-gated AND not checked yet AND can mint more AND NO pending claim */}
+        {/* PRIORITY: If user has minted but not claimed, hide this - show Share/Claim flow instead */}
+        {isNftGated && !eligibilityChecked && (!userStatus?.hasMinted || userStatus?.canMint) && !(userStatus?.hasMinted && !hasClaimed) && (
           <div className="space-y-4">
             {campaign.metadata?.requiredNfts && (
               <div className="p-4 bg-gradient-to-b from-gray-900 to-black border border-[#3eb489]/50 rounded-xl text-center space-y-2">
@@ -855,8 +856,8 @@ export default function MintPageClient({ slug }) {
         )}
 
         {/* NFT-GATED: Not Eligible */}
-        {/* Show when: NFT-gated AND checked AND not eligible AND (hasn't minted OR can mint more) */}
-        {isNftGated && eligibilityChecked && !eligibilityResult?.eligible && (!userStatus?.hasMinted || userStatus?.canMint) && (
+        {/* Show when: NFT-gated AND checked AND not eligible AND can mint more AND NO pending claim */}
+        {isNftGated && eligibilityChecked && !eligibilityResult?.eligible && (!userStatus?.hasMinted || userStatus?.canMint) && !(userStatus?.hasMinted && !hasClaimed) && (
           <div className="space-y-4">
             <div className="p-6 bg-gradient-to-b from-red-950 to-black border border-red-500/50 rounded-xl text-center space-y-4">
               <h3 className="text-xl font-bold text-red-400">❌ Not Eligible</h3>
@@ -898,8 +899,8 @@ export default function MintPageClient({ slug }) {
         )}
 
         {/* NFT-GATED: Eligible - Show confirmation message */}
-        {/* Show when: NFT-gated AND checked AND eligible AND (hasn't minted OR can mint more) */}
-        {isNftGated && eligibilityChecked && eligibilityResult?.eligible && (!userStatus?.hasMinted || userStatus?.canMint) && (
+        {/* Show when: NFT-gated AND checked AND eligible AND can mint more AND NO pending claim */}
+        {isNftGated && eligibilityChecked && eligibilityResult?.eligible && (!userStatus?.hasMinted || userStatus?.canMint) && !(userStatus?.hasMinted && !hasClaimed) && (
           <div className="p-4 bg-gradient-to-b from-green-950 to-black border border-[#3eb489]/50 rounded-xl text-center space-y-2 mb-4">
             <h3 className="text-lg font-bold text-[#3eb489]">✅ You're Eligible!</h3>
             <p className="text-gray-300 text-sm">{eligibilityResult.message}</p>
@@ -918,7 +919,8 @@ export default function MintPageClient({ slug }) {
         {/* STATE 1: Can Mint - Show Quantity Selector + Mint Button */}
         {/* Show when: hasn't minted yet, OR minting in progress, OR can mint more */}
         {/* For NFT-gated: only show after eligibility is confirmed */}
-        {((!isNftGated || (eligibilityChecked && eligibilityResult?.eligible)) && ((!userStatus?.hasMinted) || isMintingProcess || userStatus?.canMint)) && (
+        {/* PRIORITY: Hide if user has pending claim (minted but not claimed) - show Share/Claim instead */}
+        {((!isNftGated || (eligibilityChecked && eligibilityResult?.eligible)) && ((!userStatus?.hasMinted) || isMintingProcess || userStatus?.canMint) && !(userStatus?.hasMinted && !hasClaimed && !isMintingProcess)) && (
           <>
             {/* Quantity Selector - Only show if mint limit > 1 or unlimited (null), NOT for limit of 1 */}
             {!isMintingProcess && canMint && (userStatus?.mintLimit === null || userStatus?.mintLimit > 1) && (
