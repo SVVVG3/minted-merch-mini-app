@@ -46,11 +46,11 @@ export async function generateMetadata({ params }) {
 
     const dynamicImageUrl = `${baseUrl}/api/og/mint?${ogImageParams}`;
 
-    // Create Farcaster frame embed - button links to campaign-specific page or main page
-    // For staking-launch, link to stake page
+    // Create Farcaster frame embed - button links to campaign-specific page
+    // Default to the mint page for the campaign
     const buttonUrl = campaign.metadata?.buttonUrl 
       ? `${baseUrl}${campaign.metadata.buttonUrl}`
-      : (slug === 'staking-launch' ? `${baseUrl}/stake` : baseUrl);
+      : `${baseUrl}/mint/${slug}`;
     
     const frame = {
       version: "next",
