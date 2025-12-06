@@ -616,11 +616,10 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
       )}
       
       {totalClaimed > 0 && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
-          <div className="flex justify-between items-center">
-            <span className="text-green-800 font-medium">✅ Total Claimed</span>
-            <span className="text-green-800 font-bold text-lg">{formatNumber(totalClaimed)} $mintedmerch</span>
-          </div>
+        <div className="bg-green-50 border border-[#3eb489] rounded-xl p-3 mb-4">
+          <p className="text-[#3eb489] font-semibold text-sm text-center">
+            ✅ Total Claimed: {formatNumber(totalClaimed)} $mintedmerch
+          </p>
         </div>
       )}
 
