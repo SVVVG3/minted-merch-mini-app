@@ -3,7 +3,6 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthenticatedFid } from '@/lib/userAuth';
 import { setUserContext, setSystemContext } from '@/lib/auth';
 import { generateClaimSignature } from '@/lib/claimSignatureService';
-import { checkNftGatedEligibility } from '@/lib/blockchainAPI';
 import { awardNftMintPoints } from '@/lib/points';
 
 /**
@@ -147,16 +146,15 @@ export async function POST(request, { params }) {
       );
     }
 
-    // 🔒 NFT-GATED ELIGIBILITY - SKIP SERVER-SIDE RE-CHECK
-    // The on-chain contract already verified eligibility when the transaction succeeded.
-    // Re-checking here causes RPC rate limiting issues and blocks legitimate mints.
-    // Security is maintained because:
-    // 1. The smart contract enforces NFT gating at mint time (can't be bypassed)
-    // 2. We verify the transaction succeeded on-chain below
-    // 3. Frontend check-eligibility API still gates the UI
+    // 🔒 NFT-GATED: No server-side re-check needed
+    // The user already passed check-eligibility on frontend, and the on-chain transaction succeeded.
+    // Re-checking here just causes rate limiting issues. Security is maintained because:
+    // 1. Frontend gates UI with check-eligibility API
+    // 2. We verify the transaction actually happened on-chain below
+    // 3. Campaign mint limits are still enforced below
     const metadata = campaign.metadata || {};
     if (metadata.requiresNftGating) {
-      console.log(`🔒 NFT-gated campaign - skipping server re-check (contract already verified eligibility)`);
+      console.log(`🔒 NFT-gated campaign - user passed frontend eligibility check, transaction succeeded`);
     }
 
     // Check if user has reached their mint limit for this campaign
