@@ -50,17 +50,18 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
         const baseChainId = 8453;
         
         try {
-          // Fetch TOTAL balance from blockchain (balanceOf includes staked tokens)
-          // The staking contract does NOT transfer tokens out of user's wallet
-          const totalBalanceFromChain = await checkTokenBalanceDirectly(
+          // Fetch wallet balance from blockchain (balanceOf returns UNSTAKED only)
+          // Staked tokens are transferred to the staking contract
+          const balanceResult = await checkTokenBalanceDirectly(
             ethAddresses,
             [mintedMerchContract],
             baseChainId
           );
         
-        console.log(`✅ Fetched total balance from RPC: ${totalBalanceFromChain} tokens (includes staked)`);
+        walletBalance = balanceResult || 0;
+        console.log(`✅ Fetched wallet balance from RPC: ${walletBalance} tokens (unstaked only)`);
         
-        // Fetch staked balance from subgraph
+        // Fetch staked balance from subgraph (tokens held in staking contract)
         stakedBalance = 0;
         try {
           const { getUserStakedBalance } = await import('./stakingBalanceAPI.js');
@@ -68,21 +69,16 @@ export async function updateUserTokenBalance(fid, walletAddresses = [], tokenBal
           console.log(`📊 Fetched staked balance from subgraph: ${stakedBalance} tokens`);
         } catch (stakingError) {
           console.warn('⚠️ Could not fetch staked balance:', stakingError.message);
-          console.log('📊 Continuing with total balance only');
-          // Continue with just total balance if staking query fails
+          console.log('📊 Continuing with wallet balance only');
         }
         
-        // CORRECT CALCULATION:
-        // - totalBalanceFromChain = ALL tokens (staked + unstaked) from balanceOf()
-        // - stakedBalance = staked amount from subgraph
-        // - walletBalance = totalBalanceFromChain - stakedBalance (unstaked only)
-        walletBalance = Math.max(0, (totalBalanceFromChain || 0) - stakedBalance);
-        const tokensBalance = totalBalanceFromChain || 0; // Total is what blockchain says
+        // Total holdings = wallet (unstaked) + staked (in staking contract)
+        const tokensBalance = walletBalance + stakedBalance;
         
         console.log(`💰 Balance breakdown:`);
-        console.log(`   Total from chain: ${tokensBalance} tokens`);
-        console.log(`   Staked: ${stakedBalance} tokens`);
         console.log(`   Wallet (unstaked): ${walletBalance} tokens`);
+        console.log(`   Staked (in contract): ${stakedBalance} tokens`);
+        console.log(`   Total: ${tokensBalance} tokens`);
         
         finalBalance = tokensBalance;
         } catch (error) {
