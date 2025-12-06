@@ -184,41 +184,40 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
             fontSize: '16px',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            flex: '1'
+            gap: '8px'
           }}
         >
           ← Back to Shop
         </Link>
         
-        {/* Center: Share Button */}
-        <button
-          onClick={handleShare}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            backgroundColor: '#6A3CFF',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '10px 16px',
-            color: '#fff',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '500'
-          }}
-        >
-          Share
-          {/* Official Farcaster Arch Logo */}
-          <svg style={{ width: '18px', height: '18px' }} viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
-          </svg>
-        </button>
-        
-        {/* Right: Profile Button */}
-        <div style={{ flex: '1', display: 'flex', justifyContent: 'flex-end' }}>
-          {getPfpUrl() && (
+        {/* Right: Share + Profile */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={handleShare}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              backgroundColor: '#6A3CFF',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '10px 16px',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            Share
+            {/* Official Farcaster Arch Logo */}
+            <svg style={{ width: '18px', height: '18px' }} viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
+            </svg>
+          </button>
+          
+          {/* Profile Button */}
+          {getPfpUrl() ? (
             <button
               onClick={handleProfileClick}
               style={{
@@ -242,6 +241,24 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
                   objectFit: 'cover'
                 }}
               />
+            </button>
+          ) : (
+            <button
+              onClick={handleProfileClick}
+              style={{
+                background: '#3eb489',
+                border: '2px solid #3eb489',
+                borderRadius: '50%',
+                width: '44px',
+                height: '44px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px'
+              }}
+            >
+              👤
             </button>
           )}
         </div>
