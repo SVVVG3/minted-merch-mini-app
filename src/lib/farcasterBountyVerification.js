@@ -199,70 +199,117 @@ export async function verifyCommentBounty(ambassadorFid, castHash, castAuthorFid
       };
     }
 
-    // Fetch cast conversation (includes all direct replies) using SDK v2 method
     const client = getNeynarClient();
-    const response = await client.lookupCastConversation({
-      identifier: castHash,
-      type: 'hash',  // Use string literal instead of enum
-      replyDepth: 1  // Only fetch direct replies (first level)
-    });
-
-    // Extract direct replies from conversation
-    const directReplies = response.conversation?.cast?.direct_replies || [];
-    console.log(`📊 Found ${directReplies.length} replies to cast`);
     
-    // Debug: Log first reply structure
-    if (directReplies.length > 0) {
-      console.log(`🔍 Sample reply structure:`, JSON.stringify({
-        hash: directReplies[0].hash,
-        authorFid: directReplies[0].author?.fid,
-        authorUsername: directReplies[0].author?.username
-      }, null, 2));
-    }
+    // Ensure FID is a number for comparison
+    const numericFid = typeof ambassadorFid === 'string' ? parseInt(ambassadorFid, 10) : ambassadorFid;
+    console.log(`🔍 Looking for comments from FID: ${numericFid} (type: ${typeof numericFid})`);
+    
+    // APPROACH 1: Fetch cast conversation with ALL replies
+    try {
+      const response = await client.lookupCastConversation({
+        identifier: castHash,
+        type: 'hash',
+        replyDepth: 2,  // Depth of nested replies
+        limit: 100      // Get up to 100 replies (default is much lower)
+      });
 
-    // Check if any reply is from the ambassador
-    const hasCommented = directReplies.some(cast => {
-      const matches = cast.author?.fid === ambassadorFid;
-      if (matches) {
-        console.log(`🔍 Found matching comment from FID ${ambassadorFid}`);
+      const directReplies = response.conversation?.cast?.direct_replies || [];
+      console.log(`📊 Found ${directReplies.length} direct replies to cast`);
+      
+      // Log all reply authors for debugging
+      if (directReplies.length > 0) {
+        console.log(`🔍 Reply authors:`, directReplies.map(r => ({
+          fid: r.author?.fid,
+          username: r.author?.username,
+          fidType: typeof r.author?.fid
+        })));
       }
-      return matches;
-    });
 
-    if (hasCommented) {
-      console.log(`✅ FID ${ambassadorFid} has commented on cast ${castHash}`);
-      
-      // Get the ambassador's comment for details
-      const ambassadorComment = directReplies.find(cast => cast.author?.fid === ambassadorFid);
-      
-      return {
-        verified: true,
-        details: {
-          ambassadorFid,
-          castHash,
-          castAuthorFid,
-          commentText: ambassadorComment?.text?.substring(0, 100), // First 100 chars
-          verifiedAt: new Date().toISOString()
+      // Check if any reply is from the ambassador (handle both number and string FIDs)
+      const hasCommented = directReplies.some(cast => {
+        const replyFid = cast.author?.fid;
+        const matches = replyFid === numericFid || String(replyFid) === String(numericFid);
+        if (matches) {
+          console.log(`🔍 Found matching comment from FID ${numericFid}`);
         }
-      };
-    } else {
-      console.log(`❌ FID ${ambassadorFid} has NOT commented on cast ${castHash}`);
-      return {
-        verified: false,
-        error: 'Comment not found. Please reply to the cast and try again.',
-        details: {
-          ambassadorFid,
-          castHash,
-          totalComments: response.casts?.length || 0
-        }
-      };
+        return matches;
+      });
+
+      if (hasCommented) {
+        console.log(`✅ FID ${numericFid} has commented on cast ${castHash} (via conversation)`);
+        const ambassadorComment = directReplies.find(cast => 
+          cast.author?.fid === numericFid || String(cast.author?.fid) === String(numericFid)
+        );
+        
+        return {
+          verified: true,
+          details: {
+            ambassadorFid: numericFid,
+            castHash,
+            castAuthorFid,
+            commentText: ambassadorComment?.text?.substring(0, 100),
+            method: 'conversation',
+            verifiedAt: new Date().toISOString()
+          }
+        };
+      }
+    } catch (convError) {
+      console.warn('⚠️ Conversation lookup failed, trying alternative method:', convError.message);
     }
+    
+    // APPROACH 2: Search for user's recent casts that are replies to this cast
+    try {
+      console.log(`🔍 Trying alternative: fetching user's recent casts for FID ${numericFid}`);
+      
+      const userCasts = await client.fetchCastsForUser({
+        fid: numericFid,
+        limit: 50  // Check last 50 casts
+      });
+      
+      const userCastsList = userCasts.casts || [];
+      console.log(`📊 Fetched ${userCastsList.length} recent casts from user`);
+      
+      // Check if any cast is a reply to the target cast
+      const replyToTarget = userCastsList.find(cast => {
+        const parentHash = cast.parent_hash || cast.parentHash;
+        return parentHash === castHash || parentHash === castHash.toLowerCase();
+      });
+      
+      if (replyToTarget) {
+        console.log(`✅ FID ${numericFid} has commented on cast ${castHash} (via user casts)`);
+        return {
+          verified: true,
+          details: {
+            ambassadorFid: numericFid,
+            castHash,
+            castAuthorFid,
+            commentText: replyToTarget.text?.substring(0, 100),
+            method: 'user_casts',
+            verifiedAt: new Date().toISOString()
+          }
+        };
+      }
+    } catch (userCastsError) {
+      console.warn('⚠️ User casts lookup failed:', userCastsError.message);
+    }
+
+    console.log(`❌ FID ${numericFid} has NOT commented on cast ${castHash} (checked both methods)`);
+    return {
+      verified: false,
+      error: 'Comment not found. Please reply to the cast and wait a few minutes for it to sync, then try again.',
+      details: {
+        ambassadorFid: numericFid,
+        castHash,
+        note: 'Neynar may take 1-5 minutes to index new comments. Please wait and try again.'
+      }
+    };
 
   } catch (error) {
     console.error('❌ Error verifying comment bounty:', error);
     return {
       verified: false,
-      error: `Verification failed: ${error.message}`
+      error: `Verification failed: ${error.message}. Please try again in a few minutes.`
     };
   }
 }
