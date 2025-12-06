@@ -259,16 +259,16 @@ export default function MerchMogulMissions() {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-2 mt-4 mb-4">
             <div className="bg-white/20 rounded-xl p-3 flex flex-col items-center justify-center min-h-[70px]">
-              <p className="text-xl font-bold text-center">{profile?.stats?.completedBounties || 0}</p>
-              <p className="text-xs text-white/80 text-center">Completed</p>
+              <p className="text-xl font-bold text-center">{bounties.filter(b => b.canSubmit).length}</p>
+              <p className="text-xs text-white/80 text-center">Available</p>
             </div>
             <div className="bg-white/20 rounded-xl p-3 flex flex-col items-center justify-center min-h-[70px]">
               <p className="text-lg font-bold text-center leading-tight">{formatNumber(profile?.stats?.totalEarned || 0)}</p>
               <p className="text-xs text-white/80 text-center">Tokens Earned</p>
             </div>
             <div className="bg-white/20 rounded-xl p-3 flex flex-col items-center justify-center min-h-[70px]">
-              <p className="text-xl font-bold text-center">{bounties.filter(b => b.canSubmit).length}</p>
-              <p className="text-xs text-white/80 text-center">Available</p>
+              <p className="text-xl font-bold text-center">{profile?.stats?.completedBounties || 0}</p>
+              <p className="text-xs text-white/80 text-center">Completed</p>
             </div>
           </div>
         </div>
@@ -637,9 +637,9 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
 
         return (
           <div key={payout.id} className="border rounded-xl p-4 bg-gray-50">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-gray-900 text-sm">{payout.bounty?.title || 'Mission Payout'}</h4>
+                <h4 className="font-semibold text-gray-900 text-sm truncate">{payout.bounty?.title || 'Mission Payout'}</h4>
                 <p className="text-xs text-gray-500">
                   {new Date(payout.createdAt).toLocaleDateString()}
                 </p>
@@ -647,12 +647,12 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
                   +{formatNumber(payout.amountTokens)} $mintedmerch
                 </p>
               </div>
-              <div className="flex-shrink-0 self-center">
+              <div className="flex-shrink-0">
                 {payout.status === 'claimable' ? (
                   <button
                     onClick={() => handleClaim(payout.id)}
                     disabled={isClaiming || isConfirming || isThisConfirmed}
-                    className={`px-5 py-2.5 rounded-lg font-semibold transition-all text-sm ${
+                    className={`px-4 py-2 rounded-lg font-semibold transition-all text-sm ${
                       isThisConfirmed
                         ? 'bg-green-600 text-white'
                         : isClaiming || isConfirming
@@ -666,7 +666,7 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
                      'Claim'}
                   </button>
                 ) : (
-                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${status.bg}`}>
+                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${status.bg}`}>
                     {status.icon}{status.icon ? ' ' : ''}{status.text}
                   </span>
                 )}
