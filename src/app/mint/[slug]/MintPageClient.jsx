@@ -363,10 +363,15 @@ export default function MintPageClient({ slug }) {
       if (data.eligible) {
         // Update mint quantity max based on eligibility
         setMintQuantity(1);
-        // Update userStatus with eligible quantity as new mint limit
+        // Update userStatus with correct values:
+        // - mintLimit: use completeSets (user's NFT holdings) not eligibleQuantity (remaining)
+        // - mintCount: use totalMinted from API
+        // - remainingMints: how many more they can mint (eligibleQuantity)
         setUserStatus((prev) => ({
           ...prev,
-          mintLimit: data.eligibleQuantity,
+          mintLimit: data.completeSets || data.mintLimit, // User's actual limit based on NFT holdings
+          mintCount: data.totalMinted || 0, // How many they've already minted
+          remainingMints: data.eligibleQuantity, // How many more they can mint
           canMint: true,
         }));
       }
@@ -934,13 +939,22 @@ export default function MintPageClient({ slug }) {
                   </span>
                   <button
                     onClick={() => {
-                      const maxAllowed = userStatus?.mintLimit || 20;
-                      const remaining = maxAllowed - (userStatus?.mintCount || 0);
+                      // Use remainingMints if set (NFT-gated), otherwise calculate from limit - count
+                      const remaining = userStatus?.remainingMints ?? 
+                        ((userStatus?.mintLimit || 20) - (userStatus?.mintCount || 0));
                       setMintQuantity(Math.min(remaining, mintQuantity + 1));
                     }}
-                    disabled={userStatus?.mintLimit && mintQuantity >= (userStatus.mintLimit - (userStatus?.mintCount || 0))}
+                    disabled={(() => {
+                      const remaining = userStatus?.remainingMints ?? 
+                        ((userStatus?.mintLimit || 999) - (userStatus?.mintCount || 0));
+                      return mintQuantity >= remaining;
+                    })()}
                     className={`px-4 py-2 text-lg font-bold transition-colors ${
-                      userStatus?.mintLimit && mintQuantity >= (userStatus.mintLimit - (userStatus?.mintCount || 0))
+                      (() => {
+                        const remaining = userStatus?.remainingMints ?? 
+                          ((userStatus?.mintLimit || 999) - (userStatus?.mintCount || 0));
+                        return mintQuantity >= remaining;
+                      })()
                         ? "text-gray-600 cursor-not-allowed"
                         : "text-white hover:bg-gray-700"
                     }`}
