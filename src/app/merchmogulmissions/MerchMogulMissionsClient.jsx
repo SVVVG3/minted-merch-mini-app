@@ -643,7 +643,7 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
                 <p className="text-xs text-gray-500">
                   {new Date(payout.createdAt).toLocaleDateString()}
                 </p>
-                <p className="text-base font-bold text-[#3eb489] mt-1">
+                <p className="text-base font-bold text-[#3eb489] mt-1 whitespace-nowrap">
                   +{formatNumber(payout.amountTokens)} $mintedmerch
                 </p>
               </div>
