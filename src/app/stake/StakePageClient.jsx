@@ -5,6 +5,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { haptics } from '@/lib/haptics';
 import Link from 'next/link';
+import { ProfileModal } from '@/components/ProfileModal';
 // import { StakingLaunchMint } from '@/components/StakingLaunchMint'; // TEMPORARILY HIDDEN
 
 // Staking terminal deep link URL
@@ -17,6 +18,7 @@ export function StakePageClient() {
   const [stakingData, setStakingData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   useEffect(() => {
     async function loadStakingData() {
@@ -151,6 +153,12 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
     }
   };
 
+  // Handle profile button click
+  const handleProfileClick = async () => {
+    await haptics.selectionChanged(isInFarcaster);
+    setIsProfileModalOpen(true);
+  };
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -181,29 +189,59 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           ← Back to Shop
         </Link>
         
-        <button
-          onClick={handleShare}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            backgroundColor: '#6A3CFF',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '10px 16px',
-            color: '#fff',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '500'
-          }}
-        >
-          Share
-          {/* Official Farcaster Arch Logo */}
-          <svg style={{ width: '18px', height: '18px' }} viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
-          </svg>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={handleShare}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              backgroundColor: '#6A3CFF',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '10px 16px',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            Share
+            {/* Official Farcaster Arch Logo */}
+            <svg style={{ width: '18px', height: '18px' }} viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
+            </svg>
+          </button>
+          
+          {/* Profile Button */}
+          {getPfpUrl() && (
+            <button
+              onClick={handleProfileClick}
+              style={{
+                background: 'none',
+                border: '2px solid #3eb489',
+                borderRadius: '50%',
+                padding: '0',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <img 
+                src={getPfpUrl()} 
+                alt={getDisplayName() || getUsername() || 'Profile'}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  objectFit: 'cover'
+                }}
+              />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Main Staking Card - Title, Stats, Button */}
@@ -433,6 +471,12 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           More Info →
         </button>
       </div>
+
+      {/* Profile Modal */}
+      <ProfileModal 
+        isOpen={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
+      />
     </div>
   );
 }
