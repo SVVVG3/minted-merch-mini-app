@@ -198,62 +198,92 @@ export async function checkERC1155Balance(walletAddresses, contractAddress, toke
   let totalBalance = 0;
   const balancesByWallet = {};
 
-  for (const walletAddress of validAddresses) {
+  // Add delay helper to avoid rate limiting
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  for (let walletIndex = 0; walletIndex < validAddresses.length; walletIndex++) {
+    const walletAddress = validAddresses[walletIndex];
     let lastError = null;
+    let success = false;
     
-    // Try multiple RPC endpoints
+    // Add delay between wallet checks to avoid rate limiting (except for first wallet)
+    if (walletIndex > 0) {
+      await delay(100); // 100ms between wallets
+    }
+    
+    // Try multiple RPC endpoints with retry
     for (let rpcIndex = 0; rpcIndex < availableRpcs.length; rpcIndex++) {
       const rpcUrl = availableRpcs[rpcIndex];
       
-      try {
-        // ERC1155 balanceOf(address account, uint256 id)
-        // Function selector: 0x00fdd58e
-        // Encode: address (32 bytes padded) + tokenId (32 bytes padded)
-        const paddedAddress = walletAddress.slice(2).toLowerCase().padStart(64, '0');
-        const paddedTokenId = BigInt(tokenId).toString(16).padStart(64, '0');
-        const data = `0x00fdd58e${paddedAddress}${paddedTokenId}`;
+      // Retry up to 3 times per RPC with exponential backoff
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          // ERC1155 balanceOf(address account, uint256 id)
+          // Function selector: 0x00fdd58e
+          // Encode: address (32 bytes padded) + tokenId (32 bytes padded)
+          const paddedAddress = walletAddress.slice(2).toLowerCase().padStart(64, '0');
+          const paddedTokenId = BigInt(tokenId).toString(16).padStart(64, '0');
+          const data = `0x00fdd58e${paddedAddress}${paddedTokenId}`;
 
-        const response = await fetch(rpcUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'eth_call',
-            params: [{ to: contractAddress, data }, 'latest'],
-            id: 1
-          })
-        });
+          const response = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'eth_call',
+              params: [{ to: contractAddress, data }, 'latest'],
+              id: 1
+            })
+          });
 
-        const result = await response.json();
+          const result = await response.json();
 
-        if (result.error) {
-          throw new Error(result.error.message || 'RPC error');
-        }
-
-        if (result.result && result.result !== '0x') {
-          const balance = parseInt(result.result, 16);
-          balancesByWallet[walletAddress] = balance;
-          totalBalance += balance;
-          
-          if (balance > 0) {
-            console.log(`🎫 Wallet ${walletAddress.slice(0, 8)}... has ${balance} of token ID ${tokenId}`);
+          if (result.error) {
+            // Check if it's a rate limit error
+            if (result.error.message?.includes('rate limit')) {
+              throw new Error('rate limit');
+            }
+            throw new Error(result.error.message || 'RPC error');
           }
-        } else {
-          balancesByWallet[walletAddress] = 0;
-        }
-        
-        // Success - break out of RPC retry loop
-        break;
-        
-      } catch (error) {
-        lastError = error;
-        console.warn(`⚠️ RPC ${rpcIndex + 1}/${availableRpcs.length} failed for ERC1155 check:`, error.message);
-        
-        if (rpcIndex === availableRpcs.length - 1) {
-          console.error(`❌ All RPCs failed for wallet ${walletAddress}`);
-          balancesByWallet[walletAddress] = 0;
+
+          if (result.result && result.result !== '0x') {
+            const balance = parseInt(result.result, 16);
+            balancesByWallet[walletAddress] = balance;
+            totalBalance += balance;
+            
+            if (balance > 0) {
+              console.log(`🎫 Wallet ${walletAddress.slice(0, 8)}... has ${balance} of token ID ${tokenId}`);
+            }
+          } else {
+            balancesByWallet[walletAddress] = 0;
+          }
+          
+          // Success - break out of retry and RPC loops
+          success = true;
+          break;
+          
+        } catch (error) {
+          lastError = error;
+          
+          // If rate limited, wait before retry
+          if (error.message?.includes('rate limit')) {
+            const waitTime = Math.pow(2, attempt) * 200; // 200ms, 400ms, 800ms
+            console.warn(`⚠️ Rate limited, waiting ${waitTime}ms before retry ${attempt + 1}/3...`);
+            await delay(waitTime);
+          } else {
+            // Non-rate-limit error, try next RPC
+            console.warn(`⚠️ RPC ${rpcIndex + 1}/${availableRpcs.length} failed for ERC1155 check:`, error.message);
+            break; // Try next RPC
+          }
         }
       }
+      
+      if (success) break; // Got balance, move to next wallet
+    }
+    
+    if (!success) {
+      console.error(`❌ All RPCs failed for wallet ${walletAddress}`);
+      balancesByWallet[walletAddress] = 0;
     }
   }
 
@@ -286,8 +316,19 @@ export async function checkNftGatedEligibility(walletAddresses, requiredNfts) {
 
   const holdings = [];
   
+  // Add delay helper to avoid rate limiting between collection checks
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  
   // Check balance for each required NFT
-  for (const nft of requiredNfts) {
+  for (let i = 0; i < requiredNfts.length; i++) {
+    const nft = requiredNfts[i];
+    
+    // Add delay between NFT collection checks to avoid rate limiting (except first)
+    if (i > 0) {
+      console.log(`⏳ Waiting 500ms before checking next NFT collection...`);
+      await delay(500);
+    }
+    
     const result = await checkERC1155Balance(
       walletAddresses,
       nft.contractAddress,
