@@ -660,7 +660,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                   <h3 className="text-lg font-semibold">Points & Leaderboard</h3>
                   
                   {/* Points Summary */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div className="bg-blue-50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-blue-600">
                         {userData.leaderboard.total_points.toLocaleString()}
@@ -678,6 +678,12 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                         {userData.leaderboard.points_from_purchases.toLocaleString()}
                       </div>
                       <div className="text-sm text-purple-600">Purchase Points</div>
+                    </div>
+                    <div className="bg-pink-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-pink-600">
+                        {(userData.leaderboard.points_from_mints || 0).toLocaleString()}
+                      </div>
+                      <div className="text-sm text-pink-600">Mint Points</div>
                     </div>
                     <div className="bg-orange-50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-orange-600">
@@ -700,6 +706,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                                   {transaction.transaction_type === 'daily_checkin' ? '📅 Daily Check-in' :
                                    transaction.transaction_type === 'purchase' ? '🛍️ Purchase' :
                                    transaction.transaction_type === 'bonus' ? '🎁 Bonus' :
+                                   transaction.transaction_type === 'nft_mint' ? '🎨 NFT Mint' :
                                    '⚙️ Adjustment'}
                                 </div>
                                 <div className="text-sm text-gray-600">{formatDate(transaction.created_at)}</div>
