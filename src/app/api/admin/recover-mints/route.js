@@ -43,81 +43,55 @@ async function handler(request) {
     );
     console.log(`📊 Already recorded: ${recordedTxHashes.size} transactions`);
 
-    // Query on-chain events using viem
-    const { createPublicClient, http, parseAbiItem } = await import('viem');
-    const { base } = await import('viem/chains');
-
-    // Try multiple RPC endpoints
-    const rpcUrls = [
-      process.env.ALCHEMY_BASE_RPC_URL,
-      'https://base.llamarpc.com',
-      'https://1rpc.io/base',
-      'https://mainnet.base.org'
-    ].filter(Boolean);
-
-    let publicClient;
-    let logs = [];
-    let rpcError = null;
-
-    for (const rpcUrl of rpcUrls) {
-      try {
-        console.log(`🔗 Trying RPC: ${rpcUrl.substring(0, 30)}...`);
-        
-        publicClient = createPublicClient({
-          chain: base,
-          transport: http(rpcUrl)
-        });
-
-        // Get current block number first
-        const currentBlock = await publicClient.getBlockNumber();
-        console.log(`📊 Current block: ${currentBlock}`);
-
-        // Get TokensClaimed events - fetch in chunks to avoid timeout
-        // TokensClaimed(uint256 indexed claimConditionIndex, address indexed claimer, address indexed receiver, uint256 tokenId, uint256 quantityClaimed)
-        console.log(`🔍 Fetching TokensClaimed events from contract...`);
-        
-        // Start from a reasonable block (Base mainnet launched around block 1)
-        // NeonStakingTicket probably started recently, so we'll start from block 20000000 (~Nov 2024)
-        const startBlock = BigInt(20000000);
-        const chunkSize = BigInt(100000);
-        
-        for (let fromBlock = startBlock; fromBlock < currentBlock; fromBlock += chunkSize) {
-          const toBlock = fromBlock + chunkSize > currentBlock ? currentBlock : fromBlock + chunkSize;
-          
-          const chunkLogs = await publicClient.getLogs({
-            address: contractAddress,
-            event: parseAbiItem('event TokensClaimed(uint256 indexed claimConditionIndex, address indexed claimer, address indexed receiver, uint256 tokenId, uint256 quantityClaimed)'),
-            fromBlock: fromBlock,
-            toBlock: toBlock
-          });
-          
-          logs.push(...chunkLogs);
-          
-          if (chunkLogs.length > 0) {
-            console.log(`📥 Found ${chunkLogs.length} events in blocks ${fromBlock}-${toBlock}`);
-          }
+    // Use BaseScan API to get events (much more reliable than RPC for historical logs)
+    console.log(`🔍 Fetching TokensClaimed events from BaseScan API...`);
+    
+    // TokensClaimed event topic
+    const tokenClaimedTopic = '0xfa76a4010d9533e3e964f2930a65fb6042a12fa6ff5b08281837a10b0be7321e';
+    
+    const basescanApiKey = process.env.BASESCAN_API_KEY || '';
+    const basescanUrl = `https://api.basescan.org/api?module=logs&action=getLogs&address=${contractAddress}&topic0=${tokenClaimedTopic}&fromBlock=0&toBlock=latest&apikey=${basescanApiKey}`;
+    
+    console.log(`📡 Calling BaseScan API...`);
+    
+    const basescanResponse = await fetch(basescanUrl);
+    const basescanData = await basescanResponse.json();
+    
+    if (basescanData.status !== '1' && basescanData.message !== 'No records found') {
+      console.error('BaseScan API error:', basescanData);
+      throw new Error(`BaseScan API error: ${basescanData.message || 'Unknown error'}`);
+    }
+    
+    const logs = basescanData.result || [];
+    console.log(`📥 Found ${logs.length} TokensClaimed events from BaseScan`);
+    
+    // Parse BaseScan logs into the format we need
+    // BaseScan returns: { topics: [...], data: '0x...', transactionHash: '0x...' }
+    const parsedLogs = logs.map(log => {
+      // Decode the log data
+      // Topics: [eventSig, claimConditionIndex, claimer, receiver]
+      // Data: tokenId (uint256) + quantityClaimed (uint256)
+      const claimer = '0x' + log.topics[2].slice(26); // Remove padding
+      const receiver = '0x' + log.topics[3].slice(26);
+      const data = log.data;
+      const tokenId = parseInt(data.slice(0, 66), 16).toString();
+      const quantityClaimed = parseInt('0x' + data.slice(66), 16);
+      
+      return {
+        transactionHash: log.transactionHash,
+        blockNumber: BigInt(log.blockNumber),
+        args: {
+          claimer,
+          receiver,
+          tokenId,
+          quantityClaimed
         }
-        
-        // Success! Break out of RPC loop
-        rpcError = null;
-        break;
-        
-      } catch (err) {
-        console.warn(`⚠️ RPC failed (${rpcUrl.substring(0, 30)}...): ${err.message}`);
-        rpcError = err;
-        continue;
-      }
-    }
-
-    if (rpcError) {
-      throw new Error(`All RPCs failed. Last error: ${rpcError.message}`);
-    }
-
-    console.log(`📥 Found ${logs.length} total TokensClaimed events`);
+      };
+    });
 
     // Find missing mints
     const missingMints = [];
-    for (const log of logs) {
+    for (const log of parsedLogs) {
       const txHash = log.transactionHash.toLowerCase();
       if (!recordedTxHashes.has(txHash)) {
         missingMints.push({
@@ -125,7 +99,7 @@ async function handler(request) {
           blockNumber: log.blockNumber,
           claimer: log.args.claimer,
           receiver: log.args.receiver,
-          tokenId: log.args.tokenId?.toString() || '0',
+          tokenId: log.args.tokenId || '0',
           quantity: Number(log.args.quantityClaimed || 1)
         });
       }
@@ -138,7 +112,7 @@ async function handler(request) {
         success: true,
         message: 'No missing mints found!',
         stats: {
-          onChainEvents: logs.length,
+          onChainEvents: parsedLogs.length,
           recordedTransactions: recordedTxHashes.size,
           missingMints: 0
         }
@@ -152,7 +126,7 @@ async function handler(request) {
         dryRun: true,
         message: `Found ${missingMints.length} missing mints. Set dryRun=false to recover them.`,
         stats: {
-          onChainEvents: logs.length,
+          onChainEvents: parsedLogs.length,
           recordedTransactions: recordedTxHashes.size,
           missingMints: missingMints.length,
           totalQuantityMissing: missingMints.reduce((sum, m) => sum + m.quantity, 0)
@@ -271,7 +245,7 @@ async function handler(request) {
       success: true,
       message: `Recovered ${recovered.length} mints, ${failed.length} failed`,
       stats: {
-        onChainEvents: logs.length,
+        onChainEvents: parsedLogs.length,
         recordedTransactions: recordedTxHashes.size,
         missingMints: missingMints.length,
         recovered: recovered.length,
