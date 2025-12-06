@@ -147,53 +147,16 @@ export async function POST(request, { params }) {
       );
     }
 
-    // 🔒 NFT-GATED ELIGIBILITY CHECK (SERVER-SIDE SECURITY)
-    // This prevents users from bypassing the frontend eligibility check
+    // 🔒 NFT-GATED ELIGIBILITY - SKIP SERVER-SIDE RE-CHECK
+    // The on-chain contract already verified eligibility when the transaction succeeded.
+    // Re-checking here causes RPC rate limiting issues and blocks legitimate mints.
+    // Security is maintained because:
+    // 1. The smart contract enforces NFT gating at mint time (can't be bypassed)
+    // 2. We verify the transaction succeeded on-chain below
+    // 3. Frontend check-eligibility API still gates the UI
     const metadata = campaign.metadata || {};
-    if (metadata.requiresNftGating && metadata.requiredNfts && metadata.requiredNfts.length > 0) {
-      console.log(`🔒 Campaign requires NFT gating - verifying eligibility at mint time`);
-      
-      // Get all user's wallet addresses from profiles table
-      const { data: userProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('all_wallet_addresses')
-        .eq('fid', authenticatedFid)
-        .single();
-      
-      const profileWallets = (userProfile?.all_wallet_addresses || [])
-        .filter(addr => typeof addr === 'string' && addr.startsWith('0x'))
-        .map(addr => addr.toLowerCase());
-      
-      const allWalletAddresses = [
-        walletAddress.toLowerCase(),
-        ...profileWallets
-      ].filter((addr, index, self) => self.indexOf(addr) === index); // Dedupe
-      
-      console.log(`   Checking ${allWalletAddresses.length} wallets for NFT holdings`);
-      
-      const eligibilityResult = await checkNftGatedEligibility(
-        allWalletAddresses,
-        metadata.requiredNfts
-      );
-      
-      if (!eligibilityResult.eligible) {
-        console.error(`❌ User not eligible for NFT-gated mint: ${eligibilityResult.message}`);
-        return NextResponse.json(
-          { error: `You are not eligible to mint. ${eligibilityResult.message}` },
-          { status: 403 }
-        );
-      }
-      
-      // Also verify quantity doesn't exceed eligible sets
-      if (mintQuantity > eligibilityResult.eligibleQuantity) {
-        console.error(`❌ Requested quantity (${mintQuantity}) exceeds eligible sets (${eligibilityResult.eligibleQuantity})`);
-        return NextResponse.json(
-          { error: `You can only mint ${eligibilityResult.eligibleQuantity} NFT${eligibilityResult.eligibleQuantity > 1 ? 's' : ''} based on your holdings.` },
-          { status: 403 }
-        );
-      }
-      
-      console.log(`✅ NFT eligibility verified: ${eligibilityResult.eligibleQuantity} complete sets`);
+    if (metadata.requiresNftGating) {
+      console.log(`🔒 NFT-gated campaign - skipping server re-check (contract already verified eligibility)`);
     }
 
     // Check if user has reached their mint limit for this campaign
