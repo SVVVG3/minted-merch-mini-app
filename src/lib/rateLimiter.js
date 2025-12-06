@@ -65,6 +65,69 @@ export async function checkSubmissionRateLimit(ambassadorId, maxAttempts = 10, w
 }
 
 /**
+ * Check if mogul has exceeded rate limit for submissions
+ * Uses ambassador_fid instead of ambassador_id for moguls
+ * @param {number} fid - Mogul's FID
+ * @param {number} maxAttempts - Maximum attempts allowed in time window (default: 20)
+ * @param {number} windowMinutes - Time window in minutes (default: 60)
+ * @returns {Promise<{allowed: boolean, remaining: number, resetAt: Date}>}
+ */
+export async function checkMogulSubmissionRateLimit(fid, maxAttempts = 20, windowMinutes = 60) {
+  try {
+    const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000);
+
+    // Count submissions by FID in the time window
+    const { count, error } = await supabaseAdmin
+      .from('bounty_submissions')
+      .select('id', { count: 'exact', head: true })
+      .eq('ambassador_fid', fid)
+      .is('ambassador_id', null) // Only count mogul submissions (not ambassador submissions)
+      .gte('submitted_at', windowStart.toISOString());
+
+    if (error) {
+      console.error('❌ Error checking mogul rate limit:', error);
+      // On error, allow the request (fail open)
+      return {
+        allowed: true,
+        remaining: maxAttempts,
+        resetAt: new Date(Date.now() + windowMinutes * 60 * 1000)
+      };
+    }
+
+    const attempts = count || 0;
+    const remaining = Math.max(0, maxAttempts - attempts);
+    const allowed = attempts < maxAttempts;
+
+    // Calculate reset time (end of current window)
+    const resetAt = new Date(Date.now() + windowMinutes * 60 * 1000);
+
+    console.log(`🚦 Rate limit check for mogul FID ${fid}:`, {
+      attempts,
+      maxAttempts,
+      remaining,
+      allowed,
+      windowMinutes
+    });
+
+    return {
+      allowed,
+      remaining,
+      resetAt,
+      attempts
+    };
+
+  } catch (error) {
+    console.error('❌ Error in checkMogulSubmissionRateLimit:', error);
+    // Fail open on errors
+    return {
+      allowed: true,
+      remaining: maxAttempts,
+      resetAt: new Date(Date.now() + windowMinutes * 60 * 1000)
+    };
+  }
+}
+
+/**
  * Generic rate limiter for any action
  * Can be extended for other endpoints in the future
  * @param {string} key - Unique identifier (e.g., `ambassador:${ambassadorId}:action`)

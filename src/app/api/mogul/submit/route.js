@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkMogulStatus, getMogulSubmissionCount } from '@/lib/mogulHelpers';
-import { checkSubmissionRateLimit } from '@/lib/rateLimiter';
+import { checkMogulSubmissionRateLimit } from '@/lib/rateLimiter';
 import { verifyFarcasterBounty } from '@/lib/farcasterBountyVerification';
 import { generateClaimSignature, getDefaultClaimDeadline } from '@/lib/claimSignatureService';
 
@@ -64,7 +64,7 @@ export async function POST(request) {
 
     // SECURITY: Rate limiting - prevent submission spam
     // Limit: 20 submissions per hour per mogul
-    const rateLimit = await checkSubmissionRateLimit(`mogul_${fid}`, 20, 60);
+    const rateLimit = await checkMogulSubmissionRateLimit(fid, 20, 60);
     
     if (!rateLimit.allowed) {
       console.warn(`⚠️ Rate limit exceeded for mogul FID ${fid}`);

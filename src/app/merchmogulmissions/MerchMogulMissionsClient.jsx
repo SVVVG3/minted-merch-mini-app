@@ -441,6 +441,18 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
     }
   }, [isConfirmed, hash, claiming]);
 
+  // Handle transaction errors
+  useEffect(() => {
+    if (writeError && claiming) {
+      console.error('❌ Transaction error:', writeError);
+      const errorMessage = writeError.message?.includes('User rejected') 
+        ? 'Transaction rejected by user'
+        : writeError.message || 'Transaction failed';
+      setClaimError(errorMessage);
+      setClaiming(null);
+    }
+  }, [writeError, claiming]);
+
   // Mark payout as complete after on-chain claim
   const markPayoutComplete = async (payoutId, txHash) => {
     try {
@@ -501,44 +513,54 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
 
       console.log('📝 Claim data fetched, executing transaction...');
 
-      // Execute on-chain claim
-      const AIRDROP_CONTRACT = '0xf2EA9F4CF58E2E3536ec7492b1b3AaCDe2851f42';
-      const AIRDROP_ABI = [{
-        name: 'claim',
-        type: 'function',
-        stateMutability: 'nonpayable',
-        inputs: [
-          { name: 'req', type: 'tuple', components: [
-            { name: 'uid', type: 'bytes32' },
-            { name: 'tokenAddress', type: 'address' },
-            { name: 'expirationTimestamp', type: 'uint256' },
-            { name: 'contents', type: 'tuple[]', components: [
-              { name: 'recipient', type: 'address' },
-              { name: 'amount', type: 'uint256' }
-            ]}
-          ]},
-          { name: 'signature', type: 'bytes' }
-        ],
-        outputs: []
-      }];
-
+      // Execute on-chain claim using Thirdweb airdrop contract
       const claimData = result.data;
-      const reqForContract = {
+      
+      // Convert string values back to BigInt for contract call
+      const reqWithBigInt = {
         uid: claimData.req.uid,
         tokenAddress: claimData.req.tokenAddress,
         expirationTimestamp: BigInt(claimData.req.expirationTimestamp),
-        contents: claimData.req.contents.map(c => ({
-          recipient: c.recipient,
-          amount: BigInt(c.amount)
+        contents: claimData.req.contents.map(content => ({
+          recipient: content.recipient,
+          amount: BigInt(content.amount)
         }))
       };
 
+      // Airdrop contract ABI for airdropERC20WithSignature function
+      const airdropABI = [
+        {
+          name: 'airdropERC20WithSignature',
+          type: 'function',
+          inputs: [
+            {
+              name: 'req',
+              type: 'tuple',
+              components: [
+                { name: 'uid', type: 'bytes32' },
+                { name: 'tokenAddress', type: 'address' },
+                { name: 'expirationTimestamp', type: 'uint256' },
+                {
+                  name: 'contents',
+                  type: 'tuple[]',
+                  components: [
+                    { name: 'recipient', type: 'address' },
+                    { name: 'amount', type: 'uint256' }
+                  ]
+                }
+              ]
+            },
+            { name: 'signature', type: 'bytes' }
+          ],
+          outputs: []
+        }
+      ];
+
       writeContract({
-        address: AIRDROP_CONTRACT,
-        abi: AIRDROP_ABI,
-        functionName: 'claim',
-        args: [reqForContract, claimData.signature],
-        chainId: 8453,
+        address: claimData.contractAddress,
+        abi: airdropABI,
+        functionName: 'airdropERC20WithSignature',
+        args: [reqWithBigInt, claimData.signature]
       });
 
     } catch (error) {
