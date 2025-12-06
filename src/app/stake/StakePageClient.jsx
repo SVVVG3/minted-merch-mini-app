@@ -154,8 +154,10 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
   };
 
   // Handle profile button click
-  const handleProfileClick = async () => {
-    await haptics.selectionChanged(isInFarcaster);
+  const handleProfileClick = () => {
+    // Trigger haptics (fire and forget)
+    haptics.selectionChanged(isInFarcaster);
+    // Open profile modal
     setIsProfileModalOpen(true);
   };
 

@@ -247,11 +247,11 @@ export async function GET(request) {
     // Format response
     // IMPORTANT: Use ?? (nullish coalescing) instead of || to handle 0 correctly
     // When user unstakes everything, totalStaked is 0, not null/undefined
-    const userStakedAmount = stakingDetails.totalStaked ?? profile.staked_balance ?? 0;
+    const userStakedAmount = stakingDetails.totalStaked ?? parseFloat(profile.staked_balance) ?? 0;
     
-    // Use wallet_balance from DB (this is the unstaked amount in user's wallets)
-    // Total = wallet_balance + staked (they are stored separately)
-    const walletBalance = profile.wallet_balance || 0;
+    // Use wallet_balance from DB (this is the UNSTAKED amount in user's wallets)
+    // wallet_balance is calculated as: totalFromChain - stakedFromSubgraph
+    const walletBalance = parseFloat(profile.wallet_balance) || 0;
     const totalTokenBalance = walletBalance + userStakedAmount;
     
     // Get lifetime claimed rewards from GraphQL
