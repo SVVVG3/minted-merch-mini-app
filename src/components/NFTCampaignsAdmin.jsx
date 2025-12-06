@@ -55,6 +55,10 @@ export default function NFTCampaignsAdmin() {
   });
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
+  
+  // Recovery state
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+  const [recoveryResult, setRecoveryResult] = useState(null);
 
   // Fetch campaigns
   useEffect(() => {
@@ -183,6 +187,37 @@ export default function NFTCampaignsAdmin() {
     }
   };
 
+  // Recover missing mints
+  const handleRecoverMints = async (dryRun = true) => {
+    const action = dryRun ? 'check for' : 'recover';
+    if (!dryRun && !confirm('Are you sure you want to recover all missing mints? This will create records and claim signatures for users who minted but did not get recorded.')) {
+      return;
+    }
+
+    setRecoveryLoading(true);
+    setRecoveryResult(null);
+
+    try {
+      const response = await adminFetch('/api/admin/recover-mints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun })
+      });
+
+      const data = await response.json();
+      setRecoveryResult(data);
+      
+      if (data.success && !dryRun) {
+        fetchCampaigns(); // Refresh stats
+      }
+    } catch (err) {
+      console.error('Error recovering mints:', err);
+      setRecoveryResult({ error: err.message });
+    } finally {
+      setRecoveryLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-8">
@@ -196,13 +231,70 @@ export default function NFTCampaignsAdmin() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">NFT Campaigns</h2>
-        <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          {showCreateForm ? 'Cancel' : '+ Create Campaign'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleRecoverMints(true)}
+            disabled={recoveryLoading}
+            className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+          >
+            {recoveryLoading ? '⏳ Checking...' : '🔍 Check Missing Mints'}
+          </button>
+          <button
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            {showCreateForm ? 'Cancel' : '+ Create Campaign'}
+          </button>
+        </div>
       </div>
+
+      {/* Recovery Results */}
+      {recoveryResult && (
+        <div className={`p-4 rounded-lg ${recoveryResult.error ? 'bg-red-100 border border-red-400' : 'bg-green-100 border border-green-400'}`}>
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="font-bold text-lg mb-2">
+                {recoveryResult.error ? '❌ Recovery Error' : recoveryResult.dryRun ? '🔍 Missing Mints Found' : '✅ Recovery Complete'}
+              </h3>
+              {recoveryResult.error ? (
+                <p className="text-red-700">{recoveryResult.error}</p>
+              ) : (
+                <div className="space-y-1 text-sm">
+                  <p>📊 On-chain events: {recoveryResult.stats?.onChainEvents}</p>
+                  <p>✅ Recorded transactions: {recoveryResult.stats?.recordedTransactions}</p>
+                  <p>❌ Missing mints: {recoveryResult.stats?.missingMints}</p>
+                  {recoveryResult.stats?.totalQuantityMissing && (
+                    <p>📦 Total NFTs missing: {recoveryResult.stats.totalQuantityMissing}</p>
+                  )}
+                  {recoveryResult.stats?.recovered !== undefined && (
+                    <>
+                      <p className="text-green-700 font-bold">✅ Recovered: {recoveryResult.stats.recovered}</p>
+                      <p className="text-red-700">❌ Failed: {recoveryResult.stats.failed}</p>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {recoveryResult.dryRun && recoveryResult.stats?.missingMints > 0 && (
+                <button
+                  onClick={() => handleRecoverMints(false)}
+                  disabled={recoveryLoading}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                >
+                  {recoveryLoading ? '⏳ Recovering...' : '🔄 Recover All'}
+                </button>
+              )}
+              <button
+                onClick={() => setRecoveryResult(null)}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded">
