@@ -47,23 +47,73 @@ async function handler(request) {
     const { createPublicClient, http, parseAbiItem } = await import('viem');
     const { base } = await import('viem/chains');
 
-    const publicClient = createPublicClient({
-      chain: base,
-      transport: http(process.env.ALCHEMY_BASE_RPC_URL || 'https://mainnet.base.org')
-    });
+    // Try multiple RPC endpoints
+    const rpcUrls = [
+      process.env.ALCHEMY_BASE_RPC_URL,
+      'https://base.llamarpc.com',
+      'https://1rpc.io/base',
+      'https://mainnet.base.org'
+    ].filter(Boolean);
 
-    // Get TokensClaimed events from the contract
-    // TokensClaimed(uint256 indexed claimConditionIndex, address indexed claimer, address indexed receiver, uint256 tokenId, uint256 quantityClaimed)
-    console.log(`🔍 Fetching TokensClaimed events from contract...`);
-    
-    const logs = await publicClient.getLogs({
-      address: contractAddress,
-      event: parseAbiItem('event TokensClaimed(uint256 indexed claimConditionIndex, address indexed claimer, address indexed receiver, uint256 tokenId, uint256 quantityClaimed)'),
-      fromBlock: 'earliest',
-      toBlock: 'latest'
-    });
+    let publicClient;
+    let logs = [];
+    let rpcError = null;
 
-    console.log(`📥 Found ${logs.length} TokensClaimed events`);
+    for (const rpcUrl of rpcUrls) {
+      try {
+        console.log(`🔗 Trying RPC: ${rpcUrl.substring(0, 30)}...`);
+        
+        publicClient = createPublicClient({
+          chain: base,
+          transport: http(rpcUrl)
+        });
+
+        // Get current block number first
+        const currentBlock = await publicClient.getBlockNumber();
+        console.log(`📊 Current block: ${currentBlock}`);
+
+        // Get TokensClaimed events - fetch in chunks to avoid timeout
+        // TokensClaimed(uint256 indexed claimConditionIndex, address indexed claimer, address indexed receiver, uint256 tokenId, uint256 quantityClaimed)
+        console.log(`🔍 Fetching TokensClaimed events from contract...`);
+        
+        // Start from a reasonable block (Base mainnet launched around block 1)
+        // NeonStakingTicket probably started recently, so we'll start from block 20000000 (~Nov 2024)
+        const startBlock = BigInt(20000000);
+        const chunkSize = BigInt(100000);
+        
+        for (let fromBlock = startBlock; fromBlock < currentBlock; fromBlock += chunkSize) {
+          const toBlock = fromBlock + chunkSize > currentBlock ? currentBlock : fromBlock + chunkSize;
+          
+          const chunkLogs = await publicClient.getLogs({
+            address: contractAddress,
+            event: parseAbiItem('event TokensClaimed(uint256 indexed claimConditionIndex, address indexed claimer, address indexed receiver, uint256 tokenId, uint256 quantityClaimed)'),
+            fromBlock: fromBlock,
+            toBlock: toBlock
+          });
+          
+          logs.push(...chunkLogs);
+          
+          if (chunkLogs.length > 0) {
+            console.log(`📥 Found ${chunkLogs.length} events in blocks ${fromBlock}-${toBlock}`);
+          }
+        }
+        
+        // Success! Break out of RPC loop
+        rpcError = null;
+        break;
+        
+      } catch (err) {
+        console.warn(`⚠️ RPC failed (${rpcUrl.substring(0, 30)}...): ${err.message}`);
+        rpcError = err;
+        continue;
+      }
+    }
+
+    if (rpcError) {
+      throw new Error(`All RPCs failed. Last error: ${rpcError.message}`);
+    }
+
+    console.log(`📥 Found ${logs.length} total TokensClaimed events`);
 
     // Find missing mints
     const missingMints = [];
