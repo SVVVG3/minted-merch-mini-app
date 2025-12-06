@@ -43,26 +43,33 @@ async function handler(request) {
     );
     console.log(`📊 Already recorded: ${recordedTxHashes.size} transactions`);
 
-    // Use BaseScan API to get events (much more reliable than RPC for historical logs)
-    console.log(`🔍 Fetching TokensClaimed events from BaseScan API...`);
+    // Use BaseScan API V2 to get events (much more reliable than RPC for historical logs)
+    console.log(`🔍 Fetching TokensClaimed events from BaseScan API V2...`);
     
     // TokensClaimed event topic
     const tokenClaimedTopic = '0xfa76a4010d9533e3e964f2930a65fb6042a12fa6ff5b08281837a10b0be7321e';
     
     const basescanApiKey = process.env.BASESCAN_API_KEY || '';
-    const basescanUrl = `https://api.basescan.org/api?module=logs&action=getLogs&address=${contractAddress}&topic0=${tokenClaimedTopic}&fromBlock=0&toBlock=latest&apikey=${basescanApiKey}`;
+    // V2 API endpoint format
+    const basescanUrl = `https://api.basescan.org/v2/api?chainid=8453&module=logs&action=getLogs&address=${contractAddress}&topic0=${tokenClaimedTopic}&startblock=0&endblock=latest&apikey=${basescanApiKey}`;
     
-    console.log(`📡 Calling BaseScan API...`);
+    console.log(`📡 Calling BaseScan API V2...`);
     
     const basescanResponse = await fetch(basescanUrl);
     const basescanData = await basescanResponse.json();
     
-    if (basescanData.status !== '1' && basescanData.message !== 'No records found') {
-      console.error('BaseScan API error:', basescanData);
-      throw new Error(`BaseScan API error: ${basescanData.message || 'Unknown error'}`);
+    // V2 API returns different format - check for errors
+    if (basescanData.status === '0' && basescanData.result !== null) {
+      // Check if it's just "No records found" which is OK
+      if (basescanData.message === 'No records found' || basescanData.result === 'No records found') {
+        console.log('📭 No events found on-chain');
+      } else {
+        console.error('BaseScan API error:', basescanData);
+        throw new Error(`BaseScan API error: ${basescanData.message || basescanData.result || 'Unknown error'}`);
+      }
     }
     
-    const logs = basescanData.result || [];
+    const logs = Array.isArray(basescanData.result) ? basescanData.result : [];
     console.log(`📥 Found ${logs.length} TokensClaimed events from BaseScan`);
     
     // Parse BaseScan logs into the format we need
