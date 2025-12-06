@@ -257,18 +257,18 @@ export default function MerchMogulMissions() {
           <p className="text-white/80 text-center text-sm">Complete missions to earn $mintedmerch!</p>
           
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mt-4 mb-4">
-            <div className="bg-white/20 rounded-xl p-3 text-center">
-              <p className="text-2xl font-bold">{profile?.stats?.completedBounties || 0}</p>
-              <p className="text-xs text-white/80">Completed</p>
+          <div className="grid grid-cols-3 gap-2 mt-4 mb-4">
+            <div className="bg-white/20 rounded-xl p-3 flex flex-col items-center justify-center min-h-[70px]">
+              <p className="text-xl font-bold text-center">{profile?.stats?.completedBounties || 0}</p>
+              <p className="text-xs text-white/80 text-center">Completed</p>
             </div>
-            <div className="bg-white/20 rounded-xl p-3 text-center">
-              <p className="text-2xl font-bold">{formatNumber(profile?.stats?.totalEarned || 0)}</p>
-              <p className="text-xs text-white/80">Tokens Earned</p>
+            <div className="bg-white/20 rounded-xl p-3 flex flex-col items-center justify-center min-h-[70px]">
+              <p className="text-lg font-bold text-center leading-tight">{formatNumber(profile?.stats?.totalEarned || 0)}</p>
+              <p className="text-xs text-white/80 text-center">Tokens Earned</p>
             </div>
-            <div className="bg-white/20 rounded-xl p-3 text-center">
-              <p className="text-2xl font-bold">{bounties.filter(b => b.canSubmit).length}</p>
-              <p className="text-xs text-white/80">Available</p>
+            <div className="bg-white/20 rounded-xl p-3 flex flex-col items-center justify-center min-h-[70px]">
+              <p className="text-xl font-bold text-center">{bounties.filter(b => b.canSubmit).length}</p>
+              <p className="text-xs text-white/80 text-center">Available</p>
             </div>
           </div>
         </div>
@@ -574,7 +574,7 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'claimable':
-        return { bg: 'bg-purple-100 text-purple-800', icon: '🎁', text: 'CLAIM' };
+        return { bg: 'bg-purple-100 text-purple-800', icon: '', text: 'CLAIM' };
       case 'pending':
         return { bg: 'bg-yellow-100 text-yellow-800', icon: '⏳', text: 'PENDING' };
       case 'completed':
@@ -582,7 +582,7 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
       case 'failed':
         return { bg: 'bg-red-100 text-red-800', icon: '❌', text: 'FAILED' };
       default:
-        return { bg: 'bg-gray-100 text-gray-800', icon: '💰', text: status.toUpperCase() };
+        return { bg: 'bg-gray-100 text-gray-800', icon: '', text: status.toUpperCase() };
     }
   };
 
@@ -610,8 +610,8 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
       {totalClaimable > 0 && (
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4">
           <div className="flex justify-between items-center">
-            <span className="text-purple-800 font-medium">🎁 Ready to Claim</span>
-            <span className="text-purple-800 font-bold text-lg">{formatNumber(totalClaimable)} $mintedmerch</span>
+            <span className="text-purple-800 font-medium whitespace-nowrap">Ready to Claim</span>
+            <span className="text-purple-800 font-bold text-lg whitespace-nowrap">{formatNumber(totalClaimable)} $mintedmerch</span>
           </div>
         </div>
       )}
@@ -663,13 +663,13 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
                     }`}
                   >
                     {isThisConfirmed ? '✅ Claimed!' :
-                     isClaiming ? '⏳ Preparing...' :
-                     isConfirming ? '⏳ Confirming...' :
-                     '🎁 Claim'}
+                     isClaiming ? 'Preparing...' :
+                     isConfirming ? 'Confirming...' :
+                     'Claim'}
                   </button>
                 ) : (
                   <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${status.bg}`}>
-                    {status.icon} {status.text}
+                    {status.icon}{status.icon ? ' ' : ''}{status.text}
                   </span>
                 )}
               </div>
