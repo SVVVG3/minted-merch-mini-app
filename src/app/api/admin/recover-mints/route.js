@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { generateClaimSignature } from '@/lib/claimSignatureService';
+import { withAdminAuth } from '@/lib/adminAuth';
 
 /**
  * POST /api/admin/recover-mints
@@ -10,14 +11,9 @@ import { generateClaimSignature } from '@/lib/claimSignatureService';
  * 
  * Admin only - requires admin authentication
  */
-export async function POST(request) {
+async function handler(request) {
   try {
-    // Simple admin check - you may want to add proper auth
-    const { adminKey, dryRun = true } = await request.json();
-    
-    if (adminKey !== process.env.ADMIN_SECRET_KEY) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { dryRun = true } = await request.json();
 
     console.log(`🔄 Starting mint recovery (dryRun: ${dryRun})...`);
 
@@ -243,4 +239,6 @@ export async function POST(request) {
     );
   }
 }
+
+export const POST = withAdminAuth(handler);
 
