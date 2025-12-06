@@ -218,10 +218,14 @@ export default function MintPageClient({ slug }) {
             });
             // No modal - inline Share button will appear via STATE 2
           } else {
-            console.error("⚠️  Failed to record mint");
+            // Show error to user - don't fail silently!
+            const errorData = await response.json().catch(() => ({}));
+            console.error("⚠️  Failed to record mint:", errorData);
+            setMintError(errorData.error || "Failed to record mint. Please contact support with your transaction hash.");
           }
         } catch (err) {
           console.error("❌ Error recording mint:", err);
+          setMintError("Network error recording mint. Please contact support with your transaction hash.");
         } finally {
           setIsMinting(false);
         }

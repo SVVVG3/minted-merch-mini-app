@@ -153,15 +153,20 @@ export async function POST(request, { params }) {
     if (metadata.requiresNftGating && metadata.requiredNfts && metadata.requiredNfts.length > 0) {
       console.log(`🔒 Campaign requires NFT gating - verifying eligibility at mint time`);
       
-      // Get all user's wallet addresses
-      const { data: userWallets } = await supabaseAdmin
-        .from('connected_wallets')
-        .select('address')
-        .eq('fid', authenticatedFid);
+      // Get all user's wallet addresses from profiles table
+      const { data: userProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('all_wallet_addresses')
+        .eq('fid', authenticatedFid)
+        .single();
+      
+      const profileWallets = (userProfile?.all_wallet_addresses || [])
+        .filter(addr => typeof addr === 'string' && addr.startsWith('0x'))
+        .map(addr => addr.toLowerCase());
       
       const allWalletAddresses = [
         walletAddress.toLowerCase(),
-        ...(userWallets?.map(w => w.address.toLowerCase()) || [])
+        ...profileWallets
       ].filter((addr, index, self) => self.indexOf(addr) === index); // Dedupe
       
       console.log(`   Checking ${allWalletAddresses.length} wallets for NFT holdings`);
