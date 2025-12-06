@@ -43,55 +43,68 @@ async function handler(request) {
     );
     console.log(`📊 Already recorded: ${recordedTxHashes.size} transactions`);
 
-    // Use BaseScan API V2 to get events (much more reliable than RPC for historical logs)
-    console.log(`🔍 Fetching TokensClaimed events from BaseScan API V2...`);
-    
-    // TokensClaimed event topic
-    const tokenClaimedTopic = '0xfa76a4010d9533e3e964f2930a65fb6042a12fa6ff5b08281837a10b0be7321e';
+    // Use BaseScan API to get all transactions TO this contract (simpler than event logs)
+    console.log(`🔍 Fetching all transactions to contract from BaseScan...`);
     
     const basescanApiKey = process.env.BASESCAN_API_KEY || '';
-    // V2 API endpoint format
-    const basescanUrl = `https://api.basescan.org/v2/api?chainid=8453&module=logs&action=getLogs&address=${contractAddress}&topic0=${tokenClaimedTopic}&startblock=0&endblock=latest&apikey=${basescanApiKey}`;
+    // Get all transactions to the contract address
+    const basescanUrl = `https://api.basescan.org/api?module=account&action=txlist&address=${contractAddress}&startblock=0&endblock=99999999&sort=asc&apikey=${basescanApiKey}`;
     
-    console.log(`📡 Calling BaseScan API V2...`);
+    console.log(`📡 Calling BaseScan API...`);
     
     const basescanResponse = await fetch(basescanUrl);
-    const basescanData = await basescanResponse.json();
+    const responseText = await basescanResponse.text();
     
-    // V2 API returns different format - check for errors
-    if (basescanData.status === '0' && basescanData.result !== null) {
-      // Check if it's just "No records found" which is OK
-      if (basescanData.message === 'No records found' || basescanData.result === 'No records found') {
-        console.log('📭 No events found on-chain');
-      } else {
-        console.error('BaseScan API error:', basescanData);
-        throw new Error(`BaseScan API error: ${basescanData.message || basescanData.result || 'Unknown error'}`);
-      }
+    let basescanData;
+    try {
+      basescanData = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Failed to parse BaseScan response:', responseText.substring(0, 200));
+      throw new Error('BaseScan returned invalid response');
     }
     
-    const logs = Array.isArray(basescanData.result) ? basescanData.result : [];
-    console.log(`📥 Found ${logs.length} TokensClaimed events from BaseScan`);
+    if (basescanData.status === '0' && basescanData.message !== 'No transactions found') {
+      console.error('BaseScan API error:', basescanData);
+      throw new Error(`BaseScan API error: ${basescanData.message || basescanData.result || 'Unknown error'}`);
+    }
     
-    // Parse BaseScan logs into the format we need
-    // BaseScan returns: { topics: [...], data: '0x...', transactionHash: '0x...' }
-    const parsedLogs = logs.map(log => {
-      // Decode the log data
-      // Topics: [eventSig, claimConditionIndex, claimer, receiver]
-      // Data: tokenId (uint256) + quantityClaimed (uint256)
-      const claimer = '0x' + log.topics[2].slice(26); // Remove padding
-      const receiver = '0x' + log.topics[3].slice(26);
-      const data = log.data;
-      const tokenId = parseInt(data.slice(0, 66), 16).toString();
-      const quantityClaimed = parseInt('0x' + data.slice(66), 16);
+    const allTxs = Array.isArray(basescanData.result) ? basescanData.result : [];
+    console.log(`📥 Found ${allTxs.length} total transactions to contract`);
+    
+    // Filter for successful mint transactions (claim function calls)
+    // The claim function selector is 0x57bc3d78
+    const mintTxs = allTxs.filter(tx => 
+      tx.isError === '0' && // Successful tx
+      tx.input && tx.input.startsWith('0x57bc3d78') // claim() function
+    );
+    
+    console.log(`🎨 Found ${mintTxs.length} successful mint transactions`);
+    
+    // Parse mint transactions - we need to decode the quantity from input data
+    const parsedLogs = mintTxs.map(tx => {
+      // Input data format for claim(address,uint256,uint256,address,uint256,tuple,bytes)
+      // 0x57bc3d78 + receiver(32) + tokenId(32) + quantity(32) + ...
+      let quantity = 1;
+      try {
+        if (tx.input && tx.input.length >= 138) {
+          // quantity is the 3rd parameter (after function selector + receiver + tokenId)
+          // Each param is 32 bytes (64 hex chars), function selector is 4 bytes (8 hex chars)
+          // quantity starts at position 8 + 64 + 64 = 136
+          const quantityHex = '0x' + tx.input.slice(136, 200);
+          quantity = parseInt(quantityHex, 16) || 1;
+        }
+      } catch (e) {
+        console.warn(`Could not parse quantity from tx ${tx.hash}:`, e.message);
+      }
       
       return {
-        transactionHash: log.transactionHash,
-        blockNumber: BigInt(log.blockNumber),
+        transactionHash: tx.hash,
+        blockNumber: BigInt(tx.blockNumber),
         args: {
-          claimer,
-          receiver,
-          tokenId,
-          quantityClaimed
+          claimer: tx.from.toLowerCase(),
+          receiver: tx.from.toLowerCase(),
+          tokenId: '0',
+          quantityClaimed: quantity
         }
       };
     });
