@@ -363,7 +363,7 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
             case 'farcaster_like': return '❤️';
             case 'farcaster_recast': return '🔄';
             case 'farcaster_comment': return '💬';
-            case 'farcaster_engagement': return '⚡';
+            case 'farcaster_engagement': return '🎯';
             default: return '🎯';
           }
         };
@@ -373,7 +373,7 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
             case 'farcaster_like': return 'Like the cast';
             case 'farcaster_recast': return 'Recast the post';
             case 'farcaster_comment': return 'Comment on the cast';
-            case 'farcaster_engagement': return 'Like, Recast & Comment';
+            case 'farcaster_engagement': return 'Like, Recast, and Comment!';
             default: return 'Complete action';
           }
         };
@@ -405,7 +405,7 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
                   }}
                   className="mt-4 w-full bg-[#3eb489] hover:bg-[#359970] text-white py-3 rounded-xl font-semibold transition-colors"
                 >
-                  ⚡ Complete Mission
+                  Complete Mission
                 </button>
               </div>
             </div>
@@ -727,21 +727,15 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
             </p>
           </div>
 
-          <div className="mb-6">
-            <h3 className="font-semibold text-gray-900 mb-3">Steps to Complete:</h3>
-            <ol className="space-y-2">
-              {getBountySteps().map((step, i) => (
-                <li key={i} className="text-gray-600 text-sm">{step}</li>
-              ))}
-            </ol>
-          </div>
-
           {bounty.targetCastUrl && (
             <button
               onClick={handleOpenCast}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-semibold mb-4 transition-colors"
+              className="w-full bg-[#6A3CFF] hover:bg-[#5930D9] text-white py-3 rounded-xl font-semibold mb-4 transition-colors flex items-center justify-center gap-2"
             >
-              🔗 Open Cast in Farcaster
+              <svg style={{ width: '18px', height: '18px' }} viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
+              </svg>
+              Like, Recast, Comment
             </button>
           )}
 
@@ -765,7 +759,7 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
                 <span className="animate-spin">⏳</span> Verifying...
               </span>
             ) : (
-              '✅ Verify & Claim Reward'
+              'Verify & Claim Reward'
             )}
           </button>
 
