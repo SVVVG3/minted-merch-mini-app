@@ -156,20 +156,15 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
     
     try {
       if (isInFarcaster && sdk?.actions?.composeCast) {
+        // In Farcaster mini app - use SDK to compose cast
         await sdk.actions.composeCast({
           text: shareText,
           embeds: [shareUrl]
         });
-      } else if (navigator.share) {
-        await navigator.share({
-          title: 'Stake to Earn $mintedmerch',
-          text: shareText,
-          url: shareUrl
-        });
       } else {
-        // Fallback: copy to clipboard
-        await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
-        alert('Link copied to clipboard!');
+        // Desktop/browser - open Warpcast compose in new tab
+        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
+        window.open(warpcastUrl, '_blank');
       }
     } catch (err) {
       console.error('Error sharing:', err);
@@ -382,15 +377,16 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           <div style={{
             backgroundColor: 'rgba(0,0,0,0.3)',
             borderRadius: '12px',
-            padding: '8px 16px',
-            marginBottom: '12px'
+            padding: '16px',
+            marginBottom: '12px',
+            textAlign: 'center'
           }}>
-            {/* Stats List - Labels left, Values right */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* Stats List - Centered with readable text */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {/* Total Staked with Percentage */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
-                <span style={{ color: '#3eb489', fontWeight: '600' }}>Total Staked:</span>
-                <span style={{ color: '#fff', textAlign: 'right' }}>
+              <div style={{ fontSize: '14px' }}>
+                <span style={{ color: '#3eb489', fontWeight: '600' }}>Total Staked: </span>
+                <span style={{ color: '#fff' }}>
                   {stakingData?.staking?.global_total_staked_full || '0'} $mintedmerch
                   {stakingData?.staking?.staked_percentage && (
                     <span style={{ color: '#3eb489' }}> ({stakingData.staking.staked_percentage}%)</span>
@@ -399,24 +395,24 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
               </div>
               
               {/* Your Stake */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
-                <span style={{ color: '#3eb489', fontWeight: '600' }}>Your Stake:</span>
+              <div style={{ fontSize: '14px' }}>
+                <span style={{ color: '#3eb489', fontWeight: '600' }}>Your Stake: </span>
                 <span style={{ color: '#fff' }}>
                   {stakingData?.balances?.staked_formatted || '0'} $mintedmerch
                 </span>
               </div>
               
               {/* Your Balance (unstaked wallet balance) */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
-                <span style={{ color: '#3eb489', fontWeight: '600' }}>Your Balance:</span>
+              <div style={{ fontSize: '14px' }}>
+                <span style={{ color: '#3eb489', fontWeight: '600' }}>Your Balance: </span>
                 <span style={{ color: '#fff' }}>
                   {stakingData?.balances?.wallet_formatted || '0'} $mintedmerch
                 </span>
               </div>
               
               {/* Lifetime Claimed */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
-                <span style={{ color: '#3eb489', fontWeight: '600' }}>Lifetime Claimed:</span>
+              <div style={{ fontSize: '14px' }}>
+                <span style={{ color: '#3eb489', fontWeight: '600' }}>Lifetime Claimed: </span>
                 <span style={{ color: '#fff' }}>
                   {stakingData?.staking?.lifetime_claimed_formatted || '0'} $mintedmerch
                 </span>

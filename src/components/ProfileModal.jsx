@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { useWalletConnectContext } from './WalletConnectProvider';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { useSignIn } from '@farcaster/auth-kit';
 
 export function ProfileModal({ isOpen, onClose }) {
   const router = useRouter();
   const { user, isInFarcaster, getSessionToken, isReady } = useFarcaster();
   const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod } = useWalletConnectContext();
+  const { signOut: authKitSignOut } = useSignIn();
   const [profileData, setProfileData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [connectedWallet, setConnectedWallet] = useState(null);
@@ -19,6 +21,23 @@ export function ProfileModal({ isOpen, onClose }) {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [isAmbassador, setIsAmbassador] = useState(false);
   const [checkingAmbassador, setCheckingAmbassador] = useState(false);
+
+  // Handle sign out for manually signed-in users (AuthKit)
+  const handleSignOut = () => {
+    // Clear session token from localStorage
+    localStorage.removeItem('fc_session_token');
+    
+    // Sign out from AuthKit
+    try {
+      authKitSignOut();
+    } catch (e) {
+      console.log('AuthKit signOut:', e);
+    }
+    
+    // Close modal and reload page to reset all state
+    onClose();
+    window.location.reload();
+  };
 
   // Format token balance with proper B/M/K suffixes
   const formatTokenBalance = (balance) => {
@@ -856,6 +875,21 @@ export function ProfileModal({ isOpen, onClose }) {
                   </div>
                 )}
               </div>
+
+              {/* Sign Out Button - Only show for manually signed-in users (not in mini app) */}
+              {!isInFarcaster && user?.fid && (
+                <div className="pt-4 border-t border-gray-200">
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Sign Out
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-8">
