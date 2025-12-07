@@ -102,6 +102,13 @@ export function WalletConnectProvider({ children }) {
                 }
               }
             } else {
+              // Check if user manually disconnected - don't auto-reconnect
+              const wasDisconnected = localStorage.getItem('wallet_disconnected');
+              if (wasDisconnected === 'true') {
+                console.log('ℹ️ User previously disconnected - not auto-reconnecting');
+                return;
+              }
+              
               // For other wallets, just check existing accounts
               const accounts = await window.ethereum.request({ method: 'eth_accounts' });
               if (accounts && accounts.length > 0) {
@@ -163,6 +170,9 @@ export function WalletConnectProvider({ children }) {
   // Connect wallet function
   const connectWallet = async () => {
     try {
+      // Clear disconnected flag when user manually connects
+      localStorage.removeItem('wallet_disconnected');
+      
       if (connectionMethod === 'walletconnect') {
         await wcConnect();
       } else if (typeof window !== 'undefined' && window.ethereum) {
@@ -186,6 +196,9 @@ export function WalletConnectProvider({ children }) {
   // Disconnect wallet function
   const disconnectWallet = async () => {
     try {
+      // Set disconnected flag so we don't auto-reconnect on page reload
+      localStorage.setItem('wallet_disconnected', 'true');
+      
       if (connectionMethod === 'walletconnect') {
         await wcDisconnect();
       }

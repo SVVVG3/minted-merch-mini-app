@@ -813,12 +813,10 @@ export function ProfileModal({ isOpen, onClose }) {
                         <button
                           onClick={async () => {
                             try {
-                              if (connectionMethod === 'walletconnect') {
-                                await disconnectWallet();
-                              }
-                              // For browser extensions, we can't truly disconnect, just clear local state
+                              await disconnectWallet();
                               setConnectedWallet(null);
-                              window.location.reload();
+                              // Close modal after disconnect
+                              onClose();
                             } catch (error) {
                               console.error('Failed to disconnect:', error);
                             }
