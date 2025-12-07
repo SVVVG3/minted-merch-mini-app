@@ -6,20 +6,41 @@ import { sdk } from '@farcaster/miniapp-sdk';
 import { haptics } from '@/lib/haptics';
 import Link from 'next/link';
 import { ProfileModal } from '@/components/ProfileModal';
+import { SignInWithFarcaster } from '@/components/SignInWithFarcaster';
 // import { StakingLaunchMint } from '@/components/StakingLaunchMint'; // TEMPORARILY HIDDEN
 
-// Staking terminal deep link URL
+// Staking terminal deep link URL (for mini app environment)
 const STAKING_TERMINAL_URL = 'https://farcaster.xyz/miniapps/yG210D-5eNqL/betrmint/mm-stake';
+// Direct betrmint URL (for browser/non-Farcaster environment)
+const BETRMINT_DIRECT_URL = 'https://betrmint.fun/mm-stake';
 // Coin mini app URL
 const COIN_MINIAPP_URL = 'https://coin.mintedmerch.shop';
 
 export function StakePageClient() {
   const { isInFarcaster, isReady, getFid, getUsername, getDisplayName, getPfpUrl, getSessionToken } = useFarcaster();
   const [stakingData, setStakingData] = useState(null);
+  const [globalStakingData, setGlobalStakingData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
+  // Fetch global staking stats (public - no auth required)
+  useEffect(() => {
+    async function loadGlobalStats() {
+      try {
+        const response = await fetch('/api/staking/global');
+        const data = await response.json();
+        if (data.success) {
+          setGlobalStakingData(data);
+        }
+      } catch (err) {
+        console.error('Error loading global staking stats:', err);
+      }
+    }
+    loadGlobalStats();
+  }, []);
+
+  // Fetch user-specific staking data (requires auth)
   useEffect(() => {
     async function loadStakingData() {
       if (!isReady) return;
@@ -87,7 +108,7 @@ export function StakePageClient() {
     await haptics.light(isInFarcaster);
   };
 
-  // Handle opening the staking terminal (opens as mini app)
+  // Handle opening the staking terminal
   const handleOpenStakingTerminal = async () => {
     await haptics.medium(isInFarcaster);
     try {
@@ -95,16 +116,16 @@ export function StakePageClient() {
         // Use Farcaster SDK to deeplink to betrmint mini app
         await sdk.actions.openUrl(STAKING_TERMINAL_URL);
       } else {
-        // Fallback to navigation
-        window.location.href = STAKING_TERMINAL_URL;
+        // Not in Farcaster - open direct URL in new tab
+        window.open(BETRMINT_DIRECT_URL, '_blank');
       }
     } catch (err) {
       console.error('Error opening staking terminal:', err);
-      window.location.href = STAKING_TERMINAL_URL;
+      window.open(BETRMINT_DIRECT_URL, '_blank');
     }
   };
 
-  // Handle opening coin mini app (opens as mini app, not external browser)
+  // Handle opening coin mini app / More Info
   const handleOpenCoinMiniApp = async () => {
     await haptics.light(isInFarcaster);
     try {
@@ -114,12 +135,12 @@ export function StakePageClient() {
           url: COIN_MINIAPP_URL
         });
       } else {
-        // Fallback to regular navigation
-        window.location.href = COIN_MINIAPP_URL;
+        // Not in Farcaster - open in new tab
+        window.open(COIN_MINIAPP_URL, '_blank');
       }
     } catch (err) {
       console.error('Error opening coin mini app:', err);
-      window.location.href = COIN_MINIAPP_URL;
+      window.open(COIN_MINIAPP_URL, '_blank');
     }
   };
 
@@ -218,7 +239,7 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
             </svg>
           </button>
           
-          {/* Profile Button */}
+          {/* Profile Button or Sign In */}
           {getPfpUrl() ? (
             <button
               onClick={handleProfileClick}
@@ -244,6 +265,11 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
                 }}
               />
             </button>
+          ) : !isInFarcaster && isReady ? (
+            /* Show Sign In button when not in Farcaster and not signed in */
+            <div style={{ width: '96px' }}>
+              <SignInWithFarcaster />
+            </div>
           ) : (
             <button
               onClick={handleProfileClick}
@@ -299,20 +325,41 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
         }} />
 
         {/* Enhanced Staking Stats */}
-        {isLoading ? (
+        {isLoading && getFid() ? (
           <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
             Loading your staking data...
           </div>
         ) : !getFid() ? (
           <div style={{
-            textAlign: 'center',
-            padding: '20px',
-            color: '#888',
             backgroundColor: 'rgba(0,0,0,0.3)',
             borderRadius: '12px',
-            marginBottom: '24px'
+            padding: '8px 16px',
+            marginBottom: '12px'
           }}>
-            Connect with Farcaster to see your staking stats
+            {/* Show Total Staked even when not signed in */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
+                <span style={{ color: '#3eb489', fontWeight: '600' }}>Total Staked:</span>
+                <span style={{ color: '#fff', textAlign: 'right' }}>
+                  {globalStakingData?.global_total_staked_formatted || '...'} $mintedmerch
+                  {globalStakingData?.staked_percentage && (
+                    <span style={{ color: '#3eb489' }}> ({globalStakingData.staked_percentage}%)</span>
+                  )}
+                </span>
+              </div>
+            </div>
+            
+            {/* Connect prompt */}
+            <div style={{
+              textAlign: 'center',
+              padding: '16px 0 8px 0',
+              color: '#888',
+              fontSize: '12px',
+              lineHeight: '1.5'
+            }}>
+              <div>Connect with Farcaster to see your staking stats.</div>
+              <div style={{ marginTop: '8px' }}>Stake/Unstake & Spin To Claim below!</div>
+            </div>
           </div>
         ) : (
           <div style={{
