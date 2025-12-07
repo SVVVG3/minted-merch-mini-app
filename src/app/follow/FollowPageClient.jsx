@@ -1,0 +1,549 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { sdk } from '@farcaster/miniapp-sdk';
+import { useFarcaster } from '@/lib/useFarcaster';
+import { triggerHaptic } from '@/lib/haptics';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import Link from 'next/link';
+
+// Airdrop contract ABI (just the function we need)
+const AIRDROP_ABI = [
+  {
+    name: 'airdropERC20WithSignature',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      {
+        name: 'req',
+        type: 'tuple',
+        components: [
+          { name: 'uid', type: 'bytes32' },
+          { name: 'tokenAddress', type: 'address' },
+          { name: 'expirationTimestamp', type: 'uint256' },
+          {
+            name: 'contents',
+            type: 'tuple[]',
+            components: [
+              { name: 'recipient', type: 'address' },
+              { name: 'amount', type: 'uint256' }
+            ]
+          }
+        ]
+      },
+      { name: 'signature', type: 'bytes' }
+    ],
+    outputs: []
+  }
+];
+
+export default function FollowPageClient() {
+  const { user, sessionToken, isInFarcaster, isReady } = useFarcaster();
+
+  // Task status
+  const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(false);
+  const [tasks, setTasks] = useState({
+    hasAddedApp: false,
+    hasNotifications: false,
+    isFollowingAccount: false,
+    isFollowingChannel: false
+  });
+  const [allTasksCompleted, setAllTasksCompleted] = useState(false);
+  const [alreadyClaimed, setAlreadyClaimed] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Claim state
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState(null);
+  const [hasClaimed, setHasClaimed] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Wagmi hooks for claiming
+  const {
+    writeContract,
+    data: claimTxHash,
+    isPending: isClaimTxPending,
+    error: claimWriteError
+  } = useWriteContract();
+  const { isLoading: isClaimConfirming, isSuccess: isClaimConfirmed } =
+    useWaitForTransactionReceipt({ hash: claimTxHash });
+
+  // Check task status
+  const checkStatus = useCallback(async () => {
+    if (!sessionToken) return;
+
+    try {
+      setChecking(true);
+      setError(null);
+
+      const response = await fetch('/api/follow/status', {
+        headers: {
+          'Authorization': `Bearer ${sessionToken}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.alreadyClaimed) {
+        setAlreadyClaimed(true);
+        setHasClaimed(true);
+        setShowSuccess(true);
+      } else if (data.success) {
+        setTasks(data.tasks);
+        setAllTasksCompleted(data.allTasksCompleted);
+      } else {
+        setError(data.error || 'Failed to check status');
+      }
+    } catch (err) {
+      console.error('Error checking status:', err);
+      setError('Failed to check status');
+    } finally {
+      setChecking(false);
+      setLoading(false);
+    }
+  }, [sessionToken]);
+
+  // Initial load
+  useEffect(() => {
+    if (sessionToken) {
+      checkStatus();
+    } else if (isReady && !user) {
+      setLoading(false);
+    }
+  }, [sessionToken, isReady, user, checkStatus]);
+
+  // Handle claim confirmation
+  useEffect(() => {
+    if (isClaimConfirmed && claimTxHash) {
+      console.log('✅ Claim confirmed! TX:', claimTxHash);
+      markAsClaimed(claimTxHash);
+    }
+  }, [isClaimConfirmed, claimTxHash]);
+
+  // Handle claim errors
+  useEffect(() => {
+    if (claimWriteError) {
+      console.error('Claim error:', claimWriteError);
+      setClaimError(claimWriteError.message || 'Transaction failed');
+      setClaiming(false);
+    }
+  }, [claimWriteError]);
+
+  // Mark claim as complete in database
+  const markAsClaimed = async (txHash) => {
+    try {
+      await fetch('/api/follow/mark-claimed', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({ transactionHash: txHash })
+      });
+      setHasClaimed(true);
+      setShowSuccess(true);
+      setClaiming(false);
+      triggerHaptic('success', isInFarcaster);
+    } catch (err) {
+      console.error('Error marking claimed:', err);
+      setClaiming(false);
+    }
+  };
+
+  // Add mini app handler
+  const handleAddApp = async () => {
+    triggerHaptic('light', isInFarcaster);
+    if (isInFarcaster && sdk?.actions?.addFrame) {
+      try {
+        const result = await sdk.actions.addFrame();
+        console.log('Add frame result:', result);
+        // Re-check status after adding
+        setTimeout(() => checkStatus(), 1000);
+      } catch (err) {
+        console.error('Error adding frame:', err);
+      }
+    }
+  };
+
+  // Follow account handler
+  const handleFollowAccount = async () => {
+    triggerHaptic('light', isInFarcaster);
+    // Open @mintedmerch profile
+    const url = 'https://warpcast.com/mintedmerch';
+    if (isInFarcaster && sdk?.actions?.openUrl) {
+      await sdk.actions.openUrl(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  };
+
+  // Follow channel handler
+  const handleFollowChannel = async () => {
+    triggerHaptic('light', isInFarcaster);
+    // Open /mintedmerch channel
+    const url = 'https://warpcast.com/~/channel/mintedmerch';
+    if (isInFarcaster && sdk?.actions?.openUrl) {
+      await sdk.actions.openUrl(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  };
+
+  // Claim reward handler
+  const handleClaim = async () => {
+    triggerHaptic('light', isInFarcaster);
+    setClaiming(true);
+    setClaimError(null);
+
+    try {
+      // Get claim data
+      const response = await fetch('/api/follow/claim-data', {
+        headers: {
+          'Authorization': `Bearer ${sessionToken}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to get claim data');
+      }
+
+      const { claimData } = data;
+
+      // Prepare req for contract call
+      const req = {
+        uid: claimData.req.uid,
+        tokenAddress: claimData.req.tokenAddress,
+        expirationTimestamp: BigInt(claimData.req.expirationTimestamp),
+        contents: claimData.req.contents.map(c => ({
+          recipient: c.recipient,
+          amount: BigInt(c.amount)
+        }))
+      };
+
+      // Execute claim transaction
+      writeContract({
+        address: claimData.contractAddress,
+        abi: AIRDROP_ABI,
+        functionName: 'airdropERC20WithSignature',
+        args: [req, claimData.signature],
+        chainId: claimData.chainId
+      });
+
+    } catch (err) {
+      console.error('Error claiming:', err);
+      setClaimError(err.message || 'Failed to claim');
+      setClaiming(false);
+    }
+  };
+
+  // Share handler
+  const handleShare = async () => {
+    triggerHaptic('light', isInFarcaster);
+    
+    const shareText = `I just earned 10,000 $mintedmerch tokens for following @mintedmerch! 🎉
+
+Complete the tasks and claim yours:`;
+    const shareUrl = 'https://app.mintedmerch.shop/follow';
+
+    // Mark as shared
+    try {
+      await fetch('/api/follow/mark-shared', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({})
+      });
+    } catch (err) {
+      console.error('Error marking shared:', err);
+    }
+
+    if (isInFarcaster && sdk?.actions?.openUrl) {
+      const composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
+      await sdk.actions.openUrl(composeUrl);
+    } else {
+      const composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
+      window.open(composeUrl, '_blank');
+    }
+  };
+
+  // Format number helper
+  const formatNumber = (num) => {
+    return new Intl.NumberFormat('en-US').format(num);
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-[#3eb489] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not signed in
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-6">🎁</div>
+          <h1 className="text-2xl font-bold mb-4">Earn 10,000 $mintedmerch!</h1>
+          <p className="text-gray-400 mb-8">
+            Sign in with Farcaster to complete tasks and claim your reward.
+          </p>
+          <Link
+            href="/"
+            className="inline-block bg-[#3eb489] hover:bg-[#359970] text-white font-bold py-3 px-8 rounded-xl transition-colors"
+          >
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Success state
+  if (showSuccess) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <div className="text-7xl mb-6">🎉</div>
+          <h1 className="text-3xl font-bold mb-4 text-[#3eb489]">Congratulations!</h1>
+          <p className="text-xl text-gray-300 mb-2">You earned</p>
+          <p className="text-4xl font-bold text-white mb-6">
+            {formatNumber(10000)} $mintedmerch
+          </p>
+          <p className="text-gray-400 mb-8">
+            Thank you for following Minted Merch! Your tokens have been claimed.
+          </p>
+          
+          <div className="space-y-4">
+            <button
+              onClick={handleShare}
+              className="w-full bg-[#6A3CFF] hover:bg-[#5930D9] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
+            >
+              <svg style={{ width: '20px', height: '20px' }} viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
+              </svg>
+              Share on Farcaster
+            </button>
+            
+            <Link
+              href="/"
+              className="block w-full bg-gray-800 hover:bg-gray-700 text-white py-4 rounded-xl font-bold transition-colors"
+            >
+              Explore Shop
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Main task list view
+  return (
+    <div className="min-h-screen bg-black text-white">
+      {/* Header */}
+      <div className="text-center pt-8 pb-6 px-4">
+        <div className="text-5xl mb-4">🎁</div>
+        <h1 className="text-2xl font-bold mb-2">Earn 10,000 $mintedmerch!</h1>
+        <p className="text-gray-400 max-w-md mx-auto">
+          Complete all tasks below to claim your reward
+        </p>
+      </div>
+
+      {/* Reward display */}
+      <div className="mx-4 mb-6">
+        <div className="bg-gradient-to-r from-[#3eb489]/20 to-[#3eb489]/10 border border-[#3eb489]/30 rounded-2xl p-6 text-center">
+          <p className="text-gray-400 text-sm mb-1">Reward</p>
+          <p className="text-3xl font-bold text-[#3eb489]">
+            {formatNumber(10000)} $mintedmerch
+          </p>
+        </div>
+      </div>
+
+      {/* Task list */}
+      <div className="px-4 space-y-3">
+        {/* Task 1: Add Mini App */}
+        <div className={`rounded-xl p-4 border-2 transition-all ${
+          tasks.hasAddedApp 
+            ? 'bg-green-900/20 border-green-500/50' 
+            : 'bg-gray-900 border-gray-700'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                tasks.hasAddedApp ? 'bg-green-500' : 'bg-gray-700'
+              }`}>
+                {tasks.hasAddedApp ? '✓' : '1'}
+              </div>
+              <div>
+                <p className="font-semibold">Add Mini App</p>
+                <p className="text-sm text-gray-400">Add to your Farcaster client</p>
+              </div>
+            </div>
+            {!tasks.hasAddedApp && isInFarcaster && (
+              <button
+                onClick={handleAddApp}
+                className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+              >
+                Add
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Task 2: Enable Notifications */}
+        <div className={`rounded-xl p-4 border-2 transition-all ${
+          tasks.hasNotifications 
+            ? 'bg-green-900/20 border-green-500/50' 
+            : 'bg-gray-900 border-gray-700'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                tasks.hasNotifications ? 'bg-green-500' : 'bg-gray-700'
+              }`}>
+                {tasks.hasNotifications ? '✓' : '2'}
+              </div>
+              <div>
+                <p className="font-semibold">Enable Notifications</p>
+                <p className="text-sm text-gray-400">Turn on notifications</p>
+              </div>
+            </div>
+            {!tasks.hasNotifications && isInFarcaster && (
+              <button
+                onClick={handleAddApp}
+                className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+              >
+                Enable
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Task 3: Follow @mintedmerch */}
+        <div className={`rounded-xl p-4 border-2 transition-all ${
+          tasks.isFollowingAccount 
+            ? 'bg-green-900/20 border-green-500/50' 
+            : 'bg-gray-900 border-gray-700'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                tasks.isFollowingAccount ? 'bg-green-500' : 'bg-gray-700'
+              }`}>
+                {tasks.isFollowingAccount ? '✓' : '3'}
+              </div>
+              <div>
+                <p className="font-semibold">Follow @mintedmerch</p>
+                <p className="text-sm text-gray-400">Follow our main account</p>
+              </div>
+            </div>
+            {!tasks.isFollowingAccount && (
+              <button
+                onClick={handleFollowAccount}
+                className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+              >
+                Follow
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Task 4: Follow /mintedmerch channel */}
+        <div className={`rounded-xl p-4 border-2 transition-all ${
+          tasks.isFollowingChannel 
+            ? 'bg-green-900/20 border-green-500/50' 
+            : 'bg-gray-900 border-gray-700'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                tasks.isFollowingChannel ? 'bg-green-500' : 'bg-gray-700'
+              }`}>
+                {tasks.isFollowingChannel ? '✓' : '4'}
+              </div>
+              <div>
+                <p className="font-semibold">Follow /mintedmerch</p>
+                <p className="text-sm text-gray-400">Join our channel</p>
+              </div>
+            </div>
+            {!tasks.isFollowingChannel && (
+              <button
+                onClick={handleFollowChannel}
+                className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+              >
+                Join
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Re-check button */}
+      <div className="px-4 mt-6">
+        <button
+          onClick={checkStatus}
+          disabled={checking}
+          className="w-full bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl font-medium transition-colors disabled:opacity-50"
+        >
+          {checking ? 'Checking...' : 'Refresh Status'}
+        </button>
+      </div>
+
+      {/* Claim button */}
+      <div className="px-4 mt-4 pb-8">
+        {claimError && (
+          <div className="mb-4 bg-red-900/50 border border-red-500/50 rounded-xl p-3">
+            <p className="text-sm text-red-300">{claimError}</p>
+          </div>
+        )}
+
+        <button
+          onClick={handleClaim}
+          disabled={!allTasksCompleted || claiming || isClaimTxPending || isClaimConfirming}
+          className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
+            allTasksCompleted
+              ? 'bg-[#3eb489] hover:bg-[#359970] text-white'
+              : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+          }`}
+        >
+          {claiming || isClaimTxPending || isClaimConfirming ? (
+            <span className="flex items-center justify-center gap-2">
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              {isClaimConfirming ? 'Confirming...' : 'Claiming...'}
+            </span>
+          ) : allTasksCompleted ? (
+            `Claim ${formatNumber(10000)} $mintedmerch`
+          ) : (
+            'Complete All Tasks to Claim'
+          )}
+        </button>
+
+        {!allTasksCompleted && (
+          <p className="text-center text-gray-500 text-sm mt-3">
+            {4 - Object.values(tasks).filter(Boolean).length} task(s) remaining
+          </p>
+        )}
+      </div>
+
+      {/* Error display */}
+      {error && (
+        <div className="px-4 pb-4">
+          <div className="bg-red-900/50 border border-red-500/50 rounded-xl p-3">
+            <p className="text-sm text-red-300">{error}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
