@@ -24,6 +24,9 @@ function WalletConnectSection({ setConnectedWallet, isInFarcaster }) {
     setIsConnecting(true);
     setError(null);
     
+    // Clear disconnected flag when user manually connects
+    localStorage.removeItem('wallet_disconnected');
+    
     try {
       // Check if this is an Android device with native wallet
       const userAgent = window.navigator?.userAgent?.toLowerCase() || '';
@@ -244,6 +247,13 @@ export function ProfileModal({ isOpen, onClose }) {
               }
             }
           } else {
+            // Check if user manually disconnected - don't show as connected
+            const wasDisconnected = localStorage.getItem('wallet_disconnected');
+            if (wasDisconnected === 'true') {
+              console.log('ℹ️ User previously disconnected - not showing wallet');
+              return;
+            }
+            
             // For other wallets, just check existing accounts
             const accounts = await window.ethereum.request({ method: 'eth_accounts' });
             if (accounts && accounts.length > 0) {

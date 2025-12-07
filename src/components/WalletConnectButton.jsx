@@ -37,6 +37,9 @@ export function WalletConnectButton({
       setIsConnecting(true);
       setError(null);
       
+      // Clear disconnected flag when user manually connects
+      localStorage.removeItem('wallet_disconnected');
+      
       // Check if this is an Android device with native wallet
       const userAgent = window.navigator?.userAgent?.toLowerCase() || '';
       const isAndroidWallet = userAgent.includes('android');
