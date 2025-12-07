@@ -4,7 +4,7 @@ import { getAuthenticatedFid } from '@/lib/userAuth';
 import { neynarClient, isNeynarAvailable, checkUserNotificationStatus } from '@/lib/neynar';
 
 // @mintedmerch FID - the account users need to follow
-const MINTEDMERCH_FID = 466111;
+const MINTEDMERCH_FID = 1281316;
 // /mintedmerch channel ID
 const MINTEDMERCH_CHANNEL_ID = 'mintedmerch';
 
@@ -80,7 +80,7 @@ export async function GET(request) {
       if (userResponse?.users?.[0]?.viewer_context) {
         isFollowingAccount = userResponse.users[0].viewer_context.following === true;
       }
-      console.log(`👤 Following @mintedmerch: ${isFollowingAccount}`);
+      console.log(`👤 Following @mintedmerch (FID ${MINTEDMERCH_FID}): ${isFollowingAccount}`);
 
     } catch (userError) {
       console.error('Error checking user follow status:', userError);
