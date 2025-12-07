@@ -59,6 +59,10 @@ export default function FollowPageClient() {
   const [hasClaimed, setHasClaimed] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // Action loading states
+  const [addingApp, setAddingApp] = useState(false);
+  const [enablingNotifications, setEnablingNotifications] = useState(false);
+
   // Wagmi hooks for claiming
   const {
     writeContract,
@@ -159,8 +163,11 @@ export default function FollowPageClient() {
 
   // Add mini app handler
   const handleAddApp = async () => {
+    if (addingApp) return; // Prevent double-clicks
     triggerHaptic('light', isInFarcaster);
+    
     if (isInFarcaster && sdk?.actions?.addFrame) {
+      setAddingApp(true);
       try {
         const result = await sdk.actions.addFrame();
         console.log('Add frame result:', result);
@@ -168,6 +175,42 @@ export default function FollowPageClient() {
         setTimeout(() => checkStatus(), 1000);
       } catch (err) {
         console.error('Error adding frame:', err);
+        // User may have dismissed - that's okay
+      } finally {
+        setAddingApp(false);
+      }
+    }
+  };
+
+  // Enable notifications handler
+  const handleEnableNotifications = async () => {
+    if (enablingNotifications) return; // Prevent double-clicks
+    triggerHaptic('light', isInFarcaster);
+    
+    if (isInFarcaster && sdk?.actions?.requestNotificationPermission) {
+      setEnablingNotifications(true);
+      try {
+        const result = await sdk.actions.requestNotificationPermission();
+        console.log('Notification permission result:', result);
+        // Re-check status after enabling
+        setTimeout(() => checkStatus(), 1000);
+      } catch (err) {
+        console.error('Error enabling notifications:', err);
+        // User may have dismissed - that's okay
+      } finally {
+        setEnablingNotifications(false);
+      }
+    } else if (isInFarcaster && sdk?.actions?.addFrame) {
+      // Fallback to addFrame if requestNotificationPermission not available
+      setEnablingNotifications(true);
+      try {
+        const result = await sdk.actions.addFrame();
+        console.log('Add frame result (for notifications):', result);
+        setTimeout(() => checkStatus(), 1000);
+      } catch (err) {
+        console.error('Error with addFrame for notifications:', err);
+      } finally {
+        setEnablingNotifications(false);
       }
     }
   };
@@ -420,9 +463,10 @@ Complete the mission and claim yours 👇`;
             {!tasks.hasAddedApp && isInFarcaster && (
               <button
                 onClick={handleAddApp}
-                className="bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-1.5 rounded-lg font-medium text-xs transition-colors"
+                disabled={addingApp}
+                className="bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-1.5 rounded-lg font-medium text-xs transition-colors disabled:opacity-50"
               >
-                Add
+                {addingApp ? '...' : 'Add'}
               </button>
             )}
           </div>
@@ -448,10 +492,11 @@ Complete the mission and claim yours 👇`;
             </div>
             {!tasks.hasNotifications && isInFarcaster && (
               <button
-                onClick={handleAddApp}
-                className="bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-1.5 rounded-lg font-medium text-xs transition-colors"
+                onClick={handleEnableNotifications}
+                disabled={enablingNotifications}
+                className="bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-1.5 rounded-lg font-medium text-xs transition-colors disabled:opacity-50"
               >
-                Enable
+                {enablingNotifications ? '...' : 'Enable'}
               </button>
             )}
           </div>
