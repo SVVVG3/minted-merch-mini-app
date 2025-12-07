@@ -111,8 +111,13 @@ export function useWalletConnect() {
         }
       }
     } catch (error) {
-      console.error('❌ Failed to connect wallet via WalletConnect:', error);
-      setError(error.message);
+      // Silent timeout (user likely closed modal) - don't show error
+      if (error.message === 'TIMEOUT_SILENT') {
+        console.log('ℹ️ Wallet connection cancelled or timed out');
+      } else {
+        console.error('❌ Failed to connect wallet via WalletConnect:', error);
+        setError(error.message);
+      }
       throw error;
     } finally {
       setIsConnecting(false);
