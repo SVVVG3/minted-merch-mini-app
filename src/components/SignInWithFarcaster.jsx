@@ -155,7 +155,7 @@ export function SignInWithFarcaster({ onSignIn }) {
     setIsClient(true);
   }, []);
 
-  // Handle successful authentication
+  // Handle successful authentication - request session token immediately
   useEffect(() => {
     if (isSuccess && validSignature && data) {
       console.log('✅ Farcaster AuthKit sign-in successful:', data);
@@ -165,13 +165,43 @@ export function SignInWithFarcaster({ onSignIn }) {
       // Close modal on success
       setShowModal(false);
       
-      // Force a small delay to ensure profile state updates
-      setTimeout(() => {
-        console.log('Authentication complete, profile should update now');
-      }, 100);
+      // Request session token immediately since we have the signature data
+      const getSessionToken = async () => {
+        try {
+          console.log('🔑 Requesting session token for AuthKit sign-in...');
+          const response = await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              authKitData: {
+                message: data.message,
+                signature: data.signature,
+                nonce: data.nonce,
+                domain: data.domain,
+                fid: data.fid,
+                username: data.username
+              }
+            })
+          });
+          
+          const result = await response.json();
+          
+          if (result.success && result.token) {
+            console.log('✅ Session token obtained successfully');
+            localStorage.setItem('fc_session_token', result.token);
+            // Trigger a storage event so other components can pick it up
+            window.dispatchEvent(new Event('storage'));
+            // Also reload the page to ensure all components get fresh state
+            window.location.reload();
+          } else {
+            console.error('❌ Failed to get session token:', result.error);
+          }
+        } catch (error) {
+          console.error('❌ Error getting session token:', error);
+        }
+      };
       
-      // The profile will be automatically updated via useProfile hook
-      // which will trigger the useFarcaster hook to update
+      getSessionToken();
     }
   }, [isSuccess, validSignature, data]);
 
