@@ -103,7 +103,7 @@ function WalletConnectSection({ setConnectedWallet, isInFarcaster }) {
       <button
         onClick={handleConnect}
         disabled={isConnecting || isWCConnecting}
-        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 mx-auto"
+        className="px-4 py-2 bg-[#3eb489] hover:bg-[#359970] disabled:bg-[#3eb489]/50 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 mx-auto"
       >
         {(isConnecting || isWCConnecting) ? (
           <>
@@ -112,12 +112,9 @@ function WalletConnectSection({ setConnectedWallet, isInFarcaster }) {
           </>
         ) : (
           <>
-            <img 
-              src="/walletconnectlogo.png" 
-              alt="" 
-              className="w-4 h-4"
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
             Connect Wallet
           </>
         )}

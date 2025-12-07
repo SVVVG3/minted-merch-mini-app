@@ -123,8 +123,8 @@ export function shouldUseWalletConnect() {
   return true;
 }
 
-// Connect wallet using WalletConnect
-export async function connectWallet() {
+// Connect wallet using WalletConnect with timeout
+export async function connectWallet(timeoutMs = 60000) {
   try {
     const universalConnector = await getWalletConnect();
     if (!universalConnector) {
@@ -133,8 +133,18 @@ export async function connectWallet() {
 
     console.log('🔗 Connecting wallet via WalletConnect...');
     
-    // Connect using Universal Connector
-    const { session } = await universalConnector.connect();
+    // Create a timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Connection timed out or was cancelled. Please try again.'));
+      }, timeoutMs);
+    });
+    
+    // Race the connection against the timeout
+    const { session } = await Promise.race([
+      universalConnector.connect(),
+      timeoutPromise
+    ]);
     
     console.log('✅ WalletConnect connection successful:', session);
     return universalConnector;

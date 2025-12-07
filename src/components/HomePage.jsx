@@ -586,12 +586,6 @@ export function HomePage({ collection: initialCollection, products: initialProdu
           </div>
           
           <div className="flex items-center space-x-2">
-            {/* Check-in Button - Show for authenticated users (mini app OR AuthKit) */}
-            {user && <CheckInButton />}
-            
-            {/* Leaderboard Button - Show for authenticated users (mini app OR AuthKit) */}
-            {user && <LeaderboardButton />}
-            
             {/* Sign In Button - Only show when NOT authenticated and NOT in mini app */}
             {!user && !isInFarcaster && isReady && (
               <div className="w-24">
@@ -601,17 +595,21 @@ export function HomePage({ collection: initialCollection, products: initialProdu
             
             {/* WalletConnect UI - Show for desktop users (signed in or not) who don't have a wallet */}
             {!isInFarcaster && !isWalletConnected && (shouldUseWC || canConnect) && (
-              <div className="mr-2">
-                <WalletConnectButton 
-                  className="flex items-center justify-center h-12 px-3 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                />
-              </div>
+              <WalletConnectButton 
+                className="flex items-center justify-center h-12 px-3 text-sm transition-colors"
+              />
             )}
             
             {/* Compact Wallet Status - Show when connected via WalletConnect */}
             {!isInFarcaster && isWalletConnected && connectionMethod === 'walletconnect' && (
               <CompactWalletStatus />
             )}
+            
+            {/* Check-in Button - Show for authenticated users (mini app OR AuthKit) */}
+            {user && <CheckInButton />}
+            
+            {/* Leaderboard Button - Show for authenticated users (mini app OR AuthKit) */}
+            {user && <LeaderboardButton />}
             
             {/* Info Button - Show for everyone, positioned after sign in */}
             <InfoButton />

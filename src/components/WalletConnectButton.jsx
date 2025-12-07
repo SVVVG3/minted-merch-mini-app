@@ -31,12 +31,50 @@ export function WalletConnectButton({
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState(null);
 
-  // Handle connect
+  // Handle connect - try browser extension first, then WalletConnect
   const handleConnect = async () => {
     try {
       setIsConnecting(true);
       setError(null);
       
+      // Check if this is an Android device with native wallet
+      const userAgent = window.navigator?.userAgent?.toLowerCase() || '';
+      const isAndroidWallet = userAgent.includes('android');
+      
+      // Try Android native wallet first
+      if (isAndroidWallet && window.ethereum) {
+        console.log('🤖 Attempting Android wallet connection...');
+        try {
+          const accounts = await window.ethereum.request({ 
+            method: 'eth_requestAccounts' 
+          });
+          if (accounts && accounts.length > 0 && accounts[0] !== 'decline') {
+            console.log('✅ Android wallet connected:', accounts[0]);
+            window.location.reload();
+            return;
+          }
+        } catch (err) {
+          console.log('Android wallet failed, trying WalletConnect...');
+        }
+      }
+      // Try browser extension wallet (MetaMask, Rainbow, etc.)
+      else if (window.ethereum) {
+        console.log('🦊 Attempting browser extension wallet connection...');
+        try {
+          const accounts = await window.ethereum.request({ 
+            method: 'eth_requestAccounts' 
+          });
+          if (accounts && accounts.length > 0) {
+            console.log('✅ Browser wallet connected:', accounts[0]);
+            window.location.reload();
+            return;
+          }
+        } catch (err) {
+          console.log('Browser extension failed, trying WalletConnect...');
+        }
+      }
+      
+      // Fall back to WalletConnect (QR code)
       await connectWallet();
       
       if (onConnect) {
@@ -139,7 +177,7 @@ export function WalletConnectButton({
       <button
         onClick={handleConnect}
         disabled={isConnecting || isWCConnecting}
-        className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed ${className}`}
+        className={`px-4 py-2 bg-[#3eb489] text-white rounded-lg hover:bg-[#359970] disabled:bg-[#3eb489]/50 disabled:cursor-not-allowed ${className}`}
       >
         {isConnecting || isWCConnecting ? (
           <div className="flex items-center space-x-2">
@@ -148,12 +186,10 @@ export function WalletConnectButton({
           </div>
         ) : (
           <div className="flex items-center justify-center space-x-2">
-            <img 
-              src="/walletconnectlogo.png" 
-              alt="WalletConnect" 
-              className="w-4 h-4"
-            />
-            <span>Connect</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            <span>Connect Wallet</span>
           </div>
         )}
       </button>
