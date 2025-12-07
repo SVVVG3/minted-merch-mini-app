@@ -26,7 +26,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
   const { itemCount, cartTotal } = useCart();
   const { isInFarcaster, isReady, isLoading: isFarcasterLoading, getFid, getUsername, getDisplayName, getPfpUrl, user, context, hasNotifications, getNotificationDetails, getSessionToken } = useFarcaster();
   const { isDgen, isChecking: isDgenChecking } = useDgenWallet(); // Auto-connect dGEN1 wallet
-  const { isConnected: isWalletConnected, connectionMethod } = useWalletConnectContext();
+  const { isConnected: isWalletConnected, userAddress: walletAddress, connectionMethod, shouldUseWC, isWCAvailable, canConnect } = useWalletConnectContext();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [notificationContext, setNotificationContext] = useState(null);
@@ -599,23 +599,18 @@ export function HomePage({ collection: initialCollection, products: initialProdu
               </div>
             )}
             
-            {/* WalletConnect UI - Only show when NOT signed into Farcaster */}
-            {!user && !isInFarcaster && (
-              <>
-                {/* Connect Button - Show when not connected */}
-                {!isWalletConnected && connectionMethod === 'walletconnect' && (
-                  <div className="w-24 mr-2">
-                    <WalletConnectButton 
-                      className="flex items-center justify-center h-12 px-3 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    />
-                  </div>
-                )}
-                
-                {/* Compact Status - Show when connected */}
-                {isWalletConnected && connectionMethod === 'walletconnect' && (
-                  <CompactWalletStatus />
-                )}
-              </>
+            {/* WalletConnect UI - Show for desktop users (signed in or not) who don't have a wallet */}
+            {!isInFarcaster && !isWalletConnected && (shouldUseWC || canConnect) && (
+              <div className="mr-2">
+                <WalletConnectButton 
+                  className="flex items-center justify-center h-12 px-3 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                />
+              </div>
+            )}
+            
+            {/* Compact Wallet Status - Show when connected via WalletConnect */}
+            {!isInFarcaster && isWalletConnected && connectionMethod === 'walletconnect' && (
+              <CompactWalletStatus />
             )}
             
             {/* Info Button - Show for everyone, positioned after sign in */}

@@ -7,6 +7,130 @@ import { useWalletConnectContext } from './WalletConnectProvider';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useSignIn } from '@farcaster/auth-kit';
 
+// Separate component for wallet connection section to properly use context
+function WalletConnectSection({ setConnectedWallet, isInFarcaster }) {
+  const { 
+    connectWallet, 
+    isWCConnecting, 
+    shouldUseWC, 
+    isWCAvailable,
+    canConnect 
+  } = useWalletConnectContext();
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleConnect = async () => {
+    console.log('🔗 Manual wallet connection attempt...');
+    setIsConnecting(true);
+    setError(null);
+    
+    try {
+      // Check if this is an Android device with native wallet
+      const userAgent = window.navigator?.userAgent?.toLowerCase() || '';
+      const isAndroidWallet = userAgent.includes('android');
+      
+      if (isAndroidWallet && window.ethereum) {
+        // Android path (dGEN1, etc.)
+        console.log('🤖 Manual Android wallet connection attempt...');
+        try {
+          const accounts = await window.ethereum.request({ 
+            method: 'eth_requestAccounts' 
+          });
+          console.log('🔍 Manual connection result:', accounts);
+          
+          if (accounts && accounts.length > 0 && accounts[0] !== 'decline') {
+            console.log('✅ Manual Android wallet connection successful:', accounts[0]);
+            setConnectedWallet(accounts[0]);
+            window.location.reload();
+            return;
+          } else if (accounts && accounts.length > 0 && accounts[0] === 'decline') {
+            setError('Wallet connection was declined. Please try again.');
+            return;
+          }
+        } catch (err) {
+          console.error('❌ Manual Android wallet connection failed:', err);
+          setError(err.message);
+          return;
+        }
+      } else if (window.ethereum) {
+        // Desktop with browser extension (MetaMask, etc.)
+        console.log('🦊 Attempting browser extension wallet connection...');
+        try {
+          const accounts = await window.ethereum.request({ 
+            method: 'eth_requestAccounts' 
+          });
+          if (accounts && accounts.length > 0) {
+            console.log('✅ Browser extension wallet connected:', accounts[0]);
+            setConnectedWallet(accounts[0]);
+            window.location.reload();
+            return;
+          }
+        } catch (err) {
+          console.error('❌ Browser extension connection failed:', err);
+          // Fall through to WalletConnect
+        }
+      }
+      
+      // Try WalletConnect for desktop without extensions
+      if (shouldUseWC && isWCAvailable && canConnect) {
+        console.log('📱 Attempting WalletConnect connection...');
+        try {
+          await connectWallet();
+          // WalletConnect will trigger a state update in the provider
+          // which will be picked up by the ProfileModal's useEffect
+          window.location.reload();
+        } catch (err) {
+          console.error('❌ WalletConnect connection failed:', err);
+          setError(err.message || 'WalletConnect connection failed');
+        }
+      } else {
+        setError('No wallet connection method available. Please install a wallet extension like MetaMask.');
+      }
+    } catch (err) {
+      console.error('❌ Manual connection error:', err);
+      setError(err.message);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  return (
+    <div className="text-center py-2">
+      <p className="text-blue-600 mb-3">No wallet connected</p>
+      {error && (
+        <p className="text-red-500 text-xs mb-2">{error}</p>
+      )}
+      <button
+        onClick={handleConnect}
+        disabled={isConnecting || isWCConnecting}
+        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 mx-auto"
+      >
+        {(isConnecting || isWCConnecting) ? (
+          <>
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            Connecting...
+          </>
+        ) : (
+          <>
+            <img 
+              src="/walletconnectlogo.png" 
+              alt="" 
+              className="w-4 h-4"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+            Connect Wallet
+          </>
+        )}
+      </button>
+      {!isInFarcaster && (
+        <p className="text-gray-500 text-xs mt-2">
+          Connect via WalletConnect or browser extension
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function ProfileModal({ isOpen, onClose }) {
   const router = useRouter();
   const { user, isInFarcaster, getSessionToken, isReady } = useFarcaster();
@@ -670,54 +794,10 @@ export function ProfileModal({ isOpen, onClose }) {
                     </button>
                   </div>
                 ) : (
-                  <div className="text-center py-2">
-                    <p className="text-blue-600 mb-3">No wallet connected</p>
-                    <button
-                      onClick={async () => {
-                        console.log('🔗 Manual wallet connection attempt...');
-                        try {
-                          // Check if this is an Android device with native wallet
-                          const userAgent = window.navigator?.userAgent?.toLowerCase() || '';
-                          const isAndroidWallet = userAgent.includes('android');
-                          
-                          if (isAndroidWallet && window.ethereum) {
-                            console.log('🤖 Manual Android wallet connection attempt...');
-                            try {
-                              const accounts = await window.ethereum.request({ 
-                                method: 'eth_requestAccounts' 
-                              });
-                              console.log('🔍 Manual connection result:', accounts);
-                              
-                              if (accounts && accounts.length > 0 && accounts[0] !== 'decline') {
-                                console.log('✅ Manual Android wallet connection successful:', accounts[0]);
-                                setConnectedWallet(accounts[0]);
-                                // Trigger a re-render of the wallet detection
-                                window.location.reload();
-                              } else if (accounts && accounts.length > 0 && accounts[0] === 'decline') {
-                                console.log('❌ Manual Android wallet connection declined');
-                                alert('Wallet connection was declined. Please try again or check your wallet settings.');
-                              } else {
-                                console.log('❌ No accounts returned from manual connection');
-                                alert('No wallet accounts found. Please check your wallet is unlocked.');
-                              }
-                            } catch (error) {
-                              console.error('❌ Manual Android wallet connection failed:', error);
-                              alert(`Wallet connection failed: ${error.message}`);
-                            }
-                          } else {
-                            console.log('❌ Not an Android device or no ethereum provider');
-                            alert('Wallet connection not available on this device.');
-                          }
-                        } catch (error) {
-                          console.error('❌ Manual connection error:', error);
-                          alert(`Connection error: ${error.message}`);
-                        }
-                      }}
-                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold transition-colors"
-                    >
-                      🔗 Connect Wallet
-                    </button>
-                  </div>
+                  <WalletConnectSection 
+                    setConnectedWallet={setConnectedWallet}
+                    isInFarcaster={isInFarcaster}
+                  />
                 )}
               </div>
               
