@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { SignJWT } from 'jose';
 import { supabaseAdmin } from '@/lib/supabase';
-import { verifySignInMessage } from '@farcaster/auth-client';
+import { createAppClient, viemConnector } from '@farcaster/auth-client';
 import { createClient, Errors } from '@farcaster/quick-auth';
+
+// Create AppClient for AuthKit signature verification
+// This client is used to verify Sign In With Farcaster signatures
+const appClient = createAppClient({
+  ethereum: viemConnector(),
+});
 
 /**
  * SECURE: Unified Session Token Endpoint
@@ -243,26 +249,33 @@ export async function POST(request) {
         const verifyDomain = domain || process.env.NEXT_PUBLIC_URL || 'app.mintedmerch.shop';
         console.log('🔍 Verifying with domain:', verifyDomain);
         
-        // SECURITY FIX: Verify cryptographic signature from Farcaster
-        const verifyResult = await verifySignInMessage({
+        // Use AppClient to verify the Sign In With Farcaster signature
+        // per the official Farcaster auth-client docs
+        const verifyResult = await appClient.verifySignInMessage({
           message,
           signature,
           nonce,
-          domain: verifyDomain
+          domain: verifyDomain,
+          acceptAuthAddress: true // Accept both custody and auth address signatures
         });
         
-        console.log('🔍 Verify result:', verifyResult);
+        console.log('🔍 Verify result:', {
+          success: verifyResult.success,
+          fid: verifyResult.fid,
+          isError: verifyResult.isError,
+          error: verifyResult.error?.message
+        });
         
         if (!verifyResult.success) {
           console.warn('❌ AuthKit signature verification failed:', verifyResult);
           return NextResponse.json({
             success: false,
             error: 'Invalid Farcaster signature',
-            details: 'Signature verification failed'
+            details: verifyResult.error?.message || 'Signature verification failed'
           }, { status: 401 });
         }
         
-        // Extract verified FID from the message
+        // Extract verified FID from the verification result
         fid = verifyResult.fid || body.authKitData.fid;
         username = body.authKitData.username || null;
         
