@@ -363,6 +363,7 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
             case 'farcaster_like': return '❤️';
             case 'farcaster_recast': return '🔄';
             case 'farcaster_comment': return '💬';
+            case 'farcaster_like_recast': return '⚡';
             case 'farcaster_engagement': return '🎯';
             default: return '🎯';
           }
@@ -373,6 +374,7 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
             case 'farcaster_like': return 'Like the cast';
             case 'farcaster_recast': return 'Recast the post';
             case 'farcaster_comment': return 'Comment on the cast';
+            case 'farcaster_like_recast': return 'Like and Recast!';
             case 'farcaster_engagement': return 'Like, Recast, and Comment!';
             default: return 'Complete action';
           }
@@ -691,6 +693,8 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
         return ['1. Open the cast below', '2. Recast the post', '3. Come back and tap "Verify & Claim"'];
       case 'farcaster_comment':
         return ['1. Open the cast below', '2. Leave a comment', '3. Come back and tap "Verify & Claim"'];
+      case 'farcaster_like_recast':
+        return ['1. Open the cast below', '2. Like AND Recast', '3. Come back and tap "Verify & Claim"'];
       case 'farcaster_engagement':
         return ['1. Open the cast below', '2. Like, Recast, AND Comment', '3. Come back and tap "Verify & Claim"'];
       default:

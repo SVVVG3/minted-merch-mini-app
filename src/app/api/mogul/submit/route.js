@@ -12,7 +12,7 @@ import { verifyFarcasterBounty } from '@/lib/farcasterBountyVerification';
 import { generateClaimSignature, getDefaultClaimDeadline } from '@/lib/claimSignatureService';
 
 // Interaction bounty types
-const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'];
+const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'];
 
 export async function POST(request) {
   try {

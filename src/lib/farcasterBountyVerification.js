@@ -315,6 +315,77 @@ export async function verifyCommentBounty(ambassadorFid, castHash, castAuthorFid
 }
 
 /**
+ * Verify if an ambassador completed like + recast actions (no comment required)
+ * @param {number} ambassadorFid - Ambassador's Farcaster ID
+ * @param {string} castHash - Target cast hash (0x...)
+ * @param {number} castAuthorFid - Target cast author's FID
+ * @returns {Promise<{verified: boolean, error?: string, details?: object}>}
+ */
+export async function verifyLikeRecastBounty(ambassadorFid, castHash, castAuthorFid) {
+  try {
+    console.log(`🎯 Verifying like + recast for FID ${ambassadorFid} on cast ${castHash}`);
+
+    if (!isNeynarAvailable()) {
+      return {
+        verified: false,
+        error: 'Neynar API not configured'
+      };
+    }
+
+    // Run both verifications in parallel
+    const [likeResult, recastResult] = await Promise.all([
+      verifyLikeBounty(ambassadorFid, castHash, castAuthorFid),
+      verifyRecastBounty(ambassadorFid, castHash, castAuthorFid)
+    ]);
+
+    // Check which actions are missing
+    const missingActions = [];
+    if (!likeResult.verified) missingActions.push('like');
+    if (!recastResult.verified) missingActions.push('recast');
+
+    if (missingActions.length > 0) {
+      console.log(`❌ FID ${ambassadorFid} missing actions: ${missingActions.join(', ')}`);
+      return {
+        verified: false,
+        error: `Please complete all actions. Missing: ${missingActions.join(', ')} the cast.`,
+        details: {
+          ambassadorFid,
+          castHash,
+          castAuthorFid,
+          completed: {
+            like: likeResult.verified,
+            recast: recastResult.verified
+          },
+          missing: missingActions
+        }
+      };
+    }
+
+    console.log(`✅ FID ${ambassadorFid} completed like + recast on cast ${castHash}`);
+    return {
+      verified: true,
+      details: {
+        ambassadorFid,
+        castHash,
+        castAuthorFid,
+        completed: {
+          like: true,
+          recast: true
+        },
+        verifiedAt: new Date().toISOString()
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ Error verifying like + recast bounty:', error);
+    return {
+      verified: false,
+      error: `Verification failed: ${error.message}`
+    };
+  }
+}
+
+/**
  * Verify if an ambassador completed ALL engagement actions (like + recast + comment)
  * @param {number} ambassadorFid - Ambassador's Farcaster ID
  * @param {string} castHash - Target cast hash (0x...)
@@ -418,6 +489,9 @@ export async function verifyFarcasterBounty(bountyType, ambassadorFid, castHash,
     
     case 'farcaster_comment':
       return await verifyCommentBounty(ambassadorFid, castHash, castAuthorFid);
+    
+    case 'farcaster_like_recast':
+      return await verifyLikeRecastBounty(ambassadorFid, castHash, castAuthorFid);
     
     case 'farcaster_engagement':
       return await verifyAllEngagementBounty(ambassadorFid, castHash, castAuthorFid);

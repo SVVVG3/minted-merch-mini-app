@@ -6,7 +6,7 @@ import { sendBatchNotificationWithNeynar, sendNotificationWithNeynar } from './n
 import { supabaseAdmin } from './supabase.js';
 
 // Interaction bounty types - these go to Merch Moguls
-const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'];
+const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'];
 
 /**
  * Get all active ambassadors' FIDs

@@ -444,7 +444,7 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
       {visibleBounties.map((bounty) => {
         const availableSlots = bounty.maxCompletions - bounty.currentCompletions;
         const submittable = canSubmit(bounty);
-        const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(bounty.bountyType);
+        const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'].includes(bounty.bountyType);
 
         return (
           <div
@@ -491,6 +491,12 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
                           <span className="inline-flex items-center gap-1.5 text-gray-700">
                             <span className="text-lg">💬</span>
                             <span className="font-medium">Comment on cast</span>
+                          </span>
+                        )}
+                        {bounty.bountyType === 'farcaster_like_recast' && (
+                          <span className="inline-flex items-center gap-1.5 text-gray-700">
+                            <span className="text-lg">⚡</span>
+                            <span className="font-medium">Like + Recast</span>
                           </span>
                         )}
                         {bounty.bountyType === 'farcaster_engagement' && (
@@ -1227,7 +1233,7 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(bounty.bountyType);
+  const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'].includes(bounty.bountyType);
 
   const handleOpenCast = () => {
     if (bounty.targetCastUrl) {
@@ -1372,6 +1378,12 @@ function SubmitBountyModal({ bounty, onClose, onSuccess, isInFarcaster }) {
                     <>
                       <span className="text-xl">💬</span>
                       <span>Comment on the cast, then click submit below!</span>
+                    </>
+                  )}
+                  {bounty.bountyType === 'farcaster_like_recast' && (
+                    <>
+                      <span className="text-xl">⚡</span>
+                      <span>Like AND Recast the cast, then click submit below!</span>
                     </>
                   )}
                   {bounty.bountyType === 'farcaster_engagement' && (

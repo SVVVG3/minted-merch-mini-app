@@ -81,7 +81,7 @@ export const GET = withAdminAuth(async (request) => {
     const enrichedPayouts = payouts.map(payout => {
       const isMogulPayout = !payout.ambassador_id && payout.bounty_submissions?.ambassador_fid;
       const bountyType = payout.bounty_submissions?.bounties?.bounty_type || 'custom';
-      const isInteractionBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(bountyType);
+      const isInteractionBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'].includes(bountyType);
       
       if (isMogulPayout) {
         const mogulProfile = mogulProfiles[payout.bounty_submissions.ambassador_fid];

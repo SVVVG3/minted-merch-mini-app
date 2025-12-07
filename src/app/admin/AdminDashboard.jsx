@@ -5283,7 +5283,7 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
     if (!url.trim()) return;
 
     // Only fetch for Farcaster engagement bounties
-    if (!['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(formData.bountyType)) {
+    if (!['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'].includes(formData.bountyType)) {
       return;
     }
 
@@ -5332,7 +5332,7 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
     }
 
     // Farcaster engagement bounties have different requirements
-    const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(formData.bountyType);
+    const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'].includes(formData.bountyType);
     
     // Auto-populate description for Farcaster bounties if empty
     if (isFarcasterBounty && !formData.description.trim()) {
@@ -5340,6 +5340,7 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
         'farcaster_like': 'Like the Farcaster cast',
         'farcaster_recast': 'Recast the Farcaster post',
         'farcaster_comment': 'Comment on the Farcaster cast',
+        'farcaster_like_recast': 'Like and Recast the Farcaster cast',
         'farcaster_engagement': 'Like, Recast, and Comment on the Farcaster cast'
       };
       formData.description = autoDescriptions[formData.bountyType];
@@ -5494,6 +5495,16 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
                 <label className="flex items-center">
                   <input
                     type="radio"
+                    value="farcaster_like_recast"
+                    checked={formData.bountyType === 'farcaster_like_recast'}
+                    onChange={(e) => setFormData({...formData, bountyType: e.target.value})}
+                    className="mr-2"
+                  />
+                  <span className="text-sm">⚡ Like + Recast (Auto-Verified)</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
                     value="farcaster_engagement"
                     checked={formData.bountyType === 'farcaster_engagement'}
                     onChange={(e) => setFormData({...formData, bountyType: e.target.value})}
@@ -5507,6 +5518,8 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
                   ? 'Ambassadors submit proof links that require manual admin review.' 
                   : formData.bountyType === 'farcaster_engagement'
                   ? 'Maximum engagement! Ambassadors must like, recast, AND comment on the cast. All verified instantly via Neynar API.'
+                  : formData.bountyType === 'farcaster_like_recast'
+                  ? 'Ambassadors must like AND recast the cast. Both verified instantly via Neynar API.'
                   : 'Ambassadors complete the action on Farcaster, then click submit for instant verification via Neynar API.'}
               </p>
             </div>
@@ -5527,22 +5540,22 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description {!['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(formData.bountyType) && '*'}
+                Description {!['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'].includes(formData.bountyType) && '*'}
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                placeholder={['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(formData.bountyType) 
+                placeholder={['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'].includes(formData.bountyType) 
                   ? "Auto-generated based on bounty type (or add custom description)..." 
                   : "General overview of the bounty..."}
                 rows={3}
-                required={!['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(formData.bountyType)}
+                required={!['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'].includes(formData.bountyType)}
               />
             </div>
 
             {/* Cast URL field for Farcaster bounties */}
-            {['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(formData.bountyType) && (
+            {['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'].includes(formData.bountyType) && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Cast URL *

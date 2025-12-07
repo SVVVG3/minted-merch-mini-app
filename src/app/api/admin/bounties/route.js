@@ -91,7 +91,7 @@ export const POST = withAdminAuth(async (request) => {
     } = await request.json();
 
     const adminFid = request.adminAuth?.fid;
-    const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'].includes(bountyType);
+    const isFarcasterBounty = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'].includes(bountyType);
 
     // Validation
     if (!title || !description) {
@@ -149,6 +149,9 @@ export const POST = withAdminAuth(async (request) => {
       if (bountyType === 'farcaster_engagement') {
         finalRequirements = `Like, recast, AND comment on the specified Farcaster cast. All three actions are required and will be automatically verified.`;
         finalProofRequirements = `Click submit after you complete all three actions (like + recast + comment). Verification is instant via Neynar API.`;
+      } else if (bountyType === 'farcaster_like_recast') {
+        finalRequirements = `Like AND recast the specified Farcaster cast. Both actions are required and will be automatically verified.`;
+        finalProofRequirements = `Click submit after you complete both actions (like + recast). Verification is instant via Neynar API.`;
       } else {
         const actionMap = {
           'farcaster_like': 'like',

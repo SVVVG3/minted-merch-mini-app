@@ -9,7 +9,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { checkMogulStatus, getMogulSubmissionCount } from '@/lib/mogulHelpers';
 
 // Interaction bounty types
-const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement'];
+const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'];
 
 export async function GET(request) {
   try {

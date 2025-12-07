@@ -134,7 +134,7 @@ export async function getMogulProfile(fid) {
       .from('bounty_submissions')
       .select('id, status, bounty:bounties!inner(reward_tokens, bounty_type)')
       .eq('ambassador_fid', fid)
-      .in('bounty.bounty_type', ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_engagement']);
+      .in('bounty.bounty_type', ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement']);
 
     const completedBounties = submissions?.filter(s => s.status === 'approved').length || 0;
     const pendingBounties = submissions?.filter(s => s.status === 'pending').length || 0;
