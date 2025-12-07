@@ -136,7 +136,12 @@ export function useFarcaster() {
         isAuthKit: true,
       });
     } else if (!isInFarcaster && !isAuthKitAuthenticated) {
-      setUser(null);
+      // Only clear user if we DON'T have a valid session token
+      // (user might be restored from token after page reload)
+      const storedToken = typeof localStorage !== 'undefined' ? localStorage.getItem('fc_session_token') : null;
+      if (!storedToken) {
+        setUser(null);
+      }
     }
   }, [isInFarcaster, isAuthKitAuthenticated, authKitProfile]);
 
@@ -277,12 +282,13 @@ export function useFarcaster() {
   }, [isInFarcaster, isAuthKitAuthenticated, authKitProfile?.fid, authKitData, validSignature, sessionToken]);
   
   // Load session token from localStorage on mount (for desktop/AuthKit)
+  // AND restore user from token if AuthKit doesn't have profile yet
   useEffect(() => {
     // Don't load stored token for Mini App - always fetch fresh
     if (isInFarcaster) return;
     
     const storedToken = localStorage.getItem('fc_session_token');
-    if (storedToken && !sessionToken) {
+    if (storedToken) {
       try {
         const parts = storedToken.split('.');
         if (parts.length === 3) {
@@ -290,9 +296,27 @@ export function useFarcaster() {
           const expiresAt = payload.exp * 1000;
           
           if (expiresAt > Date.now()) {
-            setSessionToken(storedToken);
+            // Token is valid
+            if (!sessionToken) {
+              setSessionToken(storedToken);
+            }
+            
+            // IMPORTANT: If AuthKit doesn't have the user yet but we have a valid token,
+            // restore user from the token payload (this happens after page reload)
+            if (!user && payload.fid) {
+              console.log('🔄 Restoring user from session token:', payload.fid);
+              setUser({
+                fid: parseInt(payload.fid),
+                username: payload.username || null,
+                displayName: payload.username || null,
+                pfpUrl: null, // Will be fetched when profile loads
+                isAuthKit: true,
+                restoredFromToken: true
+              });
+            }
           } else {
             localStorage.removeItem('fc_session_token');
+            setSessionToken(null);
           }
         } else {
           localStorage.removeItem('fc_session_token');
@@ -301,7 +325,7 @@ export function useFarcaster() {
         localStorage.removeItem('fc_session_token');
       }
     }
-  }, [isInFarcaster, sessionToken]);
+  }, [isInFarcaster, sessionToken, user]);
 
   // Memoize callback functions to prevent unnecessary re-renders
   const getFid = useCallback(() => user?.fid, [user?.fid]);
