@@ -589,7 +589,10 @@ Complete the mission and claim yours 👇`;
       {/* Re-check button */}
       <div className="px-4 mt-3">
         <button
-          onClick={checkStatus}
+          onClick={() => {
+            triggerHaptic('light', isInFarcaster);
+            checkStatus();
+          }}
           disabled={checking}
           className="w-full bg-gray-800 hover:bg-gray-700 text-white py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50"
         >
