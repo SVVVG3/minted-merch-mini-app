@@ -273,6 +273,35 @@ export async function POST(request) {
       console.log(`📊 Bounty completion count updated: ${bounty.current_completions} → ${bounty.current_completions + 1}`);
     }
 
+    // CHECK IF MOGUL IS ALSO AN AMBASSADOR - Update their stats if so
+    const { data: ambassador, error: ambassadorError } = await supabaseAdmin
+      .from('ambassadors')
+      .select('id, total_earned_tokens, total_bounties_completed')
+      .eq('fid', fid)
+      .eq('is_active', true)
+      .single();
+
+    if (!ambassadorError && ambassador) {
+      // Mogul is also an ambassador - update their stats
+      const newTotalEarned = (ambassador.total_earned_tokens || 0) + bounty.reward_tokens;
+      const newBountiesCompleted = (ambassador.total_bounties_completed || 0) + 1;
+
+      const { error: ambassadorUpdateError } = await supabaseAdmin
+        .from('ambassadors')
+        .update({
+          total_earned_tokens: newTotalEarned,
+          total_bounties_completed: newBountiesCompleted,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', ambassador.id);
+
+      if (ambassadorUpdateError) {
+        console.error('❌ Error updating ambassador stats:', ambassadorUpdateError);
+      } else {
+        console.log(`✅ Ambassador stats updated for FID ${fid}: total_earned=${newTotalEarned}, bounties_completed=${newBountiesCompleted}`);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
