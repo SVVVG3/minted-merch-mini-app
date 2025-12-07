@@ -6,6 +6,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { triggerHaptic } from '@/lib/haptics';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Link from 'next/link';
+import Image from 'next/image';
 
 // Airdrop contract ABI (just the function we need)
 const AIRDROP_ABI = [
@@ -161,20 +162,30 @@ export default function FollowPageClient() {
     }
   };
 
-  // Add mini app handler
+  // Add mini app handler with timeout fallback
   const handleAddApp = async () => {
     if (addingApp) return; // Prevent double-clicks
     triggerHaptic('light', isInFarcaster);
     
     if (isInFarcaster && sdk?.actions?.addFrame) {
       setAddingApp(true);
+      
+      // Safety timeout - reset state after 10 seconds if SDK hangs
+      const timeoutId = setTimeout(() => {
+        console.log('Add frame timeout - resetting state');
+        setAddingApp(false);
+        checkStatus(); // Re-check status
+      }, 10000);
+      
       try {
         const result = await sdk.actions.addFrame();
         console.log('Add frame result:', result);
+        clearTimeout(timeoutId);
         // Re-check status after adding
         setTimeout(() => checkStatus(), 1000);
       } catch (err) {
         console.error('Error adding frame:', err);
+        clearTimeout(timeoutId);
         // User may have dismissed - that's okay
       } finally {
         setAddingApp(false);
@@ -182,36 +193,50 @@ export default function FollowPageClient() {
     }
   };
 
-  // Enable notifications handler
+  // Enable notifications handler with timeout fallback
   const handleEnableNotifications = async () => {
     if (enablingNotifications) return; // Prevent double-clicks
     triggerHaptic('light', isInFarcaster);
     
+    setEnablingNotifications(true);
+    
+    // Safety timeout - reset state after 10 seconds if SDK hangs
+    const timeoutId = setTimeout(() => {
+      console.log('Notifications timeout - resetting state');
+      setEnablingNotifications(false);
+      checkStatus(); // Re-check status
+    }, 10000);
+    
     if (isInFarcaster && sdk?.actions?.requestNotificationPermission) {
-      setEnablingNotifications(true);
       try {
         const result = await sdk.actions.requestNotificationPermission();
         console.log('Notification permission result:', result);
+        clearTimeout(timeoutId);
         // Re-check status after enabling
         setTimeout(() => checkStatus(), 1000);
       } catch (err) {
         console.error('Error enabling notifications:', err);
+        clearTimeout(timeoutId);
         // User may have dismissed - that's okay
       } finally {
         setEnablingNotifications(false);
       }
     } else if (isInFarcaster && sdk?.actions?.addFrame) {
       // Fallback to addFrame if requestNotificationPermission not available
-      setEnablingNotifications(true);
       try {
         const result = await sdk.actions.addFrame();
         console.log('Add frame result (for notifications):', result);
+        clearTimeout(timeoutId);
         setTimeout(() => checkStatus(), 1000);
       } catch (err) {
         console.error('Error with addFrame for notifications:', err);
+        clearTimeout(timeoutId);
       } finally {
         setEnablingNotifications(false);
       }
+    } else {
+      clearTimeout(timeoutId);
+      setEnablingNotifications(false);
     }
   };
 
@@ -362,11 +387,11 @@ Complete the mission and claim yours 👇`;
   if (showSuccess) {
     return (
       <div className="min-h-screen bg-black text-white p-4">
-        <div className="max-w-md mx-auto pt-8">
+        <div className="max-w-md mx-auto pt-1">
           {/* Share Button - Top */}
           <button
             onClick={handleShare}
-            className="w-full bg-[#6A3CFF] hover:bg-[#5930D9] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors mb-6"
+            className="w-full bg-[#6A3CFF] hover:bg-[#5930D9] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors mb-3"
           >
             <svg style={{ width: '20px', height: '20px' }} viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
@@ -374,16 +399,24 @@ Complete the mission and claim yours 👇`;
             Share on Farcaster
           </button>
 
-          {/* Staking Info Card */}
-          <div className="border-2 border-[#3eb489]/30 rounded-2xl p-6 mb-6 text-center bg-gradient-to-b from-[#3eb489]/10 to-transparent">
-            <h2 className="text-xl font-bold text-[#3eb489] mb-4">Where Staking Meets Merch!</h2>
-            <p className="text-gray-300 text-sm mb-4">
+          {/* Mission Complete Info - Now first */}
+          <div className="border-2 border-[#3eb489]/30 rounded-2xl p-4 mb-3 text-center">
+            <h2 className="text-xl font-bold text-[#3eb489] mb-2">Mission Complete!</h2>
+            <p className="text-gray-300 text-sm">
+              You&apos;ve claimed <span className="text-[#3eb489] font-bold">{formatNumber(10000)} $mintedmerch</span> - thank you for following Minted Merch!
+            </p>
+          </div>
+
+          {/* Staking Info Card - Now second */}
+          <div className="border-2 border-[#3eb489]/30 rounded-2xl p-4 mb-3 text-center bg-gradient-to-b from-[#3eb489]/10 to-transparent">
+            <h2 className="text-lg font-bold text-[#3eb489] mb-2">Where Staking Meets Merch!</h2>
+            <p className="text-gray-300 text-xs mb-3">
               Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a{' '}
               <span className="text-[#3eb489] font-semibold">Merch Mogul</span>{' '}
               and unlock: exclusive collab partnerships, the ability to place custom orders, 
               group chat access, and 15% off store wide.
             </p>
-            <p className="text-white text-xs font-bold mb-4">
+            <p className="text-white text-xs font-bold mb-3">
               SPIN-TO-CLAIM ONCE PER DAY FOR A CHANCE TO WIN THE{' '}
               <span className="text-[#3eb489]">MONTHLY MEGA MERCH PACK JACKPOT</span>,{' '}
               ONE OF FOUR <span className="text-[#3eb489]">MINI MERCH PACKS</span>,{' '}
@@ -392,24 +425,16 @@ Complete the mission and claim yours 👇`;
             </p>
             <Link
               href="/stake"
-              className="inline-block bg-[#3eb489] hover:bg-[#359970] text-white font-bold py-3 px-8 rounded-xl transition-colors"
+              className="inline-block bg-[#3eb489] hover:bg-[#359970] text-white font-bold py-2.5 px-6 rounded-xl transition-colors text-sm"
             >
               Stake Now →
             </Link>
           </div>
 
-          {/* Claim Complete Info */}
-          <div className="border-2 border-[#3eb489]/30 rounded-2xl p-6 mb-6 text-center">
-            <h2 className="text-xl font-bold text-[#3eb489] mb-2">Mission Complete!</h2>
-            <p className="text-gray-300">
-              You&apos;ve claimed <span className="text-[#3eb489] font-bold">{formatNumber(10000)} $mintedmerch</span> - thank you for following Minted Merch!
-            </p>
-          </div>
-
           {/* Explore Shop Button */}
           <Link
             href="/"
-            className="block w-full bg-gray-800 hover:bg-gray-700 text-white py-4 rounded-xl font-bold transition-colors text-center"
+            className="block w-full bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl font-bold transition-colors text-center"
           >
             Explore Shop
           </Link>
@@ -608,9 +633,61 @@ Complete the mission and claim yours 👇`;
         )}
       </div>
 
+      {/* About Minted Merch Section */}
+      <div className="mx-4 mt-4 border border-gray-800 rounded-xl p-4 space-y-3">
+        {/* Spinner Logo */}
+        <div className="flex justify-center">
+          <Image
+            src="/MintedMerchSpinnerLogo.png"
+            alt="Minted Merch"
+            width={180}
+            height={180}
+            className="object-contain"
+          />
+        </div>
+
+        <div className="space-y-2 text-gray-300 text-center">
+          <p className="text-base font-bold text-white">
+            Where Tokens Meet Merch
+          </p>
+
+          <div className="space-y-1.5 text-left">
+            <div className="flex items-start gap-2">
+              <span className="text-xs">✅</span>
+              <span className="text-xs">Exclusive collabs & drops</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-xs">✅</span>
+              <span className="text-xs">Shop with 1200+ coins across 20+ chains</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-xs">✅</span>
+              <span className="text-xs">Free daily spins w/ leaderboard & raffles</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-xs">✅</span>
+              <span className="text-xs">Win $mintedmerch, gift cards, & merch</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-3 bg-gray-900 rounded-lg space-y-1.5">
+          <h3 className="text-sm font-semibold text-white text-center">
+            Become a Merch Mogul 🤌
+          </h3>
+          <ul className="text-xs text-gray-400 space-y-0.5 ml-3">
+            <li>• Exclusive Collab Partner Access</li>
+            <li>• Custom Merch Orders</li>
+            <li>• Group Chat Access</li>
+            <li>• 15% off store wide</li>
+            <li>• Ambassador Program</li>
+          </ul>
+        </div>
+      </div>
+
       {/* Error display */}
       {error && (
-        <div className="px-4 pb-4">
+        <div className="px-4 py-4">
           <div className="bg-red-900/50 border border-red-500/50 rounded-xl p-3">
             <p className="text-sm text-red-300">{error}</p>
           </div>
