@@ -302,17 +302,42 @@ export function useFarcaster() {
             }
             
             // IMPORTANT: If AuthKit doesn't have the user yet but we have a valid token,
-            // restore user from the token payload (this happens after page reload)
+            // restore user from the token payload AND fetch full profile from database
             if (!user && payload.fid) {
               console.log('🔄 Restoring user from session token:', payload.fid);
+              
+              // Set basic user info immediately
               setUser({
                 fid: parseInt(payload.fid),
                 username: payload.username || null,
                 displayName: payload.username || null,
-                pfpUrl: null, // Will be fetched when profile loads
+                pfpUrl: null,
                 isAuthKit: true,
                 restoredFromToken: true
               });
+              
+              // Fetch full profile from database to get pfpUrl
+              fetch(`/api/profile?fid=${payload.fid}`, {
+                headers: {
+                  'Authorization': `Bearer ${storedToken}`
+                }
+              })
+                .then(res => res.json())
+                .then(data => {
+                  if (data.success && data.profile) {
+                    console.log('✅ Fetched profile from database:', data.profile.username);
+                    setUser(prev => ({
+                      ...prev,
+                      username: data.profile.username || prev?.username,
+                      displayName: data.profile.display_name || prev?.displayName,
+                      pfpUrl: data.profile.pfp_url || null,
+                      bio: data.profile.bio || null
+                    }));
+                  }
+                })
+                .catch(err => {
+                  console.error('Error fetching profile:', err);
+                });
             }
           } else {
             localStorage.removeItem('fc_session_token');
