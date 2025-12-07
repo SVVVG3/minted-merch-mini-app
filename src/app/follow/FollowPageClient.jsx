@@ -378,19 +378,19 @@ Complete the mission and claim yours 👇`;
   // Main task list view
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header with Logo Image */}
-      <div className="text-center pt-2 pb-1 px-4">
+      {/* Header with Logo Image - no padding */}
+      <div className="text-center px-4">
         <img 
           src="/MintedMerchMissionsLogo.png" 
           alt="Follow Mission" 
-          className="mx-auto h-28 object-contain mb-1"
+          className="mx-auto h-20 object-contain"
         />
       </div>
 
       {/* Reward display - single line */}
-      <div className="mx-4 mb-6">
-        <div className="bg-gradient-to-r from-[#3eb489]/20 to-[#3eb489]/10 border border-[#3eb489]/30 rounded-2xl p-4 text-center">
-          <p className="text-xl font-bold">
+      <div className="mx-4 mb-2">
+        <div className="bg-gradient-to-r from-[#3eb489]/20 to-[#3eb489]/10 border border-[#3eb489]/30 rounded-xl p-2.5 text-center">
+          <p className="text-lg font-bold">
             <span className="text-gray-400">Reward: </span>
             <span className="text-[#3eb489]">{formatNumber(10000)} $mintedmerch</span>
           </p>
@@ -398,29 +398,29 @@ Complete the mission and claim yours 👇`;
       </div>
 
       {/* Task list */}
-      <div className="px-4 space-y-3">
+      <div className="px-4 space-y-2">
         {/* Task 1: Add Mini App */}
-        <div className={`rounded-xl p-4 border-2 transition-all ${
+        <div className={`rounded-lg p-2.5 border-2 transition-all ${
           tasks.hasAddedApp 
             ? 'bg-green-900/20 border-green-500/50' 
             : 'bg-gray-900 border-gray-700'
         }`}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            <div className="flex items-center gap-2.5">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm ${
                 tasks.hasAddedApp ? 'bg-green-500' : 'bg-gray-700'
               }`}>
                 {tasks.hasAddedApp ? '✓' : '1'}
               </div>
               <div>
-                <p className="font-semibold">Add Mini App</p>
-                <p className="text-sm text-gray-400">Add to your Farcaster client</p>
+                <p className="font-semibold text-sm">Add Mini App</p>
+                <p className="text-xs text-gray-400">Add to your Farcaster client</p>
               </div>
             </div>
             {!tasks.hasAddedApp && isInFarcaster && (
               <button
                 onClick={handleAddApp}
-                className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+                className="bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-1.5 rounded-lg font-medium text-xs transition-colors"
               >
                 Add
               </button>
@@ -429,27 +429,27 @@ Complete the mission and claim yours 👇`;
         </div>
 
         {/* Task 2: Enable Notifications */}
-        <div className={`rounded-xl p-4 border-2 transition-all ${
+        <div className={`rounded-lg p-2.5 border-2 transition-all ${
           tasks.hasNotifications 
             ? 'bg-green-900/20 border-green-500/50' 
             : 'bg-gray-900 border-gray-700'
         }`}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            <div className="flex items-center gap-2.5">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm ${
                 tasks.hasNotifications ? 'bg-green-500' : 'bg-gray-700'
               }`}>
                 {tasks.hasNotifications ? '✓' : '2'}
               </div>
               <div>
-                <p className="font-semibold">Enable Notifications</p>
-                <p className="text-sm text-gray-400">Turn on notifications</p>
+                <p className="font-semibold text-sm">Enable Notifications</p>
+                <p className="text-xs text-gray-400">Turn on notifications</p>
               </div>
             </div>
             {!tasks.hasNotifications && isInFarcaster && (
               <button
                 onClick={handleAddApp}
-                className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+                className="bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-1.5 rounded-lg font-medium text-xs transition-colors"
               >
                 Enable
               </button>
@@ -458,27 +458,27 @@ Complete the mission and claim yours 👇`;
         </div>
 
         {/* Task 3: Follow @mintedmerch */}
-        <div className={`rounded-xl p-4 border-2 transition-all ${
+        <div className={`rounded-lg p-2.5 border-2 transition-all ${
           tasks.isFollowingAccount 
             ? 'bg-green-900/20 border-green-500/50' 
             : 'bg-gray-900 border-gray-700'
         }`}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            <div className="flex items-center gap-2.5">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm ${
                 tasks.isFollowingAccount ? 'bg-green-500' : 'bg-gray-700'
               }`}>
                 {tasks.isFollowingAccount ? '✓' : '3'}
               </div>
               <div>
-                <p className="font-semibold">Follow @mintedmerch</p>
-                <p className="text-sm text-gray-400">Follow our main account</p>
+                <p className="font-semibold text-sm">Follow @mintedmerch</p>
+                <p className="text-xs text-gray-400">Follow our main account</p>
               </div>
             </div>
             {!tasks.isFollowingAccount && (
               <button
                 onClick={handleFollowAccount}
-                className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+                className="bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-1.5 rounded-lg font-medium text-xs transition-colors"
               >
                 Follow
               </button>
@@ -487,27 +487,27 @@ Complete the mission and claim yours 👇`;
         </div>
 
         {/* Task 4: Follow /mintedmerch channel */}
-        <div className={`rounded-xl p-4 border-2 transition-all ${
+        <div className={`rounded-lg p-2.5 border-2 transition-all ${
           tasks.isFollowingChannel 
             ? 'bg-green-900/20 border-green-500/50' 
             : 'bg-gray-900 border-gray-700'
         }`}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            <div className="flex items-center gap-2.5">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm ${
                 tasks.isFollowingChannel ? 'bg-green-500' : 'bg-gray-700'
               }`}>
                 {tasks.isFollowingChannel ? '✓' : '4'}
               </div>
               <div>
-                <p className="font-semibold">Follow /mintedmerch</p>
-                <p className="text-sm text-gray-400">Join our channel</p>
+                <p className="font-semibold text-sm">Follow /mintedmerch</p>
+                <p className="text-xs text-gray-400">Join our channel</p>
               </div>
             </div>
             {!tasks.isFollowingChannel && (
               <button
                 onClick={handleFollowChannel}
-                className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+                className="bg-[#3eb489] hover:bg-[#359970] text-white px-3 py-1.5 rounded-lg font-medium text-xs transition-colors"
               >
                 Join
               </button>
@@ -517,28 +517,28 @@ Complete the mission and claim yours 👇`;
       </div>
 
       {/* Re-check button */}
-      <div className="px-4 mt-6">
+      <div className="px-4 mt-3">
         <button
           onClick={checkStatus}
           disabled={checking}
-          className="w-full bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl font-medium transition-colors disabled:opacity-50"
+          className="w-full bg-gray-800 hover:bg-gray-700 text-white py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50"
         >
           {checking ? 'Checking...' : 'Refresh Status'}
         </button>
       </div>
 
       {/* Claim button */}
-      <div className="px-4 mt-4 pb-8">
+      <div className="px-4 mt-2 pb-4">
         {claimError && (
-          <div className="mb-4 bg-red-900/50 border border-red-500/50 rounded-xl p-3">
-            <p className="text-sm text-red-300">{claimError}</p>
+          <div className="mb-2 bg-red-900/50 border border-red-500/50 rounded-lg p-2">
+            <p className="text-xs text-red-300">{claimError}</p>
           </div>
         )}
 
         <button
           onClick={handleClaim}
           disabled={!allTasksCompleted || claiming || isClaimTxPending || isClaimConfirming}
-          className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
+          className={`w-full py-3 rounded-xl font-bold text-base transition-all ${
             allTasksCompleted
               ? 'bg-[#3eb489] hover:bg-[#359970] text-white'
               : 'bg-gray-700 text-gray-500 cursor-not-allowed'
@@ -546,7 +546,7 @@ Complete the mission and claim yours 👇`;
         >
           {claiming || isClaimTxPending || isClaimConfirming ? (
             <span className="flex items-center justify-center gap-2">
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               {isClaimConfirming ? 'Confirming...' : 'Claiming...'}
             </span>
           ) : allTasksCompleted ? (
@@ -557,7 +557,7 @@ Complete the mission and claim yours 👇`;
         </button>
 
         {!allTasksCompleted && (
-          <p className="text-center text-gray-500 text-sm mt-3">
+          <p className="text-center text-gray-500 text-xs mt-2">
             {4 - Object.values(tasks).filter(Boolean).length} task(s) remaining
           </p>
         )}
