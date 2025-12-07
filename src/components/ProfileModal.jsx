@@ -142,7 +142,7 @@ function WalletConnectSection({ setConnectedWallet, isInFarcaster }) {
 export function ProfileModal({ isOpen, onClose }) {
   const router = useRouter();
   const { user, isInFarcaster, getSessionToken, isReady } = useFarcaster();
-  const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod } = useWalletConnectContext();
+  const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod, disconnectWallet } = useWalletConnectContext();
   const { signOut: authKitSignOut } = useSignIn();
   const [profileData, setProfileData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -769,37 +769,56 @@ export function ProfileModal({ isOpen, onClose }) {
                 </div>
                 
                 {connectedWallet ? (
-                  <div className="flex items-center justify-between bg-white/50 rounded-lg p-3">
-                    <p className="font-mono text-sm text-blue-700 font-medium">
-                      {`${connectedWallet.slice(0, 6)}...${connectedWallet.slice(-4)}`}
-                    </p>
-                    <button
-                      onClick={async () => {
-                        try {
-                          const capabilities = await sdk.getCapabilities();
-                          if (capabilities.includes('haptics.impactOccurred')) {
-                            await sdk.haptics.impactOccurred('light');
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between bg-white/50 rounded-lg p-3">
+                      <p className="font-mono text-sm text-blue-700 font-medium">
+                        {`${connectedWallet.slice(0, 6)}...${connectedWallet.slice(-4)}`}
+                      </p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const capabilities = await sdk.getCapabilities();
+                            if (capabilities.includes('haptics.impactOccurred')) {
+                              await sdk.haptics.impactOccurred('light');
+                            }
+                          } catch (error) {
+                            console.log('Haptics not available:', error);
                           }
-                        } catch (error) {
-                          console.log('Haptics not available:', error);
-                        }
-                        
-                        try {
-                          await navigator.clipboard.writeText(connectedWallet);
-                          setCopySuccess(true);
-                          setTimeout(() => setCopySuccess(false), 2000);
-                        } catch (error) {
-                          console.error('Failed to copy:', error);
-                        }
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                        copySuccess 
-                          ? 'text-green-700 bg-green-100 border border-green-300' 
-                          : 'text-blue-700 bg-blue-100 hover:bg-blue-200 border border-blue-300'
-                      }`}
-                    >
-                      {copySuccess ? '✅ Copied!' : '📋 Copy'}
-                    </button>
+                          
+                          try {
+                            await navigator.clipboard.writeText(connectedWallet);
+                            setCopySuccess(true);
+                            setTimeout(() => setCopySuccess(false), 2000);
+                          } catch (error) {
+                            console.error('Failed to copy:', error);
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                          copySuccess 
+                            ? 'text-green-700 bg-green-100 border border-green-300' 
+                            : 'text-blue-700 bg-blue-100 hover:bg-blue-200 border border-blue-300'
+                        }`}
+                      >
+                        {copySuccess ? '✅ Copied!' : '📋 Copy'}
+                      </button>
+                    </div>
+                    
+                    {/* Disconnect button - only for WalletConnect connections (not mini app or dGEN1) */}
+                    {!isInFarcaster && connectionMethod === 'walletconnect' && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await disconnectWallet();
+                            setConnectedWallet(null);
+                          } catch (error) {
+                            console.error('Failed to disconnect:', error);
+                          }
+                        }}
+                        className="w-full px-3 py-2 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors"
+                      >
+                        Disconnect Wallet
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <WalletConnectSection 
