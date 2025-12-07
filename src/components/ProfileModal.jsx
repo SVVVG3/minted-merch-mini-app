@@ -803,22 +803,32 @@ export function ProfileModal({ isOpen, onClose }) {
                       </button>
                     </div>
                     
-                    {/* Disconnect button - only for WalletConnect connections (not mini app or dGEN1) */}
-                    {!isInFarcaster && connectionMethod === 'walletconnect' && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            await disconnectWallet();
-                            setConnectedWallet(null);
-                          } catch (error) {
-                            console.error('Failed to disconnect:', error);
-                          }
-                        }}
-                        className="w-full px-3 py-2 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors"
-                      >
-                        Disconnect Wallet
-                      </button>
-                    )}
+                    {/* Disconnect button - for manual connections (WalletConnect or browser extension, not mini app or dGEN1) */}
+                    {(() => {
+                      const userAgent = typeof window !== 'undefined' ? window.navigator?.userAgent?.toLowerCase() || '' : '';
+                      const isAndroid = userAgent.includes('android');
+                      const showDisconnect = !isInFarcaster && !isAndroid && (connectionMethod === 'walletconnect' || connectionMethod === 'ethereum');
+                      
+                      return showDisconnect ? (
+                        <button
+                          onClick={async () => {
+                            try {
+                              if (connectionMethod === 'walletconnect') {
+                                await disconnectWallet();
+                              }
+                              // For browser extensions, we can't truly disconnect, just clear local state
+                              setConnectedWallet(null);
+                              window.location.reload();
+                            } catch (error) {
+                              console.error('Failed to disconnect:', error);
+                            }
+                          }}
+                          className="w-full px-3 py-2 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors"
+                        >
+                          Disconnect Wallet
+                        </button>
+                      ) : null;
+                    })()}
                   </div>
                 ) : (
                   <WalletConnectSection 
