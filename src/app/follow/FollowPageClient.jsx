@@ -125,7 +125,13 @@ export default function FollowPageClient() {
   useEffect(() => {
     if (claimWriteError) {
       console.error('Claim error:', claimWriteError);
-      setClaimError(claimWriteError.message || 'Transaction failed');
+      // Clean error message for user rejection
+      if (claimWriteError.message?.includes('User rejected') || 
+          claimWriteError.message?.includes('rejected the request')) {
+        setClaimError('Transaction cancelled');
+      } else {
+        setClaimError(claimWriteError.message || 'Transaction failed');
+      }
       setClaiming(false);
     }
   }, [claimWriteError]);
@@ -243,9 +249,9 @@ export default function FollowPageClient() {
   const handleShare = async () => {
     triggerHaptic('light', isInFarcaster);
     
-    const shareText = `I just earned 10,000 $mintedmerch tokens for following @mintedmerch! 🎉
+    const shareText = `I just earned 10,000 $mintedmerch for following /mintedmerch & turning on notifications! 
 
-Complete the tasks and claim yours:`;
+Complete the mission and claim yours 👇`;
     const shareUrl = 'https://app.mintedmerch.shop/follow';
 
     // Mark as shared
@@ -312,36 +318,58 @@ Complete the tasks and claim yours:`;
   // Success state
   if (showSuccess) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="text-7xl mb-6">🎉</div>
-          <h1 className="text-3xl font-bold mb-4 text-[#3eb489]">Congratulations!</h1>
-          <p className="text-xl text-gray-300 mb-2">You earned</p>
-          <p className="text-4xl font-bold text-white mb-6">
-            {formatNumber(10000)} $mintedmerch
-          </p>
-          <p className="text-gray-400 mb-8">
-            Thank you for following Minted Merch! Your tokens have been claimed.
-          </p>
-          
-          <div className="space-y-4">
-            <button
-              onClick={handleShare}
-              className="w-full bg-[#6A3CFF] hover:bg-[#5930D9] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
-            >
-              <svg style={{ width: '20px', height: '20px' }} viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
-              </svg>
-              Share on Farcaster
-            </button>
-            
+      <div className="min-h-screen bg-black text-white p-4">
+        <div className="max-w-md mx-auto pt-8">
+          {/* Share Button - Top */}
+          <button
+            onClick={handleShare}
+            className="w-full bg-[#6A3CFF] hover:bg-[#5930D9] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors mb-6"
+          >
+            <svg style={{ width: '20px', height: '20px' }} viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
+            </svg>
+            Share on Farcaster
+          </button>
+
+          {/* Staking Info Card */}
+          <div className="border-2 border-[#3eb489]/30 rounded-2xl p-6 mb-6 text-center bg-gradient-to-b from-[#3eb489]/10 to-transparent">
+            <h2 className="text-xl font-bold text-[#3eb489] mb-4">Where Staking Meets Merch!</h2>
+            <p className="text-gray-300 text-sm mb-4">
+              Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a{' '}
+              <span className="text-[#3eb489] font-semibold">Merch Mogul</span>{' '}
+              and unlock: exclusive collab partnerships, the ability to place custom orders, 
+              group chat access, and 15% off store wide.
+            </p>
+            <p className="text-white text-xs font-bold mb-4">
+              SPIN-TO-CLAIM ONCE PER DAY FOR A CHANCE TO WIN THE{' '}
+              <span className="text-[#3eb489]">MONTHLY MEGA MERCH PACK JACKPOT</span>,{' '}
+              ONE OF FOUR <span className="text-[#3eb489]">MINI MERCH PACKS</span>,{' '}
+              THE <span className="text-[#3eb489]">1M $mintedmerch DAILY JACKPOT</span>{' '}
+              OR THE <span className="text-[#3eb489]">100K $mintedmerch BONUSES</span>!
+            </p>
             <Link
-              href="/"
-              className="block w-full bg-gray-800 hover:bg-gray-700 text-white py-4 rounded-xl font-bold transition-colors"
+              href="/stake"
+              className="inline-block bg-[#3eb489] hover:bg-[#359970] text-white font-bold py-3 px-8 rounded-xl transition-colors"
             >
-              Explore Shop
+              Stake Now →
             </Link>
           </div>
+
+          {/* Claim Complete Info */}
+          <div className="border-2 border-[#3eb489]/30 rounded-2xl p-6 mb-6 text-center">
+            <h2 className="text-xl font-bold text-[#3eb489] mb-2">Mission Complete!</h2>
+            <p className="text-gray-300">
+              You&apos;ve claimed <span className="text-[#3eb489] font-bold">{formatNumber(10000)} $mintedmerch</span> - thank you for following Minted Merch!
+            </p>
+          </div>
+
+          {/* Explore Shop Button */}
+          <Link
+            href="/"
+            className="block w-full bg-gray-800 hover:bg-gray-700 text-white py-4 rounded-xl font-bold transition-colors text-center"
+          >
+            Explore Shop
+          </Link>
         </div>
       </div>
     );
@@ -350,21 +378,21 @@ Complete the tasks and claim yours:`;
   // Main task list view
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <div className="text-center pt-8 pb-6 px-4">
-        <div className="text-5xl mb-4">🎁</div>
-        <h1 className="text-2xl font-bold mb-2">Earn 10,000 $mintedmerch!</h1>
-        <p className="text-gray-400 max-w-md mx-auto">
-          Complete all tasks below to claim your reward
-        </p>
+      {/* Header with Logo Image */}
+      <div className="text-center pt-6 pb-4 px-4">
+        <img 
+          src="/MintedMerchMissionsLogo.png" 
+          alt="Follow Mission" 
+          className="mx-auto h-28 object-contain mb-4"
+        />
       </div>
 
-      {/* Reward display */}
+      {/* Reward display - single line */}
       <div className="mx-4 mb-6">
-        <div className="bg-gradient-to-r from-[#3eb489]/20 to-[#3eb489]/10 border border-[#3eb489]/30 rounded-2xl p-6 text-center">
-          <p className="text-gray-400 text-sm mb-1">Reward</p>
-          <p className="text-3xl font-bold text-[#3eb489]">
-            {formatNumber(10000)} $mintedmerch
+        <div className="bg-gradient-to-r from-[#3eb489]/20 to-[#3eb489]/10 border border-[#3eb489]/30 rounded-2xl p-4 text-center">
+          <p className="text-xl font-bold">
+            <span className="text-gray-400">Reward: </span>
+            <span className="text-[#3eb489]">{formatNumber(10000)} $mintedmerch</span>
           </p>
         </div>
       </div>

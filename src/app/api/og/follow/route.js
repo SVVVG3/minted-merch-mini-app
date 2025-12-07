@@ -2,8 +2,34 @@ import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'nodejs';
 
+async function fetchImageAsDataUrl(imageUrl) {
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) throw new Error('Failed to fetch image');
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const contentType = response.headers.get('content-type') || 'image/png';
+    
+    return `data:${contentType};base64,${buffer.toString('base64')}`;
+  } catch (error) {
+    console.error('Error fetching image:', error);
+    return null;
+  }
+}
+
 export async function GET() {
   try {
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
+    
+    // Fetch the Follow Mission logo
+    let logoImageSrc = null;
+    try {
+      logoImageSrc = await fetchImageAsDataUrl(`${baseUrl}/MintedMerchMissionsLogo.png`);
+    } catch (error) {
+      console.error('Error fetching follow mission logo:', error);
+    }
+
     return new ImageResponse(
       (
         <div
@@ -31,32 +57,34 @@ export async function GET() {
             }}
           />
 
-          {/* Gift emoji */}
-          <div
-            style={{
-              fontSize: '120px',
-              marginBottom: '20px',
-              display: 'flex',
-            }}
-          >
-            🎁
-          </div>
+          {/* Logo Image */}
+          {logoImageSrc ? (
+            <img
+              src={logoImageSrc}
+              alt="Follow Mission"
+              style={{
+                maxWidth: '70%',
+                maxHeight: '45%',
+                objectFit: 'contain',
+                marginBottom: '30px',
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                fontSize: '56px',
+                fontWeight: 'bold',
+                color: '#ffffff',
+                textAlign: 'center',
+                marginBottom: '30px',
+                display: 'flex',
+              }}
+            >
+              Follow Mission
+            </div>
+          )}
 
-          {/* Main text */}
-          <div
-            style={{
-              fontSize: '56px',
-              fontWeight: 'bold',
-              color: '#ffffff',
-              textAlign: 'center',
-              marginBottom: '20px',
-              display: 'flex',
-            }}
-          >
-            Earn 10,000 $mintedmerch
-          </div>
-
-          {/* Subtitle */}
+          {/* Green subtitle text only */}
           <div
             style={{
               fontSize: '32px',
@@ -70,27 +98,6 @@ export async function GET() {
           >
             <span style={{ display: 'flex' }}>Follow @mintedmerch • Join /mintedmerch</span>
             <span style={{ display: 'flex', marginTop: '10px' }}>Enable Notifications • Claim Reward!</span>
-          </div>
-
-          {/* Minted Merch branding */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '40px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-            }}
-          >
-            <div
-              style={{
-                fontSize: '24px',
-                color: 'rgba(255, 255, 255, 0.6)',
-                display: 'flex',
-              }}
-            >
-              MINTED MERCH
-            </div>
           </div>
         </div>
       ),
@@ -117,10 +124,18 @@ export async function GET() {
             color: 'white',
           }}
         >
-          <div style={{ fontSize: 80, marginBottom: 20, display: 'flex' }}>🎁</div>
-          <div style={{ fontSize: 48, fontWeight: 'bold', display: 'flex' }}>Earn 10,000 $mintedmerch</div>
-          <div style={{ fontSize: 32, color: '#3eb489', marginTop: 20, display: 'flex' }}>
-            Follow & Claim Your Reward!
+          <div
+            style={{
+              fontSize: '32px',
+              color: '#3eb489',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+            }}
+          >
+            <span style={{ display: 'flex' }}>Follow @mintedmerch • Join /mintedmerch</span>
+            <span style={{ display: 'flex', marginTop: '10px' }}>Enable Notifications • Claim Reward!</span>
           </div>
         </div>
       ),

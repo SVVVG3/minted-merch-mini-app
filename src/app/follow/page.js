@@ -13,7 +13,7 @@ export const metadata = {
       version: 'next',
       imageUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/api/og/follow`,
       button: {
-        title: 'Earn 10K Tokens',
+        title: 'Complete Mission',
         action: {
           type: 'launch_frame',
           name: 'Minted Merch',
