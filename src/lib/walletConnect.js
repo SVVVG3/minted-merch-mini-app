@@ -124,7 +124,7 @@ export function shouldUseWalletConnect() {
 }
 
 // Connect wallet using WalletConnect with timeout
-export async function connectWallet(timeoutMs = 60000) {
+export async function connectWallet(timeoutMs = 15000) {
   try {
     const universalConnector = await getWalletConnect();
     if (!universalConnector) {
