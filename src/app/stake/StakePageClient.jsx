@@ -242,37 +242,45 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           </button>
           
           {/* Profile Button or Sign In */}
-          {getPfpUrl() ? (
+          {getFid() ? (
+            /* User is logged in - show profile button (with image if available, otherwise icon) */
             <button
               onClick={handleProfileClick}
               style={{
-                background: 'none',
+                background: getPfpUrl() ? 'none' : '#3eb489',
                 border: '2px solid #3eb489',
                 borderRadius: '50%',
                 padding: '0',
+                width: '44px',
+                height: '44px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
               }}
             >
-              <img 
-                src={getPfpUrl()} 
-                alt={getDisplayName() || getUsername() || 'Profile'}
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  objectFit: 'cover'
-                }}
-              />
+              {getPfpUrl() ? (
+                <img 
+                  src={getPfpUrl()} 
+                  alt={getDisplayName() || getUsername() || 'Profile'}
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    objectFit: 'cover'
+                  }}
+                />
+              ) : (
+                <span style={{ fontSize: '20px' }}>👤</span>
+              )}
             </button>
           ) : !isInFarcaster && isReady ? (
-            /* Show Sign In button when not in Farcaster and not signed in */
+            /* Not logged in on desktop - show Sign In button */
             <div style={{ width: '96px' }}>
               <SignInWithFarcaster />
             </div>
           ) : (
+            /* In Farcaster but user not loaded yet - show placeholder */
             <button
               onClick={handleProfileClick}
               style={{
