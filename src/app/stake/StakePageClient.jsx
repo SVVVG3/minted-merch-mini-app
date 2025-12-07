@@ -54,12 +54,14 @@ export function StakePageClient() {
       // 🔒 SECURITY: Get session token for authenticated request
       const sessionToken = getSessionToken();
       if (!sessionToken) {
-        console.log('⚠️ No session token available - showing default state');
-        setIsLoading(false);
+        // Keep loading state true - waiting for session token to be loaded from localStorage
+        // The effect will re-run when getSessionToken changes
+        console.log('⚠️ Waiting for session token...');
         return;
       }
 
       try {
+        setIsLoading(true);
         const response = await fetch(`/api/staking/user?fid=${fid}`, {
           headers: {
             'Authorization': `Bearer ${sessionToken}`
@@ -325,7 +327,7 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
         }} />
 
         {/* Enhanced Staking Stats */}
-        {isLoading && getFid() ? (
+        {(isLoading || (getFid() && !stakingData)) ? (
           <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
             Loading your staking data...
           </div>
@@ -333,26 +335,33 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           <div style={{
             backgroundColor: 'rgba(0,0,0,0.3)',
             borderRadius: '12px',
-            padding: '8px 16px',
-            marginBottom: '12px'
+            padding: '16px',
+            marginBottom: '12px',
+            textAlign: 'center'
           }}>
-            {/* Show Total Staked even when not signed in */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
-                <span style={{ color: '#3eb489', fontWeight: '600' }}>Total Staked:</span>
-                <span style={{ color: '#fff', textAlign: 'right' }}>
-                  {globalStakingData?.global_total_staked_formatted || '...'} $mintedmerch
-                  {globalStakingData?.staked_percentage && (
-                    <span style={{ color: '#3eb489' }}> ({globalStakingData.staked_percentage}%)</span>
-                  )}
-                </span>
-              </div>
+            {/* Show Total Staked even when not signed in - centered and bigger */}
+            <div style={{ 
+              color: '#3eb489', 
+              fontWeight: '600', 
+              fontSize: '14px',
+              marginBottom: '4px'
+            }}>
+              Total Staked:
+            </div>
+            <div style={{ 
+              color: '#fff', 
+              fontSize: '16px',
+              fontWeight: '500'
+            }}>
+              {globalStakingData?.global_total_staked_formatted || '...'} $mintedmerch
+              {globalStakingData?.staked_percentage && (
+                <span style={{ color: '#3eb489' }}> ({globalStakingData.staked_percentage}%)</span>
+              )}
             </div>
             
             {/* Connect prompt */}
             <div style={{
-              textAlign: 'center',
-              padding: '16px 0 8px 0',
+              padding: '16px 0 0 0',
               color: '#888',
               fontSize: '12px',
               lineHeight: '1.5'

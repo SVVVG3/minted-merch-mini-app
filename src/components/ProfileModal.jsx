@@ -305,7 +305,7 @@ export function ProfileModal({ isOpen, onClose }) {
           setProfileLoading(false);
         });
     }
-  }, [isOpen, user?.fid, isReady]);
+  }, [isOpen, user?.fid, isReady, getSessionToken]);
 
   if (!isOpen) return null;
 
