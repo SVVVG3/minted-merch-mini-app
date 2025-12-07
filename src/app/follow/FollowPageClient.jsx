@@ -408,15 +408,15 @@ Complete the mission and claim yours 👇`;
           </div>
 
           {/* Staking Info Card - Now second */}
-          <div className="border-2 border-[#3eb489]/30 rounded-2xl p-4 mb-3 text-center bg-gradient-to-b from-[#3eb489]/10 to-transparent">
-            <h2 className="text-lg font-bold text-[#3eb489] mb-2">Where Staking Meets Merch!</h2>
-            <p className="text-gray-300 text-xs mb-3">
+          <div className="border-2 border-[#3eb489]/30 rounded-2xl p-5 mb-3 text-center bg-gradient-to-b from-[#3eb489]/10 to-transparent">
+            <h2 className="text-xl font-bold text-[#3eb489] mb-3">Where Staking Meets Merch!</h2>
+            <p className="text-gray-300 text-sm mb-4">
               Stake any amount to earn daily rewards! Stake 50M+ $mintedmerch to become a{' '}
-              <span className="text-[#3eb489] font-semibold">Merch Mogul</span>{' '}
+              <span className="text-[#3eb489] font-bold">Merch Mogul</span>{' '}
               and unlock: exclusive collab partnerships, the ability to place custom orders, 
               group chat access, and 15% off store wide.
             </p>
-            <p className="text-white text-xs font-bold mb-3">
+            <p className="text-white text-sm font-bold mb-4">
               SPIN-TO-CLAIM ONCE PER DAY FOR A CHANCE TO WIN THE{' '}
               <span className="text-[#3eb489]">MONTHLY MEGA MERCH PACK JACKPOT</span>,{' '}
               ONE OF FOUR <span className="text-[#3eb489]">MINI MERCH PACKS</span>,{' '}
@@ -425,7 +425,7 @@ Complete the mission and claim yours 👇`;
             </p>
             <Link
               href="/stake"
-              className="inline-block bg-[#3eb489] hover:bg-[#359970] text-white font-bold py-2.5 px-6 rounded-xl transition-colors text-sm"
+              className="inline-block bg-[#3eb489] hover:bg-[#359970] text-white font-bold py-3 px-8 rounded-xl transition-colors"
             >
               Stake Now →
             </Link>
