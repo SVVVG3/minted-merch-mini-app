@@ -40,23 +40,10 @@ export async function GET(request) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            // Black gradient background
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%)',
+            backgroundColor: '#000000',
             position: 'relative',
           }}
         >
-          {/* Subtle gradient overlay for depth */}
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'radial-gradient(ellipse at center, rgba(62, 180, 137, 0.15) 0%, transparent 70%)',
-              display: 'flex',
-            }}
-          />
           
           {/* Main Logo - sized to fit properly */}
           {logoImageSrc ? (
@@ -136,7 +123,7 @@ export async function GET(request) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%)',
+            backgroundColor: '#000000',
             color: 'white',
           }}
         >
