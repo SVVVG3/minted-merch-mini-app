@@ -374,6 +374,7 @@ Complete the mission and claim yours 👇`;
           </p>
           <Link
             href="/"
+            onClick={() => triggerHaptic('light', isInFarcaster)}
             className="inline-block bg-[#3eb489] hover:bg-[#359970] text-white font-bold py-3 px-8 rounded-xl transition-colors"
           >
             Sign In
@@ -425,6 +426,7 @@ Complete the mission and claim yours 👇`;
             </p>
             <Link
               href="/stake"
+              onClick={() => triggerHaptic('light', isInFarcaster)}
               className="inline-block bg-[#3eb489] hover:bg-[#359970] text-white font-bold py-3 px-8 rounded-xl transition-colors"
             >
               Stake Now →
@@ -434,6 +436,7 @@ Complete the mission and claim yours 👇`;
           {/* Explore Shop Button */}
           <Link
             href="/"
+            onClick={() => triggerHaptic('light', isInFarcaster)}
             className="block w-full bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl font-bold transition-colors text-center"
           >
             Explore Shop
