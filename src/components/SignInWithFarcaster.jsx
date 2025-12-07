@@ -168,7 +168,22 @@ export function SignInWithFarcaster({ onSignIn }) {
       // Request session token immediately since we have the signature data
       const getSessionToken = async () => {
         try {
+          // Use the SAME domain logic as AuthKitProvider
+          const PRODUCTION_DOMAIN = 'app.mintedmerch.shop';
+          const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+          const authDomain = isDevelopment ? window.location.host : PRODUCTION_DOMAIN;
+          
           console.log('🔑 Requesting session token for AuthKit sign-in...');
+          console.log('🔍 AuthKit data available:', {
+            hasMessage: !!data.message,
+            hasSignature: !!data.signature,
+            hasNonce: !!data.nonce,
+            fid: data.fid,
+            username: data.username,
+            domain: authDomain,
+            messagePreview: data.message?.substring(0, 100)
+          });
+          
           const response = await fetch('/api/auth/session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -177,7 +192,7 @@ export function SignInWithFarcaster({ onSignIn }) {
                 message: data.message,
                 signature: data.signature,
                 nonce: data.nonce,
-                domain: data.domain,
+                domain: authDomain, // Must match AuthKitProvider config
                 fid: data.fid,
                 username: data.username
               }

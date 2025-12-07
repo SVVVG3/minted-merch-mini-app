@@ -219,7 +219,19 @@ export async function POST(request) {
       
       const { message, signature, nonce, domain } = body.authKitData;
       
+      console.log('🔍 AuthKit data received:', {
+        hasMessage: !!message,
+        messageLength: message?.length,
+        hasSignature: !!signature,
+        signatureLength: signature?.length,
+        nonce: nonce,
+        domain: domain,
+        fid: body.authKitData.fid,
+        username: body.authKitData.username
+      });
+      
       if (!message || !signature || !nonce) {
+        console.error('❌ Missing required AuthKit data:', { hasMessage: !!message, hasSignature: !!signature, hasNonce: !!nonce });
         return NextResponse.json({
           success: false,
           error: 'Missing AuthKit authentication data',
@@ -228,16 +240,21 @@ export async function POST(request) {
       }
       
       try {
+        const verifyDomain = domain || process.env.NEXT_PUBLIC_URL || 'app.mintedmerch.shop';
+        console.log('🔍 Verifying with domain:', verifyDomain);
+        
         // SECURITY FIX: Verify cryptographic signature from Farcaster
         const verifyResult = await verifySignInMessage({
           message,
           signature,
           nonce,
-          domain: domain || process.env.NEXT_PUBLIC_URL || 'app.mintedmerch.shop'
+          domain: verifyDomain
         });
         
+        console.log('🔍 Verify result:', verifyResult);
+        
         if (!verifyResult.success) {
-          console.warn('❌ AuthKit signature verification failed');
+          console.warn('❌ AuthKit signature verification failed:', verifyResult);
           return NextResponse.json({
             success: false,
             error: 'Invalid Farcaster signature',
@@ -253,6 +270,7 @@ export async function POST(request) {
         
       } catch (verifyError) {
         console.error('❌ Error verifying AuthKit signature:', verifyError);
+        console.error('❌ Error stack:', verifyError.stack);
         return NextResponse.json({
           success: false,
           error: 'Signature verification error',
