@@ -8,112 +8,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin, supabase } from '@/lib/supabase';
 import { getUserStakingDetails, getUserStakedBalance, getGlobalTotalStaked, getUserLifetimeClaimed } from '@/lib/stakingBalanceAPI';
 import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
-
-// Token contract address
-const TOKEN_CONTRACT = '0x774EAeFE73Df7959496Ac92a77279A8D7d690b07';
-
-// Addresses to exclude from circulating supply (LP + Community Wallets)
-const EXCLUDED_ADDRESSES = [
-  '0x498581fF718922c3f8e6A244956aF099B2652b2b', // LP
-  '0xEDb90eF78C78681eE504b9E00950d84443a3E86B', // Community Wallet 1
-  '0x11568faA781f577c05763F86Da03eFd85a36EB29', // Community Wallet 2
-  '0x11f2ae4DD9575833D42d03662dA113Cd3c3D4176', // Community Wallet 3
-  '0x57F7fd7C4c10B3582de565081f779ff0347f113e', // Community Wallet 4
-  '0xb6BE309eb1697B6D061B380b0952df8aCFf6b394', // Community Wallet 5
-  '0xcf965A96d55476e7345e948601921207549c0393', // Community Wallet 6
-];
-
-// Cache for circulating supply (refresh every 10 minutes)
-let circulatingSupplyCache = { value: null, timestamp: 0 };
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
-
-// CORRECT circulating supply should be ~18.4B (100B - 81.6B excluded)
-// If cached value is significantly different, invalidate it
-const EXPECTED_CIRCULATING_MIN = 15_000_000_000; // 15B
-const EXPECTED_CIRCULATING_MAX = 25_000_000_000; // 25B
-
-/**
- * Get circulating supply = Total Supply - LP - Community Wallets
- */
-async function getCirculatingSupply() {
-  // Check cache - but invalidate if value seems wrong (was calculated when RPCs were failing)
-  if (circulatingSupplyCache.value && (Date.now() - circulatingSupplyCache.timestamp) < CACHE_DURATION) {
-    // SANITY CHECK: Circulating supply should be ~18.4B
-    // If cached value is outside expected range, force recalculate
-    if (circulatingSupplyCache.value < EXPECTED_CIRCULATING_MIN || circulatingSupplyCache.value > EXPECTED_CIRCULATING_MAX) {
-      console.log(`⚠️ Cached circulating supply ${circulatingSupplyCache.value.toLocaleString()} is outside expected range, forcing recalculation`);
-    } else {
-      console.log(`📊 Using cached circulating supply: ${circulatingSupplyCache.value.toLocaleString()}`);
-      return circulatingSupplyCache.value;
-    }
-  }
-
-  try {
-    // Try multiple RPC endpoints for reliability
-    const rpcEndpoints = [
-      process.env.ALCHEMY_BASE_RPC_URL,
-      'https://base.llamarpc.com',
-      'https://mainnet.base.org',
-      'https://1rpc.io/base'
-    ].filter(Boolean);
-    
-    let rpcUrl = rpcEndpoints[0];
-    console.log(`📊 Using RPC endpoint: ${rpcUrl}`);
-    
-    // Get total supply
-    const totalSupplyResponse = await fetch(rpcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'eth_call',
-        params: [{ to: TOKEN_CONTRACT, data: '0x18160ddd' }, 'latest'],
-        id: 1
-      })
-    });
-    const totalSupplyResult = await totalSupplyResponse.json();
-    
-    if (!totalSupplyResult.result) {
-      console.error('❌ Failed to get total supply, using fallback');
-      return 18_400_000_000;
-    }
-    
-    const totalSupply = parseInt(totalSupplyResult.result, 16) / 1e18;
-    console.log(`📊 Total supply: ${totalSupply.toLocaleString()}`);
-
-    // Use known values for excluded addresses (verified on-chain)
-    // These rarely change, so hardcoding is more reliable than failing RPC calls
-    const KNOWN_EXCLUDED_BALANCES = {
-      '0x498581fF718922c3f8e6A244956aF099B2652b2b': 52_802_358_262, // LP
-      '0xEDb90eF78C78681eE504b9E00950d84443a3E86B': 8_550_000_000,  // Community 1
-      '0x11568faA781f577c05763F86Da03eFd85a36EB29': 5_000_000_000,  // Community 2
-      '0x11f2ae4DD9575833D42d03662dA113Cd3c3D4176': 5_000_000_000,  // Community 3
-      '0x57F7fd7C4c10B3582de565081f779ff0347f113e': 5_000_000_000,  // Community 4
-      '0xb6BE309eb1697B6D061B380b0952df8aCFf6b394': 5_000_000_000,  // Community 5
-      '0xcf965A96d55476e7345e948601921207549c0393': 209_025_000,    // Community 6
-    };
-    
-    // Sum known excluded balances
-    let excludedBalance = Object.values(KNOWN_EXCLUDED_BALANCES).reduce((sum, bal) => sum + bal, 0);
-    console.log(`📊 Using known excluded balance: ${excludedBalance.toLocaleString()}`);
-
-    const circulatingSupply = totalSupply - excludedBalance;
-    
-    // Cache the result
-    circulatingSupplyCache = { value: circulatingSupply, timestamp: Date.now() };
-    
-    console.log(`📊 Circulating supply calculated:`);
-    console.log(`   Total Supply: ${totalSupply.toLocaleString()}`);
-    console.log(`   Excluded: ${excludedBalance.toLocaleString()}`);
-    console.log(`   Circulating: ${circulatingSupply.toLocaleString()}`);
-    
-    return circulatingSupply;
-  } catch (error) {
-    console.error('Error calculating circulating supply:', error);
-    // Fallback: ~18.4B circulating (100B total - ~81.6B excluded)
-    return 18_400_000_000;
-  }
-}
+import { getCirculatingSupply, calculateStakedPercentage } from '@/lib/circulatingSupply';
 
 export async function GET(request) {
   try {
@@ -151,7 +46,7 @@ export async function GET(request) {
       // Still fetch global staked even for new users
       const globalTotalStaked = await getGlobalTotalStaked();
       const circulatingSupply = await getCirculatingSupply();
-      const stakedPercentage = circulatingSupply > 0 ? ((globalTotalStaked / circulatingSupply) * 100).toFixed(0) : 0;
+      const stakedPercentage = calculateStakedPercentage(globalTotalStaked, circulatingSupply);
       const formatNumber = (num) => {
         if (num >= 1_000_000_000) {
           const formatted = (num / 1_000_000_000).toFixed(3);
