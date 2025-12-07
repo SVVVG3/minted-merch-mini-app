@@ -80,15 +80,23 @@ function WalletConnectSection({ setConnectedWallet, isInFarcaster }) {
           // which will be picked up by the ProfileModal's useEffect
           window.location.reload();
         } catch (err) {
-          console.error('❌ WalletConnect connection failed:', err);
-          setError(err.message || 'WalletConnect connection failed');
+          // Silent timeout (user likely closed modal) - just reset button
+          if (err.message === 'TIMEOUT_SILENT') {
+            console.log('ℹ️ Wallet connection cancelled or timed out');
+          } else {
+            console.error('❌ WalletConnect connection failed:', err);
+            setError(err.message || 'WalletConnect connection failed');
+          }
         }
       } else {
         setError('No wallet connection method available. Please install a wallet extension like MetaMask.');
       }
     } catch (err) {
       console.error('❌ Manual connection error:', err);
-      setError(err.message);
+      // Don't show error for silent timeout
+      if (err.message !== 'TIMEOUT_SILENT') {
+        setError(err.message);
+      }
     } finally {
       setIsConnecting(false);
     }

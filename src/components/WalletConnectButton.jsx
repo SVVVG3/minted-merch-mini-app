@@ -81,8 +81,13 @@ export function WalletConnectButton({
         onConnect(userAddress);
       }
     } catch (error) {
-      console.error('❌ Failed to connect wallet:', error);
-      setError(error.message);
+      // Silent timeout (user likely closed modal) - just reset button
+      if (error.message === 'TIMEOUT_SILENT') {
+        console.log('ℹ️ Wallet connection cancelled or timed out');
+      } else {
+        console.error('❌ Failed to connect wallet:', error);
+        setError(error.message);
+      }
     } finally {
       setIsConnecting(false);
     }

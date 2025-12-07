@@ -124,7 +124,7 @@ export function shouldUseWalletConnect() {
 }
 
 // Connect wallet using WalletConnect with timeout
-export async function connectWallet(timeoutMs = 15000) {
+export async function connectWallet(timeoutMs = 3000) {
   try {
     const universalConnector = await getWalletConnect();
     if (!universalConnector) {
@@ -133,10 +133,10 @@ export async function connectWallet(timeoutMs = 15000) {
 
     console.log('🔗 Connecting wallet via WalletConnect...');
     
-    // Create a timeout promise
+    // Create a timeout promise - silently reset on timeout (user likely closed modal)
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => {
-        reject(new Error('Connection timed out or was cancelled. Please try again.'));
+        reject(new Error('TIMEOUT_SILENT'));
       }, timeoutMs);
     });
     
