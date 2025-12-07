@@ -51,7 +51,9 @@ export default function NFTCampaignsAdmin() {
     shareText: '',
     shareEmbeds: '',
     ogImageText: '',
-    buttonText: 'WEN MERCH?'
+    buttonText: 'WEN MERCH?',
+    awardsLeaderboardPoints: false,
+    pointsPerMint: 1000
   });
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -111,7 +113,9 @@ export default function NFTCampaignsAdmin() {
           tokenRewardAmount: formData.tokenRewardAmount,
           maxSupply: formData.maxSupply ? parseInt(formData.maxSupply) : null,
           imageUrl: formData.imageUrl,
-          metadata
+          metadata,
+          awardsLeaderboardPoints: formData.awardsLeaderboardPoints,
+          pointsPerMint: parseInt(formData.pointsPerMint) || 1000
         })
       });
 
@@ -133,7 +137,9 @@ export default function NFTCampaignsAdmin() {
           shareText: '',
           shareEmbeds: '',
           ogImageText: '',
-          buttonText: 'WEN MERCH?'
+          buttonText: 'WEN MERCH?',
+          awardsLeaderboardPoints: false,
+          pointsPerMint: 1000
         });
         setShowCreateForm(false);
         fetchCampaigns(); // Refresh list
@@ -327,6 +333,36 @@ export default function NFTCampaignsAdmin() {
             </div>
           </div>
 
+          {/* Leaderboard Points Settings */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-medium text-blue-800 mb-3">🏆 Leaderboard Points</h4>
+            <div className="flex items-center gap-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.awardsLeaderboardPoints}
+                  onChange={(e) => setFormData({...formData, awardsLeaderboardPoints: e.target.checked})}
+                  className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">Award leaderboard points for mints</span>
+              </label>
+              
+              {formData.awardsLeaderboardPoints && (
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-600">Points per NFT:</label>
+                  <input
+                    type="number"
+                    value={formData.pointsPerMint}
+                    onChange={(e) => setFormData({...formData, pointsPerMint: e.target.value})}
+                    className="w-24 px-2 py-1 border rounded text-sm"
+                    min="0"
+                    step="100"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
           {createError && (
             <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
               {createError}
@@ -367,7 +403,7 @@ export default function NFTCampaignsAdmin() {
 
                   <p className="text-gray-600 text-sm mb-3">{campaign.description}</p>
 
-                  <div className="grid grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-5 gap-4 text-sm">
                     <div>
                       <div className="text-gray-500">Slug</div>
                       <div className="font-medium">/mint/{campaign.slug}</div>
@@ -383,6 +419,16 @@ export default function NFTCampaignsAdmin() {
                     <div>
                       <div className="text-gray-500">Claims</div>
                       <div className="font-medium">{campaign.total_claims || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Leaderboard Pts</div>
+                      <div className="font-medium">
+                        {campaign.awards_leaderboard_points ? (
+                          <span className="text-green-600">✓ {campaign.points_per_mint || 1000}/mint</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 

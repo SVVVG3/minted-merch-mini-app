@@ -69,7 +69,9 @@ export const POST = withAdminAuth(async (request) => {
       startDate,
       endDate,
       imageUrl,
-      metadata = {}
+      metadata = {},
+      awardsLeaderboardPoints = false,
+      pointsPerMint = 1000
     } = body;
 
     // Validate required fields
@@ -99,7 +101,9 @@ export const POST = withAdminAuth(async (request) => {
         end_date: endDate || null,
         image_url: imageUrl,
         metadata,
-        is_active: true
+        is_active: true,
+        awards_leaderboard_points: awardsLeaderboardPoints,
+        points_per_mint: pointsPerMint
       })
       .select()
       .single();

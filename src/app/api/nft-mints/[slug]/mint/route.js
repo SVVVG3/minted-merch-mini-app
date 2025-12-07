@@ -459,20 +459,20 @@ export async function POST(request, { params }) {
       console.log(`   Quantity: ${actualQuantity} (verified on-chain)`);
       console.log(`   Total mints: ${campaign.total_mints + actualQuantity}`);
 
-      // 🏆 AWARD LEADERBOARD POINTS FOR MINTING (1000 points per NFT)
-      // Only award points for NeonStakingTicket campaign
-      if (slug === 'NeonStakingTicket') {
+      // 🏆 AWARD LEADERBOARD POINTS FOR MINTING (if enabled for this campaign)
+      if (campaign.awards_leaderboard_points) {
+        const pointsPerMint = campaign.points_per_mint || 1000;
         try {
           const pointsResult = await awardNftMintPoints(
             authenticatedFid,
             actualQuantity,
             slug,
             transactionHash,
-            1000 // 1000 points per mint
+            pointsPerMint
           );
           
           if (pointsResult.success) {
-            console.log(`🏆 Awarded ${pointsResult.pointsEarned} leaderboard points to FID ${authenticatedFid}`);
+            console.log(`🏆 Awarded ${pointsResult.pointsEarned} leaderboard points to FID ${authenticatedFid} (${pointsPerMint} per mint)`);
           } else {
             console.error('⚠️ Failed to award mint points:', pointsResult.error);
           }
@@ -481,7 +481,7 @@ export async function POST(request, { params }) {
           // Don't fail the mint, just log the error
         }
       } else {
-        console.log(`ℹ️ Skipping leaderboard points for campaign ${slug} (only NeonStakingTicket awards points)`);
+        console.log(`ℹ️ Skipping leaderboard points for campaign ${slug} (awards_leaderboard_points is disabled)`);
       }
 
       // Return success with claim data
