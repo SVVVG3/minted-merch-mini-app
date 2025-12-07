@@ -379,11 +379,11 @@ Complete the mission and claim yours 👇`;
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header with Logo Image */}
-      <div className="text-center pt-6 pb-4 px-4">
+      <div className="text-center pt-2 pb-1 px-4">
         <img 
           src="/MintedMerchMissionsLogo.png" 
           alt="Follow Mission" 
-          className="mx-auto h-28 object-contain mb-4"
+          className="mx-auto h-28 object-contain mb-1"
         />
       </div>
 
