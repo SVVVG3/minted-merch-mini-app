@@ -149,11 +149,26 @@ export function StakePageClient() {
   const handleOpenCoinMiniApp = async () => {
     await haptics.light(isInFarcaster);
     try {
-      if (isInFarcaster && sdk?.actions?.openMiniApp) {
-        // Use Farcaster SDK to open as mini app (stays in Farcaster)
-        await sdk.actions.openMiniApp({
-          url: COIN_MINIAPP_URL
-        });
+      if (isInFarcaster) {
+        // Get SDK context to check platform type
+        const context = await sdk.context;
+        const platformType = context?.client?.platformType;
+        
+        console.log('📱 Coin mini app - Platform type:', platformType);
+        
+        if (platformType === 'mobile' && sdk?.actions?.openUrl) {
+          // Mobile Farcaster app - use openUrl (stays in app)
+          console.log('📱 Using openUrl for mobile');
+          await sdk.actions.openUrl(COIN_MINIAPP_URL);
+        } else if (sdk?.actions?.openMiniApp) {
+          // Desktop/web Farcaster - use openMiniApp
+          console.log('💻 Using openMiniApp for desktop/web');
+          await sdk.actions.openMiniApp({
+            url: COIN_MINIAPP_URL
+          });
+        } else {
+          window.open(COIN_MINIAPP_URL, '_blank');
+        }
       } else {
         // Not in Farcaster - open in new tab
         window.open(COIN_MINIAPP_URL, '_blank');

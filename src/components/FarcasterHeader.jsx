@@ -44,10 +44,23 @@ export function FarcasterHeader() {
     }
     
     try {
-      await sdk.actions.openMiniApp({
-        url: 'https://coin.mintedmerch.shop/'
-      });
-      console.log('Coin mini app opened successfully - current app will close');
+      // Get SDK context to check platform type
+      const context = await sdk.context;
+      const platformType = context?.client?.platformType;
+      
+      console.log('📱 $mintedmerch link - Platform type:', platformType);
+      
+      if (platformType === 'mobile' && sdk?.actions?.openUrl) {
+        // Mobile Farcaster app - use openUrl (stays in app)
+        console.log('📱 Using openUrl for mobile');
+        await sdk.actions.openUrl('https://coin.mintedmerch.shop/');
+      } else if (sdk?.actions?.openMiniApp) {
+        // Desktop/web Farcaster - use openMiniApp
+        console.log('💻 Using openMiniApp for desktop/web');
+        await sdk.actions.openMiniApp({
+          url: 'https://coin.mintedmerch.shop/'
+        });
+      }
     } catch (error) {
       console.error('Failed to open coin mini app:', error);
     }
