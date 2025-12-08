@@ -114,11 +114,22 @@ export function StakePageClient() {
   const handleOpenStakingTerminal = async () => {
     await haptics.medium(isInFarcaster);
     try {
-      if (isInFarcaster && sdk?.actions?.openMiniApp) {
-        // Use Farcaster SDK to open betrmint as mini app (stays in Farcaster context)
-        await sdk.actions.openMiniApp({
-          url: BETRMINT_DIRECT_URL
-        });
+      if (isInFarcaster) {
+        // Check platform type from SDK context
+        const platformType = sdk?.context?.client?.platformType;
+        
+        if (platformType === 'mobile' && sdk?.actions?.openUrl) {
+          // Mobile Farcaster app - use openUrl (stays in app seamlessly)
+          await sdk.actions.openUrl(STAKING_TERMINAL_URL);
+        } else if (sdk?.actions?.openMiniApp) {
+          // Desktop/web Farcaster - use openMiniApp (better for mini-app navigation)
+          await sdk.actions.openMiniApp({
+            url: BETRMINT_DIRECT_URL
+          });
+        } else {
+          // Fallback
+          window.open(BETRMINT_DIRECT_URL, '_blank');
+        }
       } else {
         // Not in Farcaster - open direct URL in new tab
         window.open(BETRMINT_DIRECT_URL, '_blank');
