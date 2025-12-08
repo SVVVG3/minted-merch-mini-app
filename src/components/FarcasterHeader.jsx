@@ -48,15 +48,11 @@ export function FarcasterHeader() {
       const context = await sdk.context;
       const platformType = context?.client?.platformType;
       
-      console.log('📱 $mintedmerch link - Platform type:', platformType);
-      
       if (platformType === 'mobile' && sdk?.actions?.openUrl) {
-        // Mobile Farcaster app - use openUrl (stays in app)
-        console.log('📱 Using openUrl for mobile');
-        await sdk.actions.openUrl('https://coin.mintedmerch.shop/');
+        // Mobile Farcaster app - use openUrl with DEEP LINK (stays in app)
+        await sdk.actions.openUrl('https://farcaster.xyz/miniapps/0TEC-mFCmqAA/mintedmerch');
       } else if (sdk?.actions?.openMiniApp) {
-        // Desktop/web Farcaster - use openMiniApp
-        console.log('💻 Using openMiniApp for desktop/web');
+        // Desktop/web Farcaster - use openMiniApp with direct URL
         await sdk.actions.openMiniApp({
           url: 'https://coin.mintedmerch.shop/'
         });

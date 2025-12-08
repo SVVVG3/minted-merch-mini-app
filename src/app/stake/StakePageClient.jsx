@@ -9,11 +9,13 @@ import { ProfileModal } from '@/components/ProfileModal';
 import { SignInWithFarcaster } from '@/components/SignInWithFarcaster';
 // import { StakingLaunchMint } from '@/components/StakingLaunchMint'; // TEMPORARILY HIDDEN
 
-// Staking terminal deep link URL (for mini app environment)
+// Staking terminal deep link URL (for mobile Farcaster)
 const STAKING_TERMINAL_URL = 'https://farcaster.xyz/miniapps/yG210D-5eNqL/betrmint/mm-stake';
-// Direct betrmint URL (for browser/non-Farcaster environment)
+// Direct betrmint URL (for desktop Farcaster and browser)
 const BETRMINT_DIRECT_URL = 'https://betrmint.fun/mm-stake';
-// Coin mini app URL
+// Coin mini app deep link URL (for mobile Farcaster)
+const COIN_MINIAPP_DEEPLINK = 'https://farcaster.xyz/miniapps/0TEC-mFCmqAA/mintedmerch';
+// Direct coin mini app URL (for desktop Farcaster and browser)
 const COIN_MINIAPP_URL = 'https://coin.mintedmerch.shop';
 
 export function StakePageClient() {
@@ -115,24 +117,20 @@ export function StakePageClient() {
     await haptics.medium(isInFarcaster);
     try {
       if (isInFarcaster) {
-        // Get SDK context (it's a promise) to check platform type
+        // Get SDK context to check platform type
         const context = await sdk.context;
         const platformType = context?.client?.platformType;
         
-        console.log('📱 Platform type:', platformType);
-        
         if (platformType === 'mobile' && sdk?.actions?.openUrl) {
-          // Mobile Farcaster app - use openUrl with deep link (stays in app seamlessly)
-          console.log('📱 Using openUrl for mobile');
+          // Mobile Farcaster app - use openUrl with DEEP LINK (stays in app)
+          // Key: Must use farcaster.xyz deep link, not direct URL
           await sdk.actions.openUrl(STAKING_TERMINAL_URL);
         } else if (sdk?.actions?.openMiniApp) {
-          // Desktop/web Farcaster - use openMiniApp (better for mini-app navigation)
-          console.log('💻 Using openMiniApp for desktop/web');
+          // Desktop/web Farcaster - use openMiniApp with direct URL
           await sdk.actions.openMiniApp({
             url: BETRMINT_DIRECT_URL
           });
         } else {
-          // Fallback
           window.open(BETRMINT_DIRECT_URL, '_blank');
         }
       } else {
@@ -154,15 +152,11 @@ export function StakePageClient() {
         const context = await sdk.context;
         const platformType = context?.client?.platformType;
         
-        console.log('📱 Coin mini app - Platform type:', platformType);
-        
         if (platformType === 'mobile' && sdk?.actions?.openUrl) {
-          // Mobile Farcaster app - use openUrl (stays in app)
-          console.log('📱 Using openUrl for mobile');
-          await sdk.actions.openUrl(COIN_MINIAPP_URL);
+          // Mobile Farcaster app - use openUrl with DEEP LINK (stays in app)
+          await sdk.actions.openUrl(COIN_MINIAPP_DEEPLINK);
         } else if (sdk?.actions?.openMiniApp) {
-          // Desktop/web Farcaster - use openMiniApp
-          console.log('💻 Using openMiniApp for desktop/web');
+          // Desktop/web Farcaster - use openMiniApp with direct URL
           await sdk.actions.openMiniApp({
             url: COIN_MINIAPP_URL
           });
