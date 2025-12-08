@@ -114,9 +114,11 @@ export function StakePageClient() {
   const handleOpenStakingTerminal = async () => {
     await haptics.medium(isInFarcaster);
     try {
-      if (isInFarcaster && sdk?.actions?.openUrl) {
-        // Use Farcaster SDK to deeplink to betrmint mini app
-        await sdk.actions.openUrl(STAKING_TERMINAL_URL);
+      if (isInFarcaster && sdk?.actions?.openMiniApp) {
+        // Use Farcaster SDK to open betrmint as mini app (stays in Farcaster context)
+        await sdk.actions.openMiniApp({
+          url: BETRMINT_DIRECT_URL
+        });
       } else {
         // Not in Farcaster - open direct URL in new tab
         window.open(BETRMINT_DIRECT_URL, '_blank');
