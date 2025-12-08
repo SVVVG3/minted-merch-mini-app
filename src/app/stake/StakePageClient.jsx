@@ -115,14 +115,19 @@ export function StakePageClient() {
     await haptics.medium(isInFarcaster);
     try {
       if (isInFarcaster) {
-        // Check platform type from SDK context
-        const platformType = sdk?.context?.client?.platformType;
+        // Get SDK context (it's a promise) to check platform type
+        const context = await sdk.context;
+        const platformType = context?.client?.platformType;
+        
+        console.log('📱 Platform type:', platformType);
         
         if (platformType === 'mobile' && sdk?.actions?.openUrl) {
-          // Mobile Farcaster app - use openUrl (stays in app seamlessly)
+          // Mobile Farcaster app - use openUrl with deep link (stays in app seamlessly)
+          console.log('📱 Using openUrl for mobile');
           await sdk.actions.openUrl(STAKING_TERMINAL_URL);
         } else if (sdk?.actions?.openMiniApp) {
           // Desktop/web Farcaster - use openMiniApp (better for mini-app navigation)
+          console.log('💻 Using openMiniApp for desktop/web');
           await sdk.actions.openMiniApp({
             url: BETRMINT_DIRECT_URL
           });
