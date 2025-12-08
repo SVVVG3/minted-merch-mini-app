@@ -41,9 +41,9 @@ export function WalletConnectProvider({ children }) {
 
     const detectConnectionMethod = async () => {
       try {
-        // Priority 1: Farcaster mini app
-        if (isInFarcaster && farcasterUser) {
-          console.log('🔗 Using Farcaster mini app connection');
+        // Priority 1: Farcaster mini app - ALWAYS use Farcaster wallet, never browser extensions
+        if (isInFarcaster) {
+          console.log('🔗 In Farcaster context - using Farcaster wallet only');
           setConnectionMethod('farcaster');
           
           // Get wallet address from Farcaster SDK
@@ -60,10 +60,12 @@ export function WalletConnectProvider({ children }) {
           } catch (error) {
             console.log('ℹ️ Could not get Farcaster wallet address:', error);
           }
+          // Always return here - don't check window.ethereum when in Farcaster
+          setIsInitialized(true);
           return;
         }
 
-        // Priority 2: Check for existing wallet connection (window.ethereum)
+        // Priority 2: Check for existing wallet connection (window.ethereum) - ONLY when NOT in Farcaster
         if (typeof window !== 'undefined' && window.ethereum) {
           try {
             // Check if this is an Android device with native wallet (includes dGEN1)
