@@ -113,10 +113,19 @@ export function StakePageClient() {
   // Handle opening the staking terminal
   const handleOpenStakingTerminal = async () => {
     await haptics.medium(isInFarcaster);
+    
+    // Detect if user is on mobile device
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      typeof navigator !== 'undefined' ? navigator.userAgent : ''
+    );
+    
     try {
-      if (isInFarcaster && sdk?.actions?.openUrl) {
-        // Use Farcaster SDK to deeplink to betrmint mini app
+      if (isInFarcaster && isMobileDevice && sdk?.actions?.openUrl) {
+        // Mobile Farcaster app - use SDK to deeplink (stays in app)
         await sdk.actions.openUrl(STAKING_TERMINAL_URL);
+      } else if (isInFarcaster && !isMobileDevice) {
+        // Desktop Farcaster web - navigate in same tab to avoid new tab
+        window.location.href = BETRMINT_DIRECT_URL;
       } else {
         // Not in Farcaster - open direct URL in new tab
         window.open(BETRMINT_DIRECT_URL, '_blank');
