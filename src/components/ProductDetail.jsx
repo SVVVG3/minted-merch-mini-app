@@ -211,7 +211,7 @@ export function ProductDetail({
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-3 flex items-center gap-3">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
           {/* Back Button */}
           <Link href="/" className="flex-shrink-0">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -261,15 +261,21 @@ export function ProductDetail({
         </div>
       </header>
 
-      <main className="pb-32">
-        <ProductImageGallery 
-          images={product.images?.edges || []}
-          selectedVariant={selectedVariant}
-          productTitle={product.title}
-          className="mb-4"
-        />
+      <main className="pb-32 max-w-6xl mx-auto">
+        {/* Desktop: Side-by-side layout, Mobile: Stacked */}
+        <div className="lg:flex lg:gap-8 lg:p-6">
+          {/* Image Gallery - constrained on desktop */}
+          <div className="lg:w-1/2 lg:sticky lg:top-20 lg:self-start">
+            <ProductImageGallery 
+              images={product.images?.edges || []}
+              selectedVariant={selectedVariant}
+              productTitle={product.title}
+              className="mb-4 lg:mb-0 lg:rounded-xl lg:overflow-hidden"
+            />
+          </div>
 
-        <div className="p-4 space-y-6">
+          {/* Product Details - scrollable on desktop */}
+          <div className="lg:w-1/2 p-4 lg:p-0 space-y-6">
           <VariantSelector
             variants={product.variants?.edges}
             selectedVariant={selectedVariant}
@@ -448,19 +454,21 @@ export function ProductDetail({
             </div>
           )}
         </div>
+        </div>
       </main>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4">
-        <button
-          onClick={handleAddToCart}
-          disabled={!selectedVariant?.availableForSale}
-          className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
-            justAddedToCart 
-              ? 'bg-green-500 text-white transform scale-105' 
-              : selectedVariant?.availableForSale 
-                ? 'bg-[#3eb489] text-white hover:bg-[#359970]' 
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
+        <div className="max-w-6xl mx-auto">
+          <button
+            onClick={handleAddToCart}
+            disabled={!selectedVariant?.availableForSale}
+            className={`w-full lg:w-auto lg:px-12 py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
+              justAddedToCart 
+                ? 'bg-green-500 text-white transform scale-105' 
+                : selectedVariant?.availableForSale 
+                  ? 'bg-[#3eb489] text-white hover:bg-[#359970]' 
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
         >
           {justAddedToCart ? (
             <div className="flex items-center justify-center space-x-2">
@@ -497,7 +505,8 @@ export function ProductDetail({
               return `Add to Cart - $${originalPrice.toFixed(2)}${quantityText}`;
             }
           })() : 'Out of Stock'}
-        </button>
+          </button>
+        </div>
       </div>
       
       {/* Cart Sidebar */}
