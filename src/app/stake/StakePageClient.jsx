@@ -173,6 +173,33 @@ export function StakePageClient() {
     }
   };
 
+  // Handle opening swap (mirrors PriceTicker behavior)
+  const MINTEDMERCH_TOKEN_ADDRESS = '0x774EAeFE73Df7959496Ac92a77279A8D7d690b07';
+  const handleSwapClick = async () => {
+    await haptics.light(isInFarcaster);
+    // In mini-app: Use native Farcaster wallet swap
+    // Outside mini-app: Open Matcha
+    if (isInFarcaster) {
+      try {
+        const result = await sdk.actions.swapToken({
+          buyToken: `eip155:8453/erc20:${MINTEDMERCH_TOKEN_ADDRESS}`, // $mintedmerch token on Base
+          sellToken: 'eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
+        });
+        
+        if (result.success) {
+          console.log('Swap completed:', result.swap);
+        } else {
+          console.log('Swap failed or cancelled:', result.reason);
+        }
+      } catch (error) {
+        console.error('Error opening swap:', error);
+      }
+    } else {
+      // Open Matcha for non-mini-app users (dGEN1, desktop)
+      window.open('https://matcha.xyz/tokens/base/0x774eaefe73df7959496ac92a77279a8d7d690b07', '_blank');
+    }
+  };
+
   // Handle sharing stake page
   const handleShare = async () => {
     await haptics.light(isInFarcaster);
@@ -540,7 +567,7 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           </button>
         ) : (
           <button
-            onClick={handleOpenCoinMiniApp}
+            onClick={handleSwapClick}
             style={{
               width: '100%',
               backgroundColor: '#3eb489',
