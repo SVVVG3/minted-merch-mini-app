@@ -516,27 +516,50 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           Stake / Unstake
         </button>
 
-        {/* Spin To Claim Button */}
-        <button
-          onClick={handleOpenStakingTerminal}
-          style={{
-            width: '100%',
-            backgroundColor: '#3eb489',
-            color: '#000',
-            border: 'none',
-            borderRadius: '12px',
-            padding: '16px 24px',
-            fontSize: '18px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px'
-          }}
-        >
-          Spin To Claim
-        </button>
+        {/* Spin To Claim Button (only if user has staked tokens) or Add More $mintedmerch */}
+        {stakingData?.balances?.staked > 0 ? (
+          <button
+            onClick={handleOpenStakingTerminal}
+            style={{
+              width: '100%',
+              backgroundColor: '#3eb489',
+              color: '#000',
+              border: 'none',
+              borderRadius: '12px',
+              padding: '16px 24px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            Spin To Claim
+          </button>
+        ) : (
+          <button
+            onClick={handleOpenCoinMiniApp}
+            style={{
+              width: '100%',
+              backgroundColor: '#3eb489',
+              color: '#000',
+              border: 'none',
+              borderRadius: '12px',
+              padding: '16px 24px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            Add More $mintedmerch
+          </button>
+        )}
         
         {/* Powered By betrmint */}
         <p style={{
