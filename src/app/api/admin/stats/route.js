@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { withAdminAuth } from '@/lib/adminAuth';
 import { formatPSTTime, getCurrent8AMPST } from '@/lib/timezone';
-import { getGlobalTotalStaked, getStakingStats } from '@/lib/stakingBalanceAPI';
+import { getGlobalTotalStaked, getStakingStats, getGlobalTotalClaimed } from '@/lib/stakingBalanceAPI';
 
 // Use service role client to bypass RLS for admin endpoints
 const supabaseAdmin = createClient(
@@ -227,6 +227,10 @@ export const GET = withAdminAuth(async (request) => {
     const { totalStaked, uniqueStakers: walletsStaked } = await getStakingStats();
     console.log(`📊 Live staking stats from subgraph: ${walletsStaked} wallets with ${totalStaked.toLocaleString()} tokens staked`);
 
+    // Get total rewards claimed from LIVE subgraph
+    const totalRewardsClaimed = await getGlobalTotalClaimed();
+    console.log(`📊 Live rewards claimed from subgraph: ${totalRewardsClaimed.toLocaleString()} tokens`);
+
     // Get pending bounty submissions count
     const { count: pendingSubmissions, error: submissionsError } = await supabaseAdmin
       .from('bounty_submissions')
@@ -278,6 +282,7 @@ export const GET = withAdminAuth(async (request) => {
       holdersOneMillion: holdersOneMillion || 0,
       walletsStaked: walletsStaked || 0,
       totalStaked: totalStaked,
+      totalRewardsClaimed: totalRewardsClaimed || 0,
       pendingSubmissions: pendingSubmissions || 0,
       completedBounties: completedBounties || 0,
       totalTokensPaid: totalTokensPaid || 0,

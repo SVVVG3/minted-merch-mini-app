@@ -1656,6 +1656,15 @@ export default function AdminDashboard() {
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h2 className="text-lg font-semibold text-gray-800">📊 Dashboard</h2>
                 <div className="flex items-center space-x-4">
+                  {/* $MINTEDMERCH Staked Stat */}
+                  {dashboardStats && (
+                    <div className="flex items-center bg-green-100 px-3 py-2 rounded-md">
+                      <span className="text-green-600 font-medium text-sm">
+                        📊 Staked: <span className="font-bold">{formatTokenBalance(dashboardStats.totalStaked)}</span>
+                      </span>
+                    </div>
+                  )}
+                  
                   {/* Merch Moguls Stat */}
                   {dashboardStats && (
                     <div className="flex items-center bg-purple-100 px-3 py-2 rounded-md">
@@ -1702,7 +1711,7 @@ export default function AdminDashboard() {
                 { label: 'Discounts Used', value: dashboardStats.discountsUsed, icon: '🎫' },
                 { label: 'Total Orders', value: dashboardStats.totalOrders, icon: '🛍️' },
                 { label: 'Wallets Staked', value: dashboardStats.walletsStaked, icon: '🔒' },
-                { label: '$MINTEDMERCH Staked', value: formatTokenBalance(dashboardStats.totalStaked), icon: '📊' },
+                { label: 'Rewards Claimed', value: formatTokenBalance(dashboardStats.totalRewardsClaimed), icon: '🎁' },
                 { label: 'Pending Bounty Submissions', value: dashboardStats.pendingSubmissions, icon: '📝' },
                 { 
                   label: 'Total Completed Bounties', 

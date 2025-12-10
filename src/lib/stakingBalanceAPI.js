@@ -358,6 +358,58 @@ export async function getUserLifetimeClaimed(walletAddresses) {
   }
 }
 
+/**
+ * Get global total rewards claimed across ALL wallets from the staking contract
+ * @returns {Promise<number>} Total claimed rewards in tokens (not wei)
+ */
+export async function getGlobalTotalClaimed() {
+  try {
+    const query = `
+      query GetGlobalClaimed {
+        rewardClaimeds(first: 1000) {
+          staker
+          amount
+          timestamp_
+        }
+      }
+    `;
+
+    const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query })
+    });
+
+    if (!response.ok) {
+      throw new Error(`GraphQL request failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.errors) {
+      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+    }
+
+    const claimEvents = result.data?.rewardClaimeds || [];
+    
+    // Sum all claimed rewards across all wallets
+    let totalClaimed = 0;
+    for (const event of claimEvents) {
+      totalClaimed += parseFloat(event.amount) / Math.pow(10, 18);
+    }
+
+    console.log(`📊 Global total claimed: ${totalClaimed.toLocaleString()} tokens from ${claimEvents.length} claim events`);
+
+    return totalClaimed;
+
+  } catch (error) {
+    console.error('📊 Error querying global total claimed:', error);
+    return 0;
+  }
+}
+
 export async function getUserStakingDetails(walletAddresses) {
   if (!walletAddresses || walletAddresses.length === 0) {
     return {
