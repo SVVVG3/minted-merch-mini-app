@@ -380,8 +380,24 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           width: '100%',
           height: '2px',
           backgroundColor: '#3eb489',
-          marginBottom: '24px'
+          marginBottom: '16px'
         }} />
+
+        {/* Current APY */}
+        <div style={{
+          textAlign: 'center',
+          marginBottom: '16px',
+          fontSize: '16px',
+          fontWeight: '600',
+          color: '#3eb489'
+        }}>
+          Current APY: {(() => {
+            const totalStaked = stakingData?.staking?.global_total_staked || globalStakingData?.global_total_staked || 0;
+            if (totalStaked <= 0) return '...';
+            const apy = (10_000_000 * 365 / totalStaked) * 100;
+            return apy.toFixed(2) + '%';
+          })()}
+        </div>
 
         {/* Enhanced Staking Stats */}
         {(isLoading || (getFid() && !stakingData)) ? (
