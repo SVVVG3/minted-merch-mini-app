@@ -19,7 +19,7 @@ const EXCLUDED_ADDRESSES = [
 let circulatingSupplyCache = { value: null, timestamp: 0 };
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-// Expected range for sanity checks
+// Expected range for sanity checks (circulating ~18.5B as of Dec 2024)
 const EXPECTED_CIRCULATING_MIN = 15_000_000_000; // 15B
 const EXPECTED_CIRCULATING_MAX = 25_000_000_000; // 25B
 
@@ -42,11 +42,11 @@ export async function getCirculatingSupply() {
 
   try {
     // Try multiple RPC endpoints for reliability
+    // NOTE: base.llamarpc.com returns stale data - use 1rpc.io/base as primary fallback
     const rpcEndpoints = [
       process.env.ALCHEMY_BASE_RPC_URL,
-      'https://base.llamarpc.com',
-      'https://mainnet.base.org',
-      'https://1rpc.io/base'
+      'https://1rpc.io/base',
+      'https://mainnet.base.org'
     ].filter(Boolean);
     
     let rpcUrl = rpcEndpoints[0];
