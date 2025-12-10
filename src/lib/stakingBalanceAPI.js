@@ -3,6 +3,25 @@
 
 const GOLDSKY_GRAPHQL_ENDPOINT = 'https://api.goldsky.com/api/public/project_cmhgzsg1lfhim01w4ah9rb5i5/subgraphs/betr-contracts-base/1.1/gn';
 
+// Use BigInt for precision with large wei values (exceed Number.MAX_SAFE_INTEGER)
+const WEI_DIVISOR = BigInt(10 ** 18);
+
+/**
+ * Convert wei string to token number with full precision using BigInt
+ * @param {string} weiString - Balance in wei as string
+ * @returns {number} Balance in tokens
+ */
+function weiToTokens(weiString) {
+  try {
+    const wei = BigInt(weiString);
+    // Split into whole tokens and fractional part for precision
+    return Number(wei / WEI_DIVISOR) + Number(wei % WEI_DIVISOR) / 1e18;
+  } catch (e) {
+    // Fallback for invalid input
+    return parseFloat(weiString) / 1e18;
+  }
+}
+
 /**
  * Query user's staked token balance from the staking contract
  * @param {Array<string>} walletAddresses - User's wallet addresses (lowercase)
@@ -74,7 +93,7 @@ export async function getUserStakedBalance(walletAddresses) {
       // Keep only the entry with the highest timestamp for each wallet
       if (!latestBalancePerWallet.has(wallet) || timestamp > latestBalancePerWallet.get(wallet).timestamp) {
         latestBalancePerWallet.set(wallet, {
-          balance: parseFloat(entry.balance) / Math.pow(10, 18),
+          balance: weiToTokens(entry.balance),
           timestamp: timestamp
         });
       }
@@ -146,7 +165,7 @@ export async function getGlobalTotalStaked() {
       const staker = entry.staker.toLowerCase();
       // Since ordered by timestamp desc, first entry per staker is the latest
       if (!latestBalancePerStaker.has(staker)) {
-        latestBalancePerStaker.set(staker, parseFloat(entry.balance) / Math.pow(10, 18));
+        latestBalancePerStaker.set(staker, weiToTokens(entry.balance));
       }
     }
     
@@ -208,7 +227,7 @@ export async function getAllStakerBalances() {
     for (const entry of stakerBalances) {
       const staker = entry.staker.toLowerCase();
       if (!balanceMap.has(staker)) {
-        balanceMap.set(staker, parseFloat(entry.balance) / Math.pow(10, 18));
+        balanceMap.set(staker, weiToTokens(entry.balance));
       }
     }
 
@@ -264,7 +283,7 @@ export async function getStakingStats() {
       const staker = entry.staker.toLowerCase();
       // Since ordered by timestamp desc, first entry per staker is the latest
       if (!latestBalancePerStaker.has(staker)) {
-        latestBalancePerStaker.set(staker, parseFloat(entry.balance) / Math.pow(10, 18));
+        latestBalancePerStaker.set(staker, weiToTokens(entry.balance));
       }
     }
     
@@ -345,7 +364,7 @@ export async function getUserLifetimeClaimed(walletAddresses) {
     // Sum all claimed rewards
     let totalClaimed = 0;
     for (const event of claimEvents) {
-      totalClaimed += parseFloat(event.amount) / Math.pow(10, 18);
+      totalClaimed += weiToTokens(event.amount);
     }
 
     console.log(`📊 Lifetime claimed: ${totalClaimed.toLocaleString()} tokens from ${claimEvents.length} claim events`);
@@ -397,7 +416,7 @@ export async function getGlobalTotalClaimed() {
     // Sum all claimed rewards across all wallets
     let totalClaimed = 0;
     for (const event of claimEvents) {
-      totalClaimed += parseFloat(event.amount) / Math.pow(10, 18);
+      totalClaimed += weiToTokens(event.amount);
     }
 
     console.log(`📊 Global total claimed: ${totalClaimed.toLocaleString()} tokens from ${claimEvents.length} claim events`);
@@ -468,7 +487,7 @@ export async function getUserStakingDetails(walletAddresses) {
       if (!latestBalancePerWallet.has(wallet)) {
         latestBalancePerWallet.set(wallet, {
           wallet: wallet,
-          amount: parseFloat(entry.balance) / Math.pow(10, 18),
+          amount: weiToTokens(entry.balance),
           timestamp: new Date(parseInt(entry.timestamp_) * 1000).toISOString(),
           id: entry.id
         });

@@ -70,7 +70,10 @@ export async function getCirculatingSupply() {
       return 18_000_000_000; // Fallback
     }
     
-    const totalSupply = parseInt(totalSupplyResult.result, 16) / 1e18;
+    // Use BigInt for precision with large numbers (wei values exceed Number.MAX_SAFE_INTEGER)
+    const WEI_DIVISOR = BigInt(10 ** 18);
+    const totalSupplyWei = BigInt(totalSupplyResult.result);
+    const totalSupply = Number(totalSupplyWei / WEI_DIVISOR) + Number(totalSupplyWei % WEI_DIVISOR) / 1e18;
     console.log(`📊 Total supply: ${totalSupply.toLocaleString()}`);
     
     // Get excluded balances
@@ -89,7 +92,9 @@ export async function getCirculatingSupply() {
       });
       const balanceResult = await balanceResponse.json();
       if (balanceResult.result) {
-        const balance = parseInt(balanceResult.result, 16) / 1e18;
+        // Use BigInt for precision with large numbers
+        const balanceWei = BigInt(balanceResult.result);
+        const balance = Number(balanceWei / WEI_DIVISOR) + Number(balanceWei % WEI_DIVISOR) / 1e18;
         excludedTotal += balance;
       }
     }
