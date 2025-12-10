@@ -380,14 +380,14 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
           width: '100%',
           height: '2px',
           backgroundColor: '#3eb489',
-          marginBottom: '16px'
+          marginBottom: '8px'
         }} />
 
         {/* Current APY */}
         <div style={{
           textAlign: 'center',
-          marginBottom: '16px',
-          fontSize: '16px',
+          marginBottom: '8px',
+          fontSize: '12px',
           fontWeight: '600',
           color: '#3eb489'
         }}>
