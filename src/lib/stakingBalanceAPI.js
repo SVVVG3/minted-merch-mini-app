@@ -2,19 +2,22 @@
 // Uses DIRECT RPC CALLS for real-time data (Total Staked, User Stake)
 // Uses GraphQL only for historical aggregation (Lifetime Claimed)
 
-// GraphQL endpoint - ONLY used for lifetime claimed (historical events)
+// GraphQL endpoint - ONLY for lifetime claimed (historical events)
 const GOLDSKY_GRAPHQL_ENDPOINT = 'https://api.goldsky.com/api/public/project_cmhgzsg1lfhim01w4ah9rb5i5/subgraphs/betr-contracts-base/1.1/gn';
 
-// Staking contract address on Base
+// BETRStaking contract on Base
 const STAKING_CONTRACT = '0x38AE5d952FA83eD57c5b5dE59b6e36Ce975a9150';
 
 // Use BigInt for precision with large wei values (exceed Number.MAX_SAFE_INTEGER)
 const WEI_DIVISOR = BigInt(10 ** 18);
 
-// Function signatures for staking contract
+// Function selectors (keccak256 of signature, first 4 bytes)
+// BETRStaking contract functions:
+// - stakedAmount(address user) - View staked amount for a user
+// - totalStakedAmount() - View total staked across all users
 const FUNCTION_SIGS = {
-  totalStaked: '0x817b1cd2',      // totalStaked()
-  balanceOf: '0x70a08231',        // balanceOf(address) - standard ERC20-like
+  stakedAmount: '0x909e7ae5',      // keccak256("stakedAmount(address)")[:4]
+  totalStakedAmount: '0x3e0a322d', // keccak256("totalStakedAmount()")[:4]
 };
 
 /**
@@ -72,7 +75,8 @@ function weiToTokens(weiString) {
 }
 
 /**
- * Query user's staked token balance DIRECTLY from the staking contract via RPC
+ * Query user's staked token balance DIRECTLY from BETRStaking contract via RPC
+ * Uses stakedAmount(address) function
  * @param {Array<string>} walletAddresses - User's wallet addresses
  * @returns {Promise<number>} Total staked balance in tokens (not wei)
  */
@@ -82,7 +86,6 @@ export async function getUserStakedBalance(walletAddresses) {
     return 0;
   }
 
-  // Normalize addresses
   const normalizedAddresses = walletAddresses
     .filter(addr => typeof addr === 'string' && addr.startsWith('0x'))
     .map(addr => addr.toLowerCase());
@@ -97,36 +100,38 @@ export async function getUserStakedBalance(walletAddresses) {
   try {
     let totalStaked = 0;
     
-    // Query each wallet's staked balance directly from contract
+    // Query each wallet's staked balance via stakedAmount(address)
     for (const address of normalizedAddresses) {
-      // Encode balanceOf(address) call
-      const data = FUNCTION_SIGS.balanceOf + address.slice(2).padStart(64, '0');
+      // Encode stakedAmount(address) call - address padded to 32 bytes
+      const data = FUNCTION_SIGS.stakedAmount + address.slice(2).padStart(64, '0');
       
       try {
         const result = await ethCall(STAKING_CONTRACT, data);
-        if (result && result !== '0x') {
+        if (result && result !== '0x' && result !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
           const balance = weiToTokens(result);
-          totalStaked += balance;
-          console.log(`📊 Wallet ${address.slice(0,8)}... staked: ${balance.toLocaleString()}`);
+          if (balance > 0) {
+            totalStaked += balance;
+            console.log(`📊 Wallet ${address.slice(0,8)}... staked: ${balance.toLocaleString()}`);
+          }
         }
       } catch (err) {
         console.warn(`📊 Failed to get stake for ${address}:`, err.message);
       }
     }
 
-    console.log(`📊 Total staked balance: ${totalStaked.toLocaleString()} tokens across ${normalizedAddresses.length} wallet(s)`);
+    console.log(`📊 Total staked balance (RPC): ${totalStaked.toLocaleString()} tokens`);
     return totalStaked;
 
   } catch (error) {
     console.error('📊 Error querying staking balance via RPC:', error);
-    // Fallback to GraphQL if RPC fails
+    // Fallback to GraphQL
     console.log('📊 Falling back to GraphQL...');
     return getUserStakedBalanceGraphQL(walletAddresses);
   }
 }
 
 /**
- * GraphQL fallback for user staked balance (kept for reliability)
+ * GraphQL fallback for user staked balance
  */
 async function getUserStakedBalanceGraphQL(walletAddresses) {
   const normalizedAddresses = walletAddresses
@@ -169,29 +174,29 @@ async function getUserStakedBalanceGraphQL(walletAddresses) {
       totalStaked += balance;
     }
 
-    console.log(`📊 [GraphQL fallback] Total staked: ${totalStaked.toLocaleString()} tokens`);
+    console.log(`📊 [GraphQL fallback] User staked: ${totalStaked.toLocaleString()} tokens`);
     return totalStaked;
 
   } catch (error) {
-    console.error('📊 GraphQL fallback also failed:', error);
+    console.error('📊 GraphQL fallback failed:', error);
     return 0;
   }
 }
 
 /**
- * Get the global total staked DIRECTLY from the staking contract via RPC
- * This is the most reliable and real-time way to get total staked
+ * Get global total staked DIRECTLY from BETRStaking contract via RPC
+ * Uses totalStakedAmount() function
  * @returns {Promise<number>} Total staked balance in tokens (not wei)
  */
 export async function getGlobalTotalStaked() {
   try {
     console.log(`📊 Querying global total staked via RPC...`);
     
-    // Call totalStaked() directly on the contract
-    const result = await ethCall(STAKING_CONTRACT, FUNCTION_SIGS.totalStaked);
+    // Call totalStakedAmount() directly on the contract
+    const result = await ethCall(STAKING_CONTRACT, FUNCTION_SIGS.totalStakedAmount);
     
     if (!result || result === '0x') {
-      console.warn('📊 RPC returned empty result for totalStaked, falling back to GraphQL');
+      console.warn('📊 RPC returned empty result, falling back to GraphQL');
       return getGlobalTotalStakedGraphQL();
     }
     
@@ -250,7 +255,7 @@ async function getGlobalTotalStakedGraphQL() {
     return totalStaked;
 
   } catch (error) {
-    console.error('📊 GraphQL fallback also failed:', error);
+    console.error('📊 GraphQL fallback failed:', error);
     return 0;
   }
 }
@@ -311,7 +316,7 @@ export async function getAllStakerBalances() {
 }
 
 /**
- * Get staking statistics - total staked from RPC, unique stakers from GraphQL
+ * Get staking statistics - total from RPC, staker count from GraphQL
  * @returns {Promise<{totalStaked: number, uniqueStakers: number}>}
  */
 export async function getStakingStats() {
@@ -336,10 +341,9 @@ export async function getStakingStats() {
       body: JSON.stringify({ query })
     });
 
+    let uniqueStakers = 0;
     const result = await response.json();
     
-    // Count unique active stakers
-    let uniqueStakers = 0;
     if (!result.errors && result.data?.stakerBalances) {
       const latestBalancePerStaker = new Map();
       for (const entry of result.data.stakerBalances) {
@@ -486,6 +490,8 @@ export async function getGlobalTotalClaimed() {
 
 /**
  * Get detailed staking info for a user - uses RPC for balances
+ * @param {Array<string>} walletAddresses - User's wallet addresses
+ * @returns {Promise<Object>} Detailed staking info
  */
 export async function getUserStakingDetails(walletAddresses) {
   if (!walletAddresses || walletAddresses.length === 0) {
@@ -500,13 +506,13 @@ export async function getUserStakingDetails(walletAddresses) {
     const stakes = [];
     let totalStaked = 0;
     
-    // Query each wallet's staked balance directly from contract
+    // Query each wallet's staked balance via RPC
     for (const address of normalizedAddresses) {
-      const data = FUNCTION_SIGS.balanceOf + address.slice(2).padStart(64, '0');
+      const data = FUNCTION_SIGS.stakedAmount + address.slice(2).padStart(64, '0');
       
       try {
         const result = await ethCall(STAKING_CONTRACT, data);
-        if (result && result !== '0x') {
+        if (result && result !== '0x' && result !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
           const balance = weiToTokens(result);
           if (balance > 0) {
             stakes.push({
@@ -522,7 +528,7 @@ export async function getUserStakingDetails(walletAddresses) {
       }
     }
 
-    console.log(`📊 User staked balance: ${totalStaked.toLocaleString()} tokens across ${stakes.length} wallet(s)`);
+    console.log(`📊 User staking details: ${totalStaked.toLocaleString()} tokens across ${stakes.length} wallet(s)`);
 
     return {
       totalStaked,
