@@ -153,32 +153,23 @@ export const GET = withAdminAuth(async (request, context) => {
     
     console.log(`📋 FID ${fid}: Found ${missionSubmissions?.length || 0} total bounty submissions`);
 
-    // Fetch mission payouts (ambassador_payouts where ambassador_id is NULL = mogul payouts)
-    const { data: missionPayouts, error: payoutsError } = await supabaseAdmin
-      .from('ambassador_payouts')
-      .select(`
-        id,
-        amount_tokens,
-        status,
-        transaction_hash,
-        completed_at,
-        submission_id
-      `)
-      .is('ambassador_id', null)
-      .eq('submission:bounty_submissions!ambassador_payouts_submission_id_fkey.ambassador_fid', fid);
-
-    // Alternative: get payouts via submission IDs if the above doesn't work
+    // Get payouts for this user's submissions (column is bounty_submission_id)
     let payoutMap = {};
     if (missionSubmissions && missionSubmissions.length > 0) {
       const submissionIds = missionSubmissions.map(s => s.id);
-      const { data: payouts } = await supabaseAdmin
+      const { data: payouts, error: payoutsError } = await supabaseAdmin
         .from('ambassador_payouts')
         .select('*')
-        .in('submission_id', submissionIds);
+        .in('bounty_submission_id', submissionIds);
+      
+      if (payoutsError) {
+        console.error('Error fetching payouts:', payoutsError);
+      }
       
       if (payouts) {
+        console.log(`📋 FID ${fid}: Found ${payouts.length} payouts for ${submissionIds.length} submissions`);
         payouts.forEach(p => {
-          payoutMap[p.submission_id] = p;
+          payoutMap[p.bounty_submission_id] = p;
         });
       }
     }
@@ -189,13 +180,13 @@ export const GET = withAdminAuth(async (request, context) => {
       payout: payoutMap[mission.id] || null
     }));
 
-    // Calculate mission stats
+    // Calculate mission stats based on PAYOUT status, not submission status
     const missionStats = {
-      completed: enrichedMissions.filter(m => m.status === 'approved').length,
-      pending: enrichedMissions.filter(m => m.status === 'pending').length,
-      rejected: enrichedMissions.filter(m => m.status === 'rejected').length,
+      completed: enrichedMissions.filter(m => m.payout?.status === 'completed').length,
+      claimable: enrichedMissions.filter(m => m.payout?.status === 'claimable').length,
+      pending: enrichedMissions.filter(m => m.status === 'pending' && !m.payout).length,
       totalEarned: enrichedMissions
-        .filter(m => m.status === 'approved')
+        .filter(m => m.payout?.status === 'completed' || m.payout?.status === 'claimable')
         .reduce((sum, m) => sum + (m.bounty?.reward_tokens || 0), 0)
     };
 

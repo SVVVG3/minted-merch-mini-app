@@ -178,7 +178,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
         )}
 
         {userData && (
-          <div className="flex flex-col h-full max-h-[calc(90vh-80px)]">
+          <div className="flex flex-col" style={{ height: 'calc(90vh - 80px)', minHeight: '500px' }}>
             {/* Tab Navigation - flex-shrink-0 prevents collapse */}
             <div className="flex border-b border-gray-200 px-6 overflow-x-auto flex-shrink-0">
               {[
@@ -836,44 +836,34 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                                 <div className="font-medium text-green-600">
                                   +{(mission.bounty?.reward_tokens || 0).toLocaleString()}
                                 </div>
+                                {/* Show PAYOUT status, not submission status */}
                                 <div className={`text-xs px-2 py-1 rounded mt-1 inline-block ${
-                                  mission.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                  mission.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  mission.payout?.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                  mission.payout?.status === 'claimable' ? 'bg-yellow-100 text-yellow-800' :
+                                  mission.status === 'approved' ? 'bg-blue-100 text-blue-800' :
+                                  mission.status === 'pending' ? 'bg-gray-100 text-gray-800' :
                                   mission.status === 'rejected' ? 'bg-red-100 text-red-800' :
                                   'bg-gray-100 text-gray-800'
                                 }`}>
-                                  {mission.status}
+                                  {mission.payout?.status === 'completed' ? 'Completed' :
+                                   mission.payout?.status === 'claimable' ? 'Claimable' :
+                                   mission.status === 'approved' ? 'Approved' :
+                                   mission.status}
                                 </div>
                               </div>
                             </div>
                             
-                            {/* Payout Status */}
-                            {mission.payout && (
-                              <div className="mt-3 pt-3 border-t border-gray-200">
-                                <div className="flex justify-between items-center text-sm">
-                                  <span className="text-gray-600">Payout Status:</span>
-                                  <span className={`px-2 py-1 rounded ${
-                                    mission.payout.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                    mission.payout.status === 'claimable' ? 'bg-blue-100 text-blue-800' :
-                                    mission.payout.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-gray-100 text-gray-800'
-                                  }`}>
-                                    {mission.payout.status === 'completed' ? '✅ Claimed' :
-                                     mission.payout.status === 'claimable' ? '💰 Ready to Claim' :
-                                     mission.payout.status === 'pending' ? '⏳ Processing' :
-                                     mission.payout.status}
-                                  </span>
-                                </div>
-                                {mission.payout.transaction_hash && (
-                                  <a 
-                                    href={`https://basescan.org/tx/${mission.payout.transaction_hash}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-xs text-blue-600 hover:underline mt-1 block"
-                                  >
-                                    View Tx: {mission.payout.transaction_hash.slice(0, 10)}...
-                                  </a>
-                                )}
+                            {/* Transaction Link for completed payouts */}
+                            {mission.payout?.transaction_hash && (
+                              <div className="mt-2 pt-2 border-t border-gray-200">
+                                <a 
+                                  href={`https://basescan.org/tx/${mission.payout.transaction_hash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 hover:underline"
+                                >
+                                  View Transaction →
+                                </a>
                               </div>
                             )}
                           </div>
