@@ -160,9 +160,10 @@ export default function AdminDashboard() {
   const [payoutsData, setPayoutsData] = useState([]);
   const [payoutsLoading, setPayoutsLoading] = useState(false);
   const [payoutsError, setPayoutsError] = useState('');
-  const [payoutsFilter, setPayoutsFilter] = useState('pending'); // 'all', 'pending', 'processing', 'completed'
+  const [payoutsFilter, setPayoutsFilter] = useState('pending'); // 'all', 'pending', 'claimable', 'processing', 'completed'
   const [selectedPayoutForComplete, setSelectedPayoutForComplete] = useState(null);
   const [copiedWallet, setCopiedWallet] = useState(null); // Track which wallet was copied
+  const [regeneratingPayout, setRegeneratingPayout] = useState(null); // Track which payout is being regenerated
   
   // Ambassador section view (within ambassadors sub-tab)
   const [ambassadorView, setAmbassadorView] = useState('ambassadors'); // 'ambassadors', 'bounties', 'submissions', 'payouts'
@@ -1009,6 +1010,35 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error completing payout:', error);
       alert('Failed to complete payout');
+    }
+  };
+
+  // Regenerate signature for stuck claimable payouts
+  const handleRegenerateSignature = async (payoutId, ambassadorUsername, amount) => {
+    if (!confirm(`Regenerate claim signature for @${ambassadorUsername || 'Mogul'}?\n\nAmount: ${amount} tokens\n\nThis will create a new signature if the current one is failing.`)) {
+      return;
+    }
+
+    setRegeneratingPayout(payoutId);
+    try {
+      const response = await adminFetch('/api/admin/regenerate-payout-signature', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payoutId })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert(`✅ Signature regenerated!\n\nNew UID: ${result.newUid?.slice(0, 20)}...\nNew Deadline: ${new Date(result.newDeadline).toLocaleDateString()}`);
+        loadPayouts();
+      } else {
+        alert(result.error || 'Failed to regenerate signature');
+      }
+    } catch (error) {
+      console.error('Error regenerating signature:', error);
+      alert('Failed to regenerate signature');
+    } finally {
+      setRegeneratingPayout(null);
     }
   };
 
@@ -4540,6 +4570,7 @@ export default function AdminDashboard() {
                         >
                           <option value="all">All Payouts</option>
                           <option value="pending">Pending</option>
+                          <option value="claimable">Claimable</option>
                           <option value="processing">Processing</option>
                           <option value="completed">Completed</option>
                         </select>
@@ -4644,28 +4675,45 @@ export default function AdminDashboard() {
                                   {new Date(payout.created_at).toLocaleDateString()}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                  {payout.status === 'pending' && payout.wallet_address && (
-                                    <button
-                                      onClick={() => handleCompletePayout(
-                                        payout.id,
-                                        payout.ambassadors?.profiles?.username,
-                                        payout.amount_tokens
-                                      )}
-                                      className="text-green-600 hover:text-green-900 font-medium"
-                                    >
-                                      Mark Complete
-                                    </button>
-                                  )}
-                                  {payout.transaction_hash && (
-                                    <a
-                                      href={`https://basescan.org/tx/${payout.transaction_hash}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 hover:underline text-xs"
-                                    >
-                                      View TX
-                                    </a>
-                                  )}
+                                  <div className="flex flex-col gap-1">
+                                    {payout.status === 'pending' && payout.wallet_address && (
+                                      <button
+                                        onClick={() => handleCompletePayout(
+                                          payout.id,
+                                          payout.ambassadors?.profiles?.username,
+                                          payout.amount_tokens
+                                        )}
+                                        className="text-green-600 hover:text-green-900 font-medium"
+                                      >
+                                        Mark Complete
+                                      </button>
+                                    )}
+                                    {payout.status === 'claimable' && (
+                                      <button
+                                        onClick={() => handleRegenerateSignature(
+                                          payout.id,
+                                          payout.ambassadors?.profiles?.username,
+                                          payout.amount_tokens
+                                        )}
+                                        disabled={regeneratingPayout === payout.id}
+                                        className={`text-orange-600 hover:text-orange-900 font-medium text-xs ${
+                                          regeneratingPayout === payout.id ? 'opacity-50 cursor-not-allowed' : ''
+                                        }`}
+                                      >
+                                        {regeneratingPayout === payout.id ? '⏳ Regenerating...' : '🔄 Regenerate Sig'}
+                                      </button>
+                                    )}
+                                    {payout.transaction_hash && (
+                                      <a
+                                        href={`https://basescan.org/tx/${payout.transaction_hash}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:underline text-xs"
+                                      >
+                                        View TX
+                                      </a>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
                             ))}
