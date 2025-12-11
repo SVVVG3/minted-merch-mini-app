@@ -125,29 +125,38 @@ export const GET = withAdminAuth(async (request, context) => {
       console.error('Error fetching point transactions:', pointTransactionsError);
     }
 
-    // Fetch mission submissions (interaction bounties only)
-    const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'];
-    const { data: missionSubmissions, error: missionsError } = await supabaseAdmin
+    // Fetch ALL mission submissions for this user (both interaction and custom bounties)
+    // Note: We fetch ALL submissions and filter in JS, as Supabase filtering on joined fields is unreliable
+    const { data: allSubmissions, error: missionsError } = await supabaseAdmin
       .from('bounty_submissions')
       .select(`
         id,
         status,
         submitted_at,
         approved_at,
-        bounty:bounties!inner (
+        ambassador_fid,
+        bounty:bounties (
           id,
           title,
           bounty_type,
-          reward_tokens
+          reward_tokens,
+          target_cast_url
         )
       `)
       .eq('ambassador_fid', fid)
-      .in('bounty.bounty_type', INTERACTION_BOUNTY_TYPES)
       .order('submitted_at', { ascending: false });
 
     if (missionsError) {
       console.error('Error fetching mission submissions:', missionsError);
     }
+    
+    // Filter to interaction bounty types (Minted Merch Missions) in JS
+    const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'];
+    const missionSubmissions = (allSubmissions || []).filter(s => 
+      s.bounty && INTERACTION_BOUNTY_TYPES.includes(s.bounty.bounty_type)
+    );
+    
+    console.log(`📋 FID ${fid}: Found ${allSubmissions?.length || 0} total submissions, ${missionSubmissions.length} are interaction bounties`);
 
     // Fetch mission payouts (ambassador_payouts where ambassador_id is NULL = mogul payouts)
     const { data: missionPayouts, error: payoutsError } = await supabaseAdmin
