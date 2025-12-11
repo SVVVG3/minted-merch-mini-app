@@ -179,8 +179,8 @@ export default function UserModal({ isOpen, onClose, userFid }) {
 
         {userData && (
           <div className="flex flex-col h-full max-h-[calc(90vh-80px)]">
-            {/* Tab Navigation */}
-            <div className="flex border-b border-gray-200 px-6 overflow-x-auto">
+            {/* Tab Navigation - flex-shrink-0 prevents collapse */}
+            <div className="flex border-b border-gray-200 px-6 overflow-x-auto flex-shrink-0">
               {[
                 { id: 'overview', label: 'Overview', icon: '👤' },
                 { id: 'wallets', label: 'Wallets', icon: '💳' },
@@ -188,12 +188,12 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                 { id: 'discounts', label: 'Discounts', icon: '🎫' },
                 { id: 'points', label: 'Points', icon: '⭐' },
                 { id: 'raffles', label: 'Raffles', icon: '🎲' },
-                { id: 'missions', label: 'Bounties', icon: '🎯' }
+                { id: 'missions', label: 'Missions', icon: '🎯' }
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${
+                  className={`px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap flex-shrink-0 ${
                     activeTab === tab.id
                       ? 'border-[#3eb489] text-[#3eb489]'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -775,21 +775,21 @@ export default function UserModal({ isOpen, onClose, userFid }) {
 
               {activeTab === 'missions' && (
                 <div className="space-y-6">
-                  <h3 className="text-lg font-semibold">🎯 All Bounty Submissions</h3>
+                  <h3 className="text-lg font-semibold">🎯 Minted Merch Missions</h3>
                   
-                  {/* Bounty Stats */}
+                  {/* Mission Stats - Based on payout status */}
                   <div className="grid grid-cols-3 gap-4">
                     <div className="bg-green-50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-green-600">
-                        {userData.missionStats?.completed || 0}
+                        {userData.missions?.filter(m => m.payout?.status === 'completed').length || 0}
                       </div>
-                      <div className="text-sm text-green-600">Approved</div>
+                      <div className="text-sm text-green-600">Completed</div>
                     </div>
                     <div className="bg-yellow-50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-yellow-600">
-                        {userData.missionStats?.pending || 0}
+                        {userData.missions?.filter(m => m.payout?.status === 'claimable').length || 0}
                       </div>
-                      <div className="text-sm text-yellow-600">Pending</div>
+                      <div className="text-sm text-yellow-600">Claimable</div>
                     </div>
                     <div className="bg-purple-50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-purple-600">
@@ -799,9 +799,9 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                     </div>
                   </div>
 
-                  {/* Bounties List */}
+                  {/* Missions List */}
                   <div>
-                    <h4 className="font-medium mb-3">Submission History</h4>
+                    <h4 className="font-medium mb-3">Mission History</h4>
                     <div className="space-y-3 max-h-96 overflow-y-auto">
                       {userData.missions && userData.missions.length > 0 ? (
                         userData.missions.map((mission) => (
@@ -881,7 +881,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                       ) : (
                         <div className="text-center text-gray-500 py-8">
                           <div className="text-4xl mb-2">🎯</div>
-                          <div>No bounties completed yet</div>
+                          <div>No missions completed yet</div>
                         </div>
                       )}
                     </div>
