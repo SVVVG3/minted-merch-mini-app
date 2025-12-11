@@ -125,9 +125,8 @@ export const GET = withAdminAuth(async (request, context) => {
       console.error('Error fetching point transactions:', pointTransactionsError);
     }
 
-    // Fetch ALL mission submissions for this user (both interaction and custom bounties)
-    // Note: We fetch ALL submissions and filter in JS, as Supabase filtering on joined fields is unreliable
-    const { data: allSubmissions, error: missionsError } = await supabaseAdmin
+    // Fetch ALL bounty submissions for this user (both interaction and custom bounties)
+    const { data: missionSubmissions, error: missionsError } = await supabaseAdmin
       .from('bounty_submissions')
       .select(`
         id,
@@ -135,6 +134,8 @@ export const GET = withAdminAuth(async (request, context) => {
         submitted_at,
         approved_at,
         ambassador_fid,
+        proof_url,
+        proof_description,
         bounty:bounties (
           id,
           title,
@@ -147,16 +148,10 @@ export const GET = withAdminAuth(async (request, context) => {
       .order('submitted_at', { ascending: false });
 
     if (missionsError) {
-      console.error('Error fetching mission submissions:', missionsError);
+      console.error('Error fetching bounty submissions:', missionsError);
     }
     
-    // Filter to interaction bounty types (Minted Merch Missions) in JS
-    const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'];
-    const missionSubmissions = (allSubmissions || []).filter(s => 
-      s.bounty && INTERACTION_BOUNTY_TYPES.includes(s.bounty.bounty_type)
-    );
-    
-    console.log(`📋 FID ${fid}: Found ${allSubmissions?.length || 0} total submissions, ${missionSubmissions.length} are interaction bounties`);
+    console.log(`📋 FID ${fid}: Found ${missionSubmissions?.length || 0} total bounty submissions`);
 
     // Fetch mission payouts (ambassador_payouts where ambassador_id is NULL = mogul payouts)
     const { data: missionPayouts, error: payoutsError } = await supabaseAdmin

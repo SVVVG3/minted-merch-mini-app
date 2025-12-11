@@ -188,7 +188,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                 { id: 'discounts', label: 'Discounts', icon: '🎫' },
                 { id: 'points', label: 'Points', icon: '⭐' },
                 { id: 'raffles', label: 'Raffles', icon: '🎲' },
-                { id: 'missions', label: 'Missions', icon: '🎯' }
+                { id: 'missions', label: 'Bounties', icon: '🎯' }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -775,15 +775,15 @@ export default function UserModal({ isOpen, onClose, userFid }) {
 
               {activeTab === 'missions' && (
                 <div className="space-y-6">
-                  <h3 className="text-lg font-semibold">🎯 Minted Merch Missions</h3>
+                  <h3 className="text-lg font-semibold">🎯 All Bounty Submissions</h3>
                   
-                  {/* Mission Stats */}
+                  {/* Bounty Stats */}
                   <div className="grid grid-cols-3 gap-4">
                     <div className="bg-green-50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-green-600">
                         {userData.missionStats?.completed || 0}
                       </div>
-                      <div className="text-sm text-green-600">Completed</div>
+                      <div className="text-sm text-green-600">Approved</div>
                     </div>
                     <div className="bg-yellow-50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-yellow-600">
@@ -799,23 +799,35 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                     </div>
                   </div>
 
-                  {/* Missions List */}
+                  {/* Bounties List */}
                   <div>
-                    <h4 className="font-medium mb-3">Mission History</h4>
-                    <div className="space-y-3">
+                    <h4 className="font-medium mb-3">Submission History</h4>
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
                       {userData.missions && userData.missions.length > 0 ? (
                         userData.missions.map((mission) => (
                           <div key={mission.id} className="bg-gray-50 rounded-lg p-4">
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
-                                <div className="font-medium">{mission.bounty?.title || 'Mission'}</div>
+                                <div className="font-medium">{mission.bounty?.title || 'Bounty'}</div>
                                 <div className="text-sm text-gray-600 mt-1">
                                   {mission.bounty?.bounty_type === 'farcaster_like' && '👍 Like'}
                                   {mission.bounty?.bounty_type === 'farcaster_recast' && '🔄 Recast'}
                                   {mission.bounty?.bounty_type === 'farcaster_comment' && '💬 Comment'}
                                   {mission.bounty?.bounty_type === 'farcaster_like_recast' && '⚡ Like & Recast'}
                                   {mission.bounty?.bounty_type === 'farcaster_engagement' && '🔥 Full Engagement'}
+                                  {mission.bounty?.bounty_type === 'custom' && '📝 Custom Bounty'}
+                                  {!['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement', 'custom'].includes(mission.bounty?.bounty_type) && `📋 ${mission.bounty?.bounty_type || 'Unknown'}`}
                                 </div>
+                                {mission.proof_url && (
+                                  <a 
+                                    href={mission.proof_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 hover:underline mt-1 block"
+                                  >
+                                    View Proof →
+                                  </a>
+                                )}
                                 <div className="text-xs text-gray-500 mt-1">
                                   Submitted: {formatDate(mission.submitted_at)}
                                 </div>
@@ -841,21 +853,26 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                                 <div className="flex justify-between items-center text-sm">
                                   <span className="text-gray-600">Payout Status:</span>
                                   <span className={`px-2 py-1 rounded ${
-                                    mission.payout.status === 'claimed' ? 'bg-green-100 text-green-800' :
+                                    mission.payout.status === 'completed' ? 'bg-green-100 text-green-800' :
                                     mission.payout.status === 'claimable' ? 'bg-blue-100 text-blue-800' :
                                     mission.payout.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                                     'bg-gray-100 text-gray-800'
                                   }`}>
-                                    {mission.payout.status === 'claimed' ? '✅ Claimed' :
+                                    {mission.payout.status === 'completed' ? '✅ Claimed' :
                                      mission.payout.status === 'claimable' ? '💰 Ready to Claim' :
                                      mission.payout.status === 'pending' ? '⏳ Processing' :
                                      mission.payout.status}
                                   </span>
                                 </div>
                                 {mission.payout.transaction_hash && (
-                                  <div className="text-xs text-gray-500 mt-1">
-                                    Tx: {mission.payout.transaction_hash.slice(0, 10)}...
-                                  </div>
+                                  <a 
+                                    href={`https://basescan.org/tx/${mission.payout.transaction_hash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 hover:underline mt-1 block"
+                                  >
+                                    View Tx: {mission.payout.transaction_hash.slice(0, 10)}...
+                                  </a>
                                 )}
                               </div>
                             )}
@@ -864,7 +881,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                       ) : (
                         <div className="text-center text-gray-500 py-8">
                           <div className="text-4xl mb-2">🎯</div>
-                          <div>No missions completed yet</div>
+                          <div>No bounties completed yet</div>
                         </div>
                       )}
                     </div>
