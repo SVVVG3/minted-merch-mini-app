@@ -1,13 +1,13 @@
 // API endpoint to list active bounties for ambassadors
 // GET /api/ambassador/bounties
-// Returns CUSTOM bounties only (interaction bounties are for Merch Moguls via /merchmogulmissions)
+// Returns CUSTOM bounties only (interaction bounties are shown on /missions)
 
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkAmbassadorStatus, getAmbassadorSubmissionCount } from '@/lib/ambassadorHelpers';
 
-// Interaction bounty types - these are excluded from ambassador dashboard (shown on /merchmogulmissions instead)
+// Interaction bounty types - these are excluded from ambassador dashboard (shown on /missions instead)
 const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'];
 
 export async function GET(request) {

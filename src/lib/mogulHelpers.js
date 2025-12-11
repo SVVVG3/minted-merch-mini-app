@@ -1,18 +1,23 @@
-// Merch Mogul helper functions
-// Handles checking mogul eligibility (50M+ tokens) and related operations
+// Minted Merch Missions helper functions
+// Handles checking missions eligibility:
+// - Merch Moguls: 50M+ tokens (wallet + staked)
+// - Stakers: 1M+ tokens staked
+// Both groups can access missions, complete bounties, and earn payouts
 
 import { supabaseAdmin } from './supabase';
 
-const MOGUL_TOKEN_THRESHOLD = 50_000_000; // 50M tokens required
+const MOGUL_TOKEN_THRESHOLD = 50_000_000; // 50M tokens required for Merch Mogul status
+const STAKER_TOKEN_THRESHOLD = 1_000_000; // 1M staked tokens required for missions access
 
 /**
- * Check if a user is a Merch Mogul (50M+ tokens including staked)
+ * Check if a user is eligible for Minted Merch Missions
+ * Eligible if: 50M+ tokens (Merch Mogul) OR 1M+ staked tokens
  * @param {number} fid - Farcaster ID
- * @returns {Promise<{isMogul: boolean, tokenBalance: number}>}
+ * @returns {Promise<{isEligible: boolean, isMogul: boolean, isStaker: boolean, tokenBalance: number, stakedBalance: number}>}
  */
-export async function checkMogulStatus(fid) {
+export async function checkMissionsEligibility(fid) {
   try {
-    console.log(`💎 Checking Merch Mogul status for FID: ${fid}`);
+    console.log(`🎯 Checking missions eligibility for FID: ${fid}`);
 
     // Get user's token balance from profiles table
     const { data: profile, error } = await supabaseAdmin
@@ -23,7 +28,7 @@ export async function checkMogulStatus(fid) {
 
     if (error || !profile) {
       console.log(`❌ Profile not found for FID ${fid}`);
-      return { isMogul: false, tokenBalance: 0 };
+      return { isEligible: false, isMogul: false, isStaker: false, tokenBalance: 0, stakedBalance: 0 };
     }
 
     // Total balance = wallet + staked
@@ -35,21 +40,47 @@ export async function checkMogulStatus(fid) {
     const dbTokenBalance = parseFloat(profile.token_balance) || 0;
     const effectiveBalance = Math.max(tokenBalance, dbTokenBalance);
 
+    // Check if Merch Mogul (50M+ total tokens)
     const isMogul = effectiveBalance >= MOGUL_TOKEN_THRESHOLD;
+    
+    // Check if Staker (1M+ staked)
+    const isStaker = stakedBalance >= STAKER_TOKEN_THRESHOLD;
+    
+    // Eligible if either condition is met
+    const isEligible = isMogul || isStaker;
 
-    console.log(`💎 Mogul status for FID ${fid}: ${isMogul ? '✅ MOGUL' : '❌ NOT MOGUL'} (${effectiveBalance.toLocaleString()} tokens)`);
+    const statusText = isMogul ? '✅ MOGUL' : isStaker ? '✅ STAKER' : '❌ NOT ELIGIBLE';
+    console.log(`🎯 Missions eligibility for FID ${fid}: ${statusText} (${effectiveBalance.toLocaleString()} tokens, ${stakedBalance.toLocaleString()} staked)`);
 
     return { 
+      isEligible,
       isMogul, 
+      isStaker,
       tokenBalance: effectiveBalance,
       walletBalance,
       stakedBalance
     };
 
   } catch (error) {
-    console.error(`❌ Error checking mogul status for FID ${fid}:`, error);
-    return { isMogul: false, tokenBalance: 0 };
+    console.error(`❌ Error checking missions eligibility for FID ${fid}:`, error);
+    return { isEligible: false, isMogul: false, isStaker: false, tokenBalance: 0, stakedBalance: 0 };
   }
+}
+
+/**
+ * Legacy function - Check if a user is a Merch Mogul (50M+ tokens)
+ * @deprecated Use checkMissionsEligibility instead
+ * @param {number} fid - Farcaster ID
+ * @returns {Promise<{isMogul: boolean, tokenBalance: number}>}
+ */
+export async function checkMogulStatus(fid) {
+  const result = await checkMissionsEligibility(fid);
+  return {
+    isMogul: result.isMogul,
+    tokenBalance: result.tokenBalance,
+    walletBalance: result.walletBalance,
+    stakedBalance: result.stakedBalance
+  };
 }
 
 /**
@@ -81,15 +112,59 @@ export async function getMogulSubmissionCount(fid, bountyId) {
 }
 
 /**
- * Get all Merch Moguls (users with 50M+ tokens)
+ * Get all users eligible for Minted Merch Missions
+ * Includes: Merch Moguls (50M+ tokens) AND Stakers (1M+ staked)
  * Used for sending notifications
+ * @returns {Promise<number[]>} Array of FIDs
+ */
+export async function getAllMissionsEligibleUsers() {
+  try {
+    console.log(`🎯 Fetching all missions-eligible users (50M+ tokens OR 1M+ staked)...`);
+
+    // Get all users with 50M+ tokens (Merch Moguls)
+    const { data: moguls, error: mogulsError } = await supabaseAdmin
+      .from('profiles')
+      .select('fid')
+      .gte('token_balance', MOGUL_TOKEN_THRESHOLD);
+
+    if (mogulsError) {
+      console.error('❌ Error fetching Merch Moguls:', mogulsError);
+    }
+
+    // Get all users with 1M+ staked tokens (Stakers)
+    const { data: stakers, error: stakersError } = await supabaseAdmin
+      .from('profiles')
+      .select('fid')
+      .gte('staked_balance', STAKER_TOKEN_THRESHOLD);
+
+    if (stakersError) {
+      console.error('❌ Error fetching Stakers:', stakersError);
+    }
+
+    // Combine and deduplicate FIDs
+    const mogulFids = (moguls || []).map(p => p.fid);
+    const stakerFids = (stakers || []).map(p => p.fid);
+    const allFids = [...new Set([...mogulFids, ...stakerFids])];
+
+    console.log(`🎯 Found ${allFids.length} missions-eligible users (${mogulFids.length} moguls, ${stakerFids.length} stakers)`);
+
+    return allFids;
+
+  } catch (error) {
+    console.error('❌ Error in getAllMissionsEligibleUsers:', error);
+    return [];
+  }
+}
+
+/**
+ * Legacy function - Get all Merch Moguls (users with 50M+ tokens)
+ * @deprecated Use getAllMissionsEligibleUsers instead for notifications
  * @returns {Promise<number[]>} Array of FIDs
  */
 export async function getAllMerchMoguls() {
   try {
     console.log(`💎 Fetching all Merch Moguls (50M+ tokens)...`);
 
-    // Get all users with 50M+ tokens
     const { data: profiles, error } = await supabaseAdmin
       .from('profiles')
       .select('fid, token_balance')
@@ -163,5 +238,5 @@ export async function getMogulProfile(fid) {
   }
 }
 
-export { MOGUL_TOKEN_THRESHOLD };
+export { MOGUL_TOKEN_THRESHOLD, STAKER_TOKEN_THRESHOLD };
 

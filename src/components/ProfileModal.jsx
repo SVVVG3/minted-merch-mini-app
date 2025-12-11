@@ -629,16 +629,19 @@ export function ProfileModal({ isOpen, onClose }) {
                 </div>
               </div>
               
-              {/* Merch Mogul Missions Link - Only for 50M+ holders */}
-              {profileData.token_balance && parseFloat(profileData.token_balance) >= 50000000 && (
+              {/* Minted Merch Missions Link - For 50M+ holders OR 1M+ stakers */}
+              {profileData && (
+                (parseFloat(profileData.token_balance || 0) >= 50000000) || 
+                (parseFloat(profileData.staked_balance || 0) >= 1000000)
+              ) && (
                 <div className="bg-gradient-to-r from-purple-50 to-fuchsia-50 border border-purple-200 rounded-xl p-4 shadow-sm">
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-xl flex-shrink-0">
-                        💎
+                        🎯
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-purple-800">Merch Mogul Missions</h4>
+                        <h4 className="font-bold text-purple-800">Minted Merch Missions</h4>
                         <p className="text-xs text-purple-600">Complete missions to earn $mintedmerch</p>
                       </div>
                     </div>
@@ -654,7 +657,7 @@ export function ProfileModal({ isOpen, onClose }) {
                         }
                         
                         onClose();
-                        router.push('/merchmogulmissions');
+                        router.push('/missions');
                       }}
                       className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1 whitespace-nowrap w-full"
                     >

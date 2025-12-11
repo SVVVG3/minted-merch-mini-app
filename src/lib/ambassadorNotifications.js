@@ -35,31 +35,55 @@ export async function getAllActiveAmbassadors() {
 }
 
 /**
- * Get all Merch Moguls' FIDs (users with 50M+ tokens)
- * @returns {Promise<number[]>} Array of FIDs for Merch Moguls
+ * Get all users eligible for Minted Merch Missions
+ * Includes: Merch Moguls (50M+ tokens) AND Stakers (1M+ staked)
+ * @returns {Promise<number[]>} Array of FIDs for eligible users
  */
-export async function getAllMerchMoguls() {
+export async function getAllMissionsEligibleUsers() {
   try {
     const MOGUL_TOKEN_THRESHOLD = 50_000_000;
+    const STAKER_TOKEN_THRESHOLD = 1_000_000;
     
-    const { data: profiles, error } = await supabaseAdmin
+    // Get Merch Moguls (50M+ tokens)
+    const { data: moguls, error: mogulsError } = await supabaseAdmin
       .from('profiles')
       .select('fid')
       .gte('token_balance', MOGUL_TOKEN_THRESHOLD);
 
-    if (error) {
-      console.error('❌ Error fetching Merch Moguls:', error);
-      return [];
+    if (mogulsError) {
+      console.error('❌ Error fetching Merch Moguls:', mogulsError);
     }
 
-    const fids = profiles.map(p => p.fid);
-    console.log(`💎 Found ${fids.length} Merch Moguls`);
-    return fids;
+    // Get Stakers (1M+ staked)
+    const { data: stakers, error: stakersError } = await supabaseAdmin
+      .from('profiles')
+      .select('fid')
+      .gte('staked_balance', STAKER_TOKEN_THRESHOLD);
+
+    if (stakersError) {
+      console.error('❌ Error fetching Stakers:', stakersError);
+    }
+
+    // Combine and deduplicate
+    const mogulFids = (moguls || []).map(p => p.fid);
+    const stakerFids = (stakers || []).map(p => p.fid);
+    const allFids = [...new Set([...mogulFids, ...stakerFids])];
+
+    console.log(`🎯 Found ${allFids.length} missions-eligible users (${mogulFids.length} moguls, ${stakerFids.length} stakers)`);
+    return allFids;
 
   } catch (error) {
-    console.error('❌ Error in getAllMerchMoguls:', error);
+    console.error('❌ Error in getAllMissionsEligibleUsers:', error);
     return [];
   }
+}
+
+/**
+ * Legacy alias for getAllMissionsEligibleUsers
+ * @deprecated Use getAllMissionsEligibleUsers
+ */
+export async function getAllMerchMoguls() {
+  return getAllMissionsEligibleUsers();
 }
 
 /**
@@ -82,11 +106,11 @@ export async function sendNewBountyNotification(bountyData) {
     let targetUrl;
     
     if (isInteractionBounty) {
-      // INTERACTION BOUNTY → Notify Merch Moguls
-      console.log(`💎 Interaction bounty: notifying Merch Moguls`);
-      recipientFids = await getAllMerchMoguls();
-      recipientType = 'moguls';
-      targetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/merchmogulmissions?from=new_mission&t=${Date.now()}`;
+      // INTERACTION BOUNTY → Notify missions-eligible users (Moguls + Stakers)
+      console.log(`🎯 Interaction bounty: notifying missions-eligible users`);
+      recipientFids = await getAllMissionsEligibleUsers();
+      recipientType = 'missions_users';
+      targetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/missions?from=new_mission&t=${Date.now()}`;
     } else {
       // CUSTOM BOUNTY → Notify Ambassadors
       if (bountyData.target_ambassador_fids && Array.isArray(bountyData.target_ambassador_fids) && bountyData.target_ambassador_fids.length > 0) {
@@ -115,7 +139,7 @@ export async function sendNewBountyNotification(bountyData) {
 
     // Create notification message
     const rewardAmount = bountyData.reward_tokens || bountyData.rewardTokens;
-    const title = isInteractionBounty ? "💎 New Mission!" : "🎯 New Bounty!";
+    const title = isInteractionBounty ? "🎯 New Mission!" : "🎯 New Bounty!";
     const message = {
       title, // Keep under 32 chars
       body: `${bountyData.title} - Earn ${rewardAmount.toLocaleString()} $mintedmerch tokens!`,

@@ -125,6 +125,76 @@ export const GET = withAdminAuth(async (request, context) => {
       console.error('Error fetching point transactions:', pointTransactionsError);
     }
 
+    // Fetch mission submissions (interaction bounties only)
+    const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'];
+    const { data: missionSubmissions, error: missionsError } = await supabaseAdmin
+      .from('bounty_submissions')
+      .select(`
+        id,
+        status,
+        submitted_at,
+        approved_at,
+        bounty:bounties!inner (
+          id,
+          title,
+          bounty_type,
+          reward_tokens
+        )
+      `)
+      .eq('ambassador_fid', fid)
+      .in('bounty.bounty_type', INTERACTION_BOUNTY_TYPES)
+      .order('submitted_at', { ascending: false });
+
+    if (missionsError) {
+      console.error('Error fetching mission submissions:', missionsError);
+    }
+
+    // Fetch mission payouts (ambassador_payouts where ambassador_id is NULL = mogul payouts)
+    const { data: missionPayouts, error: payoutsError } = await supabaseAdmin
+      .from('ambassador_payouts')
+      .select(`
+        id,
+        amount_tokens,
+        status,
+        transaction_hash,
+        completed_at,
+        submission_id
+      `)
+      .is('ambassador_id', null)
+      .eq('submission:bounty_submissions!ambassador_payouts_submission_id_fkey.ambassador_fid', fid);
+
+    // Alternative: get payouts via submission IDs if the above doesn't work
+    let payoutMap = {};
+    if (missionSubmissions && missionSubmissions.length > 0) {
+      const submissionIds = missionSubmissions.map(s => s.id);
+      const { data: payouts } = await supabaseAdmin
+        .from('ambassador_payouts')
+        .select('*')
+        .in('submission_id', submissionIds);
+      
+      if (payouts) {
+        payouts.forEach(p => {
+          payoutMap[p.submission_id] = p;
+        });
+      }
+    }
+
+    // Enrich missions with payout data
+    const enrichedMissions = (missionSubmissions || []).map(mission => ({
+      ...mission,
+      payout: payoutMap[mission.id] || null
+    }));
+
+    // Calculate mission stats
+    const missionStats = {
+      completed: enrichedMissions.filter(m => m.status === 'approved').length,
+      pending: enrichedMissions.filter(m => m.status === 'pending').length,
+      rejected: enrichedMissions.filter(m => m.status === 'rejected').length,
+      totalEarned: enrichedMissions
+        .filter(m => m.status === 'approved')
+        .reduce((sum, m) => sum + (m.bounty?.reward_tokens || 0), 0)
+    };
+
     // Calculate additional stats from orders
     const totalOrders = orders?.length || 0;
     const totalSpent = orders?.reduce((sum, order) => sum + (parseFloat(order.amount_total) || 0), 0) || 0;
@@ -226,7 +296,11 @@ export const GET = withAdminAuth(async (request, context) => {
       raffleWins: raffleWins || [],
 
       // Point transactions (latest 20)
-      recentPointTransactions: pointTransactions?.slice(0, 20) || []
+      recentPointTransactions: pointTransactions?.slice(0, 20) || [],
+
+      // Missions (interaction bounties)
+      missions: enrichedMissions || [],
+      missionStats: missionStats
     };
 
     console.log(`✅ Successfully fetched comprehensive data for user ${profile.username || fid}`);

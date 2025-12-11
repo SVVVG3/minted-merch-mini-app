@@ -8,10 +8,10 @@ import { triggerHaptic } from '@/lib/haptics';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Link from 'next/link';
 
-export default function MerchMogulMissions() {
+export default function MissionsClient() {
   const { user, isSDKReady, isInFarcaster } = useFarcaster();
   const [loading, setLoading] = useState(true);
-  const [isMogul, setIsMogul] = useState(false);
+  const [isEligible, setIsEligible] = useState(false);
   const [tokenBalance, setTokenBalance] = useState(0);
   const [profile, setProfile] = useState(null);
   const [bounties, setBounties] = useState([]);
@@ -56,7 +56,7 @@ export default function MerchMogulMissions() {
 
       if (bountiesResponse.status === 403) {
         // Not a mogul
-        setIsMogul(false);
+        setIsEligible(false);
         setTokenBalance(bountiesData.tokenBalance || 0);
         setLoading(false);
         return;
@@ -68,7 +68,7 @@ export default function MerchMogulMissions() {
         return;
       }
 
-      setIsMogul(true);
+      setIsEligible(true);
       setTokenBalance(bountiesData.mogulStatus?.tokenBalance || 0);
       setBounties(bountiesData.data || []);
 
@@ -166,32 +166,33 @@ export default function MerchMogulMissions() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3eb489] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading Merch Mogul Missions...</p>
+          <p className="text-gray-600">Loading Minted Merch Missions...</p>
         </div>
       </div>
     );
   }
 
-  // Not a mogul
-  if (!isMogul) {
+  // Not eligible for missions
+  if (!isEligible) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
           <img 
-            src="/MerchMogulMissionsDashboardLogo.png" 
-            alt="Merch Mogul Missions" 
+            src="/MintedMerchMissionsLogo.png" 
+            alt="Minted Merch Missions" 
             className="h-20 object-contain mx-auto mb-4"
           />
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            Merch Mogul Status Required
+            🎯 Missions Access Required
           </h1>
           <p className="text-gray-600 mb-6">
-            You need to hold <span className="font-bold text-[#3eb489]">50M+ $mintedmerch</span> tokens to access Mogul Missions.
+            Hold <span className="font-bold text-[#3eb489]">50M+ $mintedmerch</span> tokens<br />
+            <span className="text-gray-500">or</span><br />
+            Stake <span className="font-bold text-[#3eb489]">1M+ $mintedmerch</span> tokens
           </p>
           <div className="bg-gray-100 rounded-xl p-4 mb-6">
             <p className="text-sm text-gray-500">Your Balance</p>
             <p className="text-2xl font-bold text-gray-900">{formatNumber(tokenBalance)} tokens</p>
-            <p className="text-sm text-gray-500 mt-1">Need {formatNumber(50_000_000 - tokenBalance)} more</p>
           </div>
           <button 
             onClick={() => {
@@ -200,7 +201,7 @@ export default function MerchMogulMissions() {
             }}
             className="w-full bg-[#3eb489] text-white py-3 px-6 rounded-xl font-semibold hover:bg-[#359970] transition-colors"
           >
-            Stake to Earn More →
+            Stake 1M+ to Unlock →
           </button>
           <button 
             onClick={() => {
@@ -249,8 +250,8 @@ export default function MerchMogulMissions() {
           {/* Logo Header Image */}
           <div className="flex justify-center mb-3">
             <img 
-              src="/MerchMogulMissionsDashboardLogo.png" 
-              alt="Merch Mogul Missions" 
+              src="/MintedMerchMissionsLogo.png" 
+              alt="Minted Merch Missions" 
               className="h-24 object-contain"
             />
           </div>

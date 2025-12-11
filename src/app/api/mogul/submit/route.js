@@ -1,12 +1,12 @@
-// API endpoint for Merch Moguls to submit interaction bounties
+// API endpoint for Minted Merch Missions submissions
 // POST /api/mogul/submit
-// SECURITY: Requires JWT authentication and 50M+ token balance
+// SECURITY: Requires JWT authentication and missions eligibility (50M+ tokens OR 1M+ staked)
 // Only allows interaction bounty types with auto-verification
 
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { checkMogulStatus, getMogulSubmissionCount } from '@/lib/mogulHelpers';
+import { checkMissionsEligibility, getMogulSubmissionCount } from '@/lib/mogulHelpers';
 import { checkMogulSubmissionRateLimit } from '@/lib/rateLimiter';
 import { verifyFarcasterBounty } from '@/lib/farcasterBountyVerification';
 import { generateClaimSignature, getDefaultClaimDeadline } from '@/lib/claimSignatureService';
@@ -48,17 +48,21 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    console.log(`📝 Processing mogul bounty submission for FID ${fid}, Bounty: ${bountyId}`);
+    console.log(`📝 Processing missions bounty submission for FID ${fid}, Bounty: ${bountyId}`);
 
-    // SECURITY: Check if user is a Merch Mogul (50M+ tokens)
-    const { isMogul, tokenBalance } = await checkMogulStatus(fid);
+    // SECURITY: Check if user is eligible for missions (50M+ tokens OR 1M+ staked)
+    const { isEligible, isMogul, isStaker, tokenBalance, stakedBalance } = await checkMissionsEligibility(fid);
 
-    if (!isMogul) {
+    if (!isEligible) {
       return NextResponse.json({
         success: false,
-        error: 'Merch Mogul status required (50M+ $mintedmerch tokens)',
+        error: 'Missions eligibility required (50M+ $mintedmerch tokens OR 1M+ staked)',
         tokenBalance,
-        requiredBalance: 50_000_000
+        stakedBalance,
+        requirements: {
+          mogulThreshold: 50_000_000,
+          stakerThreshold: 1_000_000
+        }
       }, { status: 403 });
     }
 

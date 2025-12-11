@@ -22,12 +22,12 @@ export async function GET(request) {
   try {
     const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
     
-    // Fetch the Merch Mogul Missions logo
+    // Fetch the Minted Merch Missions logo
     let logoImageSrc = null;
     try {
-      logoImageSrc = await fetchImageAsDataUrl(`${baseUrl}/MerchMogulMissionsDashboardLogo.png`);
+      logoImageSrc = await fetchImageAsDataUrl(`${baseUrl}/MintedMerchMissionsLogo.png`);
     } catch (error) {
-      console.error('Error fetching mogul missions logo:', error);
+      console.error('Error fetching missions logo:', error);
     }
     
     return new ImageResponse(
@@ -49,7 +49,7 @@ export async function GET(request) {
           {logoImageSrc ? (
             <img
               src={logoImageSrc}
-              alt="Merch Mogul Missions"
+              alt="Minted Merch Missions"
               style={{
                 maxWidth: '70%',
                 maxHeight: '45%',
@@ -75,7 +75,7 @@ export async function GET(request) {
                   marginBottom: '20px',
                 }}
               >
-                💎 MERCH MOGUL
+                🎯 MINTED MERCH
               </div>
               <div
                 style={{
@@ -110,7 +110,7 @@ export async function GET(request) {
     );
     
   } catch (error) {
-    console.error('OG Mogul Missions Error:', error);
+    console.error('OG Missions Error:', error);
     
     // Return fallback image
     return new ImageResponse(
@@ -127,7 +127,7 @@ export async function GET(request) {
             color: 'white',
           }}
         >
-          <div style={{ fontSize: 64, color: '#3eb489', fontWeight: 'bold' }}>💎 MERCH MOGUL</div>
+          <div style={{ fontSize: 64, color: '#3eb489', fontWeight: 'bold' }}>🎯 MINTED MERCH</div>
           <div style={{ fontSize: 56, color: '#3eb489', marginTop: 20, fontWeight: 'bold' }}>MISSIONS</div>
           <div style={{ fontSize: 36, color: 'rgba(255,255,255,0.9)', marginTop: 40 }}>Complete missions • Earn $mintedmerch</div>
         </div>

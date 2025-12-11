@@ -1,12 +1,12 @@
-// API endpoint to list interaction bounties for Merch Moguls
+// API endpoint to list interaction bounties for Minted Merch Missions
 // GET /api/mogul/bounties
 // Returns only interaction bounties (farcaster_like, farcaster_recast, farcaster_comment, farcaster_engagement)
-// SECURITY: Requires JWT authentication and 50M+ token balance
+// SECURITY: Requires JWT authentication and missions eligibility (50M+ tokens OR 1M+ staked)
 
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { checkMogulStatus, getMogulSubmissionCount } from '@/lib/mogulHelpers';
+import { checkMissionsEligibility, getMogulSubmissionCount } from '@/lib/mogulHelpers';
 
 // Interaction bounty types
 const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'];
@@ -33,17 +33,21 @@ export async function GET(request) {
     }
 
     const fid = authResult.fid;
-    console.log(`🎯 Fetching mogul bounties for FID: ${fid}`);
+    console.log(`🎯 Fetching missions bounties for FID: ${fid}`);
 
-    // SECURITY: Check if user is a Merch Mogul (50M+ tokens)
-    const { isMogul, tokenBalance } = await checkMogulStatus(fid);
+    // SECURITY: Check if user is eligible for missions (50M+ tokens OR 1M+ staked)
+    const { isEligible, tokenBalance, stakedBalance } = await checkMissionsEligibility(fid);
 
-    if (!isMogul) {
+    if (!isEligible) {
       return NextResponse.json({
         success: false,
-        error: 'Merch Mogul status required (50M+ $mintedmerch tokens)',
+        error: 'Missions eligibility required (50M+ $mintedmerch tokens OR 1M+ staked)',
         tokenBalance,
-        requiredBalance: 50_000_000
+        stakedBalance,
+        requirements: {
+          mogulThreshold: 50_000_000,
+          stakerThreshold: 1_000_000
+        }
       }, { status: 403 });
     }
 

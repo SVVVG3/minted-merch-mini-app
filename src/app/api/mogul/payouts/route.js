@@ -1,12 +1,12 @@
-// API endpoint to get Merch Mogul's payouts
+// API endpoint to get Minted Merch Missions payouts
 // GET /api/mogul/payouts
-// Returns all payouts for the authenticated mogul with status and claim details
-// SECURITY: Requires JWT authentication and 50M+ token balance
+// Returns all payouts for the authenticated user with status and claim details
+// SECURITY: Requires JWT authentication and missions eligibility (50M+ tokens OR 1M+ staked)
 
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { checkMogulStatus } from '@/lib/mogulHelpers';
+import { checkMissionsEligibility } from '@/lib/mogulHelpers';
 
 export async function GET(request) {
   try {
@@ -30,17 +30,21 @@ export async function GET(request) {
     }
 
     const fid = authResult.fid;
-    console.log(`💰 Fetching mogul payouts for FID: ${fid}`);
+    console.log(`💰 Fetching missions payouts for FID: ${fid}`);
 
-    // SECURITY: Check if user is a Merch Mogul
-    const { isMogul, tokenBalance } = await checkMogulStatus(fid);
+    // SECURITY: Check if user is eligible for missions (50M+ tokens OR 1M+ staked)
+    const { isEligible, tokenBalance, stakedBalance } = await checkMissionsEligibility(fid);
 
-    if (!isMogul) {
+    if (!isEligible) {
       return NextResponse.json({
         success: false,
-        error: 'Merch Mogul status required (50M+ $mintedmerch tokens)',
+        error: 'Missions eligibility required (50M+ $mintedmerch tokens OR 1M+ staked)',
         tokenBalance,
-        requiredBalance: 50_000_000
+        stakedBalance,
+        requirements: {
+          mogulThreshold: 50_000_000,
+          stakerThreshold: 1_000_000
+        }
       }, { status: 403 });
     }
 

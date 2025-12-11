@@ -180,19 +180,20 @@ export default function UserModal({ isOpen, onClose, userFid }) {
         {userData && (
           <div className="flex flex-col h-full max-h-[calc(90vh-80px)]">
             {/* Tab Navigation */}
-            <div className="flex border-b border-gray-200 px-6">
+            <div className="flex border-b border-gray-200 px-6 overflow-x-auto">
               {[
                 { id: 'overview', label: 'Overview', icon: '👤' },
                 { id: 'wallets', label: 'Wallets', icon: '💳' },
                 { id: 'orders', label: 'Orders', icon: '🛍️' },
                 { id: 'discounts', label: 'Discounts', icon: '🎫' },
                 { id: 'points', label: 'Points', icon: '⭐' },
-                { id: 'raffles', label: 'Raffles', icon: '🎲' }
+                { id: 'raffles', label: 'Raffles', icon: '🎲' },
+                { id: 'missions', label: 'Missions', icon: '🎯' }
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-3 text-sm font-medium border-b-2 ${
+                  className={`px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'border-[#3eb489] text-[#3eb489]'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -768,6 +769,105 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                         <div>No raffle wins yet</div>
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'missions' && (
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold">🎯 Minted Merch Missions</h3>
+                  
+                  {/* Mission Stats */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-green-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {userData.missionStats?.completed || 0}
+                      </div>
+                      <div className="text-sm text-green-600">Completed</div>
+                    </div>
+                    <div className="bg-yellow-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-yellow-600">
+                        {userData.missionStats?.pending || 0}
+                      </div>
+                      <div className="text-sm text-yellow-600">Pending</div>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {formatTokenBalance(userData.missionStats?.totalEarned || 0)}
+                      </div>
+                      <div className="text-sm text-purple-600">Tokens Earned</div>
+                    </div>
+                  </div>
+
+                  {/* Missions List */}
+                  <div>
+                    <h4 className="font-medium mb-3">Mission History</h4>
+                    <div className="space-y-3">
+                      {userData.missions && userData.missions.length > 0 ? (
+                        userData.missions.map((mission) => (
+                          <div key={mission.id} className="bg-gray-50 rounded-lg p-4">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="font-medium">{mission.bounty?.title || 'Mission'}</div>
+                                <div className="text-sm text-gray-600 mt-1">
+                                  {mission.bounty?.bounty_type === 'farcaster_like' && '👍 Like'}
+                                  {mission.bounty?.bounty_type === 'farcaster_recast' && '🔄 Recast'}
+                                  {mission.bounty?.bounty_type === 'farcaster_comment' && '💬 Comment'}
+                                  {mission.bounty?.bounty_type === 'farcaster_like_recast' && '⚡ Like & Recast'}
+                                  {mission.bounty?.bounty_type === 'farcaster_engagement' && '🔥 Full Engagement'}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Submitted: {formatDate(mission.submitted_at)}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-medium text-green-600">
+                                  +{(mission.bounty?.reward_tokens || 0).toLocaleString()}
+                                </div>
+                                <div className={`text-xs px-2 py-1 rounded mt-1 inline-block ${
+                                  mission.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                  mission.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  mission.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {mission.status}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Payout Status */}
+                            {mission.payout && (
+                              <div className="mt-3 pt-3 border-t border-gray-200">
+                                <div className="flex justify-between items-center text-sm">
+                                  <span className="text-gray-600">Payout Status:</span>
+                                  <span className={`px-2 py-1 rounded ${
+                                    mission.payout.status === 'claimed' ? 'bg-green-100 text-green-800' :
+                                    mission.payout.status === 'claimable' ? 'bg-blue-100 text-blue-800' :
+                                    mission.payout.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {mission.payout.status === 'claimed' ? '✅ Claimed' :
+                                     mission.payout.status === 'claimable' ? '💰 Ready to Claim' :
+                                     mission.payout.status === 'pending' ? '⏳ Processing' :
+                                     mission.payout.status}
+                                  </span>
+                                </div>
+                                {mission.payout.transaction_hash && (
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    Tx: {mission.payout.transaction_hash.slice(0, 10)}...
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-500 py-8">
+                          <div className="text-4xl mb-2">🎯</div>
+                          <div>No missions completed yet</div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
