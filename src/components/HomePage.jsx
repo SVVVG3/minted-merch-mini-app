@@ -162,116 +162,21 @@ export function HomePage({ collection: initialCollection, products: initialProdu
     }
   }, []); // Run once on component mount
 
-  // Register user profile when Farcaster context is ready
+  // Load user discounts after registration (registration now handled in useFarcaster)
   useEffect(() => {
     if (!isInFarcaster || !isReady) return;
     
     const userFid = getFid();
     if (!userFid) return;
 
-    // Prevent multiple registrations with more robust checking
-    const sessionKey = `user_registered_${userFid}`;
-    const hasRegistered = sessionStorage.getItem(sessionKey);
-    const lastRegistration = localStorage.getItem(`last_registration_${userFid}`);
-    const now = Date.now();
+    // Load discounts with delay to ensure centralized registration completes first
+    const timer = setTimeout(() => {
+      console.log('📦 Loading discounts for user:', userFid);
+      loadUserDiscounts(userFid);
+    }, 2000);
     
-    // Skip if registered in this session or within last 5 minutes
-    if (hasRegistered || (lastRegistration && (now - parseInt(lastRegistration)) < 5 * 60 * 1000)) {
-      console.log('User already registered recently, loading discounts with delay to ensure data consistency');
-      // Add a small delay to ensure any background registration processes complete
-      setTimeout(() => {
-        loadUserDiscounts(userFid);
-      }, 2000); // 2 second delay
-      return;
-    }
-
-    const registerUserProfile = async () => {
-      try {
-        console.log('=== REGISTERING USER PROFILE ===');
-        console.log('User FID:', userFid);
-        console.log('User Data:', {
-          fid: userFid,
-          username: getUsername(),
-          displayName: getDisplayName(),
-          pfpUrl: getPfpUrl()
-        });
-        console.log('Full Farcaster Context:', context);
-        
-        // Check if user has notifications enabled
-        const hasNotifications = !!(context?.client?.notificationDetails || context?.notificationDetails);
-        const notificationDetails = context?.client?.notificationDetails || context?.notificationDetails;
-        
-        console.log('User has notifications enabled:', hasNotifications);
-        console.log('Notification details:', notificationDetails);
-        
-        // Prepare user data for registration
-        const userData = {
-          username: getUsername() || `user_${userFid}`,
-          displayName: getDisplayName() || null,
-          bio: null, // Bio not available in simplified version
-          pfpUrl: getPfpUrl() || null
-        };
-
-        console.log('Registering user profile with data:', userData);
-        
-        // 🔒 SECURITY: Get session token for authentication
-        const sessionToken = getSessionToken();
-        
-        if (!sessionToken) {
-          console.warn('⚠️ No session token available - skipping registration (will retry on next page load)');
-          return;
-        }
-        
-        // Register user profile
-        const response = await fetch('/api/register-user', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionToken}`
-          },
-          body: JSON.stringify({ 
-            fid: userFid,
-            username: userData.username,
-            displayName: userData.displayName,
-            bio: userData.bio,
-            pfpUrl: userData.pfpUrl
-          }),
-        });
-        
-        const result = await response.json();
-        console.log('User profile registration result:', result);
-        
-        if (result.success) {
-          console.log('✅ User profile successfully registered!');
-          console.log('📱 Has notifications enabled:', result.hasNotifications);
-          
-          // Mark as registered to prevent multiple calls
-          sessionStorage.setItem(`user_registered_${userFid}`, 'true');
-          localStorage.setItem(`last_registration_${userFid}`, Date.now().toString());
-          
-          if (result.welcomeNotificationSent) {
-            console.log('🎉 Welcome notification sent to new user!');
-          } else if (result.hasNotifications) {
-            console.log('✅ User has notifications but welcome already sent previously');
-          } else {
-            console.log('📱 User does not have notifications enabled');
-          }
-
-          // After successful registration, check for user's available discount codes
-          loadUserDiscounts(userFid);
-        } else {
-          console.error('❌ User profile registration failed:', result.error);
-        }
-        
-      } catch (error) {
-        console.error('Error registering user profile:', error);
-      }
-    };
-
-    // Small delay to ensure Farcaster context is fully loaded
-    const timer = setTimeout(registerUserProfile, 1000);
     return () => clearTimeout(timer);
-  }, [isInFarcaster, isReady]); // Removed unstable dependencies
+  }, [isInFarcaster, isReady]); // Registration now handled in useFarcaster hook
 
   // Notification status is now handled by frame.js via SDK events (notificationsEnabled/notificationsDisabled)
   // No need for polling - the SDK events automatically update the database

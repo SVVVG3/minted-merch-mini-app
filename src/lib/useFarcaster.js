@@ -373,7 +373,13 @@ export function useFarcaster() {
       hasRegisteredThisSession.current = true;
       
       try {
-        console.log('🔄 Auto-registering user profile for FID:', user.fid);
+        // Handle different property names from different sources:
+        // - Farcaster SDK context.user uses: pfp_url, pfp, display_name
+        // - AuthKit uses: pfpUrl, displayName
+        const pfpUrl = user.pfpUrl || user.pfp_url || user.pfp || null;
+        const displayName = user.displayName || user.display_name || user.username;
+        
+        console.log('🔄 Auto-registering user profile for FID:', user.fid, 'pfpUrl:', pfpUrl ? 'present' : 'null');
         
         const response = await fetch('/api/register-user', {
           method: 'POST',
@@ -384,9 +390,9 @@ export function useFarcaster() {
           body: JSON.stringify({
             fid: user.fid,
             username: user.username,
-            displayName: user.displayName,
+            displayName: displayName,
             bio: user.bio || null,
-            pfpUrl: user.pfpUrl
+            pfpUrl: pfpUrl
           })
         });
         
@@ -409,13 +415,13 @@ export function useFarcaster() {
     }
     
     registerUser();
-  }, [user?.fid, user?.username, user?.displayName, user?.bio, user?.pfpUrl, sessionToken]);
+  }, [user?.fid, user?.username, user?.displayName, user?.display_name, user?.bio, user?.pfpUrl, user?.pfp_url, user?.pfp, sessionToken]);
 
   // Memoize callback functions to prevent unnecessary re-renders
   const getFid = useCallback(() => user?.fid, [user?.fid]);
   const getUsername = useCallback(() => user?.username, [user?.username]);
-  const getDisplayName = useCallback(() => user?.displayName, [user?.displayName]);
-  const getPfpUrl = useCallback(() => user?.pfpUrl, [user?.pfpUrl]);
+  const getDisplayName = useCallback(() => user?.displayName || user?.display_name, [user?.displayName, user?.display_name]);
+  const getPfpUrl = useCallback(() => user?.pfpUrl || user?.pfp_url || user?.pfp, [user?.pfpUrl, user?.pfp_url, user?.pfp]);
   const getSessionToken = useCallback(() => sessionToken, [sessionToken]);
   const hasNotifications = useCallback(
     () => !!(context?.client?.notificationDetails || context?.notificationDetails),

@@ -80,34 +80,7 @@ export default function MintPageClient({ slug }) {
   const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
   const [eligibilityResult, setEligibilityResult] = useState(null);
 
-  // Auto-register user on page load
-  useEffect(() => {
-    if (farcasterUser && sessionToken) {
-      console.log("📝 Auto-registering user...");
-
-      fetch("/api/register-user", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${sessionToken}`,
-        },
-        body: JSON.stringify({
-          fid: farcasterUser.fid,
-          username: farcasterUser.username,
-          displayName: farcasterUser.displayName || farcasterUser.username,
-          bio: farcasterUser.bio || null,
-          pfpUrl: farcasterUser.pfpUrl || null,
-        }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          console.log("✅ User registered/updated:", data);
-        })
-        .catch((err) => {
-          console.error("⚠️  Profile registration failed (non-blocking):", err);
-        });
-    }
-  }, [farcasterUser, sessionToken]);
+  // User registration now handled centrally in useFarcaster hook
 
   // Fetch campaign data
   useEffect(() => {
