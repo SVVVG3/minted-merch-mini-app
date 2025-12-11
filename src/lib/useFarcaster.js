@@ -281,9 +281,6 @@ export function useFarcaster() {
     getAuthKitSession();
   }, [isInFarcaster, isAuthKitAuthenticated, authKitProfile?.fid, authKitData, validSignature, sessionToken]);
   
-  // Track if we've already fetched the profile to prevent duplicate requests
-  const hasFetchedProfile = useRef(false);
-  
   // Load session token from localStorage on mount (for desktop/AuthKit)
   // AND restore user from token if AuthKit doesn't have profile yet
   useEffect(() => {
@@ -306,9 +303,12 @@ export function useFarcaster() {
             
             // IMPORTANT: If AuthKit doesn't have the user yet but we have a valid token,
             // restore user from the token payload AND fetch full profile from database
-            // Use ref to prevent duplicate fetches
-            if (!user && payload.fid && !hasFetchedProfile.current) {
-              hasFetchedProfile.current = true;
+            // Use sessionStorage to prevent duplicate fetches across component instances
+            const profileFetchKey = `profile_fetched_${payload.fid}`;
+            const alreadyFetched = sessionStorage.getItem(profileFetchKey);
+            
+            if (!user && payload.fid && !alreadyFetched) {
+              sessionStorage.setItem(profileFetchKey, 'true');
               console.log('🔄 Restoring user from session token:', payload.fid);
               
               // Set basic user info immediately
@@ -336,7 +336,8 @@ export function useFarcaster() {
                       username: data.profile.username || prev?.username,
                       displayName: data.profile.display_name || prev?.displayName,
                       pfpUrl: data.profile.pfp_url || null,
-                      bio: data.profile.bio || null
+                      bio: data.profile.bio || null,
+                      restoredFromToken: true // Keep this flag
                     }));
                   }
                   // If no profile found, that's okay - user might not be registered yet
@@ -358,19 +359,33 @@ export function useFarcaster() {
     }
   }, [isInFarcaster, sessionToken, user?.fid]); // Only depend on user.fid, not entire user object
 
-  // Track if we've registered this session (ref resets on page reload = fresh data each app open)
-  const hasRegisteredThisSession = useRef(false);
-  
   // CENTRALIZED USER REGISTRATION
   // Automatically register/update user profile when authenticated
   // This ensures ALL users get a profile regardless of which page they land on
   useEffect(() => {
     async function registerUser() {
-      // Guards: need FID, session token, and haven't registered this session yet
-      if (!user?.fid || !sessionToken || hasRegisteredThisSession.current) return;
+      // Guards: need FID and session token
+      if (!user?.fid || !sessionToken) return;
       
-      // Mark as attempted immediately to prevent duplicate calls
-      hasRegisteredThisSession.current = true;
+      // Skip registration for users restored from token - they already have a profile
+      // The profile fetch will update their pfpUrl
+      if (user.restoredFromToken) {
+        console.log('⏭️ Skipping registration for token-restored user:', user.fid);
+        return;
+      }
+      
+      // Use sessionStorage to prevent duplicate registrations across component instances
+      const registrationKey = `user_registered_${user.fid}_${Date.now().toString().slice(0, -4)}`; // Changes every 10 seconds
+      const recentRegistration = sessionStorage.getItem(`user_registered_${user.fid}`);
+      if (recentRegistration) {
+        const timeSince = Date.now() - parseInt(recentRegistration);
+        if (timeSince < 30000) { // Skip if registered within last 30 seconds
+          return;
+        }
+      }
+      
+      // Mark as registered
+      sessionStorage.setItem(`user_registered_${user.fid}`, Date.now().toString());
       
       try {
         // Handle different property names from different sources:
@@ -415,7 +430,7 @@ export function useFarcaster() {
     }
     
     registerUser();
-  }, [user?.fid, user?.username, user?.displayName, user?.display_name, user?.bio, user?.pfpUrl, user?.pfp_url, user?.pfp, sessionToken]);
+  }, [user?.fid, sessionToken]); // Only depend on FID and sessionToken to prevent multiple triggers
 
   // Memoize callback functions to prevent unnecessary re-renders
   const getFid = useCallback(() => user?.fid, [user?.fid]);
