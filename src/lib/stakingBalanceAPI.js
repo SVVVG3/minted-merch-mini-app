@@ -11,13 +11,13 @@ const STAKING_CONTRACT = '0x38AE5d952FA83eD57c5b5dE59b6e36Ce975a9150';
 // Use BigInt for precision with large wei values (exceed Number.MAX_SAFE_INTEGER)
 const WEI_DIVISOR = BigInt(10 ** 18);
 
-// Function selectors (keccak256 of signature, first 4 bytes)
-// BETRStaking contract functions:
+// Function selectors from Basescan (verified)
+// BETRStaking contract: 0x38AE5d952FA83eD57c5b5dE59b6e36Ce975a9150
 // - stakedAmount(address user) - View staked amount for a user
 // - totalStakedAmount() - View total staked across all users
 const FUNCTION_SIGS = {
-  stakedAmount: '0x909e7ae5',      // keccak256("stakedAmount(address)")[:4]
-  totalStakedAmount: '0x3e0a322d', // keccak256("totalStakedAmount()")[:4]
+  stakedAmount: '0xf9931855',      // stakedAmount(address) - from Basescan
+  totalStakedAmount: '0x567e98f9', // totalStakedAmount() - from Basescan
 };
 
 /**
