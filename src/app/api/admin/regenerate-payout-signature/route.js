@@ -67,8 +67,18 @@ export const POST = withAdminAuth(async (request) => {
       deadline
     });
     
+    // Convert BigInt values to strings for JSON serialization
+    const serializableReq = {
+      ...req,
+      expirationTimestamp: req.expirationTimestamp?.toString(),
+      contents: req.contents?.map(c => ({
+        ...c,
+        amount: c.amount?.toString()
+      }))
+    };
+    
     // Store the new signature
-    const newClaimData = JSON.stringify({ req, signature });
+    const newClaimData = JSON.stringify({ req: serializableReq, signature });
     
     const { error: updateError } = await supabaseAdmin
       .from('ambassador_payouts')
