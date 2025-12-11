@@ -4,7 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
-import { checkMogulStatus, getMogulProfile } from '@/lib/mogulHelpers';
+import { checkMissionsEligibility, getMogulProfile } from '@/lib/mogulHelpers';
 
 export async function GET(request) {
   try {
@@ -30,15 +30,17 @@ export async function GET(request) {
     const fid = authResult.fid;
     console.log(`👤 Fetching mogul profile for FID: ${fid}`);
 
-    // SECURITY: Check if user is a Merch Mogul
-    const { isMogul, tokenBalance } = await checkMogulStatus(fid);
+    // SECURITY: Check if user is eligible for Minted Merch Missions (50M+ tokens OR 1M+ staked)
+    const { isEligible, tokenBalance, stakedBalance } = await checkMissionsEligibility(fid);
 
-    if (!isMogul) {
+    if (!isEligible) {
       return NextResponse.json({
         success: false,
-        error: 'Merch Mogul status required (50M+ $mintedmerch tokens)',
+        error: 'Missions eligibility required (50M+ tokens OR 1M+ staked)',
         tokenBalance,
-        requiredBalance: 50_000_000
+        stakedBalance,
+        requiredBalance: 50_000_000,
+        requiredStaked: 1_000_000
       }, { status: 403 });
     }
 

@@ -4,7 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
-import { checkMogulStatus } from '@/lib/mogulHelpers';
+import { checkMissionsEligibility } from '@/lib/mogulHelpers';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request, { params }) {
@@ -32,15 +32,17 @@ export async function POST(request, { params }) {
     
     const userFid = authResult.fid;
     
-    // 2. Check if user is a Merch Mogul
-    const { isMogul, tokenBalance } = await checkMogulStatus(userFid);
+    // 2. Check if user is eligible for Minted Merch Missions (50M+ tokens OR 1M+ staked)
+    const { isEligible, tokenBalance, stakedBalance } = await checkMissionsEligibility(userFid);
     
-    if (!isMogul) {
+    if (!isEligible) {
       return NextResponse.json({ 
         success: false,
-        error: 'Merch Mogul status required (50M+ $mintedmerch tokens)',
+        error: 'Missions eligibility required (50M+ tokens OR 1M+ staked)',
         tokenBalance,
-        requiredBalance: 50_000_000
+        stakedBalance,
+        requiredBalance: 50_000_000,
+        requiredStaked: 1_000_000
       }, { status: 403 });
     }
     

@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { checkMogulStatus } from '@/lib/mogulHelpers';
+import { checkMissionsEligibility } from '@/lib/mogulHelpers';
 
 // Interaction bounty types
 const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'];
@@ -34,15 +34,17 @@ export async function GET(request) {
     const fid = authResult.fid;
     console.log(`📋 Fetching mogul submissions for FID: ${fid}`);
 
-    // SECURITY: Check if user is a Merch Mogul
-    const { isMogul, tokenBalance } = await checkMogulStatus(fid);
+    // SECURITY: Check if user is eligible for Minted Merch Missions (50M+ tokens OR 1M+ staked)
+    const { isEligible, tokenBalance, stakedBalance } = await checkMissionsEligibility(fid);
 
-    if (!isMogul) {
+    if (!isEligible) {
       return NextResponse.json({
         success: false,
-        error: 'Merch Mogul status required (50M+ $mintedmerch tokens)',
+        error: 'Missions eligibility required (50M+ tokens OR 1M+ staked)',
         tokenBalance,
-        requiredBalance: 50_000_000
+        stakedBalance,
+        requiredBalance: 50_000_000,
+        requiredStaked: 1_000_000
       }, { status: 403 });
     }
 
