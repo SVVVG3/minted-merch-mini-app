@@ -281,6 +281,9 @@ export function useFarcaster() {
     getAuthKitSession();
   }, [isInFarcaster, isAuthKitAuthenticated, authKitProfile?.fid, authKitData, validSignature, sessionToken]);
   
+  // Track if we've already fetched the profile to prevent duplicate requests
+  const hasFetchedProfile = useRef(false);
+  
   // Load session token from localStorage on mount (for desktop/AuthKit)
   // AND restore user from token if AuthKit doesn't have profile yet
   useEffect(() => {
@@ -303,7 +306,9 @@ export function useFarcaster() {
             
             // IMPORTANT: If AuthKit doesn't have the user yet but we have a valid token,
             // restore user from the token payload AND fetch full profile from database
-            if (!user && payload.fid) {
+            // Use ref to prevent duplicate fetches
+            if (!user && payload.fid && !hasFetchedProfile.current) {
+              hasFetchedProfile.current = true;
               console.log('🔄 Restoring user from session token:', payload.fid);
               
               // Set basic user info immediately
@@ -316,7 +321,7 @@ export function useFarcaster() {
                 restoredFromToken: true
               });
               
-              // Fetch full profile from database to get pfpUrl
+              // Fetch full profile from database to get pfpUrl (only once)
               fetch(`/api/profile?fid=${payload.fid}`, {
                 headers: {
                   'Authorization': `Bearer ${storedToken}`
@@ -334,6 +339,7 @@ export function useFarcaster() {
                       bio: data.profile.bio || null
                     }));
                   }
+                  // If no profile found, that's okay - user might not be registered yet
                 })
                 .catch(err => {
                   console.error('Error fetching profile:', err);
@@ -350,7 +356,7 @@ export function useFarcaster() {
         localStorage.removeItem('fc_session_token');
       }
     }
-  }, [isInFarcaster, sessionToken, user]);
+  }, [isInFarcaster, sessionToken, user?.fid]); // Only depend on user.fid, not entire user object
 
   // Memoize callback functions to prevent unnecessary re-renders
   const getFid = useCallback(() => user?.fid, [user?.fid]);

@@ -33,11 +33,19 @@ export async function GET(request) {
       .single();
 
     if (error) {
+      // PGRST116 = "0 rows" - profile doesn't exist yet, not a real error
+      if (error.code === 'PGRST116') {
+        return NextResponse.json({
+          success: true,
+          profile: null // User not registered yet, that's okay
+        });
+      }
+      // Actual error
       console.error('Error fetching profile:', error);
       return NextResponse.json({
         success: false,
         error: error.message
-      }, { status: 404 });
+      }, { status: 500 });
     }
 
     return NextResponse.json({
