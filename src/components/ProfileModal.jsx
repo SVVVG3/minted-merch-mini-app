@@ -629,10 +629,12 @@ export function ProfileModal({ isOpen, onClose }) {
                 </div>
               </div>
               
-              {/* Minted Merch Missions Link - For 50M+ holders OR 1M+ stakers */}
+              {/* Minted Merch Missions Link - For 50M+ holders OR 1M+ stakers OR 1M+ wallet balance */}
+              {/* Also allows users who completed missions to claim their payouts */}
               {profileData && (
                 (parseFloat(profileData.token_balance || 0) >= 50000000) || 
-                (parseFloat(profileData.staked_balance || 0) >= 1000000)
+                (parseFloat(profileData.staked_balance || 0) >= 1000000) ||
+                (parseFloat(profileData.wallet_balance || 0) >= 1000000)
               ) && (
                 <div className="bg-gradient-to-r from-purple-50 to-fuchsia-50 border border-purple-200 rounded-xl p-4 shadow-sm">
                   <div className="flex flex-col gap-3">

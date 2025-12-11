@@ -11,9 +11,10 @@ const STAKER_TOKEN_THRESHOLD = 1_000_000; // 1M staked tokens required for missi
 
 /**
  * Check if a user is eligible for Minted Merch Missions
- * Eligible if: 50M+ tokens (Merch Mogul) OR 1M+ staked tokens
+ * Eligible if: 50M+ tokens (Merch Mogul) OR 1M+ staked tokens OR 1M+ wallet tokens
+ * The 1M+ wallet check allows users who completed missions to claim payouts even if they unstaked
  * @param {number} fid - Farcaster ID
- * @returns {Promise<{isEligible: boolean, isMogul: boolean, isStaker: boolean, tokenBalance: number, stakedBalance: number}>}
+ * @returns {Promise<{isEligible: boolean, isMogul: boolean, isStaker: boolean, hasWalletBalance: boolean, tokenBalance: number, stakedBalance: number, walletBalance: number}>}
  */
 export async function checkMissionsEligibility(fid) {
   try {
@@ -28,7 +29,7 @@ export async function checkMissionsEligibility(fid) {
 
     if (error || !profile) {
       console.log(`❌ Profile not found for FID ${fid}`);
-      return { isEligible: false, isMogul: false, isStaker: false, tokenBalance: 0, stakedBalance: 0 };
+      return { isEligible: false, isMogul: false, isStaker: false, hasWalletBalance: false, tokenBalance: 0, stakedBalance: 0, walletBalance: 0 };
     }
 
     // Total balance = wallet + staked
@@ -46,16 +47,20 @@ export async function checkMissionsEligibility(fid) {
     // Check if Staker (1M+ staked)
     const isStaker = stakedBalance >= STAKER_TOKEN_THRESHOLD;
     
-    // Eligible if either condition is met
-    const isEligible = isMogul || isStaker;
+    // Check if has wallet balance (1M+ in wallet) - allows claiming existing payouts
+    const hasWalletBalance = walletBalance >= STAKER_TOKEN_THRESHOLD;
+    
+    // Eligible if any condition is met
+    const isEligible = isMogul || isStaker || hasWalletBalance;
 
-    const statusText = isMogul ? '✅ MOGUL' : isStaker ? '✅ STAKER' : '❌ NOT ELIGIBLE';
-    console.log(`🎯 Missions eligibility for FID ${fid}: ${statusText} (${effectiveBalance.toLocaleString()} tokens, ${stakedBalance.toLocaleString()} staked)`);
+    const statusText = isMogul ? '✅ MOGUL' : isStaker ? '✅ STAKER' : hasWalletBalance ? '✅ WALLET' : '❌ NOT ELIGIBLE';
+    console.log(`🎯 Missions eligibility for FID ${fid}: ${statusText} (${effectiveBalance.toLocaleString()} tokens, ${stakedBalance.toLocaleString()} staked, ${walletBalance.toLocaleString()} wallet)`);
 
     return { 
       isEligible,
       isMogul, 
       isStaker,
+      hasWalletBalance,
       tokenBalance: effectiveBalance,
       walletBalance,
       stakedBalance
@@ -63,7 +68,7 @@ export async function checkMissionsEligibility(fid) {
 
   } catch (error) {
     console.error(`❌ Error checking missions eligibility for FID ${fid}:`, error);
-    return { isEligible: false, isMogul: false, isStaker: false, tokenBalance: 0, stakedBalance: 0 };
+    return { isEligible: false, isMogul: false, isStaker: false, hasWalletBalance: false, tokenBalance: 0, stakedBalance: 0, walletBalance: 0 };
   }
 }
 
