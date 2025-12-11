@@ -23,6 +23,14 @@
       "schedule": "0 22 * * *"
     },
     {
+      "path": "/api/notifications/staking-reminder",
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/notifications/staking-reminder",
+      "schedule": "0 21 * * *"
+    },
+    {
       "path": "/api/notifications/evening-checkin",
       "schedule": "0 3 * * *"
     },

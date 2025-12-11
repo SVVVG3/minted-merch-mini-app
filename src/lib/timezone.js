@@ -327,4 +327,22 @@ export function isEveningNotificationTime() {
   }
   
   return isCorrectHour;
+}
+
+/**
+ * Check if it's currently staking reminder notification time (1 PM PST/PDT)
+ * @returns {boolean} True if it's within 1:00-1:59 PM PST/PDT
+ */
+export function isStakingReminderTime() {
+  const hour = getPacificHour();
+  
+  // Check if it's between 1:00 PM and 1:59 PM PST/PDT (13:00-13:59 in 24h format)
+  // This provides a 1-hour window for the cron job to execute
+  const isCorrectHour = hour === 13;
+  
+  if (!isCorrectHour) {
+    console.log(`⏰ Not staking reminder time. Current PST hour: ${hour}, expected: 13`);
+  }
+  
+  return isCorrectHour;
 } 

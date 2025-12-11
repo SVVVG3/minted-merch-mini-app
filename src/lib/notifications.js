@@ -3,7 +3,7 @@
 
 import { supabase, supabaseAdmin } from './supabase.js';
 import { sendNotificationWithNeynar } from './neynar.js';
-import { getCurrentPSTTime, formatPSTTime, isNotificationTime, isAfternoonNotificationTime, isEveningNotificationTime } from './timezone.js';
+import { getCurrentPSTTime, formatPSTTime, isNotificationTime, isAfternoonNotificationTime, isEveningNotificationTime, isStakingReminderTime } from './timezone.js';
 
 /**
  * Get all users who have notifications enabled and haven't checked in today
@@ -425,7 +425,7 @@ export async function sendDailyCheckInReminders() {
 /**
  * Log batch notifications sent to database (OPTIMIZED for batch operations)
  * @param {Array<number>} userFids - Array of user Farcaster IDs
- * @param {string} type - Notification type ('checkin_reminder', 'afternoon_checkin_reminder', or 'evening_checkin_reminder')
+ * @param {string} type - Notification type ('checkin_reminder', 'afternoon_checkin_reminder', 'evening_checkin_reminder', or 'staking_reminder')
  */
 async function logBatchNotificationsSent(userFids, type) {
   try {
@@ -441,6 +441,8 @@ async function logBatchNotificationsSent(userFids, type) {
       updateData.last_afternoon_reminder_sent_date = currentCheckInDay;
     } else if (type === 'evening_checkin_reminder') {
       updateData.last_evening_reminder_sent_date = currentCheckInDay;
+    } else if (type === 'staking_reminder') {
+      updateData.last_staking_reminder_sent_date = currentCheckInDay;
     }
 
     if (Object.keys(updateData).length > 0) {
@@ -463,7 +465,7 @@ async function logBatchNotificationsSent(userFids, type) {
 /**
  * Log notification sent to database (tracks when reminders were last sent)
  * @param {number} userFid - User's Farcaster ID
- * @param {string} type - Notification type ('checkin_reminder' or 'evening_checkin_reminder')
+ * @param {string} type - Notification type ('checkin_reminder', 'afternoon_checkin_reminder', 'evening_checkin_reminder', or 'staking_reminder')
  * @param {object} message - Message content
  */
 async function logNotificationSent(userFid, type, message) {
@@ -480,6 +482,8 @@ async function logNotificationSent(userFid, type, message) {
       updateData.last_afternoon_reminder_sent_date = currentCheckInDay;
     } else if (type === 'evening_checkin_reminder') {
       updateData.last_evening_reminder_sent_date = currentCheckInDay;
+    } else if (type === 'staking_reminder') {
+      updateData.last_staking_reminder_sent_date = currentCheckInDay;
     }
     
     if (Object.keys(updateData).length > 0) {
@@ -1258,6 +1262,334 @@ export async function testCheckInReminder(userFid) {
     return {
       success: false,
       error: error.message
+    };
+  }
+}
+
+// ============================================
+// STAKING REMINDER NOTIFICATIONS (1 PM PST)
+// ============================================
+
+/**
+ * Check if it's time to send staking reminder notifications (1 PM PST)
+ * @returns {boolean} True if it's staking reminder notification time
+ */
+export function shouldSendStakingReminders() {
+  return isStakingReminderTime();
+}
+
+/**
+ * Get all users who have tokens staked and have notifications enabled
+ * Uses the subgraph to get current stakers, then matches with profiles
+ * @returns {array} Array of { fid, walletAddress, stakedAmount } for users who need staking reminders
+ */
+export async function getUsersWithStakedBalances() {
+  try {
+    const adminClient = supabaseAdmin || supabase;
+    const { getCurrentCheckInDay } = await import('./timezone.js');
+    const currentCheckInDay = getCurrentCheckInDay();
+    
+    // Step 1: Get all stakers with balances > 0 from the subgraph
+    const { getAllStakerBalances } = await import('./stakingBalanceAPI.js');
+    const stakerBalances = await getAllStakerBalances();
+    
+    if (stakerBalances.size === 0) {
+      console.log('📊 No stakers found in subgraph');
+      return [];
+    }
+    
+    console.log(`📊 Found ${stakerBalances.size} stakers with balances in subgraph`);
+    
+    // Filter to only stakers with balance > 0
+    const activeStakers = Array.from(stakerBalances.entries())
+      .filter(([_, balance]) => balance > 0)
+      .map(([wallet, balance]) => ({ wallet: wallet.toLowerCase(), balance }));
+    
+    console.log(`📊 ${activeStakers.length} stakers have balance > 0`);
+    
+    if (activeStakers.length === 0) {
+      return [];
+    }
+    
+    // Step 2: Fetch profiles that have notifications enabled and match staker wallets
+    // We need to check multiple wallet columns: primary_eth_address, custody_address, verified_eth_addresses
+    let allProfiles = [];
+    let from = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data: profilesBatch, error: profilesError } = await adminClient
+        .from('profiles')
+        .select('fid, primary_eth_address, custody_address, verified_eth_addresses, last_staking_reminder_sent_date')
+        .eq('has_notifications', true)
+        .order('fid', { ascending: true })
+        .range(from, from + batchSize - 1);
+
+      if (profilesError) {
+        console.error('Error fetching profiles with notifications:', profilesError);
+        break;
+      }
+
+      if (profilesBatch && profilesBatch.length > 0) {
+        allProfiles = allProfiles.concat(profilesBatch);
+        
+        if (profilesBatch.length < batchSize) {
+          hasMore = false;
+        } else {
+          from += batchSize;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    console.log(`📊 Found ${allProfiles.length} users with notifications enabled`);
+    
+    // Step 3: Match profiles to stakers
+    const usersWithStakes = [];
+    const stakerWalletSet = new Set(activeStakers.map(s => s.wallet));
+    
+    for (const profile of allProfiles) {
+      // Skip if already sent reminder today
+      if (profile.last_staking_reminder_sent_date === currentCheckInDay) {
+        continue;
+      }
+      
+      // Get all wallet addresses for this user
+      const userWallets = [];
+      if (profile.primary_eth_address) {
+        userWallets.push(profile.primary_eth_address.toLowerCase());
+      }
+      if (profile.custody_address) {
+        userWallets.push(profile.custody_address.toLowerCase());
+      }
+      if (profile.verified_eth_addresses && Array.isArray(profile.verified_eth_addresses)) {
+        userWallets.push(...profile.verified_eth_addresses.map(w => w.toLowerCase()));
+      }
+      
+      // Check if any of user's wallets are in the stakers list
+      let userStakedAmount = 0;
+      let matchedWallet = null;
+      
+      for (const wallet of userWallets) {
+        if (stakerWalletSet.has(wallet)) {
+          const staker = activeStakers.find(s => s.wallet === wallet);
+          if (staker && staker.balance > 0) {
+            userStakedAmount += staker.balance;
+            matchedWallet = wallet;
+          }
+        }
+      }
+      
+      if (userStakedAmount > 0) {
+        usersWithStakes.push({
+          fid: profile.fid,
+          walletAddress: matchedWallet,
+          stakedAmount: userStakedAmount
+        });
+      }
+    }
+    
+    console.log(`📊 ${usersWithStakes.length} users with staked balances need staking reminders`);
+    return usersWithStakes;
+    
+  } catch (error) {
+    console.error('Error in getUsersWithStakedBalances:', error);
+    return [];
+  }
+}
+
+/**
+ * Create staking reminder message
+ * @param {number} stakedAmount - User's staked amount in tokens
+ * @returns {object} Notification message object
+ */
+export function createStakingReminderMessage(stakedAmount) {
+  const formattedAmount = Math.floor(stakedAmount).toLocaleString();
+  
+  return {
+    title: "💎 Your Staking Rewards Await!",
+    body: `You have ${formattedAmount} $mintedmerch staked! Spin to claim your daily rewards 🎰`,
+    targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/stake?from=staking_reminder&t=${Date.now()}`
+  };
+}
+
+/**
+ * Send staking reminder to a single user
+ * @param {number} userFid - User's Farcaster ID
+ * @param {number} stakedAmount - User's staked amount
+ * @returns {object} Result of notification send
+ */
+export async function sendStakingReminder(userFid, stakedAmount) {
+  try {
+    console.log(`Sending staking reminder to FID: ${userFid}`);
+
+    const message = createStakingReminderMessage(stakedAmount);
+    const result = await sendNotificationWithNeynar(userFid, message);
+
+    if (result.success) {
+      if (result.skipped) {
+        console.log(`⏭️ Skipped FID ${userFid}: ${result.reason || 'Notifications not enabled'}`);
+        return {
+          success: true,
+          skipped: true,
+          userFid: userFid,
+          reason: result.reason || 'Notifications not enabled'
+        };
+      }
+      
+      console.log(`✅ Staking reminder sent successfully to FID: ${userFid}`);
+      await logNotificationSent(userFid, 'staking_reminder', message);
+      
+      return {
+        success: true,
+        userFid: userFid,
+        message: message
+      };
+    } else {
+      console.error(`❌ Failed to send staking reminder to FID: ${userFid}`, result.error);
+      return {
+        success: false,
+        userFid: userFid,
+        error: result.error
+      };
+    }
+
+  } catch (error) {
+    console.error(`Error sending staking reminder to FID: ${userFid}`, error);
+    return {
+      success: false,
+      userFid: userFid,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Send staking reminders to all users with staked balances using BATCHED Neynar API
+ * @returns {object} Summary of notification results
+ */
+export async function sendStakingReminders() {
+  try {
+    console.log('💎 Starting staking reminder process...');
+    console.log('📅 Current PST time:', formatPSTTime());
+
+    // Get users with staked balances who need reminders
+    const usersWithStakes = await getUsersWithStakedBalances();
+
+    if (usersWithStakes.length === 0) {
+      console.log('✅ No users need staking reminders');
+      return {
+        success: true,
+        totalUsers: 0,
+        successCount: 0,
+        failureCount: 0,
+        skippedCount: 0,
+        results: []
+      };
+    }
+
+    console.log(`📤 Sending staking reminders to ${usersWithStakes.length} users using BATCH API...`);
+
+    // Group users by staked amount ranges for message personalization
+    const messageGroups = new Map();
+    
+    for (const user of usersWithStakes) {
+      const formattedAmount = Math.floor(user.stakedAmount).toLocaleString();
+      
+      // Create a message body - group by amount ranges to reduce API calls
+      let messageBody;
+      if (user.stakedAmount >= 100_000_000) { // 100M+
+        messageBody = "🏆 Whale alert! Your massive stake is earning rewards - spin to claim! 🎰";
+      } else if (user.stakedAmount >= 10_000_000) { // 10M+
+        messageBody = "💎 Your big stake is working hard! Spin to claim daily rewards 🎰";
+      } else if (user.stakedAmount >= 1_000_000) { // 1M+
+        messageBody = "🔥 Your stake is earning! Spin the wheel to claim rewards 🎰";
+      } else {
+        messageBody = "💰 Your staked tokens are earning! Spin to claim your rewards 🎰";
+      }
+      
+      if (!messageGroups.has(messageBody)) {
+        messageGroups.set(messageBody, []);
+      }
+      messageGroups.get(messageBody).push(user.fid);
+    }
+    
+    console.log(`📊 Grouped users into ${messageGroups.size} message types`);
+    messageGroups.forEach((fids, message) => {
+      console.log(`   "${message.substring(0, 50)}..." → ${fids.length} users`);
+    });
+    
+    // Send batch notifications for each message group
+    const { sendBatchNotificationWithNeynar } = await import('./neynar.js');
+    const allResults = [];
+    let groupNumber = 0;
+    
+    for (const [messageBody, fids] of messageGroups.entries()) {
+      groupNumber++;
+      console.log(`📤 Sending batch ${groupNumber}/${messageGroups.size}: ${fids.length} users...`);
+      
+      const message = {
+        title: "💎 Your Staking Rewards Await!",
+        body: messageBody,
+        targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/stake?from=staking_reminder&t=${Date.now()}`
+      };
+      
+      const batchResult = await sendBatchNotificationWithNeynar(fids, message);
+      
+      if (batchResult.success && batchResult.results) {
+        allResults.push(...batchResult.results);
+        
+        // Log successful notifications to database
+        const successfulFids = batchResult.results
+          .filter(r => r.success && !r.skipped)
+          .map(r => r.userFid);
+        
+        if (successfulFids.length > 0) {
+          await logBatchNotificationsSent(successfulFids, 'staking_reminder');
+        }
+      } else {
+        // If batch failed, mark all as failures
+        allResults.push(...fids.map(fid => ({
+          success: false,
+          userFid: fid,
+          error: batchResult.error || 'Batch send failed'
+        })));
+      }
+    }
+    
+    // Count results
+    const actuallySent = allResults.filter(r => r.success && !r.skipped).length;
+    const skippedCount = allResults.filter(r => r.skipped).length;
+    const actualFailures = allResults.filter(r => !r.success).length;
+
+    console.log(`📊 Staking reminder results:`);
+    console.log(`   ✅ Successfully sent: ${actuallySent}`);
+    console.log(`   ⏭️  Skipped (notifications disabled): ${skippedCount}`);
+    console.log(`   ❌ Failed: ${actualFailures}`);
+    console.log(`   📱 Total: ${allResults.length}`);
+    console.log(`   🚀 API calls made: ${messageGroups.size}`);
+
+    return {
+      success: true,
+      totalUsers: usersWithStakes.length,
+      successCount: actuallySent,
+      failureCount: actualFailures,
+      skippedCount: skippedCount,
+      results: allResults
+    };
+
+  } catch (error) {
+    console.error('Error in sendStakingReminders:', error);
+    return {
+      success: false,
+      error: error.message,
+      totalUsers: 0,
+      successCount: 0,
+      failureCount: 0,
+      skippedCount: 0,
+      results: []
     };
   }
 } 
