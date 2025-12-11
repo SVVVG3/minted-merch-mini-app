@@ -1,5 +1,8 @@
-// Shared circulating supply calculation with single cache
+// Shared circulating supply calculation with Supabase-backed cache
 // Used by both /api/staking/global and /api/staking/user
+// Database cache ensures all serverless instances share the same value
+
+import { supabaseAdmin } from './supabase';
 
 // Token contract address
 const TOKEN_CONTRACT = '0x774EAeFE73Df7959496Ac92a77279A8D7d690b07';
@@ -15,29 +18,68 @@ const EXCLUDED_ADDRESSES = [
   '0xcf965A96d55476e7345e948601921207549c0393', // Community Wallet 6
 ];
 
-// SINGLE shared cache for circulating supply (refresh every 5 minutes)
-let circulatingSupplyCache = { value: null, timestamp: 0 };
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+// Cache duration - 5 minutes
+const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
 // Expected range for sanity checks (circulating ~18.5B as of Dec 2024)
 const EXPECTED_CIRCULATING_MIN = 15_000_000_000; // 15B
 const EXPECTED_CIRCULATING_MAX = 25_000_000_000; // 25B
 
 /**
+ * Get cached value from Supabase
+ */
+async function getDbCache(key) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('app_cache')
+      .select('value, updated_at')
+      .eq('key', key)
+      .single();
+    
+    if (error || !data) return null;
+    
+    const cacheAge = Date.now() - new Date(data.updated_at).getTime();
+    if (cacheAge > CACHE_DURATION_MS) {
+      console.log(`📊 DB cache for ${key} is stale (${Math.round(cacheAge / 1000)}s old)`);
+      return null;
+    }
+    
+    return data.value;
+  } catch (err) {
+    console.error('Error reading DB cache:', err);
+    return null;
+  }
+}
+
+/**
+ * Set cached value in Supabase
+ */
+async function setDbCache(key, value) {
+  try {
+    await supabaseAdmin
+      .from('app_cache')
+      .upsert({
+        key,
+        value,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' });
+  } catch (err) {
+    console.error('Error writing DB cache:', err);
+  }
+}
+
+/**
  * Get circulating supply = Total Supply - LP - Community Wallets
  * This is the SINGLE source of truth for circulating supply calculation.
  * Both /api/staking/global and /api/staking/user should use this.
+ * Uses Supabase-backed cache for consistency across all serverless instances.
  */
 export async function getCirculatingSupply() {
-  // Check cache - but invalidate if value seems wrong
-  if (circulatingSupplyCache.value && (Date.now() - circulatingSupplyCache.timestamp) < CACHE_DURATION) {
-    // SANITY CHECK: Circulating supply should be ~17-18B
-    if (circulatingSupplyCache.value < EXPECTED_CIRCULATING_MIN || circulatingSupplyCache.value > EXPECTED_CIRCULATING_MAX) {
-      console.log(`⚠️ Cached circulating supply ${circulatingSupplyCache.value.toLocaleString()} is outside expected range, forcing recalculation`);
-    } else {
-      console.log(`📊 Using cached circulating supply: ${circulatingSupplyCache.value.toLocaleString()}`);
-      return circulatingSupplyCache.value;
-    }
+  // Check Supabase cache first (shared across all instances)
+  const cached = await getDbCache('circulating_supply');
+  if (cached?.value && cached.value >= EXPECTED_CIRCULATING_MIN && cached.value <= EXPECTED_CIRCULATING_MAX) {
+    console.log(`📊 Using DB cached circulating supply: ${cached.value.toLocaleString()}`);
+    return cached.value;
   }
 
   try {
@@ -105,8 +147,9 @@ export async function getCirculatingSupply() {
     
     // Sanity check before caching
     if (circulatingSupply >= EXPECTED_CIRCULATING_MIN && circulatingSupply <= EXPECTED_CIRCULATING_MAX) {
-      // Update cache
-      circulatingSupplyCache = { value: circulatingSupply, timestamp: Date.now() };
+      // Update Supabase cache (shared across all instances)
+      await setDbCache('circulating_supply', { value: circulatingSupply, calculated_at: new Date().toISOString() });
+      console.log(`📊 Updated DB cache with circulating supply: ${circulatingSupply.toLocaleString()}`);
       return circulatingSupply;
     } else {
       console.warn(`⚠️ Calculated circulating supply ${circulatingSupply.toLocaleString()} is outside expected range, using fallback`);
