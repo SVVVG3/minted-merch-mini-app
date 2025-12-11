@@ -281,6 +281,9 @@ export function useFarcaster() {
     getAuthKitSession();
   }, [isInFarcaster, isAuthKitAuthenticated, authKitProfile?.fid, authKitData, validSignature, sessionToken]);
   
+  // Track profile fetch per page load (not session) to prevent duplicate fetches
+  const hasAttemptedProfileFetch = useRef(false);
+  
   // Load session token from localStorage on mount (for desktop/AuthKit)
   // AND restore user from token if AuthKit doesn't have profile yet
   useEffect(() => {
@@ -303,12 +306,9 @@ export function useFarcaster() {
             
             // IMPORTANT: If AuthKit doesn't have the user yet but we have a valid token,
             // restore user from the token payload AND fetch full profile from database
-            // Use sessionStorage to prevent duplicate fetches across component instances
-            const profileFetchKey = `profile_fetched_${payload.fid}`;
-            const alreadyFetched = sessionStorage.getItem(profileFetchKey);
-            
-            if (!user && payload.fid && !alreadyFetched) {
-              sessionStorage.setItem(profileFetchKey, 'true');
+            // Use ref to prevent duplicate fetches (resets on page reload - which is what we want)
+            if (!user && payload.fid && !hasAttemptedProfileFetch.current) {
+              hasAttemptedProfileFetch.current = true;
               console.log('🔄 Restoring user from session token:', payload.fid);
               
               // Set basic user info immediately
