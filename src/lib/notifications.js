@@ -1402,15 +1402,12 @@ export async function getUsersWithStakedBalances() {
 
 /**
  * Create staking reminder message
- * @param {number} stakedAmount - User's staked amount in tokens
  * @returns {object} Notification message object
  */
-export function createStakingReminderMessage(stakedAmount) {
-  const formattedAmount = Math.floor(stakedAmount).toLocaleString();
-  
+export function createStakingReminderMessage() {
   return {
-    title: "💎 Your Staking Rewards Await!",
-    body: `You have ${formattedAmount} $mintedmerch staked! Spin to claim your daily rewards 🎰`,
+    title: "FREE Spin-to-Claim is Live!",
+    body: "Spin the wheel to claim & compound your $mintedmerch rewards, with a bonus chance to win physical merch packs!",
     targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/stake?from=staking_reminder&t=${Date.now()}`
   };
 }
@@ -1418,14 +1415,13 @@ export function createStakingReminderMessage(stakedAmount) {
 /**
  * Send staking reminder to a single user
  * @param {number} userFid - User's Farcaster ID
- * @param {number} stakedAmount - User's staked amount
  * @returns {object} Result of notification send
  */
-export async function sendStakingReminder(userFid, stakedAmount) {
+export async function sendStakingReminder(userFid) {
   try {
     console.log(`Sending staking reminder to FID: ${userFid}`);
 
-    const message = createStakingReminderMessage(stakedAmount);
+    const message = createStakingReminderMessage();
     const result = await sendNotificationWithNeynar(userFid, message);
 
     if (result.success) {
@@ -1492,71 +1488,39 @@ export async function sendStakingReminders() {
 
     console.log(`📤 Sending staking reminders to ${usersWithStakes.length} users using BATCH API...`);
 
-    // Group users by staked amount ranges for message personalization
-    const messageGroups = new Map();
-    
-    for (const user of usersWithStakes) {
-      const formattedAmount = Math.floor(user.stakedAmount).toLocaleString();
-      
-      // Create a message body - group by amount ranges to reduce API calls
-      let messageBody;
-      if (user.stakedAmount >= 100_000_000) { // 100M+
-        messageBody = "🏆 Whale alert! Your massive stake is earning rewards - spin to claim! 🎰";
-      } else if (user.stakedAmount >= 10_000_000) { // 10M+
-        messageBody = "💎 Your big stake is working hard! Spin to claim daily rewards 🎰";
-      } else if (user.stakedAmount >= 1_000_000) { // 1M+
-        messageBody = "🔥 Your stake is earning! Spin the wheel to claim rewards 🎰";
-      } else {
-        messageBody = "💰 Your staked tokens are earning! Spin to claim your rewards 🎰";
-      }
-      
-      if (!messageGroups.has(messageBody)) {
-        messageGroups.set(messageBody, []);
-      }
-      messageGroups.get(messageBody).push(user.fid);
-    }
-    
-    console.log(`📊 Grouped users into ${messageGroups.size} message types`);
-    messageGroups.forEach((fids, message) => {
-      console.log(`   "${message.substring(0, 50)}..." → ${fids.length} users`);
-    });
-    
-    // Send batch notifications for each message group
+    // Single unified message for all stakers
     const { sendBatchNotificationWithNeynar } = await import('./neynar.js');
-    const allResults = [];
-    let groupNumber = 0;
+    const allFids = usersWithStakes.map(u => u.fid);
     
-    for (const [messageBody, fids] of messageGroups.entries()) {
-      groupNumber++;
-      console.log(`📤 Sending batch ${groupNumber}/${messageGroups.size}: ${fids.length} users...`);
+    const message = {
+      title: "FREE Spin-to-Claim is Live!",
+      body: "Spin the wheel to claim & compound your $mintedmerch rewards, with a bonus chance to win physical merch packs!",
+      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/stake?from=staking_reminder&t=${Date.now()}`
+    };
+    
+    console.log(`📤 Sending single batch: ${allFids.length} users...`);
+    
+    const batchResult = await sendBatchNotificationWithNeynar(allFids, message);
+    const allResults = [];
+    
+    if (batchResult.success && batchResult.results) {
+      allResults.push(...batchResult.results);
       
-      const message = {
-        title: "💎 Your Staking Rewards Await!",
-        body: messageBody,
-        targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/stake?from=staking_reminder&t=${Date.now()}`
-      };
+      // Log successful notifications to database
+      const successfulFids = batchResult.results
+        .filter(r => r.success && !r.skipped)
+        .map(r => r.userFid);
       
-      const batchResult = await sendBatchNotificationWithNeynar(fids, message);
-      
-      if (batchResult.success && batchResult.results) {
-        allResults.push(...batchResult.results);
-        
-        // Log successful notifications to database
-        const successfulFids = batchResult.results
-          .filter(r => r.success && !r.skipped)
-          .map(r => r.userFid);
-        
-        if (successfulFids.length > 0) {
-          await logBatchNotificationsSent(successfulFids, 'staking_reminder');
-        }
-      } else {
-        // If batch failed, mark all as failures
-        allResults.push(...fids.map(fid => ({
-          success: false,
-          userFid: fid,
-          error: batchResult.error || 'Batch send failed'
-        })));
+      if (successfulFids.length > 0) {
+        await logBatchNotificationsSent(successfulFids, 'staking_reminder');
       }
+    } else {
+      // If batch failed, mark all as failures
+      allResults.push(...allFids.map(fid => ({
+        success: false,
+        userFid: fid,
+        error: batchResult.error || 'Batch send failed'
+      })));
     }
     
     // Count results
@@ -1569,7 +1533,6 @@ export async function sendStakingReminders() {
     console.log(`   ⏭️  Skipped (notifications disabled): ${skippedCount}`);
     console.log(`   ❌ Failed: ${actualFailures}`);
     console.log(`   📱 Total: ${allResults.length}`);
-    console.log(`   🚀 API calls made: ${messageGroups.size}`);
 
     return {
       success: true,
