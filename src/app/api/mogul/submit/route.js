@@ -197,16 +197,21 @@ export async function POST(request) {
     let payout = null;
     
     // Get mogul's wallet address from profiles table
+    // Try primary_eth_address first, then custody_address as fallback
     const { data: profile } = await supabaseAdmin
       .from('profiles')
-      .select('primary_eth_address')
+      .select('primary_eth_address, custody_address, verified_eth_addresses')
       .eq('fid', fid)
       .single();
 
-    const walletAddress = profile?.primary_eth_address;
+    // Use primary_eth_address first, then first verified address, then custody as last resort
+    // (custody address is often not directly usable by users for signing transactions)
+    const walletAddress = profile?.primary_eth_address || 
+                          profile?.verified_eth_addresses?.[0] || 
+                          profile?.custody_address;
 
     if (!walletAddress) {
-      console.log('⚠️ Mogul has no primary wallet address - payout can be created later');
+      console.log('⚠️ Mogul has no wallet address - payout can be created later');
     } else {
       console.log(`💰 Creating payout for mogul wallet: ${walletAddress}`);
       
