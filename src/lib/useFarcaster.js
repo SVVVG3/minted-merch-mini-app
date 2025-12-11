@@ -358,6 +358,59 @@ export function useFarcaster() {
     }
   }, [isInFarcaster, sessionToken, user?.fid]); // Only depend on user.fid, not entire user object
 
+  // Track if we've registered this session (ref resets on page reload = fresh data each app open)
+  const hasRegisteredThisSession = useRef(false);
+  
+  // CENTRALIZED USER REGISTRATION
+  // Automatically register/update user profile when authenticated
+  // This ensures ALL users get a profile regardless of which page they land on
+  useEffect(() => {
+    async function registerUser() {
+      // Guards: need FID, session token, and haven't registered this session yet
+      if (!user?.fid || !sessionToken || hasRegisteredThisSession.current) return;
+      
+      // Mark as attempted immediately to prevent duplicate calls
+      hasRegisteredThisSession.current = true;
+      
+      try {
+        console.log('🔄 Auto-registering user profile for FID:', user.fid);
+        
+        const response = await fetch('/api/register-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+          },
+          body: JSON.stringify({
+            fid: user.fid,
+            username: user.username,
+            displayName: user.displayName,
+            bio: user.bio || null,
+            pfpUrl: user.pfpUrl
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          console.log('✅ User profile registered/updated:', {
+            fid: user.fid,
+            username: user.username,
+            walletCount: result.walletAddressCount || 0,
+            hasNotifications: result.hasNotifications
+          });
+        } else {
+          console.warn('⚠️ User registration response:', result.error);
+        }
+      } catch (error) {
+        console.error('❌ Error auto-registering user:', error.message);
+        // Don't block the app if registration fails
+      }
+    }
+    
+    registerUser();
+  }, [user?.fid, user?.username, user?.displayName, user?.bio, user?.pfpUrl, sessionToken]);
+
   // Memoize callback functions to prevent unnecessary re-renders
   const getFid = useCallback(() => user?.fid, [user?.fid]);
   const getUsername = useCallback(() => user?.username, [user?.username]);
