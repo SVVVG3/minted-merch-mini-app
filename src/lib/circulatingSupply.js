@@ -83,16 +83,13 @@ export async function getCirculatingSupply() {
   }
 
   try {
-    // Try multiple RPC endpoints for reliability
-    // NOTE: base.llamarpc.com returns stale data - use 1rpc.io/base as primary fallback
-    const rpcEndpoints = [
-      process.env.ALCHEMY_BASE_RPC_URL,
-      'https://1rpc.io/base',
-      'https://mainnet.base.org'
-    ].filter(Boolean);
+    // Prioritize Alchemy for reliability, fall back to public RPCs
+    const rpcUrl = process.env.ALCHEMY_BASE_RPC_URL || 
+                   process.env.BASE_RPC_URL || 
+                   'https://mainnet.base.org';
     
-    let rpcUrl = rpcEndpoints[0];
-    console.log(`📊 Using RPC endpoint: ${rpcUrl}`);
+    const isAlchemy = rpcUrl.includes('alchemy');
+    console.log(`📊 Using RPC endpoint: ${isAlchemy ? 'Alchemy' : rpcUrl}`);
     
     // Get total supply
     const totalSupplyResponse = await fetch(rpcUrl, {

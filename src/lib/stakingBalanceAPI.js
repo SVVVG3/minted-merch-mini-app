@@ -1,30 +1,79 @@
 // Staking balance API for querying user's staked $MINTEDMERCH tokens
-// GraphQL endpoint: https://api.goldsky.com/api/public/project_cmhgzsg1lfhim01w4ah9rb5i5/subgraphs/betr-contracts-base/1.1/gn
+// Uses DIRECT RPC CALLS for real-time data (Total Staked, User Stake)
+// Uses GraphQL only for historical aggregation (Lifetime Claimed)
 
+// GraphQL endpoint - ONLY used for lifetime claimed (historical events)
 const GOLDSKY_GRAPHQL_ENDPOINT = 'https://api.goldsky.com/api/public/project_cmhgzsg1lfhim01w4ah9rb5i5/subgraphs/betr-contracts-base/1.1/gn';
+
+// Staking contract address on Base
+const STAKING_CONTRACT = '0x38AE5d952FA83eD57c5b5dE59b6e36Ce975a9150';
 
 // Use BigInt for precision with large wei values (exceed Number.MAX_SAFE_INTEGER)
 const WEI_DIVISOR = BigInt(10 ** 18);
 
+// Function signatures for staking contract
+const FUNCTION_SIGS = {
+  totalStaked: '0x817b1cd2',      // totalStaked()
+  balanceOf: '0x70a08231',        // balanceOf(address) - standard ERC20-like
+};
+
+/**
+ * Get RPC URL with Alchemy as primary
+ */
+function getRpcUrl() {
+  return process.env.ALCHEMY_BASE_RPC_URL || 
+         process.env.BASE_RPC_URL || 
+         'https://mainnet.base.org';
+}
+
+/**
+ * Make an eth_call to read from a contract
+ * @param {string} to - Contract address
+ * @param {string} data - Encoded function call
+ * @returns {Promise<string>} Hex result
+ */
+async function ethCall(to, data) {
+  const rpcUrl = getRpcUrl();
+  const response = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'eth_call',
+      params: [{ to, data }, 'latest'],
+      id: 1
+    })
+  });
+  const result = await response.json();
+  if (result.error) {
+    throw new Error(`RPC error: ${result.error.message}`);
+  }
+  return result.result;
+}
+
 /**
  * Convert wei string to token number with full precision using BigInt
- * @param {string} weiString - Balance in wei as string
+ * @param {string} weiString - Balance in wei as string (hex or decimal)
  * @returns {number} Balance in tokens
  */
 function weiToTokens(weiString) {
   try {
-    const wei = BigInt(weiString);
+    // Handle hex strings from RPC
+    const wei = weiString.startsWith('0x') 
+      ? BigInt(weiString) 
+      : BigInt(weiString);
     // Split into whole tokens and fractional part for precision
     return Number(wei / WEI_DIVISOR) + Number(wei % WEI_DIVISOR) / 1e18;
   } catch (e) {
     // Fallback for invalid input
-    return parseFloat(weiString) / 1e18;
+    console.error('Error converting wei to tokens:', e);
+    return 0;
   }
 }
 
 /**
- * Query user's staked token balance from the staking contract
- * @param {Array<string>} walletAddresses - User's wallet addresses (lowercase)
+ * Query user's staked token balance DIRECTLY from the staking contract via RPC
+ * @param {Array<string>} walletAddresses - User's wallet addresses
  * @returns {Promise<number>} Total staked balance in tokens (not wei)
  */
 export async function getUserStakedBalance(walletAddresses) {
@@ -33,7 +82,7 @@ export async function getUserStakedBalance(walletAddresses) {
     return 0;
   }
 
-  // Normalize addresses to lowercase for GraphQL query
+  // Normalize addresses
   const normalizedAddresses = walletAddresses
     .filter(addr => typeof addr === 'string' && addr.startsWith('0x'))
     .map(addr => addr.toLowerCase());
@@ -43,15 +92,51 @@ export async function getUserStakedBalance(walletAddresses) {
     return 0;
   }
 
-  console.log(`📊 Querying staking balance for ${normalizedAddresses.length} wallet(s)`);
+  console.log(`📊 Querying staking balance via RPC for ${normalizedAddresses.length} wallet(s)`);
 
   try {
-    // GraphQL query to get staked balances using the correct schema
-    // Schema has 'stakerBalances' (not 'stakes')
+    let totalStaked = 0;
+    
+    // Query each wallet's staked balance directly from contract
+    for (const address of normalizedAddresses) {
+      // Encode balanceOf(address) call
+      const data = FUNCTION_SIGS.balanceOf + address.slice(2).padStart(64, '0');
+      
+      try {
+        const result = await ethCall(STAKING_CONTRACT, data);
+        if (result && result !== '0x') {
+          const balance = weiToTokens(result);
+          totalStaked += balance;
+          console.log(`📊 Wallet ${address.slice(0,8)}... staked: ${balance.toLocaleString()}`);
+        }
+      } catch (err) {
+        console.warn(`📊 Failed to get stake for ${address}:`, err.message);
+      }
+    }
+
+    console.log(`📊 Total staked balance: ${totalStaked.toLocaleString()} tokens across ${normalizedAddresses.length} wallet(s)`);
+    return totalStaked;
+
+  } catch (error) {
+    console.error('📊 Error querying staking balance via RPC:', error);
+    // Fallback to GraphQL if RPC fails
+    console.log('📊 Falling back to GraphQL...');
+    return getUserStakedBalanceGraphQL(walletAddresses);
+  }
+}
+
+/**
+ * GraphQL fallback for user staked balance (kept for reliability)
+ */
+async function getUserStakedBalanceGraphQL(walletAddresses) {
+  const normalizedAddresses = walletAddresses
+    .filter(addr => typeof addr === 'string' && addr.startsWith('0x'))
+    .map(addr => addr.toLowerCase());
+
+  try {
     const query = `
       query GetStakedBalances($addresses: [String!]!) {
         stakerBalances(where: { staker_in: $addresses }) {
-          id
           staker
           balance
           timestamp_
@@ -61,74 +146,72 @@ export async function getUserStakedBalance(walletAddresses) {
 
     const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        variables: {
-          addresses: normalizedAddresses
-        }
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, variables: { addresses: normalizedAddresses } })
     });
 
-    if (!response.ok) {
-      throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}`);
-    }
-
     const result = await response.json();
+    if (result.errors) throw new Error(JSON.stringify(result.errors));
 
-    if (result.errors) {
-      console.error('📊 GraphQL errors:', result.errors);
-      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
-    }
-
-    // IMPORTANT: Only use the LATEST balance per wallet (subgraph stores historical entries)
     const stakerBalances = result.data?.stakerBalances || [];
     const latestBalancePerWallet = new Map();
     
     for (const entry of stakerBalances) {
       const wallet = entry.staker.toLowerCase();
       const timestamp = parseInt(entry.timestamp_);
-      // Keep only the entry with the highest timestamp for each wallet
       if (!latestBalancePerWallet.has(wallet) || timestamp > latestBalancePerWallet.get(wallet).timestamp) {
-        latestBalancePerWallet.set(wallet, {
-          balance: weiToTokens(entry.balance),
-          timestamp: timestamp
-        });
+        latestBalancePerWallet.set(wallet, { balance: weiToTokens(entry.balance), timestamp });
       }
     }
     
-    // Sum up latest balances only
     let totalStaked = 0;
     for (const { balance } of latestBalancePerWallet.values()) {
       totalStaked += balance;
     }
 
-    console.log(`📊 Total staked balance: ${totalStaked.toLocaleString()} tokens across ${latestBalancePerWallet.size} wallet(s)`);
-
+    console.log(`📊 [GraphQL fallback] Total staked: ${totalStaked.toLocaleString()} tokens`);
     return totalStaked;
 
   } catch (error) {
-    console.error('📊 Error querying staking balance:', error);
-    console.warn('📊 Continuing with 0 staked balance due to error');
-    // Return 0 instead of throwing - staking balance is additive, so failure shouldn't break token checks
+    console.error('📊 GraphQL fallback also failed:', error);
     return 0;
   }
 }
 
 /**
- * Get detailed staking information for a user (for display/debugging)
- * @param {Array<string>} walletAddresses - User's wallet addresses
- * @returns {Promise<Object>} Detailed staking info
- */
-/**
- * Get the global total staked across all users
+ * Get the global total staked DIRECTLY from the staking contract via RPC
+ * This is the most reliable and real-time way to get total staked
  * @returns {Promise<number>} Total staked balance in tokens (not wei)
  */
 export async function getGlobalTotalStaked() {
   try {
-    // Query all staker balances - need to get staker address to dedupe
+    console.log(`📊 Querying global total staked via RPC...`);
+    
+    // Call totalStaked() directly on the contract
+    const result = await ethCall(STAKING_CONTRACT, FUNCTION_SIGS.totalStaked);
+    
+    if (!result || result === '0x') {
+      console.warn('📊 RPC returned empty result for totalStaked, falling back to GraphQL');
+      return getGlobalTotalStakedGraphQL();
+    }
+    
+    const totalStaked = weiToTokens(result);
+    console.log(`📊 Global total staked (RPC): ${totalStaked.toLocaleString()} tokens`);
+    
+    return totalStaked;
+
+  } catch (error) {
+    console.error('📊 Error querying global staked via RPC:', error);
+    console.log('📊 Falling back to GraphQL...');
+    return getGlobalTotalStakedGraphQL();
+  }
+}
+
+/**
+ * GraphQL fallback for global total staked
+ */
+async function getGlobalTotalStakedGraphQL() {
+  try {
     const query = `
       query GetGlobalStaked {
         stakerBalances(first: 1000, orderBy: timestamp_, orderDirection: desc) {
@@ -141,46 +224,33 @@ export async function getGlobalTotalStaked() {
 
     const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query })
     });
 
-    if (!response.ok) {
-      throw new Error(`GraphQL request failed: ${response.status}`);
-    }
-
     const result = await response.json();
-
-    if (result.errors) {
-      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
-    }
+    if (result.errors) throw new Error(JSON.stringify(result.errors));
 
     const stakerBalances = result.data?.stakerBalances || [];
-    
-    // IMPORTANT: Only use the LATEST balance per staker (subgraph stores historical entries)
     const latestBalancePerStaker = new Map();
+    
     for (const entry of stakerBalances) {
       const staker = entry.staker.toLowerCase();
-      // Since ordered by timestamp desc, first entry per staker is the latest
       if (!latestBalancePerStaker.has(staker)) {
         latestBalancePerStaker.set(staker, weiToTokens(entry.balance));
       }
     }
     
-    // Sum up latest balances
     let totalStaked = 0;
     for (const balance of latestBalancePerStaker.values()) {
       totalStaked += balance;
     }
 
-    console.log(`📊 Global total staked: ${totalStaked.toLocaleString()} tokens across ${latestBalancePerStaker.size} unique stakers`);
-
+    console.log(`📊 [GraphQL fallback] Global total staked: ${totalStaked.toLocaleString()} tokens`);
     return totalStaked;
 
   } catch (error) {
-    console.error('📊 Error querying global staked balance:', error);
+    console.error('📊 GraphQL fallback also failed:', error);
     return 0;
   }
 }
@@ -241,12 +311,15 @@ export async function getAllStakerBalances() {
 }
 
 /**
- * Get staking statistics (total staked and unique staker count) from live subgraph
+ * Get staking statistics - total staked from RPC, unique stakers from GraphQL
  * @returns {Promise<{totalStaked: number, uniqueStakers: number}>}
  */
 export async function getStakingStats() {
   try {
-    // Query all staker balances
+    // Get total staked from RPC (real-time)
+    const totalStaked = await getGlobalTotalStaked();
+    
+    // Get unique staker count from GraphQL (need to enumerate)
     const query = `
       query GetStakingStats {
         stakerBalances(first: 1000, orderBy: timestamp_, orderDirection: desc) {
@@ -259,46 +332,28 @@ export async function getStakingStats() {
 
     const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query })
     });
 
-    if (!response.ok) {
-      throw new Error(`GraphQL request failed: ${response.status}`);
-    }
-
     const result = await response.json();
-
-    if (result.errors) {
-      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
-    }
-
-    const stakerBalances = result.data?.stakerBalances || [];
     
-    // Get latest balance per staker (since subgraph stores historical entries)
-    const latestBalancePerStaker = new Map();
-    for (const entry of stakerBalances) {
-      const staker = entry.staker.toLowerCase();
-      // Since ordered by timestamp desc, first entry per staker is the latest
-      if (!latestBalancePerStaker.has(staker)) {
-        latestBalancePerStaker.set(staker, weiToTokens(entry.balance));
-      }
-    }
-    
-    // Sum up latest balances and count active stakers (balance > 0)
-    let totalStaked = 0;
+    // Count unique active stakers
     let uniqueStakers = 0;
-    for (const balance of latestBalancePerStaker.values()) {
-      if (balance > 0) {
-        totalStaked += balance;
-        uniqueStakers++;
+    if (!result.errors && result.data?.stakerBalances) {
+      const latestBalancePerStaker = new Map();
+      for (const entry of result.data.stakerBalances) {
+        const staker = entry.staker.toLowerCase();
+        if (!latestBalancePerStaker.has(staker)) {
+          latestBalancePerStaker.set(staker, weiToTokens(entry.balance));
+        }
+      }
+      for (const balance of latestBalancePerStaker.values()) {
+        if (balance > 0) uniqueStakers++;
       }
     }
 
-    console.log(`📊 Staking stats from subgraph: ${totalStaked.toLocaleString()} tokens across ${uniqueStakers} active stakers`);
-
+    console.log(`📊 Staking stats: ${totalStaked.toLocaleString()} tokens across ${uniqueStakers} active stakers`);
     return { totalStaked, uniqueStakers };
 
   } catch (error) {
@@ -429,13 +484,12 @@ export async function getGlobalTotalClaimed() {
   }
 }
 
+/**
+ * Get detailed staking info for a user - uses RPC for balances
+ */
 export async function getUserStakingDetails(walletAddresses) {
   if (!walletAddresses || walletAddresses.length === 0) {
-    return {
-      totalStaked: 0,
-      stakes: [],
-      wallets: []
-    };
+    return { totalStaked: 0, stakes: [], wallets: [] };
   }
 
   const normalizedAddresses = walletAddresses
@@ -443,65 +497,36 @@ export async function getUserStakingDetails(walletAddresses) {
     .map(addr => addr.toLowerCase());
 
   try {
-    const query = `
-      query GetStakingDetails($addresses: [String!]!) {
-        stakerBalances(where: { staker_in: $addresses }, orderBy: timestamp_, orderDirection: desc) {
-          id
-          staker
-          balance
-          timestamp_
-        }
-      }
-    `;
-
-    const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        variables: {
-          addresses: normalizedAddresses
-        }
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`GraphQL request failed: ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    if (result.errors) {
-      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
-    }
-
-    const stakerBalances = result.data?.stakerBalances || [];
+    const stakes = [];
+    let totalStaked = 0;
     
-    // IMPORTANT: Only use the LATEST balance per wallet (subgraph stores historical entries)
-    // Since results are ordered by timestamp desc, first entry per wallet is the latest
-    const latestBalancePerWallet = new Map();
-    for (const entry of stakerBalances) {
-      const wallet = entry.staker.toLowerCase();
-      if (!latestBalancePerWallet.has(wallet)) {
-        latestBalancePerWallet.set(wallet, {
-          wallet: wallet,
-          amount: weiToTokens(entry.balance),
-          timestamp: new Date(parseInt(entry.timestamp_) * 1000).toISOString(),
-          id: entry.id
-        });
+    // Query each wallet's staked balance directly from contract
+    for (const address of normalizedAddresses) {
+      const data = FUNCTION_SIGS.balanceOf + address.slice(2).padStart(64, '0');
+      
+      try {
+        const result = await ethCall(STAKING_CONTRACT, data);
+        if (result && result !== '0x') {
+          const balance = weiToTokens(result);
+          if (balance > 0) {
+            stakes.push({
+              wallet: address,
+              amount: balance,
+              timestamp: new Date().toISOString()
+            });
+            totalStaked += balance;
+          }
+        }
+      } catch (err) {
+        console.warn(`📊 Failed to get stake for ${address}:`, err.message);
       }
     }
-    
-    const formattedBalances = Array.from(latestBalancePerWallet.values());
-    const totalStaked = formattedBalances.reduce((sum, balance) => sum + balance.amount, 0);
 
-    console.log(`📊 User staked balance: ${totalStaked.toLocaleString()} tokens across ${formattedBalances.length} wallet(s)`);
+    console.log(`📊 User staked balance: ${totalStaked.toLocaleString()} tokens across ${stakes.length} wallet(s)`);
 
     return {
       totalStaked,
-      stakes: formattedBalances,
+      stakes,
       wallets: normalizedAddresses
     };
 
