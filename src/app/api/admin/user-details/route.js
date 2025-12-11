@@ -132,7 +132,7 @@ export const GET = withAdminAuth(async (request, context) => {
         id,
         status,
         submitted_at,
-        approved_at,
+        reviewed_at,
         ambassador_fid,
         proof_url,
         proof_description,
