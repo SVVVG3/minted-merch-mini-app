@@ -6,8 +6,11 @@ import { createClient, Errors } from '@farcaster/quick-auth';
 
 // Create AppClient for AuthKit signature verification
 // This client is used to verify Sign In With Farcaster signatures
+// Farcaster ID registry is on Optimism mainnet
 const appClient = createAppClient({
-  ethereum: viemConnector(),
+  ethereum: viemConnector({
+    rpcUrl: process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io',
+  }),
 });
 
 /**
