@@ -135,13 +135,18 @@ export default function AdminDashboard() {
   // Partners sub-tab state
   const [partnersSubTab, setPartnersSubTab] = useState('partners'); // 'partners' or 'ambassadors'
   
-  // Ambassadors state
+  // Ambassadors state (legacy - kept for backward compatibility)
   const [ambassadorsData, setAmbassadorsData] = useState([]);
   const [ambassadorsLoading, setAmbassadorsLoading] = useState(false);
   const [ambassadorsError, setAmbassadorsError] = useState('');
   const [showAddAmbassador, setShowAddAmbassador] = useState(false);
   const [addAmbassadorFid, setAddAmbassadorFid] = useState('');
   const [addAmbassadorNotes, setAddAmbassadorNotes] = useState('');
+  
+  // Moguls state (50M+ stakers)
+  const [mogulsData, setMogulsData] = useState([]);
+  const [mogulsLoading, setMogulsLoading] = useState(false);
+  const [mogulsError, setMogulsError] = useState('');
   
   // Bounties state (for ambassadors sub-tab)
   const [bountiesData, setBountiesData] = useState([]);
@@ -761,7 +766,7 @@ export default function AdminDashboard() {
 
   // ========== AMBASSADOR MANAGEMENT FUNCTIONS ==========
 
-  // Load ambassadors
+  // Load ambassadors (legacy)
   const loadAmbassadors = async () => {
     setAmbassadorsLoading(true);
     setAmbassadorsError('');
@@ -778,6 +783,26 @@ export default function AdminDashboard() {
       setAmbassadorsError('Failed to load ambassadors');
     } finally {
       setAmbassadorsLoading(false);
+    }
+  };
+
+  // Load moguls (50M+ stakers)
+  const loadMoguls = async () => {
+    setMogulsLoading(true);
+    setMogulsError('');
+    try {
+      const response = await adminFetch('/api/admin/moguls');
+      const result = await response.json();
+      if (result.success) {
+        setMogulsData(result.moguls || []);
+      } else {
+        setMogulsError(result.error || 'Failed to load moguls');
+      }
+    } catch (error) {
+      console.error('Error loading moguls:', error);
+      setMogulsError('Failed to load moguls');
+    } finally {
+      setMogulsLoading(false);
     }
   };
 
@@ -1070,11 +1095,11 @@ export default function AdminDashboard() {
     }
   }, [activeTab, partnersSubTab]);
 
-  // Load ambassadors when Ambassadors sub-tab is selected
+  // Load moguls when Moguls sub-tab is selected
   useEffect(() => {
     if (activeTab === 'partners' && partnersSubTab === 'ambassadors') {
-      if (ambassadorView === 'ambassadors' && ambassadorsData.length === 0) {
-        loadAmbassadors();
+      if (ambassadorView === 'ambassadors' && mogulsData.length === 0) {
+        loadMoguls();
       } else if (ambassadorView === 'bounties' && bountiesData.length === 0) {
         loadBounties();
       } else if (ambassadorView === 'submissions') {
@@ -4172,7 +4197,7 @@ export default function AdminDashboard() {
                           : 'bg-white text-gray-700 hover:bg-gray-100'
                       }`}
                     >
-                      🎯 Bounties
+                      🎯 Missions
                     </button>
                     <button
                       onClick={() => setAmbassadorView('submissions')}
@@ -4197,34 +4222,28 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 
-                {/* Ambassadors View */}
+                {/* Moguls View - Shows all 50M+ stakers */}
                 {ambassadorView === 'ambassadors' && (
                   <>
                     <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                      <h3 className="text-md font-semibold text-gray-700">Manage Moguls</h3>
-                      <div className="flex space-x-3">
-                        <button
-                          onClick={() => setShowAddAmbassador(true)}
-                          className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
-                        >
-                          ➕ Add Ambassador
-                        </button>
-                        <button
-                          onClick={loadAmbassadors}
-                          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
-                        >
-                          🔄 Refresh
-                        </button>
-                      </div>
+                      <h3 className="text-md font-semibold text-gray-700">
+                        Moguls <span className="text-sm font-normal text-gray-500">(50M+ Staked)</span>
+                      </h3>
+                      <button
+                        onClick={loadMoguls}
+                        className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                      >
+                        🔄 Refresh
+                      </button>
                     </div>
                     
-                    {ambassadorsLoading ? (
+                    {mogulsLoading ? (
                       <div className="p-6 text-center">
-                        <div className="text-gray-500">Loading ambassadors...</div>
+                        <div className="text-gray-500">Loading moguls...</div>
                       </div>
-                    ) : ambassadorsError ? (
+                    ) : mogulsError ? (
                       <div className="p-6 text-center">
-                        <div className="text-red-600">{ambassadorsError}</div>
+                        <div className="text-red-600">{mogulsError}</div>
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
@@ -4232,13 +4251,13 @@ export default function AdminDashboard() {
                           <thead className="bg-gray-50">
                             <tr>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                Ambassador
+                                Mogul
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                Total Earned
+                                Staked Balance
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                Completed
+                                Missions
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                 Status
@@ -4246,80 +4265,74 @@ export default function AdminDashboard() {
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                 Joined
                               </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                Actions
-                              </th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
-                            {ambassadorsData.map((ambassador) => (
-                              <tr key={ambassador.id} className="hover:bg-gray-50">
+                            {mogulsData.map((mogul) => (
+                              <tr key={mogul.fid} className="hover:bg-gray-50">
                                 <td className="px-6 py-4">
                                   <div 
                                     className="flex items-center space-x-2 cursor-pointer"
-                                    onClick={() => openUserModal(ambassador.fid)}
+                                    onClick={() => openUserModal(mogul.fid)}
                                   >
-                                    {ambassador.profiles?.pfp_url && (
+                                    {mogul.pfpUrl && (
                                       <img
-                                        src={ambassador.profiles.pfp_url}
-                                        alt={ambassador.profiles.username}
+                                        src={mogul.pfpUrl}
+                                        alt={mogul.username}
                                         className="w-8 h-8 rounded-full"
                                       />
                                     )}
                                     <div>
-                                      <div className="text-sm font-medium text-gray-900">
-                                        @{ambassador.profiles?.username || `FID ${ambassador.fid}`}
+                                      <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                                        @{mogul.username || `FID ${mogul.fid}`}
+                                        {mogul.isManualAmbassador && (
+                                          <span className="px-1.5 py-0.5 text-xs font-semibold rounded bg-purple-100 text-purple-700">
+                                            ⭐ Ambassador
+                                          </span>
+                                        )}
                                       </div>
-                                      {ambassador.profiles?.display_name && (
+                                      {mogul.displayName && (
                                         <div className="text-xs text-gray-500">
-                                          {ambassador.profiles.display_name}
+                                          {mogul.displayName}
                                         </div>
                                       )}
                                     </div>
                                   </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="text-sm font-bold text-green-600">
-                                    {(ambassador.total_earned_tokens || 0).toLocaleString()} 🪙
+                                  <div className="text-sm font-bold text-purple-600">
+                                    {(mogul.stakedBalance || 0).toLocaleString()} 🪙
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    Total: {(mogul.tokenBalance || 0).toLocaleString()}
                                   </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <div className="text-sm text-gray-900">
-                                    {ambassador.total_bounties_completed || 0} bounties
+                                    {mogul.missionsCompleted || 0} completed
                                   </div>
+                                  {mogul.missionsPending > 0 && (
+                                    <div className="text-xs text-yellow-600">
+                                      {mogul.missionsPending} pending
+                                    </div>
+                                  )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                                    ambassador.is_active
-                                      ? 'bg-green-100 text-green-800'
-                                      : 'bg-red-100 text-red-800'
-                                  }`}>
-                                    {ambassador.is_active ? 'Active' : 'Inactive'}
+                                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                    Active Mogul
                                   </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {new Date(ambassador.created_at).toLocaleDateString()}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                  <button
-                                    onClick={() => toggleAmbassadorStatus(ambassador.id, ambassador.is_active)}
-                                    className={`${
-                                      ambassador.is_active
-                                        ? 'text-red-600 hover:text-red-900'
-                                        : 'text-green-600 hover:text-green-900'
-                                    } font-medium`}
-                                  >
-                                    {ambassador.is_active ? 'Deactivate' : 'Activate'}
-                                  </button>
+                                  {new Date(mogul.joinedAt).toLocaleDateString()}
                                 </td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                         
-                        {ambassadorsData.length === 0 && (
+                        {mogulsData.length === 0 && (
                           <div className="p-6 text-center text-gray-500">
-                            No ambassadors yet. Add your first ambassador to get started.
+                            No users staking 50M+ yet.
                           </div>
                         )}
                       </div>
@@ -4331,7 +4344,7 @@ export default function AdminDashboard() {
                 {ambassadorView === 'bounties' && (
                   <>
                     <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                      <h3 className="text-md font-semibold text-gray-700">Manage Bounties</h3>
+                      <h3 className="text-md font-semibold text-gray-700">Manage Missions</h3>
                       <div className="flex space-x-2">
                         <button
                           onClick={loadBounties}
@@ -4346,7 +4359,7 @@ export default function AdminDashboard() {
                           }}
                           className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm"
                         >
-                          + Create Bounty
+                          + Create Mission
                         </button>
                       </div>
                     </div>
@@ -5493,7 +5506,7 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">
-              {bounty ? 'Edit Bounty' : 'Create New Bounty'}
+              {bounty ? 'Edit Mission' : 'Create New Mission'}
             </h2>
             <button
               onClick={onClose}
@@ -5664,12 +5677,12 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
                     value={formData.requirements}
                     onChange={(e) => setFormData({...formData, requirements: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                    placeholder="Detailed requirements ambassadors must complete..."
+                    placeholder="Detailed requirements users must complete..."
                     rows={3}
                     required
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    What does the ambassador need to do?
+                    What does the user need to do?
                   </p>
                 </div>
 
@@ -5805,7 +5818,7 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
                 className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md disabled:opacity-50"
                 disabled={saving}
               >
-                {saving ? 'Saving...' : (bounty ? 'Update Bounty' : 'Create Bounty')}
+                {saving ? 'Saving...' : (bounty ? 'Update Mission' : 'Create Mission')}
               </button>
             </div>
           </form>
