@@ -213,6 +213,9 @@ function PartnerDashboard() {
                       Total
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Payout
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Assigned
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -305,6 +308,20 @@ function PartnerDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         ${order.amount_total}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {order.status === 'vendor_paid' && order.vendor_payout_amount ? (
+                          <div>
+                            <div className="font-medium text-teal-600">${parseFloat(order.vendor_payout_amount).toFixed(2)}</div>
+                            {order.vendor_paid_at && (
+                              <div className="text-xs text-gray-500">{formatDate(order.vendor_paid_at)}</div>
+                            )}
+                          </div>
+                        ) : order.status === 'vendor_paid' ? (
+                          <span className="text-teal-600 text-xs">Paid</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                         {formatDate(order.assigned_at)}

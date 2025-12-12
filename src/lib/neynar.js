@@ -659,6 +659,66 @@ export async function sendPartnerAssignmentNotification(partnerFid, assignmentDe
   }
 }
 
+// Send vendor paid notification - when order payout is processed
+export async function sendVendorPaidNotification(partnerFid, payoutDetails) {
+  if (!isNeynarAvailable()) {
+    console.log('Neynar not available, skipping vendor paid notification');
+    return { success: false, error: 'Neynar not configured' };
+  }
+
+  try {
+    console.log('Sending vendor paid notification to partner FID:', partnerFid);
+    console.log('Payout details:', payoutDetails);
+    
+    const payoutAmount = payoutDetails.amount ? `$${parseFloat(payoutDetails.amount).toFixed(2)}` : '';
+    
+    const notification = {
+      title: "💰 Payout Processed!",
+      body: payoutAmount 
+        ? `Your payout of ${payoutAmount} for order ${payoutDetails.orderId} has been sent!`
+        : `Your payout for order ${payoutDetails.orderId} has been processed!`,
+      target_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/partner`,
+      uuid: generateUUID()
+    };
+
+    console.log('Sending vendor paid notification via Neynar:', notification);
+
+    const response = await neynarClient.publishFrameNotifications({
+      targetFids: [partnerFid],
+      notification: notification
+    });
+
+    console.log('Vendor paid notification sent successfully:', response);
+    return { 
+      success: true, 
+      data: response,
+      notificationId: notification.uuid,
+      delivery: 'sent_via_neynar_managed'
+    };
+
+  } catch (error) {
+    console.error('❌ Error sending vendor paid notification:', error);
+    console.error('Full error details:', error.response?.data || error);
+    
+    if (error.message && (error.message.includes('notification') || error.message.includes('token'))) {
+      console.log('Partner notifications not enabled - this is normal, Neynar will handle appropriately');
+      return { 
+        success: true, 
+        skipped: true, 
+        reason: 'Partner has not enabled notifications',
+        delivery: 'handled_by_neynar'
+      };
+    }
+    
+    return { 
+      success: false, 
+      error: error.message, 
+      details: error.response?.data,
+      delivery: 'failed'
+    };
+  }
+}
+
 // Send shipping notification
 export async function sendShippingNotification(userFid, shippingDetails) {
   if (!isNeynarAvailable()) {

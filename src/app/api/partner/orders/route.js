@@ -41,6 +41,9 @@ export async function GET(request) {
         created_at,
         assigned_at,
         fid,
+        vendor_payout_amount,
+        vendor_paid_at,
+        vendor_payout_notes,
         order_items (
           id,
           product_id,
@@ -72,6 +75,9 @@ export async function GET(request) {
         customer_email,
         shipping_address,
         shipping_method,
+        vendor_payout_amount,
+        vendor_paid_at,
+        vendor_payout_notes,
         order_items (
           id,
           product_id,

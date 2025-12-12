@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { updateOrderStatus } from '@/lib/orders';
-import { sendPartnerAssignmentNotification } from '@/lib/neynar';
+import { sendPartnerAssignmentNotification, sendVendorPaidNotification } from '@/lib/neynar';
 import { withAdminAuth } from '@/lib/adminAuth';
 
 export const PUT = withAdminAuth(async (request, { params }) => {
@@ -95,6 +95,18 @@ export const PUT = withAdminAuth(async (request, { params }) => {
       }
     }
 
+    // Vendor payout tracking
+    if (updateData.vendor_payout_amount !== undefined) {
+      otherUpdateFields.vendor_payout_amount = updateData.vendor_payout_amount ? parseFloat(updateData.vendor_payout_amount) : null;
+    }
+    if (updateData.vendor_payout_notes !== undefined) {
+      otherUpdateFields.vendor_payout_notes = updateData.vendor_payout_notes || null;
+    }
+    // Auto-set vendor_paid_at when status changes to vendor_paid
+    if (updateData.status === 'vendor_paid' && currentOrder.status !== 'vendor_paid') {
+      otherUpdateFields.vendor_paid_at = new Date().toISOString();
+    }
+
     // If there are other fields to update, do a separate update
     if (Object.keys(otherUpdateFields).length > 0) {
       otherUpdateFields.updated_at = new Date().toISOString();
@@ -151,6 +163,41 @@ export const PUT = withAdminAuth(async (request, { params }) => {
           }
         } catch (notificationError) {
           console.error('❌ Error sending partner assignment notification:', notificationError);
+          // Don't fail the order update if notification fails
+        }
+      }
+
+      // Send vendor paid notification if status changed to vendor_paid and order has an assigned partner
+      if (updateData.status === 'vendor_paid' && currentOrder.status !== 'vendor_paid' && currentOrder.assigned_partner_id) {
+        try {
+          console.log('💰 Sending vendor paid notification for order:', orderId);
+          
+          // Get the partner's FID from the partners table
+          const { data: partner, error: partnerError } = await supabaseAdmin
+            .from('partners')
+            .select('fid')
+            .eq('id', currentOrder.assigned_partner_id)
+            .single();
+
+          if (partnerError || !partner?.fid) {
+            console.warn('⚠️ Could not get partner FID for vendor paid notification:', partnerError);
+          } else {
+            const notificationResult = await sendVendorPaidNotification(
+              partner.fid,
+              {
+                orderId: currentOrder.order_id,
+                amount: updateData.vendor_payout_amount || null
+              }
+            );
+
+            if (notificationResult.success) {
+              console.log('✅ Vendor paid notification sent successfully');
+            } else {
+              console.log('⚠️ Vendor paid notification failed or skipped:', notificationResult.error || notificationResult.reason);
+            }
+          }
+        } catch (notificationError) {
+          console.error('❌ Error sending vendor paid notification:', notificationError);
           // Don't fail the order update if notification fails
         }
       }

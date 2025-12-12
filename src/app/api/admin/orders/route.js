@@ -137,6 +137,13 @@ export const GET = withAdminAuth(async (request) => {
         
         // Partner assignment information
         assigned_partner: order.assigned_partner || null,
+        assigned_partner_id: order.assigned_partner_id || null,
+        assigned_at: order.assigned_at || null,
+        
+        // Vendor payout tracking
+        vendor_payout_amount: order.vendor_payout_amount || null,
+        vendor_paid_at: order.vendor_paid_at || null,
+        vendor_payout_notes: order.vendor_payout_notes || null,
         
         // Product details from order_items table
         products: products
