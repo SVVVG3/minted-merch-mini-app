@@ -670,48 +670,6 @@ export function ProfileModal({ isOpen, onClose }) {
                 </div>
               )}
 
-              {/* Ambassador Dashboard Link */}
-              {isAmbassador && (
-                <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-xl p-4 shadow-sm">
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-xl flex-shrink-0">
-                        🤝
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-indigo-800">Ambassador Dashboard</h4>
-                        <p className="text-xs text-indigo-600">View bounties, submissions & payouts</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        try {
-                          // Try haptic feedback
-                          const capabilities = await sdk.getCapabilities();
-                          if (capabilities.includes('haptics.selectionChanged')) {
-                            await sdk.haptics.selectionChanged();
-                          }
-                        } catch (error) {
-                          console.log('Haptics not available:', error);
-                        }
-                        
-                        // Close modal
-                        onClose();
-                        
-                        // Navigate to ambassador dashboard
-                        router.push('/ambassador');
-                      }}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1 whitespace-nowrap w-full"
-                    >
-                      Dashboard
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              )}
-              
               {/* Status Card */}
               {profileData.token_balance && parseFloat(profileData.token_balance) >= 50000000 ? (
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-5 shadow-sm">

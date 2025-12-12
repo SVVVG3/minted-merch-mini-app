@@ -397,54 +397,116 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
     }
   };
 
-  const renderBountyCard = (bounty) => (
-    <div
-      key={bounty.id}
-      className={`border-2 rounded-xl p-5 bg-white hover:shadow-lg transition-all ${
-        bounty.isCustomBounty 
-          ? 'border-purple-200 hover:border-purple-400' 
-          : 'border-gray-200 hover:border-[#3eb489]'
-      }`}
-    >
-      <div className="flex items-start gap-4">
-        <div className="text-4xl">{getBountyIcon(bounty)}</div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-bold text-gray-900">{bounty.title}</h3>
-            {bounty.isCustomBounty && (
-              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                Mogul Mission
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-gray-600 mb-3">{bounty.description || getBountyAction(bounty)}</p>
-          
-          <div className="flex items-center gap-4 text-sm">
-            <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full font-semibold">
-              +{formatNumber(bounty.rewardTokens)} tokens
-            </span>
-            <span className="text-gray-500">
-              {bounty.slotsRemaining} slots left
-            </span>
-          </div>
+  const renderBountyCard = (bounty) => {
+    // Determine button state and text based on submission status
+    const getButtonState = () => {
+      if (bounty.hasPendingSubmission) {
+        return { 
+          disabled: true, 
+          text: '⏳ Under Review', 
+          className: 'bg-yellow-100 text-yellow-800 cursor-not-allowed border-2 border-yellow-300'
+        };
+      }
+      if (bounty.hasRejectedSubmission && !bounty.canSubmit) {
+        return { 
+          disabled: true, 
+          text: '❌ Submission Denied', 
+          className: 'bg-red-100 text-red-800 cursor-not-allowed border-2 border-red-200'
+        };
+      }
+      if (bounty.hasRejectedSubmission && bounty.canSubmit) {
+        return { 
+          disabled: false, 
+          text: 'Resubmit Mission', 
+          className: bounty.isCustomBounty
+            ? 'bg-purple-600 hover:bg-purple-700 text-white'
+            : 'bg-[#3eb489] hover:bg-[#359970] text-white'
+        };
+      }
+      if (!bounty.canSubmit) {
+        return { 
+          disabled: true, 
+          text: bounty.hasApprovedSubmission ? '✅ Completed' : 'Unavailable', 
+          className: bounty.hasApprovedSubmission 
+            ? 'bg-green-100 text-green-800 cursor-not-allowed border-2 border-green-300'
+            : 'bg-gray-100 text-gray-500 cursor-not-allowed'
+        };
+      }
+      return { 
+        disabled: false, 
+        text: bounty.isCustomBounty ? 'View & Submit' : 'Complete Mission',
+        className: bounty.isCustomBounty
+          ? 'bg-purple-600 hover:bg-purple-700 text-white'
+          : 'bg-[#3eb489] hover:bg-[#359970] text-white'
+      };
+    };
 
-          <button
-            onClick={() => {
-              triggerHaptic('light', isInFarcaster);
-              onSelectBounty(bounty);
-            }}
-            className={`mt-4 w-full py-3 rounded-xl font-semibold transition-colors ${
-              bounty.isCustomBounty
-                ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                : 'bg-[#3eb489] hover:bg-[#359970] text-white'
-            }`}
-          >
-            {bounty.isCustomBounty ? 'View & Submit' : 'Complete Mission'}
-          </button>
+    const buttonState = getButtonState();
+
+    return (
+      <div
+        key={bounty.id}
+        className={`border-2 rounded-xl p-5 bg-white transition-all ${
+          bounty.hasPendingSubmission
+            ? 'border-yellow-300 bg-yellow-50/30'
+            : bounty.hasRejectedSubmission
+              ? 'border-red-200 bg-red-50/30'
+              : bounty.hasApprovedSubmission
+                ? 'border-green-300 bg-green-50/30'
+                : bounty.isCustomBounty 
+                  ? 'border-purple-200 hover:border-purple-400 hover:shadow-lg' 
+                  : 'border-gray-200 hover:border-[#3eb489] hover:shadow-lg'
+        }`}
+      >
+        <div className="flex items-start gap-4">
+          <div className="text-4xl">{getBountyIcon(bounty)}</div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h3 className="font-bold text-gray-900">{bounty.title}</h3>
+              {bounty.isCustomBounty && (
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                  Mogul Mission
+                </span>
+              )}
+              {bounty.hasPendingSubmission && (
+                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
+                  ⏳ Under Review
+                </span>
+              )}
+              {bounty.hasRejectedSubmission && (
+                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                  ❌ Denied - {bounty.canSubmit ? 'Can Resubmit' : 'No Resubmit'}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-600 mb-3">{bounty.description || getBountyAction(bounty)}</p>
+            
+            <div className="flex items-center gap-4 text-sm">
+              <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full font-semibold">
+                +{formatNumber(bounty.rewardTokens)} tokens
+              </span>
+              <span className="text-gray-500">
+                {bounty.slotsRemaining} slots left
+              </span>
+            </div>
+
+            <button
+              onClick={() => {
+                if (!buttonState.disabled) {
+                  triggerHaptic('light', isInFarcaster);
+                  onSelectBounty(bounty);
+                }
+              }}
+              disabled={buttonState.disabled}
+              className={`mt-4 w-full py-3 rounded-xl font-semibold transition-colors ${buttonState.className}`}
+            >
+              {buttonState.text}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -679,6 +741,15 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
           <p className="text-[#3eb489] font-semibold text-sm text-center">
             ✅ Total Claimed: {formatNumber(totalClaimed)} $mintedmerch
           </p>
+          <button
+            onClick={() => {
+              triggerHaptic('light', isInFarcaster);
+              window.location.href = '/stake?action=stake';
+            }}
+            className="mt-3 w-full bg-[#3eb489] hover:bg-[#359970] text-white py-2 px-4 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+          >
+            <span>💰</span> Stake Your Earnings
+          </button>
         </div>
       )}
 

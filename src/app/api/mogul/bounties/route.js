@@ -104,17 +104,45 @@ export async function GET(request) {
 
     console.log(`📊 Filtered to ${filteredBounties.length} bounties for FID ${fid}`);
 
+    // Get all user's submissions for these bounties to check status
+    const bountyIds = filteredBounties.map(b => b.id);
+    const { data: userSubmissionsData } = await supabaseAdmin
+      .from('bounty_submissions')
+      .select('bounty_id, status, submitted_at')
+      .eq('ambassador_fid', fid)
+      .in('bounty_id', bountyIds)
+      .order('submitted_at', { ascending: false });
+
+    // Create a map of latest submission status per bounty
+    const submissionStatusMap = {};
+    for (const submission of (userSubmissionsData || [])) {
+      // Only keep the most recent submission per bounty
+      if (!submissionStatusMap[submission.bounty_id]) {
+        submissionStatusMap[submission.bounty_id] = submission.status;
+      }
+    }
+
     // Enrich bounties with submission info
     const enrichedBounties = await Promise.all(
       filteredBounties.map(async (bounty) => {
         // Get user's submission count for this bounty
         const userSubmissions = await getMogulSubmissionCount(fid, bounty.id);
 
+        // Get the user's latest submission status for this bounty
+        const latestSubmissionStatus = submissionStatusMap[bounty.id] || null;
+        const hasPendingSubmission = latestSubmissionStatus === 'pending';
+        const hasApprovedSubmission = latestSubmissionStatus === 'approved';
+        const hasRejectedSubmission = latestSubmissionStatus === 'rejected';
+
         // Check if bounty is still accepting submissions
         const slotsRemaining = bounty.max_completions - bounty.current_completions;
+        
+        // Can submit if: slots available, not at limit, AND (no pending/approved submission OR bounty allows multiple)
+        const atSubmissionLimit = bounty.max_submissions_per_ambassador !== null && 
+                                   userSubmissions >= bounty.max_submissions_per_ambassador;
         const canSubmit = slotsRemaining > 0 && 
-          (bounty.max_submissions_per_ambassador === null || 
-           userSubmissions < bounty.max_submissions_per_ambassador);
+          !atSubmissionLimit && 
+          !hasPendingSubmission; // Can't submit if already has pending
 
         // Check if bounty has expired
         const isExpired = bounty.expires_at && new Date(bounty.expires_at) < new Date();
@@ -133,6 +161,10 @@ export async function GET(request) {
           slotsRemaining,
           maxSubmissionsPerUser: bounty.max_submissions_per_ambassador,
           userSubmissions,
+          userSubmissionStatus: latestSubmissionStatus,
+          hasPendingSubmission,
+          hasApprovedSubmission,
+          hasRejectedSubmission,
           canSubmit: canSubmit && !isExpired,
           isExpired,
           expiresAt: bounty.expires_at,
