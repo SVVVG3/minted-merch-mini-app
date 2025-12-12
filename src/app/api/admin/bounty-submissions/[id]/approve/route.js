@@ -28,19 +28,6 @@ export const PUT = withAdminAuth(async (request, { params }) => {
           reward_tokens,
           max_completions,
           current_completions
-        ),
-        ambassadors!bounty_submissions_ambassador_id_fkey (
-          id,
-          fid,
-          total_earned_tokens,
-          total_bounties_completed,
-          profiles (
-            fid,
-            username,
-            primary_eth_address,
-            verified_eth_addresses,
-            custody_address
-          )
         )
       `)
       .eq('id', id)
@@ -53,6 +40,36 @@ export const PUT = withAdminAuth(async (request, { params }) => {
         error: 'Submission not found'
       }, { status: 404 });
     }
+
+    // Get the user's FID from the submission
+    const userFid = submission.ambassador_fid;
+    if (!userFid) {
+      console.error('❌ No user FID found on submission');
+      return NextResponse.json({
+        success: false,
+        error: 'Submission missing user FID'
+      }, { status: 400 });
+    }
+
+    // Get user profile directly (works for both ambassadors and mogul stakers)
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('fid, username, primary_eth_address, verified_eth_addresses, custody_address')
+      .eq('fid', userFid)
+      .single();
+
+    if (profileError) {
+      console.error('❌ Error fetching user profile:', profileError);
+    }
+
+    // Check if user is in ambassadors table (for legacy stats tracking)
+    const { data: ambassador, error: ambassadorError } = await supabaseAdmin
+      .from('ambassadors')
+      .select('id, fid, total_earned_tokens, total_bounties_completed')
+      .eq('fid', userFid)
+      .single();
+    
+    // ambassador may be null if user is a mogul staker, not a manual ambassador - that's OK
 
     // Check if already approved
     if (submission.status === 'approved') {
@@ -71,11 +88,11 @@ export const PUT = withAdminAuth(async (request, { params }) => {
       }, { status: 400 });
     }
 
-    // Get ambassador's wallet address
-    const walletAddress = await getAmbassadorWalletAddress(submission.ambassadors.fid);
+    // Get user's wallet address
+    const walletAddress = await getAmbassadorWalletAddress(userFid);
 
     if (!walletAddress) {
-      console.warn(`⚠️ No wallet address found for ambassador FID ${submission.ambassadors.fid}`);
+      console.warn(`⚠️ No wallet address found for user FID ${userFid}`);
       // Still proceed but with warning - payout can be updated later
     }
 
@@ -186,10 +203,10 @@ export const PUT = withAdminAuth(async (request, { params }) => {
           payout.claim_signature = claimDataJson;
           payout.claim_deadline = deadline.toISOString();
 
-          // Send payout ready notification to ambassador
+          // Send payout ready notification to user
           try {
             const notificationResult = await sendPayoutReadyNotification(
-              submission.ambassadors.fid,
+              userFid,
               {
                 amount_tokens: bounty.reward_tokens,
                 bounty: { title: bounty.title },
@@ -197,9 +214,9 @@ export const PUT = withAdminAuth(async (request, { params }) => {
               }
             );
             if (notificationResult.success) {
-              console.log(`📬 Payout ready notification sent to ambassador FID: ${submission.ambassadors.fid}`);
+              console.log(`📬 Payout ready notification sent to user FID: ${userFid}`);
             } else if (notificationResult.skipped) {
-              console.log(`⏭️ Notification skipped for FID ${submission.ambassadors.fid}: ${notificationResult.reason}`);
+              console.log(`⏭️ Notification skipped for FID ${userFid}: ${notificationResult.reason}`);
             } else {
               console.error('⚠️ Failed to send payout notification:', notificationResult.error);
             }
@@ -215,22 +232,28 @@ export const PUT = withAdminAuth(async (request, { params }) => {
       console.log(`⚠️ No wallet address - payout created but not claimable until wallet is added`);
     }
 
-    // 3. Update ambassador stats
-    const newTotalEarned = (submission.ambassadors.total_earned_tokens || 0) + bounty.reward_tokens;
-    const newTotalCompleted = (submission.ambassadors.total_bounties_completed || 0) + 1;
+    // 3. Update ambassador stats (only if user is in ambassadors table)
+    if (ambassador) {
+      const newTotalEarned = (ambassador.total_earned_tokens || 0) + bounty.reward_tokens;
+      const newTotalCompleted = (ambassador.total_bounties_completed || 0) + 1;
 
-    const { error: ambassadorError } = await supabaseAdmin
-      .from('ambassadors')
-      .update({
-        total_earned_tokens: newTotalEarned,
-        total_bounties_completed: newTotalCompleted,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', submission.ambassador_id);
+      const { error: updateAmbassadorError } = await supabaseAdmin
+        .from('ambassadors')
+        .update({
+          total_earned_tokens: newTotalEarned,
+          total_bounties_completed: newTotalCompleted,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', ambassador.id);
 
-    if (ambassadorError) {
-      console.error('❌ Error updating ambassador stats:', ambassadorError);
-      // Continue anyway - stats can be recalculated
+      if (updateAmbassadorError) {
+        console.error('❌ Error updating ambassador stats:', updateAmbassadorError);
+        // Continue anyway - stats can be recalculated
+      } else {
+        console.log(`📊 Ambassador stats updated: ${newTotalEarned} total earned, ${newTotalCompleted} completed`);
+      }
+    } else {
+      console.log(`ℹ️ User FID ${userFid} is not in ambassadors table - skipping legacy stats update`);
     }
 
     // 4. Increment bounty completion count
@@ -247,15 +270,14 @@ export const PUT = withAdminAuth(async (request, { params }) => {
       // Continue anyway
     }
 
-    console.log(`✅ Submission approved successfully`);
+    console.log(`✅ Submission approved successfully for user FID ${userFid}`);
     console.log(`💰 Payout created: ${bounty.reward_tokens} tokens to ${walletAddress || 'NO WALLET'}`);
-    console.log(`📊 Ambassador stats updated: ${newTotalEarned} total earned, ${newTotalCompleted} completed`);
 
     return NextResponse.json({
       success: true,
       message: 'Submission approved successfully',
       payout,
-      warning: walletAddress ? null : 'No wallet address found for ambassador. Payout created but needs wallet before distribution.'
+      warning: walletAddress ? null : 'No wallet address found for user. Payout created but needs wallet before distribution.'
     });
 
   } catch (error) {
