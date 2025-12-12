@@ -4260,6 +4260,9 @@ export default function AdminDashboard() {
                                 Missions
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Earned
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                 Status
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -4316,6 +4319,11 @@ export default function AdminDashboard() {
                                       {mogul.missionsPending} pending
                                     </div>
                                   )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm font-bold text-green-600">
+                                    {(mogul.missionsEarnedTokens || 0).toLocaleString()} 🪙
+                                  </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
@@ -4823,7 +4831,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Create/Edit Bounty Modal */}
+        {/* Create/Edit Mission Modal */}
         {showCreateBounty && (
           <CreateBountyModal 
             bounty={selectedBountyForEdit}
@@ -4837,7 +4845,8 @@ export default function AdminDashboard() {
               setSelectedBountyForEdit(null);
             }}
             adminFetch={adminFetch}
-            ambassadorsData={ambassadorsData}
+            mogulsData={mogulsData}
+            loadMoguls={loadMoguls}
           />
         )}
 
@@ -5334,8 +5343,15 @@ export default function AdminDashboard() {
   );
 }
 
-// CreateBountyModal Component
-function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadorsData }) {
+// CreateBountyModal Component (Create Mission Modal)
+function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, mogulsData, loadMoguls }) {
+  // Load moguls if not already loaded when modal opens
+  useEffect(() => {
+    if (!mogulsData || mogulsData.length === 0) {
+      loadMoguls?.();
+    }
+  }, [mogulsData, loadMoguls]);
+
   const [formData, setFormData] = useState({
     title: bounty?.title || '',
     description: bounty?.description || '',
@@ -5774,10 +5790,10 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
               </p>
             </div>
 
-            {/* Target Specific Users */}
+            {/* Target Specific Moguls */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Target Specific Users (Optional)
+                Target Specific Moguls (Optional)
               </label>
               <select
                 multiple
@@ -5788,17 +5804,17 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489] h-32"
               >
-                {ambassadorsData.map(amb => (
-                  <option key={amb.fid} value={amb.fid}>
-                    @{amb.profiles?.username || `FID: ${amb.fid}`}
+                {mogulsData.map(mogul => (
+                  <option key={mogul.fid} value={mogul.fid}>
+                    @{mogul.username || `FID ${mogul.fid}`} ({(mogul.stakedBalance || 0).toLocaleString()} staked)
                   </option>
                 ))}
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                Leave empty to make bounty available to ALL ambassadors. Hold Cmd/Ctrl to select multiple.
+                Leave empty to make mission available to ALL moguls (50M+ staked). Hold Cmd/Ctrl to select multiple.
                 {formData.targetAmbassadorFids.length > 0 && (
                   <span className="block mt-1 text-[#3eb489] font-medium">
-                    Selected: {formData.targetAmbassadorFids.length} ambassador{formData.targetAmbassadorFids.length !== 1 ? 's' : ''}
+                    Selected: {formData.targetAmbassadorFids.length} mogul{formData.targetAmbassadorFids.length !== 1 ? 's' : ''}
                   </span>
                 )}
               </p>

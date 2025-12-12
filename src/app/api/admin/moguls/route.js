@@ -51,25 +51,34 @@ export const GET = withAdminAuth(async (request) => {
       ambassadorMap[amb.fid] = amb;
     });
 
-    // Get bounty submission stats for each mogul
+    // Get bounty submission stats and earned tokens for each mogul
     const mogulFids = moguls.map(m => m.fid);
+    
+    // Get submissions with bounty reward info
     const { data: submissions, error: submissionsError } = await supabaseAdmin
       .from('bounty_submissions')
-      .select('ambassador_fid, status')
+      .select(`
+        ambassador_fid, 
+        status,
+        bounty:bounties(reward_tokens)
+      `)
       .in('ambassador_fid', mogulFids);
 
     if (submissionsError) {
       console.error('⚠️ Error fetching submissions:', submissionsError);
     }
 
-    // Calculate submission stats per mogul
+    // Calculate submission stats and earned tokens per mogul
     const statsMap = {};
     (submissions || []).forEach(sub => {
       if (!statsMap[sub.ambassador_fid]) {
-        statsMap[sub.ambassador_fid] = { total: 0, approved: 0, pending: 0, rejected: 0 };
+        statsMap[sub.ambassador_fid] = { total: 0, approved: 0, pending: 0, rejected: 0, earnedTokens: 0 };
       }
       statsMap[sub.ambassador_fid].total++;
-      if (sub.status === 'approved') statsMap[sub.ambassador_fid].approved++;
+      if (sub.status === 'approved') {
+        statsMap[sub.ambassador_fid].approved++;
+        statsMap[sub.ambassador_fid].earnedTokens += (sub.bounty?.reward_tokens || 0);
+      }
       if (sub.status === 'pending') statsMap[sub.ambassador_fid].pending++;
       if (sub.status === 'rejected') statsMap[sub.ambassador_fid].rejected++;
     });
@@ -77,7 +86,7 @@ export const GET = withAdminAuth(async (request) => {
     // Enrich moguls with ambassador status and stats
     const enrichedMoguls = moguls.map(mogul => {
       const ambassador = ambassadorMap[mogul.fid];
-      const stats = statsMap[mogul.fid] || { total: 0, approved: 0, pending: 0, rejected: 0 };
+      const stats = statsMap[mogul.fid] || { total: 0, approved: 0, pending: 0, rejected: 0, earnedTokens: 0 };
       
       return {
         fid: mogul.fid,
@@ -91,14 +100,13 @@ export const GET = withAdminAuth(async (request) => {
         // Ambassador status
         isManualAmbassador: !!ambassador,
         ambassadorActive: ambassador?.is_active || false,
-        ambassadorEarnedTokens: ambassador?.total_earned_tokens || 0,
-        ambassadorBountiesCompleted: ambassador?.total_bounties_completed || 0,
         ambassadorJoinedAt: ambassador?.created_at || null,
         // Mission stats
         missionsCompleted: stats.approved,
         missionsPending: stats.pending,
         missionsRejected: stats.rejected,
-        missionsTotal: stats.total
+        missionsTotal: stats.total,
+        missionsEarnedTokens: stats.earnedTokens
       };
     });
 
