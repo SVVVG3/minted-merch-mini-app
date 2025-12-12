@@ -123,12 +123,25 @@ export default function MissionsClient() {
     return new Intl.NumberFormat('en-US').format(num);
   };
 
-  const handleCompleteBounty = async (bounty) => {
+  const handleCompleteBounty = async (bounty, proofUrl = null, proofDescription = null) => {
     setSubmitting(true);
     setError('');
 
     try {
       const token = localStorage.getItem('fc_session_token');
+      
+      const body = { bountyId: bounty.id };
+      
+      // Add proof data for custom bounties
+      if (bounty.isCustomBounty || bounty.bountyType === 'custom') {
+        if (!proofUrl) {
+          setError('Please provide a proof URL');
+          setSubmitting(false);
+          return;
+        }
+        body.proofUrl = proofUrl;
+        body.proofDescription = proofDescription;
+      }
       
       const response = await fetch('/api/mogul/submit', {
         method: 'POST',
@@ -136,7 +149,7 @@ export default function MissionsClient() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ bountyId: bounty.id }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
@@ -349,72 +362,115 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
       <div className="text-center py-12">
         <div className="text-6xl mb-4">🎯</div>
         <h3 className="text-lg font-semibold text-gray-900 mb-2">No Active Missions</h3>
-        <p className="text-gray-600">Check back later for new interaction bounties!</p>
+        <p className="text-gray-600">Check back later for new missions!</p>
       </div>
     );
   }
 
   const availableBounties = bounties.filter(b => b.canSubmit);
+  
+  // Separate interaction and custom bounties
+  const interactionBounties = availableBounties.filter(b => b.isInteractionBounty);
+  const customBounties = availableBounties.filter(b => b.isCustomBounty);
+
+  const getBountyIcon = (bounty) => {
+    if (bounty.isCustomBounty) return '📝';
+    switch (bounty.bountyType) {
+      case 'farcaster_like': return '❤️';
+      case 'farcaster_recast': return '🔄';
+      case 'farcaster_comment': return '💬';
+      case 'farcaster_like_recast': return '⚡';
+      case 'farcaster_engagement': return '🔥';
+      default: return '🎯';
+    }
+  };
+
+  const getBountyAction = (bounty) => {
+    if (bounty.isCustomBounty) return bounty.requirements || 'Complete the mission requirements';
+    switch (bounty.bountyType) {
+      case 'farcaster_like': return 'Like the cast';
+      case 'farcaster_recast': return 'Recast the post';
+      case 'farcaster_comment': return 'Comment on the cast';
+      case 'farcaster_like_recast': return 'Like and Recast!';
+      case 'farcaster_engagement': return 'Like, Recast, and Comment!';
+      default: return 'Complete action';
+    }
+  };
+
+  const renderBountyCard = (bounty) => (
+    <div
+      key={bounty.id}
+      className={`border-2 rounded-xl p-5 bg-white hover:shadow-lg transition-all ${
+        bounty.isCustomBounty 
+          ? 'border-purple-200 hover:border-purple-400' 
+          : 'border-gray-200 hover:border-[#3eb489]'
+      }`}
+    >
+      <div className="flex items-start gap-4">
+        <div className="text-4xl">{getBountyIcon(bounty)}</div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-bold text-gray-900">{bounty.title}</h3>
+            {bounty.isCustomBounty && (
+              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                Mogul Mission
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-600 mb-3">{bounty.description || getBountyAction(bounty)}</p>
+          
+          <div className="flex items-center gap-4 text-sm">
+            <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full font-semibold">
+              +{formatNumber(bounty.rewardTokens)} tokens
+            </span>
+            <span className="text-gray-500">
+              {bounty.slotsRemaining} slots left
+            </span>
+          </div>
+
+          <button
+            onClick={() => {
+              triggerHaptic('light', isInFarcaster);
+              onSelectBounty(bounty);
+            }}
+            className={`mt-4 w-full py-3 rounded-xl font-semibold transition-colors ${
+              bounty.isCustomBounty
+                ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                : 'bg-[#3eb489] hover:bg-[#359970] text-white'
+            }`}
+          >
+            {bounty.isCustomBounty ? 'View & Submit' : 'Complete Mission'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="space-y-4">
-      {availableBounties.map((bounty) => {
-        const getBountyIcon = () => {
-          switch (bounty.bountyType) {
-            case 'farcaster_like': return '❤️';
-            case 'farcaster_recast': return '🔄';
-            case 'farcaster_comment': return '💬';
-            case 'farcaster_like_recast': return '⚡';
-            case 'farcaster_engagement': return '🎯';
-            default: return '🎯';
-          }
-        };
-
-        const getBountyAction = () => {
-          switch (bounty.bountyType) {
-            case 'farcaster_like': return 'Like the cast';
-            case 'farcaster_recast': return 'Recast the post';
-            case 'farcaster_comment': return 'Comment on the cast';
-            case 'farcaster_like_recast': return 'Like and Recast!';
-            case 'farcaster_engagement': return 'Like, Recast, and Comment!';
-            default: return 'Complete action';
-          }
-        };
-
-        return (
-          <div
-            key={bounty.id}
-            className="border-2 rounded-xl p-5 border-gray-200 bg-white hover:border-[#3eb489] hover:shadow-lg transition-all"
-          >
-            <div className="flex items-start gap-4">
-              <div className="text-4xl">{getBountyIcon()}</div>
-              <div className="flex-1">
-                <h3 className="font-bold text-gray-900 mb-1">{bounty.title}</h3>
-                <p className="text-sm text-gray-600 mb-3">{bounty.description || getBountyAction()}</p>
-                
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full font-semibold">
-                    +{formatNumber(bounty.rewardTokens)} tokens
-                  </span>
-                  <span className="text-gray-500">
-                    {bounty.slotsRemaining} slots left
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => {
-                    triggerHaptic('light', isInFarcaster);
-                    onSelectBounty(bounty);
-                  }}
-                  className="mt-4 w-full bg-[#3eb489] hover:bg-[#359970] text-white py-3 rounded-xl font-semibold transition-colors"
-                >
-                  Complete Mission
-                </button>
-              </div>
-            </div>
+    <div className="space-y-6">
+      {/* Interaction Bounties Section */}
+      {interactionBounties.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            ⚡ Quick Missions
+          </h3>
+          <div className="space-y-4">
+            {interactionBounties.map(renderBountyCard)}
           </div>
-        );
-      })}
+        </div>
+      )}
+
+      {/* Custom Bounties Section */}
+      {customBounties.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            📝 Mogul Missions <span className="text-purple-600">(50M+ Staked)</span>
+          </h3>
+          <div className="space-y-4">
+            {customBounties.map(renderBountyCard)}
+          </div>
+        </div>
+      )}
 
       {availableBounties.length === 0 && bounties.length > 0 && (
         <div className="text-center py-8 text-gray-500">
@@ -684,24 +740,11 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
 
 // Bounty Action Modal
 function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarcaster }) {
+  const [proofUrl, setProofUrl] = useState('');
+  const [proofDescription, setProofDescription] = useState('');
+  
   const formatNumber = (num) => new Intl.NumberFormat('en-US').format(num);
-
-  const getBountySteps = () => {
-    switch (bounty.bountyType) {
-      case 'farcaster_like':
-        return ['1. Open the cast below', '2. Like the cast', '3. Come back and tap "Verify & Claim"'];
-      case 'farcaster_recast':
-        return ['1. Open the cast below', '2. Recast the post', '3. Come back and tap "Verify & Claim"'];
-      case 'farcaster_comment':
-        return ['1. Open the cast below', '2. Leave a comment', '3. Come back and tap "Verify & Claim"'];
-      case 'farcaster_like_recast':
-        return ['1. Open the cast below', '2. Like AND Recast', '3. Come back and tap "Verify & Claim"'];
-      case 'farcaster_engagement':
-        return ['1. Open the cast below', '2. Like, Recast, AND Comment', '3. Come back and tap "Verify & Claim"'];
-      default:
-        return ['Complete the required action'];
-    }
-  };
+  const isCustomBounty = bounty.isCustomBounty || bounty.bountyType === 'custom';
 
   const handleOpenCast = async () => {
     await triggerHaptic('light', isInFarcaster);
@@ -714,25 +757,58 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
     }
   };
 
+  const handleSubmit = () => {
+    if (isCustomBounty) {
+      onComplete(bounty, proofUrl, proofDescription);
+    } else {
+      onComplete(bounty);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">{bounty.title}</h2>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">{bounty.title}</h2>
+              {isCustomBounty && (
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                  Mogul Mission
+                </span>
+              )}
+            </div>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               ✕
             </button>
           </div>
 
-          <div className="bg-green-50 rounded-xl p-4 mb-6 text-center">
-            <p className="text-sm text-green-600">Reward</p>
-            <p className="text-2xl font-bold text-green-800">
+          <div className={`rounded-xl p-4 mb-6 text-center ${isCustomBounty ? 'bg-purple-50' : 'bg-green-50'}`}>
+            <p className={`text-sm ${isCustomBounty ? 'text-purple-600' : 'text-green-600'}`}>Reward</p>
+            <p className={`text-2xl font-bold ${isCustomBounty ? 'text-purple-800' : 'text-green-800'}`}>
               {formatNumber(bounty.rewardTokens)} $mintedmerch
             </p>
           </div>
 
-          {bounty.targetCastUrl && (
+          {/* Requirements section for custom bounties */}
+          {isCustomBounty && (
+            <div className="mb-6">
+              <h3 className="font-semibold text-gray-900 mb-2">📋 Requirements</h3>
+              <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700">
+                {bounty.requirements || bounty.description || 'Complete the mission requirements'}
+              </div>
+              
+              {bounty.proofRequirements && (
+                <div className="mt-3">
+                  <h4 className="font-medium text-gray-700 mb-1">📎 Proof Required</h4>
+                  <p className="text-sm text-gray-600">{bounty.proofRequirements}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Interaction bounty - open cast button */}
+          {!isCustomBounty && bounty.targetCastUrl && (
             <button
               onClick={handleOpenCast}
               className="w-full bg-[#6A3CFF] hover:bg-[#5930D9] text-white py-3 rounded-xl font-semibold mb-4 transition-colors flex items-center justify-center gap-2"
@@ -748,6 +824,37 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
             </button>
           )}
 
+          {/* Custom bounty - proof submission form */}
+          {isCustomBounty && (
+            <div className="mb-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Proof URL <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="url"
+                  value={proofUrl}
+                  onChange={(e) => setProofUrl(e.target.value)}
+                  placeholder="https://warpcast.com/... or link to your proof"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description (optional)
+                </label>
+                <textarea
+                  value={proofDescription}
+                  onChange={(e) => setProofDescription(e.target.value)}
+                  placeholder="Add any notes about your submission..."
+                  rows={2}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                />
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
               {error}
@@ -755,22 +862,32 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
           )}
 
           <button
-            onClick={() => onComplete(bounty)}
-            disabled={submitting}
+            onClick={handleSubmit}
+            disabled={submitting || (isCustomBounty && !proofUrl)}
             className={`w-full py-3 rounded-xl font-semibold transition-colors ${
-              submitting
+              submitting || (isCustomBounty && !proofUrl)
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-[#3eb489] hover:bg-[#359970] text-white'
+                : isCustomBounty
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                  : 'bg-[#3eb489] hover:bg-[#359970] text-white'
             }`}
           >
             {submitting ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="animate-spin">⏳</span> Verifying...
+                <span className="animate-spin">⏳</span> {isCustomBounty ? 'Submitting...' : 'Verifying...'}
               </span>
+            ) : isCustomBounty ? (
+              'Submit for Review'
             ) : (
               'Verify & Claim Reward'
             )}
           </button>
+
+          {isCustomBounty && (
+            <p className="text-xs text-gray-500 text-center mt-2">
+              Submissions are reviewed by admins. Rewards are claimable once approved.
+            </p>
+          )}
 
           <button
             onClick={onClose}

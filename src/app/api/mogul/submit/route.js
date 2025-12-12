@@ -1,17 +1,24 @@
 // API endpoint for Minted Merch Missions submissions
 // POST /api/mogul/submit
-// SECURITY: Requires JWT authentication and missions eligibility (50M+ tokens OR 1M+ staked)
-// Only allows interaction bounty types with auto-verification
+// Handles both:
+// - Interaction bounties (auto-verified) → Requires missions eligibility (50M+ tokens OR 1M+ staked)
+// - Custom bounties (manual proof) → Requires 50M+ STAKED or targeted
+// SECURITY: Requires JWT authentication
 
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { checkMissionsEligibility, getMogulSubmissionCount } from '@/lib/mogulHelpers';
+import { 
+  checkMissionsEligibility, 
+  checkCustomBountyEligibility,
+  getMogulSubmissionCount,
+  CUSTOM_BOUNTY_STAKED_THRESHOLD
+} from '@/lib/mogulHelpers';
 import { checkMogulSubmissionRateLimit } from '@/lib/rateLimiter';
 import { verifyFarcasterBounty } from '@/lib/farcasterBountyVerification';
 import { generateClaimSignature, getDefaultClaimDeadline } from '@/lib/claimSignatureService';
 
-// Interaction bounty types
+// Interaction bounty types - auto-verified
 const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'];
 
 export async function POST(request) {
@@ -39,7 +46,7 @@ export async function POST(request) {
     
     // Parse request body
     const body = await request.json();
-    const { bountyId } = body;
+    const { bountyId, proofUrl, proofDescription } = body;
 
     if (!bountyId) {
       return NextResponse.json({
@@ -50,24 +57,68 @@ export async function POST(request) {
 
     console.log(`📝 Processing missions bounty submission for FID ${fid}, Bounty: ${bountyId}`);
 
-    // SECURITY: Check if user is eligible for missions (50M+ tokens OR 1M+ staked)
-    const { isEligible, isMogul, isStaker, tokenBalance, stakedBalance } = await checkMissionsEligibility(fid);
+    // Get bounty details first to determine type
+    const { data: bounty, error: bountyError } = await supabaseAdmin
+      .from('bounties')
+      .select('*')
+      .eq('id', bountyId)
+      .single();
 
-    if (!isEligible) {
+    if (bountyError || !bounty) {
       return NextResponse.json({
         success: false,
-        error: 'Missions eligibility required (50M+ $mintedmerch tokens OR 1M+ staked)',
-        tokenBalance,
-        stakedBalance,
-        requirements: {
-          mogulThreshold: 50_000_000,
-          stakerThreshold: 1_000_000
-        }
-      }, { status: 403 });
+        error: 'Bounty not found'
+      }, { status: 404 });
+    }
+
+    const isInteractionBounty = INTERACTION_BOUNTY_TYPES.includes(bounty.bounty_type);
+    const isCustomBounty = bounty.bounty_type === 'custom';
+
+    // SECURITY: Check eligibility based on bounty type
+    const { isEligible, isMogul, isStaker, tokenBalance, stakedBalance } = await checkMissionsEligibility(fid);
+
+    if (isInteractionBounty) {
+      // Interaction bounties - need missions eligibility (50M+ tokens OR 1M+ staked)
+      if (!isEligible) {
+        return NextResponse.json({
+          success: false,
+          error: 'Missions eligibility required (50M+ $mintedmerch tokens OR 1M+ staked)',
+          tokenBalance,
+          stakedBalance,
+          requirements: {
+            mogulThreshold: 50_000_000,
+            stakerThreshold: 1_000_000
+          }
+        }, { status: 403 });
+      }
+    } else if (isCustomBounty) {
+      // Custom bounties - need 50M+ staked OR be in target list
+      const customEligibility = await checkCustomBountyEligibility(fid, bounty.target_ambassador_fids);
+      
+      if (!customEligibility.isEligible) {
+        return NextResponse.json({
+          success: false,
+          error: 'Custom bounty eligibility required (50M+ $mintedmerch staked)',
+          stakedBalance,
+          requirement: CUSTOM_BOUNTY_STAKED_THRESHOLD
+        }, { status: 403 });
+      }
+
+      // Custom bounties require proof
+      if (!proofUrl) {
+        return NextResponse.json({
+          success: false,
+          error: 'Proof URL is required for custom bounties'
+        }, { status: 400 });
+      }
+    } else {
+      return NextResponse.json({
+        success: false,
+        error: 'Unknown bounty type'
+      }, { status: 400 });
     }
 
     // SECURITY: Rate limiting - prevent submission spam
-    // Limit: 20 submissions per hour per mogul
     const rateLimit = await checkMogulSubmissionRateLimit(fid, 20, 60);
     
     if (!rateLimit.allowed) {
@@ -88,28 +139,6 @@ export async function POST(request) {
           'X-RateLimit-Remaining': rateLimit.remaining.toString()
         }
       });
-    }
-
-    // Get bounty details
-    const { data: bounty, error: bountyError } = await supabaseAdmin
-      .from('bounties')
-      .select('*')
-      .eq('id', bountyId)
-      .single();
-
-    if (bountyError || !bounty) {
-      return NextResponse.json({
-        success: false,
-        error: 'Bounty not found'
-      }, { status: 404 });
-    }
-
-    // SECURITY: Only allow interaction bounty types for moguls
-    if (!INTERACTION_BOUNTY_TYPES.includes(bounty.bounty_type)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Only interaction bounties are available for Merch Moguls'
-      }, { status: 400 });
     }
 
     // Check if bounty is active
@@ -136,11 +165,11 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Check mogul's submission count for this bounty
-    const mogulSubmissions = await getMogulSubmissionCount(fid, bountyId);
+    // Check user's submission count for this bounty
+    const userSubmissions = await getMogulSubmissionCount(fid, bountyId);
 
     if (bounty.max_submissions_per_ambassador !== null) {
-      if (mogulSubmissions >= bounty.max_submissions_per_ambassador) {
+      if (userSubmissions >= bounty.max_submissions_per_ambassador) {
         return NextResponse.json({
           success: false,
           error: `You have reached the submission limit for this bounty`
@@ -148,169 +177,99 @@ export async function POST(request) {
       }
     }
 
-    // AUTO-VERIFICATION for interaction bounties
-    console.log(`🎯 Auto-verifying ${bounty.bounty_type} bounty for mogul FID ${fid}`);
-
-    const verificationResult = await verifyFarcasterBounty(
-      bounty.bounty_type,
-      fid,
-      bounty.target_cast_hash,
-      bounty.target_cast_author_fid
-    );
-
-    if (!verificationResult.verified) {
-      console.log(`❌ Verification failed: ${verificationResult.error}`);
-      return NextResponse.json({
-        success: false,
-        error: verificationResult.error || 'Verification failed',
-        bountyType: bounty.bounty_type,
-        targetCastUrl: bounty.target_cast_url
-      }, { status: 400 });
-    }
-
-    console.log(`✅ Auto-verification successful for ${bounty.bounty_type}`);
-
-    // Create submission - set ambassador_id to null for moguls, use ambassador_fid
-    const { data: submission, error: submissionError } = await supabaseAdmin
-      .from('bounty_submissions')
-      .insert({
-        bounty_id: bountyId,
-        ambassador_id: null, // No ambassador_id for moguls
-        ambassador_fid: fid, // Use FID to track mogul submissions
-        proof_url: bounty.target_cast_url,
-        proof_description: `Auto-verified ${bounty.bounty_type} by Merch Mogul`,
-        submission_notes: JSON.stringify(verificationResult.details),
-        status: 'approved',
-        reviewed_at: new Date().toISOString(),
-        reviewed_by_admin_fid: 0 // 0 = auto-verified by system
-      })
-      .select()
-      .single();
-
-    if (submissionError) {
-      console.error('❌ Error creating submission:', submissionError);
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to create submission'
-      }, { status: 500 });
-    }
-
-    console.log(`✅ Mogul submission created: ${submission.id} (AUTO-APPROVED)`);
-
-    // CREATE PAYOUT
+    let submission;
     let payout = null;
-    
-    // Get mogul's wallet address from profiles table
-    // Try primary_eth_address first, then custody_address as fallback
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('primary_eth_address, custody_address, verified_eth_addresses')
-      .eq('fid', fid)
-      .single();
 
-    // Use primary_eth_address first, then first verified address, then custody as last resort
-    // (custody address is often not directly usable by users for signing transactions)
-    const walletAddress = profile?.primary_eth_address || 
-                          profile?.verified_eth_addresses?.[0] || 
-                          profile?.custody_address;
+    if (isInteractionBounty) {
+      // === INTERACTION BOUNTY: Auto-verification ===
+      console.log(`🎯 Auto-verifying ${bounty.bounty_type} bounty for FID ${fid}`);
 
-    if (!walletAddress) {
-      console.log('⚠️ Mogul has no wallet address - payout can be created later');
-    } else {
-      console.log(`💰 Creating payout for mogul wallet: ${walletAddress}`);
-      
-      const deadline = getDefaultClaimDeadline();
-      const amountInWei = (BigInt(bounty.reward_tokens) * BigInt(10 ** 18)).toString();
-      
-      // Generate claim signature
-      const signatureData = await generateClaimSignature({
-        wallet: walletAddress,
-        amount: amountInWei,
-        payoutId: submission.id,
-        deadline
-      });
+      const verificationResult = await verifyFarcasterBounty(
+        bounty.bounty_type,
+        fid,
+        bounty.target_cast_hash,
+        bounty.target_cast_author_fid
+      );
 
-      // Convert BigInt values for JSON
-      const serializableReq = {
-        ...signatureData.req,
-        expirationTimestamp: signatureData.req.expirationTimestamp.toString(),
-        contents: signatureData.req.contents.map(content => ({
-          ...content,
-          amount: content.amount.toString()
-        }))
-      };
+      if (!verificationResult.verified) {
+        console.log(`❌ Verification failed: ${verificationResult.error}`);
+        return NextResponse.json({
+          success: false,
+          error: verificationResult.error || 'Verification failed',
+          bountyType: bounty.bounty_type,
+          targetCastUrl: bounty.target_cast_url
+        }, { status: 400 });
+      }
 
-      const claimDataJson = JSON.stringify({
-        req: serializableReq,
-        signature: signatureData.signature
-      });
+      console.log(`✅ Auto-verification successful for ${bounty.bounty_type}`);
 
-      // Create payout record
-      const { data: payoutData, error: payoutError } = await supabaseAdmin
-        .from('ambassador_payouts')
+      // Create submission - AUTO-APPROVED
+      const { data: submissionData, error: submissionError } = await supabaseAdmin
+        .from('bounty_submissions')
         .insert({
-          bounty_submission_id: submission.id,
-          ambassador_id: null, // No ambassador_id for moguls
-          amount_tokens: bounty.reward_tokens,
-          wallet_address: walletAddress,
-          claim_signature: claimDataJson,
-          claim_deadline: deadline.toISOString(),
-          status: 'claimable'
+          bounty_id: bountyId,
+          ambassador_id: null,
+          ambassador_fid: fid,
+          proof_url: bounty.target_cast_url,
+          proof_description: `Auto-verified ${bounty.bounty_type} by Mogul`,
+          submission_notes: JSON.stringify(verificationResult.details),
+          status: 'approved',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by_admin_fid: 0 // 0 = auto-verified by system
         })
         .select()
         .single();
 
-      if (payoutError) {
-        console.error('❌ Error creating payout:', payoutError);
-      } else {
-        payout = payoutData;
-        console.log(`✅ Mogul payout created: ${payout.id}`);
+      if (submissionError) {
+        console.error('❌ Error creating submission:', submissionError);
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to create submission'
+        }, { status: 500 });
       }
-    }
 
-    // INCREMENT BOUNTY COMPLETION COUNTER
-    const { error: updateError } = await supabaseAdmin
-      .from('bounties')
-      .update({ 
-        current_completions: bounty.current_completions + 1 
-      })
-      .eq('id', bountyId);
+      submission = submissionData;
+      console.log(`✅ Submission created: ${submission.id} (AUTO-APPROVED)`);
 
-    if (updateError) {
-      console.error('❌ Error updating bounty completion count:', updateError);
-    } else {
-      console.log(`📊 Bounty completion count updated: ${bounty.current_completions} → ${bounty.current_completions + 1}`);
-    }
+      // Create payout immediately for auto-approved
+      payout = await createPayout(fid, submission.id, bounty.reward_tokens);
+      
+      // Increment completion counter
+      await incrementBountyCompletions(bountyId, bounty.current_completions);
 
-    // CHECK IF MOGUL IS ALSO AN AMBASSADOR - Update their stats if so
-    const { data: ambassador, error: ambassadorError } = await supabaseAdmin
-      .from('ambassadors')
-      .select('id, total_earned_tokens, total_bounties_completed')
-      .eq('fid', fid)
-      .eq('is_active', true)
-      .single();
+    } else if (isCustomBounty) {
+      // === CUSTOM BOUNTY: Manual proof, pending review ===
+      console.log(`📝 Creating custom bounty submission for FID ${fid} with proof: ${proofUrl}`);
 
-    if (!ambassadorError && ambassador) {
-      // Mogul is also an ambassador - update their stats
-      const newTotalEarned = (ambassador.total_earned_tokens || 0) + bounty.reward_tokens;
-      const newBountiesCompleted = (ambassador.total_bounties_completed || 0) + 1;
-
-      const { error: ambassadorUpdateError } = await supabaseAdmin
-        .from('ambassadors')
-        .update({
-          total_earned_tokens: newTotalEarned,
-          total_bounties_completed: newBountiesCompleted,
-          updated_at: new Date().toISOString()
+      // Create submission - PENDING admin review
+      const { data: submissionData, error: submissionError } = await supabaseAdmin
+        .from('bounty_submissions')
+        .insert({
+          bounty_id: bountyId,
+          ambassador_id: null,
+          ambassador_fid: fid,
+          proof_url: proofUrl,
+          proof_description: proofDescription || 'Custom bounty submission',
+          status: 'pending' // Requires admin review
         })
-        .eq('id', ambassador.id);
+        .select()
+        .single();
 
-      if (ambassadorUpdateError) {
-        console.error('❌ Error updating ambassador stats:', ambassadorUpdateError);
-      } else {
-        console.log(`✅ Ambassador stats updated for FID ${fid}: total_earned=${newTotalEarned}, bounties_completed=${newBountiesCompleted}`);
+      if (submissionError) {
+        console.error('❌ Error creating submission:', submissionError);
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to create submission'
+        }, { status: 500 });
       }
+
+      submission = submissionData;
+      console.log(`✅ Custom bounty submission created: ${submission.id} (PENDING REVIEW)`);
     }
 
+    // Return response
+    const isApproved = submission.status === 'approved';
+    
     return NextResponse.json({
       success: true,
       data: {
@@ -323,11 +282,13 @@ export async function POST(request) {
           amountTokens: payout.amount_tokens,
           status: payout.status
         } : null,
-        needsWallet: !payout
+        needsWallet: isApproved && !payout
       },
-      message: payout 
-        ? `✅ Verified! Your ${bounty.reward_tokens.toLocaleString()} $mintedmerch tokens are ready to claim!`
-        : `✅ Verified! Please add your wallet address in Settings to claim your ${bounty.reward_tokens.toLocaleString()} $mintedmerch tokens.`
+      message: isApproved
+        ? (payout 
+            ? `✅ Verified! Your ${bounty.reward_tokens.toLocaleString()} $mintedmerch tokens are ready to claim!`
+            : `✅ Verified! Please add your wallet address in Settings to claim your ${bounty.reward_tokens.toLocaleString()} $mintedmerch tokens.`)
+        : `📝 Submitted! Your proof is pending review. You'll earn ${bounty.reward_tokens.toLocaleString()} $mintedmerch tokens once approved.`
     });
 
   } catch (error) {
@@ -339,3 +300,92 @@ export async function POST(request) {
   }
 }
 
+// Helper: Create payout for approved submission
+async function createPayout(fid, submissionId, rewardTokens) {
+  try {
+    // Get user's wallet address
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('primary_eth_address, custody_address, verified_eth_addresses')
+      .eq('fid', fid)
+      .single();
+
+    const walletAddress = profile?.primary_eth_address || 
+                          profile?.verified_eth_addresses?.[0] || 
+                          profile?.custody_address;
+
+    if (!walletAddress) {
+      console.log('⚠️ User has no wallet address - payout can be created later');
+      return null;
+    }
+
+    console.log(`💰 Creating payout for wallet: ${walletAddress}`);
+    
+    const deadline = getDefaultClaimDeadline();
+    const amountInWei = (BigInt(rewardTokens) * BigInt(10 ** 18)).toString();
+    
+    // Generate claim signature
+    const signatureData = await generateClaimSignature({
+      wallet: walletAddress,
+      amount: amountInWei,
+      payoutId: submissionId,
+      deadline
+    });
+
+    // Convert BigInt values for JSON
+    const serializableReq = {
+      ...signatureData.req,
+      expirationTimestamp: signatureData.req.expirationTimestamp.toString(),
+      contents: signatureData.req.contents.map(content => ({
+        ...content,
+        amount: content.amount.toString()
+      }))
+    };
+
+    const claimDataJson = JSON.stringify({
+      req: serializableReq,
+      signature: signatureData.signature
+    });
+
+    // Create payout record
+    const { data: payout, error: payoutError } = await supabaseAdmin
+      .from('ambassador_payouts')
+      .insert({
+        bounty_submission_id: submissionId,
+        ambassador_id: null,
+        amount_tokens: rewardTokens,
+        wallet_address: walletAddress,
+        claim_signature: claimDataJson,
+        claim_deadline: deadline.toISOString(),
+        status: 'claimable'
+      })
+      .select()
+      .single();
+
+    if (payoutError) {
+      console.error('❌ Error creating payout:', payoutError);
+      return null;
+    }
+
+    console.log(`✅ Payout created: ${payout.id}`);
+    return payout;
+
+  } catch (error) {
+    console.error('❌ Error in createPayout:', error);
+    return null;
+  }
+}
+
+// Helper: Increment bounty completion counter
+async function incrementBountyCompletions(bountyId, currentCompletions) {
+  const { error } = await supabaseAdmin
+    .from('bounties')
+    .update({ current_completions: currentCompletions + 1 })
+    .eq('id', bountyId);
+
+  if (error) {
+    console.error('❌ Error updating bounty completion count:', error);
+  } else {
+    console.log(`📊 Bounty completion count updated: ${currentCompletions} → ${currentCompletions + 1}`);
+  }
+}

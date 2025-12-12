@@ -1,11 +1,12 @@
-// Ambassador and Merch Mogul notification system
-// Handles sending Farcaster notifications for ambassador and mogul activities
+// Mogul notification system
+// Handles sending Farcaster notifications for Minted Merch Missions
 // OPTIMIZED: Now uses batch API for multi-user notifications to reduce credit consumption
 
 import { sendBatchNotificationWithNeynar, sendNotificationWithNeynar } from './neynar.js';
 import { supabaseAdmin } from './supabase.js';
+import { getAllCustomBountyEligibleUsers } from './mogulHelpers.js';
 
-// Interaction bounty types - these go to Merch Moguls
+// Interaction bounty types - available to all missions-eligible users
 const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'];
 
 /**
@@ -88,8 +89,8 @@ export async function getAllMerchMoguls() {
 
 /**
  * Send new bounty notification - routes to correct recipients based on bounty type
- * - Interaction bounties (like, recast, comment, engagement) → Merch Moguls
- * - Custom bounties → Ambassadors
+ * - Interaction bounties (like, recast, comment, engagement) → Missions-eligible users (50M+ tokens OR 1M+ staked)
+ * - Custom bounties → 50M+ Stakers (Moguls) or targeted users
  * OPTIMIZED: Uses batch API - 1 API call instead of N calls
  * @param {object} bountyData - The bounty data (from database)
  * @returns {Promise<object>} Summary of notification results
@@ -106,24 +107,24 @@ export async function sendNewBountyNotification(bountyData) {
     let targetUrl;
     
     if (isInteractionBounty) {
-      // INTERACTION BOUNTY → Notify missions-eligible users (Moguls + Stakers)
+      // INTERACTION BOUNTY → Notify missions-eligible users (50M+ tokens OR 1M+ staked)
       console.log(`🎯 Interaction bounty: notifying missions-eligible users`);
       recipientFids = await getAllMissionsEligibleUsers();
       recipientType = 'missions_users';
       targetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/missions?from=new_mission&t=${Date.now()}`;
     } else {
-      // CUSTOM BOUNTY → Notify Ambassadors
+      // CUSTOM BOUNTY → Notify 50M+ Stakers (Moguls)
       if (bountyData.target_ambassador_fids && Array.isArray(bountyData.target_ambassador_fids) && bountyData.target_ambassador_fids.length > 0) {
-        // Targeted bounty - only notify specific ambassadors
-        console.log(`🎯 Targeted custom bounty: notifying ${bountyData.target_ambassador_fids.length} specific ambassador(s)`);
+        // Targeted bounty - only notify specific users
+        console.log(`🎯 Targeted custom bounty: notifying ${bountyData.target_ambassador_fids.length} specific user(s)`);
         recipientFids = bountyData.target_ambassador_fids;
       } else {
-        // General custom bounty - notify all active ambassadors
-        console.log(`📢 Custom bounty: notifying all active ambassadors`);
-        recipientFids = await getAllActiveAmbassadors();
+        // General custom bounty - notify all 50M+ stakers
+        console.log(`📢 Custom bounty: notifying all 50M+ stakers (Moguls)`);
+        recipientFids = await getAllCustomBountyEligibleUsers();
       }
-      recipientType = 'ambassadors';
-      targetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/ambassador?from=new_bounty&t=${Date.now()}`;
+      recipientType = 'moguls';
+      targetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/missions?from=new_mission&t=${Date.now()}`; // Now points to missions
     }
 
     if (recipientFids.length === 0) {
@@ -139,7 +140,7 @@ export async function sendNewBountyNotification(bountyData) {
 
     // Create notification message
     const rewardAmount = bountyData.reward_tokens || bountyData.rewardTokens;
-    const title = isInteractionBounty ? "🎯 New Mission!" : "🎯 New Bounty!";
+    const title = "🎯 New Mission!"; // All bounties are now missions
     const message = {
       title, // Keep under 32 chars
       body: `${bountyData.title} - Earn ${rewardAmount.toLocaleString()} $mintedmerch tokens!`,

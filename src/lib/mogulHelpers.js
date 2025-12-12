@@ -7,7 +7,8 @@
 import { supabaseAdmin } from './supabase';
 
 const MOGUL_TOKEN_THRESHOLD = 50_000_000; // 50M tokens required for Merch Mogul status
-const STAKER_TOKEN_THRESHOLD = 1_000_000; // 1M staked tokens required for missions access
+const STAKER_TOKEN_THRESHOLD = 1_000_000; // 1M staked tokens required for interaction missions
+const CUSTOM_BOUNTY_STAKED_THRESHOLD = 50_000_000; // 50M staked required for custom bounties
 
 /**
  * Check if a user is eligible for Minted Merch Missions
@@ -238,5 +239,80 @@ export async function getMogulProfile(fid) {
   }
 }
 
-export { MOGUL_TOKEN_THRESHOLD, STAKER_TOKEN_THRESHOLD };
+/**
+ * Check if a user is eligible for custom bounties (50M+ staked)
+ * Custom bounties require staking commitment, unlike interaction bounties
+ * @param {number} fid - Farcaster ID
+ * @param {number[]} targetFids - Optional array of targeted FIDs (bypass stake requirement)
+ * @returns {Promise<{isEligible: boolean, stakedBalance: number, reason: string}>}
+ */
+export async function checkCustomBountyEligibility(fid, targetFids = []) {
+  try {
+    // If user is in target list, they're eligible regardless of stake
+    if (targetFids && targetFids.length > 0 && targetFids.includes(fid)) {
+      console.log(`🎯 FID ${fid} is in custom bounty target list - eligible`);
+      return { isEligible: true, stakedBalance: 0, reason: 'targeted' };
+    }
+
+    // Get user's staked balance
+    const { data: profile, error } = await supabaseAdmin
+      .from('profiles')
+      .select('staked_balance')
+      .eq('fid', fid)
+      .single();
+
+    if (error || !profile) {
+      console.log(`❌ Profile not found for FID ${fid}`);
+      return { isEligible: false, stakedBalance: 0, reason: 'profile_not_found' };
+    }
+
+    const stakedBalance = parseFloat(profile.staked_balance) || 0;
+    const isEligible = stakedBalance >= CUSTOM_BOUNTY_STAKED_THRESHOLD;
+
+    const statusText = isEligible ? '✅ ELIGIBLE' : '❌ NOT ELIGIBLE';
+    console.log(`🎯 Custom bounty eligibility for FID ${fid}: ${statusText} (${stakedBalance.toLocaleString()} staked, need ${CUSTOM_BOUNTY_STAKED_THRESHOLD.toLocaleString()})`);
+
+    return { 
+      isEligible,
+      stakedBalance,
+      reason: isEligible ? 'staked_50m' : 'insufficient_stake'
+    };
+
+  } catch (error) {
+    console.error(`❌ Error checking custom bounty eligibility for FID ${fid}:`, error);
+    return { isEligible: false, stakedBalance: 0, reason: 'error' };
+  }
+}
+
+/**
+ * Get all users eligible for custom bounties (50M+ staked)
+ * Used for sending notifications about new custom bounties
+ * @returns {Promise<number[]>} Array of FIDs
+ */
+export async function getAllCustomBountyEligibleUsers() {
+  try {
+    console.log(`🎯 Fetching all custom bounty eligible users (50M+ staked)...`);
+
+    const { data: profiles, error } = await supabaseAdmin
+      .from('profiles')
+      .select('fid')
+      .gte('staked_balance', CUSTOM_BOUNTY_STAKED_THRESHOLD);
+
+    if (error) {
+      console.error('❌ Error fetching custom bounty eligible users:', error);
+      return [];
+    }
+
+    const fids = (profiles || []).map(p => p.fid);
+    console.log(`🎯 Found ${fids.length} users eligible for custom bounties (50M+ staked)`);
+
+    return fids;
+
+  } catch (error) {
+    console.error('❌ Error in getAllCustomBountyEligibleUsers:', error);
+    return [];
+  }
+}
+
+export { MOGUL_TOKEN_THRESHOLD, STAKER_TOKEN_THRESHOLD, CUSTOM_BOUNTY_STAKED_THRESHOLD };
 

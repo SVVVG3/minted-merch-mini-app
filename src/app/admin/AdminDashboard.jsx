@@ -3955,7 +3955,7 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-800">🤝 Partners & Ambassadors</h2>
+                <h2 className="text-lg font-semibold text-gray-800">🤝 Partners & Moguls</h2>
               </div>
               
               {/* Sub-tabs */}
@@ -3981,7 +3981,7 @@ export default function AdminDashboard() {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  🎯 Ambassadors
+                  🎯 Moguls
                 </button>
               </div>
             </div>
@@ -4162,7 +4162,7 @@ export default function AdminDashboard() {
                           : 'bg-white text-gray-700 hover:bg-gray-100'
                       }`}
                     >
-                      👥 Ambassadors
+                      👥 Moguls
                     </button>
                     <button
                       onClick={() => setAmbassadorView('bounties')}
@@ -4201,7 +4201,7 @@ export default function AdminDashboard() {
                 {ambassadorView === 'ambassadors' && (
                   <>
                     <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                      <h3 className="text-md font-semibold text-gray-700">Manage Ambassadors</h3>
+                      <h3 className="text-md font-semibold text-gray-700">Manage Moguls</h3>
                       <div className="flex space-x-3">
                         <button
                           onClick={() => setShowAddAmbassador(true)}
@@ -5581,12 +5581,12 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 {formData.bountyType === 'custom' 
-                  ? 'Ambassadors submit proof links that require manual admin review.' 
+                  ? 'Moguls submit proof links that require manual admin review. Requires 50M+ staked.' 
                   : formData.bountyType === 'farcaster_engagement'
-                  ? 'Maximum engagement! Ambassadors must like, recast, AND comment on the cast. All verified instantly via Neynar API.'
+                  ? 'Maximum engagement! Users must like, recast, AND comment on the cast. All verified instantly via Neynar API.'
                   : formData.bountyType === 'farcaster_like_recast'
-                  ? 'Ambassadors must like AND recast the cast. Both verified instantly via Neynar API.'
-                  : 'Ambassadors complete the action on Farcaster, then click submit for instant verification via Neynar API.'}
+                  ? 'Users must like AND recast the cast. Both verified instantly via Neynar API.'
+                  : 'Users complete the action on Farcaster, then click submit for instant verification via Neynar API.'}
               </p>
             </div>
 
@@ -5761,10 +5761,10 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, ambassadors
               </p>
             </div>
 
-            {/* Target Specific Ambassadors */}
+            {/* Target Specific Users */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Target Specific Ambassadors (Optional)
+                Target Specific Users (Optional)
               </label>
               <select
                 multiple

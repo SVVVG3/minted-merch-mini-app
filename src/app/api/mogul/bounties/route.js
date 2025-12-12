@@ -1,14 +1,21 @@
-// API endpoint to list interaction bounties for Minted Merch Missions
+// API endpoint to list ALL bounties for Minted Merch Missions
 // GET /api/mogul/bounties
-// Returns only interaction bounties (farcaster_like, farcaster_recast, farcaster_comment, farcaster_engagement)
-// SECURITY: Requires JWT authentication and missions eligibility (50M+ tokens OR 1M+ staked)
+// Returns:
+// - Interaction bounties (farcaster_like, recast, comment, engagement) → Available to 50M+ holders OR 1M+ stakers
+// - Custom bounties → Available to 50M+ STAKERS only (or targeted users)
+// SECURITY: Requires JWT authentication
 
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { checkMissionsEligibility, getMogulSubmissionCount } from '@/lib/mogulHelpers';
+import { 
+  checkMissionsEligibility, 
+  checkCustomBountyEligibility,
+  getMogulSubmissionCount,
+  CUSTOM_BOUNTY_STAKED_THRESHOLD 
+} from '@/lib/mogulHelpers';
 
-// Interaction bounty types
+// Interaction bounty types - available to all missions-eligible users
 const INTERACTION_BOUNTY_TYPES = ['farcaster_like', 'farcaster_recast', 'farcaster_comment', 'farcaster_like_recast', 'farcaster_engagement'];
 
 export async function GET(request) {
@@ -35,8 +42,11 @@ export async function GET(request) {
     const fid = authResult.fid;
     console.log(`🎯 Fetching missions bounties for FID: ${fid}`);
 
-    // SECURITY: Check if user is eligible for missions (50M+ tokens OR 1M+ staked)
-    const { isEligible, tokenBalance, stakedBalance } = await checkMissionsEligibility(fid);
+    // Check eligibility for different bounty types
+    const { isEligible, isMogul, isStaker, tokenBalance, stakedBalance } = await checkMissionsEligibility(fid);
+    
+    // Check if eligible for custom bounties (50M+ staked)
+    const isEligibleForCustom = stakedBalance >= CUSTOM_BOUNTY_STAKED_THRESHOLD;
 
     if (!isEligible) {
       return NextResponse.json({
@@ -51,12 +61,11 @@ export async function GET(request) {
       }, { status: 403 });
     }
 
-    // Get all active INTERACTION bounties only
-    const { data: bounties, error: bountiesError } = await supabaseAdmin
+    // Get ALL active bounties
+    const { data: allBounties, error: bountiesError } = await supabaseAdmin
       .from('bounties')
       .select('*')
       .eq('is_active', true)
-      .in('bounty_type', INTERACTION_BOUNTY_TYPES)
       .order('created_at', { ascending: false });
 
     if (bountiesError) {
@@ -67,56 +76,98 @@ export async function GET(request) {
       }, { status: 500 });
     }
 
-    // Filter bounties - for moguls, we don't use target_ambassador_fids
-    // All interaction bounties are available to all moguls
-    console.log(`📊 Found ${bounties.length} active interaction bounties`);
+    console.log(`📊 Found ${allBounties.length} total active bounties`);
+
+    // Filter bounties based on type and eligibility
+    const filteredBounties = allBounties.filter(bounty => {
+      const isInteraction = INTERACTION_BOUNTY_TYPES.includes(bounty.bounty_type);
+      const isCustom = bounty.bounty_type === 'custom';
+
+      if (isInteraction) {
+        // Interaction bounties - all missions-eligible users can see
+        return true;
+      }
+
+      if (isCustom) {
+        // Custom bounties - check targeting first
+        if (bounty.target_ambassador_fids && bounty.target_ambassador_fids.length > 0) {
+          // Targeted bounty - only show to targeted users
+          return bounty.target_ambassador_fids.includes(fid);
+        }
+        // Non-targeted - only show to 50M+ stakers
+        return isEligibleForCustom;
+      }
+
+      // Unknown bounty type - don't show
+      return false;
+    });
+
+    console.log(`📊 Filtered to ${filteredBounties.length} bounties for FID ${fid}`);
 
     // Enrich bounties with submission info
     const enrichedBounties = await Promise.all(
-      bounties.map(async (bounty) => {
-        // Get mogul's submission count for this bounty
-        const mogulSubmissions = await getMogulSubmissionCount(fid, bounty.id);
+      filteredBounties.map(async (bounty) => {
+        // Get user's submission count for this bounty
+        const userSubmissions = await getMogulSubmissionCount(fid, bounty.id);
 
         // Check if bounty is still accepting submissions
         const slotsRemaining = bounty.max_completions - bounty.current_completions;
         const canSubmit = slotsRemaining > 0 && 
           (bounty.max_submissions_per_ambassador === null || 
-           mogulSubmissions < bounty.max_submissions_per_ambassador);
+           userSubmissions < bounty.max_submissions_per_ambassador);
 
         // Check if bounty has expired
         const isExpired = bounty.expires_at && new Date(bounty.expires_at) < new Date();
+
+        const isInteraction = INTERACTION_BOUNTY_TYPES.includes(bounty.bounty_type);
 
         return {
           id: bounty.id,
           title: bounty.title,
           description: bounty.description,
           requirements: bounty.requirements,
+          proofRequirements: bounty.proof_requirements,
           rewardTokens: bounty.reward_tokens,
           maxCompletions: bounty.max_completions,
           currentCompletions: bounty.current_completions,
           slotsRemaining,
           maxSubmissionsPerUser: bounty.max_submissions_per_ambassador,
-          userSubmissions: mogulSubmissions,
+          userSubmissions,
           canSubmit: canSubmit && !isExpired,
           isExpired,
           expiresAt: bounty.expires_at,
           bountyType: bounty.bounty_type,
+          isInteractionBounty: isInteraction,
+          isCustomBounty: bounty.bounty_type === 'custom',
           targetCastUrl: bounty.target_cast_url,
+          imageUrl: bounty.image_url,
+          category: bounty.category,
           createdAt: bounty.created_at
         };
       })
     );
 
-    // Filter out expired bounties and bounties where user reached limit
+    // Filter out expired bounties
     const availableBounties = enrichedBounties.filter(b => !b.isExpired);
+
+    // Separate into interaction and custom for frontend display
+    const interactionBounties = availableBounties.filter(b => b.isInteractionBounty);
+    const customBounties = availableBounties.filter(b => b.isCustomBounty);
 
     return NextResponse.json({
       success: true,
       data: availableBounties,
+      interactionBounties,
+      customBounties,
       total: availableBounties.length,
-      mogulStatus: {
-        isMogul: true,
-        tokenBalance
+      eligibility: {
+        isEligible,
+        isMogul,
+        isStaker,
+        isEligibleForCustom,
+        tokenBalance,
+        stakedBalance,
+        customBountyThreshold: CUSTOM_BOUNTY_STAKED_THRESHOLD
       }
     });
 
@@ -128,4 +179,3 @@ export async function GET(request) {
     }, { status: 500 });
   }
 }
-
