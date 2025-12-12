@@ -367,11 +367,14 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
     );
   }
 
-  const availableBounties = bounties.filter(b => b.canSubmit);
+  // Show bounties that are either available OR have a pending/rejected submission (so users can see status)
+  const visibleBounties = bounties.filter(b => 
+    b.canSubmit || b.hasPendingSubmission || b.hasRejectedSubmission
+  );
   
   // Separate interaction and custom bounties
-  const interactionBounties = availableBounties.filter(b => b.isInteractionBounty);
-  const customBounties = availableBounties.filter(b => b.isCustomBounty);
+  const interactionBounties = visibleBounties.filter(b => b.isInteractionBounty);
+  const customBounties = visibleBounties.filter(b => b.isCustomBounty);
 
   const getBountyIcon = (bounty) => {
     if (bounty.isCustomBounty) return '📝';
@@ -534,7 +537,7 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
         </div>
       )}
 
-      {availableBounties.length === 0 && bounties.length > 0 && (
+      {visibleBounties.length === 0 && bounties.length > 0 && (
         <div className="text-center py-8 text-gray-500">
           You've completed all available missions! Check back later for more.
         </div>
