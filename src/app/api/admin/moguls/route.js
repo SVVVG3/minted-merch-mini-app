@@ -3,45 +3,14 @@
 // Returns all 50M+ stakers with ambassador status indicator
 
 import { NextResponse } from 'next/server';
-import { verifyFarcasterUser } from '@/lib/auth';
+import { withAdminAuth } from '@/lib/adminAuth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { CUSTOM_BOUNTY_STAKED_THRESHOLD } from '@/lib/mogulHelpers';
 
-// Admin FIDs that are allowed to access this endpoint
-const ADMIN_FIDS = [466111]; // Add your admin FIDs here
-
-export async function GET(request) {
+// GET /api/admin/moguls - List all 50M+ stakers
+export const GET = withAdminAuth(async (request) => {
   try {
-    // Verify JWT authentication
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({
-        success: false,
-        error: 'Authentication required'
-      }, { status: 401 });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const authResult = await verifyFarcasterUser(token);
-
-    if (!authResult.authenticated) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid authentication token'
-      }, { status: 401 });
-    }
-
-    const fid = authResult.fid;
-
-    // Check if user is an admin
-    if (!ADMIN_FIDS.includes(fid)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Admin access required'
-      }, { status: 403 });
-    }
-
-    console.log(`🎯 Admin ${fid} fetching all moguls (50M+ stakers)`);
+    console.log(`🎯 Admin fetching all moguls (50M+ stakers)`);
 
     // Get all users with 50M+ staked
     const { data: moguls, error: mogulsError } = await supabaseAdmin
@@ -149,5 +118,4 @@ export async function GET(request) {
       error: 'Internal server error'
     }, { status: 500 });
   }
-}
-
+});
