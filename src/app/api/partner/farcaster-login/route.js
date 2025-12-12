@@ -60,8 +60,9 @@ export async function POST(request) {
 
     console.log(`✅ Partner found: ${partner.name} (${partner.email})`);
 
-    // Create a partner JWT token
+    // Create a partner JWT token (must include type: 'partner' for verification)
     const partnerToken = await new SignJWT({
+      type: 'partner', // Required by verifyPartnerToken
       id: partner.id,
       email: partner.email,
       name: partner.name,
