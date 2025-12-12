@@ -190,28 +190,85 @@ function PartnerDashboard() {
               <div className="text-gray-500">No orders assigned to you yet.</div>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Order ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {partnerType === 'fulfillment' ? 'Shipping Address' : 'Customer'}
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Items
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Discount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total
-                    </th>
+            <>
+              {/* Mobile Card View */}
+              <div className="sm:hidden divide-y divide-gray-200">
+                {orders.map((order) => (
+                  <div key={order.order_id} className="p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-semibold text-gray-900">{order.order_id}</div>
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1 ${getStatusColor(order.status)}`}>
+                          {order.status === 'vendor_paid' ? 'Vendor Paid' : order.status}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-gray-900">${order.amount_total}</div>
+                        {order.status === 'vendor_paid' && order.vendor_payout_amount && (
+                          <div className="text-sm text-teal-600">${parseFloat(order.vendor_payout_amount).toFixed(2)} payout</div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {partnerType === 'fulfillment' && order.shipping_address && (
+                      <div className="text-sm text-gray-600">
+                        <div className="font-medium text-gray-900">
+                          {order.customer_name || `${order.shipping_address.firstName || ''} ${order.shipping_address.lastName || ''}`}
+                        </div>
+                        <div>{order.shipping_address.address1}</div>
+                        <div>{order.shipping_address.city}, {order.shipping_address.province} {order.shipping_address.zip}</div>
+                      </div>
+                    )}
+                    
+                    {partnerType === 'collab' && order.profiles && (
+                      <div className="flex items-center space-x-2">
+                        {order.profiles.pfp_url && (
+                          <img src={order.profiles.pfp_url} alt={order.profiles.username} className="w-8 h-8 rounded-full" />
+                        )}
+                        <div>
+                          <div className="font-medium">@{order.profiles.username}</div>
+                          <div className="text-xs text-gray-500">FID: {order.fid}</div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="text-xs text-gray-500">
+                      {order.order_items?.length || 0} item(s) • Assigned {formatDate(order.assigned_at)}
+                    </div>
+                    
+                    <button
+                      onClick={() => setSelectedOrder(order)}
+                      className="w-full bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                    >
+                      {partnerType === 'fulfillment' ? 'View Details' : 'View Order'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Order ID
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {partnerType === 'fulfillment' ? 'Shipping Address' : 'Customer'}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Items
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Discount
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Total
+                      </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Payout
                     </th>
@@ -337,8 +394,9 @@ function PartnerDashboard() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>

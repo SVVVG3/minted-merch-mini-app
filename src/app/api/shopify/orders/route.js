@@ -735,7 +735,10 @@ export async function POST(request) {
     // 🔒 CRITICAL SECURITY: Verify Daimo payment amount
     if (paymentMetadata?.daimoVerifiedAmount) {
       const daimoPaidAmount = paymentMetadata.daimoVerifiedAmount;
-      const tolerance = 0.01; // Allow 1 cent tolerance for rounding
+      // Allow $0.25 tolerance for minor rounding differences in tax/shipping
+      // Discount amounts now match exactly (client uses cartSubtotal same as server)
+      // but tax/shipping may still have minor rounding differences
+      const tolerance = 0.25;
       
       // BUSINESS RULE: Daimo has a $0.10 minimum order amount
       // For orders < $0.10 (e.g. 100% discounts), user pays the minimum

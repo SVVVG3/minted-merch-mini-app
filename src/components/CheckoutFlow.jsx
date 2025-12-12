@@ -88,6 +88,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   };
 
   // Helper function to calculate product-aware discount amount (excludes gift cards)
+  // IMPORTANT: Always use cartSubtotal (from cart item prices) to match server-side calculation
+  // Do NOT use cart.checkout.subtotal which can be stale or inconsistent
   const calculateProductAwareDiscountAmount = () => {
     if (!appliedDiscount) return 0;
     
@@ -112,7 +114,9 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       });
     } else {
       // For cart-wide discounts, apply to entire subtotal
-      const subtotal = cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount : cartSubtotal;
+      // ALWAYS use cartSubtotal (calculated from cart item prices) to ensure 
+      // client and server calculate the same discount amount
+      const subtotal = cartSubtotal;
       
       if (discountType === 'percentage') {
         discountAmount = (subtotal * discountValue) / 100;
@@ -129,32 +133,35 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
   // Helper function to calculate tax - taxes should be calculated on discounted subtotal (after discount codes, before gift cards)
   const calculateAdjustedTax = () => {
-    if (!cart.checkout || !cart.checkout.tax || !cart.checkout.subtotal) return 0;
+    if (!cart.checkout || !cart.checkout.tax) return 0;
     
-    const originalSubtotal = cart.checkout.subtotal.amount;
     const originalTax = cart.checkout.tax.amount;
     
     // If no original tax, return 0
-    if (originalTax <= 0 || originalSubtotal <= 0) return 0;
+    if (originalTax <= 0 || cartSubtotal <= 0) return 0;
     
-    // Calculate tax on discounted subtotal (after discount codes, before gift cards)
+    // Use cartSubtotal for consistency with discount calculations
+    // Calculate tax rate based on Shopify's calculated tax divided by our consistent subtotal
     const discount = calculateProductAwareDiscountAmount();
-    const discountedSubtotal = originalSubtotal - discount;
+    const discountedSubtotal = cartSubtotal - discount;
     
     // If discounted subtotal is 0 or negative, no tax should be applied
     if (discountedSubtotal <= 0) return 0;
     
-    const taxRate = originalTax / originalSubtotal;
+    // Use the tax rate from Shopify's calculation (tax / checkout subtotal if available, otherwise estimate)
+    const checkoutSubtotal = cart.checkout.subtotal?.amount || cartSubtotal;
+    const taxRate = checkoutSubtotal > 0 ? (originalTax / checkoutSubtotal) : 0;
     const adjustedTax = Math.max(0, discountedSubtotal * taxRate);
     
-    return adjustedTax;
+    return Math.round(adjustedTax * 100) / 100;
   };
 
   // Helper function to calculate total before gift card
   const calculateTotalBeforeGiftCard = () => {
-    if (!cart.checkout || !cart.checkout.subtotal || !cart.selectedShipping) return cartTotal;
+    if (!cart.checkout || !cart.selectedShipping) return cartTotal;
     
-    const subtotal = cart.checkout.subtotal.amount;
+    // Use cartSubtotal (from cart item prices) for consistency with server
+    const subtotal = cartSubtotal;
     const discount = calculateProductAwareDiscountAmount();
     let shipping = cart.selectedShipping.price.amount;
     const tax = calculateAdjustedTax();
@@ -1426,7 +1433,8 @@ Transaction Hash: ${transactionHash}`;
           shippingCost = 0;
         }
         
-        let finalOrderTotal = cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount : cartSubtotal;
+        // Always use cartSubtotal for consistency with server-side calculations
+        let finalOrderTotal = cartSubtotal;
         
         // Apply regular discount
         if (appliedDiscount) {
@@ -1449,7 +1457,8 @@ Transaction Hash: ${transactionHash}`;
         // MINIMUM CHARGE: If total would be $0.00 or gift card covers entire order, charge $0.10 for payment processing
         // (Daimo Pay minimum is $0.10)
         const isCartFree = cartTotal <= 0.10;
-        const totalBeforeGiftCard = (cart.checkout && cart.checkout.subtotal ? cart.checkout.subtotal.amount : cartSubtotal) - (appliedDiscount ? calculateProductAwareDiscountAmount() : 0) + calculateAdjustedTax() + shippingCost;
+        // Use cartSubtotal for consistency
+        const totalBeforeGiftCard = cartSubtotal - (appliedDiscount ? calculateProductAwareDiscountAmount() : 0) + calculateAdjustedTax() + shippingCost;
         const giftCardBalance = appliedGiftCard ? (typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance)) : 0;
         
         if (giftCardBalance >= totalBeforeGiftCard && (isCartFree || giftCardBalance > 0)) {
