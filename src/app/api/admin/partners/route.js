@@ -95,17 +95,48 @@ export const GET = withAdminAuth(async (request) => {
 });
 
 // POST create new partner (admin only)
+// Now uses Farcaster ID as primary authentication
 export const POST = withAdminAuth(async (request) => {
   try {
-    const { name, email, password, fid, partner_type } = await request.json();
+    const { fid, name, username, partner_type } = await request.json();
 
-    console.log('🤝 Creating new partner:', { name, email, fid, partner_type });
+    console.log('🤝 Creating new partner:', { fid, name, username, partner_type });
 
-    // Validate required fields
-    if (!name || !email || !password) {
+    // Validate required fields - FID is now required
+    if (!fid) {
       return NextResponse.json({
         success: false,
-        error: 'Name, email, and password are required'
+        error: 'Farcaster ID is required'
+      }, { status: 400 });
+    }
+
+    if (!name) {
+      return NextResponse.json({
+        success: false,
+        error: 'Name is required (should be auto-fetched from Farcaster)'
+      }, { status: 400 });
+    }
+
+    // Validate FID
+    const validatedFid = parseInt(fid);
+    if (isNaN(validatedFid)) {
+      return NextResponse.json({
+        success: false,
+        error: 'FID must be a valid number'
+      }, { status: 400 });
+    }
+
+    // Check if partner with this FID already exists
+    const { data: existingPartner, error: checkError } = await supabaseAdmin
+      .from('partners')
+      .select('id, name')
+      .eq('fid', validatedFid)
+      .single();
+
+    if (existingPartner) {
+      return NextResponse.json({
+        success: false,
+        error: `A partner with this Farcaster ID already exists: ${existingPartner.name}`
       }, { status: 400 });
     }
 
@@ -118,30 +149,33 @@ export const POST = withAdminAuth(async (request) => {
       }, { status: 400 });
     }
 
-    // Validate FID if provided
-    const validatedFid = fid && fid !== '' ? parseInt(fid) : null;
-    if (fid && fid !== '' && isNaN(validatedFid)) {
+    // Create partner directly (no email/password needed for Farcaster auth)
+    const { data: partner, error: insertError } = await supabaseAdmin
+      .from('partners')
+      .insert({
+        fid: validatedFid,
+        name,
+        email: username ? `${username}@farcaster.local` : `fid${validatedFid}@farcaster.local`, // Placeholder email
+        password_hash: null, // No password needed - Farcaster auth only
+        partner_type: validPartnerType,
+        is_active: true
+      })
+      .select('id, fid, name, email, partner_type, is_active, created_at')
+      .single();
+
+    if (insertError) {
+      console.error('❌ Failed to create partner:', insertError);
       return NextResponse.json({
         success: false,
-        error: 'FID must be a valid number'
+        error: insertError.message
       }, { status: 400 });
     }
 
-    const result = await createPartner(email, password, name, validatedFid, validPartnerType);
-
-    if (!result.success) {
-      console.error('❌ Failed to create partner:', result.error);
-      return NextResponse.json({
-        success: false,
-        error: result.error
-      }, { status: 400 });
-    }
-
-    console.log('✅ Partner created successfully:', result.partner.email);
+    console.log('✅ Partner created successfully:', partner.name, `(FID: ${partner.fid})`);
     
     return NextResponse.json({
       success: true,
-      data: result.partner,
+      data: partner,
       message: 'Partner created successfully'
     });
 

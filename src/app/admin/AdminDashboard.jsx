@@ -125,11 +125,12 @@ export default function AdminDashboard() {
   const [partnersError, setPartnersError] = useState('');
   const [showCreatePartner, setShowCreatePartner] = useState(false);
   const [createPartnerData, setCreatePartnerData] = useState({
-    name: '',
-    email: '',
-    password: '',
     fid: '',
-    partner_type: 'fulfillment'
+    partner_type: 'fulfillment',
+    // Auto-fetched from Farcaster
+    name: '',
+    username: '',
+    pfp_url: ''
   });
   
   // Partners sub-tab state
@@ -702,10 +703,39 @@ export default function AdminDashboard() {
     }
   };
 
+  // Fetch Farcaster profile when FID is entered
+  const handleFidChange = async (fid) => {
+    setCreatePartnerData(prev => ({ ...prev, fid, name: '', username: '', pfp_url: '' }));
+    
+    if (!fid || fid.length < 1) return;
+    
+    try {
+      // Fetch Farcaster profile from Neynar
+      const response = await fetch(`/api/farcaster/user?fid=${fid}`);
+      const result = await response.json();
+      
+      if (result.success && result.user) {
+        setCreatePartnerData(prev => ({
+          ...prev,
+          name: result.user.display_name || result.user.username,
+          username: result.user.username,
+          pfp_url: result.user.pfp_url
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching Farcaster profile:', error);
+    }
+  };
+
   // Create new partner
   const handleCreatePartner = async () => {
-    if (!createPartnerData.name || !createPartnerData.email || !createPartnerData.password) {
-      alert('Please fill in all required fields');
+    if (!createPartnerData.fid) {
+      alert('Farcaster ID is required');
+      return;
+    }
+
+    if (!createPartnerData.name) {
+      alert('Could not fetch Farcaster profile. Please verify the FID is correct.');
       return;
     }
 
@@ -716,10 +746,9 @@ export default function AdminDashboard() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          fid: parseInt(createPartnerData.fid),
           name: createPartnerData.name,
-          email: createPartnerData.email,
-          password: createPartnerData.password,
-          fid: createPartnerData.fid || null,
+          username: createPartnerData.username,
           partner_type: createPartnerData.partner_type || 'fulfillment'
         }),
       });
@@ -729,7 +758,7 @@ export default function AdminDashboard() {
       if (result.success) {
         alert('Partner created successfully!');
         setShowCreatePartner(false);
-        setCreatePartnerData({ name: '', email: '', password: '', fid: '', partner_type: 'fulfillment' });
+        setCreatePartnerData({ fid: '', partner_type: 'fulfillment', name: '', username: '', pfp_url: '' });
         loadPartners(); // Refresh the list
       } else {
         alert(result.error || 'Failed to create partner');
@@ -4870,58 +4899,41 @@ export default function AdminDashboard() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={createPartnerData.name}
-                      onChange={(e) => setCreatePartnerData({...createPartnerData, name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Partner Name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email *
-                    </label>
-                    <input
-                      type="email"
-                      value={createPartnerData.email}
-                      onChange={(e) => setCreatePartnerData({...createPartnerData, email: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="partner@example.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Password *
-                    </label>
-                    <input
-                      type="password"
-                      value={createPartnerData.password}
-                      onChange={(e) => setCreatePartnerData({...createPartnerData, password: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Password"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Farcaster ID (Optional)
+                      Farcaster ID *
                     </label>
                     <input
                       type="number"
                       value={createPartnerData.fid}
-                      onChange={(e) => setCreatePartnerData({...createPartnerData, fid: e.target.value})}
+                      onChange={(e) => handleFidChange(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="123456"
+                      placeholder="Enter Farcaster ID (e.g. 466111)"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Optional: Link to Farcaster profile for notifications
+                      Partner will sign in using their Farcaster account
                     </p>
                   </div>
+
+                  {/* Show fetched profile */}
+                  {createPartnerData.name && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <div className="flex items-center space-x-3">
+                        {createPartnerData.pfp_url && (
+                          <img 
+                            src={createPartnerData.pfp_url} 
+                            alt={createPartnerData.username}
+                            className="w-12 h-12 rounded-full"
+                          />
+                        )}
+                        <div>
+                          <div className="font-medium text-gray-900">{createPartnerData.name}</div>
+                          <div className="text-sm text-purple-600">@{createPartnerData.username}</div>
+                        </div>
+                        <div className="ml-auto">
+                          <span className="text-green-600 text-sm">✓ Found</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">

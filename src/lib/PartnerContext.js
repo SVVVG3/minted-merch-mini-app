@@ -45,6 +45,7 @@ export function PartnerProvider({ children }) {
     }
   };
 
+  // Legacy email/password login (kept for backward compatibility)
   const login = async (email, password) => {
     try {
       setError(null);
@@ -74,6 +75,36 @@ export function PartnerProvider({ children }) {
     }
   };
 
+  // Farcaster-based login using session token
+  const loginWithFarcaster = async (farcasterToken) => {
+    try {
+      setError(null);
+      const response = await fetch('/api/partner/farcaster-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${farcasterToken}`,
+        },
+        credentials: 'include',
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setPartner(result.partner);
+        return { success: true, partner: result.partner };
+      } else {
+        setError(result.error);
+        return { success: false, error: result.error };
+      }
+    } catch (error) {
+      console.error('Farcaster login failed:', error);
+      const errorMessage = 'Farcaster login failed. Please try again.';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
   const logout = async () => {
     try {
       const response = await fetch('/api/partner/logout', {
@@ -98,6 +129,7 @@ export function PartnerProvider({ children }) {
     loading,
     error,
     login,
+    loginWithFarcaster,
     logout,
     checkAuth,
     isAuthenticated: !!partner
