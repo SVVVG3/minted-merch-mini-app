@@ -1,73 +1,18 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PartnerProvider, usePartner } from '@/lib/PartnerContext';
 import { useFarcaster } from '@/lib/useFarcaster';
-import { useSignIn, useProfile } from '@farcaster/auth-kit';
-import { QRCodeSVG } from 'qrcode.react';
+import { SignInWithFarcaster } from '@/components/SignInWithFarcaster';
 
 function LoginForm() {
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [autoLoginAttempted, setAutoLoginAttempted] = useState(false);
-  const [showQRModal, setShowQRModal] = useState(false);
-  const [isClient, setIsClient] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const { loginWithFarcaster, isAuthenticated, loading: partnerLoading } = usePartner();
   const { user, isInFarcaster, sessionToken, isLoading: farcasterLoading } = useFarcaster();
   const router = useRouter();
-
-  // Farcaster AuthKit hooks
-  const {
-    signIn,
-    signOut,
-    reconnect,
-    isSuccess,
-    isError,
-    error: signInError,
-    channelToken,
-    url,
-    data,
-    validSignature,
-  } = useSignIn({
-    onSuccess: ({ fid, username }) => {
-      console.log('✅ Farcaster AuthKit sign-in successful:', { fid, username });
-    },
-    onError: (error) => {
-      console.error('❌ AuthKit onError callback:', error);
-    }
-  });
-
-  const { isAuthenticated: authKitAuthenticated, profile: authKitProfile } = useProfile();
-
-  // Only run on client side
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Auto-reconnect AuthKit on mount if previously authenticated
-  useEffect(() => {
-    if (isClient && reconnect) {
-      console.log('🔄 AuthKit attempting auto-reconnect...');
-      reconnect();
-    }
-  }, [isClient, reconnect]);
-
-  // Debug AuthKit state changes
-  useEffect(() => {
-    if (!isClient) return;
-    console.log('🔍 AuthKit State:', {
-      isSuccess,
-      isError,
-      hasUrl: !!url,
-      urlPreview: url?.substring(0, 50),
-      hasChannelToken: !!channelToken,
-      hasData: !!data,
-      validSignature,
-      authKitAuthenticated,
-      signInError: signInError?.message || signInError
-    });
-  }, [isClient, isSuccess, isError, url, channelToken, data, validSignature, authKitAuthenticated, signInError]);
 
   // Redirect if already authenticated as partner
   useEffect(() => {
@@ -84,7 +29,7 @@ function LoginForm() {
       
       setAutoLoginAttempted(true);
       console.log('🤝 Auto-logging in partner via Farcaster...');
-      setIsLoading(true);
+      setIsProcessing(true);
       setError('');
 
       const result = await loginWithFarcaster(sessionToken);
@@ -97,121 +42,61 @@ function LoginForm() {
         setError(result.error || 'No partner account linked to this Farcaster account');
       }
       
-      setIsLoading(false);
+      setIsProcessing(false);
     };
 
     attemptAutoLogin();
   }, [isInFarcaster, user?.fid, sessionToken, partnerLoading, farcasterLoading, autoLoginAttempted, loginWithFarcaster, router]);
 
-  // Handle AuthKit sign-in success
+  // Watch for session token changes (from SignInWithFarcaster completing sign-in)
   useEffect(() => {
-    const handleSignInSuccess = async () => {
-      if (!isSuccess || !validSignature || !data) return;
+    const checkForNewSession = async () => {
+      if (partnerLoading || isProcessing || isAuthenticated) return;
       
-      console.log('🔐 Farcaster sign-in successful, creating session...');
-      setShowQRModal(false);
-      setIsLoading(true);
+      // Check if there's a session token in localStorage (set by SignInWithFarcaster)
+      const storedToken = localStorage.getItem('fc_session_token');
+      if (!storedToken) return;
+      
+      // Only attempt if we haven't tried auto-login yet or if this is a new token
+      const lastAttemptedToken = sessionStorage.getItem('partner_login_attempted_token');
+      if (lastAttemptedToken === storedToken) return;
+      
+      console.log('🔑 Found session token, attempting partner login...');
+      setIsProcessing(true);
       setError('');
-
-      try {
-        // Use production domain for consistency
-        const PRODUCTION_DOMAIN = 'app.mintedmerch.shop';
-        const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const authDomain = isDevelopment ? window.location.host : PRODUCTION_DOMAIN;
-
-        // First, create a session token using the AuthKit data
-        const sessionResponse = await fetch('/api/auth/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            authKitData: {
-              message: data.message,
-              signature: data.signature,
-              nonce: data.nonce,
-              domain: authDomain,
-              fid: data.fid,
-              username: data.username
-            }
-          })
-        });
-
-        const sessionResult = await sessionResponse.json();
-
-        if (sessionResult.success && sessionResult.token) {
-          // Now use this token to login as partner
-          const partnerResult = await loginWithFarcaster(sessionResult.token);
-          
-          if (partnerResult.success) {
-            console.log('✅ Partner Farcaster login successful');
-            localStorage.setItem('fc_session_token', sessionResult.token);
-            router.push('/partner');
-          } else {
-            setError(partnerResult.error || 'No partner account linked to this Farcaster account');
-          }
-        } else {
-          setError(sessionResult.error || 'Failed to create Farcaster session');
-        }
-      } catch (err) {
-        console.error('Farcaster login error:', err);
-        setError('Failed to sign in with Farcaster');
+      sessionStorage.setItem('partner_login_attempted_token', storedToken);
+      
+      const result = await loginWithFarcaster(storedToken);
+      
+      if (result.success) {
+        console.log('✅ Partner login successful');
+        router.push('/partner');
+      } else {
+        console.log('⚠️ Partner login failed:', result.error);
+        setError(result.error || 'No partner account linked to this Farcaster account');
       }
       
-      setIsLoading(false);
+      setIsProcessing(false);
     };
 
-    handleSignInSuccess();
-  }, [isSuccess, validSignature, data, loginWithFarcaster, router]);
-
-  // Handle sign-in errors
-  useEffect(() => {
-    if (isError && signInError) {
-      console.error('❌ Farcaster AuthKit error:', signInError);
-      setError('Farcaster sign-in failed. Please try again.');
-      setShowQRModal(false);
-    }
-  }, [isError, signInError]);
-
-  // Watch for URL becoming available after signIn
-  useEffect(() => {
-    if (showQRModal && !url) {
-      console.log('⏳ Waiting for AuthKit URL...', { showQRModal, url, channelToken });
-    }
-    if (url && channelToken) {
-      console.log('✅ AuthKit URL ready:', { url: url?.substring(0, 50) + '...', channelToken: !!channelToken });
-    }
-  }, [showQRModal, url, channelToken]);
-
-  // Initiate sign-in - matches working SignInWithFarcaster pattern
-  const handleSignIn = useCallback(async () => {
-    if (!isClient) return;
+    // Check immediately
+    checkForNewSession();
     
-    console.log('🔐 Initiating Farcaster sign-in...');
-    setError('');
+    // Also listen for storage events (when SignInWithFarcaster sets the token)
+    const handleStorageChange = () => {
+      checkForNewSession();
+    };
     
-    try {
-      // Start sign-in flow - this generates the channel
-      console.log('📡 Calling signIn()...');
-      await signIn();
-      console.log('✅ SignIn() called, channel should be created');
-      
-      // Wait a moment for url to be available
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Show modal after sign-in is initiated
-      setShowQRModal(true);
-      console.log('📊 Modal shown, url available:', !!url);
-    } catch (err) {
-      console.error('❌ Sign-in initiation error:', err);
-      setError('Failed to start sign-in. Please try again.');
-      setShowQRModal(false);
-    }
-  }, [isClient, signIn, url]);
-
-  const handleCancel = useCallback(() => {
-    console.log('❌ Sign-in cancelled');
-    setShowQRModal(false);
-    signOut();
-  }, [signOut]);
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Poll for token changes (in case storage event doesn't fire in same tab)
+    const interval = setInterval(checkForNewSession, 1000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [partnerLoading, isProcessing, isAuthenticated, loginWithFarcaster, router]);
 
   if (partnerLoading || (isInFarcaster && farcasterLoading)) {
     return (
@@ -224,8 +109,8 @@ function LoginForm() {
     );
   }
 
-  // Show loading while auto-login is in progress in mini-app
-  if (isInFarcaster && isLoading) {
+  // Show loading while auto-login is in progress in mini-app or processing sign-in
+  if ((isInFarcaster && isProcessing) || isProcessing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -260,28 +145,9 @@ function LoginForm() {
             </div>
           )}
 
-          {/* Farcaster Sign In Button */}
+          {/* Use the same SignInWithFarcaster component as the main site */}
           <div className="flex justify-center">
-            {isLoading ? (
-              <button
-                disabled
-                className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-purple-400 cursor-not-allowed"
-              >
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Signing in...
-              </button>
-            ) : (
-              <button
-                onClick={handleSignIn}
-                className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-medium text-sm rounded-lg transition-colors"
-              >
-                {/* Farcaster Logo */}
-                <svg className="w-5 h-5" viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
-                </svg>
-                Sign in with Farcaster
-              </button>
-            )}
+            <SignInWithFarcaster />
           </div>
 
           <div className="text-center space-y-3">
@@ -294,65 +160,6 @@ function LoginForm() {
           </div>
         </div>
       </div>
-
-      {/* QR Code Modal */}
-      {showQRModal && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
-          onClick={handleCancel}
-        >
-          <div 
-            className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 sm:p-8 relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Close button */}
-            <button
-              onClick={handleCancel}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-
-            <div className="text-center mb-4">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Sign in with Farcaster
-              </h3>
-              <p className="text-sm text-gray-600">
-                {url && channelToken 
-                  ? "Scan this QR code with your phone's camera or Farcaster app"
-                  : "Generating sign-in link..."
-                }
-              </p>
-            </div>
-            
-            {/* QR Code or Loading */}
-            <div className="bg-white rounded-lg border-2 border-gray-200 p-8 flex justify-center items-center mb-4 min-h-[320px]">
-              {url && channelToken ? (
-                <QRCodeSVG
-                  value={url}
-                  size={280}
-                  level="M"
-                  includeMargin={true}
-                />
-              ) : (
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6A3CFF] mx-auto mb-4"></div>
-                  <p className="text-gray-500 text-sm">Connecting to Farcaster...</p>
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={handleCancel}
-              className="w-full px-4 py-3 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
