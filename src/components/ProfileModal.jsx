@@ -156,6 +156,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [isAmbassador, setIsAmbassador] = useState(false);
   const [checkingAmbassador, setCheckingAmbassador] = useState(false);
+  const [isPartner, setIsPartner] = useState(false);
 
   // Handle sign out for manually signed-in users (AuthKit)
   const handleSignOut = async () => {
@@ -435,6 +436,43 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
     checkAmbassadorStatus();
   }, [isOpen, user?.fid]);
 
+  // Check if user is a partner
+  useEffect(() => {
+    const checkPartnerStatus = async () => {
+      if (!isOpen || !user?.fid) {
+        setIsPartner(false);
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('fc_session_token');
+        if (!token) {
+          setIsPartner(false);
+          return;
+        }
+
+        const response = await fetch(`/api/partner/check-status?fid=${user.fid}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+        if (data.success && data.isPartner) {
+          setIsPartner(true);
+          console.log('✅ User is a partner');
+        } else {
+          setIsPartner(false);
+        }
+      } catch (error) {
+        console.error('❌ Error checking partner status:', error);
+        setIsPartner(false);
+      }
+    };
+
+    checkPartnerStatus();
+  }, [isOpen, user?.fid]);
+
   // Load profile data when modal opens - wait for SDK to be ready
   useEffect(() => {
     if (isOpen && user?.fid && isReady) {
@@ -671,6 +709,44 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                       className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1 whitespace-nowrap w-full"
                     >
                       View Missions
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Partner Dashboard Link - Only for registered partners */}
+              {isPartner && (
+                <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-4 shadow-sm">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center text-xl flex-shrink-0">
+                        🤝
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-amber-800">Partner Dashboard</h4>
+                        <p className="text-xs text-amber-600">Manage your assigned orders & payouts</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const capabilities = await sdk.getCapabilities();
+                          if (capabilities.includes('haptics.selectionChanged')) {
+                            await sdk.haptics.selectionChanged();
+                          }
+                        } catch (error) {
+                          console.log('Haptics not available:', error);
+                        }
+                        
+                        onClose();
+                        router.push('/partner');
+                      }}
+                      className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1 whitespace-nowrap w-full"
+                    >
+                      Open Dashboard
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
