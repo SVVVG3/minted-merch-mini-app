@@ -31,6 +31,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [updatingOrder, setUpdatingOrder] = useState(null);
 
   useEffect(() => {
     if (isOpen && userFid) {
@@ -121,6 +122,29 @@ export default function UserModal({ isOpen, onClose, userFid }) {
     window.open(`https://x.com/${username}`, '_blank');
   };
 
+  const updateOrderStatus = async (orderId, newStatus, additionalData = {}) => {
+    setUpdatingOrder(orderId);
+    try {
+      const response = await adminFetch(`/api/admin/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus, ...additionalData })
+      });
+      const result = await response.json();
+      if (result.success) {
+        // Refresh user data to get updated orders
+        fetchUserData();
+      } else {
+        alert(result.error || 'Failed to update order');
+      }
+    } catch (err) {
+      console.error('Error updating order:', err);
+      alert('Failed to update order');
+    } finally {
+      setUpdatingOrder(null);
+    }
+  };
+
   const CopyButton = ({ text, label }) => (
     <button
       onClick={() => copyToClipboard(text)}
@@ -188,7 +212,8 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                 { id: 'discounts', label: 'Discounts', icon: '🎫' },
                 { id: 'points', label: 'Points', icon: '⭐' },
                 { id: 'raffles', label: 'Raffles', icon: '🎲' },
-                { id: 'missions', label: 'Missions', icon: '🎯' }
+                { id: 'missions', label: 'Missions', icon: '🎯' },
+                ...(userData?.partner ? [{ id: 'partner', label: 'Partner', icon: '🤝' }] : [])
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -872,6 +897,166 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                         <div className="text-center text-gray-500 py-8">
                           <div className="text-4xl mb-2">🎯</div>
                           <div>No missions completed yet</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'partner' && userData?.partner && (
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">🤝 Partner Dashboard</h3>
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      userData.partner.partner_type === 'collab' 
+                        ? 'bg-purple-100 text-purple-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {userData.partner.partner_type === 'collab' ? '👑 Collab Partner' : '📦 Fulfillment Partner'}
+                    </span>
+                  </div>
+                  
+                  {/* Partner Info */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-medium mb-3">Partner Information</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500">Name:</span>
+                        <div className="font-medium">{userData.partner.name}</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Email:</span>
+                        <div className="font-medium">{userData.partner.email || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Status:</span>
+                        <div className={`font-medium ${userData.partner.is_active ? 'text-green-600' : 'text-red-600'}`}>
+                          {userData.partner.is_active ? '✅ Active' : '❌ Inactive'}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Joined:</span>
+                        <div className="font-medium">{formatDate(userData.partner.created_at)}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Partner Stats */}
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="bg-blue-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {userData.partnerOrders?.length || 0}
+                      </div>
+                      <div className="text-sm text-blue-600">Total Assigned</div>
+                    </div>
+                    <div className="bg-yellow-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-yellow-600">
+                        {userData.partnerOrders?.filter(o => o.status === 'assigned' || o.status === 'processing').length || 0}
+                      </div>
+                      <div className="text-sm text-yellow-600">Pending</div>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {userData.partnerOrders?.filter(o => o.status === 'shipped' || o.status === 'vendor_paid').length || 0}
+                      </div>
+                      <div className="text-sm text-green-600">Completed</div>
+                    </div>
+                    <div className="bg-teal-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-teal-600">
+                        {formatCurrency(userData.partnerOrders?.reduce((sum, o) => sum + (parseFloat(o.vendor_payout_amount) || 0), 0) || 0)}
+                      </div>
+                      <div className="text-sm text-teal-600">Total Paid</div>
+                    </div>
+                  </div>
+
+                  {/* Assigned Orders */}
+                  <div>
+                    <h4 className="font-medium mb-3">Assigned Orders</h4>
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {userData.partnerOrders && userData.partnerOrders.length > 0 ? (
+                        userData.partnerOrders.map((order) => (
+                          <div key={order.id} className="bg-gray-50 rounded-lg p-4">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <div className="font-medium">{order.order_id}</div>
+                                <div className="text-sm text-gray-600">
+                                  Assigned: {formatDate(order.assigned_at)}
+                                </div>
+                                {order.profiles && (
+                                  <div className="text-sm text-gray-600 mt-1">
+                                    Customer: @{order.profiles.username}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <div className="font-medium">{formatCurrency(order.amount_total)}</div>
+                                <select
+                                  value={order.status}
+                                  onChange={(e) => updateOrderStatus(order.order_id, e.target.value)}
+                                  disabled={updatingOrder === order.order_id}
+                                  className={`mt-1 text-sm px-2 py-1 rounded border cursor-pointer ${
+                                    order.status === 'paid' ? 'bg-green-100 text-green-800 border-green-300' :
+                                    order.status === 'assigned' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                                    order.status === 'processing' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                                    order.status === 'shipped' ? 'bg-purple-100 text-purple-800 border-purple-300' :
+                                    order.status === 'vendor_paid' ? 'bg-teal-100 text-teal-800 border-teal-300' :
+                                    'bg-gray-100 text-gray-800 border-gray-300'
+                                  }`}
+                                >
+                                  <option value="paid">Paid</option>
+                                  <option value="assigned">Assigned</option>
+                                  <option value="processing">Processing</option>
+                                  <option value="shipped">Shipped</option>
+                                  <option value="vendor_paid">Vendor Paid</option>
+                                  <option value="delivered">Delivered</option>
+                                  <option value="cancelled">Cancelled</option>
+                                </select>
+                              </div>
+                            </div>
+                            
+                            {/* Order Items */}
+                            {order.order_items && order.order_items.length > 0 && (
+                              <div className="border-t pt-2 mt-2">
+                                <div className="text-xs text-gray-500 mb-1">Items:</div>
+                                {order.order_items.map((item, idx) => (
+                                  <div key={idx} className="text-sm text-gray-700">
+                                    {item.product_title} × {item.quantity}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Payout Info */}
+                            {order.vendor_payout_amount && (
+                              <div className="border-t pt-2 mt-2 bg-teal-50 -mx-4 -mb-4 px-4 py-2 rounded-b-lg">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm text-teal-700">Payout:</span>
+                                  <span className="font-bold text-teal-700">
+                                    {formatCurrency(order.vendor_payout_amount)}
+                                  </span>
+                                </div>
+                                {order.vendor_paid_at && (
+                                  <div className="text-xs text-teal-600 mt-1">
+                                    Paid: {formatDate(order.vendor_paid_at)}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Tracking Info */}
+                            {order.tracking_number && (
+                              <div className="border-t pt-2 mt-2 text-sm">
+                                <span className="text-gray-500">Tracking:</span> {order.tracking_number}
+                                {order.carrier && <span className="text-gray-400 ml-2">({order.carrier})</span>}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-500 py-8">
+                          <div className="text-4xl mb-2">📦</div>
+                          <div>No orders assigned yet</div>
                         </div>
                       )}
                     </div>

@@ -553,6 +553,34 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
                 <div className="text-lg font-bold text-gray-900">${parseFloat(order.amount_total).toFixed(2)}</div>
               </div>
             </div>
+
+            {/* Payout Information */}
+            {order.vendor_payout_amount && (
+              <div className="mt-4 bg-teal-50 border border-teal-200 rounded-md p-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="text-sm font-medium text-teal-800">💰 Your Payout</div>
+                    {order.vendor_paid_at && (
+                      <div className="text-xs text-teal-600 mt-1">
+                        Paid on {new Date(order.vendor_paid_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-xl font-bold text-teal-700">
+                    ${parseFloat(order.vendor_payout_amount).toFixed(2)}
+                  </div>
+                </div>
+                {order.vendor_payout_notes && (
+                  <div className="text-xs text-teal-600 mt-2 pt-2 border-t border-teal-200">
+                    {order.vendor_payout_notes}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Shipping Form - Only for Fulfillment Partners */}

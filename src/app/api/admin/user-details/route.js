@@ -190,6 +190,64 @@ export const GET = withAdminAuth(async (request, context) => {
         .reduce((sum, m) => sum + (m.bounty?.reward_tokens || 0), 0)
     };
 
+    // Check if user is a partner and fetch their assigned orders
+    const { data: partner, error: partnerError } = await supabaseAdmin
+      .from('partners')
+      .select('id, name, email, partner_type, is_active, created_at')
+      .eq('fid', fid)
+      .single();
+
+    let partnerOrders = [];
+    if (partner && !partnerError) {
+      console.log(`🤝 FID ${fid} is a partner: ${partner.name} (${partner.partner_type})`);
+      
+      const { data: assignedOrders, error: assignedOrdersError } = await supabaseAdmin
+        .from('orders')
+        .select(`
+          id,
+          order_id,
+          status,
+          amount_total,
+          discount_code,
+          discount_amount,
+          created_at,
+          assigned_at,
+          fid,
+          customer_name,
+          customer_email,
+          vendor_payout_amount,
+          vendor_paid_at,
+          vendor_payout_notes,
+          tracking_number,
+          carrier,
+          order_items (
+            id,
+            product_id,
+            variant_id,
+            quantity,
+            price,
+            total,
+            product_title,
+            variant_title,
+            product_data
+          ),
+          profiles:fid (
+            username,
+            display_name,
+            pfp_url
+          )
+        `)
+        .eq('assigned_partner_id', partner.id)
+        .order('assigned_at', { ascending: false });
+
+      if (assignedOrdersError) {
+        console.error('Error fetching partner orders:', assignedOrdersError);
+      } else {
+        partnerOrders = assignedOrders || [];
+        console.log(`📦 Found ${partnerOrders.length} orders assigned to partner`);
+      }
+    }
+
     // Calculate additional stats from orders
     const totalOrders = orders?.length || 0;
     const totalSpent = orders?.reduce((sum, order) => sum + (parseFloat(order.amount_total) || 0), 0) || 0;
@@ -295,7 +353,11 @@ export const GET = withAdminAuth(async (request, context) => {
 
       // Missions (interaction bounties)
       missions: enrichedMissions || [],
-      missionStats: missionStats
+      missionStats: missionStats,
+
+      // Partner data (if user is a partner)
+      partner: partner || null,
+      partnerOrders: partnerOrders || []
     };
 
     console.log(`✅ Successfully fetched comprehensive data for user ${profile.username || fid}`);
