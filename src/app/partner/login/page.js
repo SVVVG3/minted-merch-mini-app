@@ -20,8 +20,10 @@ function LoginForm() {
   const {
     signIn,
     signOut,
+    reconnect,
     isSuccess,
     isError,
+    isPending,
     error: signInError,
     channelToken,
     url,
@@ -31,7 +33,24 @@ function LoginForm() {
     onSuccess: ({ fid, username }) => {
       console.log('✅ Farcaster AuthKit sign-in successful:', { fid, username });
     },
+    onError: (error) => {
+      console.error('❌ AuthKit onError callback:', error);
+    }
   });
+
+  // Debug AuthKit state changes
+  useEffect(() => {
+    console.log('🔍 AuthKit State:', {
+      isSuccess,
+      isError,
+      isPending,
+      hasUrl: !!url,
+      hasChannelToken: !!channelToken,
+      hasData: !!data,
+      validSignature,
+      signInError: signInError?.message || signInError
+    });
+  }, [isSuccess, isError, isPending, url, channelToken, data, validSignature, signInError]);
 
   // Redirect if already authenticated as partner
   useEffect(() => {
@@ -135,20 +154,50 @@ function LoginForm() {
     }
   }, [isError, signInError]);
 
+  // Watch for URL becoming available after signIn
+  useEffect(() => {
+    if (showQRModal && !url) {
+      console.log('⏳ Waiting for AuthKit URL...', { showQRModal, url, channelToken });
+    }
+    if (url && channelToken) {
+      console.log('✅ AuthKit URL ready:', { url: url?.substring(0, 50) + '...', channelToken: !!channelToken });
+    }
+  }, [showQRModal, url, channelToken]);
+
   // Initiate sign-in
   const handleSignIn = useCallback(async () => {
     console.log('🔐 Initiating Farcaster sign-in...');
+    console.log('📊 Current state before signIn:', { 
+      hasUrl: !!url, 
+      hasChannelToken: !!channelToken,
+      isPending,
+      isSuccess,
+      isError 
+    });
+    
     setError('');
+    setShowQRModal(true); // Show modal immediately (will show loading state)
     
     try {
-      await signIn();
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setShowQRModal(true);
+      console.log('📡 Calling signIn()...');
+      const result = await signIn();
+      console.log('✅ SignIn() returned:', result);
+      console.log('📊 State after signIn:', { 
+        hasUrl: !!url, 
+        hasChannelToken: !!channelToken 
+      });
+      // URL will be populated by the hook, modal condition will update
     } catch (err) {
-      console.error('Sign-in initiation error:', err);
+      console.error('❌ Sign-in initiation error:', err);
+      console.error('Error details:', { 
+        message: err?.message, 
+        name: err?.name,
+        stack: err?.stack 
+      });
       setError('Failed to start sign-in. Please try again.');
+      setShowQRModal(false);
     }
-  }, [signIn]);
+  }, [signIn, url, channelToken, isPending, isSuccess, isError]);
 
   const handleCancel = useCallback(() => {
     console.log('❌ Sign-in cancelled');
@@ -239,7 +288,7 @@ function LoginForm() {
       </div>
 
       {/* QR Code Modal */}
-      {showQRModal && url && channelToken && (
+      {showQRModal && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
           onClick={handleCancel}
@@ -263,18 +312,28 @@ function LoginForm() {
                 Sign in with Farcaster
               </h3>
               <p className="text-sm text-gray-600">
-                Scan this QR code with your phone's camera or Farcaster app
+                {url && channelToken 
+                  ? "Scan this QR code with your phone's camera or Farcaster app"
+                  : "Generating sign-in link..."
+                }
               </p>
             </div>
             
-            {/* QR Code */}
-            <div className="bg-white rounded-lg border-2 border-gray-200 p-8 flex justify-center mb-4">
-              <QRCodeSVG
-                value={url}
-                size={280}
-                level="M"
-                includeMargin={true}
-              />
+            {/* QR Code or Loading */}
+            <div className="bg-white rounded-lg border-2 border-gray-200 p-8 flex justify-center items-center mb-4 min-h-[320px]">
+              {url && channelToken ? (
+                <QRCodeSVG
+                  value={url}
+                  size={280}
+                  level="M"
+                  includeMargin={true}
+                />
+              ) : (
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6A3CFF] mx-auto mb-4"></div>
+                  <p className="text-gray-500 text-sm">Connecting to Farcaster...</p>
+                </div>
+              )}
             </div>
 
             <button
