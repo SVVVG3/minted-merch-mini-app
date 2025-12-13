@@ -597,9 +597,9 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
                     ${parseFloat(order.vendor_payout_amount).toFixed(2)}
                   </div>
                 </div>
-                {order.vendor_payout_notes && (
-                  <div className="text-xs text-teal-600 mt-2 pt-2 border-t border-teal-200">
-                    {order.vendor_payout_notes}
+                {order.vendor_payout_partner_notes && (
+                  <div className="text-xs text-teal-700 mt-2 pt-2 border-t border-teal-200">
+                    {order.vendor_payout_partner_notes}
                   </div>
                 )}
               </div>
@@ -610,12 +610,53 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
           {partnerType === 'fulfillment' ? (
             order.status === 'shipped' || order.status === 'vendor_paid' ? (
               <div className="space-y-4">
+                {/* Shipped Status */}
                 <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                  <p className="text-sm text-green-800">
-                    ✅ <strong>Order has been shipped.</strong>
-                    {order.status === 'vendor_paid' && ' Payout has been processed.'}
-                  </p>
+                  <div className="flex items-center">
+                    <span className="text-green-600 mr-2">📦</span>
+                    <div>
+                      <p className="text-sm font-medium text-green-800">Order Shipped</p>
+                      {order.shipped_at && (
+                        <p className="text-xs text-green-600">
+                          {new Date(order.shipped_at).toLocaleDateString('en-US', {
+                            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
+
+                {/* Payout Status */}
+                {order.status === 'vendor_paid' && (
+                  <div className="bg-teal-50 border border-teal-200 rounded-md p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className="text-teal-600 mr-2">💰</span>
+                        <div>
+                          <p className="text-sm font-medium text-teal-800">Payout Processed</p>
+                          {order.vendor_paid_at && (
+                            <p className="text-xs text-teal-600">
+                              {new Date(order.vendor_paid_at).toLocaleDateString('en-US', {
+                                year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                              })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {order.vendor_payout_amount && (
+                        <span className="text-lg font-bold text-teal-700">
+                          ${parseFloat(order.vendor_payout_amount).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                    {order.vendor_payout_partner_notes && (
+                      <p className="text-xs text-teal-700 mt-2 pt-2 border-t border-teal-200">
+                        {order.vendor_payout_partner_notes}
+                      </p>
+                    )}
+                  </div>
+                )}
                 
                 {order.tracking_number && (
                   <div className="bg-gray-50 rounded-md p-4">

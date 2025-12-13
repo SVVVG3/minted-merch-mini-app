@@ -37,7 +37,8 @@ export default function UserModal({ isOpen, onClose, userFid }) {
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [payoutOrderId, setPayoutOrderId] = useState(null);
   const [payoutAmount, setPayoutAmount] = useState('');
-  const [payoutNotes, setPayoutNotes] = useState('');
+  const [payoutNotes, setPayoutNotes] = useState(''); // Internal notes (admin only)
+  const [payoutPartnerNotes, setPayoutPartnerNotes] = useState(''); // Notes visible to partner
 
   useEffect(() => {
     if (isOpen && userFid) {
@@ -160,6 +161,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
       setPayoutOrderId(orderId);
       setPayoutAmount('');
       setPayoutNotes('');
+      setPayoutPartnerNotes('');
       setShowPayoutModal(true);
     } else {
       // Direct status update for other statuses
@@ -173,13 +175,15 @@ export default function UserModal({ isOpen, onClose, userFid }) {
     
     await updateOrderStatus(payoutOrderId, 'vendor_paid', {
       vendor_payout_amount: payoutAmount || null,
-      vendor_payout_notes: payoutNotes || null
+      vendor_payout_notes: payoutNotes || null,
+      vendor_payout_partner_notes: payoutPartnerNotes || null
     });
     
     setShowPayoutModal(false);
     setPayoutOrderId(null);
     setPayoutAmount('');
     setPayoutNotes('');
+    setPayoutPartnerNotes('');
   };
 
   const CopyButton = ({ text, label }) => (
@@ -1084,6 +1088,16 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                                     Paid: {formatDate(order.vendor_paid_at)}
                                   </div>
                                 )}
+                                {order.vendor_payout_notes && (
+                                  <div className="text-xs text-gray-600 mt-1 pt-1 border-t border-teal-200">
+                                    <span className="font-medium">📝 Internal:</span> {order.vendor_payout_notes}
+                                  </div>
+                                )}
+                                {order.vendor_payout_partner_notes && (
+                                  <div className="text-xs text-teal-700 mt-1">
+                                    <span className="font-medium">👤 Partner:</span> {order.vendor_payout_partner_notes}
+                                  </div>
+                                )}
                               </div>
                             )}
 
@@ -1138,13 +1152,26 @@ export default function UserModal({ isOpen, onClose, userFid }) {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes (optional)
+                  📝 Internal Notes <span className="text-gray-400 font-normal">(admin only)</span>
                 </label>
                 <textarea
                   value={payoutNotes}
                   onChange={(e) => setPayoutNotes(e.target.value)}
-                  placeholder="Payment method, transaction ID, etc."
-                  rows={3}
+                  placeholder="Payment method, transaction ID, internal tracking..."
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  👤 Partner Notes <span className="text-gray-400 font-normal">(visible to partner)</span>
+                </label>
+                <textarea
+                  value={payoutPartnerNotes}
+                  onChange={(e) => setPayoutPartnerNotes(e.target.value)}
+                  placeholder="Message for the partner about this payout..."
+                  rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>

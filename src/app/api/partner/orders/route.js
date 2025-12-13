@@ -59,6 +59,7 @@ export async function GET(request) {
         vendor_payout_amount,
         vendor_paid_at,
         vendor_payout_notes,
+        vendor_payout_partner_notes,
         order_items (
           id,
           product_id,
@@ -93,6 +94,7 @@ export async function GET(request) {
         vendor_payout_amount,
         vendor_paid_at,
         vendor_payout_notes,
+        vendor_payout_partner_notes,
         order_items (
           id,
           product_id,

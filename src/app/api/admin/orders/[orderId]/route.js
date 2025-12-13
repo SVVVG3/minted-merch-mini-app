@@ -102,6 +102,9 @@ export const PUT = withAdminAuth(async (request, { params }) => {
     if (updateData.vendor_payout_notes !== undefined) {
       otherUpdateFields.vendor_payout_notes = updateData.vendor_payout_notes || null;
     }
+    if (updateData.vendor_payout_partner_notes !== undefined) {
+      otherUpdateFields.vendor_payout_partner_notes = updateData.vendor_payout_partner_notes || null;
+    }
     // Auto-set vendor_paid_at when status changes to vendor_paid
     if (updateData.status === 'vendor_paid' && currentOrder.status !== 'vendor_paid') {
       otherUpdateFields.vendor_paid_at = new Date().toISOString();

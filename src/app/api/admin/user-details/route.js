@@ -219,6 +219,7 @@ export const GET = withAdminAuth(async (request, context) => {
           vendor_payout_amount,
           vendor_paid_at,
           vendor_payout_notes,
+          vendor_payout_partner_notes,
           tracking_number,
           carrier,
           order_items (
