@@ -135,18 +135,12 @@ function PartnerDashboard() {
               className="h-10 sm:h-12 object-contain"
             />
             
-            {/* Profile Button with username display */}
+            {/* Profile Button with username display - same pattern as /missions */}
             <button
-              onClick={() => {
-                console.log('Profile button clicked, opening modal');
-                setShowProfileModal(true);
-              }}
-              className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-full pl-3 pr-1 py-1 transition-colors"
+              onClick={() => setShowProfileModal(true)}
+              className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-full px-3 py-1 transition-colors"
             >
-              <span className="text-gray-700 text-sm font-medium hidden sm:inline">
-                @{partner?.username || getUsername() || partner?.name}
-              </span>
-              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#3eb489] bg-gray-200 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
                 {profilePicUrl ? (
                   <img 
                     src={profilePicUrl} 
@@ -154,9 +148,12 @@ function PartnerDashboard() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <span className="text-gray-500 text-lg">👤</span>
+                  <span className="text-gray-500 text-sm">👤</span>
                 )}
               </div>
+              <span className="text-gray-700 text-sm">
+                @{partner?.username || getUsername() || partner?.name}
+              </span>
             </button>
           </div>
         </div>
