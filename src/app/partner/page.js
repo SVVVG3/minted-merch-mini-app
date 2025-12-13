@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PartnerProvider, usePartner } from '@/lib/PartnerContext';
+import { ProfileModal } from '@/components/ProfileModal';
+import { useFarcaster } from '@/lib/useFarcaster';
 
 function PartnerDashboard() {
   const [orders, setOrders] = useState([]);
@@ -13,6 +15,7 @@ function PartnerDashboard() {
   const [updating, setUpdating] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const { partner, isAuthenticated, loading: authLoading, logout } = usePartner();
+  const { user, getPfpUrl, getDisplayName, getUsername, isInFarcaster } = useFarcaster();
   const router = useRouter();
 
   // Redirect if not authenticated
@@ -39,7 +42,7 @@ function PartnerDashboard() {
 
       if (result.success) {
         setOrders(result.data);
-        setPartnerType(result.partnerType || 'fulfillment'); // Store partner type from API
+        setPartnerType(result.partnerType || 'fulfillment');
         setError('');
       } else {
         setError(result.error || 'Failed to load orders');
@@ -67,9 +70,7 @@ function PartnerDashboard() {
       const result = await response.json();
 
       if (result.success) {
-        // Refresh orders
         await loadOrders();
-        // Close modal if open
         if (selectedOrder && selectedOrder.order_id === orderId) {
           setSelectedOrder(null);
         }
@@ -82,13 +83,6 @@ function PartnerDashboard() {
       alert('Failed to update order');
     } finally {
       setUpdating(null);
-    }
-  };
-
-  const handleLogout = async () => {
-    const result = await logout();
-    if (result.success) {
-      router.push('/partner/login');
     }
   };
 
@@ -112,6 +106,10 @@ function PartnerDashboard() {
     }
   };
 
+  // Get profile picture - prefer partner data, fall back to Farcaster user data
+  const profilePicUrl = partner?.pfp_url || getPfpUrl();
+  const displayName = partner?.display_name || partner?.name || getDisplayName() || getUsername();
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -126,36 +124,31 @@ function PartnerDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header with Logo */}
-      <div className="bg-black">
+      {/* Header */}
+      <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-4 flex items-center justify-between">
             {/* Logo */}
             <img 
               src="/MintedMerchPartnerLogo.png" 
               alt="Minted Merch Partner"
-              className="h-12 sm:h-16 object-contain"
+              className="h-10 sm:h-12 object-contain"
             />
             
-            {/* Profile Button */}
+            {/* Profile Button - Same as other pages */}
             <button
               onClick={() => setShowProfileModal(true)}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-full pl-3 pr-1 py-1 transition-colors"
+              className="flex items-center gap-2"
             >
-              <span className="text-white text-sm hidden sm:inline">
-                @{partner?.username || partner?.name}
-              </span>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-[#3eb489] bg-gray-700 flex items-center justify-center">
-                {partner?.pfp_url ? (
+              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#3eb489] bg-gray-200 flex items-center justify-center">
+                {profilePicUrl ? (
                   <img 
-                    src={partner.pfp_url} 
-                    alt={partner.name}
+                    src={profilePicUrl} 
+                    alt={displayName}
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <span className="text-white text-sm">
-                    {partner?.name?.[0]?.toUpperCase() || '?'}
-                  </span>
+                  <span className="text-gray-500 text-lg">👤</span>
                 )}
               </div>
             </button>
@@ -287,7 +280,6 @@ function PartnerDashboard() {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {partnerType === 'fulfillment' ? (
-                          /* Fulfillment Partners: Show Shipping Address */
                           order.shipping_address ? (
                             <div>
                               <div className="font-medium">
@@ -306,7 +298,6 @@ function PartnerDashboard() {
                             <div className="text-gray-500 text-xs">No address</div>
                           )
                         ) : (
-                          /* Collab Partners: Show Farcaster Info */
                           order.profiles ? (
                             <div className="flex items-center space-x-2">
                               {order.profiles.pfp_url && (
@@ -411,81 +402,12 @@ function PartnerDashboard() {
         />
       )}
 
-      {/* Profile Modal */}
+      {/* Profile Modal - Use the standard ProfileModal component */}
       {showProfileModal && (
-        <PartnerProfileModal
-          partner={partner}
-          onClose={() => setShowProfileModal(false)}
-          onLogout={handleLogout}
+        <ProfileModal 
+          onClose={() => setShowProfileModal(false)} 
         />
       )}
-    </div>
-  );
-}
-
-function PartnerProfileModal({ partner, onClose, onLogout }) {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div 
-        className="bg-white rounded-xl max-w-sm w-full p-6 relative"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-
-        {/* Profile Info */}
-        <div className="text-center">
-          <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-[#3eb489] mx-auto mb-4 bg-gray-200">
-            {partner?.pfp_url ? (
-              <img 
-                src={partner.pfp_url} 
-                alt={partner.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-2xl text-gray-500">
-                {partner?.name?.[0]?.toUpperCase() || '?'}
-              </div>
-            )}
-          </div>
-          
-          <h3 className="text-xl font-bold text-gray-900">{partner?.name}</h3>
-          {partner?.username && (
-            <p className="text-gray-500 text-sm">@{partner.username}</p>
-          )}
-          {partner?.fid && (
-            <p className="text-gray-400 text-xs mt-1">FID: {partner.fid}</p>
-          )}
-          
-          <div className="mt-2 inline-block px-3 py-1 bg-[#3eb489]/10 text-[#3eb489] rounded-full text-sm font-medium">
-            {partner?.partner_type === 'collab' ? 'Collab Partner' : 'Fulfillment Partner'}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="mt-6 space-y-3">
-          <a
-            href="/"
-            className="block w-full text-center bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-3 rounded-lg font-medium transition-colors"
-          >
-            🏪 Go to Shop
-          </a>
-          
-          <button
-            onClick={onLogout}
-            className="w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg font-medium transition-colors"
-          >
-            Sign Out
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -497,13 +419,11 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Validate tracking number is provided
     if (!trackingNumber.trim()) {
       alert('Please enter a tracking number');
       return;
     }
 
-    // Send tracking info - status will auto-update to "shipped" on backend
     onUpdate(order.order_id, {
       tracking_number: trackingNumber,
       carrier: carrier
@@ -528,7 +448,6 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
 
           {/* Conditional Display: Shipping Address OR Farcaster Info */}
           {partnerType === 'fulfillment' ? (
-            /* Fulfillment Partners: Show Shipping Address */
             order.shipping_address && (
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-3">Shipping Address</h3>
@@ -546,7 +465,6 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
               </div>
             )
           ) : (
-            /* Collab Partners: Show Farcaster Info */
             order.profiles && (
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-3">Customer</h3>
@@ -600,7 +518,6 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
               })}
             </div>
             
-            {/* Discount Information */}
             {order.discount_code && (
               <div className="mt-4 bg-green-50 border border-green-200 rounded-md p-3">
                 <div className="flex justify-between items-center">
@@ -615,7 +532,6 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
               </div>
             )}
             
-            {/* Order Total */}
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex justify-between items-center">
                 <div className="text-lg font-semibold text-gray-900">Order Total</div>
@@ -626,7 +542,6 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
 
           {/* Shipping Form - Only for Fulfillment Partners */}
           {partnerType === 'fulfillment' ? (
-            // Check if order is already shipped or vendor_paid - show read-only info instead of form
             order.status === 'shipped' || order.status === 'vendor_paid' ? (
               <div className="space-y-4">
                 <div className="bg-green-50 border border-green-200 rounded-md p-3">
@@ -665,7 +580,6 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
                 </div>
               </div>
             ) : (
-              // Show tracking form for orders that need to be shipped
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
                   <p className="text-sm text-blue-800">
@@ -724,7 +638,6 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
               </form>
             )
           ) : (
-            /* Collab Partners: View-Only Mode */
             <div className="pt-4 flex justify-center">
               <button
                 type="button"
