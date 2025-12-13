@@ -25,7 +25,22 @@ export async function GET(request) {
       }, { status: 401 });
     }
 
-    const partnerType = decoded.partnerType || 'fulfillment';
+    // Always fetch current partner type from database (in case it changed after login)
+    const { data: partnerData, error: partnerError } = await supabaseAdmin
+      .from('partners')
+      .select('partner_type')
+      .eq('id', decoded.id)
+      .single();
+
+    if (partnerError || !partnerData) {
+      console.error('❌ Error fetching partner data:', partnerError);
+      return NextResponse.json({
+        success: false,
+        error: 'Partner not found'
+      }, { status: 404 });
+    }
+
+    const partnerType = partnerData.partner_type || 'fulfillment';
     console.log(`🤝 Fetching orders for ${partnerType} partner ${decoded.email}...`);
 
     // Fetch orders assigned to this partner
