@@ -135,11 +135,17 @@ function PartnerDashboard() {
               className="h-10 sm:h-12 object-contain"
             />
             
-            {/* Profile Button - Same as other pages */}
+            {/* Profile Button with username display */}
             <button
-              onClick={() => setShowProfileModal(true)}
-              className="flex items-center gap-2"
+              onClick={() => {
+                console.log('Profile button clicked, opening modal');
+                setShowProfileModal(true);
+              }}
+              className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-full pl-3 pr-1 py-1 transition-colors"
             >
+              <span className="text-gray-700 text-sm font-medium hidden sm:inline">
+                @{partner?.username || getUsername() || partner?.name}
+              </span>
               <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#3eb489] bg-gray-200 flex items-center justify-center">
                 {profilePicUrl ? (
                   <img 
@@ -403,11 +409,10 @@ function PartnerDashboard() {
       )}
 
       {/* Profile Modal - Use the standard ProfileModal component */}
-      {showProfileModal && (
-        <ProfileModal 
-          onClose={() => setShowProfileModal(false)} 
-        />
-      )}
+      <ProfileModal 
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)} 
+      />
     </div>
   );
 }
