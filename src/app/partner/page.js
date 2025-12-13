@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { PartnerProvider, usePartner } from '@/lib/PartnerContext';
 import { ProfileModal } from '@/components/ProfileModal';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { triggerHaptic } from '@/lib/haptics';
 
 function PartnerDashboard() {
   const [orders, setOrders] = useState([]);
@@ -128,16 +129,27 @@ function PartnerDashboard() {
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-4 flex items-center justify-between">
-            {/* Logo */}
-            <img 
-              src="/MintedMerchPartnerLogo.png" 
-              alt="Minted Merch Partner"
-              className="h-10 sm:h-12 object-contain"
-            />
+            {/* Logo - links back to shop */}
+            <button
+              onClick={() => {
+                triggerHaptic('light', isInFarcaster);
+                window.location.href = '/';
+              }}
+              className="cursor-pointer"
+            >
+              <img 
+                src="/MintedMerchPartnerLogo.png" 
+                alt="Minted Merch Partner"
+                className="h-10 sm:h-12 object-contain"
+              />
+            </button>
             
             {/* Profile Button with username display - same pattern as /missions */}
             <button
-              onClick={() => setShowProfileModal(true)}
+              onClick={() => {
+                triggerHaptic('light', isInFarcaster);
+                setShowProfileModal(true);
+              }}
               className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-full px-3 py-1 transition-colors"
             >
               <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
@@ -408,7 +420,8 @@ function PartnerDashboard() {
       {/* Profile Modal - Use the standard ProfileModal component */}
       <ProfileModal 
         isOpen={showProfileModal}
-        onClose={() => setShowProfileModal(false)} 
+        onClose={() => setShowProfileModal(false)}
+        onSignOut={logout}
       />
     </div>
   );

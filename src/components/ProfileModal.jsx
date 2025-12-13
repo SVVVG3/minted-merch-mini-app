@@ -142,7 +142,7 @@ function WalletConnectSection({ setConnectedWallet, isInFarcaster }) {
   );
 }
 
-export function ProfileModal({ isOpen, onClose }) {
+export function ProfileModal({ isOpen, onClose, onSignOut }) {
   const router = useRouter();
   const { user, isInFarcaster, getSessionToken, isReady } = useFarcaster();
   const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod, disconnectWallet } = useWalletConnectContext();
@@ -158,7 +158,7 @@ export function ProfileModal({ isOpen, onClose }) {
   const [checkingAmbassador, setCheckingAmbassador] = useState(false);
 
   // Handle sign out for manually signed-in users (AuthKit)
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     // Clear session token from localStorage
     localStorage.removeItem('fc_session_token');
     
@@ -167,6 +167,15 @@ export function ProfileModal({ isOpen, onClose }) {
       authKitSignOut();
     } catch (e) {
       console.log('AuthKit signOut:', e);
+    }
+    
+    // Call optional additional sign out handler (e.g., for Partner page)
+    if (onSignOut) {
+      try {
+        await onSignOut();
+      } catch (e) {
+        console.log('Additional signOut handler:', e);
+      }
     }
     
     // Close modal and reload page to reset all state
