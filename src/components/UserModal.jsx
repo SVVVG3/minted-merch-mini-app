@@ -32,6 +32,12 @@ export default function UserModal({ isOpen, onClose, userFid }) {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [updatingOrder, setUpdatingOrder] = useState(null);
+  
+  // Vendor payout modal state
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutOrderId, setPayoutOrderId] = useState(null);
+  const [payoutAmount, setPayoutAmount] = useState('');
+  const [payoutNotes, setPayoutNotes] = useState('');
 
   useEffect(() => {
     if (isOpen && userFid) {
@@ -145,6 +151,35 @@ export default function UserModal({ isOpen, onClose, userFid }) {
     } finally {
       setUpdatingOrder(null);
     }
+  };
+
+  // Handle status change - show payout modal for vendor_paid
+  const handleStatusChange = (orderId, newStatus, currentStatus) => {
+    if (newStatus === 'vendor_paid' && currentStatus !== 'vendor_paid') {
+      // Show payout modal to collect amount and notes
+      setPayoutOrderId(orderId);
+      setPayoutAmount('');
+      setPayoutNotes('');
+      setShowPayoutModal(true);
+    } else {
+      // Direct status update for other statuses
+      updateOrderStatus(orderId, newStatus);
+    }
+  };
+
+  // Submit vendor payout
+  const submitVendorPayout = async () => {
+    if (!payoutOrderId) return;
+    
+    await updateOrderStatus(payoutOrderId, 'vendor_paid', {
+      vendor_payout_amount: payoutAmount || null,
+      vendor_payout_notes: payoutNotes || null
+    });
+    
+    setShowPayoutModal(false);
+    setPayoutOrderId(null);
+    setPayoutAmount('');
+    setPayoutNotes('');
   };
 
   const CopyButton = ({ text, label }) => (
@@ -1001,7 +1036,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                                 <div className="font-medium">{formatCurrency(order.amount_total)}</div>
                                 <select
                                   value={order.status}
-                                  onChange={(e) => updateOrderStatus(order.order_id, e.target.value)}
+                                  onChange={(e) => handleStatusChange(order.order_id, e.target.value, order.status)}
                                   disabled={updatingOrder === order.order_id}
                                   className={`mt-1 text-sm px-2 py-1 rounded border cursor-pointer ${
                                     order.status === 'paid' ? 'bg-green-100 text-green-800 border-green-300' :
@@ -1075,6 +1110,67 @@ export default function UserModal({ isOpen, onClose, userFid }) {
           </div>
         )}
       </div>
+
+      {/* Vendor Payout Modal */}
+      {showPayoutModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <h3 className="text-lg font-semibold mb-4">💰 Record Vendor Payout</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Enter the payout details for order <strong>{payoutOrderId}</strong>
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Payout Amount ($)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={payoutAmount}
+                  onChange={(e) => setPayoutAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notes (optional)
+                </label>
+                <textarea
+                  value={payoutNotes}
+                  onChange={(e) => setPayoutNotes(e.target.value)}
+                  placeholder="Payment method, transaction ID, etc."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowPayoutModal(false);
+                  setPayoutOrderId(null);
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitVendorPayout}
+                disabled={updatingOrder === payoutOrderId}
+                className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50"
+              >
+                {updatingOrder === payoutOrderId ? 'Saving...' : 'Mark as Vendor Paid'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
