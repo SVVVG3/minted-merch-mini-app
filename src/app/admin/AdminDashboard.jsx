@@ -4540,12 +4540,12 @@ export default function AdminDashboard() {
                                 
                                 <div className="text-sm text-gray-600 space-y-1">
                                   <div>
-                                    <span className="font-medium">Ambassador:</span>{' '}
+                                    <span className="font-medium">Submitted by:</span>{' '}
                                     <span 
                                       className="text-blue-600 cursor-pointer hover:underline"
-                                      onClick={() => openUserModal(submission.ambassadors?.fid)}
+                                      onClick={() => openUserModal(submission.ambassador_fid)}
                                     >
-                                      @{submission.ambassadors?.profiles?.username}
+                                      @{submission.profile?.username || `FID: ${submission.ambassador_fid}`}
                                     </span>
                                   </div>
                                   <div>

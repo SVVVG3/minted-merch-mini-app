@@ -11,9 +11,9 @@ export const GET = withAdminAuth(async (request) => {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status'); // pending, approved, rejected
     const bountyId = searchParams.get('bountyId');
-    const ambassadorId = searchParams.get('ambassadorId');
+    const ambassadorFid = searchParams.get('ambassadorFid');
 
-    console.log('📋 Admin fetching bounty submissions...', { status, bountyId, ambassadorId });
+    console.log('📋 Admin fetching bounty submissions...', { status, bountyId, ambassadorFid });
 
     let query = supabaseAdmin
       .from('bounty_submissions')
@@ -24,17 +24,8 @@ export const GET = withAdminAuth(async (request) => {
           title,
           description,
           reward_tokens,
-          category
-        ),
-        ambassadors!bounty_submissions_ambassador_id_fkey (
-          id,
-          fid,
-          total_earned_tokens,
-          profiles (
-            username,
-            display_name,
-            pfp_url
-          )
+          category,
+          bounty_type
         )
       `)
       .order('submitted_at', { ascending: false });
@@ -45,8 +36,8 @@ export const GET = withAdminAuth(async (request) => {
     if (bountyId) {
       query = query.eq('bounty_id', bountyId);
     }
-    if (ambassadorId) {
-      query = query.eq('ambassador_id', ambassadorId);
+    if (ambassadorFid) {
+      query = query.eq('ambassador_fid', ambassadorFid);
     }
 
     const { data: submissions, error } = await query;
@@ -59,11 +50,34 @@ export const GET = withAdminAuth(async (request) => {
       }, { status: 500 });
     }
 
-    console.log(`✅ Fetched ${submissions.length} submissions`);
+    // Fetch profile data for all unique FIDs
+    const uniqueFids = [...new Set(submissions.map(s => s.ambassador_fid).filter(Boolean))];
+    
+    let profilesMap = {};
+    if (uniqueFids.length > 0) {
+      const { data: profiles, error: profilesError } = await supabaseAdmin
+        .from('profiles')
+        .select('fid, username, display_name, pfp_url')
+        .in('fid', uniqueFids);
+      
+      if (!profilesError && profiles) {
+        profiles.forEach(p => {
+          profilesMap[p.fid] = p;
+        });
+      }
+    }
+
+    // Enrich submissions with profile data
+    const enrichedSubmissions = submissions.map(submission => ({
+      ...submission,
+      profile: profilesMap[submission.ambassador_fid] || null
+    }));
+
+    console.log(`✅ Fetched ${enrichedSubmissions.length} submissions`);
 
     return NextResponse.json({
       success: true,
-      submissions
+      submissions: enrichedSubmissions
     });
 
   } catch (error) {
@@ -74,4 +88,3 @@ export const GET = withAdminAuth(async (request) => {
     }, { status: 500 });
   }
 });
-
