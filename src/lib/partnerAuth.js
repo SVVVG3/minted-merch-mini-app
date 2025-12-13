@@ -144,12 +144,26 @@ export async function authenticatePartner(email, password) {
   }
 }
 
-// Get partner by ID
+// Get partner by ID (with profile info for pfp)
 export async function getPartnerById(partnerId) {
   try {
     const { data: partner, error } = await supabaseAdmin
       .from('partners')
-      .select('id, email, name, fid, is_active, created_at, updated_at')
+      .select(`
+        id, 
+        email, 
+        name, 
+        fid, 
+        partner_type,
+        is_active, 
+        created_at, 
+        updated_at,
+        profiles:fid (
+          username,
+          display_name,
+          pfp_url
+        )
+      `)
       .eq('id', partnerId)
       .eq('is_active', true)
       .single();
@@ -158,7 +172,16 @@ export async function getPartnerById(partnerId) {
       return { success: false, error: error.message };
     }
 
-    return { success: true, partner };
+    // Flatten profile data onto partner object
+    const partnerWithProfile = {
+      ...partner,
+      username: partner.profiles?.username,
+      display_name: partner.profiles?.display_name,
+      pfp_url: partner.profiles?.pfp_url,
+    };
+    delete partnerWithProfile.profiles;
+
+    return { success: true, partner: partnerWithProfile };
   } catch (error) {
     console.error('Error in getPartnerById:', error);
     return { success: false, error: 'Failed to get partner' };

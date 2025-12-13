@@ -11,6 +11,7 @@ function PartnerDashboard() {
   const [error, setError] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [updating, setUpdating] = useState(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const { partner, isAuthenticated, loading: authLoading, logout } = usePartner();
   const router = useRouter();
 
@@ -125,41 +126,39 @@ function PartnerDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow">
+      {/* Header with Logo */}
+      <div className="bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-4 sm:py-6">
-            {/* Logo and Title Row */}
-            <div className="flex items-center justify-between mb-3 sm:mb-0">
-              <div className="flex items-center space-x-3">
-                <img 
-                  src="/MintedMerchSpinnerLogo.png" 
-                  alt="Minted Merch"
-                  className="h-8 w-auto"
-                />
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Partner Dashboard</h1>
+          <div className="py-4 flex items-center justify-between">
+            {/* Logo */}
+            <img 
+              src="/MintedMerchPartnerLogo.png" 
+              alt="Minted Merch Partner"
+              className="h-12 sm:h-16 object-contain"
+            />
+            
+            {/* Profile Button */}
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-full pl-3 pr-1 py-1 transition-colors"
+            >
+              <span className="text-white text-sm hidden sm:inline">
+                @{partner?.username || partner?.name}
+              </span>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-[#3eb489] bg-gray-700 flex items-center justify-center">
+                {partner?.pfp_url ? (
+                  <img 
+                    src={partner.pfp_url} 
+                    alt={partner.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-white text-sm">
+                    {partner?.name?.[0]?.toUpperCase() || '?'}
+                  </span>
+                )}
               </div>
-              {/* Logout button on mobile, hidden on desktop */}
-              <button
-                onClick={handleLogout}
-                className="sm:hidden bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-md text-sm"
-              >
-                Logout
-              </button>
-            </div>
-            {/* Welcome and Logout Row - Mobile: stacked, Desktop: right-aligned */}
-            <div className="flex flex-col sm:flex-row sm:justify-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-              <div className="text-sm text-gray-600">
-                Welcome, <span className="font-medium">{partner?.name}</span>
-              </div>
-              {/* Logout button on desktop, hidden on mobile */}
-              <button
-                onClick={handleLogout}
-                className="hidden sm:block bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm"
-              >
-                Logout
-              </button>
-            </div>
+            </button>
           </div>
         </div>
       </div>
@@ -411,6 +410,82 @@ function PartnerDashboard() {
           updating={updating === selectedOrder.order_id}
         />
       )}
+
+      {/* Profile Modal */}
+      {showProfileModal && (
+        <PartnerProfileModal
+          partner={partner}
+          onClose={() => setShowProfileModal(false)}
+          onLogout={handleLogout}
+        />
+      )}
+    </div>
+  );
+}
+
+function PartnerProfileModal({ partner, onClose, onLogout }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div 
+        className="bg-white rounded-xl max-w-sm w-full p-6 relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Profile Info */}
+        <div className="text-center">
+          <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-[#3eb489] mx-auto mb-4 bg-gray-200">
+            {partner?.pfp_url ? (
+              <img 
+                src={partner.pfp_url} 
+                alt={partner.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-2xl text-gray-500">
+                {partner?.name?.[0]?.toUpperCase() || '?'}
+              </div>
+            )}
+          </div>
+          
+          <h3 className="text-xl font-bold text-gray-900">{partner?.name}</h3>
+          {partner?.username && (
+            <p className="text-gray-500 text-sm">@{partner.username}</p>
+          )}
+          {partner?.fid && (
+            <p className="text-gray-400 text-xs mt-1">FID: {partner.fid}</p>
+          )}
+          
+          <div className="mt-2 inline-block px-3 py-1 bg-[#3eb489]/10 text-[#3eb489] rounded-full text-sm font-medium">
+            {partner?.partner_type === 'collab' ? 'Collab Partner' : 'Fulfillment Partner'}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="mt-6 space-y-3">
+          <a
+            href="/"
+            className="block w-full text-center bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-3 rounded-lg font-medium transition-colors"
+          >
+            🏪 Go to Shop
+          </a>
+          
+          <button
+            onClick={onLogout}
+            className="w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg font-medium transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -672,4 +747,4 @@ export default function PartnerPage() {
       <PartnerDashboard />
     </PartnerProvider>
   );
-} 
+}
