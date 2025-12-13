@@ -125,7 +125,9 @@ export default function UserModal({ isOpen, onClose, userFid }) {
   const updateOrderStatus = async (orderId, newStatus, additionalData = {}) => {
     setUpdatingOrder(orderId);
     try {
-      const response = await adminFetch(`/api/admin/orders/${orderId}`, {
+      // URL encode the orderId to handle special characters like #
+      const encodedOrderId = encodeURIComponent(orderId);
+      const response = await adminFetch(`/api/admin/orders/${encodedOrderId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus, ...additionalData })
