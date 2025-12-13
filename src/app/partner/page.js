@@ -577,7 +577,7 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
               </div>
             </div>
 
-            {/* Payout Information */}
+            {/* Payout Information - Shows partner notes only (not internal admin notes) */}
             {order.vendor_payout_amount && (
               <div className="mt-4 bg-teal-50 border border-teal-200 rounded-md p-4">
                 <div className="flex justify-between items-center">
