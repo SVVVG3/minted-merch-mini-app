@@ -108,17 +108,20 @@ export async function GET(request) {
     const bountyIds = filteredBounties.map(b => b.id);
     const { data: userSubmissionsData } = await supabaseAdmin
       .from('bounty_submissions')
-      .select('bounty_id, status, submitted_at')
+      .select('bounty_id, status, submitted_at, admin_notes')
       .eq('ambassador_fid', fid)
       .in('bounty_id', bountyIds)
       .order('submitted_at', { ascending: false });
 
-    // Create a map of latest submission status per bounty
-    const submissionStatusMap = {};
+    // Create a map of latest submission info per bounty
+    const submissionInfoMap = {};
     for (const submission of (userSubmissionsData || [])) {
       // Only keep the most recent submission per bounty
-      if (!submissionStatusMap[submission.bounty_id]) {
-        submissionStatusMap[submission.bounty_id] = submission.status;
+      if (!submissionInfoMap[submission.bounty_id]) {
+        submissionInfoMap[submission.bounty_id] = {
+          status: submission.status,
+          adminNotes: submission.admin_notes
+        };
       }
     }
 
@@ -128,11 +131,13 @@ export async function GET(request) {
         // Get user's submission count for this bounty
         const userSubmissions = await getMogulSubmissionCount(fid, bounty.id);
 
-        // Get the user's latest submission status for this bounty
-        const latestSubmissionStatus = submissionStatusMap[bounty.id] || null;
+        // Get the user's latest submission info for this bounty
+        const submissionInfo = submissionInfoMap[bounty.id] || null;
+        const latestSubmissionStatus = submissionInfo?.status || null;
         const hasPendingSubmission = latestSubmissionStatus === 'pending';
         const hasApprovedSubmission = latestSubmissionStatus === 'approved';
         const hasRejectedSubmission = latestSubmissionStatus === 'rejected';
+        const rejectionReason = hasRejectedSubmission ? submissionInfo?.adminNotes : null;
 
         // Check if bounty is still accepting submissions
         const slotsRemaining = bounty.max_completions - bounty.current_completions;
@@ -165,6 +170,7 @@ export async function GET(request) {
           hasPendingSubmission,
           hasApprovedSubmission,
           hasRejectedSubmission,
+          rejectionReason,
           canSubmit: canSubmit && !isExpired,
           isExpired,
           expiresAt: bounty.expires_at,

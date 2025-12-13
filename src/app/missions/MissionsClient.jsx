@@ -482,6 +482,16 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
                 </span>
               )}
             </div>
+            
+            {/* Show rejection reason if available */}
+            {bounty.hasRejectedSubmission && bounty.rejectionReason && (
+              <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-xs text-red-700">
+                  <span className="font-semibold">Reason:</span> {bounty.rejectionReason}
+                </p>
+              </div>
+            )}
+            
             <p className="text-sm text-gray-600 mb-3">{bounty.description || getBountyAction(bounty)}</p>
             
             <div className="flex items-center gap-4 text-sm">
