@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { PartnerProvider, usePartner } from '@/lib/PartnerContext';
 import { useFarcaster } from '@/lib/useFarcaster';
-import { useSignIn } from '@farcaster/auth-kit';
+import { useSignIn, useProfile } from '@farcaster/auth-kit';
 import { QRCodeSVG } from 'qrcode.react';
 
 function LoginForm() {
@@ -12,18 +12,18 @@ function LoginForm() {
   const [error, setError] = useState('');
   const [autoLoginAttempted, setAutoLoginAttempted] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const { loginWithFarcaster, isAuthenticated, loading: partnerLoading } = usePartner();
   const { user, isInFarcaster, sessionToken, isLoading: farcasterLoading } = useFarcaster();
   const router = useRouter();
 
-  // Farcaster AuthKit sign-in hook
+  // Farcaster AuthKit hooks
   const {
     signIn,
     signOut,
     reconnect,
     isSuccess,
     isError,
-    isPending,
     error: signInError,
     channelToken,
     url,
@@ -38,19 +38,36 @@ function LoginForm() {
     }
   });
 
+  const { isAuthenticated: authKitAuthenticated, profile: authKitProfile } = useProfile();
+
+  // Only run on client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Auto-reconnect AuthKit on mount if previously authenticated
+  useEffect(() => {
+    if (isClient && reconnect) {
+      console.log('🔄 AuthKit attempting auto-reconnect...');
+      reconnect();
+    }
+  }, [isClient, reconnect]);
+
   // Debug AuthKit state changes
   useEffect(() => {
+    if (!isClient) return;
     console.log('🔍 AuthKit State:', {
       isSuccess,
       isError,
-      isPending,
       hasUrl: !!url,
+      urlPreview: url?.substring(0, 50),
       hasChannelToken: !!channelToken,
       hasData: !!data,
       validSignature,
+      authKitAuthenticated,
       signInError: signInError?.message || signInError
     });
-  }, [isSuccess, isError, isPending, url, channelToken, data, validSignature, signInError]);
+  }, [isClient, isSuccess, isError, url, channelToken, data, validSignature, authKitAuthenticated, signInError]);
 
   // Redirect if already authenticated as partner
   useEffect(() => {
@@ -164,40 +181,31 @@ function LoginForm() {
     }
   }, [showQRModal, url, channelToken]);
 
-  // Initiate sign-in
+  // Initiate sign-in - matches working SignInWithFarcaster pattern
   const handleSignIn = useCallback(async () => {
-    console.log('🔐 Initiating Farcaster sign-in...');
-    console.log('📊 Current state before signIn:', { 
-      hasUrl: !!url, 
-      hasChannelToken: !!channelToken,
-      isPending,
-      isSuccess,
-      isError 
-    });
+    if (!isClient) return;
     
+    console.log('🔐 Initiating Farcaster sign-in...');
     setError('');
-    setShowQRModal(true); // Show modal immediately (will show loading state)
     
     try {
+      // Start sign-in flow - this generates the channel
       console.log('📡 Calling signIn()...');
-      const result = await signIn();
-      console.log('✅ SignIn() returned:', result);
-      console.log('📊 State after signIn:', { 
-        hasUrl: !!url, 
-        hasChannelToken: !!channelToken 
-      });
-      // URL will be populated by the hook, modal condition will update
+      await signIn();
+      console.log('✅ SignIn() called, channel should be created');
+      
+      // Wait a moment for url to be available
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Show modal after sign-in is initiated
+      setShowQRModal(true);
+      console.log('📊 Modal shown, url available:', !!url);
     } catch (err) {
       console.error('❌ Sign-in initiation error:', err);
-      console.error('Error details:', { 
-        message: err?.message, 
-        name: err?.name,
-        stack: err?.stack 
-      });
       setError('Failed to start sign-in. Please try again.');
       setShowQRModal(false);
     }
-  }, [signIn, url, channelToken, isPending, isSuccess, isError]);
+  }, [isClient, signIn, url]);
 
   const handleCancel = useCallback(() => {
     console.log('❌ Sign-in cancelled');
