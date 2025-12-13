@@ -91,6 +91,12 @@ export default function AdminDashboard() {
   // User modal state
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [selectedUserFid, setSelectedUserFid] = useState(null);
+  
+  // User search state
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userSearchResults, setUserSearchResults] = useState([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   // Admin Tools state
   const [resetSpinFid, setResetSpinFid] = useState('');
@@ -316,6 +322,59 @@ export default function AdminDashboard() {
     setUserModalOpen(false);
     setSelectedUserFid(null);
   };
+
+  // User search function
+  const searchUsers = async (query) => {
+    if (!query || query.trim().length < 2) {
+      setUserSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setUserSearchLoading(true);
+    setShowSearchResults(true);
+
+    try {
+      const trimmedQuery = query.trim();
+      const isNumeric = /^\d+$/.test(trimmedQuery);
+      
+      // Search by FID if numeric, otherwise search by username
+      let searchUrl;
+      if (isNumeric) {
+        searchUrl = `/api/admin/users?search=${encodeURIComponent(trimmedQuery)}&searchType=fid&limit=10`;
+      } else {
+        searchUrl = `/api/admin/users?search=${encodeURIComponent(trimmedQuery)}&searchType=username&limit=10`;
+      }
+      
+      const response = await adminFetch(searchUrl);
+      const result = await response.json();
+      
+      if (result.success || result.data) {
+        setUserSearchResults(result.data || []);
+      } else {
+        setUserSearchResults([]);
+      }
+    } catch (error) {
+      console.error('Error searching users:', error);
+      setUserSearchResults([]);
+    } finally {
+      setUserSearchLoading(false);
+    }
+  };
+
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (userSearchQuery) {
+        searchUsers(userSearchQuery);
+      } else {
+        setUserSearchResults([]);
+        setShowSearchResults(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [userSearchQuery]);
 
   // Admin Tools functions
   const handleResetDailySpin = async () => {
@@ -1689,6 +1748,75 @@ export default function AdminDashboard() {
                 Mini App Dashboard
               </h1>
             </div>
+            
+            {/* User Search Bar */}
+            <div className="relative flex-1 max-w-md mx-8">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  onFocus={() => userSearchResults.length > 0 && setShowSearchResults(true)}
+                  placeholder="Search users by FID or username..."
+                  className="w-full px-4 py-2 pl-10 pr-4 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent"
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                {userSearchLoading && (
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    <div className="animate-spin h-4 w-4 border-2 border-[#3eb489] border-t-transparent rounded-full"></div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Search Results Dropdown */}
+              {showSearchResults && (userSearchResults.length > 0 || userSearchQuery.length >= 2) && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                  {userSearchResults.length > 0 ? (
+                    userSearchResults.map((user) => (
+                      <button
+                        key={user.fid}
+                        onClick={() => {
+                          openUserModal(user.fid);
+                          setShowSearchResults(false);
+                          setUserSearchQuery('');
+                        }}
+                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 text-left border-b border-gray-100 last:border-b-0"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+                          {user.pfp_url ? (
+                            <img src={user.pfp_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
+                              {user.username?.[0]?.toUpperCase() || '?'}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-900 truncate">
+                            {user.display_name || user.username || `FID: ${user.fid}`}
+                          </div>
+                          <div className="text-sm text-gray-500 truncate">
+                            @{user.username || 'unknown'} · FID: {user.fid}
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {user.token_balance ? `${(parseFloat(user.token_balance) / 1000000).toFixed(1)}M` : '0'}
+                        </div>
+                      </button>
+                    ))
+                  ) : userSearchQuery.length >= 2 && !userSearchLoading ? (
+                    <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                      No users found for "{userSearchQuery}"
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+            
             <button
               onClick={() => setIsAuthenticated(false)}
               className="text-gray-600 hover:text-gray-800 text-sm"
@@ -1698,6 +1826,14 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+      
+      {/* Click outside to close search results */}
+      {showSearchResults && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setShowSearchResults(false)}
+        />
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Navigation Tabs */}

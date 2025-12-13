@@ -12,9 +12,64 @@ export const GET = withAdminAuth(async (request) => {
       }, { status: 503 });
     }
 
+    // Parse search parameters
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search');
+    const searchType = searchParams.get('searchType') || 'all'; // 'fid', 'username', or 'all'
+    const limit = parseInt(searchParams.get('limit') || '100');
+
+    // If search query provided, do a search
+    if (search && search.trim().length >= 1) {
+      console.log(`🔍 Searching users: "${search}" (type: ${searchType})`);
+      
+      let query = supabaseAdmin
+        .from('profiles')
+        .select('fid, username, display_name, pfp_url, token_balance, staked_balance, created_at');
+
+      if (searchType === 'fid') {
+        // Search by FID (exact or starts with)
+        const fidNum = parseInt(search);
+        if (!isNaN(fidNum)) {
+          query = query.eq('fid', fidNum);
+        } else {
+          return NextResponse.json({ success: true, data: [] });
+        }
+      } else if (searchType === 'username') {
+        // Search by username (case-insensitive partial match)
+        query = query.ilike('username', `%${search}%`);
+      } else {
+        // Search both - try FID first if numeric, otherwise username
+        const fidNum = parseInt(search);
+        if (!isNaN(fidNum)) {
+          // Search by FID
+          query = query.eq('fid', fidNum);
+        } else {
+          // Search by username
+          query = query.ilike('username', `%${search}%`);
+        }
+      }
+
+      const { data: users, error } = await query.limit(limit);
+
+      if (error) {
+        console.error('Error searching users:', error);
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Failed to search users' 
+        }, { status: 500 });
+      }
+
+      console.log(`✅ Found ${users?.length || 0} users matching "${search}"`);
+
+      return NextResponse.json({
+        success: true,
+        data: users || []
+      });
+    }
+
+    // No search - fetch all users (existing behavior)
     console.log('Fetching all users for admin dashboard...');
 
-    // Fetch all users from profiles table with their orders using service role
     const { data: users, error } = await supabaseAdmin
       .from('profiles')
       .select(`
@@ -23,7 +78,8 @@ export const GET = withAdminAuth(async (request) => {
           amount_total
         )
       `)
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false })
+      .limit(limit);
 
     if (error) {
       console.error('Error fetching users:', error);
@@ -43,7 +99,6 @@ export const GET = withAdminAuth(async (request) => {
         ...user,
         total_orders: totalOrders,
         total_spent: totalSpent.toFixed(2),
-        // Remove the raw orders array
         orders: undefined
       };
     });
@@ -55,7 +110,7 @@ export const GET = withAdminAuth(async (request) => {
       data: usersWithStats
     });
 
-    } catch (error) {
+  } catch (error) {
     console.error('Error in admin users API:', error);
     return NextResponse.json({ 
       success: false, 
@@ -86,7 +141,6 @@ export const POST = withAdminAuth(async (request) => {
 
       console.log('🔍 Searching for username:', username);
 
-      // Search for users by username (case-insensitive)
       const { data: users, error } = await supabaseAdmin
         .from('profiles')
         .select('fid, username, display_name, pfp_url')
@@ -122,4 +176,4 @@ export const POST = withAdminAuth(async (request) => {
       error: 'Internal server error'
     }, { status: 500 });
   }
-}); 
+});
