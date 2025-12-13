@@ -551,62 +551,103 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
 
           {/* Shipping Form - Only for Fulfillment Partners */}
           {partnerType === 'fulfillment' ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
-                <p className="text-sm text-blue-800">
-                  📦 <strong>Enter tracking info to mark as shipped.</strong> Order will automatically be marked as shipped and customer will be notified.
-                </p>
-              </div>
+            // Check if order is already shipped or vendor_paid - show read-only info instead of form
+            order.status === 'shipped' || order.status === 'vendor_paid' ? (
+              <div className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                  <p className="text-sm text-green-800">
+                    ✅ <strong>Order has been shipped.</strong>
+                    {order.status === 'vendor_paid' && ' Payout has been processed.'}
+                  </p>
+                </div>
+                
+                {order.tracking_number && (
+                  <div className="bg-gray-50 rounded-md p-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Tracking Information</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500">Tracking Number:</span>
+                        <div className="font-medium">{order.tracking_number}</div>
+                      </div>
+                      {order.carrier && (
+                        <div>
+                          <span className="text-gray-500">Carrier:</span>
+                          <div className="font-medium">{order.carrier}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tracking Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={trackingNumber}
-                    onChange={(e) => setTrackingNumber(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                    placeholder="Enter tracking number"
-                    disabled={updating}
-                    required
-                  />
+                <div className="pt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-md"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // Show tracking form for orders that need to be shipped
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
+                  <p className="text-sm text-blue-800">
+                    📦 <strong>Enter tracking info to mark as shipped.</strong> Order will automatically be marked as shipped and customer will be notified.
+                  </p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Carrier <span className="text-gray-400">(Optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={carrier}
-                    onChange={(e) => setCarrier(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
-                    placeholder="UPS, FedEx, USPS, etc."
-                    disabled={updating}
-                  />
-                </div>
-              </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tracking Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={trackingNumber}
+                      onChange={(e) => setTrackingNumber(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                      placeholder="Enter tracking number"
+                      disabled={updating}
+                      required
+                    />
+                  </div>
 
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md disabled:opacity-50"
-                  disabled={updating}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md disabled:opacity-50"
-                  disabled={updating}
-                >
-                  {updating ? 'Shipping...' : 'Mark as Shipped'}
-                </button>
-              </div>
-            </form>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Carrier <span className="text-gray-400">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={carrier}
+                      onChange={(e) => setCarrier(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                      placeholder="UPS, FedEx, USPS, etc."
+                      disabled={updating}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md disabled:opacity-50"
+                    disabled={updating}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md disabled:opacity-50"
+                    disabled={updating}
+                  >
+                    {updating ? 'Shipping...' : 'Mark as Shipped'}
+                  </button>
+                </div>
+              </form>
+            )
           ) : (
             /* Collab Partners: View-Only Mode */
             <div className="pt-4 flex justify-center">

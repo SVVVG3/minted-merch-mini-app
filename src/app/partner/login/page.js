@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { PartnerProvider, usePartner } from '@/lib/PartnerContext';
 import { useFarcaster } from '@/lib/useFarcaster';
@@ -10,13 +10,15 @@ function LoginForm() {
   const [error, setError] = useState('');
   const [autoLoginAttempted, setAutoLoginAttempted] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const isRedirecting = useRef(false); // Prevent multiple redirects
   const { loginWithFarcaster, isAuthenticated, loading: partnerLoading } = usePartner();
   const { user, isInFarcaster, sessionToken, isLoading: farcasterLoading } = useFarcaster();
   const router = useRouter();
 
   // Redirect if already authenticated as partner
   useEffect(() => {
-    if (!partnerLoading && isAuthenticated) {
+    if (!partnerLoading && isAuthenticated && !isRedirecting.current) {
+      isRedirecting.current = true;
       router.push('/partner');
     }
   }, [isAuthenticated, partnerLoading, router]);
@@ -24,7 +26,7 @@ function LoginForm() {
   // Auto-login in Farcaster mini-app environment when we have a session token
   useEffect(() => {
     const attemptAutoLogin = async () => {
-      if (autoLoginAttempted || partnerLoading || farcasterLoading) return;
+      if (autoLoginAttempted || partnerLoading || farcasterLoading || isRedirecting.current) return;
       if (!isInFarcaster || !user?.fid || !sessionToken) return;
       
       setAutoLoginAttempted(true);
@@ -36,28 +38,29 @@ function LoginForm() {
       
       if (result.success) {
         console.log('✅ Partner auto-login successful');
+        isRedirecting.current = true;
         router.push('/partner');
       } else {
         console.log('⚠️ Partner auto-login failed:', result.error);
         setError(result.error || 'No partner account linked to this Farcaster account');
+        setIsProcessing(false);
       }
-      
-      setIsProcessing(false);
     };
 
     attemptAutoLogin();
   }, [isInFarcaster, user?.fid, sessionToken, partnerLoading, farcasterLoading, autoLoginAttempted, loginWithFarcaster, router]);
 
   // Watch for session token changes (from SignInWithFarcaster completing sign-in)
+  // Note: SignInWithFarcaster reloads the page, so we check immediately on mount
   useEffect(() => {
     const checkForNewSession = async () => {
-      if (partnerLoading || isProcessing || isAuthenticated) return;
+      if (partnerLoading || isProcessing || isAuthenticated || isRedirecting.current) return;
       
       // Check if there's a session token in localStorage (set by SignInWithFarcaster)
       const storedToken = localStorage.getItem('fc_session_token');
       if (!storedToken) return;
       
-      // Only attempt if we haven't tried auto-login yet or if this is a new token
+      // Only attempt if we haven't tried with this token yet
       const lastAttemptedToken = sessionStorage.getItem('partner_login_attempted_token');
       if (lastAttemptedToken === storedToken) return;
       
@@ -70,31 +73,30 @@ function LoginForm() {
       
       if (result.success) {
         console.log('✅ Partner login successful');
-        router.push('/partner');
+        isRedirecting.current = true;
+        // Use replace to prevent back button issues
+        router.replace('/partner');
       } else {
         console.log('⚠️ Partner login failed:', result.error);
         setError(result.error || 'No partner account linked to this Farcaster account');
+        setIsProcessing(false);
       }
-      
-      setIsProcessing(false);
     };
 
-    // Check immediately
+    // Check immediately on mount (after page reload from SignInWithFarcaster)
     checkForNewSession();
     
-    // Also listen for storage events (when SignInWithFarcaster sets the token)
+    // Also listen for storage events
     const handleStorageChange = () => {
-      checkForNewSession();
+      if (!isRedirecting.current) {
+        checkForNewSession();
+      }
     };
     
     window.addEventListener('storage', handleStorageChange);
     
-    // Poll for token changes (in case storage event doesn't fire in same tab)
-    const interval = setInterval(checkForNewSession, 1000);
-    
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
     };
   }, [partnerLoading, isProcessing, isAuthenticated, loginWithFarcaster, router]);
 
