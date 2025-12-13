@@ -1804,7 +1804,13 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                         <div className="text-xs text-gray-400">
-                          {user.token_balance ? `${(parseFloat(user.token_balance) / 1000000).toFixed(1)}M` : '0'}
+                          {user.token_balance ? (() => {
+                            const balance = parseFloat(user.token_balance);
+                            if (balance >= 1000000000) return `${(balance / 1000000000).toFixed(1)}B`;
+                            if (balance >= 1000000) return `${(balance / 1000000).toFixed(1)}M`;
+                            if (balance >= 1000) return `${(balance / 1000).toFixed(1)}K`;
+                            return balance.toFixed(0);
+                          })() : '0'}
                         </div>
                       </button>
                     ))
@@ -1844,7 +1850,6 @@ export default function AdminDashboard() {
                 { key: 'dashboard', label: '📊 Dashboard' },
                 { key: 'nft-campaigns', label: '🎨 NFT Campaigns' },
                 { key: 'chat', label: '💬 Chat' },
-                { key: 'users', label: '👥 Users' },
                 { key: 'orders', label: '🛍️ Orders' },
                 { key: 'partners', label: '🤝 Partners' },
                 { key: 'discounts', label: '🎫 Discounts' },
