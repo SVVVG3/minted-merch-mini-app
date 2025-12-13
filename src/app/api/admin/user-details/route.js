@@ -212,6 +212,7 @@ export const GET = withAdminAuth(async (request, context) => {
           discount_amount,
           created_at,
           assigned_at,
+          shipped_at,
           fid,
           customer_name,
           customer_email,

@@ -217,13 +217,21 @@ function PartnerDashboard() {
                       </div>
                     </div>
                     
-                    {partnerType === 'fulfillment' && order.shipping_address && (
+                    {partnerType === 'fulfillment' && order.shipping_address && order.status !== 'shipped' && order.status !== 'vendor_paid' && (
                       <div className="text-sm text-gray-600">
                         <div className="font-medium text-gray-900">
                           {order.customer_name || `${order.shipping_address.firstName || ''} ${order.shipping_address.lastName || ''}`}
                         </div>
                         <div>{order.shipping_address.address1}</div>
                         <div>{order.shipping_address.city}, {order.shipping_address.province} {order.shipping_address.zip}</div>
+                      </div>
+                    )}
+                    
+                    {/* Show tracking info instead of address for shipped/paid orders */}
+                    {partnerType === 'fulfillment' && (order.status === 'shipped' || order.status === 'vendor_paid') && order.tracking_number && (
+                      <div className="text-sm text-gray-600">
+                        <div className="font-medium text-green-700">✅ Shipped</div>
+                        <div className="text-xs">Tracking: {order.tracking_number}</div>
                       </div>
                     )}
                     
@@ -295,7 +303,18 @@ function PartnerDashboard() {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {partnerType === 'fulfillment' ? (
-                          order.shipping_address ? (
+                          // Hide shipping address once shipped/paid - show tracking instead
+                          order.status === 'shipped' || order.status === 'vendor_paid' ? (
+                            order.tracking_number ? (
+                              <div>
+                                <div className="font-medium text-green-700">✅ Shipped</div>
+                                <div className="text-xs text-gray-500">Tracking: {order.tracking_number}</div>
+                                {order.carrier && <div className="text-xs text-gray-400">{order.carrier}</div>}
+                              </div>
+                            ) : (
+                              <div className="font-medium text-green-700">✅ Shipped</div>
+                            )
+                          ) : order.shipping_address ? (
                             <div>
                               <div className="font-medium">
                                 {order.customer_name || `${order.shipping_address.firstName || ''} ${order.shipping_address.lastName || ''}`}
@@ -462,8 +481,12 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
           </div>
 
           {/* Conditional Display: Shipping Address OR Farcaster Info */}
+          {/* For fulfillment partners: hide shipping address once shipped/paid */}
           {partnerType === 'fulfillment' ? (
-            order.shipping_address && (
+            order.status === 'shipped' || order.status === 'vendor_paid' ? (
+              // Order already shipped - don't show shipping address
+              null
+            ) : order.shipping_address ? (
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-3">Shipping Address</h3>
                 <div className="bg-gray-50 p-4 rounded-md">
@@ -478,7 +501,7 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
                   </div>
                 </div>
               </div>
-            )
+            ) : null
           ) : (
             order.profiles && (
               <div className="mb-6">

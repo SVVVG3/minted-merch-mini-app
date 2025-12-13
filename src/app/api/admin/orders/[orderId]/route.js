@@ -6,7 +6,7 @@ import { withAdminAuth } from '@/lib/adminAuth';
 
 export const PUT = withAdminAuth(async (request, { params }) => {
   try {
-    const { orderId } = params;
+    const { orderId } = await params;
     const updateData = await request.json();
 
     console.log('🔄 Updating order:', orderId, 'with data:', updateData);
@@ -222,7 +222,7 @@ export const PUT = withAdminAuth(async (request, { params }) => {
 
 export const GET = withAdminAuth(async (request, { params }) => {
   try {
-    const { orderId } = params;
+    const { orderId } = await params;
 
     console.log('🔍 Fetching order details for:', orderId);
 

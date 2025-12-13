@@ -980,8 +980,14 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                             <div className="flex justify-between items-start mb-3">
                               <div>
                                 <div className="font-medium">{order.order_id}</div>
-                                <div className="text-sm text-gray-600">
-                                  Assigned: {formatDate(order.assigned_at)}
+                                <div className="text-xs text-gray-500 space-y-0.5">
+                                  <div>📋 Assigned: {formatDate(order.assigned_at)}</div>
+                                  {order.shipped_at && (
+                                    <div>📦 Shipped: {formatDate(order.shipped_at)}</div>
+                                  )}
+                                  {order.vendor_paid_at && (
+                                    <div>💰 Paid: {formatDate(order.vendor_paid_at)}</div>
+                                  )}
                                 </div>
                                 {order.profiles && (
                                   <div className="text-sm text-gray-600 mt-1">
