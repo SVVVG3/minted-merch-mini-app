@@ -304,7 +304,7 @@ async function checkWalletWhitelist(discount, userWalletAddresses) {
 }
 
 /**
- * Check NFT holding eligibility using Zapper API
+ * Check NFT holding eligibility - supports both ERC-721 and ERC-1155
  * @param {Object} discount - Discount configuration
  * @param {Array} userWalletAddresses - User's wallet addresses
  */
@@ -312,6 +312,8 @@ async function checkNftHolding(discount, userWalletAddresses) {
   const contractAddresses = discount.contract_addresses || [];
   const requiredBalance = parseFloat(discount.required_balance) || 1;
   const chainIds = discount.chain_ids || [1]; // Default to Ethereum mainnet
+  const nftType = discount.nft_type || 'erc721'; // Default to ERC-721 for backwards compatibility
+  const tokenIds = discount.token_ids || []; // For ERC-1155 only
   
   if (contractAddresses.length === 0) {
     return {
@@ -329,10 +331,75 @@ async function checkNftHolding(discount, userWalletAddresses) {
     };
   }
 
-  console.log('🔍 Checking NFT holdings for contracts:', contractAddresses);
+  console.log(`🔍 Checking ${nftType.toUpperCase()} NFT holdings for contracts:`, contractAddresses);
   
   try {
-    // Import blockchain API function dynamically to avoid circular imports
+    // ERC-1155 NFT check
+    if (nftType === 'erc1155') {
+      if (tokenIds.length === 0) {
+        return {
+          eligible: false,
+          reason: 'ERC-1155 requires token IDs to be specified',
+          details: { nft_type: nftType }
+        };
+      }
+
+      // Import the ERC-1155 check function
+      const { checkERC1155Balance } = await import('./blockchainAPI.js');
+      
+      let totalNfts = 0;
+      const collectionDetails = [];
+      const chainId = chainIds[0] || 8453; // Default to Base for ERC-1155
+
+      // Check each contract + token ID combination
+      for (const contractAddress of contractAddresses) {
+        for (const tokenId of tokenIds) {
+          console.log(`🎫 Checking ERC-1155: contract ${contractAddress}, token ID ${tokenId}`);
+          
+          const result = await checkERC1155Balance(
+            userWalletAddresses,
+            contractAddress,
+            tokenId,
+            chainId
+          );
+
+          if (result.success) {
+            totalNfts += result.totalBalance;
+            collectionDetails.push({
+              contractAddress,
+              tokenId,
+              balance: result.totalBalance,
+              chainId
+            });
+
+            console.log(`✅ Found ${result.totalBalance} of token ID ${tokenId}`);
+          } else {
+            console.warn(`⚠️ ERC-1155 check failed for token ${tokenId}:`, result.error);
+          }
+        }
+      }
+
+      const eligible = totalNfts >= requiredBalance;
+
+      return {
+        eligible,
+        reason: eligible
+          ? `Found ${totalNfts} ERC-1155 NFTs (required: ${requiredBalance})`
+          : `Found ${totalNfts} ERC-1155 NFTs, need ${requiredBalance}`,
+        details: {
+          nft_type: 'erc1155',
+          required_balance: requiredBalance,
+          found_balance: totalNfts,
+          contracts_checked: contractAddresses,
+          token_ids_checked: tokenIds,
+          chains_checked: chainIds,
+          collection_details: collectionDetails
+        },
+        blockchainCalls: contractAddresses.length * tokenIds.length
+      };
+    }
+
+    // ERC-721 NFT check (existing logic)
     const { checkNftHoldingsWithZapper } = await import('./blockchainAPI.js');
     
     const zapperResult = await checkNftHoldingsWithZapper(
@@ -348,9 +415,10 @@ async function checkNftHolding(discount, userWalletAddresses) {
     return {
       eligible,
       reason: eligible
-        ? `Found ${totalFound} NFTs (required: ${requiredBalance})`
-        : `Found ${totalFound} NFTs, need ${requiredBalance}`,
+        ? `Found ${totalFound} ERC-721 NFTs (required: ${requiredBalance})`
+        : `Found ${totalFound} ERC-721 NFTs, need ${requiredBalance}`,
       details: {
+        nft_type: 'erc721',
         required_balance: requiredBalance,
         found_balance: totalFound,
         contracts_checked: contractAddresses,
@@ -366,7 +434,7 @@ async function checkNftHolding(discount, userWalletAddresses) {
     return {
       eligible: false,
       reason: `NFT check failed: ${error.message}`,
-      details: { error: error.message },
+      details: { error: error.message, nft_type: nftType },
       blockchainCalls: 0
     };
   }
