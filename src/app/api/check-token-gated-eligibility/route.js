@@ -36,7 +36,7 @@ export async function POST(request) {
     const eligibleDiscounts = await deduplicateRequest(
       deduplicationKey,
       () => getEligibleAutoApplyDiscounts(fid, userWalletAddresses, scope, productIds, useCacheOnly),
-      30000 // Cache for 30 seconds
+      300000 // Cache for 5 minutes (was 30 seconds) - reduces RPC costs significantly
     );
 
     console.log('🔍 DETAILED ELIGIBILITY RESULTS:');

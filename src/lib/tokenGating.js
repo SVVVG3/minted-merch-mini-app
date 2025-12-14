@@ -1,6 +1,63 @@
 // Token-gating utility functions for discount eligibility
 import { supabaseAdmin } from './supabase';
 
+// Cache TTL for NFT eligibility results (5 minutes)
+const NFT_ELIGIBILITY_CACHE_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * Get cached NFT eligibility result from Supabase app_cache
+ * @param {string} cacheKey - Cache key
+ * @returns {Promise<Object|null>} Cached result or null
+ */
+async function getCachedNftEligibility(cacheKey) {
+  if (!supabaseAdmin) return null;
+  
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('app_cache')
+      .select('value, updated_at')
+      .eq('key', cacheKey)
+      .single();
+    
+    if (error || !data) return null;
+    
+    // Check if cache is still valid
+    const cacheAge = Date.now() - new Date(data.updated_at).getTime();
+    if (cacheAge > NFT_ELIGIBILITY_CACHE_TTL_MS) {
+      return null; // Cache expired
+    }
+    
+    console.log(`💾 NFT eligibility cache HIT for ${cacheKey} (${Math.round(cacheAge / 1000)}s old)`);
+    return data.value;
+  } catch (error) {
+    console.warn('Cache lookup failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Set cached NFT eligibility result in Supabase app_cache
+ * @param {string} cacheKey - Cache key  
+ * @param {Object} value - Value to cache
+ */
+async function setCachedNftEligibility(cacheKey, value) {
+  if (!supabaseAdmin) return;
+  
+  try {
+    await supabaseAdmin
+      .from('app_cache')
+      .upsert({
+        key: cacheKey,
+        value,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' });
+    
+    console.log(`💾 NFT eligibility cached for ${cacheKey}`);
+  } catch (error) {
+    console.warn('Cache write failed:', error.message);
+  }
+}
+
 /**
  * Convert Shopify product IDs to Supabase products table IDs
  */
@@ -305,10 +362,12 @@ async function checkWalletWhitelist(discount, userWalletAddresses) {
 
 /**
  * Check NFT holding eligibility - supports both ERC-721 and ERC-1155
+ * Uses Supabase app_cache to avoid repeated RPC calls (5 min TTL)
  * @param {Object} discount - Discount configuration
  * @param {Array} userWalletAddresses - User's wallet addresses
+ * @param {number} fid - User's FID (optional, for caching)
  */
-async function checkNftHolding(discount, userWalletAddresses) {
+async function checkNftHolding(discount, userWalletAddresses, fid = null) {
   const contractAddresses = discount.contract_addresses || [];
   const requiredBalance = parseFloat(discount.required_balance) || 1;
   const chainIds = discount.chain_ids || [1]; // Default to Ethereum mainnet
@@ -328,6 +387,19 @@ async function checkNftHolding(discount, userWalletAddresses) {
       eligible: false,
       reason: 'No wallet addresses provided',
       details: {}
+    };
+  }
+
+  // Check Supabase cache first to avoid expensive RPC calls
+  // Cache key includes discount ID, wallets hash, and NFT type
+  const walletsHash = userWalletAddresses.slice(0, 3).join('-').slice(0, 20); // Short hash
+  const cacheKey = `nft-eligibility-${discount.id}-${walletsHash}-${nftType}`;
+  
+  const cachedResult = await getCachedNftEligibility(cacheKey);
+  if (cachedResult) {
+    return {
+      ...cachedResult,
+      fromCache: true
     };
   }
 
@@ -381,7 +453,7 @@ async function checkNftHolding(discount, userWalletAddresses) {
 
       const eligible = totalNfts >= requiredBalance;
 
-      return {
+      const result = {
         eligible,
         reason: eligible
           ? `Found ${totalNfts} ERC-1155 NFTs (required: ${requiredBalance})`
@@ -397,6 +469,11 @@ async function checkNftHolding(discount, userWalletAddresses) {
         },
         blockchainCalls: contractAddresses.length * tokenIds.length
       };
+      
+      // Cache the result to avoid repeated RPC calls
+      await setCachedNftEligibility(cacheKey, result);
+      
+      return result;
     }
 
     // ERC-721 NFT check (existing logic)
@@ -412,7 +489,7 @@ async function checkNftHolding(discount, userWalletAddresses) {
     const eligible = zapperResult.eligible;
     const totalFound = zapperResult.totalNfts;
 
-    return {
+    const result = {
       eligible,
       reason: eligible
         ? `Found ${totalFound} ERC-721 NFTs (required: ${requiredBalance})`
@@ -428,6 +505,11 @@ async function checkNftHolding(discount, userWalletAddresses) {
       },
       blockchainCalls: 1
     };
+    
+    // Cache the result to avoid repeated RPC calls
+    await setCachedNftEligibility(cacheKey, result);
+    
+    return result;
 
   } catch (error) {
     console.error('❌ Error checking NFT holdings:', error);
