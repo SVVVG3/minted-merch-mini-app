@@ -6052,6 +6052,8 @@ function CreateDiscountForm({ onClose, onSuccess }) {
     contract_addresses: '',
     chain_ids: '1',
     required_balance: '1',
+    nft_type: 'erc721', // ERC-721 or ERC-1155
+    token_ids: '', // For ERC-1155 only (comma-separated)
     minimum_order_amount: '',
     expires_at: '',
     max_uses_total: '',
@@ -6097,7 +6099,9 @@ function CreateDiscountForm({ onClose, onSuccess }) {
         target_wallets: formData.target_wallets ? formData.target_wallets.split(',').map(wallet => wallet.trim()).filter(w => w) : [],
         target_products: formData.target_products ? formData.target_products.split(',').map(handle => handle.trim()).filter(h => h) : [],
         contract_addresses: formData.contract_addresses ? formData.contract_addresses.split(',').map(addr => addr.trim()).filter(a => a) : [],
-        chain_ids: formData.chain_ids ? formData.chain_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [1]
+        chain_ids: formData.chain_ids ? formData.chain_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [1],
+        // For ERC-1155: parse token IDs as strings (they can be very large numbers)
+        token_ids: formData.token_ids ? formData.token_ids.split(',').map(id => id.trim()).filter(id => id) : []
       };
 
       const response = await adminFetch('/api/admin/discounts', {
@@ -6349,6 +6353,45 @@ function CreateDiscountForm({ onClose, onSuccess }) {
         </div>
       )}
 
+      {/* ERC-1155 Specific Fields - Only show when NFT Holding is selected */}
+      {formData.gating_type === 'nft_holding' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              NFT Type
+            </label>
+            <select
+              value={formData.nft_type}
+              onChange={(e) => handleInputChange('nft_type', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+            >
+              <option value="erc721">ERC-721 (Standard NFT)</option>
+              <option value="erc1155">ERC-1155 (Multi-token)</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              ERC-721: Uses balanceOf(address). ERC-1155: Requires token IDs.
+            </p>
+          </div>
+          {formData.nft_type === 'erc1155' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Token IDs (comma-separated) *
+              </label>
+              <input
+                type="text"
+                value={formData.token_ids}
+                onChange={(e) => handleInputChange('token_ids', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                placeholder="1, 2, 5, 10"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Specific token IDs to check ownership for.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Optional Fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -6470,6 +6513,8 @@ function EditDiscountForm({ discount, onClose, onSuccess }) {
     contract_addresses: discount.contract_addresses ? (Array.isArray(discount.contract_addresses) ? discount.contract_addresses.join(', ') : discount.contract_addresses) : '',
     chain_ids: discount.chain_ids ? (Array.isArray(discount.chain_ids) ? discount.chain_ids.join(', ') : discount.chain_ids.toString()) : '1',
     required_balance: discount.required_balance || 1,
+    nft_type: discount.nft_type || 'erc721', // ERC-721 or ERC-1155
+    token_ids: discount.token_ids ? (Array.isArray(discount.token_ids) ? discount.token_ids.join(', ') : discount.token_ids) : '', // For ERC-1155 only
     minimum_order_amount: discount.minimum_order_amount || '',
     expires_at: discount.expires_at ? discount.expires_at.slice(0, 16) : '', // Format to YYYY-MM-DDTHH:MM
     max_uses_total: discount.max_uses_total || '',
@@ -6515,7 +6560,9 @@ function EditDiscountForm({ discount, onClose, onSuccess }) {
         target_wallets: formData.target_wallets ? formData.target_wallets.split(',').map(wallet => wallet.trim()).filter(w => w) : [],
         target_products: formData.target_products ? formData.target_products.split(',').map(handle => handle.trim()).filter(h => h) : [],
         contract_addresses: formData.contract_addresses ? formData.contract_addresses.split(',').map(addr => addr.trim()).filter(a => a) : [],
-        chain_ids: formData.chain_ids ? formData.chain_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [1]
+        chain_ids: formData.chain_ids ? formData.chain_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [1],
+        // For ERC-1155: parse token IDs as strings (they can be very large numbers)
+        token_ids: formData.token_ids ? formData.token_ids.split(',').map(id => id.trim()).filter(id => id) : []
       };
 
       const response = await adminFetch(`/api/admin/discounts/${discount.id}`, {
@@ -6764,6 +6811,45 @@ function EditDiscountForm({ discount, onClose, onSuccess }) {
               placeholder="1"
             />
           </div>
+        </div>
+      )}
+
+      {/* ERC-1155 Specific Fields - Only show when NFT Holding is selected */}
+      {formData.gating_type === 'nft_holding' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              NFT Type
+            </label>
+            <select
+              value={formData.nft_type}
+              onChange={(e) => handleInputChange('nft_type', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+            >
+              <option value="erc721">ERC-721 (Standard NFT)</option>
+              <option value="erc1155">ERC-1155 (Multi-token)</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              ERC-721: Uses balanceOf(address). ERC-1155: Requires token IDs.
+            </p>
+          </div>
+          {formData.nft_type === 'erc1155' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Token IDs (comma-separated) *
+              </label>
+              <input
+                type="text"
+                value={formData.token_ids}
+                onChange={(e) => handleInputChange('token_ids', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3eb489]"
+                placeholder="1, 2, 5, 10"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Specific token IDs to check ownership for.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

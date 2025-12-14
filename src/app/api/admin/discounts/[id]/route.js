@@ -49,6 +49,8 @@ export const PUT = withAdminAuth(async (request, { params }) => {
       contract_addresses: data.contract_addresses || [],
       chain_ids: data.chain_ids || [1],
       required_balance: data.required_balance ? parseFloat(data.required_balance) : 1,
+      nft_type: data.nft_type || 'erc721', // ERC-721 or ERC-1155
+      token_ids: data.token_ids || [], // For ERC-1155 only
       minimum_order_amount: data.minimum_order_amount ? parseFloat(data.minimum_order_amount) : null,
       expires_at: data.expires_at || null,
       max_uses_total: data.max_uses_total ? parseInt(data.max_uses_total) : null,

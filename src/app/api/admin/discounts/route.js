@@ -181,6 +181,8 @@ export const POST = withAdminAuth(async (request) => {
       contract_addresses,
       chain_ids,
       required_balance,
+      nft_type, // ERC-721 or ERC-1155
+      token_ids, // For ERC-1155 only
       minimum_order_amount,
       expires_at,
       max_uses_total,
@@ -257,6 +259,10 @@ export const POST = withAdminAuth(async (request) => {
       contract_addresses: contract_addresses || [],
       chain_ids: chain_ids || [1], // Default to Ethereum mainnet
       required_balance: required_balance ? parseFloat(required_balance) : 1,
+      
+      // NFT type configuration (for nft_holding gating)
+      nft_type: nft_type || 'erc721', // Default to ERC-721 for backwards compatibility
+      token_ids: token_ids || [], // For ERC-1155 only
     };
 
     // If targeting specific FIDs and not shared, set the primary FID
