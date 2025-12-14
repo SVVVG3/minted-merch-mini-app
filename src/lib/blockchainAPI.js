@@ -65,9 +65,12 @@ function setCachedResponse(cacheKey, data) {
  * Check NFT balance directly via blockchain RPC (more reliable than Zapper)
  */
 async function checkNftBalanceDirectly(walletAddresses, contractAddresses, chainId) {
+  // Prioritize Alchemy RPC for better rate limits
+  const alchemyRpc = process.env.ALCHEMY_BASE_RPC_URL;
+  
   const rpcUrls = {
     1: 'https://eth.llamarpc.com',
-    8453: 'https://mainnet.base.org',
+    8453: alchemyRpc || 'https://mainnet.base.org', // Use Alchemy if available
     137: 'https://polygon.llamarpc.com',
     42161: 'https://arb1.arbitrum.io/rpc'
   };
@@ -164,9 +167,13 @@ async function checkNftBalanceDirectly(walletAddresses, contractAddresses, chain
  * @returns {Promise<Object>} Balance result with total across all wallets
  */
 export async function checkERC1155Balance(walletAddresses, contractAddress, tokenId, chainId = 8453) {
+  // Prioritize Alchemy RPC for better rate limits
+  const alchemyRpc = process.env.ALCHEMY_BASE_RPC_URL;
+  
   const rpcUrls = {
     1: ['https://eth.llamarpc.com', 'https://ethereum.publicnode.com'],
     8453: [
+      ...(alchemyRpc ? [alchemyRpc] : []), // Alchemy first if available
       'https://mainnet.base.org',
       'https://base.llamarpc.com',
       'https://1rpc.io/base',
@@ -425,11 +432,15 @@ export async function checkNftHoldingsWithZapper(walletAddresses, contractAddres
  * Check token balance directly via blockchain RPC (more reliable than Zapper)
  */
 export async function checkTokenBalanceDirectly(walletAddresses, contractAddresses, chainId) {
+  // Prioritize Alchemy RPC for better rate limits
+  const alchemyRpc = process.env.ALCHEMY_BASE_RPC_URL;
+  
   // Multiple RPC endpoints for Base chain to distribute load and avoid rate limits
   // NOTE: base.publicnode.com removed - returns incorrect 0 balances (2025-11-16)
   const rpcUrls = {
     1: ['https://eth.llamarpc.com', 'https://ethereum.publicnode.com'],
     8453: [
+      ...(alchemyRpc ? [alchemyRpc] : []), // Alchemy first if available (higher rate limits)
       'https://mainnet.base.org',         // Official Base endpoint (most reliable)
       'https://base.llamarpc.com',        // LlamaRPC endpoint (verified working)
       'https://1rpc.io/base',             // 1RPC endpoint (verified working)
