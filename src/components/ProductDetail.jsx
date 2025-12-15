@@ -501,14 +501,14 @@ export function ProductDetail({
             const variantTitle = selectedVariant?.title && selectedVariant.title !== 'Default Title' 
               ? selectedVariant.title 
               : '';
-            const variantText = variantTitle ? ` - ${variantTitle}` : '';
+            const variantText = variantTitle ? ` (${variantTitle})` : '';
             
             if (productDiscount && discountedPrice < originalPrice) {
               return discountedPrice === 0 
-                ? `Add to Cart${variantText} - FREE${quantityText}` 
-                : `Add to Cart${variantText} - $${discountedPrice.toFixed(2)}${quantityText}`;
+                ? `Add to Cart - FREE${variantText}${quantityText}` 
+                : `Add to Cart - $${discountedPrice.toFixed(2)}${variantText}${quantityText}`;
             } else {
-              return `Add to Cart${variantText} - $${originalPrice.toFixed(2)}${quantityText}`;
+              return `Add to Cart - $${originalPrice.toFixed(2)}${variantText}${quantityText}`;
             }
           })() : 'Out of Stock'}
           </button>
