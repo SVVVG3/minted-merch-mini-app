@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withAdminAuth } from '@/lib/adminAuth';
-import { getAllStakerBalances } from '@/lib/stakingBalanceAPI';
 
 export const GET = withAdminAuth(async (request, context) => {
   try {
@@ -89,6 +88,8 @@ export const GET = withAdminAuth(async (request, context) => {
         display_name: profile.display_name,
         pfp_url: profile.pfp_url,
         token_balance: profile.token_balance,
+        wallet_balance: profile.wallet_balance,
+        staked_balance: profile.staked_balance,
         token_balance_updated_at: profile.token_balance_updated_at,
         user_leaderboard: leaderboardMap.get(profile.fid) || null
       }));
@@ -168,71 +169,11 @@ export const GET = withAdminAuth(async (request, context) => {
     // Import multiplier functions
     const { applyTokenMultiplier } = await import('@/lib/points');
     
-    // Fetch LIVE staking balances from subgraph
-    console.log('📊 Fetching live staking balances from subgraph...');
-    const liveStakerBalances = await getAllStakerBalances();
-    console.log(`📊 Subgraph returned ${liveStakerBalances.size} staker balances`);
-    
-    // Build a map of FID -> live staked balance by matching wallet addresses
-    // First, get all wallet addresses for all users in our dataset
-    const allFids = leaderboardData.map(entry => 
-      isHoldingsQuery ? entry.fid : entry.user_fid
-    ).filter(fid => fid);
-    
-    console.log(`📊 Need to fetch wallet addresses for ${allFids.length} FIDs`);
-    
-    // Fetch all profiles with wallet addresses in batches (Supabase .in() has limits)
-    const BATCH_SIZE = 500;
-    let allProfilesWithWallets = [];
-    
-    for (let i = 0; i < allFids.length; i += BATCH_SIZE) {
-      const batchFids = allFids.slice(i, i + BATCH_SIZE);
-      const { data: batchProfiles, error: batchError } = await supabaseAdmin
-        .from('profiles')
-        .select('fid, all_wallet_addresses')
-        .in('fid', batchFids);
-      
-      if (batchError) {
-        console.error(`Error fetching wallet addresses batch ${i / BATCH_SIZE + 1}:`, batchError);
-      } else if (batchProfiles) {
-        allProfilesWithWallets = allProfilesWithWallets.concat(batchProfiles);
-      }
-    }
-    
-    console.log(`📊 Fetched ${allProfilesWithWallets.length} profiles with wallet addresses`);
-    
-    // Create FID -> live staked balance map
-    const fidToLiveStakedBalance = new Map();
-    let matchedWallets = 0;
-    let totalMatchedBalance = 0;
-    
-    for (const profile of allProfilesWithWallets) {
-      let walletAddresses = [];
-      try {
-        walletAddresses = Array.isArray(profile.all_wallet_addresses)
-          ? profile.all_wallet_addresses
-          : JSON.parse(profile.all_wallet_addresses || '[]');
-      } catch (e) {
-        walletAddresses = [];
-      }
-      
-      // Sum up staked balances for all wallet addresses
-      let totalStaked = 0;
-      for (const wallet of walletAddresses) {
-        if (typeof wallet === 'string' && wallet.startsWith('0x')) {
-          const balance = liveStakerBalances.get(wallet.toLowerCase()) || 0;
-          if (balance > 0) {
-            matchedWallets++;
-            totalMatchedBalance += balance;
-          }
-          totalStaked += balance;
-        }
-      }
-      fidToLiveStakedBalance.set(profile.fid, totalStaked);
-    }
-    
-    console.log(`📊 Mapped live staking balances for ${fidToLiveStakedBalance.size} users`);
-    console.log(`📊 Found ${matchedWallets} wallets with staked balance, total: ${totalMatchedBalance.toLocaleString()} tokens`);
+    // NOTE: We use cached staked_balance from profiles table instead of GraphQL
+    // The GraphQL getAllStakerBalances() only returns 1000 most recent stakers,
+    // which misses older stakers. The profiles.staked_balance is updated via RPC
+    // when users open the app, so it's accurate and covers all users.
+    console.log('📊 Using cached staked_balance from profiles table (updated via RPC on user login)');
     
     // Transform the data to flatten profile information, add token holdings, and apply multipliers
     const transformedData = leaderboardData.map((entry, index) => {
@@ -258,8 +199,8 @@ export const GET = withAdminAuth(async (request, context) => {
       // Apply token multiplier to total points
       const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
       
-      // Use LIVE staking balance from subgraph instead of stale database value
-      const liveStakedBalance = fidToLiveStakedBalance.get(userFid) || 0;
+      // Use cached staked_balance from profiles table (updated via RPC when user opens app)
+      const stakedBalance = profile.staked_balance || 0;
       
       return {
         // Normalize the data structure
@@ -270,7 +211,7 @@ export const GET = withAdminAuth(async (request, context) => {
         pfp_url: profile.pfp_url,
         token_balance: tokenBalance,
         wallet_balance: profile.wallet_balance || 0,
-        staked_balance: liveStakedBalance, // LIVE from subgraph
+        staked_balance: stakedBalance, // From profiles table (cached via RPC)
         token_balance_updated_at: profile.token_balance_updated_at,
         // Leaderboard stats (may be 0 for users without leaderboard activity)
         total_points: multiplierResult.multipliedPoints,
