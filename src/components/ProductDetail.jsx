@@ -497,12 +497,18 @@ export function ProductDetail({
             const currentQuantity = getItemQuantity(product.id, selectedVariant?.id);
             const quantityText = currentQuantity > 0 ? ` (${currentQuantity} in cart)` : '';
             
+            // Get variant title (size/color) if it's not "Default Title"
+            const variantTitle = selectedVariant?.title && selectedVariant.title !== 'Default Title' 
+              ? selectedVariant.title 
+              : '';
+            const variantText = variantTitle ? ` - ${variantTitle}` : '';
+            
             if (productDiscount && discountedPrice < originalPrice) {
               return discountedPrice === 0 
-                ? `Add to Cart - FREE${quantityText}` 
-                : `Add to Cart - $${discountedPrice.toFixed(2)}${quantityText}`;
+                ? `Add to Cart${variantText} - FREE${quantityText}` 
+                : `Add to Cart${variantText} - $${discountedPrice.toFixed(2)}${quantityText}`;
             } else {
-              return `Add to Cart - $${originalPrice.toFixed(2)}${quantityText}`;
+              return `Add to Cart${variantText} - $${originalPrice.toFixed(2)}${quantityText}`;
             }
           })() : 'Out of Stock'}
           </button>

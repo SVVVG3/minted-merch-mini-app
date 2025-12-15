@@ -354,7 +354,7 @@ function CartItem({ item, onQuantityChange, onRemove }) {
             >
               {item.product.title}
             </Link>
-            {item.variant && (
+            {item.variant && item.variant.title && item.variant.title !== 'Default Title' && (
               <p className="text-xs text-gray-500 mt-1">
                 {item.variant.title}
               </p>
