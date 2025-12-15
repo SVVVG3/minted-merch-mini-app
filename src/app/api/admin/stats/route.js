@@ -223,9 +223,21 @@ export const GET = withAdminAuth(async (request) => {
       console.error('Error fetching total revenue:', revenueError);
     }
 
-    // Get staking statistics from LIVE subgraph (not stale database)
-    const { totalStaked, uniqueStakers: walletsStaked } = await getStakingStats();
-    console.log(`📊 Live staking stats from subgraph: ${walletsStaked} wallets with ${totalStaked.toLocaleString()} tokens staked`);
+    // Get staking statistics
+    // Total staked from RPC (real-time), but wallet count from profiles table
+    // The GraphQL query only returns 1000 most recent stakers, missing older ones
+    const { totalStaked } = await getStakingStats();
+    
+    // Count unique stakers from profiles table (more reliable than GraphQL's 1000 limit)
+    const { count: walletsStaked, error: stakersError } = await supabaseAdmin
+      .from('profiles')
+      .select('fid', { count: 'exact', head: true })
+      .gt('staked_balance', 0);
+    
+    if (stakersError) {
+      console.error('Error counting stakers from profiles:', stakersError);
+    }
+    console.log(`📊 Staking stats: ${walletsStaked || 0} wallets with ${totalStaked.toLocaleString()} tokens staked`);
 
     // Get total rewards claimed from LIVE subgraph
     const totalRewardsClaimed = await getGlobalTotalClaimed();
