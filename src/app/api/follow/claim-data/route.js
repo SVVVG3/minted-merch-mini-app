@@ -17,6 +17,13 @@ const CHAIN_ID = 8453; // Base
  * - User hasn't claimed yet
  */
 export async function GET(request) {
+  // ⚠️ TEMPORARILY DISABLED - Bot abuse detected
+  // TODO: Re-enable after implementing better verification
+  return NextResponse.json(
+    { error: 'This reward has ended. Thank you for your interest!' },
+    { status: 400 }
+  );
+
   const requestId = Math.random().toString(36).substring(7);
 
   try {
