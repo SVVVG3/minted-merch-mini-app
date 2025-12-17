@@ -358,6 +358,7 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     { code: 'HK', name: 'Hong Kong SAR' },
     { code: 'IE', name: 'Ireland' },
     { code: 'IL', name: 'Israel' },
+    { code: 'IN', name: 'India' },
     { code: 'ID', name: 'Indonesia' },
     { code: 'IT', name: 'Italy' },
     { code: 'JP', name: 'Japan' },
