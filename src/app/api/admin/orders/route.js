@@ -6,7 +6,7 @@ export const GET = withAdminAuth(async (request) => {
   try {
     console.log('🛍️ Fetching all orders for admin dashboard...');
 
-    // Fetch all orders with order items, user profiles, and assigned partners - using correct column names from database
+    // Fetch all orders with order items, user profiles, and partner assignments
     const { data: orders, error: ordersError } = await supabaseAdmin
       .from('orders')
       .select(`
@@ -31,6 +31,27 @@ export const GET = withAdminAuth(async (request) => {
           id,
           name,
           email
+        ),
+        partner_assignments:order_partner_assignments (
+          id,
+          partner_id,
+          status,
+          assigned_at,
+          shipped_at,
+          vendor_paid_at,
+          tracking_number,
+          tracking_url,
+          carrier,
+          vendor_payout_amount,
+          vendor_payout_internal_notes,
+          vendor_payout_partner_notes,
+          assignment_notes,
+          partner:partners (
+            id,
+            name,
+            email,
+            partner_type
+          )
         )
       `)
       .order('created_at', { ascending: false });
@@ -135,15 +156,18 @@ export const GET = withAdminAuth(async (request) => {
         display_name: order.profiles?.display_name || null,
         pfp_url: order.profiles?.pfp_url || null,
         
-        // Partner assignment information
+        // Legacy single partner assignment (for backwards compatibility)
         assigned_partner: order.assigned_partner || null,
         assigned_partner_id: order.assigned_partner_id || null,
         assigned_at: order.assigned_at || null,
         
-        // Vendor payout tracking
+        // Legacy vendor payout tracking (for backwards compatibility)
         vendor_payout_amount: order.vendor_payout_amount || null,
         vendor_paid_at: order.vendor_paid_at || null,
         vendor_payout_notes: order.vendor_payout_notes || null,
+        
+        // NEW: Multi-partner assignments
+        partner_assignments: order.partner_assignments || [],
         
         // Product details from order_items table
         products: products

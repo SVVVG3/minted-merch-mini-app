@@ -3,10 +3,11 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { verifyPartnerToken } from '@/lib/partnerAuth';
 import { updateOrderStatus } from '@/lib/orders';
 
-// PUT update order status (partner only - limited permissions)
+// PUT update order assignment (partner only - limited permissions)
 export async function PUT(request, { params }) {
   try {
-    const { orderId } = params;
+    const { orderId } = await params;
+    const decodedOrderId = decodeURIComponent(orderId);
     const updateData = await request.json();
 
     // Get token from cookie
@@ -29,28 +30,35 @@ export async function PUT(request, { params }) {
       }, { status: 401 });
     }
 
-    const partnerType = decoded.partnerType || 'fulfillment';
-    console.log(`🤝 Partner ${decoded.email} (${partnerType}) updating order: ${orderId}`, updateData);
+    // Get partner type from database
+    const { data: partnerData, error: partnerError } = await supabaseAdmin
+      .from('partners')
+      .select('partner_type')
+      .eq('id', decoded.id)
+      .single();
 
-    // 🚫 SECURITY: Only fulfillment partners can update orders
+    const partnerType = partnerData?.partner_type || 'fulfillment';
+    console.log(`🤝 Partner ${decoded.email} (${partnerType}) updating order: ${decodedOrderId}`, updateData);
+
+    // 🚫 SECURITY: Only fulfillment partners can update tracking
     if (partnerType !== 'fulfillment') {
-      console.warn(`⚠️ Collab partner ${decoded.email} attempted to update order ${orderId}`);
+      console.warn(`⚠️ Collab partner ${decoded.email} attempted to update order ${decodedOrderId}`);
       return NextResponse.json({
         success: false,
         error: 'Collab partners cannot update order status or tracking info. Only fulfillment partners have this permission.'
       }, { status: 403 });
     }
 
-    // First, verify this order is assigned to this partner
-    const { data: currentOrder, error: fetchError } = await supabaseAdmin
-      .from('orders')
+    // Find the partner's assignment for this order
+    const { data: assignment, error: fetchError } = await supabaseAdmin
+      .from('order_partner_assignments')
       .select('*')
-      .eq('order_id', orderId)
-      .eq('assigned_partner_id', decoded.id)
+      .eq('order_id', decodedOrderId)
+      .eq('partner_id', decoded.id)
       .single();
 
-    if (fetchError || !currentOrder) {
-      console.error('❌ Order not found or not assigned to this partner:', fetchError);
+    if (fetchError || !assignment) {
+      console.error('❌ Assignment not found for this partner:', fetchError);
       return NextResponse.json({
         success: false,
         error: 'Order not found or not assigned to you'
@@ -68,59 +76,62 @@ export async function PUT(request, { params }) {
       }, { status: 400 });
     }
 
-    let updatedOrder = currentOrder;
-
-    // Auto-update status to "shipped" when tracking is added (triggers notifications)
-    if (currentOrder.status !== 'shipped') {
-      console.log(`🔄 Partner added tracking - auto-updating status: ${currentOrder.status} → shipped`);
-      
-      const statusResult = await updateOrderStatus(orderId, 'shipped');
-      
-      if (!statusResult.success) {
-        console.error('❌ Error updating order status:', statusResult.error);
-        return NextResponse.json({
-          success: false,
-          error: statusResult.error || 'Failed to update order status'
-        }, { status: 500 });
-      }
-      
-      updatedOrder = statusResult.order;
-      console.log('✅ Order auto-marked as shipped with notifications:', updatedOrder.order_id);
-    }
-
-    // Update tracking info and carrier
-    const trackingUpdateFields = {
+    // Build update fields for the assignment
+    const updateFields = {
       tracking_number: updateData.tracking_number.trim(),
       carrier: updateData.carrier?.trim() || null,
       tracking_url: updateData.tracking_url?.trim() || null,
       updated_at: new Date().toISOString()
     };
-    
-    console.log('📝 Partner updating tracking fields:', trackingUpdateFields);
 
-    const { data: finalOrder, error: updateError } = await supabaseAdmin
-      .from('orders')
-      .update(trackingUpdateFields)
-      .eq('order_id', orderId)
-      .eq('assigned_partner_id', decoded.id) // Security: ensure partner can only update their orders
+    // Auto-update assignment status to "shipped" when tracking is added
+    if (assignment.status === 'assigned') {
+      console.log(`🔄 Partner added tracking - auto-updating assignment status: assigned → shipped`);
+      updateFields.status = 'shipped';
+      updateFields.shipped_at = new Date().toISOString();
+    }
+    
+    console.log('📝 Partner updating assignment fields:', updateFields);
+
+    const { data: updatedAssignment, error: updateError } = await supabaseAdmin
+      .from('order_partner_assignments')
+      .update(updateFields)
+      .eq('id', assignment.id)
       .select()
       .single();
 
     if (updateError) {
-      console.error('❌ Error updating tracking fields:', updateError);
+      console.error('❌ Error updating assignment:', updateError);
       return NextResponse.json({
         success: false,
         error: updateError.message || 'Failed to update order'
       }, { status: 500 });
     }
 
-    updatedOrder = finalOrder;
+    // Also update the main order status to shipped and trigger notifications
+    // (This ensures backwards compatibility and sends shipping notifications)
+    if (updateFields.status === 'shipped') {
+      const statusResult = await updateOrderStatus(decodedOrderId, 'shipped');
+      if (statusResult.success) {
+        console.log('✅ Main order status updated to shipped with notifications');
+      }
+      
+      // Also update tracking on the main order for backwards compatibility
+      await supabaseAdmin
+        .from('orders')
+        .update({
+          tracking_number: updateFields.tracking_number,
+          tracking_url: updateFields.tracking_url,
+          carrier: updateFields.carrier
+        })
+        .eq('order_id', decodedOrderId);
+    }
 
-    console.log('✅ Partner order update successful:', updatedOrder.order_id);
+    console.log('✅ Partner assignment update successful:', updatedAssignment.id);
 
     return NextResponse.json({
       success: true,
-      data: updatedOrder,
+      data: updatedAssignment,
       message: 'Order updated successfully'
     });
 

@@ -43,84 +43,108 @@ export async function GET(request) {
     const partnerType = partnerData.partner_type || 'fulfillment';
     console.log(`🤝 Fetching orders for ${partnerType} partner ${decoded.email}...`);
 
-    // Fetch orders assigned to this partner
-    // Include profiles for collab partners, exclude for fulfillment partners
-    const selectQuery = partnerType === 'collab'
-      ? `
+    // Fetch partner assignments with order details
+    const { data: assignments, error: assignmentsError } = await supabaseAdmin
+      .from('order_partner_assignments')
+      .select(`
         id,
         order_id,
         status,
-        amount_total,
-        discount_code,
-        discount_amount,
-        created_at,
         assigned_at,
-        fid,
-        vendor_payout_amount,
+        shipped_at,
         vendor_paid_at,
-        vendor_payout_notes,
-        vendor_payout_partner_notes,
-        order_items (
-          id,
-          product_id,
-          variant_id,
-          quantity,
-          price,
-          total,
-          product_title,
-          variant_title,
-          product_data
-        ),
-        profiles (
-          username,
-          display_name,
-          pfp_url,
-          fid
-        )
-      `
-      : `
-        id,
-        order_id,
-        status,
-        amount_total,
-        discount_code,
-        discount_amount,
-        created_at,
-        assigned_at,
-        customer_name,
-        customer_email,
-        shipping_address,
-        shipping_method,
+        tracking_number,
+        tracking_url,
+        carrier,
         vendor_payout_amount,
-        vendor_paid_at,
-        vendor_payout_notes,
         vendor_payout_partner_notes,
-        order_items (
+        assignment_notes,
+        order:orders (
           id,
-          product_id,
-          variant_id,
-          quantity,
-          price,
-          total,
-          product_title,
-          variant_title,
-          product_data
+          order_id,
+          status as order_status,
+          amount_total,
+          discount_code,
+          discount_amount,
+          created_at,
+          fid,
+          customer_name,
+          customer_email,
+          shipping_address,
+          shipping_method,
+          order_items (
+            id,
+            product_id,
+            variant_id,
+            quantity,
+            price,
+            total,
+            product_title,
+            variant_title,
+            product_data
+          ),
+          profiles (
+            username,
+            display_name,
+            pfp_url,
+            fid
+          )
         )
-      `;
-
-    const { data: orders, error: ordersError } = await supabaseAdmin
-      .from('orders')
-      .select(selectQuery)
-      .eq('assigned_partner_id', decoded.id)
+      `)
+      .eq('partner_id', decoded.id)
       .order('assigned_at', { ascending: false });
 
-    if (ordersError) {
-      console.error('❌ Error fetching partner orders:', ordersError);
+    if (assignmentsError) {
+      console.error('❌ Error fetching partner assignments:', assignmentsError);
       return NextResponse.json({
         success: false,
         error: 'Failed to fetch orders'
       }, { status: 500 });
     }
+
+    // Transform assignments into the expected order format
+    const orders = assignments.map(assignment => {
+      const order = assignment.order;
+      
+      // Base order data
+      const orderData = {
+        id: order.id,
+        order_id: order.order_id,
+        status: assignment.status, // Use assignment status instead of order status
+        order_status: order.order_status,
+        amount_total: order.amount_total,
+        discount_code: order.discount_code,
+        discount_amount: order.discount_amount,
+        created_at: order.created_at,
+        assigned_at: assignment.assigned_at,
+        shipped_at: assignment.shipped_at,
+        vendor_payout_amount: assignment.vendor_payout_amount,
+        vendor_paid_at: assignment.vendor_paid_at,
+        vendor_payout_partner_notes: assignment.vendor_payout_partner_notes,
+        assignment_notes: assignment.assignment_notes,
+        assignment_id: assignment.id,
+        order_items: order.order_items
+      };
+      
+      // Add tracking info for fulfillment partners
+      if (partnerType === 'fulfillment') {
+        orderData.tracking_number = assignment.tracking_number;
+        orderData.tracking_url = assignment.tracking_url;
+        orderData.carrier = assignment.carrier;
+        orderData.customer_name = order.customer_name;
+        orderData.customer_email = order.customer_email;
+        orderData.shipping_address = order.shipping_address;
+        orderData.shipping_method = order.shipping_method;
+      }
+      
+      // Add profile info for collab partners
+      if (partnerType === 'collab') {
+        orderData.fid = order.fid;
+        orderData.profiles = order.profiles;
+      }
+      
+      return orderData;
+    });
 
     console.log(`✅ Retrieved ${orders.length} orders for ${partnerType} partner ${decoded.email}`);
 

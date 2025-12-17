@@ -36,6 +36,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
   // Vendor payout modal state
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [payoutOrderId, setPayoutOrderId] = useState(null);
+  const [payoutAssignmentId, setPayoutAssignmentId] = useState(null); // For assignment-based payouts
   const [payoutAmount, setPayoutAmount] = useState('');
   const [payoutNotes, setPayoutNotes] = useState(''); // Internal notes (admin only)
   const [payoutPartnerNotes, setPayoutPartnerNotes] = useState(''); // Notes visible to partner
@@ -173,17 +174,73 @@ export default function UserModal({ isOpen, onClose, userFid }) {
   const submitVendorPayout = async () => {
     if (!payoutOrderId) return;
     
-    await updateOrderStatus(payoutOrderId, 'vendor_paid', {
-      vendor_payout_amount: payoutAmount || null,
-      vendor_payout_notes: payoutNotes || null,
-      vendor_payout_partner_notes: payoutPartnerNotes || null
-    });
+    // Check if this is an assignment-based payout
+    if (payoutAssignmentId) {
+      await updateAssignmentStatus(payoutOrderId, payoutAssignmentId, 'vendor_paid', {
+        vendor_payout_amount: payoutAmount || null,
+        vendor_payout_internal_notes: payoutNotes || null,
+        vendor_payout_partner_notes: payoutPartnerNotes || null
+      });
+    } else {
+      // Legacy order-based payout
+      await updateOrderStatus(payoutOrderId, 'vendor_paid', {
+        vendor_payout_amount: payoutAmount || null,
+        vendor_payout_notes: payoutNotes || null,
+        vendor_payout_partner_notes: payoutPartnerNotes || null
+      });
+    }
     
     setShowPayoutModal(false);
     setPayoutOrderId(null);
+    setPayoutAssignmentId(null);
     setPayoutAmount('');
     setPayoutNotes('');
     setPayoutPartnerNotes('');
+  };
+  
+  // Update assignment status (for partner orders in Partner tab)
+  const updateAssignmentStatus = async (orderId, assignmentId, newStatus, additionalData = {}) => {
+    setUpdatingOrder(orderId);
+    try {
+      const encodedOrderId = encodeURIComponent(orderId);
+      const response = await adminFetch(`/api/admin/orders/${encodedOrderId}/assignments`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          assignment_id: assignmentId, 
+          status: newStatus, 
+          ...additionalData 
+        })
+      });
+      const result = await response.json();
+      if (result.success) {
+        // Refresh user data to get updated orders
+        fetchUserData();
+      } else {
+        alert(result.error || 'Failed to update assignment');
+      }
+    } catch (err) {
+      console.error('Error updating assignment:', err);
+      alert('Failed to update assignment');
+    } finally {
+      setUpdatingOrder(null);
+    }
+  };
+  
+  // Handle assignment status change - show payout modal for vendor_paid
+  const handleAssignmentStatusChange = (orderId, assignmentId, newStatus, currentStatus) => {
+    if (newStatus === 'vendor_paid' && currentStatus !== 'vendor_paid') {
+      // Show payout modal to collect amount and notes
+      setPayoutOrderId(orderId);
+      setPayoutAssignmentId(assignmentId);
+      setPayoutAmount('');
+      setPayoutNotes('');
+      setPayoutPartnerNotes('');
+      setShowPayoutModal(true);
+    } else {
+      // Direct status update for other statuses
+      updateAssignmentStatus(orderId, assignmentId, newStatus);
+    }
   };
 
   const CopyButton = ({ text, label }) => (
@@ -1040,24 +1097,18 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                                 <div className="font-medium">{formatCurrency(order.amount_total)}</div>
                                 <select
                                   value={order.status}
-                                  onChange={(e) => handleStatusChange(order.order_id, e.target.value, order.status)}
+                                  onChange={(e) => handleAssignmentStatusChange(order.order_id, order.assignment_id, e.target.value, order.status)}
                                   disabled={updatingOrder === order.order_id}
                                   className={`mt-1 text-sm px-2 py-1 rounded border cursor-pointer ${
-                                    order.status === 'paid' ? 'bg-green-100 text-green-800 border-green-300' :
                                     order.status === 'assigned' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
-                                    order.status === 'processing' ? 'bg-blue-100 text-blue-800 border-blue-300' :
                                     order.status === 'shipped' ? 'bg-purple-100 text-purple-800 border-purple-300' :
                                     order.status === 'vendor_paid' ? 'bg-teal-100 text-teal-800 border-teal-300' :
                                     'bg-gray-100 text-gray-800 border-gray-300'
                                   }`}
                                 >
-                                  <option value="paid">Paid</option>
                                   <option value="assigned">Assigned</option>
-                                  <option value="processing">Processing</option>
                                   <option value="shipped">Shipped</option>
                                   <option value="vendor_paid">Vendor Paid</option>
-                                  <option value="delivered">Delivered</option>
-                                  <option value="cancelled">Cancelled</option>
                                 </select>
                               </div>
                             </div>

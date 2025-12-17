@@ -201,52 +201,85 @@ export const GET = withAdminAuth(async (request, context) => {
     if (partner && !partnerError) {
       console.log(`🤝 FID ${fid} is a partner: ${partner.name} (${partner.partner_type})`);
       
-      const { data: assignedOrders, error: assignedOrdersError } = await supabaseAdmin
-        .from('orders')
+      // Fetch from order_partner_assignments table for multi-partner support
+      const { data: assignments, error: assignmentsError } = await supabaseAdmin
+        .from('order_partner_assignments')
         .select(`
           id,
           order_id,
           status,
-          amount_total,
-          discount_code,
-          discount_amount,
-          created_at,
           assigned_at,
           shipped_at,
-          fid,
-          customer_name,
-          customer_email,
-          vendor_payout_amount,
           vendor_paid_at,
-          vendor_payout_notes,
-          vendor_payout_partner_notes,
           tracking_number,
+          tracking_url,
           carrier,
-          order_items (
+          vendor_payout_amount,
+          vendor_payout_internal_notes,
+          vendor_payout_partner_notes,
+          assignment_notes,
+          order:orders (
             id,
-            product_id,
-            variant_id,
-            quantity,
-            price,
-            total,
-            product_title,
-            variant_title,
-            product_data
-          ),
-          profiles:fid (
-            username,
-            display_name,
-            pfp_url
+            order_id,
+            status as order_status,
+            amount_total,
+            discount_code,
+            discount_amount,
+            created_at,
+            fid,
+            customer_name,
+            customer_email,
+            order_items (
+              id,
+              product_id,
+              variant_id,
+              quantity,
+              price,
+              total,
+              product_title,
+              variant_title,
+              product_data
+            ),
+            profiles:fid (
+              username,
+              display_name,
+              pfp_url
+            )
           )
         `)
-        .eq('assigned_partner_id', partner.id)
+        .eq('partner_id', partner.id)
         .order('assigned_at', { ascending: false });
 
-      if (assignedOrdersError) {
-        console.error('Error fetching partner orders:', assignedOrdersError);
+      if (assignmentsError) {
+        console.error('Error fetching partner assignments:', assignmentsError);
       } else {
-        partnerOrders = assignedOrders || [];
-        console.log(`📦 Found ${partnerOrders.length} orders assigned to partner`);
+        // Transform assignments to match expected order format
+        partnerOrders = (assignments || []).map(assignment => ({
+          id: assignment.order?.id,
+          order_id: assignment.order?.order_id,
+          status: assignment.status, // Use assignment status
+          order_status: assignment.order?.order_status,
+          amount_total: assignment.order?.amount_total,
+          discount_code: assignment.order?.discount_code,
+          discount_amount: assignment.order?.discount_amount,
+          created_at: assignment.order?.created_at,
+          assigned_at: assignment.assigned_at,
+          shipped_at: assignment.shipped_at,
+          fid: assignment.order?.fid,
+          customer_name: assignment.order?.customer_name,
+          customer_email: assignment.order?.customer_email,
+          vendor_payout_amount: assignment.vendor_payout_amount,
+          vendor_paid_at: assignment.vendor_paid_at,
+          vendor_payout_internal_notes: assignment.vendor_payout_internal_notes,
+          vendor_payout_partner_notes: assignment.vendor_payout_partner_notes,
+          tracking_number: assignment.tracking_number,
+          carrier: assignment.carrier,
+          assignment_id: assignment.id,
+          assignment_notes: assignment.assignment_notes,
+          order_items: assignment.order?.order_items,
+          profiles: assignment.order?.profiles
+        }));
+        console.log(`📦 Found ${partnerOrders.length} assignments for partner`);
       }
     }
 

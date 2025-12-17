@@ -110,6 +110,13 @@ export default function AdminDashboard() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderEditData, setOrderEditData] = useState({});
   
+  // Multi-partner assignment state
+  const [partnerAssignments, setPartnerAssignments] = useState([]);
+  const [partnerAssignmentsLoading, setPartnerAssignmentsLoading] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutData, setPayoutData] = useState({ amount: '', internal_notes: '', partner_notes: '' });
+  
   // Leaderboard sorting state
   const [sortField, setSortField] = useState('total_points');
   const [sortDirection, setSortDirection] = useState('desc');
@@ -443,7 +450,7 @@ export default function AdminDashboard() {
   };
 
   // Order edit modal functions
-  const openOrderEditModal = (order) => {
+  const openOrderEditModal = async (order) => {
     setSelectedOrder(order);
     setOrderEditData({
       status: order.status,
@@ -452,19 +459,146 @@ export default function AdminDashboard() {
       customer_name: order.customer_name || '',
       customer_email: order.customer_email || '',
       shipping_address: order.shipping_address || {},
-      assigned_partner_id: order.assigned_partner_id || ''
+      assigned_partner_id: order.assigned_partner_id || '' // Legacy field
     });
     setOrderEditModalOpen(true);
+    
     // Load partners for assignment if not already loaded
     if (partnersData.length === 0) {
       loadPartners();
     }
+    
+    // Load partner assignments for this order
+    loadPartnerAssignments(order.order_id);
   };
 
   const closeOrderEditModal = () => {
     setOrderEditModalOpen(false);
     setSelectedOrder(null);
     setOrderEditData({});
+    setPartnerAssignments([]);
+    setSelectedAssignment(null);
+    setShowPayoutModal(false);
+    setPayoutData({ amount: '', internal_notes: '', partner_notes: '' });
+  };
+  
+  // Load partner assignments for an order
+  const loadPartnerAssignments = async (orderId) => {
+    try {
+      setPartnerAssignmentsLoading(true);
+      const response = await adminFetch(`/api/admin/orders/${encodeURIComponent(orderId)}/assignments`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setPartnerAssignments(data.assignments || []);
+      } else {
+        console.error('Failed to load partner assignments:', data.error);
+        setPartnerAssignments([]);
+      }
+    } catch (error) {
+      console.error('Error loading partner assignments:', error);
+      setPartnerAssignments([]);
+    } finally {
+      setPartnerAssignmentsLoading(false);
+    }
+  };
+  
+  // Add a partner to an order
+  const addPartnerAssignment = async (partnerId, notes = '') => {
+    if (!selectedOrder) return;
+    
+    try {
+      const response = await adminFetch(`/api/admin/orders/${encodeURIComponent(selectedOrder.order_id)}/assignments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partner_id: partnerId, assignment_notes: notes })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setPartnerAssignments(prev => [...prev, data.assignment]);
+        alert('Partner assigned successfully!');
+      } else {
+        alert(data.error || 'Failed to assign partner');
+      }
+    } catch (error) {
+      console.error('Error adding partner assignment:', error);
+      alert('Failed to assign partner');
+    }
+  };
+  
+  // Remove a partner from an order
+  const removePartnerAssignment = async (assignmentId) => {
+    if (!selectedOrder) return;
+    if (!confirm('Are you sure you want to remove this partner from the order?')) return;
+    
+    try {
+      const response = await adminFetch(
+        `/api/admin/orders/${encodeURIComponent(selectedOrder.order_id)}/assignments?assignment_id=${assignmentId}`,
+        { method: 'DELETE' }
+      );
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setPartnerAssignments(prev => prev.filter(a => a.id !== assignmentId));
+        alert('Partner removed from order');
+      } else {
+        alert(data.error || 'Failed to remove partner');
+      }
+    } catch (error) {
+      console.error('Error removing partner assignment:', error);
+      alert('Failed to remove partner');
+    }
+  };
+  
+  // Update a partner assignment (status, tracking, payout)
+  const updatePartnerAssignment = async (assignmentId, updates) => {
+    if (!selectedOrder) return;
+    
+    try {
+      const response = await adminFetch(`/api/admin/orders/${encodeURIComponent(selectedOrder.order_id)}/assignments`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignment_id: assignmentId, ...updates })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setPartnerAssignments(prev => prev.map(a => 
+          a.id === assignmentId ? data.assignment : a
+        ));
+        return true;
+      } else {
+        alert(data.error || 'Failed to update assignment');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error updating partner assignment:', error);
+      alert('Failed to update assignment');
+      return false;
+    }
+  };
+  
+  // Handle payout submission for an assignment
+  const handlePayoutSubmit = async () => {
+    if (!selectedAssignment) return;
+    
+    const success = await updatePartnerAssignment(selectedAssignment.id, {
+      status: 'vendor_paid',
+      vendor_payout_amount: payoutData.amount,
+      vendor_payout_internal_notes: payoutData.internal_notes,
+      vendor_payout_partner_notes: payoutData.partner_notes
+    });
+    
+    if (success) {
+      setShowPayoutModal(false);
+      setSelectedAssignment(null);
+      setPayoutData({ amount: '', internal_notes: '', partner_notes: '' });
+      alert('Payout recorded successfully!');
+    }
   };
 
   // Function to generate tracking URL based on tracking number
@@ -5221,63 +5355,179 @@ export default function AdminDashboard() {
                   </select>
                 </div>
 
-                {/* Assigned Partner */}
+                {/* Add Partner Button */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Assigned Partner
+                    Add Partner
                   </label>
                   <select
-                    value={orderEditData.assigned_partner_id || ''}
-                    onChange={(e) => setOrderEditData({...orderEditData, assigned_partner_id: e.target.value})}
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        addPartnerAssignment(e.target.value);
+                        e.target.value = '';
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Unassigned</option>
-                    {partnersData.filter(partner => partner.is_active).map((partner) => (
-                      <option key={partner.id} value={partner.id}>
-                        {partner.name} ({partner.email})
-                      </option>
-                    ))}
+                    <option value="">Select partner to add...</option>
+                    {partnersData
+                      .filter(partner => partner.is_active && !partnerAssignments.some(a => a.partner_id === partner.id))
+                      .map((partner) => (
+                        <option key={partner.id} value={partner.id}>
+                          {partner.name} ({partner.partner_type})
+                        </option>
+                      ))
+                    }
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    Select a partner to assign this order for fulfillment
+                    Orders can be assigned to multiple partners
                   </p>
                 </div>
-
-                {/* Vendor Payout Amount - Shows when status is vendor_paid */}
-                {orderEditData.status === 'vendor_paid' && (
-                  <div className="md:col-span-2 bg-teal-50 p-4 rounded-lg border border-teal-200">
-                    <h4 className="text-sm font-semibold text-teal-800 mb-3">💰 Vendor Payout Details</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Payout Amount ($)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={orderEditData.vendor_payout_amount || ''}
-                          onChange={(e) => setOrderEditData({...orderEditData, vendor_payout_amount: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          placeholder="0.00"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Amount paid to the fulfillment partner
-                        </p>
+              </div>
+              
+              {/* Partner Assignments Section */}
+              <div className="mt-4 border-t pt-4">
+                <h3 className="text-lg font-semibold mb-3">👥 Assigned Partners ({partnerAssignments.length})</h3>
+                
+                {partnerAssignmentsLoading ? (
+                  <div className="text-center py-4 text-gray-500">Loading assignments...</div>
+                ) : partnerAssignments.length === 0 ? (
+                  <div className="text-center py-4 text-gray-500 bg-gray-50 rounded-lg">
+                    No partners assigned to this order yet
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {partnerAssignments.map((assignment) => (
+                      <div key={assignment.id} className="border rounded-lg p-4 bg-gray-50">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <span className="font-medium">{assignment.partner?.name || 'Unknown Partner'}</span>
+                            <span className={`ml-2 text-xs px-2 py-1 rounded ${
+                              assignment.partner?.partner_type === 'fulfillment' 
+                                ? 'bg-blue-100 text-blue-800' 
+                                : 'bg-purple-100 text-purple-800'
+                            }`}>
+                              {assignment.partner?.partner_type || 'N/A'}
+                            </span>
+                            <span className={`ml-2 text-xs px-2 py-1 rounded ${
+                              assignment.status === 'vendor_paid' 
+                                ? 'bg-green-100 text-green-800'
+                                : assignment.status === 'shipped'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {assignment.status === 'vendor_paid' ? '💰 Paid' : 
+                               assignment.status === 'shipped' ? '📦 Shipped' : '📋 Assigned'}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => removePartnerAssignment(assignment.id)}
+                            className="text-red-500 hover:text-red-700 text-sm"
+                          >
+                            ✕ Remove
+                          </button>
+                        </div>
+                        
+                        {/* Assignment Details */}
+                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
+                          <div>Assigned: {new Date(assignment.assigned_at).toLocaleDateString()}</div>
+                          {assignment.shipped_at && (
+                            <div>Shipped: {new Date(assignment.shipped_at).toLocaleDateString()}</div>
+                          )}
+                          {assignment.vendor_paid_at && (
+                            <div>Paid: {new Date(assignment.vendor_paid_at).toLocaleDateString()}</div>
+                          )}
+                          {assignment.vendor_payout_amount && (
+                            <div className="font-medium text-green-700">
+                              Payout: ${parseFloat(assignment.vendor_payout_amount).toFixed(2)}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Tracking (for fulfillment partners) */}
+                        {assignment.partner?.partner_type === 'fulfillment' && assignment.status !== 'vendor_paid' && (
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            <input
+                              type="text"
+                              placeholder="Tracking #"
+                              value={assignment.tracking_number || ''}
+                              onChange={(e) => updatePartnerAssignment(assignment.id, { tracking_number: e.target.value })}
+                              className="px-2 py-1 text-sm border rounded"
+                            />
+                            <select
+                              value={assignment.carrier || ''}
+                              onChange={(e) => updatePartnerAssignment(assignment.id, { carrier: e.target.value })}
+                              className="px-2 py-1 text-sm border rounded"
+                            >
+                              <option value="">Carrier</option>
+                              <option value="UPS">UPS</option>
+                              <option value="FedEx">FedEx</option>
+                              <option value="USPS">USPS</option>
+                              <option value="DHL">DHL</option>
+                            </select>
+                          </div>
+                        )}
+                        
+                        {/* Notes */}
+                        {assignment.assignment_notes && (
+                          <div className="text-xs text-gray-500 mb-2">
+                            Notes: {assignment.assignment_notes}
+                          </div>
+                        )}
+                        
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 mt-2">
+                          {assignment.status === 'assigned' && (
+                            <>
+                              {assignment.partner?.partner_type === 'fulfillment' && (
+                                <button
+                                  onClick={() => updatePartnerAssignment(assignment.id, { status: 'shipped' })}
+                                  className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                                >
+                                  📦 Mark Shipped
+                                </button>
+                              )}
+                              <button
+                                onClick={() => {
+                                  setSelectedAssignment(assignment);
+                                  setPayoutData({ 
+                                    amount: '', 
+                                    internal_notes: '', 
+                                    partner_notes: '' 
+                                  });
+                                  setShowPayoutModal(true);
+                                }}
+                                className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                              >
+                                💰 Record Payout
+                              </button>
+                            </>
+                          )}
+                          {assignment.status === 'shipped' && (
+                            <button
+                              onClick={() => {
+                                setSelectedAssignment(assignment);
+                                setPayoutData({ 
+                                  amount: '', 
+                                  internal_notes: '', 
+                                  partner_notes: '' 
+                                });
+                                setShowPayoutModal(true);
+                              }}
+                              className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                            >
+                              💰 Record Payout
+                            </button>
+                          )}
+                          {assignment.status === 'vendor_paid' && assignment.vendor_payout_internal_notes && (
+                            <div className="text-xs text-gray-500">
+                              Internal: {assignment.vendor_payout_internal_notes}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Payout Notes (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={orderEditData.vendor_payout_notes || ''}
-                          onChange={(e) => setOrderEditData({...orderEditData, vendor_payout_notes: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          placeholder="Payment reference, invoice #, etc."
-                        />
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -5526,6 +5776,102 @@ export default function AdminDashboard() {
                   className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
                 >
                   Update Order
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Payout Modal for Partner Assignments */}
+      {showPayoutModal && selectedAssignment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold">💰 Record Payout</h3>
+                <button
+                  onClick={() => {
+                    setShowPayoutModal(false);
+                    setSelectedAssignment(null);
+                    setPayoutData({ amount: '', internal_notes: '', partner_notes: '' });
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <p className="font-medium">{selectedAssignment.partner?.name}</p>
+                <p className="text-sm text-gray-600">Order: {selectedOrder?.order_id}</p>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payout Amount ($) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={payoutData.amount}
+                    onChange={(e) => setPayoutData({ ...payoutData, amount: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Internal Notes (Admin only)
+                  </label>
+                  <textarea
+                    value={payoutData.internal_notes}
+                    onChange={(e) => setPayoutData({ ...payoutData, internal_notes: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Invoice #, payment method, etc."
+                    rows={2}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Only visible in admin dashboard</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Partner Notes (Visible to partner)
+                  </label>
+                  <textarea
+                    value={payoutData.partner_notes}
+                    onChange={(e) => setPayoutData({ ...payoutData, partner_notes: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Notes for the partner about this payout..."
+                    rows={2}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Partner will see this on their dashboard</p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowPayoutModal(false);
+                    setSelectedAssignment(null);
+                    setPayoutData({ amount: '', internal_notes: '', partner_notes: '' });
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePayoutSubmit}
+                  disabled={!payoutData.amount}
+                  className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Record Payout
                 </button>
               </div>
             </div>
