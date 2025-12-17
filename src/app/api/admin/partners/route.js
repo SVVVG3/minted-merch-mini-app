@@ -18,38 +18,38 @@ export const GET = withAdminAuth(async (request) => {
       }, { status: 500 });
     }
 
-    // Enhance each partner with order statistics
+    // Enhance each partner with order statistics from order_partner_assignments table
     const partnersWithStats = await Promise.all(
       result.partners.map(async (partner) => {
         try {
-          // Get order counts by status for this partner
-          const { data: orderStats, error: statsError } = await supabaseAdmin
-            .from('orders')
+          // Get assignment counts by status for this partner (using new multi-partner table)
+          const { data: assignments, error: statsError } = await supabaseAdmin
+            .from('order_partner_assignments')
             .select('status')
-            .eq('assigned_partner_id', partner.id);
+            .eq('partner_id', partner.id);
 
           if (statsError) {
-            console.warn(`⚠️ Could not fetch order stats for partner ${partner.id}:`, statsError);
+            console.warn(`⚠️ Could not fetch assignment stats for partner ${partner.id}:`, statsError);
             return {
               ...partner,
-                          orderStats: {
-              total: 0,
-              assigned: 0,
-              processing: 0,
-              shipped: 0,
-              vendor_paid: 0
-            }
+              orderStats: {
+                total: 0,
+                assigned: 0,
+                processing: 0,
+                shipped: 0,
+                vendor_paid: 0
+              }
             };
           }
 
-          // Count orders by status
-          const statusCounts = orderStats.reduce((counts, order) => {
-            counts[order.status] = (counts[order.status] || 0) + 1;
+          // Count assignments by status
+          const statusCounts = (assignments || []).reduce((counts, assignment) => {
+            counts[assignment.status] = (counts[assignment.status] || 0) + 1;
             return counts;
           }, {});
 
           const orderStatsForPartner = {
-            total: orderStats.length,
+            total: assignments?.length || 0,
             assigned: statusCounts.assigned || 0,
             processing: statusCounts.processing || 0,
             shipped: statusCounts.shipped || 0,
