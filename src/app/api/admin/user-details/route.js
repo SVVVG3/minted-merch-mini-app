@@ -218,10 +218,10 @@ export const GET = withAdminAuth(async (request, context) => {
           vendor_payout_internal_notes,
           vendor_payout_partner_notes,
           assignment_notes,
-          order:orders (
+          orders!order_id (
             id,
             order_id,
-            status as order_status,
+            status,
             amount_total,
             discount_code,
             discount_amount,
@@ -240,7 +240,7 @@ export const GET = withAdminAuth(async (request, context) => {
               variant_title,
               product_data
             ),
-            profiles:fid (
+            profiles (
               username,
               display_name,
               pfp_url
@@ -254,20 +254,21 @@ export const GET = withAdminAuth(async (request, context) => {
         console.error('Error fetching partner assignments:', assignmentsError);
       } else {
         // Transform assignments to match expected order format
+        // Note: Supabase returns the joined table as 'orders' (the table name)
         partnerOrders = (assignments || []).map(assignment => ({
-          id: assignment.order?.id,
-          order_id: assignment.order?.order_id,
+          id: assignment.orders?.id,
+          order_id: assignment.orders?.order_id || assignment.order_id,
           status: assignment.status, // Use assignment status
-          order_status: assignment.order?.order_status,
-          amount_total: assignment.order?.amount_total,
-          discount_code: assignment.order?.discount_code,
-          discount_amount: assignment.order?.discount_amount,
-          created_at: assignment.order?.created_at,
+          order_status: assignment.orders?.status,
+          amount_total: assignment.orders?.amount_total,
+          discount_code: assignment.orders?.discount_code,
+          discount_amount: assignment.orders?.discount_amount,
+          created_at: assignment.orders?.created_at,
           assigned_at: assignment.assigned_at,
           shipped_at: assignment.shipped_at,
-          fid: assignment.order?.fid,
-          customer_name: assignment.order?.customer_name,
-          customer_email: assignment.order?.customer_email,
+          fid: assignment.orders?.fid,
+          customer_name: assignment.orders?.customer_name,
+          customer_email: assignment.orders?.customer_email,
           vendor_payout_amount: assignment.vendor_payout_amount,
           vendor_paid_at: assignment.vendor_paid_at,
           vendor_payout_internal_notes: assignment.vendor_payout_internal_notes,
@@ -276,8 +277,8 @@ export const GET = withAdminAuth(async (request, context) => {
           carrier: assignment.carrier,
           assignment_id: assignment.id,
           assignment_notes: assignment.assignment_notes,
-          order_items: assignment.order?.order_items,
-          profiles: assignment.order?.profiles
+          order_items: assignment.orders?.order_items,
+          profiles: assignment.orders?.profiles
         }));
         console.log(`📦 Found ${partnerOrders.length} assignments for partner`);
       }

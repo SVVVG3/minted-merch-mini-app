@@ -59,10 +59,10 @@ export async function GET(request) {
         vendor_payout_amount,
         vendor_payout_partner_notes,
         assignment_notes,
-        order:orders (
+        orders (
           id,
           order_id,
-          status as order_status,
+          status,
           amount_total,
           discount_code,
           discount_amount,
@@ -104,14 +104,14 @@ export async function GET(request) {
 
     // Transform assignments into the expected order format
     const orders = assignments.map(assignment => {
-      const order = assignment.order;
+      const order = assignment.orders;
       
       // Base order data
       const orderData = {
         id: order.id,
         order_id: order.order_id,
         status: assignment.status, // Use assignment status instead of order status
-        order_status: order.order_status,
+        order_status: order.status,
         amount_total: order.amount_total,
         discount_code: order.discount_code,
         discount_amount: order.discount_amount,
