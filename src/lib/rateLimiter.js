@@ -208,3 +208,81 @@ setInterval(() => {
     }
   }
 }, 60 * 60 * 1000); // 1 hour
+
+// ============================================
+// Rate Limit Presets and Helpers
+// ============================================
+
+/**
+ * Rate limit presets for different use cases
+ */
+export const RATE_LIMITS = {
+  // Standard: 60 requests per minute
+  STANDARD: { maxRequests: 60, windowMinutes: 1 },
+  // Strict: 10 requests per minute
+  STRICT: { maxRequests: 10, windowMinutes: 1 },
+  // Ultra strict: 5 requests per minute (for sensitive operations like gift cards)
+  ULTRA_STRICT: { maxRequests: 5, windowMinutes: 1 },
+  // Lenient: 120 requests per minute
+  LENIENT: { maxRequests: 120, windowMinutes: 1 }
+};
+
+/**
+ * Get client IP from request headers
+ * Works with Vercel, Cloudflare, and standard proxies
+ * @param {Request} request - The incoming request
+ * @returns {string} - Client IP address or 'unknown'
+ */
+export function getClientIp(request) {
+  // Vercel
+  const xForwardedFor = request.headers.get('x-forwarded-for');
+  if (xForwardedFor) {
+    return xForwardedFor.split(',')[0].trim();
+  }
+  
+  // Cloudflare
+  const cfConnectingIp = request.headers.get('cf-connecting-ip');
+  if (cfConnectingIp) {
+    return cfConnectingIp;
+  }
+  
+  // Standard proxy
+  const xRealIp = request.headers.get('x-real-ip');
+  if (xRealIp) {
+    return xRealIp;
+  }
+  
+  return 'unknown';
+}
+
+/**
+ * Simple rate limiter using in-memory storage
+ * @param {string} identifier - Unique identifier (IP, user ID, etc.)
+ * @param {object} limits - Rate limit config { maxRequests, windowMinutes }
+ * @returns {{allowed: boolean, remaining: number, resetAt: Date}}
+ */
+export function rateLimit(identifier, limits = RATE_LIMITS.STANDARD) {
+  const { maxRequests, windowMinutes } = limits;
+  return checkIPRateLimit(identifier, 'generic', maxRequests, windowMinutes);
+}
+
+/**
+ * Generate a rate limit exceeded response
+ * @param {string} message - Error message
+ * @param {object} rateLimitResult - Result from rateLimit()
+ * @returns {Response} - JSON response with 429 status
+ */
+export function rateLimitResponse(message, rateLimitResult) {
+  const { NextResponse } = require('next/server');
+  return NextResponse.json({
+    success: false,
+    error: message,
+    retryAfter: Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)
+  }, { 
+    status: 429,
+    headers: {
+      'Retry-After': Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000).toString(),
+      'X-RateLimit-Remaining': rateLimitResult.remaining.toString()
+    }
+  });
+}
