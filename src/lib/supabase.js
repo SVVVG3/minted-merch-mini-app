@@ -5,19 +5,39 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Serverless-optimized client options
+const clientOptions = {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+    detectSessionInUrl: false
+  },
+  // Disable realtime for API routes (reduces connections)
+  realtime: {
+    params: {
+      eventsPerSecond: 0
+    }
+  },
+  // Global fetch options with timeout
+  global: {
+    fetch: (url, options = {}) => {
+      return fetch(url, {
+        ...options,
+        // Add keep-alive for connection reuse
+        keepalive: true
+      });
+    }
+  }
+};
+
 // Create Supabase client
 export const supabase = SUPABASE_URL && SUPABASE_ANON_KEY 
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, clientOptions)
   : null;
 
 // Create Supabase service role client (bypasses RLS)
 export const supabaseAdmin = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
-  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, clientOptions)
   : null;
 
 // Helper function to check if Supabase is available
