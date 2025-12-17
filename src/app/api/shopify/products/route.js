@@ -178,7 +178,7 @@ export async function GET(request) {
         
         let bestDiscount = null;
         if (discounts.length > 0) {
-          // Sort by priority: token-gated product > token-gated site > regular product > regular site
+          // PRIORITY: Higher value wins first, then token-gated > regular, then product > site-wide
           bestDiscount = discounts.reduce((best, current) => {
             // Normalize property names
             const currentValue = current.discount_value || current.value;
@@ -186,17 +186,20 @@ export async function GET(request) {
             const currentScope = current.discount_scope || current.scope;
             const bestScope = best.discount_scope || best.scope;
             
-            // Token-gated discounts have highest priority
+            // 1. HIGHEST VALUE WINS - Users should always get the best discount
+            if (currentValue > bestValue) return current;
+            if (currentValue < bestValue) return best;
+            
+            // 2. Same value: Token-gated beats regular (they verified their holding)
             if (current.isTokenGated && !best.isTokenGated) return current;
             if (!current.isTokenGated && best.isTokenGated) return best;
             
-            // Among same gating type, product-specific beats site-wide
+            // 3. Same value and gating: Product-specific beats site-wide (more targeted)
             if (currentScope === 'product' && bestScope === 'site_wide') return current;
             if (currentScope === 'site_wide' && bestScope === 'product') return best;
             
-            // Among same scope and gating, higher value wins
-            if (currentValue > bestValue) return current;
-            if (currentValue === bestValue && current.priority_level > best.priority_level) return current;
+            // 4. Tiebreaker: Priority level
+            if (current.priority_level > best.priority_level) return current;
             
             return best;
           });
