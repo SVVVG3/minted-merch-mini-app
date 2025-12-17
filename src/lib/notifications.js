@@ -1280,8 +1280,8 @@ export function shouldSendStakingReminders() {
 
 /**
  * Get all users who have tokens staked and have notifications enabled
- * Uses the subgraph to get current stakers, then matches with profiles
- * @returns {array} Array of { fid, walletAddress, stakedAmount } for users who need staking reminders
+ * Uses the staked_balance column in profiles table (updated via RPC when users open the app)
+ * @returns {array} Array of { fid, stakedAmount } for users who need staking reminders
  */
 export async function getUsersWithStakedBalances() {
   try {
@@ -1289,52 +1289,31 @@ export async function getUsersWithStakedBalances() {
     const { getCurrentCheckInDay } = await import('./timezone.js');
     const currentCheckInDay = getCurrentCheckInDay();
     
-    // Step 1: Get all stakers with balances > 0 from the subgraph
-    const { getAllStakerBalances } = await import('./stakingBalanceAPI.js');
-    const stakerBalances = await getAllStakerBalances();
-    
-    if (stakerBalances.size === 0) {
-      console.log('📊 No stakers found in subgraph');
-      return [];
-    }
-    
-    console.log(`📊 Found ${stakerBalances.size} stakers with balances in subgraph`);
-    
-    // Filter to only stakers with balance > 0
-    const activeStakers = Array.from(stakerBalances.entries())
-      .filter(([_, balance]) => balance > 0)
-      .map(([wallet, balance]) => ({ wallet: wallet.toLowerCase(), balance }));
-    
-    console.log(`📊 ${activeStakers.length} stakers have balance > 0`);
-    
-    if (activeStakers.length === 0) {
-      return [];
-    }
-    
-    // Step 2: Fetch profiles that have notifications enabled and match staker wallets
-    // We need to check multiple wallet columns: primary_eth_address, custody_address, verified_eth_addresses
-    let allProfiles = [];
+    // Query profiles table directly for users with staked balance > 0 and notifications enabled
+    // staked_balance is updated via RPC when users open the app
+    let allUsers = [];
     let from = 0;
     const batchSize = 1000;
     let hasMore = true;
 
     while (hasMore) {
-      const { data: profilesBatch, error: profilesError } = await adminClient
+      const { data: usersBatch, error: usersError } = await adminClient
         .from('profiles')
-        .select('fid, primary_eth_address, custody_address, verified_eth_addresses, last_staking_reminder_sent_date')
+        .select('fid, staked_balance, last_staking_reminder_sent_date')
         .eq('has_notifications', true)
+        .gt('staked_balance', 0)
         .order('fid', { ascending: true })
         .range(from, from + batchSize - 1);
 
-      if (profilesError) {
-        console.error('Error fetching profiles with notifications:', profilesError);
+      if (usersError) {
+        console.error('Error fetching users with staked balances:', usersError);
         break;
       }
 
-      if (profilesBatch && profilesBatch.length > 0) {
-        allProfiles = allProfiles.concat(profilesBatch);
+      if (usersBatch && usersBatch.length > 0) {
+        allUsers = allUsers.concat(usersBatch);
         
-        if (profilesBatch.length < batchSize) {
+        if (usersBatch.length < batchSize) {
           hasMore = false;
         } else {
           from += batchSize;
@@ -1344,55 +1323,18 @@ export async function getUsersWithStakedBalances() {
       }
     }
     
-    console.log(`📊 Found ${allProfiles.length} users with notifications enabled`);
+    console.log(`📊 Found ${allUsers.length} users with staked balances and notifications enabled`);
     
-    // Step 3: Match profiles to stakers
-    const usersWithStakes = [];
-    const stakerWalletSet = new Set(activeStakers.map(s => s.wallet));
+    // Filter out users who already received reminder today
+    const usersNeedingReminder = allUsers
+      .filter(user => user.last_staking_reminder_sent_date !== currentCheckInDay)
+      .map(user => ({
+        fid: user.fid,
+        stakedAmount: parseFloat(user.staked_balance) || 0
+      }));
     
-    for (const profile of allProfiles) {
-      // Skip if already sent reminder today
-      if (profile.last_staking_reminder_sent_date === currentCheckInDay) {
-        continue;
-      }
-      
-      // Get all wallet addresses for this user
-      const userWallets = [];
-      if (profile.primary_eth_address) {
-        userWallets.push(profile.primary_eth_address.toLowerCase());
-      }
-      if (profile.custody_address) {
-        userWallets.push(profile.custody_address.toLowerCase());
-      }
-      if (profile.verified_eth_addresses && Array.isArray(profile.verified_eth_addresses)) {
-        userWallets.push(...profile.verified_eth_addresses.map(w => w.toLowerCase()));
-      }
-      
-      // Check if any of user's wallets are in the stakers list
-      let userStakedAmount = 0;
-      let matchedWallet = null;
-      
-      for (const wallet of userWallets) {
-        if (stakerWalletSet.has(wallet)) {
-          const staker = activeStakers.find(s => s.wallet === wallet);
-          if (staker && staker.balance > 0) {
-            userStakedAmount += staker.balance;
-            matchedWallet = wallet;
-          }
-        }
-      }
-      
-      if (userStakedAmount > 0) {
-        usersWithStakes.push({
-          fid: profile.fid,
-          walletAddress: matchedWallet,
-          stakedAmount: userStakedAmount
-        });
-      }
-    }
-    
-    console.log(`📊 ${usersWithStakes.length} users with staked balances need staking reminders`);
-    return usersWithStakes;
+    console.log(`📊 ${usersNeedingReminder.length} users need staking reminders (not sent today)`);
+    return usersNeedingReminder;
     
   } catch (error) {
     console.error('Error in getUsersWithStakedBalances:', error);
