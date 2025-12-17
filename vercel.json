@@ -1,6 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["sfo1"],
   "functions": {
+    "src/app/api/**/*.js": {
+      "maxDuration": 30
+    },
     "src/app/api/notifications/**": {
       "maxDuration": 300
     }
