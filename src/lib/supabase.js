@@ -5,6 +5,31 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Retry fetch with exponential backoff for transient network failures
+async function fetchWithRetry(url, options = {}, maxRetries = 3) {
+  let lastError;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        keepalive: true
+      });
+      return response;
+    } catch (error) {
+      lastError = error;
+      // Only retry on network errors (fetch failed), not HTTP errors
+      if (error.message?.includes('fetch failed') && attempt < maxRetries - 1) {
+        const delay = Math.min(100 * Math.pow(2, attempt), 1000); // 100ms, 200ms, 400ms...
+        console.log(`⚠️ Supabase fetch failed, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
 // Serverless-optimized client options
 const clientOptions = {
   auth: {
@@ -18,15 +43,9 @@ const clientOptions = {
       eventsPerSecond: 0
     }
   },
-  // Global fetch options with timeout
+  // Global fetch with retry logic for transient failures
   global: {
-    fetch: (url, options = {}) => {
-      return fetch(url, {
-        ...options,
-        // Add keep-alive for connection reuse
-        keepalive: true
-      });
-    }
+    fetch: fetchWithRetry
   }
 };
 
