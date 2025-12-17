@@ -2846,7 +2846,26 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {order.assigned_partner ? (
+                        {order.partner_assignments && order.partner_assignments.length > 0 ? (
+                          <div className="space-y-1">
+                            {order.partner_assignments.map((assignment, idx) => (
+                              <div key={assignment.id || idx} className="flex items-center space-x-2">
+                                <div className={`w-2 h-2 rounded-full ${
+                                  assignment.status === 'vendor_paid' ? 'bg-green-500' :
+                                  assignment.status === 'shipped' ? 'bg-blue-500' :
+                                  'bg-orange-500'
+                                }`}></div>
+                                <div>
+                                  <div className="font-medium text-xs">{assignment.partner?.name || 'Unknown'}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {assignment.status === 'vendor_paid' ? '💰 Paid' : 
+                                     assignment.status === 'shipped' ? '📦 Shipped' : '📋 Assigned'}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : order.assigned_partner ? (
                           <div className="flex items-center space-x-2">
                             <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                             <div>
