@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withAdminAuth } from '@/lib/adminAuth';
-import { sendPartnerAssignmentNotification, sendVendorPaidNotification } from '@/lib/notifications';
+import { sendPartnerAssignmentNotification, sendVendorPaidNotification } from '@/lib/neynar';
 
 // GET: Fetch all partner assignments for an order
 export const GET = withAdminAuth(async (request, { params }) => {
