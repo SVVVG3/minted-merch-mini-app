@@ -5382,10 +5382,8 @@ export default function AdminDashboard() {
                   >
                     <option value="pending">Pending</option>
                     <option value="paid">Paid</option>
-                    <option value="processing">Processing</option>
                     <option value="assigned">Assigned</option>
                     <option value="shipped">Shipped</option>
-                    <option value="vendor_paid">Vendor Paid</option>
                     <option value="delivered">Delivered</option>
                     <option value="cancelled">Cancelled</option>
                     <option value="refunded">Refunded</option>
