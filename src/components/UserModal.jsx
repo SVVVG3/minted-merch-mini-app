@@ -170,19 +170,29 @@ export default function UserModal({ isOpen, onClose, userFid }) {
     }
   };
 
-  // Submit vendor payout
+  // Submit vendor payout (handles both estimated and final)
   const submitVendorPayout = async () => {
     if (!payoutOrderId) return;
     
     // Check if this is an assignment-based payout
     if (payoutAssignmentId) {
-      await updateAssignmentStatus(payoutOrderId, payoutAssignmentId, 'vendor_paid', {
-        vendor_payout_amount: payoutAmount || null,
-        vendor_payout_internal_notes: payoutNotes || null,
-        vendor_payout_partner_notes: payoutPartnerNotes || null
-      });
+      if (payoutModalType === 'estimated') {
+        // Payment processing with estimated amount
+        await updateAssignmentStatus(payoutOrderId, payoutAssignmentId, 'payment_processing', {
+          vendor_payout_estimated: payoutAmount || null,
+          vendor_payout_internal_notes: payoutNotes || null,
+          vendor_payout_partner_notes: payoutPartnerNotes || null
+        });
+      } else {
+        // Final vendor paid
+        await updateAssignmentStatus(payoutOrderId, payoutAssignmentId, 'vendor_paid', {
+          vendor_payout_amount: payoutAmount || null,
+          vendor_payout_internal_notes: payoutNotes || null,
+          vendor_payout_partner_notes: payoutPartnerNotes || null
+        });
+      }
     } else {
-      // Legacy order-based payout
+      // Legacy order-based payout (always final)
       await updateOrderStatus(payoutOrderId, 'vendor_paid', {
         vendor_payout_amount: payoutAmount || null,
         vendor_payout_notes: payoutNotes || null,
@@ -196,6 +206,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
     setPayoutAmount('');
     setPayoutNotes('');
     setPayoutPartnerNotes('');
+    setPayoutModalType('final');
   };
   
   // Update assignment status (for partner orders in Partner tab)
@@ -227,15 +238,27 @@ export default function UserModal({ isOpen, onClose, userFid }) {
     }
   };
   
-  // Handle assignment status change - show payout modal for vendor_paid
-  const handleAssignmentStatusChange = (orderId, assignmentId, newStatus, currentStatus) => {
-    if (newStatus === 'vendor_paid' && currentStatus !== 'vendor_paid') {
-      // Show payout modal to collect amount and notes
+  // Handle assignment status change - show payout modal for payment_processing and vendor_paid
+  const [payoutModalType, setPayoutModalType] = useState('final'); // 'estimated' or 'final'
+  
+  const handleAssignmentStatusChange = (orderId, assignmentId, newStatus, currentStatus, existingEstimate = null) => {
+    if (newStatus === 'payment_processing' && currentStatus !== 'payment_processing' && currentStatus !== 'vendor_paid') {
+      // Show payout modal to collect estimated amount and notes
       setPayoutOrderId(orderId);
       setPayoutAssignmentId(assignmentId);
       setPayoutAmount('');
       setPayoutNotes('');
       setPayoutPartnerNotes('');
+      setPayoutModalType('estimated');
+      setShowPayoutModal(true);
+    } else if (newStatus === 'vendor_paid' && currentStatus !== 'vendor_paid') {
+      // Show payout modal to collect final amount and notes
+      setPayoutOrderId(orderId);
+      setPayoutAssignmentId(assignmentId);
+      setPayoutAmount(existingEstimate || '');
+      setPayoutNotes('');
+      setPayoutPartnerNotes('');
+      setPayoutModalType('final');
       setShowPayoutModal(true);
     } else {
       // Direct status update for other statuses
@@ -1050,15 +1073,21 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                     </div>
                     <div className="bg-yellow-50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-yellow-600">
-                        {userData.partnerOrders?.filter(o => o.status === 'assigned' || o.status === 'processing').length || 0}
+                        {userData.partnerOrders?.filter(o => o.status === 'assigned' || o.status === 'shipped').length || 0}
                       </div>
                       <div className="text-sm text-yellow-600">Pending</div>
                     </div>
+                    <div className="bg-orange-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {userData.partnerOrders?.filter(o => o.status === 'payment_processing').length || 0}
+                      </div>
+                      <div className="text-sm text-orange-600">Processing</div>
+                    </div>
                     <div className="bg-green-50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-green-600">
-                        {userData.partnerOrders?.filter(o => o.status === 'shipped' || o.status === 'vendor_paid').length || 0}
+                        {userData.partnerOrders?.filter(o => o.status === 'vendor_paid').length || 0}
                       </div>
-                      <div className="text-sm text-green-600">Completed</div>
+                      <div className="text-sm text-green-600">Paid</div>
                     </div>
                     <div className="bg-teal-50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-teal-600">
@@ -1083,6 +1112,9 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                                   {order.shipped_at && (
                                     <div>📦 Shipped: {formatDate(order.shipped_at)}</div>
                                   )}
+                                  {order.payment_processing_at && (
+                                    <div>⏳ Processing: {formatDate(order.payment_processing_at)}</div>
+                                  )}
                                   {order.vendor_paid_at && (
                                     <div>💰 Paid: {formatDate(order.vendor_paid_at)}</div>
                                   )}
@@ -1100,14 +1132,16 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                                   onChange={(e) => handleAssignmentStatusChange(order.order_id, order.assignment_id, e.target.value, order.status)}
                                   disabled={updatingOrder === order.order_id}
                                   className={`mt-1 text-sm px-2 py-1 rounded border cursor-pointer ${
-                                    order.status === 'assigned' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
-                                    order.status === 'shipped' ? 'bg-purple-100 text-purple-800 border-purple-300' :
+                                    order.status === 'assigned' ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                                    order.status === 'shipped' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                                    order.status === 'payment_processing' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
                                     order.status === 'vendor_paid' ? 'bg-teal-100 text-teal-800 border-teal-300' :
                                     'bg-gray-100 text-gray-800 border-gray-300'
                                   }`}
                                 >
                                   <option value="assigned">Assigned</option>
                                   <option value="shipped">Shipped</option>
+                                  <option value="payment_processing">Payment Processing</option>
                                   <option value="vendor_paid">Vendor Paid</option>
                                 </select>
                               </div>
@@ -1125,27 +1159,44 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                               </div>
                             )}
 
-                            {/* Payout Info */}
-                            {order.vendor_payout_amount && (
-                              <div className="border-t pt-2 mt-2 bg-teal-50 -mx-4 -mb-4 px-4 py-2 rounded-b-lg">
+                            {/* Estimated Payout (payment_processing) */}
+                            {order.vendor_payout_estimated && order.status === 'payment_processing' && (
+                              <div className={`border-t pt-2 mt-2 ${parseFloat(order.vendor_payout_estimated) < 0 ? 'bg-red-50' : 'bg-yellow-50'} -mx-4 -mb-4 px-4 py-2 rounded-b-lg`}>
                                 <div className="flex justify-between items-center">
-                                  <span className="text-sm text-teal-700">Payout:</span>
-                                  <span className="font-bold text-teal-700">
+                                  <span className={`text-sm ${parseFloat(order.vendor_payout_estimated) < 0 ? 'text-red-700' : 'text-yellow-700'}`}>Est. Payout:</span>
+                                  <span className={`font-bold ${parseFloat(order.vendor_payout_estimated) < 0 ? 'text-red-700' : 'text-yellow-700'}`}>
+                                    ~{formatCurrency(order.vendor_payout_estimated)}
+                                  </span>
+                                </div>
+                                {order.vendor_payout_internal_notes && (
+                                  <div className="text-xs text-gray-600 mt-1 pt-1 border-t border-yellow-200">
+                                    <span className="font-medium">📝 Internal:</span> {order.vendor_payout_internal_notes}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Final Payout (vendor_paid) */}
+                            {order.vendor_payout_amount && (
+                              <div className={`border-t pt-2 mt-2 ${parseFloat(order.vendor_payout_amount) < 0 ? 'bg-red-50' : 'bg-teal-50'} -mx-4 -mb-4 px-4 py-2 rounded-b-lg`}>
+                                <div className="flex justify-between items-center">
+                                  <span className={`text-sm ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-700' : 'text-teal-700'}`}>Final Payout:</span>
+                                  <span className={`font-bold ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-700' : 'text-teal-700'}`}>
                                     {formatCurrency(order.vendor_payout_amount)}
                                   </span>
                                 </div>
                                 {order.vendor_paid_at && (
-                                  <div className="text-xs text-teal-600 mt-1">
+                                  <div className={`text-xs ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-600' : 'text-teal-600'} mt-1`}>
                                     Paid: {formatDate(order.vendor_paid_at)}
                                   </div>
                                 )}
-                                {order.vendor_payout_notes && (
-                                  <div className="text-xs text-gray-600 mt-1 pt-1 border-t border-teal-200">
-                                    <span className="font-medium">📝 Internal:</span> {order.vendor_payout_notes}
+                                {order.vendor_payout_internal_notes && (
+                                  <div className={`text-xs text-gray-600 mt-1 pt-1 border-t ${parseFloat(order.vendor_payout_amount) < 0 ? 'border-red-200' : 'border-teal-200'}`}>
+                                    <span className="font-medium">📝 Internal:</span> {order.vendor_payout_internal_notes}
                                   </div>
                                 )}
                                 {order.vendor_payout_partner_notes && (
-                                  <div className="text-xs text-teal-700 mt-1">
+                                  <div className={`text-xs ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-700' : 'text-teal-700'} mt-1`}>
                                     <span className="font-medium">👤 Partner:</span> {order.vendor_payout_partner_notes}
                                   </div>
                                 )}
@@ -1180,25 +1231,34 @@ export default function UserModal({ isOpen, onClose, userFid }) {
       {showPayoutModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-            <h3 className="text-lg font-semibold mb-4">💰 Record Vendor Payout</h3>
+            <h3 className="text-lg font-semibold mb-4">
+              {payoutModalType === 'estimated' ? '⏳ Set Payment Processing' : '💰 Record Final Payout'}
+            </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Enter the payout details for order <strong>{payoutOrderId}</strong>
+              {payoutModalType === 'estimated' 
+                ? <>Set an estimated payout for order <strong>{payoutOrderId}</strong>. Partner will see this but won&apos;t be notified until final payout.</>
+                : <>Enter the final payout details for order <strong>{payoutOrderId}</strong>. Partner will be notified.</>
+              }
             </p>
             
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Payout Amount ($)
+                  {payoutModalType === 'estimated' ? 'Estimated Payout Amount ($)' : 'Final Payout Amount ($)'}
                 </label>
                 <input
                   type="number"
                   step="0.01"
-                  min="0"
                   value={payoutAmount}
                   onChange={(e) => setPayoutAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  placeholder="0.00 (negative for amounts owed)"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 ${
+                    payoutModalType === 'estimated' ? 'focus:ring-yellow-500' : 'focus:ring-teal-500'
+                  }`}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Use negative values if partner owes money (e.g., giveaways)
+                </p>
               </div>
               
               <div>
@@ -1210,7 +1270,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                   onChange={(e) => setPayoutNotes(e.target.value)}
                   placeholder="Payment method, transaction ID, internal tracking..."
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
                 />
               </div>
 
@@ -1223,7 +1283,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                   onChange={(e) => setPayoutPartnerNotes(e.target.value)}
                   placeholder="Message for the partner about this payout..."
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
                 />
               </div>
             </div>
@@ -1233,6 +1293,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                 onClick={() => {
                   setShowPayoutModal(false);
                   setPayoutOrderId(null);
+                  setPayoutModalType('final');
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
               >
@@ -1240,10 +1301,19 @@ export default function UserModal({ isOpen, onClose, userFid }) {
               </button>
               <button
                 onClick={submitVendorPayout}
-                disabled={updatingOrder === payoutOrderId}
-                className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50"
+                disabled={updatingOrder === payoutOrderId || (payoutModalType === 'final' && !payoutAmount)}
+                className={`px-4 py-2 text-white rounded-md disabled:opacity-50 ${
+                  payoutModalType === 'estimated' 
+                    ? 'bg-yellow-600 hover:bg-yellow-700' 
+                    : 'bg-teal-600 hover:bg-teal-700'
+                }`}
               >
-                {updatingOrder === payoutOrderId ? 'Saving...' : 'Mark as Vendor Paid'}
+                {updatingOrder === payoutOrderId 
+                  ? 'Saving...' 
+                  : payoutModalType === 'estimated' 
+                    ? 'Set Payment Processing' 
+                    : 'Mark as Vendor Paid'
+                }
               </button>
             </div>
           </div>

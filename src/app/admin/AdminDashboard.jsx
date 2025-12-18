@@ -116,6 +116,7 @@ export default function AdminDashboard() {
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [payoutData, setPayoutData] = useState({ amount: '', internal_notes: '', partner_notes: '' });
+  const [payoutModalType, setPayoutModalType] = useState('final'); // 'estimated' for payment_processing, 'final' for vendor_paid
   
   // Leaderboard sorting state
   const [sortField, setSortField] = useState('total_points');
@@ -586,18 +587,33 @@ export default function AdminDashboard() {
   const handlePayoutSubmit = async () => {
     if (!selectedAssignment) return;
     
-    const success = await updatePartnerAssignment(selectedAssignment.id, {
-      status: 'vendor_paid',
-      vendor_payout_amount: payoutData.amount,
-      vendor_payout_internal_notes: payoutData.internal_notes,
-      vendor_payout_partner_notes: payoutData.partner_notes
-    });
+    let updateData;
+    if (payoutModalType === 'estimated') {
+      // Setting to payment_processing with estimated amount
+      updateData = {
+        status: 'payment_processing',
+        vendor_payout_estimated: payoutData.amount || null,
+        vendor_payout_internal_notes: payoutData.internal_notes,
+        vendor_payout_partner_notes: payoutData.partner_notes
+      };
+    } else {
+      // Setting to vendor_paid with final amount
+      updateData = {
+        status: 'vendor_paid',
+        vendor_payout_amount: payoutData.amount,
+        vendor_payout_internal_notes: payoutData.internal_notes,
+        vendor_payout_partner_notes: payoutData.partner_notes
+      };
+    }
+    
+    const success = await updatePartnerAssignment(selectedAssignment.id, updateData);
     
     if (success) {
       setShowPayoutModal(false);
       setSelectedAssignment(null);
       setPayoutData({ amount: '', internal_notes: '', partner_notes: '' });
-      alert('Payout recorded successfully!');
+      setPayoutModalType('final');
+      alert(payoutModalType === 'estimated' ? 'Payment processing started!' : 'Payout recorded successfully!');
     }
   };
 
@@ -2852,6 +2868,7 @@ export default function AdminDashboard() {
                               <div key={assignment.id || idx} className="flex items-center space-x-2">
                                 <div className={`w-2 h-2 rounded-full ${
                                   assignment.status === 'vendor_paid' ? 'bg-green-500' :
+                                  assignment.status === 'payment_processing' ? 'bg-yellow-500' :
                                   assignment.status === 'shipped' ? 'bg-blue-500' :
                                   'bg-orange-500'
                                 }`}></div>
@@ -2859,6 +2876,7 @@ export default function AdminDashboard() {
                                   <div className="font-medium text-xs">{assignment.partner?.name || 'Unknown'}</div>
                                   <div className="text-xs text-gray-500">
                                     {assignment.status === 'vendor_paid' ? '💰 Paid' : 
+                                     assignment.status === 'payment_processing' ? '⏳ Processing' :
                                      assignment.status === 'shipped' ? '📦 Shipped' : '📋 Assigned'}
                                   </div>
                                 </div>
@@ -5432,11 +5450,14 @@ export default function AdminDashboard() {
                             <span className={`ml-2 text-xs px-2 py-1 rounded ${
                               assignment.status === 'vendor_paid' 
                                 ? 'bg-green-100 text-green-800'
+                                : assignment.status === 'payment_processing'
+                                ? 'bg-yellow-100 text-yellow-800'
                                 : assignment.status === 'shipped'
                                 ? 'bg-blue-100 text-blue-800'
-                                : 'bg-yellow-100 text-yellow-800'
+                                : 'bg-orange-100 text-orange-800'
                             }`}>
                               {assignment.status === 'vendor_paid' ? '💰 Paid' : 
+                               assignment.status === 'payment_processing' ? '⏳ Processing' :
                                assignment.status === 'shipped' ? '📦 Shipped' : '📋 Assigned'}
                             </span>
                           </div>
@@ -5454,12 +5475,20 @@ export default function AdminDashboard() {
                           {assignment.shipped_at && (
                             <div>Shipped: {new Date(assignment.shipped_at).toLocaleDateString()}</div>
                           )}
+                          {assignment.payment_processing_at && (
+                            <div>Pmt Processing: {new Date(assignment.payment_processing_at).toLocaleDateString()}</div>
+                          )}
                           {assignment.vendor_paid_at && (
                             <div>Paid: {new Date(assignment.vendor_paid_at).toLocaleDateString()}</div>
                           )}
+                          {assignment.vendor_payout_estimated && (
+                            <div className={`font-medium ${parseFloat(assignment.vendor_payout_estimated) < 0 ? 'text-red-700' : 'text-yellow-700'}`}>
+                              Est. Payout: ${parseFloat(assignment.vendor_payout_estimated).toFixed(2)}
+                            </div>
+                          )}
                           {assignment.vendor_payout_amount && (
-                            <div className="font-medium text-green-700">
-                              Payout: ${parseFloat(assignment.vendor_payout_amount).toFixed(2)}
+                            <div className={`font-medium ${parseFloat(assignment.vendor_payout_amount) < 0 ? 'text-red-700' : 'text-green-700'}`}>
+                              Final Payout: ${parseFloat(assignment.vendor_payout_amount).toFixed(2)}
                             </div>
                           )}
                         </div>
@@ -5495,34 +5524,19 @@ export default function AdminDashboard() {
                           </div>
                         )}
                         
-                        {/* Action Buttons */}
-                        <div className="flex gap-2 mt-2">
-                          {assignment.status === 'assigned' && (
-                            <>
-                              {assignment.partner?.partner_type === 'fulfillment' && (
-                                <button
-                                  onClick={() => updatePartnerAssignment(assignment.id, { status: 'shipped' })}
-                                  className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
-                                >
-                                  📦 Mark Shipped
-                                </button>
-                              )}
-                              <button
-                                onClick={() => {
-                                  setSelectedAssignment(assignment);
-                                  setPayoutData({ 
-                                    amount: '', 
-                                    internal_notes: '', 
-                                    partner_notes: '' 
-                                  });
-                                  setShowPayoutModal(true);
-                                }}
-                                className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
-                              >
-                                💰 Record Payout
-                              </button>
-                            </>
+                        {/* Action Buttons - Flow: Assigned → Shipped → Payment Processing → Vendor Paid */}
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {/* Assigned: Can mark shipped (fulfillment only) */}
+                          {assignment.status === 'assigned' && assignment.partner?.partner_type === 'fulfillment' && (
+                            <button
+                              onClick={() => updatePartnerAssignment(assignment.id, { status: 'shipped' })}
+                              className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                            >
+                              📦 Mark Shipped
+                            </button>
                           )}
+                          
+                          {/* Shipped: Can set to payment processing */}
                           {assignment.status === 'shipped' && (
                             <button
                               onClick={() => {
@@ -5532,13 +5546,35 @@ export default function AdminDashboard() {
                                   internal_notes: '', 
                                   partner_notes: '' 
                                 });
+                                setPayoutModalType('estimated');
+                                setShowPayoutModal(true);
+                              }}
+                              className="px-3 py-1 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                            >
+                              ⏳ Set Payment Processing
+                            </button>
+                          )}
+                          
+                          {/* Payment Processing: Can record final payout */}
+                          {assignment.status === 'payment_processing' && (
+                            <button
+                              onClick={() => {
+                                setSelectedAssignment(assignment);
+                                setPayoutData({ 
+                                  amount: assignment.vendor_payout_estimated || '', 
+                                  internal_notes: assignment.vendor_payout_internal_notes || '', 
+                                  partner_notes: assignment.vendor_payout_partner_notes || '' 
+                                });
+                                setPayoutModalType('final');
                                 setShowPayoutModal(true);
                               }}
                               className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
                             >
-                              💰 Record Payout
+                              💰 Record Final Payout
                             </button>
                           )}
+                          
+                          {/* Vendor Paid: Show internal notes */}
                           {assignment.status === 'vendor_paid' && assignment.vendor_payout_internal_notes && (
                             <div className="text-xs text-gray-500">
                               Internal: {assignment.vendor_payout_internal_notes}
@@ -5808,12 +5844,15 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold">💰 Record Payout</h3>
+                <h3 className="text-lg font-bold">
+                  {payoutModalType === 'estimated' ? '⏳ Set Payment Processing' : '💰 Record Final Payout'}
+                </h3>
                 <button
                   onClick={() => {
                     setShowPayoutModal(false);
                     setSelectedAssignment(null);
                     setPayoutData({ amount: '', internal_notes: '', partner_notes: '' });
+                    setPayoutModalType('final');
                   }}
                   className="text-gray-500 hover:text-gray-700"
                 >
@@ -5826,23 +5865,34 @@ export default function AdminDashboard() {
               <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                 <p className="font-medium">{selectedAssignment.partner?.name}</p>
                 <p className="text-sm text-gray-600">Order: {selectedOrder?.order_id}</p>
+                {payoutModalType === 'estimated' && (
+                  <p className="text-xs text-yellow-700 mt-2">
+                    💡 This sets an estimated payout amount. Partner will see it on their dashboard but won&apos;t receive a notification until final payout is recorded.
+                  </p>
+                )}
+                {payoutModalType === 'final' && selectedAssignment.vendor_payout_estimated && (
+                  <p className="text-xs text-gray-600 mt-2">
+                    Previous estimate: ${parseFloat(selectedAssignment.vendor_payout_estimated).toFixed(2)}
+                  </p>
+                )}
               </div>
               
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Payout Amount ($) *
+                    {payoutModalType === 'estimated' ? 'Estimated Payout Amount ($)' : 'Final Payout Amount ($) *'}
                   </label>
                   <input
                     type="number"
                     step="0.01"
-                    min="0"
                     value={payoutData.amount}
                     onChange={(e) => setPayoutData({ ...payoutData, amount: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="0.00"
-                    required
+                    placeholder="0.00 (negative for amounts owed)"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Use negative values if partner owes money (e.g., giveaways)
+                  </p>
                 </div>
                 
                 <div>
@@ -5887,10 +5937,14 @@ export default function AdminDashboard() {
                 </button>
                 <button
                   onClick={handlePayoutSubmit}
-                  disabled={!payoutData.amount}
-                  className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={payoutModalType === 'final' && !payoutData.amount}
+                  className={`px-4 py-2 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed ${
+                    payoutModalType === 'estimated' 
+                      ? 'bg-yellow-500 hover:bg-yellow-600' 
+                      : 'bg-green-500 hover:bg-green-600'
+                  }`}
                 >
-                  Record Payout
+                  {payoutModalType === 'estimated' ? 'Set Payment Processing' : 'Record Final Payout'}
                 </button>
               </div>
             </div>

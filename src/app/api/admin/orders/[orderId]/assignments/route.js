@@ -151,6 +151,9 @@ export const PATCH = withAdminAuth(async (request, { params }) => {
       if (updateData.status === 'shipped' && currentAssignment.status !== 'shipped') {
         updates.shipped_at = new Date().toISOString();
       }
+      if (updateData.status === 'payment_processing' && currentAssignment.status !== 'payment_processing') {
+        updates.payment_processing_at = new Date().toISOString();
+      }
       if (updateData.status === 'vendor_paid' && currentAssignment.status !== 'vendor_paid') {
         updates.vendor_paid_at = new Date().toISOString();
       }
@@ -161,7 +164,12 @@ export const PATCH = withAdminAuth(async (request, { params }) => {
     if (updateData.tracking_url !== undefined) updates.tracking_url = updateData.tracking_url;
     if (updateData.carrier !== undefined) updates.carrier = updateData.carrier;
     
-    // Payout info
+    // Estimated payout (for payment_processing status)
+    if (updateData.vendor_payout_estimated !== undefined) {
+      updates.vendor_payout_estimated = updateData.vendor_payout_estimated ? parseFloat(updateData.vendor_payout_estimated) : null;
+    }
+    
+    // Final payout info
     if (updateData.vendor_payout_amount !== undefined) {
       updates.vendor_payout_amount = updateData.vendor_payout_amount ? parseFloat(updateData.vendor_payout_amount) : null;
     }

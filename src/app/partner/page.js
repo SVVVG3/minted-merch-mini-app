@@ -100,10 +100,20 @@ function PartnerDashboard() {
   const getStatusColor = (status) => {
     switch (status) {
       case 'assigned': return 'bg-orange-100 text-orange-800';
-      case 'processing': return 'bg-blue-100 text-blue-800';
-      case 'shipped': return 'bg-green-100 text-green-800';
+      case 'shipped': return 'bg-blue-100 text-blue-800';
+      case 'payment_processing': return 'bg-yellow-100 text-yellow-800';
       case 'vendor_paid': return 'bg-teal-100 text-teal-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+  
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'assigned': return 'Assigned';
+      case 'shipped': return 'Shipped';
+      case 'payment_processing': return 'Payment Processing';
+      case 'vendor_paid': return 'Paid';
+      default: return status;
     }
   };
 
@@ -173,6 +183,69 @@ function PartnerDashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Payout Stats Summary */}
+        {orders.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            {/* Completed Payouts */}
+            <div className="bg-teal-50 rounded-lg p-4 border border-teal-200">
+              <div className="text-xs text-teal-600 font-medium uppercase tracking-wide">Completed Payouts</div>
+              <div className={`text-2xl font-bold mt-1 ${
+                orders.filter(o => o.status === 'vendor_paid').reduce((sum, o) => sum + (parseFloat(o.vendor_payout_amount) || 0), 0) < 0 
+                  ? 'text-red-600' 
+                  : 'text-teal-700'
+              }`}>
+                ${orders.filter(o => o.status === 'vendor_paid').reduce((sum, o) => sum + (parseFloat(o.vendor_payout_amount) || 0), 0).toFixed(2)}
+              </div>
+              <div className="text-xs text-teal-500 mt-1">
+                {orders.filter(o => o.status === 'vendor_paid').length} order{orders.filter(o => o.status === 'vendor_paid').length !== 1 ? 's' : ''}
+              </div>
+            </div>
+            
+            {/* Estimated Payouts */}
+            <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+              <div className="text-xs text-yellow-600 font-medium uppercase tracking-wide">Est. Processing</div>
+              <div className={`text-2xl font-bold mt-1 ${
+                orders.filter(o => o.status === 'payment_processing').reduce((sum, o) => sum + (parseFloat(o.vendor_payout_estimated) || 0), 0) < 0 
+                  ? 'text-red-600' 
+                  : 'text-yellow-700'
+              }`}>
+                ~${orders.filter(o => o.status === 'payment_processing').reduce((sum, o) => sum + (parseFloat(o.vendor_payout_estimated) || 0), 0).toFixed(2)}
+              </div>
+              <div className="text-xs text-yellow-500 mt-1">
+                {orders.filter(o => o.status === 'payment_processing').length} order{orders.filter(o => o.status === 'payment_processing').length !== 1 ? 's' : ''}
+              </div>
+            </div>
+            
+            {/* Pending Orders */}
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <div className="text-xs text-blue-600 font-medium uppercase tracking-wide">Pending</div>
+              <div className="text-2xl font-bold mt-1 text-blue-700">
+                {orders.filter(o => o.status === 'assigned' || o.status === 'shipped').length}
+              </div>
+              <div className="text-xs text-blue-500 mt-1">
+                {orders.filter(o => o.status === 'assigned').length} assigned, {orders.filter(o => o.status === 'shipped').length} shipped
+              </div>
+            </div>
+            
+            {/* Combined Total */}
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div className="text-xs text-gray-600 font-medium uppercase tracking-wide">Total Earnings</div>
+              <div className={`text-2xl font-bold mt-1 ${
+                (orders.filter(o => o.status === 'vendor_paid').reduce((sum, o) => sum + (parseFloat(o.vendor_payout_amount) || 0), 0) +
+                 orders.filter(o => o.status === 'payment_processing').reduce((sum, o) => sum + (parseFloat(o.vendor_payout_estimated) || 0), 0)) < 0
+                  ? 'text-red-600'
+                  : 'text-gray-900'
+              }`}>
+                ${(orders.filter(o => o.status === 'vendor_paid').reduce((sum, o) => sum + (parseFloat(o.vendor_payout_amount) || 0), 0) +
+                   orders.filter(o => o.status === 'payment_processing').reduce((sum, o) => sum + (parseFloat(o.vendor_payout_estimated) || 0), 0)).toFixed(2)}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Paid + Est. Processing
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-lg font-semibold text-gray-800">Your Assigned Orders</h2>
@@ -206,18 +279,27 @@ function PartnerDashboard() {
                       <div>
                         <div className="font-semibold text-gray-900">{order.order_id}</div>
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1 ${getStatusColor(order.status)}`}>
-                          {order.status === 'vendor_paid' ? 'Vendor Paid' : order.status}
+                          {getStatusLabel(order.status)}
                         </span>
                       </div>
                       <div className="text-right">
                         <div className="font-bold text-gray-900">${order.amount_total}</div>
+                        {/* Show estimated payout during payment processing */}
+                        {order.status === 'payment_processing' && order.vendor_payout_estimated && (
+                          <div className={`text-sm ${parseFloat(order.vendor_payout_estimated) < 0 ? 'text-red-600' : 'text-yellow-600'}`}>
+                            ~${parseFloat(order.vendor_payout_estimated).toFixed(2)} est.
+                          </div>
+                        )}
+                        {/* Show final payout when paid */}
                         {order.status === 'vendor_paid' && order.vendor_payout_amount && (
-                          <div className="text-sm text-teal-600">${parseFloat(order.vendor_payout_amount).toFixed(2)} payout</div>
+                          <div className={`text-sm ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-600' : 'text-teal-600'}`}>
+                            ${parseFloat(order.vendor_payout_amount).toFixed(2)} payout
+                          </div>
                         )}
                       </div>
                     </div>
                     
-                    {partnerType === 'fulfillment' && order.shipping_address && order.status !== 'shipped' && order.status !== 'vendor_paid' && (
+                    {partnerType === 'fulfillment' && order.shipping_address && order.status === 'assigned' && (
                       <div className="text-sm text-gray-600">
                         <div className="font-medium text-gray-900">
                           {order.customer_name || `${order.shipping_address.firstName || ''} ${order.shipping_address.lastName || ''}`}
@@ -227,8 +309,8 @@ function PartnerDashboard() {
                       </div>
                     )}
                     
-                    {/* Show tracking info instead of address for shipped/paid orders */}
-                    {partnerType === 'fulfillment' && (order.status === 'shipped' || order.status === 'vendor_paid') && order.tracking_number && (
+                    {/* Show tracking info instead of address for shipped/processing/paid orders */}
+                    {partnerType === 'fulfillment' && (order.status === 'shipped' || order.status === 'payment_processing' || order.status === 'vendor_paid') && order.tracking_number && (
                       <div className="text-sm text-gray-600">
                         <div className="font-medium text-green-700">✅ Shipped</div>
                         <div className="text-xs">Tracking: {order.tracking_number}</div>
@@ -303,8 +385,8 @@ function PartnerDashboard() {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {partnerType === 'fulfillment' ? (
-                          // Hide shipping address once shipped/paid - show tracking instead
-                          order.status === 'shipped' || order.status === 'vendor_paid' ? (
+                          // Hide shipping address once shipped/processing/paid - show tracking instead
+                          order.status === 'shipped' || order.status === 'payment_processing' || order.status === 'vendor_paid' ? (
                             order.tracking_number ? (
                               <div>
                                 <div className="font-medium text-green-700">✅ Shipped</div>
@@ -356,7 +438,7 @@ function PartnerDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
-                          {order.status === 'vendor_paid' ? 'Vendor Paid' : order.status}
+                          {getStatusLabel(order.status)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
@@ -391,15 +473,27 @@ function PartnerDashboard() {
                         ${order.amount_total}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {/* Show final payout when vendor_paid */}
                         {order.status === 'vendor_paid' && order.vendor_payout_amount ? (
                           <div>
-                            <div className="font-medium text-teal-600">${parseFloat(order.vendor_payout_amount).toFixed(2)}</div>
+                            <div className={`font-medium ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-600' : 'text-teal-600'}`}>
+                              ${parseFloat(order.vendor_payout_amount).toFixed(2)}
+                            </div>
                             {order.vendor_paid_at && (
                               <div className="text-xs text-gray-500">{formatDate(order.vendor_paid_at)}</div>
                             )}
                           </div>
                         ) : order.status === 'vendor_paid' ? (
                           <span className="text-teal-600 text-xs">Paid</span>
+                        ) : order.status === 'payment_processing' && order.vendor_payout_estimated ? (
+                          <div>
+                            <div className={`font-medium ${parseFloat(order.vendor_payout_estimated) < 0 ? 'text-red-600' : 'text-yellow-600'}`}>
+                              ~${parseFloat(order.vendor_payout_estimated).toFixed(2)}
+                            </div>
+                            <div className="text-xs text-gray-500">Est.</div>
+                          </div>
+                        ) : order.status === 'payment_processing' ? (
+                          <span className="text-yellow-600 text-xs">Processing</span>
                         ) : (
                           <span className="text-gray-400">—</span>
                         )}
@@ -481,9 +575,9 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
           </div>
 
           {/* Conditional Display: Shipping Address OR Farcaster Info */}
-          {/* For fulfillment partners: hide shipping address once shipped/paid */}
+          {/* For fulfillment partners: hide shipping address once shipped/processing/paid */}
           {partnerType === 'fulfillment' ? (
-            order.status === 'shipped' || order.status === 'vendor_paid' ? (
+            order.status === 'shipped' || order.status === 'payment_processing' || order.status === 'vendor_paid' ? (
               // Order already shipped - don't show shipping address
               null
             ) : order.shipping_address ? (
@@ -577,14 +671,46 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
               </div>
             </div>
 
-            {/* Payout Information - Shows partner notes only (not internal admin notes) */}
-            {order.vendor_payout_amount && (
-              <div className="mt-4 bg-teal-50 border border-teal-200 rounded-md p-4">
+            {/* Estimated Payout - during payment processing */}
+            {order.status === 'payment_processing' && order.vendor_payout_estimated && (
+              <div className={`mt-4 ${parseFloat(order.vendor_payout_estimated) < 0 ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'} border rounded-md p-4`}>
                 <div className="flex justify-between items-center">
                   <div>
-                    <div className="text-sm font-medium text-teal-800">💰 Your Payout</div>
+                    <div className={`text-sm font-medium ${parseFloat(order.vendor_payout_estimated) < 0 ? 'text-red-800' : 'text-yellow-800'}`}>
+                      ⏳ Estimated Payout
+                    </div>
+                    {order.payment_processing_at && (
+                      <div className={`text-xs ${parseFloat(order.vendor_payout_estimated) < 0 ? 'text-red-600' : 'text-yellow-600'} mt-1`}>
+                        Processing since {new Date(order.payment_processing_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div className={`text-xl font-bold ${parseFloat(order.vendor_payout_estimated) < 0 ? 'text-red-700' : 'text-yellow-700'}`}>
+                    ${parseFloat(order.vendor_payout_estimated).toFixed(2)}
+                  </div>
+                </div>
+                {order.vendor_payout_partner_notes && (
+                  <div className={`text-xs ${parseFloat(order.vendor_payout_estimated) < 0 ? 'text-red-700' : 'text-yellow-700'} mt-2 pt-2 border-t ${parseFloat(order.vendor_payout_estimated) < 0 ? 'border-red-200' : 'border-yellow-200'}`}>
+                    {order.vendor_payout_partner_notes}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Final Payout - when vendor_paid */}
+            {order.vendor_payout_amount && (
+              <div className={`mt-4 ${parseFloat(order.vendor_payout_amount) < 0 ? 'bg-red-50 border-red-200' : 'bg-teal-50 border-teal-200'} border rounded-md p-4`}>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className={`text-sm font-medium ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-800' : 'text-teal-800'}`}>
+                      💰 Your Payout
+                    </div>
                     {order.vendor_paid_at && (
-                      <div className="text-xs text-teal-600 mt-1">
+                      <div className={`text-xs ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-600' : 'text-teal-600'} mt-1`}>
                         Paid on {new Date(order.vendor_paid_at).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'short',
@@ -593,12 +719,12 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
                       </div>
                     )}
                   </div>
-                  <div className="text-xl font-bold text-teal-700">
+                  <div className={`text-xl font-bold ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-700' : 'text-teal-700'}`}>
                     ${parseFloat(order.vendor_payout_amount).toFixed(2)}
                   </div>
                 </div>
                 {order.vendor_payout_partner_notes && (
-                  <div className="text-xs text-teal-700 mt-2 pt-2 border-t border-teal-200">
+                  <div className={`text-xs ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-700' : 'text-teal-700'} mt-2 pt-2 border-t ${parseFloat(order.vendor_payout_amount) < 0 ? 'border-red-200' : 'border-teal-200'}`}>
                     {order.vendor_payout_partner_notes}
                   </div>
                 )}
@@ -608,7 +734,7 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
 
           {/* Shipping Form - Only for Fulfillment Partners */}
           {partnerType === 'fulfillment' ? (
-            order.status === 'shipped' || order.status === 'vendor_paid' ? (
+            order.status === 'shipped' || order.status === 'payment_processing' || order.status === 'vendor_paid' ? (
               <div className="space-y-4">
                 {/* Shipped Status */}
                 <div className="bg-green-50 border border-green-200 rounded-md p-3">
@@ -627,16 +753,42 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
                   </div>
                 </div>
 
-                {/* Payout Status */}
-                {order.status === 'vendor_paid' && (
-                  <div className="bg-teal-50 border border-teal-200 rounded-md p-3">
+                {/* Payment Processing Status */}
+                {(order.status === 'payment_processing' || order.status === 'vendor_paid') && order.payment_processing_at && (
+                  <div className={`${order.vendor_payout_estimated && parseFloat(order.vendor_payout_estimated) < 0 ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'} border rounded-md p-3`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
-                        <span className="text-teal-600 mr-2">💰</span>
+                        <span className={`${order.vendor_payout_estimated && parseFloat(order.vendor_payout_estimated) < 0 ? 'text-red-600' : 'text-yellow-600'} mr-2`}>⏳</span>
                         <div>
-                          <p className="text-sm font-medium text-teal-800">Payout Processed</p>
+                          <p className={`text-sm font-medium ${order.vendor_payout_estimated && parseFloat(order.vendor_payout_estimated) < 0 ? 'text-red-800' : 'text-yellow-800'}`}>
+                            {order.status === 'payment_processing' ? 'Vendor Payment Processing' : 'Payment Was Processing'}
+                          </p>
+                          <p className={`text-xs ${order.vendor_payout_estimated && parseFloat(order.vendor_payout_estimated) < 0 ? 'text-red-600' : 'text-yellow-600'}`}>
+                            {new Date(order.payment_processing_at).toLocaleDateString('en-US', {
+                              year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      {order.vendor_payout_estimated && (
+                        <span className={`text-lg font-bold ${parseFloat(order.vendor_payout_estimated) < 0 ? 'text-red-700' : 'text-yellow-700'}`}>
+                          ~${parseFloat(order.vendor_payout_estimated).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Payout Status */}
+                {order.status === 'vendor_paid' && (
+                  <div className={`${order.vendor_payout_amount && parseFloat(order.vendor_payout_amount) < 0 ? 'bg-red-50 border-red-200' : 'bg-teal-50 border-teal-200'} border rounded-md p-3`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className={`${order.vendor_payout_amount && parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-600' : 'text-teal-600'} mr-2`}>💰</span>
+                        <div>
+                          <p className={`text-sm font-medium ${order.vendor_payout_amount && parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-800' : 'text-teal-800'}`}>Payout Processed</p>
                           {order.vendor_paid_at && (
-                            <p className="text-xs text-teal-600">
+                            <p className={`text-xs ${order.vendor_payout_amount && parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-600' : 'text-teal-600'}`}>
                               {new Date(order.vendor_paid_at).toLocaleDateString('en-US', {
                                 year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                               })}
@@ -645,13 +797,13 @@ function OrderDetailModal({ order, partnerType, onClose, onUpdate, updating }) {
                         </div>
                       </div>
                       {order.vendor_payout_amount && (
-                        <span className="text-lg font-bold text-teal-700">
+                        <span className={`text-lg font-bold ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-700' : 'text-teal-700'}`}>
                           ${parseFloat(order.vendor_payout_amount).toFixed(2)}
                         </span>
                       )}
                     </div>
                     {order.vendor_payout_partner_notes && (
-                      <p className="text-xs text-teal-700 mt-2 pt-2 border-t border-teal-200">
+                      <p className={`text-xs ${order.vendor_payout_amount && parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-700' : 'text-teal-700'} mt-2 pt-2 border-t ${order.vendor_payout_amount && parseFloat(order.vendor_payout_amount) < 0 ? 'border-red-200' : 'border-teal-200'}`}>
                         {order.vendor_payout_partner_notes}
                       </p>
                     )}
