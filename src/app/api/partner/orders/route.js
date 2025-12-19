@@ -120,6 +120,8 @@ export async function GET(request) {
         created_at: order.created_at,
         assigned_at: assignment.assigned_at,
         shipped_at: assignment.shipped_at,
+        payment_processing_at: assignment.payment_processing_at,
+        vendor_payout_estimated: assignment.vendor_payout_estimated,
         vendor_payout_amount: assignment.vendor_payout_amount,
         vendor_paid_at: assignment.vendor_paid_at,
         vendor_payout_partner_notes: assignment.vendor_payout_partner_notes,
