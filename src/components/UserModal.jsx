@@ -1094,6 +1094,16 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                       </div>
                       <div className="text-sm text-teal-600">Total Paid</div>
                     </div>
+                    <div className="bg-yellow-50 rounded-lg p-4 text-center">
+                      <div className={`text-2xl font-bold ${
+                        (userData.partnerOrders?.filter(o => o.status === 'payment_processing').reduce((sum, o) => sum + (parseFloat(o.vendor_payout_estimated) || 0), 0) || 0) < 0 
+                          ? 'text-red-600' 
+                          : 'text-yellow-600'
+                      }`}>
+                        ~{formatCurrency(userData.partnerOrders?.filter(o => o.status === 'payment_processing').reduce((sum, o) => sum + (parseFloat(o.vendor_payout_estimated) || 0), 0) || 0)}
+                      </div>
+                      <div className="text-sm text-yellow-600">Est. Processing</div>
+                    </div>
                   </div>
 
                   {/* Assigned Orders */}
