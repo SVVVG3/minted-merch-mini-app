@@ -40,6 +40,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
   const [payoutAmount, setPayoutAmount] = useState('');
   const [payoutNotes, setPayoutNotes] = useState(''); // Internal notes (admin only)
   const [payoutPartnerNotes, setPayoutPartnerNotes] = useState(''); // Notes visible to partner
+  const [payoutModalType, setPayoutModalType] = useState('final'); // 'estimated' or 'final'
 
   useEffect(() => {
     if (isOpen && userFid) {
@@ -239,8 +240,6 @@ export default function UserModal({ isOpen, onClose, userFid }) {
   };
   
   // Handle assignment status change - show payout modal for payment_processing and vendor_paid
-  const [payoutModalType, setPayoutModalType] = useState('final'); // 'estimated' or 'final'
-  
   const handleAssignmentStatusChange = (orderId, assignmentId, newStatus, currentStatus, existingEstimate = null) => {
     if (newStatus === 'payment_processing' && currentStatus !== 'payment_processing' && currentStatus !== 'vendor_paid') {
       // Show payout modal to collect estimated amount and notes
