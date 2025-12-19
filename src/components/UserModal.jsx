@@ -1168,8 +1168,13 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                                   </span>
                                 </div>
                                 {order.vendor_payout_internal_notes && (
-                                  <div className="text-xs text-gray-600 mt-1 pt-1 border-t border-yellow-200">
+                                  <div className={`text-xs text-gray-600 mt-1 pt-1 border-t ${parseFloat(order.vendor_payout_estimated) < 0 ? 'border-red-200' : 'border-yellow-200'}`}>
                                     <span className="font-medium">📝 Internal:</span> {order.vendor_payout_internal_notes}
+                                  </div>
+                                )}
+                                {order.vendor_payout_partner_notes && (
+                                  <div className={`text-xs ${parseFloat(order.vendor_payout_estimated) < 0 ? 'text-red-700' : 'text-yellow-700'} mt-1`}>
+                                    <span className="font-medium">👤 Partner:</span> {order.vendor_payout_partner_notes}
                                   </div>
                                 )}
                               </div>
