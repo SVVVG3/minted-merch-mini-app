@@ -246,7 +246,7 @@ export function Cart({ isOpen, onClose }) {
               {/* Discount Line */}
               {cart.appliedDiscount && (
                 <div className="flex justify-between items-center text-sm text-green-600">
-                  <span>Discount ({cart.appliedDiscount.discountValue}%):</span>
+                  <span>Discount ({cart.appliedDiscount.discountType === 'fixed' ? `$${cart.appliedDiscount.discountValue}` : `${cart.appliedDiscount.discountValue}%`}):</span>
                   <span>-${(cartSubtotal - cartTotal).toFixed(2)} USD</span>
                 </div>
               )}

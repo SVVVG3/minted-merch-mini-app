@@ -158,7 +158,7 @@ export function DiscountCodeSection({
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-medium text-green-800">
-                {effectiveAppliedDiscount.discountValue}% discount applied!
+                {effectiveAppliedDiscount.discountType === 'fixed' ? `$${effectiveAppliedDiscount.discountValue}` : `${effectiveAppliedDiscount.discountValue}%`} discount applied!
                 {effectiveAppliedDiscount.freeShipping && (
                   <span className="ml-2 bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold">
                     FREE SHIPPING

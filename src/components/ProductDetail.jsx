@@ -317,7 +317,7 @@ export function ProductDetail({
                         </p>
                       </div>
                       <p className="text-sm text-green-600 font-medium">
-                        You save ${savings.toFixed(2)} ({productDiscount.discountValue}% off)
+                        You save ${savings.toFixed(2)} ({productDiscount.discountType === 'fixed' ? `$${productDiscount.discountValue} off` : `${productDiscount.discountValue}% off`})
                       </p>
                     </div>
                   ) : (

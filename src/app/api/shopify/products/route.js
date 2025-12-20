@@ -155,7 +155,12 @@ export async function GET(request) {
               // Mark the token-gated discount
               if (tokenGatedDiscount) {
                 tokenGatedDiscount.isTokenGated = true;
-                tokenGatedDiscount.displayText = `${tokenGatedDiscount.discount_value}% off`;
+                // Format displayText based on discount_type (percentage vs fixed amount)
+                if (tokenGatedDiscount.discount_type === 'fixed') {
+                  tokenGatedDiscount.displayText = `$${tokenGatedDiscount.discount_value} off`;
+                } else {
+                  tokenGatedDiscount.displayText = `${tokenGatedDiscount.discount_value}% off`;
+                }
                 console.log(`✅ Selected token-gated discount: ${tokenGatedDiscount.code} (${tokenGatedDiscount.displayText})`);
               }
             } else {
