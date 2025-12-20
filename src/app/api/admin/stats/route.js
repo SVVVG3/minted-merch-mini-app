@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { withAdminAuth } from '@/lib/adminAuth';
 import { formatPSTTime, getCurrent8AMPST } from '@/lib/timezone';
-import { getGlobalTotalStaked, getStakingStats, getGlobalTotalClaimed } from '@/lib/stakingBalanceAPI';
+import { getGlobalTotalStaked, getStakingStats, getGlobalTotalClaimed, getUnclaimedRewards } from '@/lib/stakingBalanceAPI';
 
 // Use service role client to bypass RLS for admin endpoints
 const supabaseAdmin = createClient(
@@ -224,24 +224,18 @@ export const GET = withAdminAuth(async (request) => {
     }
 
     // Get staking statistics
-    // Total staked from RPC (real-time), but wallet count from profiles table
-    // The GraphQL query only returns 1000 most recent stakers, missing older ones
-    const { totalStaked } = await getStakingStats();
-    
-    // Count unique stakers from profiles table (more reliable than GraphQL's 1000 limit)
-    const { count: walletsStaked, error: stakersError } = await supabaseAdmin
-      .from('profiles')
-      .select('fid', { count: 'exact', head: true })
-      .gt('staked_balance', 0);
-    
-    if (stakersError) {
-      console.error('Error counting stakers from profiles:', stakersError);
-    }
-    console.log(`📊 Staking stats: ${walletsStaked || 0} wallets with ${totalStaked.toLocaleString()} tokens staked`);
+    // Total staked from RPC (real-time), wallet count from PAGINATED subgraph (live data)
+    // This gives accurate count of ALL stakers, not limited to 1000 or only users who opened the app
+    const { totalStaked, uniqueStakers: walletsStaked } = await getStakingStats();
+    console.log(`📊 Staking stats: ${walletsStaked || 0} wallets with ${totalStaked.toLocaleString()} tokens staked (live from subgraph)`);
 
-    // Get total rewards claimed from LIVE subgraph
+    // Get total rewards claimed from LIVE subgraph (paginated to get ALL claims)
     const totalRewardsClaimed = await getGlobalTotalClaimed();
     console.log(`📊 Live rewards claimed from subgraph: ${totalRewardsClaimed.toLocaleString()} tokens`);
+    
+    // Get unclaimed rewards remaining in the rewards contract
+    const unclaimedRewards = await getUnclaimedRewards();
+    console.log(`📊 Unclaimed rewards in contract: ${unclaimedRewards.toLocaleString()} tokens`);
 
     // Get pending bounty submissions count
     const { count: pendingSubmissions, error: submissionsError } = await supabaseAdmin
@@ -295,6 +289,7 @@ export const GET = withAdminAuth(async (request) => {
       walletsStaked: walletsStaked || 0,
       totalStaked: totalStaked,
       totalRewardsClaimed: totalRewardsClaimed || 0,
+      unclaimedRewards: unclaimedRewards || 0,
       pendingSubmissions: pendingSubmissions || 0,
       completedBounties: completedBounties || 0,
       totalTokensPaid: totalTokensPaid || 0,

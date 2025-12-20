@@ -8,6 +8,9 @@ const GOLDSKY_GRAPHQL_ENDPOINT = 'https://api.goldsky.com/api/public/project_cmh
 // BETRStaking contract on Base
 const STAKING_CONTRACT = '0x38AE5d952FA83eD57c5b5dE59b6e36Ce975a9150';
 
+// Rewards contract on Base - holds claimable staking rewards
+const REWARDS_CONTRACT = '0x4C171279dE8027322fF6EC971CDeDe0f7704b24a';
+
 // Use BigInt for precision with large wei values (exceed Number.MAX_SAFE_INTEGER)
 const WEI_DIVISOR = BigInt(10 ** 18);
 
@@ -15,9 +18,12 @@ const WEI_DIVISOR = BigInt(10 ** 18);
 // BETRStaking contract: 0x38AE5d952FA83eD57c5b5dE59b6e36Ce975a9150
 // - stakedAmount(address user) - View staked amount for a user
 // - totalStakedAmount() - View total staked across all users
+// Rewards contract: 0x4C171279dE8027322fF6EC971CDeDe0f7704b24a
+// - claimable() - View total claimable rewards in the contract
 const FUNCTION_SIGS = {
   stakedAmount: '0xf9931855',      // stakedAmount(address) - from Basescan
   totalStakedAmount: '0x567e98f9', // totalStakedAmount() - from Basescan
+  claimable: '0x4e71d92d',         // claimable() - from Rewards contract
 };
 
 /**
@@ -262,52 +268,84 @@ async function getGlobalTotalStakedGraphQL() {
 
 /**
  * Get all staker balances as a map of wallet address -> balance
+ * Uses pagination to get ALL stakers (not limited to 1000)
  * Used for enriching leaderboard data with live staking info
  * @returns {Promise<Map<string, number>>} Map of lowercase wallet address to staked balance
  */
 export async function getAllStakerBalances() {
   try {
-    const query = `
-      query GetAllStakerBalances {
-        stakerBalances(first: 1000, orderBy: timestamp_, orderDirection: desc) {
-          staker
-          balance
-          timestamp_
+    const balanceMap = new Map();
+    let lastId = '';
+    let hasMore = true;
+    let totalFetched = 0;
+    
+    // Paginate through all staker balances using id_gt cursor
+    while (hasMore) {
+      const query = `
+        query GetAllStakerBalances($lastId: String!) {
+          stakerBalances(first: 1000, orderBy: id, orderDirection: asc, where: { id_gt: $lastId }) {
+            id
+            staker
+            balance
+            timestamp_
+          }
+        }
+      `;
+
+      const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          query,
+          variables: { lastId }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`GraphQL request failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+      }
+
+      const stakerBalances = result.data?.stakerBalances || [];
+      totalFetched += stakerBalances.length;
+      
+      // For each entry, keep the one with the highest timestamp (most recent)
+      for (const entry of stakerBalances) {
+        const staker = entry.staker.toLowerCase();
+        const balance = weiToTokens(entry.balance);
+        const timestamp = parseInt(entry.timestamp_);
+        
+        const existing = balanceMap.get(staker);
+        if (!existing || timestamp > existing.timestamp) {
+          balanceMap.set(staker, { balance, timestamp });
         }
       }
-    `;
-
-    const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query })
-    });
-
-    if (!response.ok) {
-      throw new Error(`GraphQL request failed: ${response.status}`);
+      
+      // Check if there are more results
+      if (stakerBalances.length < 1000) {
+        hasMore = false;
+      } else {
+        lastId = stakerBalances[stakerBalances.length - 1].id;
+      }
     }
-
-    const result = await response.json();
-
-    if (result.errors) {
-      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
-    }
-
-    const stakerBalances = result.data?.stakerBalances || [];
     
-    // Get latest balance per staker
-    const balanceMap = new Map();
-    for (const entry of stakerBalances) {
-      const staker = entry.staker.toLowerCase();
-      if (!balanceMap.has(staker)) {
-        balanceMap.set(staker, weiToTokens(entry.balance));
+    // Convert map to just balance values (removing timestamp metadata)
+    const finalMap = new Map();
+    for (const [staker, data] of balanceMap) {
+      if (data.balance > 0) {
+        finalMap.set(staker, data.balance);
       }
     }
 
-    console.log(`📊 Loaded ${balanceMap.size} staker balances from subgraph`);
-    return balanceMap;
+    console.log(`📊 Loaded ${finalMap.size} active stakers from subgraph (${totalFetched} total entries, paginated)`);
+    return finalMap;
 
   } catch (error) {
     console.error('📊 Error fetching all staker balances:', error);
@@ -316,7 +354,17 @@ export async function getAllStakerBalances() {
 }
 
 /**
- * Get staking statistics - total from RPC, staker count from GraphQL
+ * Get count of unique wallets currently staking (balance > 0)
+ * Uses paginated subgraph query for accurate count
+ * @returns {Promise<number>} Number of unique stakers with balance > 0
+ */
+export async function getUniqueStakerCount() {
+  const balanceMap = await getAllStakerBalances();
+  return balanceMap.size;
+}
+
+/**
+ * Get staking statistics - total from RPC, staker count from paginated GraphQL
  * @returns {Promise<{totalStaked: number, uniqueStakers: number}>}
  */
 export async function getStakingStats() {
@@ -324,40 +372,10 @@ export async function getStakingStats() {
     // Get total staked from RPC (real-time)
     const totalStaked = await getGlobalTotalStaked();
     
-    // Get unique staker count from GraphQL (need to enumerate)
-    const query = `
-      query GetStakingStats {
-        stakerBalances(first: 1000, orderBy: timestamp_, orderDirection: desc) {
-          staker
-          balance
-          timestamp_
-        }
-      }
-    `;
+    // Get unique staker count from paginated GraphQL (accurate count)
+    const uniqueStakers = await getUniqueStakerCount();
 
-    const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query })
-    });
-
-    let uniqueStakers = 0;
-    const result = await response.json();
-    
-    if (!result.errors && result.data?.stakerBalances) {
-      const latestBalancePerStaker = new Map();
-      for (const entry of result.data.stakerBalances) {
-        const staker = entry.staker.toLowerCase();
-        if (!latestBalancePerStaker.has(staker)) {
-          latestBalancePerStaker.set(staker, weiToTokens(entry.balance));
-        }
-      }
-      for (const balance of latestBalancePerStaker.values()) {
-        if (balance > 0) uniqueStakers++;
-      }
-    }
-
-    console.log(`📊 Staking stats: ${totalStaked.toLocaleString()} tokens across ${uniqueStakers} active stakers`);
+    console.log(`📊 Staking stats: ${totalStaked.toLocaleString()} tokens across ${uniqueStakers} active stakers (paginated)`);
     return { totalStaked, uniqueStakers };
 
   } catch (error) {
@@ -438,52 +456,94 @@ export async function getUserLifetimeClaimed(walletAddresses) {
 
 /**
  * Get global total rewards claimed across ALL wallets from the staking contract
+ * Uses pagination to get ALL claim events (not limited to 1000)
  * @returns {Promise<number>} Total claimed rewards in tokens (not wei)
  */
 export async function getGlobalTotalClaimed() {
   try {
-    const query = `
-      query GetGlobalClaimed {
-        rewardClaimeds(first: 1000) {
-          staker
-          amount
-          timestamp_
-        }
-      }
-    `;
-
-    const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query })
-    });
-
-    if (!response.ok) {
-      throw new Error(`GraphQL request failed: ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    if (result.errors) {
-      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
-    }
-
-    const claimEvents = result.data?.rewardClaimeds || [];
-    
-    // Sum all claimed rewards across all wallets
     let totalClaimed = 0;
-    for (const event of claimEvents) {
-      totalClaimed += weiToTokens(event.amount);
+    let totalEvents = 0;
+    let lastId = '';
+    let hasMore = true;
+    
+    // Paginate through all claim events using id_gt cursor
+    while (hasMore) {
+      const query = `
+        query GetGlobalClaimed($lastId: String!) {
+          rewardClaimeds(first: 1000, orderBy: id, orderDirection: asc, where: { id_gt: $lastId }) {
+            id
+            staker
+            amount
+            timestamp_
+          }
+        }
+      `;
+
+      const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          query,
+          variables: { lastId }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`GraphQL request failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+      }
+
+      const claimEvents = result.data?.rewardClaimeds || [];
+      
+      // Sum all claimed rewards from this batch
+      for (const event of claimEvents) {
+        totalClaimed += weiToTokens(event.amount);
+      }
+      
+      totalEvents += claimEvents.length;
+      
+      // Check if there are more results
+      if (claimEvents.length < 1000) {
+        hasMore = false;
+      } else {
+        // Get the last ID for pagination
+        lastId = claimEvents[claimEvents.length - 1].id;
+      }
     }
 
-    console.log(`📊 Global total claimed: ${totalClaimed.toLocaleString()} tokens from ${claimEvents.length} claim events`);
+    console.log(`📊 Global total claimed: ${totalClaimed.toLocaleString()} tokens from ${totalEvents} claim events (paginated)`);
 
     return totalClaimed;
 
   } catch (error) {
     console.error('📊 Error querying global total claimed:', error);
+    return 0;
+  }
+}
+
+/**
+ * Get total unclaimed/claimable rewards remaining in the rewards contract
+ * Calls claimable() on the rewards contract directly via RPC
+ * @returns {Promise<number>} Total claimable rewards in tokens (not wei)
+ */
+export async function getUnclaimedRewards() {
+  try {
+    // Call claimable() on the rewards contract
+    const result = await ethCall(REWARDS_CONTRACT, FUNCTION_SIGS.claimable);
+    const unclaimed = weiToTokens(result);
+    
+    console.log(`📊 Unclaimed rewards in contract: ${unclaimed.toLocaleString()} tokens`);
+    
+    return unclaimed;
+  } catch (error) {
+    console.error('📊 Error querying unclaimed rewards:', error);
     return 0;
   }
 }

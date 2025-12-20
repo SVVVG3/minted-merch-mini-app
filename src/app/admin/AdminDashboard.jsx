@@ -2095,7 +2095,7 @@ export default function AdminDashboard() {
                 { label: 'Discounts Used', value: dashboardStats.discountsUsed, icon: '🎫' },
                 { label: 'Total Orders', value: dashboardStats.totalOrders, icon: '🛍️' },
                 { label: 'Wallets Staked', value: dashboardStats.walletsStaked, icon: '🔒' },
-                { label: 'Rewards Claimed', value: formatTokenBalance(dashboardStats.totalRewardsClaimed), icon: '🎁' },
+                { label: 'Rewards Claimed', value: `${formatTokenBalance(dashboardStats.totalRewardsClaimed)} / ${formatTokenBalance(dashboardStats.unclaimedRewards)}`, icon: '🎁', sublabel: 'Claimed / Unclaimed' },
                 { label: 'Pending Bounty Submissions', value: dashboardStats.pendingSubmissions, icon: '📝' },
                 { 
                   label: 'Total Completed Bounties', 
@@ -2109,6 +2109,7 @@ export default function AdminDashboard() {
                     <div>
                       <div className="text-2xl font-bold text-gray-800">{stat.value}</div>
                       <div className="text-sm text-gray-600">{stat.label}</div>
+                      {stat.sublabel && <div className="text-xs text-gray-400">{stat.sublabel}</div>}
                     </div>
                   </div>
                 </div>

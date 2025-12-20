@@ -169,11 +169,11 @@ export const GET = withAdminAuth(async (request, context) => {
     // Import multiplier functions
     const { applyTokenMultiplier } = await import('@/lib/points');
     
-    // NOTE: We use cached staked_balance from profiles table instead of GraphQL
-    // The GraphQL getAllStakerBalances() only returns 1000 most recent stakers,
-    // which misses older stakers. The profiles.staked_balance is updated via RPC
-    // when users open the app, so it's accurate and covers all users.
-    console.log('📊 Using cached staked_balance from profiles table (updated via RPC on user login)');
+    // NOTE: For leaderboard display, we use cached staked_balance from profiles table
+    // This updates via RPC when users open the app. While not real-time, it's sufficient
+    // for leaderboard display purposes. The "Wallets Staked" count on the dashboard
+    // now uses live paginated subgraph data for accurate totals.
+    console.log('📊 Using cached staked_balance from profiles table for leaderboard display');
     
     // Transform the data to flatten profile information, add token holdings, and apply multipliers
     const transformedData = leaderboardData.map((entry, index) => {
