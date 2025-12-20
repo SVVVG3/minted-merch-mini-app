@@ -5,7 +5,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { shareLeaderboardPosition } from '@/lib/farcasterShare';
 
 export function Leaderboard({ isVisible = true }) {
-  const { isInFarcaster, isReady, getFid, user } = useFarcaster();
+  const { isInFarcaster, isReady, getFid, user, getPfpUrl } = useFarcaster();
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [userPosition, setUserPosition] = useState(null);
   const [userProfiles, setUserProfiles] = useState({});
@@ -114,6 +114,8 @@ export function Leaderboard({ isVisible = true }) {
       // Get user profile data for share image
       const userProfile = userProfiles[currentUserFid];
       const tokenBalance = userPosition?.token_balance || 0;
+      // Use fresh Farcaster pfp if available, otherwise fall back to database
+      const freshPfp = getPfpUrl() || userProfile?.pfp_url;
       
       // Use the new utility function to handle sharing (works in both mini-app and non-mini-app)
       await shareLeaderboardPosition({
@@ -123,7 +125,7 @@ export function Leaderboard({ isVisible = true }) {
         username,
         multiplier,
         tier,
-        pfp: userProfile?.pfp_url,
+        pfp: freshPfp,
         tokenBalance,
         fid: currentUserFid,
         isInFarcaster,
@@ -297,13 +299,19 @@ export function Leaderboard({ isVisible = true }) {
     return user.username || user.display_name || `User ${userFid}`;
   };
 
-  const getUserAvatar = (user) => {
+  const getUserAvatar = (leaderboardUser) => {
     // Get the correct FID field based on category
-    const userFid = category === 'holders' ? user.fid : user.user_fid;
+    const userFid = category === 'holders' ? leaderboardUser.fid : leaderboardUser.user_fid;
     const profile = userProfiles[userFid];
     
-    // Try profile avatar first, then fallback to pfp_url from token holders API
-    return profile?.avatar_url || user.pfp_url || null;
+    // For current user, prefer fresh Farcaster SDK data over stale database data
+    if (userFid === currentUserFid) {
+      const freshPfp = getPfpUrl();
+      if (freshPfp) return freshPfp;
+    }
+    
+    // For other users (or fallback), use database data
+    return profile?.avatar_url || leaderboardUser.pfp_url || null;
   };
 
   // Helper function to check if user has 50M+ tokens (Merch Mogul status)

@@ -370,15 +370,19 @@ export function useFarcaster() {
   // CENTRALIZED USER REGISTRATION
   // Automatically register/update user profile when authenticated
   // This ensures ALL users get a profile regardless of which page they land on
+  // IMPORTANT: We MUST register even for token-restored users when in Farcaster,
+  // because the SDK provides fresh profile data (including new pfp_url) that needs
+  // to be synced to the database
   useEffect(() => {
     async function registerUser() {
       // Guards: need FID and session token
       if (!user?.fid || !sessionToken) return;
       
-      // Skip registration for users restored from token - they already have a profile
-      // The profile fetch will update their pfpUrl
-      if (user.restoredFromToken) {
-        console.log('⏭️ Skipping registration for token-restored user:', user.fid);
+      // For token-restored users NOT in Farcaster (e.g., AuthKit web login),
+      // we can skip registration since we don't have fresh data anyway.
+      // But when IN Farcaster, we should always register to sync fresh SDK data to DB.
+      if (user.restoredFromToken && !isInFarcaster) {
+        console.log('⏭️ Skipping registration for token-restored user (not in Farcaster):', user.fid);
         return;
       }
       

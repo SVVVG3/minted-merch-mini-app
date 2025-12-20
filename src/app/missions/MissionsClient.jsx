@@ -9,7 +9,7 @@ import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Link from 'next/link';
 
 export default function MissionsClient() {
-  const { user, isSDKReady, isInFarcaster } = useFarcaster();
+  const { user, isSDKReady, isInFarcaster, getPfpUrl, getUsername } = useFarcaster();
   const [loading, setLoading] = useState(true);
   const [isEligible, setIsEligible] = useState(false);
   const [tokenBalance, setTokenBalance] = useState(0);
@@ -253,10 +253,10 @@ export default function MissionsClient() {
               }}
               className="flex items-center gap-2 bg-white/20 rounded-full px-3 py-1"
             >
-              {profile?.pfpUrl && (
-                <img src={profile.pfpUrl} alt="" className="w-6 h-6 rounded-full" />
+              {(getPfpUrl() || profile?.pfpUrl) && (
+                <img src={getPfpUrl() || profile?.pfpUrl} alt="" className="w-6 h-6 rounded-full" />
               )}
-              <span className="text-sm">@{profile?.username || user?.username}</span>
+              <span className="text-sm">@{getUsername() || profile?.username || user?.username}</span>
             </button>
           </div>
           

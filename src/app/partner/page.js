@@ -117,9 +117,9 @@ function PartnerDashboard() {
     }
   };
 
-  // Get profile picture - prefer partner data, fall back to Farcaster user data
-  const profilePicUrl = partner?.pfp_url || getPfpUrl();
-  const displayName = partner?.display_name || partner?.name || getDisplayName() || getUsername();
+  // Get profile picture - prefer fresh Farcaster SDK data, fall back to partner DB data
+  const profilePicUrl = getPfpUrl() || partner?.pfp_url;
+  const displayName = getDisplayName() || getUsername() || partner?.display_name || partner?.name;
 
   if (authLoading) {
     return (
