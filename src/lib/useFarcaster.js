@@ -322,6 +322,8 @@ export function useFarcaster() {
               });
               
               // Fetch full profile from database to get pfpUrl (only once)
+              // BUT: if we're in Farcaster, the SDK will provide fresher profile data,
+              // so we should prefer that over database values for display fields
               fetch(`/api/profile?fid=${payload.fid}`, {
                 headers: {
                   'Authorization': `Bearer ${storedToken}`
@@ -331,14 +333,20 @@ export function useFarcaster() {
                 .then(data => {
                   if (data.success && data.profile) {
                     console.log('✅ Fetched profile from database:', data.profile.username);
-                    setUser(prev => ({
-                      ...prev,
-                      username: data.profile.username || prev?.username,
-                      displayName: data.profile.display_name || prev?.displayName,
-                      pfpUrl: data.profile.pfp_url || null,
-                      bio: data.profile.bio || null,
-                      restoredFromToken: true // Keep this flag
-                    }));
+                    setUser(prev => {
+                      // If context.user has been set (from Farcaster SDK), preserve those values
+                      // as they're fresher than database. Only use DB values as fallback.
+                      const contextHasFreshData = prev?.pfpUrl || prev?.pfp_url || prev?.pfp;
+                      return {
+                        ...prev,
+                        username: prev?.username || data.profile.username,
+                        displayName: prev?.displayName || prev?.display_name || data.profile.display_name,
+                        // Only use database pfpUrl if we don't already have one from context
+                        pfpUrl: contextHasFreshData ? (prev?.pfpUrl || prev?.pfp_url || prev?.pfp) : data.profile.pfp_url,
+                        bio: prev?.bio || data.profile.bio || null,
+                        restoredFromToken: true // Keep this flag
+                      };
+                    });
                   }
                   // If no profile found, that's okay - user might not be registered yet
                 })
