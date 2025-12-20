@@ -11,6 +11,9 @@ const STAKING_CONTRACT = '0x38AE5d952FA83eD57c5b5dE59b6e36Ce975a9150';
 // Rewards contract on Base - holds claimable staking rewards
 const REWARDS_CONTRACT = '0x4C171279dE8027322fF6EC971CDeDe0f7704b24a';
 
+// $MINTEDMERCH token contract on Base
+const TOKEN_CONTRACT = '0x774EAeFE73Df7959496Ac92a77279A8D7d690b07';
+
 // Use BigInt for precision with large wei values (exceed Number.MAX_SAFE_INTEGER)
 const WEI_DIVISOR = BigInt(10 ** 18);
 
@@ -18,12 +21,12 @@ const WEI_DIVISOR = BigInt(10 ** 18);
 // BETRStaking contract: 0x38AE5d952FA83eD57c5b5dE59b6e36Ce975a9150
 // - stakedAmount(address user) - View staked amount for a user
 // - totalStakedAmount() - View total staked across all users
-// Rewards contract: 0x4C171279dE8027322fF6EC971CDeDe0f7704b24a
-// - claimable() - View total claimable rewards in the contract
+// ERC-20 Token contract:
+// - balanceOf(address) - View token balance of an address
 const FUNCTION_SIGS = {
   stakedAmount: '0xf9931855',      // stakedAmount(address) - from Basescan
   totalStakedAmount: '0x567e98f9', // totalStakedAmount() - from Basescan
-  claimable: '0x4e71d92d',         // claimable() - from Rewards contract
+  balanceOf: '0x70a08231',         // balanceOf(address) - ERC-20 standard
 };
 
 /**
@@ -530,16 +533,20 @@ export async function getGlobalTotalClaimed() {
 
 /**
  * Get total unclaimed/claimable rewards remaining in the rewards contract
- * Calls claimable() on the rewards contract directly via RPC
- * @returns {Promise<number>} Total claimable rewards in tokens (not wei)
+ * Checks the $MINTEDMERCH token balance held by the rewards contract
+ * @returns {Promise<number>} Total unclaimed rewards in tokens (not wei)
  */
 export async function getUnclaimedRewards() {
   try {
-    // Call claimable() on the rewards contract
-    const result = await ethCall(REWARDS_CONTRACT, FUNCTION_SIGS.claimable);
+    // Call balanceOf(rewardsContract) on the token contract
+    // balanceOf(address) selector is 0x70a08231 + padded address
+    const paddedAddress = REWARDS_CONTRACT.slice(2).toLowerCase().padStart(64, '0');
+    const data = FUNCTION_SIGS.balanceOf + paddedAddress;
+    
+    const result = await ethCall(TOKEN_CONTRACT, data);
     const unclaimed = weiToTokens(result);
     
-    console.log(`📊 Unclaimed rewards in contract: ${unclaimed.toLocaleString()} tokens`);
+    console.log(`📊 Unclaimed rewards in contract: ${unclaimed.toLocaleString()} tokens (token balance of ${REWARDS_CONTRACT})`);
     
     return unclaimed;
   } catch (error) {
