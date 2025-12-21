@@ -78,7 +78,9 @@ export function extractWalletDataFromNeynar(neynarUser) {
       // ADDED: Include X username and verified accounts data
       x_username: xUsername,
       verified_accounts: verifiedAccounts,
-      wallet_data_updated_at: new Date().toISOString()
+      wallet_data_updated_at: new Date().toISOString(),
+      // ADDED: Include profile picture from Neynar (fallback when SDK doesn't provide it)
+      pfp_url: neynarUser.pfp_url || null
     };
 
     console.log('📍 Extracted wallet data:', {
@@ -88,8 +90,9 @@ export function extractWalletDataFromNeynar(neynarUser) {
       total_addresses: allWalletAddresses.length,
       primary_eth: primaryEthAddress,
       primary_sol: primarySolAddress,
-      x_username: xUsername, // ADDED
-      verified_accounts_count: verifiedAccounts.length // ADDED
+      x_username: xUsername,
+      verified_accounts_count: verifiedAccounts.length,
+      pfp_url: neynarUser.pfp_url ? 'present' : 'missing'
     });
 
     return walletData;

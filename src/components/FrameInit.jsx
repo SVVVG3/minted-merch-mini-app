@@ -45,6 +45,16 @@ function MiniAppBridge({ onInitialized }) {
           window.farcasterContext = context;
           window.neynarSdk = sdk; // Store SDK for useFarcaster
           
+          // DEBUG: Log what SDK context contains
+          console.log('📱 Farcaster SDK context received:', {
+            hasFid: !!context.user?.fid,
+            fid: context.user?.fid,
+            username: context.user?.username,
+            displayName: context.user?.displayName,
+            pfpUrl: context.user?.pfpUrl || 'NOT PROVIDED',
+            userKeys: context.user ? Object.keys(context.user) : []
+          });
+          
           if (context.user) {
             window.userFid = context.user.fid;
             window.farcasterUser = context.user;
@@ -101,6 +111,16 @@ async function initializeWithDirectSDK() {
     if (context) {
       window.farcasterContext = context;
       window.neynarSdk = sdk;
+      
+      // DEBUG: Log what SDK context contains
+      console.log('📱 Farcaster SDK context (direct):', {
+        hasFid: !!context.user?.fid,
+        fid: context.user?.fid,
+        username: context.user?.username,
+        displayName: context.user?.displayName,
+        pfpUrl: context.user?.pfpUrl || 'NOT PROVIDED',
+        userKeys: context.user ? Object.keys(context.user) : []
+      });
       
       if (context.user) {
         window.userFid = context.user.fid;

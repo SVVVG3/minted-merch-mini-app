@@ -200,13 +200,16 @@ export async function POST(request) {
     // Create or update user profile with notification status and wallet data
     // IMPORTANT: Only overwrite fields if we have new valid values
     // This prevents null values from wiping out existing data
+    // Priority for pfp_url: 1) Incoming from Farcaster SDK, 2) Neynar API, 3) Existing in DB
+    const resolvedPfpUrl = pfpUrl || walletData?.pfp_url || existingProfile?.pfp_url || null;
+    
     const profileData = {
       fid,
       username: username || existingProfile?.username || null,
       display_name: displayName || existingProfile?.display_name || null,
       bio: bio || existingProfile?.bio || null,
-      // Only update pfp_url if we have a new value, otherwise preserve existing
-      pfp_url: pfpUrl || existingProfile?.pfp_url || null,
+      // Use resolved pfp_url with fallback chain
+      pfp_url: resolvedPfpUrl,
       has_notifications: hasNotifications, // ✅ Store notification status
       notification_status_updated_at: new Date().toISOString(),
       notification_status_source: existingProfile?.notification_status_source === 'farcaster_event' ? 'farcaster_event' : 'neynar_sync',
@@ -225,12 +228,14 @@ export async function POST(request) {
       email_updated_at: null
     };
 
-    // Log pfp_url preservation logic
+    // Log pfp_url resolution chain
     console.log('📷 Profile picture handling:', {
       fid,
-      incomingPfpUrl: pfpUrl ? 'provided' : 'null',
-      existingPfpUrl: existingProfile?.pfp_url ? 'exists' : 'null',
-      finalPfpUrl: profileData.pfp_url ? 'set' : 'null'
+      source1_farcasterSdk: pfpUrl ? 'provided' : 'null',
+      source2_neynarApi: walletData?.pfp_url ? 'provided' : 'null',
+      source3_existingDb: existingProfile?.pfp_url ? 'exists' : 'null',
+      finalPfpUrl: resolvedPfpUrl ? 'set' : 'null',
+      resolvedFrom: pfpUrl ? 'farcaster_sdk' : (walletData?.pfp_url ? 'neynar_api' : (existingProfile?.pfp_url ? 'existing_db' : 'none'))
     });
 
     // Add wallet data if available
