@@ -4611,6 +4611,9 @@ export default function AdminDashboard() {
                                 Mogul
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Neynar
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                 Staked Balance
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -4658,6 +4661,20 @@ export default function AdminDashboard() {
                                       )}
                                     </div>
                                   </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  {mogul.neynarScore !== null ? (
+                                    <span className={`text-sm font-medium ${
+                                      mogul.neynarScore >= 0.9 ? 'text-green-600' :
+                                      mogul.neynarScore >= 0.7 ? 'text-blue-600' :
+                                      mogul.neynarScore >= 0.5 ? 'text-yellow-600' :
+                                      'text-gray-500'
+                                    }`}>
+                                      {mogul.neynarScore.toFixed(2)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-gray-400">—</span>
+                                  )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <div className="text-sm font-bold text-purple-600">
@@ -6432,7 +6449,7 @@ function CreateBountyModal({ bounty, onClose, onSuccess, adminFetch, mogulsData,
               >
                 {mogulsData.map(mogul => (
                   <option key={mogul.fid} value={mogul.fid}>
-                    @{mogul.username || `FID ${mogul.fid}`} ({(mogul.stakedBalance || 0).toLocaleString()} staked)
+                    @{mogul.username || `FID ${mogul.fid}`} ({(mogul.stakedBalance || 0).toLocaleString()} staked){mogul.neynarScore !== null ? ` • Neynar: ${mogul.neynarScore.toFixed(2)}` : ''}
                   </option>
                 ))}
               </select>

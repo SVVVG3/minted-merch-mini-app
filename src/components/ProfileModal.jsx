@@ -573,7 +573,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               {/* Token Holdings Card */}
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5 shadow-sm">
                 <div className="flex items-center space-x-3 mb-3">
-                  <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-green-200">
+                  <div className="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 border-2 border-green-200">
                     <img src="/splash.png" alt="$MINTEDMERCH" className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1">
@@ -656,12 +656,12 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-4 shadow-sm">
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center text-xl flex-shrink-0">
-                      💰
+                    <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 border-teal-200">
+                      <img src="/FinalAirdropStakeNFT.png" alt="Staking Rewards" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-bold text-teal-800">Staking Rewards</h4>
-                      <p className="text-xs text-teal-600">Stake to earn $mintedmerch and a chance to win prizes daily</p>
+                      <p className="text-xs text-teal-600">Stake to earn $mintedmerch and spin-to-claim once daily for a chance to win prizes!</p>
                     </div>
                   </div>
                   <button
@@ -702,7 +702,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-bold text-purple-800">Minted Merch Missions</h4>
-                        <p className="text-xs text-purple-600">Complete missions to earn $mintedmerch</p>
+                        <p className="text-xs text-purple-600">Complete time-sensitive missions to earn $mintedmerch!</p>
                       </div>
                     </div>
                     <button

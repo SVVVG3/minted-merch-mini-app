@@ -23,6 +23,7 @@ export const GET = withAdminAuth(async (request) => {
         staked_balance,
         token_balance,
         wallet_balance,
+        neynar_score,
         created_at
       `)
       .gte('staked_balance', CUSTOM_BOUNTY_STAKED_THRESHOLD)
@@ -96,6 +97,7 @@ export const GET = withAdminAuth(async (request) => {
         stakedBalance: parseFloat(mogul.staked_balance) || 0,
         tokenBalance: parseFloat(mogul.token_balance) || 0,
         walletBalance: parseFloat(mogul.wallet_balance) || 0,
+        neynarScore: mogul.neynar_score ? parseFloat(mogul.neynar_score) : null,
         joinedAt: mogul.created_at,
         // Ambassador status
         isManualAmbassador: !!ambassador,
