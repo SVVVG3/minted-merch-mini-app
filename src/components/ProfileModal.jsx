@@ -573,8 +573,8 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               {/* Token Holdings Card */}
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5 shadow-sm">
                 <div className="flex items-center space-x-3 mb-3">
-                  <div className="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 border-2 border-green-200">
-                    <img src="/splash.png" alt="$MINTEDMERCH" className="w-full h-full object-cover" />
+                  <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-green-200 bg-green-50 flex items-center justify-center p-1">
+                    <img src="/splash.png" alt="$MINTEDMERCH" className="w-full h-full object-contain" />
                   </div>
                   <div className="flex-1">
                     <h4 className="font-bold text-green-800">$MINTEDMERCH Holdings</h4>
@@ -661,7 +661,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-bold text-teal-800">Staking Rewards</h4>
-                      <p className="text-xs text-teal-600">Stake to earn $mintedmerch and spin-to-claim once daily for a chance to win prizes!</p>
+                      <p className="text-xs text-teal-600">Stake to earn $mintedmerch & spin-to-claim daily for a chance to win prizes!</p>
                     </div>
                   </div>
                   <button
