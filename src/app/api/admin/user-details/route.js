@@ -339,10 +339,11 @@ export const GET = withAdminAuth(async (request, context) => {
       // Wallet addresses
       walletAddresses,
 
-      // Bankr membership
+      // Bankr membership & User Quality
       bankr_club_member: profile.bankr_club_member,
       x_username: profile.x_username,
       bankr_membership_updated_at: profile.bankr_membership_updated_at,
+      neynar_score: profile.neynar_score,
 
       // Notifications
       has_notifications: profile.has_notifications,
