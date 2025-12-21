@@ -21,7 +21,12 @@ export async function POST(request) {
     const authCheck = requireOwnFid(authenticatedFid, fid);
     if (authCheck) return authCheck; // Returns 401 or 403 error if auth fails
 
-    console.log('Authenticated user registering profile:', { fid, username, displayName });
+    console.log('Authenticated user registering profile:', { 
+      fid, 
+      username, 
+      displayName,
+      pfpUrl: pfpUrl ? 'provided' : 'null/missing'
+    });
 
     // Check if user has notifications enabled (check this FIRST)
     const hasNotifications = await hasNotificationTokenInNeynar(fid);
@@ -185,20 +190,23 @@ export async function POST(request) {
       // Don't fail registration if Bankr check fails
     }
 
-    // Get existing profile to preserve farcaster_event source if it exists
+    // Get existing profile to preserve certain fields if they exist
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
-      .select('notification_status_source')
+      .select('notification_status_source, pfp_url, username, display_name, bio')
       .eq('fid', fid)
       .single();
 
     // Create or update user profile with notification status and wallet data
+    // IMPORTANT: Only overwrite fields if we have new valid values
+    // This prevents null values from wiping out existing data
     const profileData = {
       fid,
-      username,
-      display_name: displayName,
-      bio: bio || null,
-      pfp_url: pfpUrl,
+      username: username || existingProfile?.username || null,
+      display_name: displayName || existingProfile?.display_name || null,
+      bio: bio || existingProfile?.bio || null,
+      // Only update pfp_url if we have a new value, otherwise preserve existing
+      pfp_url: pfpUrl || existingProfile?.pfp_url || null,
       has_notifications: hasNotifications, // ✅ Store notification status
       notification_status_updated_at: new Date().toISOString(),
       notification_status_source: existingProfile?.notification_status_source === 'farcaster_event' ? 'farcaster_event' : 'neynar_sync',
@@ -216,6 +224,14 @@ export async function POST(request) {
       email: null, // Will be updated automatically when user places orders
       email_updated_at: null
     };
+
+    // Log pfp_url preservation logic
+    console.log('📷 Profile picture handling:', {
+      fid,
+      incomingPfpUrl: pfpUrl ? 'provided' : 'null',
+      existingPfpUrl: existingProfile?.pfp_url ? 'exists' : 'null',
+      finalPfpUrl: profileData.pfp_url ? 'set' : 'null'
+    });
 
     // Add wallet data if available
     if (walletData) {
