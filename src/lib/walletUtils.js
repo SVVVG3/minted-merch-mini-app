@@ -68,6 +68,9 @@ export function extractWalletDataFromNeynar(neynarUser) {
       }
     });
 
+    // Extract Neynar user score (0-1, higher = more trustworthy)
+    const neynarScore = neynarUser.experimental?.neynar_user_score ?? null;
+    
     const walletData = {
       custody_address: custodyAddress,
       verified_eth_addresses: verifiedEthAddresses,
@@ -80,7 +83,9 @@ export function extractWalletDataFromNeynar(neynarUser) {
       verified_accounts: verifiedAccounts,
       wallet_data_updated_at: new Date().toISOString(),
       // ADDED: Include profile picture from Neynar (fallback when SDK doesn't provide it)
-      pfp_url: neynarUser.pfp_url || null
+      pfp_url: neynarUser.pfp_url || null,
+      // ADDED: Include Neynar user score (0-1, higher = more trustworthy user)
+      neynar_score: neynarScore
     };
 
     console.log('📍 Extracted wallet data:', {
@@ -92,7 +97,8 @@ export function extractWalletDataFromNeynar(neynarUser) {
       primary_sol: primarySolAddress,
       x_username: xUsername,
       verified_accounts_count: verifiedAccounts.length,
-      pfp_url: neynarUser.pfp_url ? 'present' : 'missing'
+      pfp_url: neynarUser.pfp_url ? 'present' : 'missing',
+      neynar_score: neynarScore
     });
 
     return walletData;

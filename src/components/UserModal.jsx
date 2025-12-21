@@ -385,14 +385,26 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                     </div>
                   </div>
 
-                  {/* Bankr Membership */}
+                  {/* Bankr Membership & User Quality */}
                   <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="text-lg font-semibold mb-3">Bankr Club Status</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <h3 className="text-lg font-semibold mb-3">User Quality & Memberships</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-600">Membership</label>
+                        <label className="text-sm font-medium text-gray-600">Neynar Score</label>
+                        <p className={`font-medium ${
+                          userData.neynar_score >= 0.8 ? 'text-green-600' : 
+                          userData.neynar_score >= 0.5 ? 'text-yellow-600' : 
+                          userData.neynar_score ? 'text-red-600' : 'text-gray-600'
+                        }`}>
+                          {userData.neynar_score !== null && userData.neynar_score !== undefined 
+                            ? `⭐ ${(userData.neynar_score * 100).toFixed(0)}%` 
+                            : 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Bankr Club</label>
                         <p className={`font-medium ${userData.bankr_club_member ? 'text-green-600' : 'text-gray-600'}`}>
-                          {userData.bankr_club_member ? '✅ Active Member' : '❌ Not a Member'}
+                          {userData.bankr_club_member ? '✅ Member' : '❌ Not Member'}
                         </p>
                       </div>
                       <div>

@@ -298,6 +298,12 @@ export async function POST(request) {
         profileData.x_username = walletData.x_username;
         console.log('📝 Storing X username from Neynar verified accounts:', walletData.x_username);
       }
+      
+      // Store Neynar user score (0-1, higher = more trustworthy user)
+      if (walletData.neynar_score !== null && walletData.neynar_score !== undefined) {
+        profileData.neynar_score = walletData.neynar_score;
+        console.log('⭐ Storing Neynar user score:', walletData.neynar_score);
+      }
     }
 
     const { data: profile, error: profileError } = await supabaseAdmin
