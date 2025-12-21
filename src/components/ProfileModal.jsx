@@ -572,9 +572,9 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
             <div className="p-6 space-y-6">
               {/* Token Holdings Card */}
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5 shadow-sm">
-                <div className="flex items-center space-x-2 mb-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    💎
+                <div className="flex items-center space-x-3 mb-3">
+                  <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-green-200">
+                    <img src="/splash.png" alt="$MINTEDMERCH" className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1">
                     <h4 className="font-bold text-green-800">$MINTEDMERCH Holdings</h4>
@@ -643,18 +643,12 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                 {(profileData.staked_balance > 0 || profileData.wallet_balance > 0) && (
                   <div className="mt-3 pt-3 border-t border-green-200 flex justify-between text-sm">
                     <div className="text-green-700">
-                      <span className="text-green-500">🔒 Staked:</span> {formatTokenBalance(profileData.staked_balance || 0)}
+                      <span className="text-green-500">Staked:</span> {formatTokenBalance(profileData.staked_balance || 0)}
                     </div>
                     <div className="text-green-700">
-                      <span className="text-green-500">💼 Wallet:</span> {formatTokenBalance(profileData.wallet_balance || 0)}
+                      <span className="text-green-500">Wallet:</span> {formatTokenBalance(profileData.wallet_balance || 0)}
                     </div>
                   </div>
-                )}
-                
-                {profileData.token_balance_updated_at && (
-                  <p className="text-xs text-green-600 mt-2">
-                    Last updated: {new Date(profileData.token_balance_updated_at).toLocaleString()}
-                  </p>
                 )}
               </div>
 
