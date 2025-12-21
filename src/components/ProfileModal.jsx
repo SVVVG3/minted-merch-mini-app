@@ -569,11 +569,11 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               <p className="text-gray-600 mt-4 font-medium">Loading profile data...</p>
             </div>
           ) : profileData ? (
-            <div className="p-6 space-y-6">
+            <div className="p-4 space-y-3">
               {/* Token Holdings Card */}
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5 shadow-sm">
                 <div className="flex items-center space-x-3 mb-3">
-                  <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-green-200 bg-green-50 flex items-center justify-center p-1">
+                  <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-green-200 bg-black flex items-center justify-center p-0.5">
                     <img src="/splash.png" alt="$MINTEDMERCH" className="w-full h-full object-contain" />
                   </div>
                   <div className="flex-1">
