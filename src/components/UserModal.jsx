@@ -397,7 +397,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                           userData.neynar_score ? 'text-red-600' : 'text-gray-600'
                         }`}>
                           {userData.neynar_score !== null && userData.neynar_score !== undefined 
-                            ? `⭐ ${(userData.neynar_score * 100).toFixed(0)}%` 
+                            ? userData.neynar_score.toFixed(2) 
                             : 'N/A'}
                         </p>
                       </div>

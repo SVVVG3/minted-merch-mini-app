@@ -551,7 +551,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                 FID: {user?.fid}
                 {profileData?.neynar_score !== null && profileData?.neynar_score !== undefined && (
                   <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-full text-xs">
-                    ⭐ {(profileData.neynar_score * 100).toFixed(0)}% Quality
+                    Neynar: {profileData.neynar_score.toFixed(2)}
                   </span>
                 )}
               </p>
@@ -638,6 +638,18 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                     Buy More
                   </button>
                 </div>
+                
+                {/* Staked vs Wallet Breakdown */}
+                {(profileData.staked_balance > 0 || profileData.wallet_balance > 0) && (
+                  <div className="mt-3 pt-3 border-t border-green-200 flex justify-between text-sm">
+                    <div className="text-green-700">
+                      <span className="text-green-500">🔒 Staked:</span> {formatTokenBalance(profileData.staked_balance || 0)}
+                    </div>
+                    <div className="text-green-700">
+                      <span className="text-green-500">💼 Wallet:</span> {formatTokenBalance(profileData.wallet_balance || 0)}
+                    </div>
+                  </div>
+                )}
                 
                 {profileData.token_balance_updated_at && (
                   <p className="text-xs text-green-600 mt-2">
