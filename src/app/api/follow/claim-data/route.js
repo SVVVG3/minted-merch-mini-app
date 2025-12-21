@@ -7,23 +7,19 @@ import { getAddress } from 'viem';
 // Airdrop contract address
 const AIRDROP_CONTRACT_ADDRESS = '0x8569755C6fa4127b3601846077FFB5D083586500';
 const CHAIN_ID = 8453; // Base
+const MIN_NEYNAR_SCORE = 0.9; // Minimum Neynar score required to claim
 
 /**
  * GET /api/follow/claim-data
  * 
- * Generate claim signature for the 10k token reward
+ * Generate claim signature for the 100k token reward
  * Requirements:
+ * - User has Neynar score >= 0.9
  * - User has completed all tasks
+ * - User has shared (share-before-claim)
  * - User hasn't claimed yet
  */
 export async function GET(request) {
-  // ⚠️ TEMPORARILY DISABLED - Bot abuse detected
-  // TODO: Re-enable after implementing better verification
-  return NextResponse.json(
-    { error: 'This reward has ended. Thank you for your interest!' },
-    { status: 400 }
-  );
-
   const requestId = Math.random().toString(36).substring(7);
 
   try {
@@ -49,6 +45,31 @@ export async function GET(request) {
       console.error(`[${requestId}] ❌ No reward record found`);
       return NextResponse.json(
         { error: 'Please complete all tasks first' },
+        { status: 400 }
+      );
+    }
+
+    // Check Neynar score requirement
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('neynar_score')
+      .eq('fid', fid)
+      .single();
+
+    const neynarScore = profile?.neynar_score ? parseFloat(profile.neynar_score) : null;
+    if (neynarScore === null || neynarScore < MIN_NEYNAR_SCORE) {
+      console.error(`[${requestId}] ❌ Neynar score ${neynarScore} below minimum ${MIN_NEYNAR_SCORE}`);
+      return NextResponse.json(
+        { error: `This reward requires a Neynar score of ${MIN_NEYNAR_SCORE} or higher. Your score: ${neynarScore?.toFixed(2) || 'unknown'}` },
+        { status: 403 }
+      );
+    }
+
+    // Check if user has shared (share-before-claim requirement)
+    if (!reward.has_shared) {
+      console.error(`[${requestId}] ❌ User has not shared yet`);
+      return NextResponse.json(
+        { error: 'Please share to Farcaster before claiming your reward.' },
         { status: 400 }
       );
     }
@@ -175,7 +196,7 @@ export async function GET(request) {
         req: claimData.req,
         signature: claimData.signature,
         walletAddress: reward.wallet_address,
-        rewardAmount: '10000' // Display amount
+        rewardAmount: '100000' // Display amount (100,000 tokens)
       }
     });
 

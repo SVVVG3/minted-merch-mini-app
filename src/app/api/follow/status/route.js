@@ -7,6 +7,8 @@ import { neynarClient, isNeynarAvailable, checkUserNotificationStatus } from '@/
 const MINTEDMERCH_FID = 1281316;
 // /mintedmerch channel ID
 const MINTEDMERCH_CHANNEL_ID = 'mintedmerch';
+// Minimum Neynar score required to claim
+const MIN_NEYNAR_SCORE = 0.9;
 
 /**
  * GET /api/follow/status
@@ -39,6 +41,18 @@ export async function GET(request) {
       .eq('user_fid', fid)
       .single();
 
+    // Get user's Neynar score from profiles table
+    const { data: userProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('neynar_score, primary_eth_address, verified_eth_addresses, custody_address')
+      .eq('fid', fid)
+      .single();
+
+    const neynarScore = userProfile?.neynar_score ? parseFloat(userProfile.neynar_score) : null;
+    const meetsNeynarRequirement = neynarScore !== null && neynarScore >= MIN_NEYNAR_SCORE;
+
+    console.log(`🎯 Neynar score for FID ${fid}: ${neynarScore} (meets requirement: ${meetsNeynarRequirement})`);
+
     // If already claimed, return that status
     if (existingClaim?.has_claimed) {
       return NextResponse.json({
@@ -46,7 +60,9 @@ export async function GET(request) {
         alreadyClaimed: true,
         claimedAt: existingClaim.claimed_at,
         claimTransactionHash: existingClaim.claim_transaction_hash,
-        hasShared: existingClaim.has_shared
+        hasShared: existingClaim.has_shared,
+        neynarScore,
+        meetsNeynarRequirement
       });
     }
 
@@ -134,19 +150,12 @@ export async function GET(request) {
       updateData.channel_followed_at = new Date().toISOString();
     }
 
-    // Get user's wallet for claim
+    // Get user's wallet for claim (use profile data we already fetched)
     let walletAddress = existingClaim?.wallet_address;
-    if (!walletAddress) {
-      // Try to get wallet from profile
-      const { data: profile } = await supabaseAdmin
-        .from('profiles')
-        .select('primary_eth_address, verified_eth_addresses, custody_address')
-        .eq('fid', fid)
-        .single();
-
-      walletAddress = profile?.primary_eth_address || 
-                     profile?.verified_eth_addresses?.[0] || 
-                     profile?.custody_address;
+    if (!walletAddress && userProfile) {
+      walletAddress = userProfile.primary_eth_address || 
+                     userProfile.verified_eth_addresses?.[0] || 
+                     userProfile.custody_address;
     }
 
     if (existingClaim) {
@@ -156,12 +165,13 @@ export async function GET(request) {
         .update(updateData)
         .eq('user_fid', fid);
     } else if (walletAddress) {
-      // Create new record
+      // Create new record with 100,000 token reward (in wei)
       await supabaseAdmin
         .from('follow_rewards')
         .insert({
           user_fid: fid,
           wallet_address: walletAddress,
+          reward_amount: '100000000000000000000000', // 100,000 tokens in wei (100000 * 10^18)
           ...updateData
         });
     }
@@ -174,6 +184,10 @@ export async function GET(request) {
       allTasksCompleted
     });
 
+    // User can claim if: all tasks done, hasn't claimed, meets Neynar requirement, and has shared
+    const hasShared = existingClaim?.has_shared || false;
+    const canClaim = allTasksCompleted && !existingClaim?.has_claimed && meetsNeynarRequirement && hasShared;
+
     return NextResponse.json({
       success: true,
       tasks: {
@@ -183,10 +197,14 @@ export async function GET(request) {
         isFollowingChannel
       },
       allTasksCompleted,
-      canClaim: allTasksCompleted && !existingClaim?.has_claimed,
+      canClaim,
+      hasShared,
       alreadyClaimed: false,
-      rewardAmount: '10000', // Display amount (10,000 tokens)
-      walletAddress
+      rewardAmount: '100000', // Display amount (100,000 tokens)
+      walletAddress,
+      neynarScore,
+      meetsNeynarRequirement,
+      minNeynarScore: MIN_NEYNAR_SCORE
     });
 
   } catch (error) {

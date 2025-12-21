@@ -53,6 +53,12 @@ export default function FollowPageClient() {
   const [allTasksCompleted, setAllTasksCompleted] = useState(false);
   const [alreadyClaimed, setAlreadyClaimed] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Neynar score and share state
+  const [neynarScore, setNeynarScore] = useState(null);
+  const [meetsNeynarRequirement, setMeetsNeynarRequirement] = useState(false);
+  const [hasShared, setHasShared] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   // Claim state
   const [claiming, setClaiming] = useState(false);
@@ -90,6 +96,12 @@ export default function FollowPageClient() {
 
       const data = await response.json();
 
+      // Always set Neynar score data
+      if (data.neynarScore !== undefined) {
+        setNeynarScore(data.neynarScore);
+        setMeetsNeynarRequirement(data.meetsNeynarRequirement);
+      }
+
       if (data.alreadyClaimed) {
         setAlreadyClaimed(true);
         setHasClaimed(true);
@@ -97,6 +109,7 @@ export default function FollowPageClient() {
       } else if (data.success) {
         setTasks(data.tasks);
         setAllTasksCompleted(data.allTasksCompleted);
+        setHasShared(data.hasShared || false);
       } else {
         setError(data.error || 'Failed to check status');
       }
@@ -313,16 +326,22 @@ export default function FollowPageClient() {
     }
   };
 
-  // Share handler
+  // Share handler (for share-before-claim flow)
   const handleShare = async () => {
     triggerHaptic('light', isInFarcaster);
+    setIsSharing(true);
     
-    const shareText = `I just earned 10,000 $mintedmerch for following /mintedmerch & turning on notifications! 
+    // Different share text depending on if they've claimed or not
+    const shareText = hasClaimed 
+      ? `I just earned 100,000 $mintedmerch for following /mintedmerch & turning on notifications! 
+
+Complete the mission and claim yours 👇`
+      : `I'm about to claim 100,000 $mintedmerch for following /mintedmerch & turning on notifications! 
 
 Complete the mission and claim yours 👇`;
     const shareUrl = 'https://app.mintedmerch.shop/follow';
 
-    // Mark as shared
+    // Mark as shared in backend (unlocks claim button)
     try {
       await fetch('/api/follow/mark-shared', {
         method: 'POST',
@@ -332,6 +351,7 @@ Complete the mission and claim yours 👇`;
         },
         body: JSON.stringify({})
       });
+      setHasShared(true);
     } catch (err) {
       console.error('Error marking shared:', err);
     }
@@ -343,6 +363,8 @@ Complete the mission and claim yours 👇`;
       const composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
       window.open(composeUrl, '_blank');
     }
+    
+    setIsSharing(false);
   };
 
   // Format number helper
@@ -368,9 +390,12 @@ Complete the mission and claim yours 👇`;
       <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
         <div className="text-center max-w-md">
           <div className="text-6xl mb-6">🎁</div>
-          <h1 className="text-2xl font-bold mb-4">Earn 10,000 $mintedmerch!</h1>
-          <p className="text-gray-400 mb-8">
+          <h1 className="text-2xl font-bold mb-4">Earn 100,000 $mintedmerch!</h1>
+          <p className="text-gray-400 mb-4">
             Sign in with Farcaster to complete tasks and claim your reward.
+          </p>
+          <p className="text-yellow-500 text-sm mb-8">
+            ⚠️ Requires Neynar score of 0.9 or higher
           </p>
           <Link
             href="/"
@@ -404,7 +429,7 @@ Complete the mission and claim yours 👇`;
           <div className="border-2 border-[#3eb489]/30 rounded-2xl p-4 mb-3 text-center">
             <h2 className="text-xl font-bold text-[#3eb489] mb-2">Mission Complete!</h2>
             <p className="text-gray-300 text-sm">
-              You&apos;ve claimed <span className="text-[#3eb489] font-bold">{formatNumber(10000)} $mintedmerch</span> - thank you for following Minted Merch!
+              You&apos;ve claimed <span className="text-[#3eb489] font-bold">{formatNumber(100000)} $mintedmerch</span> - thank you for following Minted Merch!
             </p>
           </div>
 
@@ -463,10 +488,27 @@ Complete the mission and claim yours 👇`;
         <div className="bg-gradient-to-r from-[#3eb489]/20 to-[#3eb489]/10 border border-[#3eb489]/30 rounded-xl p-2.5 text-center">
           <p className="text-lg font-bold">
             <span className="text-gray-400">Reward: </span>
-            <span className="text-[#3eb489]">{formatNumber(10000)} $mintedmerch</span>
+            <span className="text-[#3eb489]">{formatNumber(100000)} $mintedmerch</span>
           </p>
         </div>
       </div>
+
+      {/* Neynar Score Requirement */}
+      {!meetsNeynarRequirement && (
+        <div className="mx-4 mb-2">
+          <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-3 text-center">
+            <p className="text-red-400 text-sm font-medium">
+              ⚠️ This reward requires a Neynar score of 0.9 or higher
+            </p>
+            <p className="text-gray-400 text-xs mt-1">
+              Your score: {neynarScore !== null ? neynarScore.toFixed(2) : 'Loading...'}
+            </p>
+            <p className="text-gray-500 text-xs mt-2">
+              Build your Farcaster reputation to qualify for this reward.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Task list */}
       <div className="px-4 space-y-2">
@@ -603,39 +645,86 @@ Complete the mission and claim yours 👇`;
         </button>
       </div>
 
-      {/* Claim button */}
-      <div className="px-4 mt-2 pb-4">
+      {/* Share & Claim buttons */}
+      <div className="px-4 mt-2 pb-4 space-y-2">
         {claimError && (
           <div className="mb-2 bg-red-900/50 border border-red-500/50 rounded-lg p-2">
             <p className="text-xs text-red-300">{claimError}</p>
           </div>
         )}
 
-        <button
-          onClick={handleClaim}
-          disabled={!allTasksCompleted || claiming || isClaimTxPending || isClaimConfirming}
-          className={`w-full py-3 rounded-xl font-bold text-base transition-all ${
-            allTasksCompleted
-              ? 'bg-[#3eb489] hover:bg-[#359970] text-white'
-              : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          {claiming || isClaimTxPending || isClaimConfirming ? (
-            <span className="flex items-center justify-center gap-2">
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              {isClaimConfirming ? 'Confirming...' : 'Claiming...'}
-            </span>
-          ) : allTasksCompleted ? (
-            `Claim ${formatNumber(10000)} $mintedmerch`
-          ) : (
-            'Complete All Tasks to Claim'
-          )}
-        </button>
-
+        {/* Tasks not completed - show disabled state */}
         {!allTasksCompleted && (
-          <p className="text-center text-gray-500 text-xs mt-2">
-            {4 - Object.values(tasks).filter(Boolean).length} task(s) remaining
-          </p>
+          <>
+            <button
+              disabled
+              className="w-full py-3 rounded-xl font-bold text-base bg-gray-700 text-gray-500 cursor-not-allowed"
+            >
+              Complete All Tasks First
+            </button>
+            <p className="text-center text-gray-500 text-xs">
+              {4 - Object.values(tasks).filter(Boolean).length} task(s) remaining
+            </p>
+          </>
+        )}
+
+        {/* Tasks completed but doesn't meet Neynar requirement */}
+        {allTasksCompleted && !meetsNeynarRequirement && (
+          <button
+            disabled
+            className="w-full py-3 rounded-xl font-bold text-base bg-gray-700 text-gray-500 cursor-not-allowed"
+          >
+            Neynar Score Too Low to Claim
+          </button>
+        )}
+
+        {/* Tasks completed, meets Neynar, but hasn't shared - show Share button */}
+        {allTasksCompleted && meetsNeynarRequirement && !hasShared && (
+          <div className="p-4 border border-[#6A3CFF] rounded-xl space-y-3" style={{ backgroundColor: 'rgba(106, 60, 255, 0.15)' }}>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-white">Almost There!</h3>
+              <p className="text-gray-300 text-sm">
+                Share to Farcaster to unlock your claim
+              </p>
+            </div>
+            <button
+              onClick={handleShare}
+              disabled={isSharing}
+              className="w-full py-3 bg-[#6A3CFF] text-white rounded-xl font-bold hover:bg-[#5A2FE6] disabled:bg-gray-600 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+            >
+              {isSharing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Opening Share...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
+                  </svg>
+                  Share to Farcaster
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Tasks completed, meets Neynar, and has shared - show Claim button */}
+        {allTasksCompleted && meetsNeynarRequirement && hasShared && (
+          <button
+            onClick={handleClaim}
+            disabled={claiming || isClaimTxPending || isClaimConfirming}
+            className="w-full py-3 rounded-xl font-bold text-base bg-[#3eb489] hover:bg-[#359970] text-white disabled:bg-gray-600 disabled:cursor-not-allowed transition-all"
+          >
+            {claiming || isClaimTxPending || isClaimConfirming ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                {isClaimConfirming ? 'Confirming...' : 'Claiming...'}
+              </span>
+            ) : (
+              `Claim ${formatNumber(100000)} $mintedmerch`
+            )}
+          </button>
         )}
       </div>
 
