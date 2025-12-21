@@ -258,8 +258,11 @@ export function EnhancedCheckoutFlow({
           </div>
           {appliedDiscount && (
             <div className="flex justify-between text-green-600">
-              <span>Discount ({appliedDiscount.discountValue}%)</span>
-              <span>-${(parseFloat(cart.checkout?.subtotal?.amount || 0) * parseFloat(appliedDiscount.discountValue || 0) / 100).toFixed(2)}</span>
+              <span>Discount ({appliedDiscount.discountType === 'fixed' ? `$${appliedDiscount.discountValue}` : `${appliedDiscount.discountValue}%`})</span>
+              <span>-${appliedDiscount.discountType === 'fixed' 
+                ? Math.min(parseFloat(appliedDiscount.discountValue || 0), parseFloat(cart.checkout?.subtotal?.amount || 0)).toFixed(2)
+                : (parseFloat(cart.checkout?.subtotal?.amount || 0) * parseFloat(appliedDiscount.discountValue || 0) / 100).toFixed(2)
+              }</span>
             </div>
           )}
           <div className="flex justify-between">

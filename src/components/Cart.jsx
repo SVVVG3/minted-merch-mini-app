@@ -256,9 +256,10 @@ export function Cart({ isOpen, onClose }) {
                 <span>Total:</span>
                 <span>
                   {(() => {
-                    // Apply minimum charge logic for free shipping + 100% discount
+                    // Apply minimum charge logic for free shipping + discount that brings total near zero
                     // Daimo Pay minimum is $0.10
-                    if (cartTotal <= 0.10 && cart.appliedDiscount?.freeShipping && cart.appliedDiscount?.discountValue >= 100) {
+                    // This applies to both 100% percentage discounts AND fixed discounts that cover full amount
+                    if (cartTotal <= 0.10 && cart.appliedDiscount?.freeShipping) {
                       return <span className="text-green-600">$0.10 <span className="text-xs">(min processing fee)</span></span>;
                     }
                     return `$${cartTotal.toFixed(2)} USD`;

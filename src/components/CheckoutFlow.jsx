@@ -1862,7 +1862,7 @@ Transaction Hash: ${transactionHash}`;
                       </div>
                       {appliedDiscount && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Discount ({appliedDiscount.discountValue}%)</span>
+                          <span>Discount ({appliedDiscount.discountType === 'fixed' ? `$${appliedDiscount.discountValue}` : `${appliedDiscount.discountValue}%`})</span>
                           <span>-${calculateProductAwareDiscountAmount().toFixed(2)}</span>
                         </div>
                       )}
@@ -1969,7 +1969,7 @@ Transaction Hash: ${transactionHash}`;
                       </div>
                       {appliedDiscount && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Discount ({appliedDiscount.discountValue}%)</span>
+                          <span>Discount ({appliedDiscount.discountType === 'fixed' ? `$${appliedDiscount.discountValue}` : `${appliedDiscount.discountValue}%`})</span>
                           <span>-${calculateProductAwareDiscountAmount().toFixed(2)}</span>
                         </div>
                       )}
@@ -2164,7 +2164,7 @@ Transaction Hash: ${transactionHash}`;
                       {/* Discount Line Item */}
                       {appliedDiscount && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Discount ({appliedDiscount.discountValue}%)</span>
+                          <span>Discount ({appliedDiscount.discountType === 'fixed' ? `$${appliedDiscount.discountValue}` : `${appliedDiscount.discountValue}%`})</span>
                           <span>-${calculateProductAwareDiscountAmount().toFixed(2)}</span>
                         </div>
                       )}

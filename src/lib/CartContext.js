@@ -542,10 +542,23 @@ export function CartProvider({ children }) {
         }
       });
       
-      discountAmount = qualifyingSubtotal * (discountValue / 100);
+      // Calculate discount based on type
+      if (discountType === 'fixed') {
+        // Fixed amount: use the discount value directly, capped at qualifying subtotal
+        discountAmount = Math.min(discountValue, qualifyingSubtotal);
+      } else {
+        // Percentage: calculate percentage of qualifying subtotal
+        discountAmount = qualifyingSubtotal * (discountValue / 100);
+      }
     } else {
       // Site-wide discount applies to entire cart
-      discountAmount = cartSubtotal * (discountValue / 100);
+      if (discountType === 'fixed') {
+        // Fixed amount: use the discount value directly, capped at cart subtotal
+        discountAmount = Math.min(discountValue, cartSubtotal);
+      } else {
+        // Percentage: calculate percentage of cart subtotal
+        discountAmount = cartSubtotal * (discountValue / 100);
+      }
     }
     
     // Round to 2 decimal places to match server calculation
