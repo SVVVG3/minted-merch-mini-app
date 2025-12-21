@@ -2569,6 +2569,12 @@ export default function AdminDashboard() {
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('neynar_score')}
+                    >
+                      Neynar {sortField === 'neynar_score' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('total_orders')}
                     >
                       Orders {sortField === 'total_orders' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -2645,6 +2651,15 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         <span className="font-medium text-purple-600">
                           {formatTokenBalance(user.staked_balance || 0)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <span className={`font-medium ${
+                          parseFloat(user.neynar_score) >= 0.8 ? 'text-green-600' : 
+                          parseFloat(user.neynar_score) >= 0.5 ? 'text-yellow-600' : 
+                          user.neynar_score ? 'text-red-600' : 'text-gray-400'
+                        }`}>
+                          {user.neynar_score ? parseFloat(user.neynar_score).toFixed(2) : '-'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.total_orders || 0}</td>

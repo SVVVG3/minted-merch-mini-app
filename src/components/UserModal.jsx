@@ -392,12 +392,12 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                       <div>
                         <label className="text-sm font-medium text-gray-600">Neynar Score</label>
                         <p className={`font-medium ${
-                          userData.neynar_score >= 0.8 ? 'text-green-600' : 
-                          userData.neynar_score >= 0.5 ? 'text-yellow-600' : 
+                          parseFloat(userData.neynar_score) >= 0.8 ? 'text-green-600' : 
+                          parseFloat(userData.neynar_score) >= 0.5 ? 'text-yellow-600' : 
                           userData.neynar_score ? 'text-red-600' : 'text-gray-600'
                         }`}>
                           {userData.neynar_score !== null && userData.neynar_score !== undefined 
-                            ? userData.neynar_score.toFixed(2) 
+                            ? parseFloat(userData.neynar_score).toFixed(2) 
                             : 'N/A'}
                         </p>
                       </div>

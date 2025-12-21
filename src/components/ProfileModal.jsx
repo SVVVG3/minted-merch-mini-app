@@ -551,7 +551,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                 FID: {user?.fid}
                 {profileData?.neynar_score !== null && profileData?.neynar_score !== undefined && (
                   <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-full text-xs">
-                    Neynar: {profileData.neynar_score.toFixed(2)}
+                    Neynar: {parseFloat(profileData.neynar_score).toFixed(2)}
                   </span>
                 )}
               </p>
