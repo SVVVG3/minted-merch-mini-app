@@ -119,15 +119,16 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
-  // Share order function - just use composeCast directly
+  // Share order function - use global SDK to ensure proper context
   const handleShareOrder = async () => {
     const mainProduct = orderData?.line_items?.[0]?.title || 'item';
     const orderUrl = `${window.location.origin}/order/${orderNumber}`;
     const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
     
     try {
-      // Just call composeCast - works in both Farcaster and Base app
-      await sdk.actions.composeCast({
+      // Use global SDK stored by FrameInit (ensures proper initialization)
+      const globalSdk = window.neynarSdk || sdk;
+      await globalSdk.actions.composeCast({
         text: shareText,
         embeds: [orderUrl]
       });
