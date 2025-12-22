@@ -52,8 +52,16 @@ function MiniAppBridge({ onInitialized }) {
             username: context.user?.username,
             displayName: context.user?.displayName,
             pfpUrl: context.user?.pfpUrl || 'NOT PROVIDED',
-            userKeys: context.user ? Object.keys(context.user) : []
+            userKeys: context.user ? Object.keys(context.user) : [],
+            // Client info for debugging Base vs Farcaster
+            clientFid: context.client?.clientFid,
+            platformType: context.client?.platformType,
+            isBaseApp: context.client?.clientFid && context.client?.clientFid !== 9152
           });
+          
+          // Store client info for easy access
+          window.farcasterClientFid = context.client?.clientFid;
+          window.isBaseApp = context.client?.clientFid && context.client?.clientFid !== 9152;
           
           if (context.user) {
             window.userFid = context.user.fid;

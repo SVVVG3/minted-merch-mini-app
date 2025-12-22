@@ -256,11 +256,16 @@ export default function FollowPageClient() {
   // Follow account handler
   const handleFollowAccount = async () => {
     triggerHaptic('light', isInFarcaster);
-    // Open @mintedmerch profile
+    // Open @mintedmerch profile - use SDK openUrl for all mini app clients
     const url = 'https://warpcast.com/mintedmerch';
-    if (isInFarcaster && sdk?.actions?.openUrl) {
-      await sdk.actions.openUrl(url);
-    } else {
+    try {
+      if (isInFarcaster && sdk?.actions?.openUrl) {
+        await sdk.actions.openUrl(url);
+      } else {
+        window.open(url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error opening profile:', error);
       window.open(url, '_blank');
     }
   };
@@ -268,11 +273,16 @@ export default function FollowPageClient() {
   // Follow channel handler
   const handleFollowChannel = async () => {
     triggerHaptic('light', isInFarcaster);
-    // Open /mintedmerch channel
+    // Open /mintedmerch channel - use SDK openUrl for all mini app clients
     const url = 'https://warpcast.com/~/channel/mintedmerch';
-    if (isInFarcaster && sdk?.actions?.openUrl) {
-      await sdk.actions.openUrl(url);
-    } else {
+    try {
+      if (isInFarcaster && sdk?.actions?.openUrl) {
+        await sdk.actions.openUrl(url);
+      } else {
+        window.open(url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error opening channel:', error);
       window.open(url, '_blank');
     }
   };

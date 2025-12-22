@@ -117,13 +117,23 @@ export function StakePageClient() {
     await haptics.medium(isInFarcaster);
     try {
       if (isInFarcaster) {
-        // Get SDK context to check platform type
+        // Get SDK context to check platform type and client
         const context = await sdk.context;
         const platformType = context?.client?.platformType;
+        const clientFid = context?.client?.clientFid;
+        const isBaseApp = clientFid && clientFid !== 9152; // 9152 is Farcaster/Warpcast
         
-        if (platformType === 'mobile' && sdk?.actions?.openUrl) {
+        console.log(`🔗 Opening staking terminal (platformType: ${platformType}, clientFid: ${clientFid}, isBaseApp: ${isBaseApp})`);
+        
+        if (isBaseApp) {
+          // Base app - use direct URL, not farcaster.xyz deep links
+          if (sdk?.actions?.openUrl) {
+            await sdk.actions.openUrl(BETRMINT_DIRECT_URL);
+          } else {
+            window.open(BETRMINT_DIRECT_URL, '_blank');
+          }
+        } else if (platformType === 'mobile' && sdk?.actions?.openUrl) {
           // Mobile Farcaster app - use openUrl with DEEP LINK (stays in app)
-          // Key: Must use farcaster.xyz deep link, not direct URL
           await sdk.actions.openUrl(STAKING_TERMINAL_URL);
         } else if (sdk?.actions?.openMiniApp) {
           // Desktop/web Farcaster - use openMiniApp with direct URL
@@ -148,11 +158,22 @@ export function StakePageClient() {
     await haptics.light(isInFarcaster);
     try {
       if (isInFarcaster) {
-        // Get SDK context to check platform type
+        // Get SDK context to check platform type and client
         const context = await sdk.context;
         const platformType = context?.client?.platformType;
+        const clientFid = context?.client?.clientFid;
+        const isBaseApp = clientFid && clientFid !== 9152; // 9152 is Farcaster/Warpcast
         
-        if (platformType === 'mobile' && sdk?.actions?.openUrl) {
+        console.log(`🔗 Opening coin mini app (platformType: ${platformType}, clientFid: ${clientFid}, isBaseApp: ${isBaseApp})`);
+        
+        if (isBaseApp) {
+          // Base app - use direct URL, not farcaster.xyz deep links
+          if (sdk?.actions?.openUrl) {
+            await sdk.actions.openUrl(COIN_MINIAPP_URL);
+          } else {
+            window.open(COIN_MINIAPP_URL, '_blank');
+          }
+        } else if (platformType === 'mobile' && sdk?.actions?.openUrl) {
           // Mobile Farcaster app - use openUrl with DEEP LINK (stays in app)
           await sdk.actions.openUrl(COIN_MINIAPP_DEEPLINK);
         } else if (sdk?.actions?.openMiniApp) {

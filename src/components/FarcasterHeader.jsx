@@ -44,11 +44,20 @@ export function FarcasterHeader() {
     }
     
     try {
-      // Get SDK context to check platform type
+      // Get SDK context to check platform type and client
       const context = await sdk.context;
       const platformType = context?.client?.platformType;
+      const clientFid = context?.client?.clientFid;
+      const isBaseApp = clientFid && clientFid !== 9152; // 9152 is Farcaster/Warpcast
       
-      if (platformType === 'mobile' && sdk?.actions?.openUrl) {
+      console.log(`🔗 FarcasterHeader: Opening coin mini app (platformType: ${platformType}, clientFid: ${clientFid}, isBaseApp: ${isBaseApp})`);
+      
+      if (isBaseApp) {
+        // Base app - use direct URL, not farcaster.xyz deep links
+        if (sdk?.actions?.openUrl) {
+          await sdk.actions.openUrl('https://coin.mintedmerch.shop/');
+        }
+      } else if (platformType === 'mobile' && sdk?.actions?.openUrl) {
         // Mobile Farcaster app - use openUrl with DEEP LINK (stays in app)
         await sdk.actions.openUrl('https://farcaster.xyz/miniapps/0TEC-mFCmqAA/mintedmerch');
       } else if (sdk?.actions?.openMiniApp) {

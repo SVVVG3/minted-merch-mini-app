@@ -459,6 +459,20 @@ export function useFarcaster() {
     [context?.client?.notificationDetails, context?.notificationDetails]
   );
 
+  // Client detection helpers (for Base vs Farcaster)
+  const FARCASTER_CLIENT_FID = 9152;
+  const clientFid = context?.client?.clientFid;
+  const isBaseApp = isInFarcaster && clientFid && clientFid !== FARCASTER_CLIENT_FID;
+  const isFarcasterClient = isInFarcaster && clientFid === FARCASTER_CLIENT_FID;
+  const platformType = context?.client?.platformType;
+
+  const getClientInfo = useCallback(() => ({
+    clientFid,
+    isBaseApp,
+    isFarcasterClient,
+    platformType
+  }), [clientFid, isBaseApp, isFarcasterClient, platformType]);
+
   return {
     context,
     user,
@@ -467,6 +481,12 @@ export function useFarcaster() {
     isReady,
     isAuthKit: user?.isAuthKit || false,
     sessionToken,
+    // Client info (Base vs Farcaster)
+    clientFid,
+    isBaseApp,
+    isFarcasterClient,
+    platformType,
+    getClientInfo,
     // Memoized helper functions
     getFid,
     getUsername,
