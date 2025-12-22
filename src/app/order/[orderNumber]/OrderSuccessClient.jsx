@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { shareToFarcaster } from '@/lib/farcasterShare';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 export function OrderSuccessClient({ orderNumber }) {
@@ -119,18 +120,18 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
-  // Share order function - use global SDK to ensure proper context
+  // Share order function - use shareToFarcaster utility (same as homepage)
   const handleShareOrder = async () => {
     const mainProduct = orderData?.line_items?.[0]?.title || 'item';
     const orderUrl = `${window.location.origin}/order/${orderNumber}`;
     const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
     
     try {
-      // Use global SDK stored by FrameInit (ensures proper initialization)
-      const globalSdk = window.neynarSdk || sdk;
-      await globalSdk.actions.composeCast({
+      // Use the same utility function as homepage (works in both mini-app and non-mini-app)
+      await shareToFarcaster({
         text: shareText,
-        embeds: [orderUrl]
+        embeds: [orderUrl],
+        isInFarcaster,
       });
     } catch (err) {
       console.error('Error sharing order:', err);
