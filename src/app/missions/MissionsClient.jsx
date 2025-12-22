@@ -834,9 +834,14 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
     await triggerHaptic('light', isInFarcaster);
     if (bounty.targetCastUrl) {
       try {
-        // Use viewCast - same pattern as composeCast which works for both Farcaster and Base
-        if (isInFarcaster && sdk?.actions?.viewCast) {
-          await sdk.actions.viewCast(bounty.targetCastUrl);
+        // Extract cast hash from URL (format: https://farcaster.xyz/username/0xabc123)
+        const urlParts = bounty.targetCastUrl.split('/');
+        const lastPart = urlParts[urlParts.length - 1];
+        const castHash = lastPart && lastPart.startsWith('0x') ? lastPart : null;
+        
+        // viewCast takes { hash: "0x..." } per Farcaster SDK docs
+        if (isInFarcaster && sdk?.actions?.viewCast && castHash) {
+          await sdk.actions.viewCast({ hash: castHash });
         } else {
           window.open(bounty.targetCastUrl, '_blank');
         }
