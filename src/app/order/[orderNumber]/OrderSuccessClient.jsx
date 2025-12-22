@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useFarcaster } from '@/lib/useFarcaster';
-import { sdk } from '@farcaster/miniapp-sdk';
+import { shareOrder } from '@/lib/farcasterShare';
 
 export function OrderSuccessClient({ orderNumber }) {
   const { isInFarcaster, getSessionToken, isReady } = useFarcaster();
@@ -119,28 +119,14 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
-  // Share order function - use SAME pattern as shareToFarcaster utility (product pages)
-  // Key difference: Don't check isInFarcaster, ONLY check if SDK exists
+  // Share order function - use SAME shareOrder utility as other pages
   const handleShareOrder = async () => {
-    const shareUrl = `https://app.mintedmerch.shop/order/${orderNumber}`;
     const mainProduct = orderData?.line_items?.[0]?.title || 'item';
-    const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
-    
-    try {
-      // Always try SDK first if available (works for both Farcaster and Base app)
-      if (sdk?.actions?.composeCast) {
-        await sdk.actions.composeCast({
-          text: shareText,
-          embeds: [shareUrl]
-        });
-      } else {
-        // Desktop/browser - open Farcaster compose in new tab
-        const farcasterUrl = `https://farcaster.xyz/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
-        window.open(farcasterUrl, '_blank');
-      }
-    } catch (err) {
-      console.error('Error sharing order:', err);
-    }
+    await shareOrder({
+      orderNumber,
+      mainProduct,
+      isInFarcaster,
+    });
   };
 
   return (
