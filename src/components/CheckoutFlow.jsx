@@ -9,7 +9,6 @@ import { useWalletConnectContext } from './WalletConnectProvider';
 import { debugBaseAccount } from '@/lib/baseAccount';
 import { calculateCheckout } from '@/lib/shopify';
 import { sdk } from '@farcaster/miniapp-sdk';
-import { shareOrder } from '@/lib/farcasterShare';
 
 import { ShippingForm } from './ShippingForm';
 import GiftCardSection, { GiftCardBalance } from './GiftCardSection';
@@ -1564,25 +1563,32 @@ Transaction Hash: ${transactionHash}`;
   };
 
   // Share order success function
-  // Share order - EXACT same pattern as ProductDetail uses shareProduct
+  // Share order - EXACT stake page pattern (works in both Farcaster and Base app)
   const handleShareOrder = async () => {
     if (!orderDetails) return;
 
     // Add small delay to ensure order is fully processed in database
     await new Promise(resolve => setTimeout(resolve, 2000));
 
+    const orderNumber = orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name;
+    const mainProduct = orderDetails.lineItems?.[0]?.title || orderDetails.lineItems?.[0]?.name || 'item';
+    const shareUrl = `${window.location.origin}/order/${orderNumber}`;
+    const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
+    
     try {
-      const orderNumber = orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name;
-      const mainProduct = orderDetails.lineItems?.[0]?.title || orderDetails.lineItems?.[0]?.name || 'item';
-      
-      // Use shareOrder utility - same as ProductDetail uses shareProduct
-      await shareOrder({
-        orderNumber,
-        mainProduct,
-        isInFarcaster,
-      });
-    } catch (error) {
-      console.error('Error sharing order:', error);
+      if (isInFarcaster && sdk?.actions?.composeCast) {
+        // In Farcaster/Base mini app - use SDK to compose cast
+        await sdk.actions.composeCast({
+          text: shareText,
+          embeds: [shareUrl]
+        });
+      } else {
+        // Desktop/browser - open Farcaster compose in new tab
+        const farcasterUrl = `https://farcaster.xyz/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
+        window.open(farcasterUrl, '_blank');
+      }
+    } catch (err) {
+      console.error('Error sharing order:', err);
     }
   };
 
