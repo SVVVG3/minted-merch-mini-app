@@ -849,8 +849,9 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
         }
         
         if (isBaseApp && sdk?.actions?.viewCast && castHash) {
-          // Base app: Use viewCast with just the hash
-          await sdk.actions.viewCast(castHash);
+          // Base app: Use viewCast with base.app/post/{hash} format per docs
+          const baseAppCastUrl = `https://base.app/post/${castHash}`;
+          await sdk.actions.viewCast(baseAppCastUrl);
         } else if (isInFarcaster && sdk?.actions?.openUrl) {
           // Farcaster: Use openUrl with the original farcaster.xyz URL
           await sdk.actions.openUrl(bounty.targetCastUrl);
