@@ -1607,21 +1607,20 @@ Transaction Hash: ${transactionHash}`;
 
     // Farcaster sharing using SDK composeCast action
     try {
-              // Add cache-busting parameter to ensure fresh metadata
-        const orderNumber = orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name;
-        const orderUrl = `${window.location.origin}/order/${orderNumber}?t=${Date.now()}`;
-        // Get the main product name from the order
-        const mainProduct = orderDetails.lineItems?.[0]?.title || orderDetails.lineItems?.[0]?.name || 'item';
-        const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
+      // Add cache-busting parameter to ensure fresh metadata
+      const orderNumber = orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name;
+      const orderUrl = `${window.location.origin}/order/${orderNumber}?t=${Date.now()}`;
+      // Get the main product name from the order
+      const mainProduct = orderDetails.lineItems?.[0]?.title || orderDetails.lineItems?.[0]?.name || 'item';
+      const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
       
-      // Use the Farcaster SDK composeCast action
-      const { sdk } = await import('../lib/frame');
-      const result = await sdk.actions.composeCast({
+      // Use the SDK directly (same pattern as other working share buttons)
+      await sdk.actions.composeCast({
         text: shareText,
         embeds: [orderUrl],
       });
       
-      console.log('Order cast composed:', result);
+      console.log('Order cast composed successfully');
     } catch (error) {
       console.error('Error sharing order:', error);
       // Fallback to copying link with cache-busting parameter

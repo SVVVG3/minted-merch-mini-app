@@ -844,18 +844,10 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
           castHash = lastPart && lastPart.startsWith('0x') ? lastPart : null;
         }
         
-        // Debug logging
-        console.log('🔗 handleOpenCast called');
-        console.log('   targetCastUrl:', bounty.targetCastUrl);
-        console.log('   targetCastHash (stored):', bounty.targetCastHash);
-        console.log('   castHash (final):', castHash);
-        
         // viewCast takes { hash: "0x..." } per Farcaster SDK docs
         if (isInFarcaster && sdk?.actions?.viewCast && castHash) {
-          console.log('   Calling sdk.actions.viewCast({ hash:', castHash, '})');
           await sdk.actions.viewCast({ hash: castHash });
         } else {
-          console.log('   Falling back to window.open');
           window.open(bounty.targetCastUrl, '_blank');
         }
       } catch (error) {
