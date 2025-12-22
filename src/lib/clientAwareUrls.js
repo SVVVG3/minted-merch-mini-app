@@ -2,7 +2,13 @@
  * Client-aware URL handling for mini apps
  * 
  * Detects whether the user is in Farcaster (Warpcast) or Base app
- * and opens URLs appropriately to stay within the same client.
+ * and uses the appropriate SDK actions to navigate.
+ * 
+ * Key patterns from Base docs:
+ * - View casts: Use sdk.actions.viewCast(castUrl)
+ * - Compose casts: Use sdk.actions.composeCast({ text, embeds })
+ * - Open external URLs: Use sdk.actions.openUrl(url)
+ * - Open mini apps in Base: Use cbwallet://miniapp?url=${MINI_APP_URL}
  */
 
 import { sdk } from '@farcaster/miniapp-sdk';
@@ -38,130 +44,101 @@ export async function getClientInfo() {
 }
 
 /**
- * Open a URL in the appropriate way based on the current client
+ * Open an external URL using the SDK
+ * Works for both Farcaster and Base app
  * @param {string} url - The URL to open
- * @param {Object} options - Optional configuration
- * @param {string} options.farcasterUrl - Alternative URL for Farcaster (e.g., warpcast.com deep link)
- * @param {string} options.baseUrl - Alternative URL for Base app
  */
-export async function openClientAwareUrl(url, options = {}) {
+export async function openUrl(url) {
   try {
-    const { isBaseApp, isFarcaster, platformType } = await getClientInfo();
-    
-    let targetUrl = url;
-    
-    // Use client-specific URL if provided
-    if (isFarcaster && options.farcasterUrl) {
-      targetUrl = options.farcasterUrl;
-    } else if (isBaseApp && options.baseUrl) {
-      targetUrl = options.baseUrl;
-    }
-    
-    console.log(`🔗 Opening URL (isBaseApp: ${isBaseApp}, isFarcaster: ${isFarcaster}):`, targetUrl);
-    
-    // Try to use SDK openUrl
     if (sdk?.actions?.openUrl) {
-      await sdk.actions.openUrl(targetUrl);
+      await sdk.actions.openUrl(url);
     } else {
-      // Fallback to window.open
-      window.open(targetUrl, '_blank');
+      window.open(url, '_blank');
     }
   } catch (error) {
     console.error('Error opening URL:', error);
-    // Fallback to window.open
     window.open(url, '_blank');
   }
 }
 
 /**
- * Open a Farcaster cast URL
- * For Farcaster: uses warpcast.com URL
- * For Base: uses the standard cast URL (farcaster.xyz or direct)
- * @param {string} castUrl - The cast URL (can be warpcast.com or any cast URL)
+ * View a Farcaster cast
+ * Uses sdk.actions.viewCast() which works for both Farcaster and Base app
+ * @param {string} castUrl - The cast URL
  */
-export async function openCastUrl(castUrl) {
-  const { isBaseApp } = await getClientInfo();
-  
-  // Extract cast hash if it's a warpcast URL
-  let normalizedUrl = castUrl;
-  
-  if (isBaseApp && castUrl.includes('warpcast.com')) {
-    // For Base app, convert warpcast URLs to farcaster.xyz format if needed
-    // warpcast.com/username/0x123... -> keep as is, Base should handle it
-    // The key is that we don't want Base to try to open Warpcast app
-    console.log('🔗 Opening cast in Base app:', castUrl);
+export async function viewCast(castUrl) {
+  try {
+    if (sdk?.actions?.viewCast) {
+      await sdk.actions.viewCast(castUrl);
+    } else if (sdk?.actions?.openUrl) {
+      // Fallback to openUrl
+      await sdk.actions.openUrl(castUrl);
+    } else {
+      window.open(castUrl, '_blank');
+    }
+  } catch (error) {
+    console.error('Error viewing cast:', error);
+    window.open(castUrl, '_blank');
   }
-  
-  await openClientAwareUrl(normalizedUrl);
 }
 
 /**
- * Open a Farcaster profile URL
- * @param {string} username - The username (without @)
- */
-export async function openProfileUrl(username) {
-  const { isBaseApp, isFarcaster } = await getClientInfo();
-  
-  // Standard profile URL
-  const warpcastUrl = `https://warpcast.com/${username}`;
-  
-  // For Base, they should handle warpcast URLs, but let's log for debugging
-  console.log(`🔗 Opening profile (isBaseApp: ${isBaseApp}): @${username}`);
-  
-  await openClientAwareUrl(warpcastUrl);
-}
-
-/**
- * Open a Farcaster channel URL
- * @param {string} channelId - The channel ID (without /)
- */
-export async function openChannelUrl(channelId) {
-  const warpcastUrl = `https://warpcast.com/~/channel/${channelId}`;
-  
-  await openClientAwareUrl(warpcastUrl);
-}
-
-/**
- * Open a compose cast URL
+ * Open the cast composer
+ * Uses sdk.actions.composeCast() which works for both Farcaster and Base app
  * @param {string} text - The cast text
  * @param {string[]} embeds - Array of embed URLs
  */
-export async function openComposeUrl(text, embeds = []) {
-  const { isBaseApp, isFarcaster } = await getClientInfo();
-  
-  // Build the compose URL
-  let composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`;
-  
-  embeds.forEach(embed => {
-    composeUrl += `&embeds[]=${encodeURIComponent(embed)}`;
-  });
-  
-  console.log(`🔗 Opening compose (isBaseApp: ${isBaseApp}, isFarcaster: ${isFarcaster})`);
-  
-  await openClientAwareUrl(composeUrl);
+export async function composeCast(text, embeds = []) {
+  try {
+    if (sdk?.actions?.composeCast) {
+      await sdk.actions.composeCast({ text, embeds });
+    } else {
+      // Fallback to warpcast compose URL
+      let composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`;
+      embeds.forEach(embed => {
+        composeUrl += `&embeds[]=${encodeURIComponent(embed)}`;
+      });
+      window.open(composeUrl, '_blank');
+    }
+  } catch (error) {
+    console.error('Error composing cast:', error);
+    // Fallback to warpcast compose URL
+    let composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`;
+    embeds.forEach(embed => {
+      composeUrl += `&embeds[]=${encodeURIComponent(embed)}`;
+    });
+    window.open(composeUrl, '_blank');
+  }
 }
 
 /**
  * Open a mini app URL
- * For mobile: uses openUrl with the mini app URL
- * For desktop/web: uses openMiniApp
+ * For Farcaster: uses farcaster.xyz deep links or openMiniApp
+ * For Base: uses cbwallet://miniapp?url= deeplink
  * @param {string} miniAppUrl - The direct mini app URL
- * @param {string} deepLinkUrl - Optional deep link URL for mobile
+ * @param {string} farcasterDeepLink - Optional farcaster.xyz deep link for Farcaster mobile
  */
-export async function openMiniAppUrl(miniAppUrl, deepLinkUrl = null) {
+export async function openMiniApp(miniAppUrl, farcasterDeepLink = null) {
   try {
     const context = await sdk.context;
     const platformType = context?.client?.platformType;
-    const { isBaseApp } = await getClientInfo();
+    const { isBaseApp, isFarcaster } = await getClientInfo();
     
     console.log(`🔗 Opening mini app (platformType: ${platformType}, isBaseApp: ${isBaseApp})`);
     
-    if (platformType === 'mobile' && sdk?.actions?.openUrl) {
-      // Mobile - use openUrl with deep link if available
-      const url = deepLinkUrl || miniAppUrl;
-      await sdk.actions.openUrl(url);
+    if (isBaseApp) {
+      // Base app - use cbwallet deeplink to open as mini app within Base
+      const baseDeeplink = `cbwallet://miniapp?url=${encodeURIComponent(miniAppUrl)}`;
+      if (sdk?.actions?.openUrl) {
+        await sdk.actions.openUrl(baseDeeplink);
+      } else {
+        window.open(miniAppUrl, '_blank');
+      }
+    } else if (isFarcaster && platformType === 'mobile' && farcasterDeepLink && sdk?.actions?.openUrl) {
+      // Mobile Farcaster app - use farcaster.xyz deep link
+      await sdk.actions.openUrl(farcasterDeepLink);
     } else if (sdk?.actions?.openMiniApp) {
-      // Desktop/web - use openMiniApp
+      // Desktop/web Farcaster - use openMiniApp
       await sdk.actions.openMiniApp({ url: miniAppUrl });
     } else {
       // Fallback
@@ -173,3 +150,20 @@ export async function openMiniAppUrl(miniAppUrl, deepLinkUrl = null) {
   }
 }
 
+/**
+ * Open a Farcaster profile
+ * @param {string} username - The username (without @)
+ */
+export async function openProfile(username) {
+  const profileUrl = `https://warpcast.com/${username}`;
+  await openUrl(profileUrl);
+}
+
+/**
+ * Open a Farcaster channel
+ * @param {string} channelId - The channel ID (without /)
+ */
+export async function openChannel(channelId) {
+  const channelUrl = `https://warpcast.com/~/channel/${channelId}`;
+  await openUrl(channelUrl);
+}

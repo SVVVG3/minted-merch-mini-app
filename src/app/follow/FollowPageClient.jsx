@@ -366,10 +366,20 @@ Complete the mission and claim yours 👇`;
       console.error('Error marking shared:', err);
     }
 
-    if (isInFarcaster && sdk?.actions?.openUrl) {
-      const composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
-      await sdk.actions.openUrl(composeUrl);
-    } else {
+    try {
+      if (isInFarcaster && sdk?.actions?.composeCast) {
+        // Use composeCast SDK action - works for both Farcaster and Base app
+        await sdk.actions.composeCast({
+          text: shareText,
+          embeds: [shareUrl]
+        });
+      } else {
+        // Fallback for non-mini-app environments
+        const composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
+        window.open(composeUrl, '_blank');
+      }
+    } catch (error) {
+      console.error('Error opening composer:', error);
       const composeUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
       window.open(composeUrl, '_blank');
     }

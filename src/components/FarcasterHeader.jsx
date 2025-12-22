@@ -53,12 +53,13 @@ export function FarcasterHeader() {
       console.log(`🔗 FarcasterHeader: Opening coin mini app (platformType: ${platformType}, clientFid: ${clientFid}, isBaseApp: ${isBaseApp})`);
       
       if (isBaseApp) {
-        // Base app - use direct URL, not farcaster.xyz deep links
+        // Base app - use cbwallet deeplink to open as mini app within Base
+        const baseDeeplink = `cbwallet://miniapp?url=${encodeURIComponent('https://coin.mintedmerch.shop/')}`;
         if (sdk?.actions?.openUrl) {
-          await sdk.actions.openUrl('https://coin.mintedmerch.shop/');
+          await sdk.actions.openUrl(baseDeeplink);
         }
       } else if (platformType === 'mobile' && sdk?.actions?.openUrl) {
-        // Mobile Farcaster app - use openUrl with DEEP LINK (stays in app)
+        // Mobile Farcaster app - use openUrl with farcaster.xyz deep link
         await sdk.actions.openUrl('https://farcaster.xyz/miniapps/0TEC-mFCmqAA/mintedmerch');
       } else if (sdk?.actions?.openMiniApp) {
         // Desktop/web Farcaster - use openMiniApp with direct URL

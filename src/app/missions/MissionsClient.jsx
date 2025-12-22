@@ -833,9 +833,18 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
   const handleOpenCast = async () => {
     await triggerHaptic('light', isInFarcaster);
     if (bounty.targetCastUrl) {
-      if (isInFarcaster && sdk?.actions?.openUrl) {
-        await sdk.actions.openUrl(bounty.targetCastUrl);
-      } else {
+      try {
+        if (isInFarcaster && sdk?.actions?.viewCast) {
+          // Use viewCast SDK action - works for both Farcaster and Base app
+          await sdk.actions.viewCast(bounty.targetCastUrl);
+        } else if (isInFarcaster && sdk?.actions?.openUrl) {
+          // Fallback to openUrl if viewCast not available
+          await sdk.actions.openUrl(bounty.targetCastUrl);
+        } else {
+          window.open(bounty.targetCastUrl, '_blank');
+        }
+      } catch (error) {
+        console.error('Error opening cast:', error);
         window.open(bounty.targetCastUrl, '_blank');
       }
     }

@@ -126,14 +126,15 @@ export function StakePageClient() {
         console.log(`🔗 Opening staking terminal (platformType: ${platformType}, clientFid: ${clientFid}, isBaseApp: ${isBaseApp})`);
         
         if (isBaseApp) {
-          // Base app - use direct URL, not farcaster.xyz deep links
+          // Base app - use cbwallet deeplink to open as mini app within Base
+          const baseDeeplink = `cbwallet://miniapp?url=${encodeURIComponent(BETRMINT_DIRECT_URL)}`;
           if (sdk?.actions?.openUrl) {
-            await sdk.actions.openUrl(BETRMINT_DIRECT_URL);
+            await sdk.actions.openUrl(baseDeeplink);
           } else {
             window.open(BETRMINT_DIRECT_URL, '_blank');
           }
         } else if (platformType === 'mobile' && sdk?.actions?.openUrl) {
-          // Mobile Farcaster app - use openUrl with DEEP LINK (stays in app)
+          // Mobile Farcaster app - use openUrl with farcaster.xyz deep link
           await sdk.actions.openUrl(STAKING_TERMINAL_URL);
         } else if (sdk?.actions?.openMiniApp) {
           // Desktop/web Farcaster - use openMiniApp with direct URL
@@ -167,14 +168,15 @@ export function StakePageClient() {
         console.log(`🔗 Opening coin mini app (platformType: ${platformType}, clientFid: ${clientFid}, isBaseApp: ${isBaseApp})`);
         
         if (isBaseApp) {
-          // Base app - use direct URL, not farcaster.xyz deep links
+          // Base app - use cbwallet deeplink to open as mini app within Base
+          const baseDeeplink = `cbwallet://miniapp?url=${encodeURIComponent(COIN_MINIAPP_URL)}`;
           if (sdk?.actions?.openUrl) {
-            await sdk.actions.openUrl(COIN_MINIAPP_URL);
+            await sdk.actions.openUrl(baseDeeplink);
           } else {
             window.open(COIN_MINIAPP_URL, '_blank');
           }
         } else if (platformType === 'mobile' && sdk?.actions?.openUrl) {
-          // Mobile Farcaster app - use openUrl with DEEP LINK (stays in app)
+          // Mobile Farcaster app - use openUrl with farcaster.xyz deep link
           await sdk.actions.openUrl(COIN_MINIAPP_DEEPLINK);
         } else if (sdk?.actions?.openMiniApp) {
           // Desktop/web Farcaster - use openMiniApp with direct URL
