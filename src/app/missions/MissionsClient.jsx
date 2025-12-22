@@ -834,8 +834,13 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
     await triggerHaptic('light', isInFarcaster);
     if (bounty.targetCastUrl) {
       try {
-        // Extract cast hash from farcaster.xyz or warpcast.com URL
-        // Format: https://farcaster.xyz/username/0xabc123 or https://warpcast.com/username/0xabc123
+        // Check if we're in Base app vs Farcaster
+        const context = await sdk.context;
+        const clientFid = context?.client?.clientFid;
+        const isBaseApp = clientFid && clientFid !== 9152; // 9152 is Farcaster/Warpcast
+        
+        // Extract cast hash from URL for viewCast
+        // Format: https://farcaster.xyz/username/0xabc123
         let castHash = null;
         const urlParts = bounty.targetCastUrl.split('/');
         const lastPart = urlParts[urlParts.length - 1];
@@ -843,12 +848,11 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
           castHash = lastPart;
         }
         
-        if (isInFarcaster && sdk?.actions?.viewCast && castHash) {
-          // Use viewCast with base.app/post format as shown in docs
-          const viewCastUrl = `https://base.app/post/${castHash}`;
-          await sdk.actions.viewCast(viewCastUrl);
+        if (isBaseApp && sdk?.actions?.viewCast && castHash) {
+          // Base app: Use viewCast with just the hash
+          await sdk.actions.viewCast(castHash);
         } else if (isInFarcaster && sdk?.actions?.openUrl) {
-          // Fallback to openUrl with original URL
+          // Farcaster: Use openUrl with the original farcaster.xyz URL
           await sdk.actions.openUrl(bounty.targetCastUrl);
         } else {
           window.open(bounty.targetCastUrl, '_blank');
