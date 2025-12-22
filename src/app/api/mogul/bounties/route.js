@@ -178,6 +178,7 @@ export async function GET(request) {
           isInteractionBounty: isInteraction,
           isCustomBounty: bounty.bounty_type === 'custom',
           targetCastUrl: bounty.target_cast_url,
+          targetCastHash: bounty.target_cast_hash,
           imageUrl: bounty.image_url,
           category: bounty.category,
           createdAt: bounty.created_at

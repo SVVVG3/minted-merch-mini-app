@@ -834,15 +834,28 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
     await triggerHaptic('light', isInFarcaster);
     if (bounty.targetCastUrl) {
       try {
-        // Extract cast hash from URL (format: https://farcaster.xyz/username/0xabc123)
-        const urlParts = bounty.targetCastUrl.split('/');
-        const lastPart = urlParts[urlParts.length - 1];
-        const castHash = lastPart && lastPart.startsWith('0x') ? lastPart : null;
+        // Use the stored hash directly, or extract from URL as fallback
+        let castHash = bounty.targetCastHash;
+        
+        if (!castHash) {
+          // Fallback: Extract from URL (format: https://farcaster.xyz/username/0xabc123)
+          const urlParts = bounty.targetCastUrl.split('/');
+          const lastPart = urlParts[urlParts.length - 1];
+          castHash = lastPart && lastPart.startsWith('0x') ? lastPart : null;
+        }
+        
+        // Debug logging
+        console.log('🔗 handleOpenCast called');
+        console.log('   targetCastUrl:', bounty.targetCastUrl);
+        console.log('   targetCastHash (stored):', bounty.targetCastHash);
+        console.log('   castHash (final):', castHash);
         
         // viewCast takes { hash: "0x..." } per Farcaster SDK docs
         if (isInFarcaster && sdk?.actions?.viewCast && castHash) {
+          console.log('   Calling sdk.actions.viewCast({ hash:', castHash, '})');
           await sdk.actions.viewCast({ hash: castHash });
         } else {
+          console.log('   Falling back to window.open');
           window.open(bounty.targetCastUrl, '_blank');
         }
       } catch (error) {
