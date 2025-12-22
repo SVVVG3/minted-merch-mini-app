@@ -257,7 +257,7 @@ export async function shareCollection({ collectionHandle, collectionName, isInFa
  */
 export async function shareOrder({ orderNumber, mainProduct, isInFarcaster = false }) {
   const orderUrl = `${window.location.origin}/order/${orderNumber}`;
-  const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app!\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains`;
+  const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
 
   return shareToFarcaster({
     text: shareText,
