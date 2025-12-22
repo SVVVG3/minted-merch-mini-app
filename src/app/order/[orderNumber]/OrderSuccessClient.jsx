@@ -119,23 +119,24 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
-  // Share order function - EXACT same pattern as stake page handleShare
+  // Share order function - use SAME pattern as shareToFarcaster utility (product pages)
+  // Key difference: Don't check isInFarcaster, ONLY check if SDK exists
   const handleShareOrder = async () => {
     const shareUrl = `https://app.mintedmerch.shop/order/${orderNumber}`;
     const mainProduct = orderData?.line_items?.[0]?.title || 'item';
     const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
     
     try {
-      if (isInFarcaster && sdk?.actions?.composeCast) {
-        // In Farcaster mini app - use SDK to compose cast
+      // Always try SDK first if available (works for both Farcaster and Base app)
+      if (sdk?.actions?.composeCast) {
         await sdk.actions.composeCast({
           text: shareText,
           embeds: [shareUrl]
         });
       } else {
-        // Desktop/browser - open Warpcast compose in new tab
-        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
-        window.open(warpcastUrl, '_blank');
+        // Desktop/browser - open Farcaster compose in new tab
+        const farcasterUrl = `https://farcaster.xyz/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
+        window.open(farcasterUrl, '_blank');
       }
     } catch (err) {
       console.error('Error sharing order:', err);
