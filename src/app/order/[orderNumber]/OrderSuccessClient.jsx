@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useFarcaster } from '@/lib/useFarcaster';
-import { shareOrder } from '@/lib/farcasterShare';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 export function OrderSuccessClient({ orderNumber }) {
@@ -120,16 +119,17 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
-  // Share order function
+  // Share order function - call SDK directly like other working share buttons
   const handleShareOrder = async () => {
     try {
       const mainProduct = orderData?.line_items?.[0]?.title || 'item';
+      const orderUrl = `${window.location.origin}/order/${orderNumber}`;
+      const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
       
-      // Use the new utility function to handle sharing (works in both mini-app and non-mini-app)
-      await shareOrder({
-        orderNumber,
-        mainProduct,
-        isInFarcaster,
+      // Call SDK directly - same pattern as all other working share buttons
+      await sdk.actions.composeCast({
+        text: shareText,
+        embeds: [orderUrl],
       });
     } catch (error) {
       console.error('Error sharing order:', error);
