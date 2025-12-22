@@ -119,24 +119,18 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
-  // Share order function - exact pattern from working stake page
+  // Share order function - just use composeCast directly
   const handleShareOrder = async () => {
     const mainProduct = orderData?.line_items?.[0]?.title || 'item';
     const orderUrl = `${window.location.origin}/order/${orderNumber}`;
     const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
     
     try {
-      if (isInFarcaster && sdk?.actions?.composeCast) {
-        // In Farcaster mini app - use SDK to compose cast
-        await sdk.actions.composeCast({
-          text: shareText,
-          embeds: [orderUrl]
-        });
-      } else {
-        // Desktop/browser - open Farcaster compose in new tab
-        const farcasterUrl = `https://farcaster.xyz/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(orderUrl)}`;
-        window.open(farcasterUrl, '_blank');
-      }
+      // Just call composeCast - works in both Farcaster and Base app
+      await sdk.actions.composeCast({
+        text: shareText,
+        embeds: [orderUrl]
+      });
     } catch (err) {
       console.error('Error sharing order:', err);
     }
