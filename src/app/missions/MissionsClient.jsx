@@ -834,9 +834,21 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
     await triggerHaptic('light', isInFarcaster);
     if (bounty.targetCastUrl) {
       try {
-        // Pass the full cast URL directly to the SDK
-        // The SDK should handle farcaster.xyz URLs natively
-        if (isInFarcaster && sdk?.actions?.openUrl) {
+        // Extract cast hash from farcaster.xyz or warpcast.com URL
+        // Format: https://farcaster.xyz/username/0xabc123 or https://warpcast.com/username/0xabc123
+        let castHash = null;
+        const urlParts = bounty.targetCastUrl.split('/');
+        const lastPart = urlParts[urlParts.length - 1];
+        if (lastPart && lastPart.startsWith('0x')) {
+          castHash = lastPart;
+        }
+        
+        if (isInFarcaster && sdk?.actions?.viewCast && castHash) {
+          // Use viewCast with base.app/post format as shown in docs
+          const viewCastUrl = `https://base.app/post/${castHash}`;
+          await sdk.actions.viewCast(viewCastUrl);
+        } else if (isInFarcaster && sdk?.actions?.openUrl) {
+          // Fallback to openUrl with original URL
           await sdk.actions.openUrl(bounty.targetCastUrl);
         } else {
           window.open(bounty.targetCastUrl, '_blank');
