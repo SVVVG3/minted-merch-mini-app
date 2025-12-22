@@ -1563,7 +1563,7 @@ Transaction Hash: ${transactionHash}`;
   };
 
   // Share order success function
-  // Share order - EXACT stake page pattern (works in both Farcaster and Base app)
+  // Share order - EXACT stake page pattern with hardcoded URL
   const handleShareOrder = async () => {
     if (!orderDetails) return;
 
@@ -1572,23 +1572,24 @@ Transaction Hash: ${transactionHash}`;
 
     const orderNumber = orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name;
     const mainProduct = orderDetails.lineItems?.[0]?.title || orderDetails.lineItems?.[0]?.name || 'item';
-    const shareUrl = `${window.location.origin}/order/${orderNumber}`;
+    // Use hardcoded base URL like stake page does (not window.location.origin)
+    const shareUrl = `https://app.mintedmerch.shop/order/${orderNumber}`;
     const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
     
     try {
       if (isInFarcaster && sdk?.actions?.composeCast) {
-        // In Farcaster/Base mini app - use SDK to compose cast
+        // In Farcaster mini app - use SDK to compose cast
         await sdk.actions.composeCast({
           text: shareText,
           embeds: [shareUrl]
         });
       } else {
-        // Desktop/browser - open Farcaster compose in new tab
-        const farcasterUrl = `https://farcaster.xyz/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
-        window.open(farcasterUrl, '_blank');
+        // Desktop/browser - open Warpcast compose in new tab
+        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
+        window.open(warpcastUrl, '_blank');
       }
     } catch (err) {
-      console.error('Error sharing order:', err);
+      console.error('Error sharing:', err);
     }
   };
 
