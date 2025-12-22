@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 export function OrderSuccessClient({ orderNumber }) {
   const { isInFarcaster, getSessionToken, isReady } = useFarcaster();
@@ -118,28 +119,17 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
-  // Share order function - use global SDK from FrameInit (window.neynarSdk)
+  // Share order function - EXACTLY as docs show
   const handleShareOrder = async () => {
     const mainProduct = orderData?.line_items?.[0]?.title || 'item';
-    const shareUrl = `https://app.mintedmerch.shop/order/${orderNumber}`;
-    const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
     
-    try {
-      // Use globally stored SDK from FrameInit
-      const globalSdk = window.neynarSdk;
-      if (globalSdk?.actions?.composeCast) {
-        console.log('📱 Using global SDK for composeCast');
-        await globalSdk.actions.composeCast({
-          text: shareText,
-          embeds: [shareUrl]
-        });
-      } else {
-        console.log('⚠️ Global SDK not available, falling back to URL');
-        const farcasterUrl = `https://farcaster.xyz/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
-        window.open(farcasterUrl, '_blank');
-      }
-    } catch (err) {
-      console.error('Error sharing order:', err);
+    const result = await sdk.actions.composeCast({
+      text: `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`,
+      embeds: [`https://app.mintedmerch.shop/order/${orderNumber}`]
+    });
+    
+    if (result?.cast) {
+      console.log('Cast posted:', result.cast.hash);
     }
   };
 
