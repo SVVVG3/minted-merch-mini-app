@@ -119,18 +119,16 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
-  // Share order function - EXACTLY as docs show
+  // Share order function - match CheckoutFlow.jsx exactly
   const handleShareOrder = async () => {
     const mainProduct = orderData?.line_items?.[0]?.title || 'item';
+    const orderUrl = `${window.location.origin}/order/${orderNumber}?t=${Date.now()}`;
+    const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
     
-    const result = await sdk.actions.composeCast({
-      text: `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`,
-      embeds: [`https://app.mintedmerch.shop/order/${orderNumber}`]
+    await sdk.actions.composeCast({
+      text: shareText,
+      embeds: [orderUrl],
     });
-    
-    if (result?.cast) {
-      console.log('Cast posted:', result.cast.hash);
-    }
   };
 
   return (
