@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { shareOrder } from '@/lib/farcasterShare';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 export function OrderSuccessClient({ orderNumber }) {
@@ -119,17 +120,18 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
-  // Share order function - TEST: use homepage URL instead of order URL
+  // Share order function - EXACT same pattern as ProductDetail.jsx uses shareProduct
   const handleShareOrder = async () => {
-    const mainProduct = orderData?.line_items?.[0]?.title || 'item';
-    // TEST: Using homepage URL to see if /order/ path is the issue
-    const shareUrl = `${window.location.origin}`;
-    const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
-    
-    await sdk.actions.composeCast({
-      text: shareText,
-      embeds: [shareUrl],
-    });
+    try {
+      const mainProduct = orderData?.line_items?.[0]?.title || 'item';
+      await shareOrder({
+        orderNumber,
+        mainProduct,
+        isInFarcaster,
+      });
+    } catch (error) {
+      console.error('Error sharing order:', error);
+    }
   };
 
   return (

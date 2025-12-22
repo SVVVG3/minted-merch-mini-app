@@ -9,6 +9,7 @@ import { useWalletConnectContext } from './WalletConnectProvider';
 import { debugBaseAccount } from '@/lib/baseAccount';
 import { calculateCheckout } from '@/lib/shopify';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { shareOrder } from '@/lib/farcasterShare';
 
 import { ShippingForm } from './ShippingForm';
 import GiftCardSection, { GiftCardBalance } from './GiftCardSection';
@@ -1563,73 +1564,25 @@ Transaction Hash: ${transactionHash}`;
   };
 
   // Share order success function
+  // Share order - EXACT same pattern as ProductDetail uses shareProduct
   const handleShareOrder = async () => {
     if (!orderDetails) return;
 
     // Add small delay to ensure order is fully processed in database
-    // This prevents sharing before metadata is ready
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    if (!isInFarcaster) {
-      // For non-mini-app environments, open Warpcast app with pre-filled cast
-      try {
-        const orderNumber = orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name;
-        const orderUrl = `${window.location.origin}/order/${orderNumber}?t=${Date.now()}`;
-        const mainProduct = orderDetails.lineItems?.[0]?.title || orderDetails.lineItems?.[0]?.name || 'item';
-        const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
-        
-        // Encode for URL
-        const encodedText = encodeURIComponent(shareText);
-        const encodedEmbed = encodeURIComponent(orderUrl);
-        
-        // Warpcast deep link format: warpcast://compose?text=...&embeds[]=...
-        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`;
-        
-        console.log('Opening Warpcast with share link:', warpcastUrl);
-        
-        // Open in new window/tab (will open Warpcast app on mobile)
-        window.open(warpcastUrl, '_blank');
-        
-      } catch (err) {
-        console.error('Error opening Warpcast:', err);
-        
-        // Fallback: copy link to clipboard
-        try {
-          const orderNumber = orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name;
-          await navigator.clipboard.writeText(`${window.location.origin}/order/${orderNumber}?t=${Date.now()}`);
-          alert('Order link copied to clipboard!');
-        } catch (clipErr) {
-          console.log('Error copying to clipboard:', clipErr);
-        }
-      }
-      return;
-    }
-
-    // Farcaster sharing using SDK composeCast action
     try {
-      // Add cache-busting parameter to ensure fresh metadata
       const orderNumber = orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name;
-      const orderUrl = `${window.location.origin}/order/${orderNumber}?t=${Date.now()}`;
-      // Get the main product name from the order
       const mainProduct = orderDetails.lineItems?.[0]?.title || orderDetails.lineItems?.[0]?.name || 'item';
-      const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
       
-      // Use the SDK directly (same pattern as other working share buttons)
-      await sdk.actions.composeCast({
-        text: shareText,
-        embeds: [orderUrl],
+      // Use shareOrder utility - same as ProductDetail uses shareProduct
+      await shareOrder({
+        orderNumber,
+        mainProduct,
+        isInFarcaster,
       });
-      
-      console.log('Order cast composed successfully');
     } catch (error) {
       console.error('Error sharing order:', error);
-      // Fallback to copying link with cache-busting parameter
-      try {
-        await navigator.clipboard.writeText(`${window.location.origin}/order/${orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name}?t=${Date.now()}`);
-        alert('Order link copied to clipboard!');
-      } catch (err) {
-        console.log('Error copying to clipboard:', err);
-      }
     }
   };
 
