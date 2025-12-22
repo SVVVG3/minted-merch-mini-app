@@ -117,21 +117,28 @@ export async function generateMetadata({ params, searchParams }) {
     return `${quantity}x ${title}`;
   }).join('\n') || '1 item';
   
-  // SIMPLIFIED: Keep URL under 1024 char limit for Base app embeds
-  // Only include essential params - the OG route will fetch full data from DB
   const imageParams = new URLSearchParams({
     orderNumber: displayOrderNumber,
+    products: productList,
     total: orderData?.amount_total || '0.00'
   });
   
-  // Only add product name (truncated) - NOT the full image URL which is too long
-  if (orderData?.line_items?.[0]?.title) {
-    const truncatedProduct = orderData.line_items[0].title.substring(0, 50);
-    imageParams.set('product', truncatedProduct);
+  // Add first product image if available
+  if (firstProductImage) {
+    imageParams.set('image', firstProductImage);
+    console.log('✅ Adding product image to OG params:', firstProductImage);
+  } else {
+    console.log('⚠️ No product image found for order');
+  }
+  
+  // Add cache-busting parameter if provided (for immediate shares)
+  if (cacheBust) {
+    imageParams.set('t', cacheBust);
+    console.log('🔄 Adding cache-busting parameter:', cacheBust);
   }
   
   const dynamicImageUrl = `${baseUrl}/api/og/order?${imageParams.toString()}`;
-  console.log('📸 Final OG image URL:', dynamicImageUrl, '| Length:', dynamicImageUrl.length);
+  console.log('📸 Final OG image URL:', dynamicImageUrl);
   
   // Create frame embed with dynamic order image - use version "next" for Mini App embeds
   const frame = {

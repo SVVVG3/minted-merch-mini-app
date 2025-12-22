@@ -30,18 +30,80 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const orderNumber = searchParams.get('orderNumber') || 'ORDER-123';
     const total = searchParams.get('total') || '0.00';
-    // Support both old 'products' param and new 'product' param
-    const product = searchParams.get('product') || searchParams.get('products') || '1 item';
+    const products = decodeURIComponent(searchParams.get('products') || '1 item');
+    const itemCount = parseInt(searchParams.get('itemCount') || '1');
+    const imageUrl = searchParams.get('image');
+    const bustCache = searchParams.get('t'); // Cache busting parameter
     
     console.log('=== OG Order Image Generation ===');
-    console.log('Raw params:', { orderNumber, total, product });
+    console.log('Raw params:', { orderNumber, total, products, itemCount, imageUrl, bustCache });
+    console.log('Products parameter:', products);
+    console.log('Products type:', typeof products);
+    console.log('Products length:', products.length);
+    console.log('Products includes newline:', products.includes('\n'));
+    console.log('Products includes comma:', products.includes(','));
     
     // Fix order number formatting - remove URL encoding and ensure single #
     let displayOrderNumber = decodeURIComponent(orderNumber);
     // Remove any double ## that might have been added
     displayOrderNumber = displayOrderNumber.replace(/^#+/, '#');
     
-    console.log('Processed values:', { displayOrderNumber, product });
+    console.log('Processed values:', { displayOrderNumber, products });
+    
+    // Fetch and convert external image if provided
+    let productImageSrc = null;
+    let productImageFailed = false;
+    
+    if (imageUrl) {
+      console.log('=== ATTEMPTING TO FETCH PRODUCT IMAGE ===');
+      console.log('Image URL:', imageUrl);
+      
+      try {
+        // Add timeout and retry logic for reliability
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // Reduced to 5 seconds
+        
+        const response = await fetch(imageUrl, { 
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'Minted-Merch-OG/1.0'
+          }
+        });
+        clearTimeout(timeoutId);
+        
+        console.log('Image fetch response:', { 
+          status: response.status, 
+          statusText: response.statusText,
+          contentType: response.headers.get('content-type')
+        });
+        
+        if (response.ok && response.status === 200) {
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const contentType = response.headers.get('content-type') || 'image/jpeg';
+          
+          console.log('✅ Image fetched successfully:', { 
+            contentType, 
+            size: buffer.length,
+            sizeKB: Math.round(buffer.length / 1024)
+          });
+          
+          productImageSrc = `data:${contentType};base64,${buffer.toString('base64')}`;
+          console.log('✅ Data URL created, length:', productImageSrc.length);
+        } else {
+          console.error('❌ Image fetch failed:', response.status, response.statusText);
+          productImageFailed = true;
+        }
+      } catch (error) {
+        console.error('❌ Error fetching product image:', error.message);
+        productImageFailed = true;
+        if (error.name === 'AbortError') {
+          console.error('❌ Image fetch timed out after 5 seconds');
+        }
+      }
+    } else {
+      console.log('ℹ️ No product image URL provided');
+    }
     
     // Fetch logo image with better error handling
     const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
@@ -53,6 +115,12 @@ export async function GET(request) {
     } catch (error) {
       console.error('❌ Error fetching logo:', error);
     }
+    
+    console.log('=== FINAL RENDER DECISION ===');
+    console.log('Will show product image:', !!productImageSrc);
+    console.log('Product image failed:', productImageFailed);
+    console.log('Will show logo:', !!logoImageSrc);
+    console.log('Image URL provided:', !!imageUrl);
     
     return new ImageResponse(
       (
@@ -82,7 +150,7 @@ export async function GET(request) {
               height: '100%',
             }}
           >
-            {/* Order Success Icon Section */}
+            {/* Product Image Section - Larger */}
             <div
               style={{
                 width: '450px',
@@ -97,19 +165,43 @@ export async function GET(request) {
                 flexShrink: 0,
               }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textAlign: 'center',
-                  padding: '20px',
-                }}
-              >
-                <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>✅</div>
-                <div style={{ fontSize: '32px', color: '#3eb489' }}>Order Complete!</div>
-              </div>
+              {productImageSrc ? (
+                <img
+                  src={productImageSrc}
+                  alt={products}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    padding: '20px',
+                  }}
+                >
+                  {productImageFailed ? (
+                    <>
+                      <div style={{ fontSize: '80px', marginBottom: '20px', color: '#ff6b6b' }}>❌</div>
+                      <div style={{ fontSize: '24px', color: '#ff6b6b', marginBottom: '10px' }}>Image Failed</div>
+                      <div style={{ fontSize: '16px', color: '#888' }}>
+                        {imageUrl ? 'Fetch Error' : 'No URL'}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: '120px', marginBottom: '20px', color: '#3eb489' }}>✅</div>
+                      <div style={{ fontSize: '32px', color: '#3eb489' }}>Order Complete!</div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             
             {/* Order Info Section - Larger */}
@@ -143,7 +235,7 @@ export async function GET(request) {
                   color: 'white',
                 }}
               >
-                {product}
+                {products}
               </div>
               
               <div

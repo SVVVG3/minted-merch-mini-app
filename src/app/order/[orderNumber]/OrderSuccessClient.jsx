@@ -119,24 +119,16 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
-  // Share order
+  // Share order - SIMPLEST possible call, no conditionals
   const handleShareOrder = async () => {
     const mainProduct = orderData?.line_items?.[0]?.title || 'item';
     const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
     
-    try {
-      if (isInFarcaster && sdk?.actions?.composeCast) {
-        await sdk.actions.composeCast({
-          text: shareText,
-          embeds: ['https://app.mintedmerch.shop/order/' + orderNumber]
-        });
-      } else {
-        const farcasterUrl = `https://farcaster.xyz/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent('https://app.mintedmerch.shop/order/' + orderNumber)}`;
-        window.open(farcasterUrl, '_blank');
-      }
-    } catch (err) {
-      console.error('Error sharing:', err);
-    }
+    // Direct SDK call - no conditionals, no fallbacks
+    await sdk.actions.composeCast({
+      text: shareText,
+      embeds: ['https://app.mintedmerch.shop/order/' + orderNumber]
+    });
   };
 
   return (
