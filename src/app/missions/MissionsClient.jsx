@@ -834,37 +834,11 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
     await triggerHaptic('light', isInFarcaster);
     if (bounty.targetCastUrl) {
       try {
-        // Extract cast hash from warpcast URL (format: https://warpcast.com/username/0xabc123)
-        let castHash = bounty.targetCastUrl;
-        if (bounty.targetCastUrl.includes('warpcast.com')) {
-          // Extract the hash from the end of the URL
-          const parts = bounty.targetCastUrl.split('/');
-          const lastPart = parts[parts.length - 1];
-          if (lastPart.startsWith('0x')) {
-            castHash = lastPart;
-          }
-        }
-        
-        // Get client info for debugging
-        const context = await sdk.context;
-        const clientFid = context?.client?.clientFid;
-        const isBaseApp = clientFid && clientFid !== 9152;
-        
-        console.log(`🔗 Opening cast - URL: ${bounty.targetCastUrl}, Hash: ${castHash}`);
-        console.log(`🔗 Client: clientFid=${clientFid}, isBaseApp=${isBaseApp}`);
-        console.log(`🔗 SDK actions available: viewCast=${!!sdk?.actions?.viewCast}, openUrl=${!!sdk?.actions?.openUrl}`);
-        
-        if (isInFarcaster && sdk?.actions?.viewCast) {
-          // Use viewCast SDK action with the cast hash/URL
-          // Per Base docs, viewCast accepts the cast URL or hash
-          console.log(`🔗 Using sdk.actions.viewCast(${castHash})`);
-          await sdk.actions.viewCast(castHash);
-        } else if (isInFarcaster && sdk?.actions?.openUrl) {
-          // Fallback to openUrl with the original URL
-          console.log(`🔗 Fallback: Using sdk.actions.openUrl(${bounty.targetCastUrl})`);
+        // Pass the full cast URL directly to the SDK
+        // The SDK should handle farcaster.xyz URLs natively
+        if (isInFarcaster && sdk?.actions?.openUrl) {
           await sdk.actions.openUrl(bounty.targetCastUrl);
         } else {
-          console.log(`🔗 Fallback: Using window.open`);
           window.open(bounty.targetCastUrl, '_blank');
         }
       } catch (error) {
