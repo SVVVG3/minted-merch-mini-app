@@ -123,7 +123,8 @@ export function OrderSuccessClient({ orderNumber }) {
   // Share order function - use shareToFarcaster utility (same as homepage)
   const handleShareOrder = async () => {
     const mainProduct = orderData?.line_items?.[0]?.title || 'item';
-    const orderUrl = `${window.location.origin}/order/${orderNumber}`;
+    // TEST: Use homepage URL instead of order URL to debug
+    const orderUrl = `${window.location.origin}`;
     const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
     
     try {
