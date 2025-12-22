@@ -15,15 +15,19 @@ import { sdk } from '@farcaster/miniapp-sdk';
  */
 export async function shareToFarcaster({ text, embeds = [], isInFarcaster = false }) {
   try {
-    if (isInFarcaster) {
-      // In mini app - use SDK
-      console.log('📱 Sharing via Farcaster mini app SDK');
+    // Always try SDK first if available (works for both Farcaster and Base app)
+    if (sdk?.actions?.composeCast) {
+      console.log('📱 Sharing via Farcaster mini app SDK (composeCast available)');
       const result = await sdk.actions.composeCast({
         text,
         embeds,
       });
       console.log('✅ Cast composed successfully:', result);
       return true;
+    } else if (isInFarcaster) {
+      // Fallback check - should not normally reach here
+      console.log('⚠️ isInFarcaster true but SDK not available');
+      return false;
     } else {
       // Not in mini app - use Warpcast deep link
       console.log('🌐 Sharing via Warpcast deep link');
