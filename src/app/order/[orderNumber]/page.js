@@ -140,29 +140,10 @@ export async function generateMetadata({ params, searchParams }) {
   const dynamicImageUrl = `${baseUrl}/api/og/order?${imageParams.toString()}`;
   console.log('📸 Final OG image URL:', dynamicImageUrl);
   
-  // Create frame embed with dynamic order image - use version "next" for Mini App embeds
-  const frame = {
-    version: "next",
-    imageUrl: dynamicImageUrl,
-    button: {
-      title: "Shop Now 📦",
-      action: {
-        type: "launch_frame",
-        url: baseUrl,
-        name: "Minted Merch Shop",
-        splashImageUrl: `${baseUrl}/splash.png`,
-                  splashBackgroundColor: "#000000"
-      }
-    }
-  };
-
   return {
     title: `Order ${orderNumber.startsWith('#') ? orderNumber : `#${orderNumber}`} - Minted Merch Shop`,
     description: `Order confirmed! ${productDescription} purchased with USDC on Base.`,
     metadataBase: new URL(baseUrl),
-    other: {
-      'fc:frame': JSON.stringify(frame),
-    },
     openGraph: {
       title: `Order ${orderNumber.startsWith('#') ? orderNumber : `#${orderNumber}`} - Minted Merch Shop`,
       description: `Order confirmed! ${productDescription} purchased with USDC on Base.`,
