@@ -119,18 +119,16 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
-  // Share order function - ensure SDK is ready before composing
+  // Share order function - TEST: use homepage URL instead of order URL
   const handleShareOrder = async () => {
     const mainProduct = orderData?.line_items?.[0]?.title || 'item';
-    const orderUrl = `${window.location.origin}/order/${orderNumber}?t=${Date.now()}`;
+    // TEST: Using homepage URL to see if /order/ path is the issue
+    const shareUrl = `${window.location.origin}`;
     const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
-    
-    // Ensure SDK is ready (re-initialize after navigation)
-    await sdk.actions.ready();
     
     await sdk.actions.composeCast({
       text: shareText,
-      embeds: [orderUrl],
+      embeds: [shareUrl],
     });
   };
 
