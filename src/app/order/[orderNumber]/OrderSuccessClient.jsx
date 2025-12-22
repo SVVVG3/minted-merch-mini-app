@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { shareOrder } from '@/lib/farcasterShare';
 
 export function OrderSuccessClient({ orderNumber }) {
   const { isInFarcaster, getSessionToken, isReady } = useFarcaster();
@@ -119,15 +120,15 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
-  // Share order - SIMPLEST possible call, no conditionals
+  // Share order - use exact same code path as product pages (shareOrder utility)
   const handleShareOrder = async () => {
     const mainProduct = orderData?.line_items?.[0]?.title || 'item';
-    const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
     
-    // Direct SDK call - no conditionals, no fallbacks
-    await sdk.actions.composeCast({
-      text: shareText,
-      embeds: ['https://app.mintedmerch.shop/order/' + orderNumber]
+    // Use the shared utility function - IDENTICAL to how ProductDetail uses shareProduct
+    await shareOrder({
+      orderNumber,
+      mainProduct,
+      isInFarcaster,
     });
   };
 
