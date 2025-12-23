@@ -547,20 +547,20 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               <h3 className="text-xl font-bold">
                 {user?.displayName || user?.username}
               </h3>
-              <p className="text-white/80 text-xs flex flex-wrap items-center gap-1">
-                <span>FID: {user?.fid}</span>
+              <p className="text-white/80 text-sm">FID: {user?.fid}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
                 {profileData?.neynar_score !== null && profileData?.neynar_score !== undefined && (
-                  <span className="px-1.5 py-0.5 bg-white/20 rounded-full">
+                  <span className="px-1.5 py-0.5 bg-white/20 rounded-full text-xs text-white/80">
                     Neynar: {parseFloat(profileData.neynar_score).toFixed(2)}
                   </span>
                 )}
                 {profileData?.quotient_score !== null && profileData?.quotient_score !== undefined && (
-                  <span className="px-1.5 py-0.5 bg-white/20 rounded-full">
+                  <span className="px-1.5 py-0.5 bg-white/20 rounded-full text-xs text-white/80">
                     Quotient: {parseFloat(profileData.quotient_score).toFixed(2)}
                   </span>
                 )}
-              </p>
-              <p className="text-white/90 text-sm font-semibold mt-1">Profile & Order History</p>
+              </div>
+              <p className="text-white/90 text-base font-semibold mt-1">Profile & Order History</p>
             </div>
           </div>
         </div>
