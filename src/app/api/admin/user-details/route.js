@@ -344,6 +344,7 @@ export const GET = withAdminAuth(async (request, context) => {
       x_username: profile.x_username,
       bankr_membership_updated_at: profile.bankr_membership_updated_at,
       neynar_score: profile.neynar_score,
+      quotient_score: profile.quotient_score,
 
       // Notifications
       has_notifications: profile.has_notifications,

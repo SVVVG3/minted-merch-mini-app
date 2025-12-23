@@ -402,6 +402,21 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                         </p>
                       </div>
                       <div>
+                        <label className="text-sm font-medium text-gray-600">Quotient Score</label>
+                        <p className={`font-medium ${
+                          parseFloat(userData.quotient_score) >= 0.9 ? 'text-purple-600' :
+                          parseFloat(userData.quotient_score) >= 0.8 ? 'text-blue-600' : 
+                          parseFloat(userData.quotient_score) >= 0.75 ? 'text-green-600' : 
+                          parseFloat(userData.quotient_score) >= 0.6 ? 'text-yellow-600' : 
+                          parseFloat(userData.quotient_score) >= 0.5 ? 'text-orange-600' : 
+                          userData.quotient_score ? 'text-red-600' : 'text-gray-600'
+                        }`}>
+                          {userData.quotient_score !== null && userData.quotient_score !== undefined 
+                            ? parseFloat(userData.quotient_score).toFixed(2) 
+                            : 'N/A'}
+                        </p>
+                      </div>
+                      <div>
                         <label className="text-sm font-medium text-gray-600">Bankr Club</label>
                         <p className={`font-medium ${userData.bankr_club_member ? 'text-green-600' : 'text-gray-600'}`}>
                           {userData.bankr_club_member ? '✅ Member' : '❌ Not Member'}

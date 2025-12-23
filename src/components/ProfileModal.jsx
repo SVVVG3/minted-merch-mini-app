@@ -6,6 +6,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { useWalletConnectContext } from './WalletConnectProvider';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useSignIn } from '@farcaster/auth-kit';
+import { getQuotientTier, getQuotientColor } from '@/lib/quotient';
 
 // Separate component for wallet connection section to properly use context
 function WalletConnectSection({ setConnectedWallet, isInFarcaster }) {
@@ -547,11 +548,16 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               <h3 className="text-xl font-bold">
                 {user?.displayName || user?.username}
               </h3>
-              <p className="text-white/80 text-sm">
-                FID: {user?.fid}
+              <p className="text-white/80 text-sm flex flex-wrap items-center gap-1">
+                <span>FID: {user?.fid}</span>
                 {profileData?.neynar_score !== null && profileData?.neynar_score !== undefined && (
-                  <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                  <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs">
                     Neynar: {parseFloat(profileData.neynar_score).toFixed(2)}
+                  </span>
+                )}
+                {profileData?.quotient_score !== null && profileData?.quotient_score !== undefined && (
+                  <span className={`px-2 py-0.5 bg-white/20 rounded-full text-xs ${getQuotientColor(parseFloat(profileData.quotient_score))}`}>
+                    Quotient: {parseFloat(profileData.quotient_score).toFixed(2)}
                   </span>
                 )}
               </p>

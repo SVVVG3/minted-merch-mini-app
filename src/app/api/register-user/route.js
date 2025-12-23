@@ -7,6 +7,7 @@ import { checkBankrClubMembership } from '@/lib/bankrAPI';
 import { createUserProfile } from '@/lib/supabase';
 import { fetchUserProfile } from '@/lib/neynar';
 import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
+import { getQuotientScoreForFid } from '@/lib/quotient';
 
 export async function POST(request) {
   try {
@@ -304,6 +305,18 @@ export async function POST(request) {
         profileData.neynar_score = walletData.neynar_score;
         console.log('⭐ Storing Neynar user score:', walletData.neynar_score);
       }
+    }
+
+    // Fetch Quotient score (PageRank-based reputation metric)
+    try {
+      const quotientScore = await getQuotientScoreForFid(fid);
+      if (quotientScore !== null) {
+        profileData.quotient_score = quotientScore;
+        console.log('📊 Storing Quotient score:', quotientScore);
+      }
+    } catch (quotientError) {
+      console.log('⚠️ Could not fetch Quotient score:', quotientError.message);
+      // Non-blocking - continue without Quotient score
     }
 
     const { data: profile, error: profileError } = await supabaseAdmin

@@ -20,10 +20,10 @@ export async function POST(request) {
 
     console.log(`✅ User FID ${authenticatedFid} authorized to access their profile`);
 
-    // Get user profile with cached token balance, staked balance, wallet addresses, and Neynar score
+    // Get user profile with cached token balance, staked balance, wallet addresses, and reputation scores
     const { data: profile, error } = await supabaseAdmin
       .from('profiles')
-      .select('fid, token_balance, wallet_balance, staked_balance, token_balance_updated_at, all_wallet_addresses, neynar_score')
+      .select('fid, token_balance, wallet_balance, staked_balance, token_balance_updated_at, all_wallet_addresses, neynar_score, quotient_score')
       .eq('fid', fid)
       .single();
 
