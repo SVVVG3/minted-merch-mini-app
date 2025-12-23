@@ -11,6 +11,7 @@ export function PriceTicker() {
   const [error, setError] = useState(null);
 
   const MINTEDMERCH_TOKEN_ADDRESS = '0x774EAeFE73Df7959496Ac92a77279A8D7d690b07';
+  const WETH_ADDRESS = '0x4200000000000000000000000000000000000006'; // WETH on Base
   const CHAIN_ID = 'base';
 
   useEffect(() => {
@@ -19,9 +20,9 @@ export function PriceTicker() {
         setIsLoading(true);
         setError(null);
 
-        // Fetch token data from DexScreener API using search endpoint
+        // Fetch token data from DexScreener API using tokens endpoint (more accurate)
         const response = await fetch(
-          `https://api.dexscreener.com/latest/dex/search?q=${MINTEDMERCH_TOKEN_ADDRESS}`,
+          `https://api.dexscreener.com/latest/dex/tokens/${MINTEDMERCH_TOKEN_ADDRESS}`,
           {
             method: 'GET',
             headers: {
@@ -37,12 +38,28 @@ export function PriceTicker() {
         const data = await response.json();
         
         if (data && data.pairs && data.pairs.length > 0) {
-          // Get the pair with highest liquidity (most reliable)
-          const bestPair = data.pairs.reduce((best, current) => {
-            return (current.liquidity?.usd || 0) > (best.liquidity?.usd || 0) ? current : best;
-          });
+          // Filter to only Base chain pairs with WETH as quote token (excludes scam pairs)
+          const validPairs = data.pairs.filter(pair => 
+            pair.chainId === 'base' && 
+            pair.quoteToken?.address?.toLowerCase() === WETH_ADDRESS.toLowerCase()
+          );
           
-          setTokenData(bestPair);
+          if (validPairs.length === 0) {
+            // Fallback: try any Base pair if no WETH pairs found
+            const basePairs = data.pairs.filter(pair => pair.chainId === 'base');
+            if (basePairs.length > 0) {
+              setTokenData(basePairs[0]);
+            } else {
+              throw new Error('No valid pairs found');
+            }
+          } else {
+            // Get the pair with highest liquidity among valid WETH pairs
+            const bestPair = validPairs.reduce((best, current) => {
+              return (current.liquidity?.usd || 0) > (best.liquidity?.usd || 0) ? current : best;
+            });
+            
+            setTokenData(bestPair);
+          }
         } else {
           throw new Error('No token data found');
         }
