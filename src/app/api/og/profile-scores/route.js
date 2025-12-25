@@ -235,10 +235,10 @@ export async function GET(request) {
             <div
               style={{
                 position: 'absolute',
-                bottom: '30px',
-                right: '30px',
-                width: '140px',
-                height: '140px',
+                bottom: '40px',
+                right: '60px',
+                width: '120px',
+                height: '120px',
                 borderRadius: '12px',
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 display: 'flex',
@@ -250,8 +250,8 @@ export async function GET(request) {
               <img
                 src={logoImageSrc}
                 style={{
-                  width: '100px',
-                  height: '100px',
+                  width: '90px',
+                  height: '90px',
                   objectFit: 'contain',
                 }}
               />
