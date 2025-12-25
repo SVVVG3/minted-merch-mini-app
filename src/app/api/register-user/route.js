@@ -329,11 +329,11 @@ export async function POST(request) {
       // Get total purchase amount from orders
       const { data: ordersData } = await supabaseAdmin
         .from('orders')
-        .select('total_price')
-        .eq('user_fid', fid);
+        .select('amount_total')
+        .eq('fid', fid);
       
       const totalPurchaseAmount = ordersData?.reduce((sum, order) => {
-        return sum + (parseFloat(order.total_price) || 0);
+        return sum + (parseFloat(order.amount_total) || 0);
       }, 0) || 0;
       
       // Get check-in count from last 100 days
