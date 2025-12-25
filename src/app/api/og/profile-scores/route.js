@@ -2,6 +2,28 @@ import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
 
+async function fetchImageAsDataUrl(imageUrl) {
+  try {
+    const response = await fetch(imageUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; OG-Image-Generator/1.0)',
+      },
+    });
+    
+    if (!response.ok) {
+      return null;
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
+    return `data:${contentType};base64,${base64}`;
+  } catch (error) {
+    console.error('Error fetching image:', error);
+    return null;
+  }
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -10,12 +32,12 @@ export async function GET(request) {
     const pfpUrl = searchParams.get('pfpUrl');
     const neynarScore = searchParams.get('neynar') || '0.00';
     const quotientScore = searchParams.get('quotient') || '0.00';
-    const mojoScore = searchParams.get('mojo'); // Optional for now
+    // Mojo score param exists but we won't display it for now
+    // const mojoScore = searchParams.get('mojo');
     
     // Format scores to 2 decimal places
     const formattedNeynar = parseFloat(neynarScore).toFixed(2);
     const formattedQuotient = parseFloat(quotientScore).toFixed(2);
-    const formattedMojo = mojoScore ? parseFloat(mojoScore).toFixed(2) : null;
     
     // Color coding for scores
     const getNeynarColor = (score) => {
@@ -33,189 +55,199 @@ export async function GET(request) {
       if (s >= 0.6) return '#eab308'; // yellow
       return '#ef4444'; // red
     };
+
+    // Fetch profile image
+    const profileImageData = pfpUrl ? await fetchImageAsDataUrl(pfpUrl) : null;
     
-    const getMojoColor = (score) => {
-      const s = parseFloat(score);
-      if (s >= 0.8) return '#f59e0b'; // amber/gold
-      if (s >= 0.6) return '#22c55e'; // green
-      if (s >= 0.4) return '#3b82f6'; // blue
-      return '#6b7280'; // gray
-    };
+    // Fetch logo
+    const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
+    const logoImageSrc = await fetchImageAsDataUrl(logoUrl);
 
     return new ImageResponse(
       (
         <div
           style={{
-            width: '1200px',
-            height: '630px',
+            width: '100%',
+            height: '100%',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-            fontFamily: 'system-ui, sans-serif',
+            backgroundColor: '#000000',
+            backgroundImage: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%)',
+            color: 'white',
+            fontFamily: 'Arial, sans-serif',
+            position: 'relative',
           }}
         >
-          {/* Header */}
           <div
             style={{
               display: 'flex',
+              flexDirection: 'row',
               alignItems: 'center',
-              marginBottom: '40px',
+              justifyContent: 'center',
+              width: '100%',
+              height: '100%',
+              padding: '40px',
+              gap: '60px',
             }}
           >
-            <img
-              src="https://app.mintedmerch.shop/MintedMerchHeaderLogo.png"
-              width="60"
-              height="60"
-              style={{ marginRight: '16px' }}
-            />
-            <span style={{ color: '#22c55e', fontSize: '36px', fontWeight: 'bold' }}>
-              Minted Merch Scores
-            </span>
-          </div>
-
-          {/* Profile Section */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: '50px',
-            }}
-          >
-            {pfpUrl ? (
-              <img
-                src={pfpUrl}
-                width="120"
-                height="120"
-                style={{
-                  borderRadius: '60px',
-                  border: '4px solid #22c55e',
-                  marginRight: '24px',
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: '120px',
-                  height: '120px',
-                  borderRadius: '60px',
-                  background: '#374151',
-                  border: '4px solid #22c55e',
-                  marginRight: '24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#9ca3af',
-                  fontSize: '48px',
-                }}
-              >
-                ?
-              </div>
-            )}
-            <span style={{ color: 'white', fontSize: '48px', fontWeight: 'bold' }}>
-              @{username}
-            </span>
-          </div>
-
-          {/* Scores Grid */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '40px',
-            }}
-          >
-            {/* Neynar Score */}
+            {/* Profile Image */}
             <div
               style={{
                 display: 'flex',
-                flexDirection: 'column',
                 alignItems: 'center',
-                background: 'rgba(255,255,255,0.1)',
+                justifyContent: 'center',
+                width: '280px',
+                height: '280px',
                 borderRadius: '20px',
-                padding: '30px 50px',
+                backgroundColor: 'rgba(62, 180, 137, 0.1)',
+                border: '3px solid rgba(62, 180, 137, 0.3)',
+                overflow: 'hidden',
               }}
             >
-              <span style={{ color: '#9ca3af', fontSize: '24px', marginBottom: '10px' }}>
-                Neynar Score
-              </span>
-              <span
-                style={{
-                  color: getNeynarColor(formattedNeynar),
-                  fontSize: '64px',
-                  fontWeight: 'bold',
-                }}
-              >
-                {formattedNeynar}
-              </span>
-            </div>
-
-            {/* Quotient Score */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                background: 'rgba(255,255,255,0.1)',
-                borderRadius: '20px',
-                padding: '30px 50px',
-              }}
-            >
-              <span style={{ color: '#9ca3af', fontSize: '24px', marginBottom: '10px' }}>
-                Quotient Score
-              </span>
-              <span
-                style={{
-                  color: getQuotientColor(formattedQuotient),
-                  fontSize: '64px',
-                  fontWeight: 'bold',
-                }}
-              >
-                {formattedQuotient}
-              </span>
-            </div>
-
-            {/* Mojo Score (if provided) */}
-            {formattedMojo && (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  background: 'rgba(255,255,255,0.1)',
-                  borderRadius: '20px',
-                  padding: '30px 50px',
-                }}
-              >
-                <span style={{ color: '#9ca3af', fontSize: '24px', marginBottom: '10px' }}>
-                  Mojo Score
-                </span>
-                <span
+              {profileImageData ? (
+                <img
+                  src={profileImageData}
                   style={{
-                    color: getMojoColor(formattedMojo),
-                    fontSize: '64px',
-                    fontWeight: 'bold',
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    borderRadius: '17px',
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: '#3eb489',
+                    fontSize: 120,
+                    color: 'white',
                   }}
                 >
-                  {formattedMojo}
-                </span>
-              </div>
-            )}
-          </div>
+                  {username.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
 
-          {/* Footer */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '30px',
-              display: 'flex',
-              alignItems: 'center',
-              color: '#6b7280',
-              fontSize: '20px',
-            }}
-          >
-            app.mintedmerch.shop
+            {/* User Info & Scores */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                justifyContent: 'center',
+                gap: '25px',
+              }}
+            >
+              {/* Username */}
+              <div
+                style={{
+                  fontSize: 48,
+                  fontWeight: 'bold',
+                  color: 'white',
+                  display: 'flex',
+                }}
+              >
+                @{username}
+              </div>
+
+              {/* Scores */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '30px',
+                }}
+              >
+                {/* Neynar Score */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    background: 'rgba(255,255,255,0.08)',
+                    borderRadius: '16px',
+                    padding: '20px 35px',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                  }}
+                >
+                  <span style={{ color: '#9ca3af', fontSize: '20px', marginBottom: '8px', display: 'flex' }}>
+                    Neynar Score
+                  </span>
+                  <span
+                    style={{
+                      color: getNeynarColor(formattedNeynar),
+                      fontSize: '52px',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                    }}
+                  >
+                    {formattedNeynar}
+                  </span>
+                </div>
+
+                {/* Quotient Score */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    background: 'rgba(255,255,255,0.08)',
+                    borderRadius: '16px',
+                    padding: '20px 35px',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                  }}
+                >
+                  <span style={{ color: '#9ca3af', fontSize: '20px', marginBottom: '8px', display: 'flex' }}>
+                    Quotient Score
+                  </span>
+                  <span
+                    style={{
+                      color: getQuotientColor(formattedQuotient),
+                      fontSize: '52px',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                    }}
+                  >
+                    {formattedQuotient}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
+          
+          {/* Logo in Bottom Right Corner */}
+          {logoImageSrc && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '20px',
+                right: '30px',
+                width: '100px',
+                height: '100px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid rgba(255, 255, 255, 0.2)',
+              }}
+            >
+              <img
+                src={logoImageSrc}
+                alt="Minted Merch"
+                style={{
+                  width: '75px',
+                  height: '75px',
+                  objectFit: 'contain',
+                }}
+              />
+            </div>
+          )}
         </div>
       ),
       {
@@ -228,4 +260,3 @@ export async function GET(request) {
     return new Response('Error generating image', { status: 500 });
   }
 }
-

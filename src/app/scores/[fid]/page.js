@@ -15,27 +15,22 @@ export async function generateMetadata({ params }) {
   const pfpUrl = profile?.pfp_url || '';
   const neynarScore = profile?.neynar_score || '0.00';
   const quotientScore = profile?.quotient_score || '0.00';
-  const mojoScore = profile?.mojo_score; // May be null
+  // Mojo score will be added later when ready
+  // const mojoScore = profile?.mojo_score;
   
   const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://app.mintedmerch.shop';
   
-  // Build OG image URL
+  // Build OG image URL (without Mojo for now)
   const ogParams = new URLSearchParams({
     username,
     pfpUrl: pfpUrl || '',
     neynar: neynarScore,
     quotient: quotientScore,
   });
-  if (mojoScore) {
-    ogParams.append('mojo', mojoScore);
-  }
   const ogImageUrl = `${baseUrl}/api/og/profile-scores?${ogParams.toString()}`;
   
-  // Build scores text for description
-  let scoresText = `Neynar: ${parseFloat(neynarScore).toFixed(2)} | Quotient: ${parseFloat(quotientScore).toFixed(2)}`;
-  if (mojoScore) {
-    scoresText += ` | Mojo: ${parseFloat(mojoScore).toFixed(2)}`;
-  }
+  // Build scores text for description (without Mojo for now)
+  const scoresText = `Neynar: ${parseFloat(neynarScore).toFixed(2)} | Quotient: ${parseFloat(quotientScore).toFixed(2)}`;
   
   const title = `${username}'s Minted Merch Scores`;
   const description = `Check out @${username}'s scores on Minted Merch! ${scoresText}`;

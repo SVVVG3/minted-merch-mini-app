@@ -193,10 +193,10 @@ export async function POST(request) {
     }
 
     // Get existing profile to preserve certain fields if they exist
-    // Also get staked_balance and total_balance for Mojo score calculation
+    // Also get staked_balance and token_balance for Mojo score calculation
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
-      .select('notification_status_source, pfp_url, username, display_name, bio, staked_balance, total_balance')
+      .select('notification_status_source, pfp_url, username, display_name, bio, staked_balance, token_balance')
       .eq('fid', fid)
       .single();
 
