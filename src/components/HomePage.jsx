@@ -15,7 +15,7 @@ import { useCart } from '@/lib/CartContext';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { useDgenWallet } from '@/lib/useDgenWallet';
 import { useWalletConnectContext } from './WalletConnectProvider';
-import { shareCollection } from '@/lib/farcasterShare';
+import { ShareDropdown } from './ShareDropdown';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
 import { sdk } from '@farcaster/miniapp-sdk';
 // Token-gating functions moved to API routes to avoid client-side Node.js imports
@@ -102,20 +102,6 @@ export function HomePage({ collection: initialCollection, products: initialProdu
     window.location.href = '/stake';
   };
 
-  const handleShareCollection = async () => {
-    if (!selectedCollection) return;
-
-    try {
-      // Use the new utility function to handle sharing (works in both mini-app and non-mini-app)
-      await shareCollection({
-        collectionHandle: selectedCollection.handle,
-        collectionName: selectedCollection.title,
-        isInFarcaster,
-      });
-    } catch (error) {
-      console.error('Error sharing collection:', error);
-    }
-  };
 
   // URL Parameter Detection - Detect notification clicks, discount codes, and collection sharing
   useEffect(() => {
@@ -583,18 +569,14 @@ export function HomePage({ collection: initialCollection, products: initialProdu
             />
           </div>
           
-          {/* Share Collection Button - Show for all users */}
+          {/* Share Collection Dropdown - Show for all users */}
           {selectedCollection && (
-            <button
-              onClick={handleShareCollection}
-              className="flex items-center justify-center w-12 h-12 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white rounded-lg transition-colors flex-shrink-0"
-              title="Share Collection on Farcaster"
-            >
-              {/* Official Farcaster Logo (2024 rebrand) */}
-              <svg className="w-5 h-5" viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
-              </svg>
-            </button>
+            <ShareDropdown
+              type="collection"
+              handle={selectedCollection.handle}
+              title={selectedCollection.title}
+              isInFarcaster={isInFarcaster}
+            />
           )}
         </div>
       </div>
