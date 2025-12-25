@@ -587,75 +587,19 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-hidden" style={{ boxShadow: '0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4)' }}>
         <div className="relative bg-gradient-to-br from-[#3eb489] to-[#2d8a66] p-6 text-white">
-          {/* Share & Close Buttons */}
-          <div className="absolute top-4 right-4 flex items-center gap-2">
-            {/* Share Scores Button with Dropdown */}
-            {(profileData?.neynar_score || profileData?.quotient_score) && (
-              <div className="relative" ref={shareDropdownRef}>
-                <button
-                  onClick={() => setShowShareDropdown(!showShareDropdown)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white rounded-lg transition-colors text-sm font-medium"
-                  title="Share Scores"
-                >
-                  <span>Share Scores</span>
-                  {/* Farcaster Arch Logo */}
-                  <svg className="w-4 h-4" viewBox="0 0 520 457" fill="currentColor">
-                    <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
-                  </svg>
-                </button>
-                
-                {/* Share Dropdown */}
-                {showShareDropdown && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
-                    <button
-                      onClick={() => handleShareScores('copy')}
-                      className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-3 transition-colors"
-                    >
-                      {copySuccess ? (
-                        <>
-                          <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span className="text-green-500 font-medium">Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                          </svg>
-                          <span>Copy Link</span>
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => handleShareScores('cast')}
-                      className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-3 transition-colors border-t border-gray-100"
-                    >
-                      {/* Farcaster Arch Logo */}
-                      <svg className="w-5 h-5 text-[#6A3CFF]" viewBox="0 0 520 457" fill="currentColor">
-                        <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
-                      </svg>
-                      <span>Share Cast</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {/* Close Button */}
-            <button
-              onClick={() => {
-                onClose();
-                setCopySuccess(false);
-                setShowShareDropdown(false);
-              }}
-              className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
-            >
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+          {/* Close Button */}
+          <button
+            onClick={() => {
+              onClose();
+              setCopySuccess(false);
+              setShowShareDropdown(false);
+            }}
+            className="absolute top-4 right-4 w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+          >
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
           
           {/* User Info */}
           <div className="flex items-center space-x-4">
@@ -692,7 +636,61 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                   </span>
                 )}
               </div>
-              <p className="text-white/90 text-base font-semibold mt-1">Profile & Order History</p>
+              
+              {/* Share Scores Button */}
+              {(profileData?.neynar_score || profileData?.quotient_score) && (
+                <div className="relative mt-2" ref={shareDropdownRef}>
+                  <button
+                    onClick={() => setShowShareDropdown(!showShareDropdown)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white rounded-lg transition-colors text-sm font-medium"
+                    title="Share Scores"
+                  >
+                    <span>Share Scores</span>
+                    {/* Farcaster Arch Logo */}
+                    <svg className="w-4 h-4" viewBox="0 0 520 457" fill="currentColor">
+                      <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
+                    </svg>
+                  </button>
+                  
+                  {/* Share Dropdown */}
+                  {showShareDropdown && (
+                    <div className="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
+                      <button
+                        onClick={() => handleShareScores('copy')}
+                        className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-3 transition-colors"
+                      >
+                        {copySuccess ? (
+                          <>
+                            <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span className="text-green-500 font-medium">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            <span>Copy Link</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleShareScores('cast')}
+                        className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-3 transition-colors border-t border-gray-100"
+                      >
+                        {/* Farcaster Arch Logo */}
+                        <svg className="w-5 h-5 text-[#6A3CFF]" viewBox="0 0 520 457" fill="currentColor">
+                          <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
+                        </svg>
+                        <span>Share Cast</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <p className="text-white/90 text-base font-semibold mt-2">Profile & Order History</p>
             </div>
           </div>
         </div>
