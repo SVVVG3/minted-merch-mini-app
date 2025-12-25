@@ -98,7 +98,7 @@ export async function GET(request) {
               justifyContent: 'center',
               width: '100%',
               height: '100%',
-              padding: '40px',
+              padding: '60px',
               gap: '60px',
             }}
           >
@@ -230,15 +230,15 @@ export async function GET(request) {
             </div>
           </div>
           
-          {/* Logo in Bottom Right Corner */}
+          {/* Logo in Bottom Right Corner - exact same as collection OG */}
           {logoImageSrc && (
             <div
               style={{
                 position: 'absolute',
-                bottom: '40px',
-                right: '60px',
-                width: '120px',
-                height: '120px',
+                bottom: '30px',
+                right: '30px',
+                width: '160px',
+                height: '160px',
                 borderRadius: '12px',
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 display: 'flex',
@@ -250,8 +250,8 @@ export async function GET(request) {
               <img
                 src={logoImageSrc}
                 style={{
-                  width: '90px',
-                  height: '90px',
+                  width: '120px',
+                  height: '120px',
                   objectFit: 'contain',
                 }}
               />
@@ -261,7 +261,7 @@ export async function GET(request) {
       ),
       {
         width: 1200,
-        height: 630,
+        height: 800,
       }
     );
   } catch (error) {
