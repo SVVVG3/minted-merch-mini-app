@@ -66,6 +66,9 @@ export async function GET(request) {
     try {
       logoImageSrc = await fetchImageAsDataUrl(logoUrl);
       console.log('✅ Logo fetch result:', logoImageSrc ? 'SUCCESS' : 'FAILED');
+      if (logoImageSrc) {
+        console.log('🖼️ Logo data URL length:', logoImageSrc.length);
+      }
     } catch (error) {
       console.error('❌ Error fetching logo:', error);
     }
@@ -232,10 +235,10 @@ export async function GET(request) {
             <div
               style={{
                 position: 'absolute',
-                bottom: '20px',
+                bottom: '30px',
                 right: '30px',
-                width: '100px',
-                height: '100px',
+                width: '140px',
+                height: '140px',
                 borderRadius: '12px',
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 display: 'flex',
@@ -246,10 +249,9 @@ export async function GET(request) {
             >
               <img
                 src={logoImageSrc}
-                alt="Minted Merch"
                 style={{
-                  width: '75px',
-                  height: '75px',
+                  width: '100px',
+                  height: '100px',
                   objectFit: 'contain',
                 }}
               />
