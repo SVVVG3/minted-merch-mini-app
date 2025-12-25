@@ -7,6 +7,7 @@ import { haptics } from '@/lib/haptics';
 import Link from 'next/link';
 import { ProfileModal } from '@/components/ProfileModal';
 import { SignInWithFarcaster } from '@/components/SignInWithFarcaster';
+import { ShareDropdown } from '@/components/ShareDropdown';
 // import { StakingLaunchMint } from '@/components/StakingLaunchMint'; // TEMPORARILY HIDDEN
 
 // Staking terminal deep link URL (for mobile Farcaster)
@@ -223,30 +224,11 @@ export function StakePageClient() {
     }
   };
 
-  // Handle sharing stake page
-  const handleShare = async () => {
-    await haptics.light(isInFarcaster);
-    const shareUrl = 'https://app.mintedmerch.shop/stake';
-    const shareText = `Minted Merch - Where Staking Meets Merch
+  // Share stake page URL and text
+  const stakeShareUrl = 'https://app.mintedmerch.shop/stake';
+  const stakeShareText = `Minted Merch - Where Staking Meets Merch
 
 Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance to win bonuses of 100K, Daily Yield Jackpots of 1M $mintedmerch, and physical Mini & Mega Merch Packs!`;
-    
-    try {
-      if (isInFarcaster && sdk?.actions?.composeCast) {
-        // In Farcaster mini app - use SDK to compose cast
-        await sdk.actions.composeCast({
-          text: shareText,
-          embeds: [shareUrl]
-        });
-      } else {
-        // Desktop/browser - open Warpcast compose in new tab
-        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
-        window.open(warpcastUrl, '_blank');
-      }
-    } catch (err) {
-      console.error('Error sharing:', err);
-    }
-  };
 
   // Handle profile button click
   const handleProfileClick = () => {
@@ -289,29 +271,14 @@ Stake your tokens now and Spin-to-Claim daily to compound rewards, have a chance
         
         {/* Right: Share + Profile */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            onClick={handleShare}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              backgroundColor: '#6A3CFF',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '10px 16px',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-          >
-            Share
-            {/* Official Farcaster Arch Logo */}
-            <svg style={{ width: '18px', height: '18px' }} viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
-            </svg>
-          </button>
+          <ShareDropdown
+            type="custom"
+            customUrl={stakeShareUrl}
+            customText={stakeShareText}
+            isInFarcaster={isInFarcaster}
+            buttonStyle="text"
+            buttonText="Share"
+          />
           
           {/* Profile Button or Sign In */}
           {getFid() ? (

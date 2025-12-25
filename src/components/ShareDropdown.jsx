@@ -1,17 +1,21 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { shareProduct, shareCollection } from '@/lib/farcasterShare';
+import { shareProduct, shareCollection, shareToFarcaster } from '@/lib/farcasterShare';
 
 /**
- * ShareDropdown - A dropdown component for sharing products/collections
+ * ShareDropdown - A dropdown component for sharing products/collections/pages
  * Options: Copy mini app URL or Share cast to Farcaster
  */
 export function ShareDropdown({ 
-  type, // 'product' or 'collection'
-  handle, // productHandle or collectionHandle
-  title, // productTitle or collectionName
+  type, // 'product', 'collection', or 'custom'
+  handle, // productHandle or collectionHandle (not needed for custom)
+  title, // productTitle or collectionName (not needed for custom)
   isInFarcaster = false,
+  customUrl, // Custom URL for 'custom' type
+  customText, // Custom share text for 'custom' type
+  buttonStyle = 'icon', // 'icon' or 'text' - determines button appearance
+  buttonText = 'Share', // Text to show when buttonStyle is 'text'
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -31,7 +35,9 @@ export function ShareDropdown({
 
   // Generate the mini app URL
   const getMiniAppUrl = () => {
-    if (type === 'product') {
+    if (type === 'custom' && customUrl) {
+      return customUrl;
+    } else if (type === 'product') {
       return `${window.location.origin}/product/${handle}`;
     } else if (type === 'collection') {
       return `${window.location.origin}/?collection=${handle}`;
@@ -58,7 +64,13 @@ export function ShareDropdown({
   const handleShareCast = async () => {
     setIsOpen(false);
     try {
-      if (type === 'product') {
+      if (type === 'custom' && customUrl && customText) {
+        await shareToFarcaster({
+          text: customText,
+          embeds: [customUrl],
+          isInFarcaster,
+        });
+      } else if (type === 'product') {
         await shareProduct({
           productHandle: handle,
           productTitle: title,
@@ -79,16 +91,30 @@ export function ShareDropdown({
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Share Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-center w-12 h-12 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white rounded-lg transition-colors"
-        title="Share"
-      >
-        {/* Share icon */}
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-        </svg>
-      </button>
+      {buttonStyle === 'text' ? (
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center justify-center gap-2 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white rounded-lg transition-colors px-4 py-2.5 text-sm font-medium"
+          title="Share"
+        >
+          {buttonText}
+          {/* Farcaster Logo */}
+          <svg className="w-4.5 h-4.5" viewBox="0 0 520 457" fill="currentColor">
+            <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
+          </svg>
+        </button>
+      ) : (
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center justify-center w-12 h-12 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white rounded-lg transition-colors"
+          title="Share"
+        >
+          {/* Share icon */}
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+          </svg>
+        </button>
+      )}
 
       {/* Dropdown Menu */}
       {isOpen && (
