@@ -1417,7 +1417,7 @@ export default function AdminDashboard() {
       if (bVal == null) return -1;
       
       // Handle score fields (stored as strings in DB, need to parse as floats)
-      if (sortField === 'neynar_score' || sortField === 'quotient_score') {
+      if (sortField === 'neynar_score' || sortField === 'quotient_score' || sortField === 'mojo_score') {
         aVal = parseFloat(aVal) || 0;
         bVal = parseFloat(bVal) || 0;
         return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
@@ -2576,15 +2576,21 @@ export default function AdminDashboard() {
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('neynar_score')}
+                      onClick={() => handleSort('mojo_score')}
                     >
-                      Neynar {sortField === 'neynar_score' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      Mojo {sortField === 'mojo_score' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('quotient_score')}
                     >
                       Quotient {sortField === 'quotient_score' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('neynar_score')}
+                    >
+                      Neynar {sortField === 'neynar_score' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -2668,11 +2674,14 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         <span className={`font-medium ${
-                          parseFloat(user.neynar_score) >= 0.8 ? 'text-green-600' : 
-                          parseFloat(user.neynar_score) >= 0.5 ? 'text-yellow-600' : 
-                          user.neynar_score ? 'text-red-600' : 'text-gray-400'
+                          parseFloat(user.mojo_score) >= 0.9 ? 'text-purple-600' :
+                          parseFloat(user.mojo_score) >= 0.75 ? 'text-blue-600' : 
+                          parseFloat(user.mojo_score) >= 0.6 ? 'text-green-600' : 
+                          parseFloat(user.mojo_score) >= 0.4 ? 'text-yellow-600' : 
+                          parseFloat(user.mojo_score) >= 0.2 ? 'text-orange-600' : 
+                          user.mojo_score ? 'text-red-600' : 'text-gray-400'
                         }`}>
-                          {user.neynar_score ? parseFloat(user.neynar_score).toFixed(2) : '-'}
+                          {user.mojo_score ? parseFloat(user.mojo_score).toFixed(3) : '-'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
@@ -2685,6 +2694,15 @@ export default function AdminDashboard() {
                           user.quotient_score ? 'text-red-600' : 'text-gray-400'
                         }`}>
                           {user.quotient_score ? parseFloat(user.quotient_score).toFixed(2) : '-'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <span className={`font-medium ${
+                          parseFloat(user.neynar_score) >= 0.8 ? 'text-green-600' : 
+                          parseFloat(user.neynar_score) >= 0.5 ? 'text-yellow-600' : 
+                          user.neynar_score ? 'text-red-600' : 'text-gray-400'
+                        }`}>
+                          {user.neynar_score ? parseFloat(user.neynar_score).toFixed(2) : '-'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.total_orders || 0}</td>

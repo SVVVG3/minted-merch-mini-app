@@ -8,6 +8,7 @@ import { createUserProfile } from '@/lib/supabase';
 import { fetchUserProfile } from '@/lib/neynar';
 import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 import { getQuotientScoreForFid } from '@/lib/quotient';
+import { calculateMojoScore } from '@/lib/mojoScore';
 
 export async function POST(request) {
   try {
@@ -192,9 +193,10 @@ export async function POST(request) {
     }
 
     // Get existing profile to preserve certain fields if they exist
+    // Also get staked_balance and total_balance for Mojo score calculation
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
-      .select('notification_status_source, pfp_url, username, display_name, bio')
+      .select('notification_status_source, pfp_url, username, display_name, bio, staked_balance, total_balance')
       .eq('fid', fid)
       .single();
 
@@ -308,8 +310,9 @@ export async function POST(request) {
     }
 
     // Fetch Quotient score (PageRank-based reputation metric)
+    let quotientScore = null;
     try {
-      const quotientScore = await getQuotientScoreForFid(fid);
+      quotientScore = await getQuotientScoreForFid(fid);
       if (quotientScore !== null) {
         profileData.quotient_score = quotientScore;
         console.log('📊 Storing Quotient score:', quotientScore);
@@ -317,6 +320,58 @@ export async function POST(request) {
     } catch (quotientError) {
       console.log('⚠️ Could not fetch Quotient score:', quotientError.message);
       // Non-blocking - continue without Quotient score
+    }
+
+    // Calculate Mojo Score (composite reputation metric)
+    try {
+      console.log('🎯 Calculating Mojo Score for FID:', fid);
+      
+      // Get total purchase amount from orders
+      const { data: ordersData } = await supabaseAdmin
+        .from('orders')
+        .select('total_price')
+        .eq('user_fid', fid);
+      
+      const totalPurchaseAmount = ordersData?.reduce((sum, order) => {
+        return sum + (parseFloat(order.total_price) || 0);
+      }, 0) || 0;
+      
+      // Get check-in count from last 100 days
+      const hundredDaysAgo = new Date();
+      hundredDaysAgo.setDate(hundredDaysAgo.getDate() - 100);
+      
+      const { count: checkInCount } = await supabaseAdmin
+        .from('point_transactions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_fid', fid)
+        .eq('transaction_type', 'daily_checkin')
+        .gte('created_at', hundredDaysAgo.toISOString());
+      
+      console.log('📊 Mojo Score inputs:', {
+        neynarScore: walletData?.neynar_score || 0,
+        quotientScore: quotientScore || 0,
+        stakedBalance: parseFloat(existingProfile?.staked_balance) || 0,
+        totalBalance: parseFloat(existingProfile?.total_balance) || 0,
+        totalPurchaseAmount,
+        checkInCount: checkInCount || 0
+      });
+      
+      // Calculate Mojo Score
+      const mojoResult = calculateMojoScore({
+        neynarScore: walletData?.neynar_score || 0,
+        quotientScore: quotientScore || 0,
+        stakedBalance: parseFloat(existingProfile?.staked_balance) || 0,
+        totalBalance: parseFloat(existingProfile?.total_balance) || 0,
+        totalPurchaseAmount,
+        checkInCount: checkInCount || 0,
+      });
+      
+      profileData.mojo_score = mojoResult.score;
+      console.log('🎯 Mojo Score calculated:', mojoResult.score, 'Breakdown:', JSON.stringify(mojoResult.breakdown));
+      
+    } catch (mojoError) {
+      console.log('⚠️ Could not calculate Mojo score:', mojoError.message);
+      // Non-blocking - continue without Mojo score
     }
 
     const { data: profile, error: profileError } = await supabaseAdmin

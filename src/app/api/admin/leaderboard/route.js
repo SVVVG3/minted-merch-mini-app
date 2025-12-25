@@ -33,7 +33,7 @@ export const GET = withAdminAuth(async (request, context) => {
         
         const { data: pageData, error } = await supabaseAdmin
           .from('profiles')
-          .select('fid, username, display_name, pfp_url, token_balance, wallet_balance, staked_balance, token_balance_updated_at, neynar_score, quotient_score')
+          .select('fid, username, display_name, pfp_url, token_balance, wallet_balance, staked_balance, token_balance_updated_at, neynar_score, quotient_score, mojo_score')
           .gt('token_balance', 0)
           .order('token_balance', { ascending: false })
           .range(startRange, endRange);
@@ -93,6 +93,7 @@ export const GET = withAdminAuth(async (request, context) => {
         token_balance_updated_at: profile.token_balance_updated_at,
         neynar_score: profile.neynar_score,
         quotient_score: profile.quotient_score,
+        mojo_score: profile.mojo_score,
         user_leaderboard: leaderboardMap.get(profile.fid) || null
       }));
 
@@ -117,7 +118,8 @@ export const GET = withAdminAuth(async (request, context) => {
             wallet_balance,
             staked_balance,
             neynar_score,
-            quotient_score
+            quotient_score,
+            mojo_score
           )
         `);
 
@@ -219,6 +221,7 @@ export const GET = withAdminAuth(async (request, context) => {
         token_balance_updated_at: profile.token_balance_updated_at,
         neynar_score: profile.neynar_score || null,
         quotient_score: profile.quotient_score || null,
+        mojo_score: profile.mojo_score || null,
         // Leaderboard stats (may be 0 for users without leaderboard activity)
         total_points: multiplierResult.multipliedPoints,
         base_points: basePoints,

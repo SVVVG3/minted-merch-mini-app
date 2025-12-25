@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withAdminAuth } from '@/lib/adminAuth';
+import { calculateMojoScore } from '@/lib/mojoScore';
 
 export const GET = withAdminAuth(async (request, context) => {
   try {
@@ -293,6 +294,27 @@ export const GET = withAdminAuth(async (request, context) => {
     const totalSpent = orders?.reduce((sum, order) => sum + (parseFloat(order.amount_total) || 0), 0) || 0;
     const totalDiscountSaved = discountUsage?.reduce((sum, usage) => sum + (parseFloat(usage.discount_amount) || 0), 0) || 0;
 
+    // Get check-in count from last 100 days for Mojo breakdown
+    const hundredDaysAgo = new Date();
+    hundredDaysAgo.setDate(hundredDaysAgo.getDate() - 100);
+    
+    const { count: checkInCount } = await supabaseAdmin
+      .from('point_transactions')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_fid', fid)
+      .eq('transaction_type', 'daily_checkin')
+      .gte('created_at', hundredDaysAgo.toISOString());
+
+    // Calculate Mojo Score breakdown for display
+    const mojoBreakdown = calculateMojoScore({
+      neynarScore: parseFloat(profile.neynar_score) || 0,
+      quotientScore: parseFloat(profile.quotient_score) || 0,
+      stakedBalance: parseFloat(profile.staked_balance) || 0,
+      totalBalance: parseFloat(profile.total_balance) || 0,
+      totalPurchaseAmount: totalSpent,
+      checkInCount: checkInCount || 0,
+    });
+
     // Group point transactions by type
     const pointStats = pointTransactions?.reduce((stats, transaction) => {
       const type = transaction.transaction_type;
@@ -345,6 +367,8 @@ export const GET = withAdminAuth(async (request, context) => {
       bankr_membership_updated_at: profile.bankr_membership_updated_at,
       neynar_score: profile.neynar_score,
       quotient_score: profile.quotient_score,
+      mojo_score: profile.mojo_score,
+      mojo_breakdown: mojoBreakdown,
 
       // Notifications
       has_notifications: profile.has_notifications,

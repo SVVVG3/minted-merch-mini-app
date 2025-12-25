@@ -547,7 +547,16 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               <h3 className="text-xl font-bold">
                 {user?.displayName || user?.username}
               </h3>
-              <p className="text-white/80 text-sm">FID: {user?.fid}</p>
+              <p className="text-white/80 text-sm flex items-center gap-2">
+                <span>FID: {user?.fid}</span>
+                {/* MOJO SCORE - Uncomment when ready to display
+                {profileData?.mojo_score !== null && profileData?.mojo_score !== undefined && (
+                  <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-500/30 to-blue-500/30 rounded-full text-xs font-medium">
+                    Mojo: {parseFloat(profileData.mojo_score).toFixed(3)}
+                  </span>
+                )}
+                */}
+              </p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 {profileData?.neynar_score !== null && profileData?.neynar_score !== undefined && (
                   <span className="px-1.5 py-0.5 bg-white/20 rounded-full text-xs text-white/80">
