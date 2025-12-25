@@ -412,7 +412,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                       {userData.mojo_breakdown && (
                         <div className="mt-3 pt-3 border-t border-purple-200">
                           <p className="text-xs font-medium text-gray-500 mb-2">Score Breakdown</p>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                             <div className="bg-white p-2 rounded">
                               <span className="text-gray-500">Neynar (10%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.neynar?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.neynar?.weighted || 0).toFixed(2)}</p>
@@ -432,14 +432,19 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                               <p className="text-gray-400">{formatTokenAmount(userData.mojo_breakdown.breakdown?.holdings?.raw || 0)}</p>
                             </div>
                             <div className="bg-white p-2 rounded">
-                              <span className="text-gray-500">Purchases (25%)</span>
+                              <span className="text-gray-500">Purchases (20%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.purchases?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.purchases?.weighted || 0).toFixed(2)}</p>
                               <p className="text-gray-400">${(userData.mojo_breakdown.breakdown?.purchases?.raw || 0).toFixed(2)}</p>
                             </div>
                             <div className="bg-white p-2 rounded">
-                              <span className="text-gray-500">Check-ins (15%)</span>
+                              <span className="text-gray-500">Check-ins (10%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.checkIns?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.checkIns?.weighted || 0).toFixed(2)}</p>
                               <p className="text-gray-400">{userData.mojo_breakdown.breakdown?.checkIns?.raw || 0}/100 days</p>
+                            </div>
+                            <div className="bg-white p-2 rounded">
+                              <span className="text-gray-500">Missions (10%)</span>
+                              <p className="font-medium">{(userData.mojo_breakdown.breakdown?.missions?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.missions?.weighted || 0).toFixed(2)}</p>
+                              <p className="text-gray-400">{userData.mojo_breakdown.breakdown?.missions?.raw || 0}/100</p>
                             </div>
                           </div>
                         </div>

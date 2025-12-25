@@ -347,13 +347,21 @@ export async function POST(request) {
         .eq('transaction_type', 'daily_checkin')
         .gte('created_at', hundredDaysAgo.toISOString());
       
+      // Get approved mission submissions count
+      const { count: approvedMissions } = await supabaseAdmin
+        .from('bounty_submissions')
+        .select('*', { count: 'exact', head: true })
+        .eq('ambassador_fid', fid)
+        .eq('status', 'approved');
+      
       console.log('📊 Mojo Score inputs:', {
         neynarScore: walletData?.neynar_score || 0,
         quotientScore: quotientScore || 0,
         stakedBalance: parseFloat(existingProfile?.staked_balance) || 0,
-        totalBalance: parseFloat(existingProfile?.total_balance) || 0,
+        totalBalance: parseFloat(existingProfile?.token_balance) || 0,
         totalPurchaseAmount,
-        checkInCount: checkInCount || 0
+        checkInCount: checkInCount || 0,
+        approvedMissions: approvedMissions || 0
       });
       
       // Calculate Mojo Score
@@ -364,6 +372,7 @@ export async function POST(request) {
         totalBalance: parseFloat(existingProfile?.token_balance) || 0,
         totalPurchaseAmount,
         checkInCount: checkInCount || 0,
+        approvedMissions: approvedMissions || 0,
       });
       
       profileData.mojo_score = mojoResult.score;

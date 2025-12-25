@@ -305,6 +305,13 @@ export const GET = withAdminAuth(async (request, context) => {
       .eq('transaction_type', 'daily_checkin')
       .gte('created_at', hundredDaysAgo.toISOString());
 
+    // Get approved mission submissions count for Mojo breakdown
+    const { count: approvedMissionsCount } = await supabaseAdmin
+      .from('bounty_submissions')
+      .select('*', { count: 'exact', head: true })
+      .eq('ambassador_fid', fid)
+      .eq('status', 'approved');
+
     // Calculate Mojo Score breakdown for display
     const mojoBreakdown = calculateMojoScore({
       neynarScore: parseFloat(profile.neynar_score) || 0,
@@ -313,6 +320,7 @@ export const GET = withAdminAuth(async (request, context) => {
       totalBalance: parseFloat(profile.token_balance) || 0,
       totalPurchaseAmount: totalSpent,
       checkInCount: checkInCount || 0,
+      approvedMissions: approvedMissionsCount || 0,
     });
 
     // Group point transactions by type

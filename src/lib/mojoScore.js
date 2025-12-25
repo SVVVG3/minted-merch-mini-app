@@ -16,8 +16,9 @@ const WEIGHTS = {
   quotient: 0.20,
   staking: 0.25,
   holdings: 0.05,
-  purchases: 0.25,
-  checkIns: 0.15,
+  purchases: 0.20,
+  checkIns: 0.10,
+  missions: 0.10,
 };
 
 // Thresholds
@@ -25,6 +26,7 @@ const STAKING_MAX = 1_000_000_000; // 1B tokens for 1.0
 const HOLDINGS_MAX = 1_000_000_000; // 1B tokens for 1.0
 const PURCHASE_MAX = 500; // $500 for 1.0
 const CHECKIN_DAYS = 100; // 100 days for 1.0
+const MISSIONS_MAX = 100; // 100 approved missions for 1.0
 
 // Key thresholds for tiered scaling (staking/holdings)
 const TIER_THRESHOLDS = {
@@ -88,6 +90,16 @@ function calculateCheckInScore(checkInCount) {
 }
 
 /**
+ * Calculate missions score
+ * Based on approved mission submissions
+ * 0 missions = 0, 100 missions = 1.0
+ */
+function calculateMissionsScore(approvedMissions) {
+  if (!approvedMissions || approvedMissions <= 0) return 0;
+  return Math.min(1, approvedMissions / MISSIONS_MAX);
+}
+
+/**
  * Calculate the full Mojo Score with breakdown
  * @param {Object} data - User data
  * @param {number} data.neynarScore - Neynar score (0-1)
@@ -96,6 +108,7 @@ function calculateCheckInScore(checkInCount) {
  * @param {number} data.totalBalance - Total token holdings
  * @param {number} data.totalPurchaseAmount - Total $ spent on purchases
  * @param {number} data.checkInCount - Number of check-ins in last 100 days
+ * @param {number} data.approvedMissions - Number of approved mission submissions
  * @returns {Object} - Mojo score and breakdown
  */
 export function calculateMojoScore(data) {
@@ -106,6 +119,7 @@ export function calculateMojoScore(data) {
     totalBalance = 0,
     totalPurchaseAmount = 0,
     checkInCount = 0,
+    approvedMissions = 0,
   } = data;
 
   // Calculate individual component scores (all 0-1)
@@ -139,6 +153,11 @@ export function calculateMojoScore(data) {
       raw: checkInCount || 0,
       normalized: calculateCheckInScore(checkInCount),
       weight: WEIGHTS.checkIns,
+    },
+    missions: {
+      raw: approvedMissions || 0,
+      normalized: calculateMissionsScore(approvedMissions),
+      weight: WEIGHTS.missions,
     },
   };
 
