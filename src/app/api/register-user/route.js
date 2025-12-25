@@ -361,7 +361,7 @@ export async function POST(request) {
         neynarScore: walletData?.neynar_score || 0,
         quotientScore: quotientScore || 0,
         stakedBalance: parseFloat(existingProfile?.staked_balance) || 0,
-        totalBalance: parseFloat(existingProfile?.total_balance) || 0,
+        totalBalance: parseFloat(existingProfile?.token_balance) || 0,
         totalPurchaseAmount,
         checkInCount: checkInCount || 0,
       });

@@ -310,7 +310,7 @@ export const GET = withAdminAuth(async (request, context) => {
       neynarScore: parseFloat(profile.neynar_score) || 0,
       quotientScore: parseFloat(profile.quotient_score) || 0,
       stakedBalance: parseFloat(profile.staked_balance) || 0,
-      totalBalance: parseFloat(profile.total_balance) || 0,
+      totalBalance: parseFloat(profile.token_balance) || 0,
       totalPurchaseAmount: totalSpent,
       checkInCount: checkInCount || 0,
     });

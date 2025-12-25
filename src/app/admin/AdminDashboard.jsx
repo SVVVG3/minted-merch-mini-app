@@ -2681,7 +2681,7 @@ export default function AdminDashboard() {
                           parseFloat(user.mojo_score) >= 0.2 ? 'text-orange-600' : 
                           user.mojo_score ? 'text-red-600' : 'text-gray-400'
                         }`}>
-                          {user.mojo_score ? parseFloat(user.mojo_score).toFixed(3) : '-'}
+                          {user.mojo_score ? parseFloat(user.mojo_score).toFixed(2) : '-'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">

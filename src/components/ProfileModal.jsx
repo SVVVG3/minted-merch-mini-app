@@ -552,7 +552,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                 {/* MOJO SCORE - Uncomment when ready to display
                 {profileData?.mojo_score !== null && profileData?.mojo_score !== undefined && (
                   <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-500/30 to-blue-500/30 rounded-full text-xs font-medium">
-                    Mojo: {parseFloat(profileData.mojo_score).toFixed(3)}
+                    Mojo: {parseFloat(profileData.mojo_score).toFixed(2)}
                   </span>
                 )}
                 */}
