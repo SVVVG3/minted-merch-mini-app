@@ -111,6 +111,17 @@ export function HomePage({ collection: initialCollection, products: initialProdu
     const urlParams = new URLSearchParams(window.location.search);
     const sharedCollectionHandle = urlParams.get('collection');
     
+    // Check for showProfile parameter (from scores share)
+    const showProfile = urlParams.get('showProfile');
+    if (showProfile === 'true') {
+      console.log('👤 Opening profile modal from URL parameter');
+      setIsProfileModalOpen(true);
+      // Clean up URL
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.delete('showProfile');
+      window.history.replaceState({}, '', newUrl);
+    }
+    
     if (sharedCollectionHandle && !selectedCollection) {
       console.log('🔗 Shared collection detected:', sharedCollectionHandle);
       // We'll handle this after collections are loaded
