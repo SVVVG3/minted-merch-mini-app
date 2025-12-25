@@ -59,9 +59,16 @@ export async function GET(request) {
     // Fetch profile image
     const profileImageData = pfpUrl ? await fetchImageAsDataUrl(pfpUrl) : null;
     
-    // Fetch logo
+    // Fetch logo with proper error handling
     const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
-    const logoImageSrc = await fetchImageAsDataUrl(logoUrl);
+    console.log('🖼️ Fetching logo from:', logoUrl);
+    let logoImageSrc = null;
+    try {
+      logoImageSrc = await fetchImageAsDataUrl(logoUrl);
+      console.log('✅ Logo fetch result:', logoImageSrc ? 'SUCCESS' : 'FAILED');
+    } catch (error) {
+      console.error('❌ Error fetching logo:', error);
+    }
 
     return new ImageResponse(
       (

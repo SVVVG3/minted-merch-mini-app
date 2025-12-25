@@ -193,7 +193,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
     //   scoresText += `Mojo: ${parseFloat(profileData.mojo_score).toFixed(2)}`;
     // }
     
-    const shareText = `Check out my Minted Merch scores! 👀\n\n${scoresText}\n\nSee yours on @mintedmerch`;
+    const shareText = `Just checked my social scores:\n\n${scoresText}\n\nSee yours on the $mintedmerch mini app 👇`;
     
     if (method === 'copy') {
       try {
@@ -586,7 +586,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-hidden" style={{ boxShadow: '0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4)' }}>
-        <div className="relative bg-gradient-to-br from-[#3eb489] to-[#2d8a66] p-6 text-white">
+        <div className="relative bg-gradient-to-br from-[#3eb489] to-[#2d8a66] px-6 py-3 text-white">
           {/* Close Button */}
           <button
             onClick={() => {
