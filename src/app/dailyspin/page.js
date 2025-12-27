@@ -14,7 +14,7 @@ export async function generateMetadata() {
     version: "next",
     imageUrl: imageUrl,
     button: {
-      title: "Spin to Win! 🎰",
+      title: "Spin to Win!",
       action: {
         type: "launch_frame",
         url: `${baseUrl}/dailyspin`,

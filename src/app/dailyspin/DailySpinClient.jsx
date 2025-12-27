@@ -56,6 +56,7 @@ export default function DailySpinClient() {
   const [currentClaimIndex, setCurrentClaimIndex] = useState(0);
   const [claimsData, setClaimsData] = useState([]);
   const [claimSuccess, setClaimSuccess] = useState(false);
+  const [claimedWinnings, setClaimedWinnings] = useState([]); // Store winnings for sharing after claim
 
   // Countdown
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
@@ -353,6 +354,7 @@ export default function DailySpinClient() {
         }, 500);
       } else {
         // All claims complete!
+        setClaimedWinnings([...allSpins]); // Save winnings for sharing before clearing
         setClaimSuccess(true);
         setIsClaiming(false);
         setAllSpins([]); // Clear winnings display
@@ -369,9 +371,10 @@ export default function DailySpinClient() {
   const handleShare = async () => {
     triggerHaptic('medium', isInFarcaster);
     
-    // Format winnings as "X of $TOKEN and Y of $TOKEN2"
-    const winningsSummary = allSpins.length > 0 
-      ? allSpins.map(s => `${s.displayAmount} $${s.symbol}`).join(' and ')
+    // Use claimedWinnings (saved before clearing) for the share text
+    const winningsToShare = claimedWinnings.length > 0 ? claimedWinnings : allSpins;
+    const winningsSummary = winningsToShare.length > 0 
+      ? winningsToShare.map(s => `${s.displayAmount} $${s.symbol}`).join(' and ')
       : 'tokens';
     const shareText = `I just claimed ${winningsSummary} on the $mintedmerch Daily Spin and boosted my Mojo Score!\n\nSpin to win tokens daily 👇`;
     
@@ -659,9 +662,12 @@ export default function DailySpinClient() {
               <button
                 onClick={handleShare}
                 className="w-full py-4 bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED] text-white font-bold rounded-xl 
-                         hover:from-[#7C3AED] hover:to-[#6D28D9] transition-all duration-200 shadow-lg"
+                         hover:from-[#7C3AED] hover:to-[#6D28D9] transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
               >
-                📢 Share Your Winnings
+                <span>Share Your Winnings</span>
+                <svg className="w-5 h-5" viewBox="0 0 520 457" fill="currentColor">
+                  <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
+                </svg>
               </button>
             </div>
           )}
@@ -681,9 +687,12 @@ export default function DailySpinClient() {
               <button
                 onClick={handleShareGeneric}
                 className="w-full py-4 bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED] text-white font-bold rounded-xl 
-                         hover:from-[#7C3AED] hover:to-[#6D28D9] transition-all duration-200 shadow-lg"
+                         hover:from-[#7C3AED] hover:to-[#6D28D9] transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
               >
-                📢 Share Daily Spin
+                <span>Share Daily Spin</span>
+                <svg className="w-5 h-5" viewBox="0 0 520 457" fill="currentColor">
+                  <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
+                </svg>
               </button>
             </div>
           )}
