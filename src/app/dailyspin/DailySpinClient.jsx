@@ -67,7 +67,17 @@ export default function DailySpinClient() {
   useEffect(() => {
     if (writeError && isClaiming) {
       console.error('Transaction error:', writeError);
-      setError(writeError.message || 'Transaction rejected');
+      
+      // Show user-friendly message instead of technical error
+      let friendlyMessage = 'Transaction failed. Please try again.';
+      const errorMsg = writeError.message?.toLowerCase() || '';
+      if (errorMsg.includes('rejected') || errorMsg.includes('denied') || errorMsg.includes('cancelled') || errorMsg.includes('canceled')) {
+        friendlyMessage = 'Transaction cancelled. Click "Claim All Tokens" to try again.';
+      } else if (errorMsg.includes('insufficient')) {
+        friendlyMessage = 'Insufficient funds for transaction.';
+      }
+      
+      setError(friendlyMessage);
       setIsClaiming(false);
       resetWrite();
       triggerHaptic('error', isInFarcaster);
@@ -166,33 +176,33 @@ export default function DailySpinClient() {
 
       // Calculate rotation to land on winning token
       // The wheel has N segments, each segment is 360/N degrees
-      // Segment 0 starts at -90 degrees (top), we need to land in the CENTER of the target segment
+      // Segment 0 starts at -90 degrees (top of SVG), pointer is fixed at top
       const winningToken = data.spin.token;
       const tokenIndex = tokens.findIndex(t => t.id === winningToken.id);
       const numSegments = tokens.length;
       const segmentAngle = 360 / numSegments;
       
-      // The center of segment N is at: (N * segmentAngle) + (segmentAngle / 2) - 90 degrees
-      // But we're rotating the wheel, and pointer is at top (0 degrees in visual space)
-      // To land pointer on segment center, wheel needs to rotate so segment center aligns with top
+      // Segment N's center is at offset: (N + 0.5) * segmentAngle from the start
+      // To bring segment N's center to the top (pointer position), we need to rotate
+      // the wheel so the center moves UP to the pointer
+      // Since CSS rotate positive = clockwise, we rotate by (360 - offset) to bring segment to top
+      const segmentCenterOffset = (tokenIndex + 0.5) * segmentAngle;
+      const targetRotation = 360 - segmentCenterOffset;
       
-      // Current segment center angle (where 0 is 3 o'clock, -90 offset means 0 is at top)
-      const segmentCenterFromTop = tokenIndex * segmentAngle + (segmentAngle / 2);
-      
-      // We need to rotate the wheel so this segment is at the top (under the pointer)
-      // Add random full rotations (4-6 spins) plus the alignment
+      // Add random full rotations (4-6 spins) for visual effect
       const fullSpins = Math.floor(Math.random() * 3) + 4;
       const baseRotation = fullSpins * 360;
       
-      // Final rotation: current + full spins + offset to land on segment center
-      const finalRotation = rotation + baseRotation + segmentCenterFromTop;
+      // Final rotation: current + full spins + precise offset to land on segment center
+      const finalRotation = rotation + baseRotation + targetRotation;
 
       console.log('🎯 Spin calculation:', {
         winningToken: winningToken.symbol,
         tokenIndex,
         numSegments,
         segmentAngle,
-        segmentCenterFromTop,
+        segmentCenterOffset,
+        targetRotation,
         finalRotation
       });
 
