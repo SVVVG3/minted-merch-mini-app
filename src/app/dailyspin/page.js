@@ -6,8 +6,8 @@ export async function generateMetadata() {
   const title = 'Daily Token Spin | Minted Merch';
   const description = 'Spin to win partner tokens daily! Your Mojo Score determines how many spins you get.';
   
-  // Use the home OG image for now, or create a dedicated dailyspin OG image later
-  const imageUrl = `${baseUrl}/og-image.png`;
+  // Dedicated daily spin embed image
+  const imageUrl = `${baseUrl}/DailySpinEmbed.png`;
   
   // Create frame embed for Farcaster
   const frame = {

@@ -369,10 +369,11 @@ export default function DailySpinClient() {
   const handleShare = async () => {
     triggerHaptic('medium', isInFarcaster);
     
+    // Format winnings as "X of $TOKEN and Y of $TOKEN2"
     const winningsSummary = allSpins.length > 0 
-      ? allSpins.map(s => `${s.displayAmount} $${s.symbol}`).join(' + ')
+      ? allSpins.map(s => `${s.displayAmount} $${s.symbol}`).join(' and ')
       : 'tokens';
-    const shareText = `🎰 I just won ${winningsSummary} on the @mintedmerch Daily Spin!\n\nSpin to win tokens daily 👇`;
+    const shareText = `I just claimed ${winningsSummary} on the $mintedmerch Daily Spin and boosted my Mojo Score!\n\nSpin to win tokens daily 👇`;
     
     try {
       const { sdk } = await import('@farcaster/frame-sdk');
