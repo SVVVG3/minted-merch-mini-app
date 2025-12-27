@@ -440,25 +440,19 @@ export default function DailySpinClient() {
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black p-4">
       <div className="max-w-md mx-auto">
         {/* Header */}
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-white mb-2">🎰 Daily Token Spin</h1>
-          <p className="text-gray-400">Spin to win partner tokens!</p>
+        <div className="text-center mb-4">
+          <img 
+            src="/MintedMerchDailySpin.png" 
+            alt="Minted Merch Daily Spin" 
+            className="mx-auto h-20 object-contain"
+          />
         </div>
 
-        {/* Mojo Status */}
-        <div className="bg-gray-800/50 rounded-xl p-4 mb-6 border border-gray-700">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-gray-400">Mojo Score</span>
+        {/* Mojo Status - Single Line */}
+        <div className="bg-gray-800/50 rounded-xl px-4 py-3 mb-4 border border-gray-700">
+          <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
+            <span className="text-gray-400">Mojo Score:</span>
             <span className="text-[#3eb489] font-bold">{status.mojoScore}</span>
-          </div>
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-gray-400">Daily Spins</span>
-            <span className="text-white">
-              {status.spinsUsedToday} / {status.dailyAllocation} used
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-gray-400">Tier</span>
             <span className={`font-bold ${
               status.mojoTier === 'Gold' ? 'text-yellow-400' :
               status.mojoTier === 'Silver' ? 'text-gray-300' :
@@ -466,6 +460,7 @@ export default function DailySpinClient() {
             }`}>
               {status.mojoTier} ({status.dailyAllocation} spins/day)
             </span>
+            <span className="text-white">{status.spinsUsedToday}/{status.dailyAllocation} used</span>
           </div>
         </div>
 
@@ -561,11 +556,28 @@ export default function DailySpinClient() {
                 );
               })}
               
-              {/* Center circle */}
+              {/* Center circle with user profile picture */}
+              <defs>
+                <clipPath id="centerClip">
+                  <circle cx="50" cy="50" r="11" />
+                </clipPath>
+              </defs>
               <circle cx="50" cy="50" r="12" fill="#1f2937" stroke="#3eb489" strokeWidth="2" />
-              <text x="50" y="50" textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="5" fontWeight="bold">
-                SPIN
-              </text>
+              {user?.pfpUrl ? (
+                <image
+                  href={user.pfpUrl}
+                  x="39"
+                  y="39"
+                  width="22"
+                  height="22"
+                  clipPath="url(#centerClip)"
+                  preserveAspectRatio="xMidYMid slice"
+                />
+              ) : (
+                <text x="50" y="50" textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="5" fontWeight="bold">
+                  SPIN
+                </text>
+              )}
             </svg>
           </div>
         </div>
