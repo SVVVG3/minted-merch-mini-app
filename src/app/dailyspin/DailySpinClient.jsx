@@ -365,7 +365,7 @@ export default function DailySpinClient() {
     }
   };
 
-  // Handle share
+  // Handle share (with winnings)
   const handleShare = async () => {
     triggerHaptic('medium', isInFarcaster);
     
@@ -374,6 +374,26 @@ export default function DailySpinClient() {
       ? allSpins.map(s => `${s.displayAmount} $${s.symbol}`).join(' and ')
       : 'tokens';
     const shareText = `I just claimed ${winningsSummary} on the $mintedmerch Daily Spin and boosted my Mojo Score!\n\nSpin to win tokens daily 👇`;
+    
+    try {
+      const { sdk } = await import('@farcaster/frame-sdk');
+      await sdk.actions.composeCast({
+        text: shareText,
+        embeds: [`${window.location.origin}/dailyspin`]
+      });
+    } catch (err) {
+      console.error('Share error:', err);
+      // Fallback to clipboard
+      await navigator.clipboard.writeText(shareText);
+      alert('Share text copied to clipboard!');
+    }
+  };
+
+  // Handle generic share (when no specific winnings to show)
+  const handleShareGeneric = async () => {
+    triggerHaptic('medium', isInFarcaster);
+    
+    const shareText = `I just spun the $mintedmerch Daily Spin and boosted my Mojo Score!\n\nSpin to win tokens daily 👇`;
     
     try {
       const { sdk } = await import('@farcaster/frame-sdk');
@@ -648,13 +668,23 @@ export default function DailySpinClient() {
 
           {/* No spins left, nothing to claim */}
           {!status.canSpin && allSpins.length === 0 && !claimSuccess && (
-            <div className="text-center text-gray-400">
-              <p>No spins remaining today.</p>
-              <p className="text-sm mt-2">
-                Next spin in: {String(countdown.hours).padStart(2, '0')}:
-                {String(countdown.minutes).padStart(2, '0')}:
-                {String(countdown.seconds).padStart(2, '0')}
-              </p>
+            <div className="text-center space-y-4">
+              <div className="text-gray-400">
+                <p>No spins remaining today.</p>
+                <p className="text-sm mt-2">
+                  Next spin in: {String(countdown.hours).padStart(2, '0')}:
+                  {String(countdown.minutes).padStart(2, '0')}:
+                  {String(countdown.seconds).padStart(2, '0')}
+                </p>
+              </div>
+              
+              <button
+                onClick={handleShareGeneric}
+                className="w-full py-4 bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED] text-white font-bold rounded-xl 
+                         hover:from-[#7C3AED] hover:to-[#6D28D9] transition-all duration-200 shadow-lg"
+              >
+                📢 Share Daily Spin
+              </button>
             </div>
           )}
         </div>
