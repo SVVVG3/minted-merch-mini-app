@@ -5,7 +5,6 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { getTimeUntilReset } from '@/lib/timezone';
 import { triggerHaptic } from '@/lib/haptics';
-import { getAddress } from 'viem';
 
 // Airdrop contract ABI
 const AIRDROP_ABI = [{
@@ -35,9 +34,9 @@ const AIRDROP_ABI = [{
 }];
 
 export default function DailySpinClient() {
-  const { isInFarcaster, isReady, getFid, user, getUsername, getPfpUrl } = useFarcaster();
+  const { isInFarcaster, isReady, getFid, user } = useFarcaster();
   const { address, isConnected } = useAccount();
-  const { writeContract, data: hash, isPending: isTxPending, error: writeError } = useWriteContract();
+  const { writeContract, data: hash, isPending: isTxPending, error: writeError, reset: resetWrite } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
 
   // Core state
@@ -63,6 +62,17 @@ export default function DailySpinClient() {
 
   // Get session token
   const getSessionToken = () => localStorage.getItem('fc_session_token');
+
+  // Handle write errors (user rejected transaction)
+  useEffect(() => {
+    if (writeError && isClaiming) {
+      console.error('Transaction error:', writeError);
+      setError(writeError.message || 'Transaction rejected');
+      setIsClaiming(false);
+      resetWrite();
+      triggerHaptic('error', isInFarcaster);
+    }
+  }, [writeError, isClaiming]);
 
   // Load tokens and status
   useEffect(() => {
@@ -136,6 +146,7 @@ export default function DailySpinClient() {
     try {
       setIsSpinning(true);
       setCurrentSpin(null);
+      setError(null);
       triggerHaptic('medium', isInFarcaster);
 
       // Call spin API
@@ -154,15 +165,36 @@ export default function DailySpinClient() {
       }
 
       // Calculate rotation to land on winning token
+      // The wheel has N segments, each segment is 360/N degrees
+      // Segment 0 starts at -90 degrees (top), we need to land in the CENTER of the target segment
       const winningToken = data.spin.token;
       const tokenIndex = tokens.findIndex(t => t.id === winningToken.id);
-      const segmentAngle = 360 / tokens.length;
-      const segmentCenterAngle = tokenIndex * segmentAngle + (segmentAngle / 2);
-      const pointerAngle = 270; // Top position
-      const rotationNeeded = pointerAngle - segmentCenterAngle;
+      const numSegments = tokens.length;
+      const segmentAngle = 360 / numSegments;
+      
+      // The center of segment N is at: (N * segmentAngle) + (segmentAngle / 2) - 90 degrees
+      // But we're rotating the wheel, and pointer is at top (0 degrees in visual space)
+      // To land pointer on segment center, wheel needs to rotate so segment center aligns with top
+      
+      // Current segment center angle (where 0 is 3 o'clock, -90 offset means 0 is at top)
+      const segmentCenterFromTop = tokenIndex * segmentAngle + (segmentAngle / 2);
+      
+      // We need to rotate the wheel so this segment is at the top (under the pointer)
+      // Add random full rotations (4-6 spins) plus the alignment
       const fullSpins = Math.floor(Math.random() * 3) + 4;
-      const totalSpins = fullSpins * 360;
-      const finalRotation = rotation + totalSpins + rotationNeeded;
+      const baseRotation = fullSpins * 360;
+      
+      // Final rotation: current + full spins + offset to land on segment center
+      const finalRotation = rotation + baseRotation + segmentCenterFromTop;
+
+      console.log('🎯 Spin calculation:', {
+        winningToken: winningToken.symbol,
+        tokenIndex,
+        numSegments,
+        segmentAngle,
+        segmentCenterFromTop,
+        finalRotation
+      });
 
       setRotation(finalRotation);
 
@@ -238,7 +270,7 @@ export default function DailySpinClient() {
       setCurrentClaimIndex(0);
 
       // Start first claim transaction
-      await executeClaimTransaction(data.claims[0]);
+      executeClaimTransaction(data.claims[0]);
 
     } catch (err) {
       console.error('Claim error:', err);
@@ -249,7 +281,7 @@ export default function DailySpinClient() {
   };
 
   // Execute claim transaction
-  const executeClaimTransaction = async (claim) => {
+  const executeClaimTransaction = (claim) => {
     try {
       const reqWithBigInt = {
         uid: claim.claimData.req.uid,
@@ -305,11 +337,15 @@ export default function DailySpinClient() {
       const nextIndex = currentClaimIndex + 1;
       if (nextIndex < claimsData.length) {
         setCurrentClaimIndex(nextIndex);
-        await executeClaimTransaction(claimsData[nextIndex]);
+        resetWrite();
+        setTimeout(() => {
+          executeClaimTransaction(claimsData[nextIndex]);
+        }, 500);
       } else {
         // All claims complete!
         setClaimSuccess(true);
         setIsClaiming(false);
+        setAllSpins([]); // Clear winnings display
         triggerHaptic('success', isInFarcaster);
       }
     } catch (err) {
@@ -323,7 +359,9 @@ export default function DailySpinClient() {
   const handleShare = async () => {
     triggerHaptic('medium', isInFarcaster);
     
-    const winningsSummary = allSpins.map(s => `${s.displayAmount} $${s.symbol}`).join(' + ');
+    const winningsSummary = allSpins.length > 0 
+      ? allSpins.map(s => `${s.displayAmount} $${s.symbol}`).join(' + ')
+      : 'tokens';
     const shareText = `🎰 I just won ${winningsSummary} on the @mintedmerch Daily Spin!\n\nSpin to win tokens daily 👇`;
     
     try {
@@ -411,8 +449,19 @@ export default function DailySpinClient() {
               className="w-full h-full transition-transform duration-[3500ms] ease-out"
               style={{ transform: `rotate(${rotation}deg)` }}
             >
+              <defs>
+                {/* Define clip paths for circular logos */}
+                {tokens.map((token, index) => (
+                  <clipPath key={`clip-${token.id}`} id={`clip-${index}`}>
+                    <circle cx="0" cy="0" r="8" />
+                  </clipPath>
+                ))}
+              </defs>
+              
               {tokens.map((token, index) => {
-                const segmentAngle = 360 / tokens.length;
+                const numSegments = tokens.length;
+                const segmentAngle = 360 / numSegments;
+                // Start at top (-90 degrees)
                 const startAngle = index * segmentAngle - 90;
                 const endAngle = startAngle + segmentAngle;
                 const largeArc = segmentAngle > 180 ? 1 : 0;
@@ -425,34 +474,59 @@ export default function DailySpinClient() {
                 const x2 = 50 + 45 * Math.cos(endRad);
                 const y2 = 50 + 45 * Math.sin(endRad);
 
+                // Position for logo/text (centered in segment)
                 const midAngle = (startAngle + endAngle) / 2;
                 const midRad = (midAngle * Math.PI) / 180;
-                const textX = 50 + 30 * Math.cos(midRad);
-                const textY = 50 + 30 * Math.sin(midRad);
+                const logoX = 50 + 30 * Math.cos(midRad);
+                const logoY = 50 + 30 * Math.sin(midRad);
 
                 return (
                   <g key={token.id}>
+                    {/* Segment */}
                     <path
                       d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`}
                       fill={token.color}
                       stroke="#1f2937"
-                      strokeWidth="0.5"
+                      strokeWidth="1"
                     />
-                    <text
-                      x={textX}
-                      y={textY}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fill="white"
-                      fontSize="6"
-                      fontWeight="bold"
-                      transform={`rotate(${midAngle + 90}, ${textX}, ${textY})`}
-                    >
-                      ${token.symbol}
-                    </text>
+                    
+                    {/* Logo or text */}
+                    {token.logoUrl ? (
+                      <g transform={`translate(${logoX}, ${logoY})`}>
+                        {/* White circle background for logo */}
+                        <circle cx="0" cy="0" r="9" fill="white" />
+                        <circle cx="0" cy="0" r="8" fill="white" />
+                        <image
+                          href={token.logoUrl}
+                          x="-8"
+                          y="-8"
+                          width="16"
+                          height="16"
+                          clipPath={`url(#clip-${index})`}
+                          preserveAspectRatio="xMidYMid slice"
+                        />
+                      </g>
+                    ) : (
+                      // MISS segment - show X or text
+                      <g transform={`translate(${logoX}, ${logoY})`}>
+                        <circle cx="0" cy="0" r="9" fill="#374151" />
+                        <text
+                          x="0"
+                          y="1"
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fill="white"
+                          fontSize="8"
+                          fontWeight="bold"
+                        >
+                          ✕
+                        </text>
+                      </g>
+                    )}
                   </g>
                 );
               })}
+              
               {/* Center circle */}
               <circle cx="50" cy="50" r="12" fill="#1f2937" stroke="#3eb489" strokeWidth="2" />
               <text x="50" y="50" textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="5" fontWeight="bold">
@@ -577,7 +651,13 @@ export default function DailySpinClient() {
         {/* Error Display */}
         {error && (
           <div className="mt-4 p-4 bg-red-500/20 border border-red-500/30 rounded-xl">
-            <p className="text-red-400 text-center">{error}</p>
+            <p className="text-red-400 text-center text-sm">{error}</p>
+            <button 
+              onClick={() => setError(null)}
+              className="mt-2 text-gray-400 text-xs underline w-full text-center"
+            >
+              Dismiss
+            </button>
           </div>
         )}
 
@@ -604,4 +684,3 @@ export default function DailySpinClient() {
     </div>
   );
 }
-

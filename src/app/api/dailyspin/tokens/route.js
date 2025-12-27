@@ -71,12 +71,12 @@ async function getTokenPrice(contractAddress) {
  */
 export async function GET() {
   try {
-    // Fetch active tokens from database
+    // Fetch active tokens from database (ordered for consistent wheel display)
     const { data: tokens, error } = await supabaseAdmin
       .from('spin_tokens')
       .select('id, symbol, name, contract_address, decimals, probability_weight, segment_color, logo_url')
       .eq('is_active', true)
-      .order('probability_weight', { ascending: false });
+      .order('created_at', { ascending: true }); // Consistent order for wheel segments
 
     if (error) {
       console.error('Error fetching spin tokens:', error);
@@ -109,19 +109,23 @@ export async function GET() {
     // Calculate total weight for probability display
     const totalWeight = tokens.reduce((sum, t) => sum + t.probability_weight, 0);
 
+    // Get base URL for logo paths
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop';
+
     return NextResponse.json({
       success: true,
-      tokens: tokensWithPrices.map(token => ({
+      tokens: tokensWithPrices.map((token, index) => ({
         id: token.id,
         symbol: token.symbol,
         name: token.name,
         contractAddress: token.contract_address,
         decimals: token.decimals,
         color: token.segment_color,
-        logoUrl: token.logo_url,
+        logoUrl: token.logo_url ? `${baseUrl}${token.logo_url}` : null,
         priceUsd: token.price_usd,
         tokensPerSpin: token.tokens_per_spin,
-        probability: token.probability_weight / totalWeight
+        probability: token.probability_weight / totalWeight,
+        segmentIndex: index  // For wheel alignment
       })),
       totalWeight
     });
