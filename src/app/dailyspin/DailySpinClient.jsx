@@ -444,7 +444,7 @@ export default function DailySpinClient() {
           <img 
             src="/MintedMerchDailySpin.png" 
             alt="Minted Merch Daily Spin" 
-            className="mx-auto h-20 object-contain"
+            className="mx-auto h-28 object-contain"
           />
         </div>
 
