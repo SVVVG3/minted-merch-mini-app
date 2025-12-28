@@ -747,18 +747,10 @@ export default function DailySpinClient() {
               {status.canClaim === false ? (
                 <>
                   {/* Low Neynar score - show donate option */}
-                  <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-3 text-center">
-                    <p className="text-yellow-400 text-sm">
-                      ⚠️ Neynar score of 0.6+ required to claim tokens
-                    </p>
-                    <p className="text-gray-400 text-xs mt-1">
-                      Your score: {status.neynarScore} - You can donate your winnings instead!
-                    </p>
-                  </div>
                   <button
                     onClick={() => handleClaim(true)}
                     disabled={isClaiming || !isConnected}
-                    className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl 
+                    className="w-full py-4 bg-[#3eb489] hover:bg-[#2d9970] text-white font-bold rounded-xl 
                              disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
                   >
                     {isClaiming && isDonating ? (
@@ -769,9 +761,17 @@ export default function DailySpinClient() {
                     ) : !isConnected ? (
                       'Connect Wallet to Donate'
                     ) : (
-                      '🎁 Donate to Community Pool'
+                      'Donate to Community Pool'
                     )}
                   </button>
+                  <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-3 text-center">
+                    <p className="text-yellow-400 text-sm">
+                      ⚠️ Neynar score of 0.6+ required to claim.
+                    </p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      Your score: {status.neynarScore} - Donate your winnings to boost your Mojo!
+                    </p>
+                  </div>
                 </>
               ) : (
                 <button
