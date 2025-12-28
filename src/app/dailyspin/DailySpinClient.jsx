@@ -585,9 +585,8 @@ export default function DailySpinClient() {
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl p-6 max-w-sm w-full border border-[#3eb489]/30 shadow-2xl">
               {/* Header */}
-              <div className="text-center mb-4">
-                <h2 className="text-2xl font-bold text-white">Congratulations!</h2>
-                <p className="text-gray-400 text-sm mt-1">You won</p>
+              <div className="text-center mb-3">
+                <h2 className="text-2xl font-bold text-white">You Won:</h2>
               </div>
 
               {/* Token info */}
@@ -712,7 +711,7 @@ export default function DailySpinClient() {
               ) : !isConnected ? (
                 'Connect Wallet to Claim'
               ) : (
-                '🎁 Claim All Tokens'
+                'Claim Today\'s Winnings'
               )}
             </button>
           )}
@@ -767,9 +766,9 @@ export default function DailySpinClient() {
 
         {/* Your Winnings Today */}
         {allSpins.length > 0 && !claimSuccess && (
-          <div className="bg-gray-800/50 rounded-xl p-4 mt-4 border border-gray-700">
-            <h3 className="text-white font-bold mb-2">Your Winnings Today</h3>
-            <div className="space-y-2">
+          <div className="bg-gray-800/50 rounded-xl px-4 py-2 mt-4 border border-gray-700">
+            <h3 className="text-white font-bold mb-1">Your Winnings Today</h3>
+            <div className="space-y-1">
               {allSpins.map((spin, i) => (
                 <div key={i} className="flex justify-between items-center">
                   <span className="text-gray-400">${spin.symbol}</span>
@@ -781,7 +780,7 @@ export default function DailySpinClient() {
         )}
 
         {/* Mojo Status - Single Line */}
-        <div className="bg-gray-800/50 rounded-xl px-4 py-3 mt-4 border border-gray-700">
+        <div className="bg-gray-800/50 rounded-xl px-4 py-3 my-4 border border-gray-700">
           <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
             <span className="text-gray-400">Mojo Score:</span>
             <span className="text-[#3eb489] font-bold">{status.mojoScore}</span>
