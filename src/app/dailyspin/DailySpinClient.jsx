@@ -380,7 +380,7 @@ export default function DailySpinClient() {
     const winningsSummary = winningsToShare.length > 0 
       ? winningsToShare.map(s => `${s.displayAmount} $${s.symbol}`).join(' and ')
       : 'tokens';
-    const shareText = `I just claimed ${winningsSummary} on the $mintedmerch Daily Spin and boosted my Mojo Score!\n\nSpin to win tokens daily 👇`;
+    const shareText = `I just claimed ${winningsSummary} on the /mintedmerch Daily Spin and boosted my Mojo Score!\n\nSpin to win tokens daily 👇`;
     
     try {
       const { sdk } = await import('@farcaster/frame-sdk');
@@ -400,7 +400,7 @@ export default function DailySpinClient() {
   const handleShareGeneric = async () => {
     triggerHaptic('medium', isInFarcaster);
     
-    const shareText = `I just spun the $mintedmerch Daily Spin and boosted my Mojo Score!\n\nSpin to win tokens daily 👇`;
+    const shareText = `I just spun the /mintedmerch Daily Spin and boosted my Mojo Score!\n\nSpin to win tokens daily 👇`;
     
     try {
       const { sdk } = await import('@farcaster/frame-sdk');
@@ -719,10 +719,8 @@ export default function DailySpinClient() {
           {/* Claim Success */}
           {claimSuccess && (
             <div className="text-center space-y-4">
-              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl p-6 border border-green-500/30">
-                <div className="text-4xl mb-2">🎉</div>
-                <h3 className="text-xl font-bold text-white mb-2">Tokens Claimed!</h3>
-                <p className="text-gray-400">Your tokens have been sent to your wallet.</p>
+              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl p-4 border border-green-500/30">
+                <h3 className="text-xl font-bold text-white">Tokens Claimed 🤌</h3>
               </div>
               
               <button
@@ -764,12 +762,12 @@ export default function DailySpinClient() {
           )}
         </div>
 
-        {/* Your Winnings Today */}
-        {allSpins.length > 0 && !claimSuccess && (
+        {/* Your Winnings Today - show allSpins before claim, claimedWinnings after */}
+        {((allSpins.length > 0 && !claimSuccess) || (claimedWinnings.length > 0 && claimSuccess)) && (
           <div className="bg-gray-800/50 rounded-xl px-4 py-2 mt-4 border border-gray-700">
-            <h3 className="text-white font-bold mb-1">Your Winnings Today</h3>
+            <h3 className="text-white font-bold mb-1">Today's Winnings</h3>
             <div className="space-y-1">
-              {allSpins.map((spin, i) => (
+              {(claimSuccess ? claimedWinnings : allSpins).map((spin, i) => (
                 <div key={i} className="flex justify-between items-center">
                   <span className="text-gray-400">${spin.symbol}</span>
                   <span className="font-mono" style={{ color: spin.color }}>{spin.displayAmount}</span>
