@@ -108,6 +108,30 @@ export function useFarcaster() {
     setIsLoading(false);
     
     if (context && context.user) {
+      // Check if FID changed (user switched accounts)
+      // Clear old session state to force re-authentication
+      const newFid = context.user.fid;
+      const existingToken = typeof localStorage !== 'undefined' ? localStorage.getItem('fc_session_token') : null;
+      
+      if (existingToken) {
+        try {
+          const parts = existingToken.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]));
+            if (payload.fid && parseInt(payload.fid) !== newFid) {
+              console.log('🔄 Account switch detected - clearing old session', {
+                oldFid: payload.fid,
+                newFid: newFid
+              });
+              localStorage.removeItem('fc_session_token');
+              sessionStorage.clear(); // Clear all session storage (registration flags, etc.)
+            }
+          }
+        } catch (e) {
+          // Invalid token, will be cleaned up elsewhere
+        }
+      }
+      
       setUser(context.user);
       setIsReady(true);
     } else if (context) {
@@ -151,7 +175,7 @@ export function useFarcaster() {
       // Multi-level guard to prevent duplicate requests
       if (!isInFarcaster || !user?.fid) return;
       
-      // Check if we already have a valid session token
+      // Check if we already have a valid session token FOR THE SAME USER
       const existingToken = localStorage.getItem('fc_session_token');
       if (existingToken && sessionToken) {
         try {
@@ -161,8 +185,19 @@ export function useFarcaster() {
             const expiresAt = payload.exp * 1000;
             const now = Date.now();
             
-            if (expiresAt > now) {
-              return; // Token valid, skip Quick Auth
+            // CRITICAL: Check if token FID matches current user FID
+            // This prevents stale tokens when switching accounts
+            if (payload.fid && parseInt(payload.fid) !== user.fid) {
+              console.log('🔄 FID mismatch detected - clearing old token', {
+                tokenFid: payload.fid,
+                currentFid: user.fid
+              });
+              localStorage.removeItem('fc_session_token');
+              setSessionToken(null);
+              hasAttemptedMiniAppAuth.current = false; // Allow re-auth
+              // Don't return - continue to get new token
+            } else if (expiresAt > now) {
+              return; // Token valid and FID matches, skip Quick Auth
             } else {
               localStorage.removeItem('fc_session_token');
             }
