@@ -194,19 +194,20 @@ export default function DailySpinClient() {
       const numSegments = tokens.length;
       const segmentAngle = 360 / numSegments;
       
-      // Segment N's center is at offset: (N + 0.5) * segmentAngle from the start
-      // To bring segment N's center to the top (pointer position), we need to rotate
-      // the wheel so the center moves UP to the pointer
-      // Since CSS rotate positive = clockwise, we rotate by (360 - offset) to bring segment to top
+      // Calculate where the segment center needs to be
       const segmentCenterOffset = (tokenIndex + 0.5) * segmentAngle;
-      const targetRotation = 360 - segmentCenterOffset;
+      const targetAngle = 360 - segmentCenterOffset; // Target position (mod 360)
+      
+      // Account for current wheel position
+      const currentAngle = rotation % 360;
+      let additionalRotation = targetAngle - currentAngle;
+      if (additionalRotation < 0) additionalRotation += 360;
       
       // Add random full rotations (4-6 spins) for visual effect
       const fullSpins = Math.floor(Math.random() * 3) + 4;
-      const baseRotation = fullSpins * 360;
       
-      // Final rotation: current + full spins + precise offset to land on segment center
-      const finalRotation = rotation + baseRotation + targetRotation;
+      // Final rotation: current + full spins + precise additional rotation
+      const finalRotation = rotation + (fullSpins * 360) + additionalRotation;
 
       console.log('🎯 Spin calculation:', {
         winningToken: winningToken.symbol,
@@ -214,7 +215,9 @@ export default function DailySpinClient() {
         numSegments,
         segmentAngle,
         segmentCenterOffset,
-        targetRotation,
+        targetAngle,
+        currentAngle,
+        additionalRotation,
         finalRotation
       });
 
@@ -722,24 +725,38 @@ export default function DailySpinClient() {
 
           {/* Claim Button */}
           {!status.canSpin && allSpins.length > 0 && !claimSuccess && (
-            <button
-              onClick={handleClaim}
-              disabled={isClaiming || !isConnected}
-              className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl 
-                       hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed
-                       transition-all duration-200 shadow-lg"
-            >
-              {isClaiming ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                  Claiming {currentClaimIndex + 1}/{claimsData.length}...
-                </span>
-              ) : !isConnected ? (
-                'Connect Wallet to Claim'
-              ) : (
-                'Claim Today\'s Winnings'
+            <div className="space-y-2">
+              {status.canClaim === false && (
+                <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-3 text-center">
+                  <p className="text-yellow-400 text-sm">
+                    ⚠️ Neynar score of 0.5+ required to claim tokens
+                  </p>
+                  <p className="text-gray-400 text-xs mt-1">
+                    Your score: {status.neynarScore} - Keep engaging on Farcaster!
+                  </p>
+                </div>
               )}
-            </button>
+              <button
+                onClick={handleClaim}
+                disabled={isClaiming || !isConnected || status.canClaim === false}
+                className="w-full py-4 bg-gradient-to-r from-[#3eb489] to-emerald-600 text-white font-bold rounded-xl 
+                         hover:from-[#2d9970] hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed
+                         transition-all duration-200 shadow-lg"
+              >
+                {isClaiming ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                    Claiming {currentClaimIndex + 1}/{claimsData.length}...
+                  </span>
+                ) : !isConnected ? (
+                  'Connect Wallet to Claim'
+                ) : status.canClaim === false ? (
+                  'Neynar Score Too Low'
+                ) : (
+                  'Claim Today\'s Winnings'
+                )}
+              </button>
+            </div>
           )}
 
           {/* Claim Success - just show share button, success message moves below winnings */}

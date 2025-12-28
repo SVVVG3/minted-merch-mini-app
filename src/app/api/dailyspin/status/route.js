@@ -45,10 +45,10 @@ export async function GET(request) {
     const todayStart = getCurrent8AMPST();
     const todayDate = todayStart.toISOString().split('T')[0]; // YYYY-MM-DD format
 
-    // Fetch user's Mojo score from profile
+    // Fetch user's Mojo score and Neynar score from profile
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('mojo_score')
+      .select('mojo_score, neynar_score')
       .eq('fid', fid)
       .single();
 
@@ -57,6 +57,7 @@ export async function GET(request) {
     }
 
     const mojoScore = profile?.mojo_score || 0;
+    const neynarScore = profile?.neynar_score || 0;
     const dailyAllocation = getSpinAllocation(mojoScore);
 
     // Count spins used today
@@ -194,6 +195,8 @@ export async function GET(request) {
         fid,
         mojoScore: parseFloat(mojoScore).toFixed(2),
         mojoTier,
+        neynarScore: parseFloat(neynarScore).toFixed(2),
+        canClaim: neynarScore >= 0.5, // Require 0.5+ Neynar score to claim
         dailyAllocation,
         spinsUsedToday: usedSpins,
         spinsRemaining: remainingSpins,
