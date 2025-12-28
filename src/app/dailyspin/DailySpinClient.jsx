@@ -729,7 +729,7 @@ export default function DailySpinClient() {
               {status.canClaim === false && (
                 <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-3 text-center">
                   <p className="text-yellow-400 text-sm">
-                    ⚠️ Neynar score of 0.5+ required to claim tokens
+                    ⚠️ Neynar score of 0.6+ required to claim tokens
                   </p>
                   <p className="text-gray-400 text-xs mt-1">
                     Your score: {status.neynarScore} - Keep engaging on Farcaster!

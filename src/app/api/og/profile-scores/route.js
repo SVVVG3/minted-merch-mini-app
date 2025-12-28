@@ -43,7 +43,7 @@ export async function GET(request) {
     const getNeynarColor = (score) => {
       const s = parseFloat(score);
       if (s >= 0.9) return '#22c55e'; // green
-      if (s >= 0.5) return '#eab308'; // yellow
+      if (s >= 0.6) return '#eab308'; // yellow
       return '#ef4444'; // red
     };
     

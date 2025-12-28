@@ -2738,7 +2738,7 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         <span className={`font-medium ${
                           parseFloat(user.neynar_score) >= 0.8 ? 'text-green-600' : 
-                          parseFloat(user.neynar_score) >= 0.5 ? 'text-yellow-600' : 
+                          parseFloat(user.neynar_score) >= 0.6 ? 'text-yellow-600' : 
                           user.neynar_score ? 'text-red-600' : 'text-gray-400'
                         }`}>
                           {user.neynar_score ? parseFloat(user.neynar_score).toFixed(2) : '-'}
@@ -4910,7 +4910,7 @@ export default function AdminDashboard() {
                                     <span className={`text-sm font-medium ${
                                       mogul.neynarScore >= 0.9 ? 'text-green-600' :
                                       mogul.neynarScore >= 0.7 ? 'text-blue-600' :
-                                      mogul.neynarScore >= 0.5 ? 'text-yellow-600' :
+                                      mogul.neynarScore >= 0.6 ? 'text-yellow-600' :
                                       'text-gray-500'
                                     }`}>
                                       {mogul.neynarScore.toFixed(2)}
