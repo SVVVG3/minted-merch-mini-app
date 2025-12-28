@@ -61,6 +61,9 @@ export default function DailySpinClient() {
   // Countdown
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
 
+  // Win modal
+  const [showWinModal, setShowWinModal] = useState(false);
+
   // Get session token
   const getSessionToken = () => localStorage.getItem('fc_session_token');
 
@@ -216,6 +219,7 @@ export default function DailySpinClient() {
         // Only add to winnings if it's a win
         if (data.spin.isWin) {
           triggerHaptic('success', isInFarcaster);
+          setShowWinModal(true); // Show win modal
           setAllSpins(prev => [...prev, {
             symbol: data.spin.token.symbol,
             displayAmount: data.spin.displayAmount,
@@ -448,22 +452,6 @@ export default function DailySpinClient() {
           />
         </div>
 
-        {/* Mojo Status - Single Line */}
-        <div className="bg-gray-800/50 rounded-xl px-4 py-3 mb-4 border border-gray-700">
-          <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
-            <span className="text-gray-400">Mojo Score:</span>
-            <span className="text-[#3eb489] font-bold">{status.mojoScore}</span>
-            <span className={`font-bold ${
-              status.mojoTier === 'Gold' ? 'text-yellow-400' :
-              status.mojoTier === 'Silver' ? 'text-gray-300' :
-              'text-orange-400'
-            }`}>
-              {status.mojoTier} ({status.dailyAllocation} spins/day)
-            </span>
-            <span className="text-white">{status.spinsUsedToday}/{status.dailyAllocation} used</span>
-          </div>
-        </div>
-
         {/* Wheel */}
         <div className="relative mb-6">
           {/* Pointer */}
@@ -582,24 +570,102 @@ export default function DailySpinClient() {
           </div>
         </div>
 
-        {/* Current Spin Result */}
-        {currentSpin && (
-          <div className={`rounded-xl p-4 mb-4 border ${
-            currentSpin.isWin 
-              ? 'bg-gradient-to-r from-[#3eb489]/20 to-blue-500/20 border-[#3eb489]/30'
-              : 'bg-gradient-to-r from-gray-600/20 to-gray-500/20 border-gray-500/30'
-          }`}>
-            {currentSpin.isWin ? (
-              <p className="text-center text-white">
-                🎉 You won <span className="font-bold text-[#3eb489]">{currentSpin.displayAmount}</span>{' '}
-                <span className="font-bold" style={{ color: currentSpin.token.color }}>${currentSpin.token.symbol}</span>!
-              </p>
-            ) : (
-              <p className="text-center text-gray-300">
-                😢 {currentSpin.message || 'Better Luck Next Time!'}
-                {status.canSpin && <span className="block text-sm mt-1 text-gray-400">Spin again!</span>}
-              </p>
-            )}
+        {/* Current Spin Result - Only show for losses (wins show modal) */}
+        {currentSpin && !currentSpin.isWin && (
+          <div className="rounded-xl p-4 mb-4 border bg-gradient-to-r from-gray-600/20 to-gray-500/20 border-gray-500/30">
+            <p className="text-center text-gray-300">
+              😢 {currentSpin.message || 'Better Luck Next Time!'}
+              {status.canSpin && <span className="block text-sm mt-1 text-gray-400">Spin again!</span>}
+            </p>
+          </div>
+        )}
+
+        {/* Win Modal */}
+        {showWinModal && currentSpin?.isWin && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl p-6 max-w-sm w-full border border-[#3eb489]/30 shadow-2xl">
+              {/* Confetti effect header */}
+              <div className="text-center mb-4">
+                <div className="text-5xl mb-2">🎉</div>
+                <h2 className="text-2xl font-bold text-white">Congratulations!</h2>
+              </div>
+
+              {/* Token info */}
+              <div className="bg-black/30 rounded-xl p-4 mb-4">
+                <div className="flex items-center justify-center gap-3 mb-3">
+                  {/* Token logo */}
+                  {tokens.find(t => t.id === currentSpin.token.id)?.logoUrl ? (
+                    <img 
+                      src={tokens.find(t => t.id === currentSpin.token.id)?.logoUrl}
+                      alt={currentSpin.token.symbol}
+                      className="w-12 h-12 rounded-full border-2 border-white/20"
+                    />
+                  ) : (
+                    <div 
+                      className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold"
+                      style={{ backgroundColor: currentSpin.token.color }}
+                    >
+                      {currentSpin.token.symbol.slice(0, 2)}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-white font-bold text-lg">${currentSpin.token.symbol}</p>
+                    <p className="text-gray-400 text-sm">{currentSpin.token.name}</p>
+                  </div>
+                </div>
+                
+                <div className="text-center">
+                  <p className="text-gray-400 text-sm">You won</p>
+                  <p className="text-2xl font-bold" style={{ color: currentSpin.token.color }}>
+                    {currentSpin.displayAmount}
+                  </p>
+                  <p className="text-gray-500 text-xs">≈ ${currentSpin.usdValue}</p>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="space-y-2">
+                {/* View on DexScreener */}
+                {currentSpin.token.contractAddress && (
+                  <a
+                    href={`https://dexscreener.com/base/${currentSpin.token.contractAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+                  >
+                    <span>View on DexScreener</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                )}
+                
+                {/* Shop Collection link */}
+                <a
+                  href="/"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowWinModal(false);
+                    // Navigate to shop
+                    window.location.href = '/';
+                  }}
+                  className="w-full py-3 bg-[#3eb489] hover:bg-[#2d9970] text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  <span>Shop Merch Collection</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                </a>
+
+                {/* Continue spinning or close */}
+                <button
+                  onClick={() => setShowWinModal(false)}
+                  className="w-full py-3 bg-transparent border border-gray-600 hover:border-gray-500 text-gray-300 font-medium rounded-xl transition-colors"
+                >
+                  {status.canSpin ? 'Keep Spinning!' : 'Close'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -635,7 +701,7 @@ export default function DailySpinClient() {
                   Spinning...
                 </span>
               ) : (
-                `🎰 Spin (${status.spinsRemaining} left)`
+                'Spin To Win'
               )}
             </button>
           )}
@@ -708,6 +774,22 @@ export default function DailySpinClient() {
               </button>
             </div>
           )}
+        </div>
+
+        {/* Mojo Status - Single Line */}
+        <div className="bg-gray-800/50 rounded-xl px-4 py-3 mt-4 border border-gray-700">
+          <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
+            <span className="text-gray-400">Mojo Score:</span>
+            <span className="text-[#3eb489] font-bold">{status.mojoScore}</span>
+            <span className={`font-bold ${
+              status.mojoTier === 'Gold' ? 'text-yellow-400' :
+              status.mojoTier === 'Silver' ? 'text-gray-300' :
+              'text-orange-400'
+            }`}>
+              {status.mojoTier} ({status.dailyAllocation} spins/day)
+            </span>
+            <span className="text-white">{status.spinsUsedToday}/{status.dailyAllocation} used</span>
+          </div>
         </div>
 
         {/* Error Display */}
