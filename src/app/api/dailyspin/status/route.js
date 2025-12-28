@@ -142,6 +142,37 @@ export async function GET(request) {
       winningIds: group.winningIds
     }));
 
+    // Fetch TODAY's claimed winnings (for display and sharing after claiming)
+    const { data: claimedToday, error: claimedError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select(`
+        id,
+        amount,
+        usd_value,
+        spin_tokens (
+          id,
+          symbol,
+          name,
+          decimals,
+          segment_color
+        )
+      `)
+      .eq('user_fid', fid)
+      .eq('spin_date', todayDate)
+      .eq('claimed', true)
+      .gt('amount', '0');  // Exclude MISS entries
+
+    if (claimedError) {
+      console.error('Error fetching claimed winnings:', claimedError);
+    }
+
+    // Format claimed winnings for display
+    const claimedWinningsList = (claimedToday || []).map(w => ({
+      symbol: w.spin_tokens.symbol,
+      displayAmount: (parseFloat(w.amount) / Math.pow(10, w.spin_tokens.decimals)).toFixed(4),
+      color: w.spin_tokens.segment_color
+    }));
+
     // Get mojo tier for display
     let mojoTier = 'Bronze';
     if (mojoScore >= 0.50) mojoTier = 'Gold';
@@ -173,7 +204,8 @@ export async function GET(request) {
         total: unclaimedWinnings?.length || 0,
         byToken: claimSummary,
         hasUnclaimed: claimSummary.length > 0
-      }
+      },
+      claimedToday: claimedWinningsList
     });
 
   } catch (error) {
