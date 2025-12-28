@@ -72,6 +72,13 @@ export default function AdminDashboard() {
   const [checkinsData, setCheckinsData] = useState([]);
   const [checkinsLoading, setCheckinsLoading] = useState(false);
   const [checkinsError, setCheckinsError] = useState('');
+
+  // Daily Spins state
+  const [dailySpinStats, setDailySpinStats] = useState(null);
+  const [dailySpinTokenStats, setDailySpinTokenStats] = useState([]);
+  const [dailySpinLog, setDailySpinLog] = useState([]);
+  const [dailySpinLoading, setDailySpinLoading] = useState(false);
+  const [dailySpinError, setDailySpinError] = useState('');
   const [checkinsSortField, setCheckinsSortField] = useState('created_at');
   const [checkinsSortDirection, setCheckinsSortDirection] = useState('desc');
 
@@ -890,6 +897,30 @@ export default function AdminDashboard() {
     }
   };
 
+  // Load daily spin stats
+  const loadDailySpinStats = async () => {
+    setDailySpinLoading(true);
+    setDailySpinError('');
+    
+    try {
+      const response = await adminFetch('/api/admin/dailyspin-stats');
+      const result = await response.json();
+      
+      if (result.success) {
+        setDailySpinStats(result.stats);
+        setDailySpinTokenStats(result.tokenStats || []);
+        setDailySpinLog(result.spinLog || []);
+      } else {
+        setDailySpinError(result.error || 'Failed to load daily spin stats');
+      }
+    } catch (error) {
+      console.error('Error loading daily spin stats:', error);
+      setDailySpinError('Failed to load daily spin stats');
+    } finally {
+      setDailySpinLoading(false);
+    }
+  };
+
   // Load partners from database
   const loadPartners = async () => {
     setPartnersLoading(true);
@@ -1323,6 +1354,13 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (activeTab === 'checkins' && checkinsData.length === 0) {
       loadCheckinsData();
+    }
+  }, [activeTab]);
+
+  // Load daily spin stats when Daily Spins tab is selected
+  useEffect(() => {
+    if (activeTab === 'dailyspin' && !dailySpinStats) {
+      loadDailySpinStats();
     }
   }, [activeTab]);
 
@@ -2012,6 +2050,7 @@ export default function AdminDashboard() {
                 { key: 'discounts', label: '🎫 Discounts' },
                 { key: 'leaderboard', label: '🏆 Leaderboard' },
                 { key: 'checkins', label: '📅 Check-ins' },
+                { key: 'dailyspin', label: '🎰 Daily Spins' },
                 { key: 'raffle', label: '🎲 Raffle Tool' },
                 { key: 'past-raffles', label: '📚 Past Raffles' }
               ].map((tab) => (
@@ -3911,6 +3950,156 @@ export default function AdminDashboard() {
                 </table>
               </div>
             )}
+            </div>
+          </div>
+        )}
+
+        {/* Daily Spins Tab */}
+        {activeTab === 'dailyspin' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-800">🎰 Daily Spins</h2>
+                <button
+                  onClick={() => {
+                    setDailySpinStats(null);
+                    loadDailySpinStats();
+                  }}
+                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm flex items-center gap-2"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+              
+              {dailySpinLoading ? (
+                <div className="p-8 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489] mx-auto"></div>
+                  <p className="mt-2 text-gray-600">Loading daily spin stats...</p>
+                </div>
+              ) : dailySpinError ? (
+                <div className="p-6 text-center text-red-600">{dailySpinError}</div>
+              ) : dailySpinStats ? (
+                <div className="p-6 space-y-6">
+                  {/* Stats Overview */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-blue-50 rounded-lg p-4 text-center">
+                      <div className="text-3xl font-bold text-blue-600">{dailySpinStats.totalSpinsAllTime}</div>
+                      <div className="text-sm text-gray-600">Total Spins (All Time)</div>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-4 text-center">
+                      <div className="text-3xl font-bold text-green-600">{dailySpinStats.totalSpinsToday}</div>
+                      <div className="text-sm text-gray-600">Spins Today ({dailySpinStats.todayDate})</div>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-4 text-center">
+                      <div className="text-3xl font-bold text-purple-600">{dailySpinStats.totalWins}</div>
+                      <div className="text-sm text-gray-600">Total Wins ({dailySpinStats.winRate}%)</div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4 text-center">
+                      <div className="text-3xl font-bold text-gray-600">{dailySpinStats.totalMisses}</div>
+                      <div className="text-sm text-gray-600">Total Misses</div>
+                    </div>
+                  </div>
+
+                  {/* Token Stats */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">📊 Claims by Token</h3>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Token</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Wins</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Claimed</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Unclaimed</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Amount</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Claimed Amount</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Unclaimed Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {dailySpinTokenStats.map((token, idx) => (
+                            <tr key={idx} className="hover:bg-gray-50">
+                              <td className="px-4 py-3">
+                                <span className="inline-flex items-center gap-2">
+                                  <span 
+                                    className="w-3 h-3 rounded-full" 
+                                    style={{ backgroundColor: token.color }}
+                                  ></span>
+                                  <span className="font-medium">${token.symbol}</span>
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right">{token.totalSpins}</td>
+                              <td className="px-4 py-3 text-right text-green-600">{token.totalClaimed}</td>
+                              <td className="px-4 py-3 text-right text-orange-600">{token.totalUnclaimed}</td>
+                              <td className="px-4 py-3 text-right font-mono">{Number(token.totalAmount).toLocaleString()}</td>
+                              <td className="px-4 py-3 text-right font-mono text-green-600">{Number(token.claimedAmount).toLocaleString()}</td>
+                              <td className="px-4 py-3 text-right font-mono text-orange-600">{Number(token.unclaimedAmount).toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Spin Log */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">📜 Spin Log (Last 7 Days)</h3>
+                    <div className="text-sm text-gray-500 mb-2">
+                      {dailySpinStats.uniqueSpinnersLast7Days} unique users spun in the last 7 days
+                    </div>
+                    <div className="overflow-x-auto max-h-96">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">FID</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Wins</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Misses</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tokens Won</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Claimed</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {dailySpinLog.map((log, idx) => (
+                            <tr key={idx} className="hover:bg-gray-50">
+                              <td className="px-4 py-2 text-sm">{log.spinDate}</td>
+                              <td className="px-4 py-2">
+                                <button
+                                  onClick={() => {
+                                    setSelectedUserFid(log.userFid);
+                                    setUserModalOpen(true);
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                >
+                                  {log.userFid}
+                                </button>
+                              </td>
+                              <td className="px-4 py-2 text-center">{log.totalSpins}</td>
+                              <td className="px-4 py-2 text-center text-green-600">{log.wins}</td>
+                              <td className="px-4 py-2 text-center text-gray-500">{log.misses}</td>
+                              <td className="px-4 py-2 text-sm">{log.tokensWonSummary}</td>
+                              <td className="px-4 py-2 text-center">
+                                {log.wins > 0 ? (
+                                  <span className={`px-2 py-1 rounded-full text-xs ${
+                                    log.claimed === log.wins 
+                                      ? 'bg-green-100 text-green-700' 
+                                      : 'bg-orange-100 text-orange-700'
+                                  }`}>
+                                    {log.claimed}/{log.wins}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         )}
