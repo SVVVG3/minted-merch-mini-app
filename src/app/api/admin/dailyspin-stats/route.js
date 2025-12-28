@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { verifyAdminAuth } from '@/lib/adminAuth';
+import { withAdminAuth } from '@/lib/adminAuth';
 import { getCurrent8AMPST } from '@/lib/timezone';
 
 /**
@@ -12,17 +12,8 @@ import { getCurrent8AMPST } from '@/lib/timezone';
  * - Claims by token
  * - Spin log by user and day
  */
-export async function GET(request) {
+export const GET = withAdminAuth(async (request) => {
   try {
-    // Verify admin authentication
-    const authResult = await verifyAdminAuth(request);
-    if (!authResult.authorized) {
-      return NextResponse.json(
-        { success: false, error: authResult.error || 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
     // Get today's date (8 AM PST boundary)
     const todayStart = getCurrent8AMPST();
     const todayDate = todayStart.toISOString().split('T')[0];
@@ -117,14 +108,16 @@ export async function GET(request) {
 
     // Convert BigInt to display amounts
     const tokenStatsArray = Object.values(tokenStats).map(stat => ({
-      ...stat,
+      symbol: stat.symbol,
+      name: stat.name,
+      color: stat.color,
+      decimals: stat.decimals,
+      totalSpins: stat.totalSpins,
+      totalClaimed: stat.totalClaimed,
+      totalUnclaimed: stat.totalUnclaimed,
       totalAmount: (Number(stat.totalAmountWei) / Math.pow(10, stat.decimals)).toFixed(2),
       claimedAmount: (Number(stat.claimedAmountWei) / Math.pow(10, stat.decimals)).toFixed(2),
       unclaimedAmount: (Number(stat.unclaimedAmountWei) / Math.pow(10, stat.decimals)).toFixed(2),
-      // Remove BigInt fields for JSON serialization
-      totalAmountWei: undefined,
-      claimedAmountWei: undefined,
-      unclaimedAmountWei: undefined
     }));
 
     // Spin log by user and day (last 7 days, aggregated)
@@ -218,5 +211,4 @@ export async function GET(request) {
       { status: 500 }
     );
   }
-}
-
+});
