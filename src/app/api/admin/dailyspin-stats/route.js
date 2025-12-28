@@ -144,13 +144,34 @@ export const GET = withAdminAuth(async (request) => {
       console.error('Error fetching recent spins:', recentError);
     }
 
+    // Get unique FIDs to fetch profile data
+    const uniqueFids = [...new Set(recentSpins?.map(s => s.user_fid) || [])];
+    
+    // Fetch profile data for all unique users
+    const { data: profiles } = await supabaseAdmin
+      .from('profiles')
+      .select('fid, username, pfp_url')
+      .in('fid', uniqueFids);
+    
+    // Create a map for quick profile lookup
+    const profileMap = {};
+    for (const profile of profiles || []) {
+      profileMap[profile.fid] = {
+        username: profile.username,
+        pfpUrl: profile.pfp_url
+      };
+    }
+
     // Aggregate by user and day
     const userDayStats = {};
     for (const spin of recentSpins || []) {
       const key = `${spin.user_fid}-${spin.spin_date}`;
       if (!userDayStats[key]) {
+        const profile = profileMap[spin.user_fid] || {};
         userDayStats[key] = {
           userFid: spin.user_fid,
+          username: profile.username || null,
+          pfpUrl: profile.pfpUrl || null,
           spinDate: spin.spin_date,
           totalSpins: 0,
           wins: 0,

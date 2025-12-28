@@ -4070,9 +4070,20 @@ export default function AdminDashboard() {
                                     setSelectedUserFid(log.userFid);
                                     setUserModalOpen(true);
                                   }}
-                                  className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                  className="flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline font-medium"
                                 >
-                                  {log.userFid}
+                                  {log.pfpUrl ? (
+                                    <img 
+                                      src={log.pfpUrl} 
+                                      alt="" 
+                                      className="w-6 h-6 rounded-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                                      ?
+                                    </div>
+                                  )}
+                                  <span>{log.username || log.userFid}</span>
                                 </button>
                               </td>
                               <td className="px-4 py-2 text-center">{log.totalSpins}</td>

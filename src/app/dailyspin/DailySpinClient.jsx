@@ -739,9 +739,8 @@ export default function DailySpinClient() {
               <button
                 onClick={handleClaim}
                 disabled={isClaiming || !isConnected || status.canClaim === false}
-                className="w-full py-4 bg-gradient-to-r from-[#3eb489] to-emerald-600 text-white font-bold rounded-xl 
-                         hover:from-[#2d9970] hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed
-                         transition-all duration-200 shadow-lg"
+                className="w-full py-4 bg-[#3eb489] hover:bg-[#2d9970] text-white font-bold rounded-xl 
+                         disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
               >
                 {isClaiming ? (
                   <span className="flex items-center justify-center gap-2">
@@ -753,7 +752,7 @@ export default function DailySpinClient() {
                 ) : status.canClaim === false ? (
                   'Neynar Score Too Low'
                 ) : (
-                  'Claim Today\'s Winnings'
+                  'Claim Winnings'
                 )}
               </button>
             </div>
