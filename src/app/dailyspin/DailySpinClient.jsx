@@ -625,7 +625,11 @@ export default function DailySpinClient() {
         {showWinModal && currentSpin?.isWin && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl p-6 max-w-sm w-full border border-[#3eb489]/30 shadow-2xl">
-              {/* Header with token info - compact 2-line layout */}
+              {/* Header */}
+              <div className="text-center mb-3">
+                <h2 className="text-2xl font-bold text-white">You Won:</h2>
+              </div>
+              {/* Token info - compact 2-line layout */}
               <div className="bg-black/30 rounded-xl p-4 mb-3">
                 <div className="flex items-center gap-3">
                   {/* Token logo */}
