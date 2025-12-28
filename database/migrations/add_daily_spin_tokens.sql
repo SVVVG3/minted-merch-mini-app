@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS spin_tokens (
   is_active BOOLEAN DEFAULT true,
   segment_color TEXT NOT NULL,            -- Hex color for wheel segment
   logo_url TEXT,                          -- Optional token logo URL
+  shop_url TEXT,                          -- Optional: URL to collection/product page in shop
+  dexscreener_url TEXT,                   -- Optional: custom DexScreener link for token
   dexscreener_pair TEXT,                  -- Optional: specific pair address for price lookup
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

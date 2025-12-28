@@ -584,39 +584,32 @@ export default function DailySpinClient() {
         {showWinModal && currentSpin?.isWin && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl p-6 max-w-sm w-full border border-[#3eb489]/30 shadow-2xl">
-              {/* Confetti effect header */}
+              {/* Header */}
               <div className="text-center mb-4">
-                <div className="text-5xl mb-2">🎉</div>
                 <h2 className="text-2xl font-bold text-white">Congratulations!</h2>
+                <p className="text-gray-400 text-sm mt-1">You won</p>
               </div>
 
               {/* Token info */}
               <div className="bg-black/30 rounded-xl p-4 mb-4">
-                <div className="flex items-center justify-center gap-3 mb-3">
+                <div className="flex flex-col items-center gap-2">
                   {/* Token logo */}
                   {tokens.find(t => t.id === currentSpin.token.id)?.logoUrl ? (
                     <img 
                       src={tokens.find(t => t.id === currentSpin.token.id)?.logoUrl}
                       alt={currentSpin.token.symbol}
-                      className="w-12 h-12 rounded-full border-2 border-white/20"
+                      className="w-16 h-16 rounded-full border-2 border-white/20"
                     />
                   ) : (
                     <div 
-                      className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold"
+                      className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl"
                       style={{ backgroundColor: currentSpin.token.color }}
                     >
                       {currentSpin.token.symbol.slice(0, 2)}
                     </div>
                   )}
-                  <div>
-                    <p className="text-white font-bold text-lg">${currentSpin.token.symbol}</p>
-                    <p className="text-gray-400 text-sm">{currentSpin.token.name}</p>
-                  </div>
-                </div>
-                
-                <div className="text-center">
-                  <p className="text-gray-400 text-sm">You won</p>
-                  <p className="text-2xl font-bold" style={{ color: currentSpin.token.color }}>
+                  <p className="text-white font-bold text-lg">${currentSpin.token.symbol}</p>
+                  <p className="text-3xl font-bold" style={{ color: currentSpin.token.color }}>
                     {currentSpin.displayAmount}
                   </p>
                   <p className="text-gray-500 text-xs">≈ ${currentSpin.usdValue}</p>
@@ -625,37 +618,48 @@ export default function DailySpinClient() {
 
               {/* Action buttons */}
               <div className="space-y-2">
-                {/* View on DexScreener */}
-                {currentSpin.token.contractAddress && (
-                  <a
-                    href={`https://dexscreener.com/base/${currentSpin.token.contractAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
-                  >
-                    <span>View on DexScreener</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                )}
+                {/* View on DexScreener - use custom URL if available */}
+                {(() => {
+                  const tokenData = tokens.find(t => t.id === currentSpin.token.id);
+                  const dexUrl = tokenData?.dexscreenerUrl || (currentSpin.token.contractAddress ? `https://dexscreener.com/base/${currentSpin.token.contractAddress}` : null);
+                  if (!dexUrl) return null;
+                  return (
+                    <a
+                      href={dexUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+                    >
+                      <span>View on DexScreener</span>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
+                  );
+                })()}
                 
-                {/* Shop Collection link */}
-                <a
-                  href="/"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setShowWinModal(false);
-                    // Navigate to shop
-                    window.location.href = '/';
-                  }}
-                  className="w-full py-3 bg-[#3eb489] hover:bg-[#2d9970] text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
-                >
-                  <span>Shop Merch Collection</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                  </svg>
-                </a>
+                {/* Shop Collection link - uses shop_url from token if available */}
+                {(() => {
+                  const tokenData = tokens.find(t => t.id === currentSpin.token.id);
+                  const shopUrl = tokenData?.shopUrl || '/';
+                  const buttonText = tokenData?.shopUrl ? `Shop ${currentSpin.token.symbol} Collection` : 'Shop Merch Collection';
+                  return (
+                    <a
+                      href={shopUrl}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowWinModal(false);
+                        window.location.href = shopUrl;
+                      }}
+                      className="w-full py-3 bg-[#3eb489] hover:bg-[#2d9970] text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+                    >
+                      <span>{buttonText}</span>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                      </svg>
+                    </a>
+                  );
+                })()}
 
                 {/* Continue spinning or close */}
                 <button
@@ -665,21 +669,6 @@ export default function DailySpinClient() {
                   {status.canSpin ? 'Keep Spinning!' : 'Close'}
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* All Spins Summary */}
-        {allSpins.length > 0 && !claimSuccess && (
-          <div className="bg-gray-800/50 rounded-xl p-4 mb-4 border border-gray-700">
-            <h3 className="text-white font-bold mb-2">Your Winnings</h3>
-            <div className="space-y-2">
-              {allSpins.map((spin, i) => (
-                <div key={i} className="flex justify-between items-center">
-                  <span className="text-gray-400">${spin.symbol}</span>
-                  <span className="font-mono" style={{ color: spin.color }}>{spin.displayAmount}</span>
-                </div>
-              ))}
             </div>
           </div>
         )}
@@ -775,6 +764,21 @@ export default function DailySpinClient() {
             </div>
           )}
         </div>
+
+        {/* Your Winnings Today */}
+        {allSpins.length > 0 && !claimSuccess && (
+          <div className="bg-gray-800/50 rounded-xl p-4 mt-4 border border-gray-700">
+            <h3 className="text-white font-bold mb-2">Your Winnings Today</h3>
+            <div className="space-y-2">
+              {allSpins.map((spin, i) => (
+                <div key={i} className="flex justify-between items-center">
+                  <span className="text-gray-400">${spin.symbol}</span>
+                  <span className="font-mono" style={{ color: spin.color }}>{spin.displayAmount}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Mojo Status - Single Line */}
         <div className="bg-gray-800/50 rounded-xl px-4 py-3 mt-4 border border-gray-700">

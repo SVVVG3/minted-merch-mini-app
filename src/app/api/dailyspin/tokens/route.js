@@ -74,7 +74,7 @@ export async function GET() {
     // Fetch active tokens from database (ordered for consistent wheel display)
     const { data: tokens, error } = await supabaseAdmin
       .from('spin_tokens')
-      .select('id, symbol, name, contract_address, decimals, probability_weight, segment_color, logo_url')
+      .select('id, symbol, name, contract_address, decimals, probability_weight, segment_color, logo_url, shop_url, dexscreener_url')
       .eq('is_active', true)
       .order('created_at', { ascending: true }); // Consistent order for wheel segments
 
@@ -122,6 +122,8 @@ export async function GET() {
         decimals: token.decimals,
         color: token.segment_color,
         logoUrl: token.logo_url ? `${baseUrl}${token.logo_url}` : null,
+        shopUrl: token.shop_url || null, // Link to collection/product page
+        dexscreenerUrl: token.dexscreener_url || null, // Custom DexScreener link
         priceUsd: token.price_usd,
         tokensPerSpin: token.tokens_per_spin,
         probability: token.probability_weight / totalWeight,
