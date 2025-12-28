@@ -854,11 +854,11 @@ export default function DailySpinClient() {
 
         {/* Info Section */}
         <div className="mt-8 p-4 bg-gray-800/30 rounded-xl border border-gray-700">
-          <h3 className="text-white font-bold mb-2">How it works</h3>
+          <h3 className="text-white font-bold mb-2">How It Works:</h3>
           <ul className="text-gray-400 text-sm space-y-1">
             <li>• Your Mojo Score determines daily spins (1-3)</li>
-            <li>• Each spin wins ~$0.01 worth of a partner token</li>
-            <li>• Complete all spins, then claim all at once</li>
+            <li>• Each spin is a chance to win tokens</li>
+            <li>• Complete all spins, then claim all tokens</li>
             <li>• Resets daily at 8:00 AM PST</li>
           </ul>
         </div>
