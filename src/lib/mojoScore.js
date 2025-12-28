@@ -36,6 +36,14 @@ const TIER_THRESHOLDS = {
   max: 1_000_000_000,          // 1B
 };
 
+// Purchase tier thresholds
+const PURCHASE_TIERS = {
+  starter: 50,      // $50 → ~0.25
+  regular: 100,     // $100 → ~0.50
+  loyal: 250,       // $250 → ~0.75
+  max: 500,         // $500 → 1.0
+};
+
 /**
  * Calculate tiered logarithmic score for staking/holdings
  * Provides meaningful bumps at key thresholds:
@@ -71,12 +79,26 @@ function calculateTieredTokenScore(amount) {
 }
 
 /**
- * Calculate linear purchase score
- * $0 = 0, $500+ = 1.0
+ * Calculate tiered purchase score with bumps at key thresholds
+ * $50 → ~0.25, $100 → ~0.50, $250 → ~0.75, $500+ → 1.0
  */
 function calculatePurchaseScore(totalSpent) {
   if (!totalSpent || totalSpent <= 0) return 0;
-  return Math.min(1, totalSpent / PURCHASE_MAX);
+  if (totalSpent >= PURCHASE_TIERS.max) return 1.0;
+  
+  // Linear base score
+  let score = totalSpent / PURCHASE_TIERS.max;
+  
+  // Apply tier bumps for psychological impact
+  if (totalSpent >= PURCHASE_TIERS.loyal) {
+    score = Math.max(score, 0.75);
+  } else if (totalSpent >= PURCHASE_TIERS.regular) {
+    score = Math.max(score, 0.50);
+  } else if (totalSpent >= PURCHASE_TIERS.starter) {
+    score = Math.max(score, 0.25);
+  }
+  
+  return Math.min(1, score);
 }
 
 /**
