@@ -32,12 +32,12 @@ export async function GET(request) {
     const pfpUrl = searchParams.get('pfpUrl');
     const neynarScore = searchParams.get('neynar') || '0.00';
     const quotientScore = searchParams.get('quotient') || '0.00';
-    // Mojo score param exists but we won't display it for now
-    // const mojoScore = searchParams.get('mojo');
+    const mojoScore = searchParams.get('mojo') || '0.00';
     
     // Format scores to 2 decimal places
     const formattedNeynar = parseFloat(neynarScore).toFixed(2);
     const formattedQuotient = parseFloat(quotientScore).toFixed(2);
+    const formattedMojo = parseFloat(mojoScore).toFixed(2);
     
     // Color coding for scores
     const getNeynarColor = (score) => {
@@ -54,6 +54,13 @@ export async function GET(request) {
       if (s >= 0.7) return '#22c55e'; // green
       if (s >= 0.6) return '#eab308'; // yellow
       return '#ef4444'; // red
+    };
+    
+    const getMojoColor = (score) => {
+      const s = parseFloat(score);
+      if (s >= 0.5) return '#eab308'; // gold
+      if (s >= 0.3) return '#9ca3af'; // silver
+      return '#f97316'; // bronze/orange
     };
 
     // Fetch profile image
@@ -170,9 +177,36 @@ export async function GET(request) {
               <div
                 style={{
                   display: 'flex',
-                  gap: '30px',
+                  gap: '20px',
                 }}
               >
+                {/* Mojo Score */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    background: 'rgba(255,255,255,0.08)',
+                    borderRadius: '16px',
+                    padding: '16px 28px',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                  }}
+                >
+                  <span style={{ color: '#9ca3af', fontSize: '18px', marginBottom: '6px', display: 'flex' }}>
+                    Mojo
+                  </span>
+                  <span
+                    style={{
+                      color: getMojoColor(formattedMojo),
+                      fontSize: '44px',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                    }}
+                  >
+                    {formattedMojo}
+                  </span>
+                </div>
+
                 {/* Neynar Score */}
                 <div
                   style={{
@@ -181,17 +215,17 @@ export async function GET(request) {
                     alignItems: 'center',
                     background: 'rgba(255,255,255,0.08)',
                     borderRadius: '16px',
-                    padding: '20px 35px',
+                    padding: '16px 28px',
                     border: '1px solid rgba(255,255,255,0.1)',
                   }}
                 >
-                  <span style={{ color: '#9ca3af', fontSize: '20px', marginBottom: '8px', display: 'flex' }}>
-                    Neynar Score
+                  <span style={{ color: '#9ca3af', fontSize: '18px', marginBottom: '6px', display: 'flex' }}>
+                    Neynar
                   </span>
                   <span
                     style={{
                       color: getNeynarColor(formattedNeynar),
-                      fontSize: '52px',
+                      fontSize: '44px',
                       fontWeight: 'bold',
                       display: 'flex',
                     }}
@@ -208,17 +242,17 @@ export async function GET(request) {
                     alignItems: 'center',
                     background: 'rgba(255,255,255,0.08)',
                     borderRadius: '16px',
-                    padding: '20px 35px',
+                    padding: '16px 28px',
                     border: '1px solid rgba(255,255,255,0.1)',
                   }}
                 >
-                  <span style={{ color: '#9ca3af', fontSize: '20px', marginBottom: '8px', display: 'flex' }}>
-                    Quotient Score
+                  <span style={{ color: '#9ca3af', fontSize: '18px', marginBottom: '6px', display: 'flex' }}>
+                    Quotient
                   </span>
                   <span
                     style={{
                       color: getQuotientColor(formattedQuotient),
-                      fontSize: '52px',
+                      fontSize: '44px',
                       fontWeight: 'bold',
                       display: 'flex',
                     }}

@@ -178,22 +178,21 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
     const baseUrl = 'https://app.mintedmerch.shop';
     const shareUrl = `${baseUrl}/scores/${user?.fid}`;
     
-    // Build scores text (without Mojo for now)
+    // Build scores text with all scores
     let scoresText = '';
+    if (profileData?.mojo_score) {
+      scoresText += `Mojo: ${parseFloat(profileData.mojo_score).toFixed(2)}`;
+    }
     if (profileData?.neynar_score) {
+      scoresText += scoresText ? ' | ' : '';
       scoresText += `Neynar: ${parseFloat(profileData.neynar_score).toFixed(2)}`;
     }
     if (profileData?.quotient_score) {
       scoresText += scoresText ? ' | ' : '';
       scoresText += `Quotient: ${parseFloat(profileData.quotient_score).toFixed(2)}`;
     }
-    // Mojo score (will be added when ready)
-    // if (profileData?.mojo_score) {
-    //   scoresText += scoresText ? ' | ' : '';
-    //   scoresText += `Mojo: ${parseFloat(profileData.mojo_score).toFixed(2)}`;
-    // }
     
-    const shareText = `Just checked my social scores:\n\n${scoresText}\n\nSee yours on the $mintedmerch mini app 👇`;
+    const shareText = `Just checked my scores:\n\n${scoresText}\n\nSee yours on the /mintedmerch mini app 👇`;
     
     if (method === 'copy') {
       try {
@@ -616,13 +615,11 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               </h3>
               <p className="text-white/80 text-sm flex items-center gap-2">
                 <span>FID: {user?.fid}</span>
-                {/* MOJO SCORE - Uncomment when ready to display
                 {profileData?.mojo_score !== null && profileData?.mojo_score !== undefined && (
                   <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-500/30 to-blue-500/30 rounded-full text-xs font-medium">
                     Mojo: {parseFloat(profileData.mojo_score).toFixed(2)}
                   </span>
                 )}
-                */}
               </p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 {profileData?.neynar_score !== null && profileData?.neynar_score !== undefined && (

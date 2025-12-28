@@ -603,7 +603,7 @@ export default function DailySpinClient() {
         {currentSpin && !currentSpin.isWin && (
           <div className="rounded-xl p-4 mb-4 border bg-gradient-to-r from-gray-600/20 to-gray-500/20 border-gray-500/30">
             <p className="text-center text-gray-300">
-              😢 {currentSpin.message || 'Better Luck Next Time!'}
+              🥲 {currentSpin.message || 'Better Luck Next Time!'}
               {status.canSpin && <span className="block text-sm mt-1 text-gray-400">Spin again!</span>}
             </p>
           </div>
