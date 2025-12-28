@@ -354,6 +354,15 @@ export async function POST(request) {
         .eq('ambassador_fid', fid)
         .eq('status', 'approved');
       
+      // Get mint points from user_leaderboard
+      const { data: leaderboardData } = await supabaseAdmin
+        .from('user_leaderboard')
+        .select('points_from_mints')
+        .eq('user_fid', fid)
+        .single();
+      
+      const mintPoints = leaderboardData?.points_from_mints || 0;
+      
       console.log('📊 Mojo Score inputs:', {
         neynarScore: walletData?.neynar_score || 0,
         quotientScore: quotientScore || 0,
@@ -361,7 +370,8 @@ export async function POST(request) {
         totalBalance: parseFloat(existingProfile?.token_balance) || 0,
         totalPurchaseAmount,
         checkInCount: checkInCount || 0,
-        approvedMissions: approvedMissions || 0
+        approvedMissions: approvedMissions || 0,
+        mintPoints: mintPoints
       });
       
       // Calculate Mojo Score
@@ -373,6 +383,7 @@ export async function POST(request) {
         totalPurchaseAmount,
         checkInCount: checkInCount || 0,
         approvedMissions: approvedMissions || 0,
+        mintPoints: mintPoints,
       });
       
       profileData.mojo_score = mojoResult.score;

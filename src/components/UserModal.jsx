@@ -418,11 +418,11 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.neynar?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.neynar?.weighted || 0).toFixed(2)}</p>
                             </div>
                             <div className="bg-white p-2 rounded">
-                              <span className="text-gray-500">Quotient (20%)</span>
+                              <span className="text-gray-500">Quotient (15%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.quotient?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.quotient?.weighted || 0).toFixed(2)}</p>
                             </div>
                             <div className="bg-white p-2 rounded">
-                              <span className="text-gray-500">Staking (25%)</span>
+                              <span className="text-gray-500">Staking (20%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.staking?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.staking?.weighted || 0).toFixed(2)}</p>
                               <p className="text-gray-400">{formatTokenAmount(userData.mojo_breakdown.breakdown?.staking?.raw || 0)}</p>
                             </div>
@@ -432,7 +432,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                               <p className="text-gray-400">{formatTokenAmount(userData.mojo_breakdown.breakdown?.holdings?.raw || 0)}</p>
                             </div>
                             <div className="bg-white p-2 rounded">
-                              <span className="text-gray-500">Purchases (20%)</span>
+                              <span className="text-gray-500">Purchases (25%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.purchases?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.purchases?.weighted || 0).toFixed(2)}</p>
                               <p className="text-gray-400">${(userData.mojo_breakdown.breakdown?.purchases?.raw || 0).toFixed(2)}</p>
                             </div>
@@ -445,6 +445,11 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                               <span className="text-gray-500">Missions (10%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.missions?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.missions?.weighted || 0).toFixed(2)}</p>
                               <p className="text-gray-400">{userData.mojo_breakdown.breakdown?.missions?.raw || 0}/50</p>
+                            </div>
+                            <div className="bg-white p-2 rounded">
+                              <span className="text-gray-500">Mints (5%)</span>
+                              <p className="font-medium">{(userData.mojo_breakdown.breakdown?.mints?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.mints?.weighted || 0).toFixed(2)}</p>
+                              <p className="text-gray-400">{(userData.mojo_breakdown.breakdown?.mints?.raw || 0).toLocaleString()}/30K</p>
                             </div>
                           </div>
                         </div>

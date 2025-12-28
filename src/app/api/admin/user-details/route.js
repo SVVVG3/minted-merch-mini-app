@@ -312,6 +312,9 @@ export const GET = withAdminAuth(async (request, context) => {
       .eq('ambassador_fid', fid)
       .eq('status', 'approved');
 
+    // Get mint points from leaderboard (already fetched above)
+    const mintPoints = leaderboard?.points_from_mints || 0;
+
     // Calculate Mojo Score breakdown for display
     const mojoBreakdown = calculateMojoScore({
       neynarScore: parseFloat(profile.neynar_score) || 0,
@@ -321,6 +324,7 @@ export const GET = withAdminAuth(async (request, context) => {
       totalPurchaseAmount: totalSpent,
       checkInCount: checkInCount || 0,
       approvedMissions: approvedMissionsCount || 0,
+      mintPoints: mintPoints,
     });
 
     // Group point transactions by type

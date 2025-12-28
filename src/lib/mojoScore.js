@@ -3,22 +3,25 @@
  * 
  * A composite score (0-1) combining:
  * - Neynar Score (10%)
- * - Quotient Score (20%)
- * - Staking Amount (25%)
+ * - Quotient Score (15%)
+ * - Staking Amount (20%)
  * - Holdings (5%)
  * - Purchase $ Amount (25%)
- * - Check-in Engagement (15%)
+ * - Check-in Engagement (10%)
+ * - Missions (10%)
+ * - Mints (5%)
  */
 
 // Weights for each factor
 const WEIGHTS = {
   neynar: 0.10,
-  quotient: 0.20,
-  staking: 0.25,
+  quotient: 0.15,
+  staking: 0.20,
   holdings: 0.05,
-  purchases: 0.20,
+  purchases: 0.25,
   checkIns: 0.10,
   missions: 0.10,
+  mints: 0.05,
 };
 
 // Thresholds
@@ -27,6 +30,7 @@ const HOLDINGS_MAX = 1_000_000_000; // 1B tokens for 1.0
 const PURCHASE_MAX = 500; // $500 for 1.0
 const CHECKIN_DAYS = 100; // 100 days for 1.0
 const MISSIONS_MAX = 50; // 50 approved missions for 1.0
+const MINTS_MAX = 30_000; // 30,000 mint points for 1.0
 
 // Key thresholds for tiered scaling (staking/holdings)
 const TIER_THRESHOLDS = {
@@ -122,6 +126,16 @@ function calculateMissionsScore(approvedMissions) {
 }
 
 /**
+ * Calculate mints score
+ * Based on mint points earned
+ * 0 points = 0, 30,000 points = 1.0
+ */
+function calculateMintsScore(mintPoints) {
+  if (!mintPoints || mintPoints <= 0) return 0;
+  return Math.min(1, mintPoints / MINTS_MAX);
+}
+
+/**
  * Calculate the full Mojo Score with breakdown
  * @param {Object} data - User data
  * @param {number} data.neynarScore - Neynar score (0-1)
@@ -131,6 +145,7 @@ function calculateMissionsScore(approvedMissions) {
  * @param {number} data.totalPurchaseAmount - Total $ spent on purchases
  * @param {number} data.checkInCount - Number of check-ins in last 100 days
  * @param {number} data.approvedMissions - Number of approved mission submissions
+ * @param {number} data.mintPoints - Mint points earned
  * @returns {Object} - Mojo score and breakdown
  */
 export function calculateMojoScore(data) {
@@ -142,6 +157,7 @@ export function calculateMojoScore(data) {
     totalPurchaseAmount = 0,
     checkInCount = 0,
     approvedMissions = 0,
+    mintPoints = 0,
   } = data;
 
   // Calculate individual component scores (all 0-1)
@@ -180,6 +196,11 @@ export function calculateMojoScore(data) {
       raw: approvedMissions || 0,
       normalized: calculateMissionsScore(approvedMissions),
       weight: WEIGHTS.missions,
+    },
+    mints: {
+      raw: mintPoints || 0,
+      normalized: calculateMintsScore(mintPoints),
+      weight: WEIGHTS.mints,
     },
   };
 
