@@ -43,7 +43,7 @@ export async function GET(request) {
     const getNeynarColor = (score) => {
       const s = parseFloat(score);
       if (s >= 0.9) return '#22c55e'; // green
-      if (s >= 0.7) return '#eab308'; // yellow
+      if (s >= 0.5) return '#eab308'; // yellow
       return '#ef4444'; // red
     };
     
@@ -52,7 +52,7 @@ export async function GET(request) {
       if (s >= 0.9) return '#a855f7'; // purple
       if (s >= 0.8) return '#3b82f6'; // blue
       if (s >= 0.7) return '#22c55e'; // green
-      if (s >= 0.6) return '#eab308'; // yellow
+      if (s >= 0.5) return '#eab308'; // yellow
       return '#ef4444'; // red
     };
     
@@ -60,7 +60,7 @@ export async function GET(request) {
       const s = parseFloat(score);
       if (s >= 0.5) return '#eab308'; // gold
       if (s >= 0.3) return '#9ca3af'; // silver
-      return '#f97316'; // bronze/orange
+      return '#cd7f32'; // bronze
     };
 
     // Fetch profile image
