@@ -26,7 +26,7 @@ const STAKING_MAX = 1_000_000_000; // 1B tokens for 1.0
 const HOLDINGS_MAX = 1_000_000_000; // 1B tokens for 1.0
 const PURCHASE_MAX = 500; // $500 for 1.0
 const CHECKIN_DAYS = 100; // 100 days for 1.0
-const MISSIONS_MAX = 100; // 100 approved missions for 1.0
+const MISSIONS_MAX = 50; // 50 approved missions for 1.0
 
 // Key thresholds for tiered scaling (staking/holdings)
 const TIER_THRESHOLDS = {
