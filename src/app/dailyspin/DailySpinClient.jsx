@@ -385,8 +385,19 @@ export default function DailySpinClient() {
     
     // Use claimedWinnings (saved before clearing) for the share text
     const winningsToShare = claimedWinnings.length > 0 ? claimedWinnings : allSpins;
-    const winningsSummary = winningsToShare.length > 0 
-      ? winningsToShare.map(s => `${s.displayAmount} $${s.symbol}`).join(' and ')
+    
+    // Aggregate same tokens together
+    const aggregated = {};
+    for (const spin of winningsToShare) {
+      if (!aggregated[spin.symbol]) {
+        aggregated[spin.symbol] = 0;
+      }
+      aggregated[spin.symbol] += parseFloat(spin.displayAmount);
+    }
+    
+    // Format the aggregated winnings
+    const winningsSummary = Object.entries(aggregated).length > 0
+      ? Object.entries(aggregated).map(([symbol, amount]) => `${amount.toFixed(4)} $${symbol}`).join(' and ')
       : 'tokens';
     const shareText = `I just claimed ${winningsSummary} on the /mintedmerch Daily Spin and boosted my Mojo Score!\n\nSpin to win tokens daily 👇`;
     
@@ -724,13 +735,9 @@ export default function DailySpinClient() {
             </button>
           )}
 
-          {/* Claim Success */}
+          {/* Claim Success - just show share button, success message moves below winnings */}
           {claimSuccess && (
-            <div className="text-center space-y-4">
-              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl p-4 border border-green-500/30">
-                <h3 className="text-xl font-bold text-white">Tokens Claimed 🤌</h3>
-              </div>
-              
+            <div className="text-center">
               <button
                 onClick={handleShare}
                 className="w-full py-4 bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED] text-white font-bold rounded-xl 
@@ -783,6 +790,20 @@ export default function DailySpinClient() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Tokens Claimed success message - below winnings */}
+        {claimSuccess && (
+          <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl p-4 mt-4 border border-green-500/30">
+            <h3 className="text-xl font-bold text-white text-center">Tokens Claimed 🤌</h3>
+            {!status.canSpin && (
+              <p className="text-gray-400 text-sm text-center mt-2">
+                Next spin in: {String(countdown.hours).padStart(2, '0')}:
+                {String(countdown.minutes).padStart(2, '0')}:
+                {String(countdown.seconds).padStart(2, '0')}
+              </p>
+            )}
           </div>
         )}
 
