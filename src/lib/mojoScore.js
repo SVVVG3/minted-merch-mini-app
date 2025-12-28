@@ -92,7 +92,7 @@ function calculateCheckInScore(checkInCount) {
 /**
  * Calculate missions score
  * Based on approved mission submissions
- * 0 missions = 0, 100 missions = 1.0
+ * 0 missions = 0, 50 missions = 1.0
  */
 function calculateMissionsScore(approvedMissions) {
   if (!approvedMissions || approvedMissions <= 0) return 0;
