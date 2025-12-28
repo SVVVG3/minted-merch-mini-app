@@ -12,6 +12,7 @@ import { getAddress } from 'viem';
 const ADMIN_PRIVATE_KEY = process.env.ADMIN_WALLET_PRIVATE_KEY;
 const AIRDROP_CONTRACT_ADDRESS = process.env.AIRDROP_CONTRACT_ADDRESS;
 const THIRDWEB_CLIENT_ID = process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID;
+const DONATION_WALLET_ADDRESS = process.env.DONATION_WALLET_ADDRESS;
 const CHAIN_ID = 8453; // Base
 
 /**
@@ -83,10 +84,12 @@ async function generateTokenClaimSignature({ wallet, tokenAddress, amount, claim
  * 
  * Generate claim signatures for unclaimed winnings.
  * Supports claiming all unclaimed tokens or a specific token.
+ * Also supports "donate" mode for low Neynar score users.
  * 
  * Body:
- * - walletAddress: User's wallet address for receiving tokens
+ * - walletAddress: User's wallet address for receiving tokens (or signing donation tx)
  * - tokenId: (optional) Specific token ID to claim, or omit for all
+ * - donate: (optional) If true, tokens go to donation wallet instead of user
  * 
  * Returns signatures for each token type that needs claiming.
  * 
@@ -106,9 +109,9 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { walletAddress, tokenId } = body;
+    const { walletAddress, tokenId, donate = false } = body;
 
-    // Validate wallet address
+    // Validate wallet address (user's wallet, used for gas payment)
     if (!walletAddress || !isAddress(walletAddress)) {
       return NextResponse.json(
         { success: false, error: 'Valid wallet address required' },
@@ -116,7 +119,20 @@ export async function POST(request) {
       );
     }
 
-    console.log(`[${requestId}] 🔐 Generating claim data for FID ${fid}, wallet ${walletAddress}`);
+    // If donating, verify donation wallet is configured
+    if (donate && !DONATION_WALLET_ADDRESS) {
+      console.error(`[${requestId}] DONATION_WALLET_ADDRESS not configured`);
+      return NextResponse.json(
+        { success: false, error: 'Donation feature not configured' },
+        { status: 500 }
+      );
+    }
+
+    // Determine recipient: donation wallet or user's wallet
+    const recipientWallet = donate ? DONATION_WALLET_ADDRESS : walletAddress;
+    const actionType = donate ? 'donation' : 'claim';
+
+    console.log(`[${requestId}] 🔐 Generating ${actionType} data for FID ${fid}, recipient ${recipientWallet}`);
 
     // Build query for unclaimed winnings
     let query = supabaseAdmin
@@ -193,7 +209,7 @@ export async function POST(request) {
         });
 
         const { req, signature } = await generateTokenClaimSignature({
-          wallet: walletAddress.toLowerCase(),
+          wallet: recipientWallet.toLowerCase(),
           tokenAddress: group.token.contract_address,
           amount: group.totalAmount.toString(),
           claimId,
@@ -240,14 +256,16 @@ export async function POST(request) {
       }
     }
 
-    console.log(`[${requestId}] ✅ Generated ${claims.length} claim signatures for FID ${fid}`);
+    console.log(`[${requestId}] ✅ Generated ${claims.length} ${actionType} signatures for FID ${fid}`);
 
     return NextResponse.json({
       success: true,
       claims,
       totalTokenTypes: claims.length,
       totalWinnings: unclaimedWinnings.length,
-      walletAddress: getAddress(walletAddress),
+      isDonation: donate,
+      recipientWallet: getAddress(recipientWallet),
+      signerWallet: getAddress(walletAddress),
       expiresAt: deadline.toISOString()
     });
 

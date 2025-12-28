@@ -5,11 +5,12 @@ import { getAuthenticatedFid } from '@/lib/userAuth';
 /**
  * POST /api/dailyspin/mark-claimed
  * 
- * Mark spin winnings as claimed after successful on-chain transaction.
+ * Mark spin winnings as claimed or donated after successful on-chain transaction.
  * 
  * Body:
- * - winningIds: Array of winning IDs to mark as claimed
+ * - winningIds: Array of winning IDs to mark as claimed/donated
  * - txHash: Transaction hash of the claim transaction
+ * - isDonation: (optional) If true, marks as donated instead of claimed
  * 
  * Security:
  * - Verifies authenticated user owns the winnings
@@ -32,7 +33,8 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { winningIds, txHash } = body;
+    const { winningIds, txHash, isDonation = false } = body;
+    const actionType = isDonation ? 'donation' : 'claim';
 
     // Validate inputs
     if (!winningIds || !Array.isArray(winningIds) || winningIds.length === 0) {
@@ -49,7 +51,7 @@ export async function POST(request) {
       );
     }
 
-    console.log(`[${requestId}] 📝 Marking ${winningIds.length} winnings as claimed for FID ${fid}`);
+    console.log(`[${requestId}] 📝 Marking ${winningIds.length} winnings as ${actionType} for FID ${fid}`);
 
     // SECURITY: Verify all winnings belong to this user and are unclaimed
     const { data: winnings, error: fetchError } = await supabaseAdmin
@@ -110,15 +112,22 @@ export async function POST(request) {
       );
     }
 
-    // Mark all winnings as claimed
+    // Mark all winnings as claimed (and donated if applicable)
     const now = new Date().toISOString();
+    const updateData = {
+      claimed: true,
+      claim_tx_hash: txHash,
+      claimed_at: now
+    };
+    
+    // If this is a donation, also set the donated flag
+    if (isDonation) {
+      updateData.donated = true;
+    }
+    
     const { data: updatedWinnings, error: updateError } = await supabaseAdmin
       .from('spin_winnings')
-      .update({
-        claimed: true,
-        claim_tx_hash: txHash,
-        claimed_at: now
-      })
+      .update(updateData)
       .in('id', winningIds)
       .eq('user_fid', fid) // Extra safety: only update user's own winnings
       .eq('claimed', false) // Extra safety: only update unclaimed winnings
@@ -132,25 +141,25 @@ export async function POST(request) {
       );
     }
 
-    console.log(`[${requestId}] ✅ Marked ${updatedWinnings?.length || 0} winnings as claimed`);
+    console.log(`[${requestId}] ✅ Marked ${updatedWinnings?.length || 0} winnings as ${actionType}`);
 
     // Calculate totals for response
-    const claimedSummary = {};
+    const processedSummary = {};
     for (const winning of updatedWinnings || []) {
       const symbol = winning.spin_tokens?.symbol || 'UNKNOWN';
-      if (!claimedSummary[symbol]) {
-        claimedSummary[symbol] = {
+      if (!processedSummary[symbol]) {
+        processedSummary[symbol] = {
           symbol,
           count: 0,
           totalAmount: BigInt(0)
         };
       }
-      claimedSummary[symbol].count += 1;
-      claimedSummary[symbol].totalAmount += BigInt(winning.amount);
+      processedSummary[symbol].count += 1;
+      processedSummary[symbol].totalAmount += BigInt(winning.amount);
     }
 
     // Convert BigInt to string for JSON
-    const summary = Object.values(claimedSummary).map(s => ({
+    const summary = Object.values(processedSummary).map(s => ({
       symbol: s.symbol,
       count: s.count,
       totalAmount: s.totalAmount.toString()
@@ -158,10 +167,11 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      claimed: {
+      isDonation,
+      result: {
         count: updatedWinnings?.length || 0,
         txHash,
-        claimedAt: now,
+        processedAt: now,
         summary
       }
     });

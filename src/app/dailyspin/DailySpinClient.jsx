@@ -57,6 +57,7 @@ export default function DailySpinClient() {
   const [claimsData, setClaimsData] = useState([]);
   const [claimSuccess, setClaimSuccess] = useState(false);
   const [claimedWinnings, setClaimedWinnings] = useState([]); // Store winnings for sharing after claim
+  const [wasDonation, setWasDonation] = useState(false); // Track if last action was donation
 
   // Countdown
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
@@ -258,21 +259,25 @@ export default function DailySpinClient() {
     }
   };
 
-  // Handle claim
-  const handleClaim = async () => {
+  // State for donation mode
+  const [isDonating, setIsDonating] = useState(false);
+
+  // Handle claim (or donate if isDonation=true)
+  const handleClaim = async (isDonation = false) => {
     if (!address || !isConnected) {
-      setError('Please connect your wallet to claim');
+      setError('Please connect your wallet');
       return;
     }
 
     const token = getSessionToken();
     if (!token) {
-      setError('Please sign in to claim');
+      setError('Please sign in');
       return;
     }
 
     try {
       setIsClaiming(true);
+      setIsDonating(isDonation);
       setError(null);
       triggerHaptic('medium', isInFarcaster);
 
@@ -283,7 +288,10 @@ export default function DailySpinClient() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ walletAddress: address })
+        body: JSON.stringify({ 
+          walletAddress: address,
+          donate: isDonation // Send to donation wallet if true
+        })
       });
 
       const data = await res.json();
@@ -299,9 +307,10 @@ export default function DailySpinClient() {
       executeClaimTransaction(data.claims[0]);
 
     } catch (err) {
-      console.error('Claim error:', err);
+      console.error('Claim/Donate error:', err);
       setError(err.message);
       setIsClaiming(false);
+      setIsDonating(false);
       triggerHaptic('error', isInFarcaster);
     }
   };
@@ -345,7 +354,7 @@ export default function DailySpinClient() {
     try {
       const currentClaim = claimsData[currentClaimIndex];
       
-      // Mark winnings as claimed
+      // Mark winnings as claimed (or donated)
       const token = getSessionToken();
       await fetch('/api/dailyspin/mark-claimed', {
         method: 'POST',
@@ -355,7 +364,8 @@ export default function DailySpinClient() {
         },
         body: JSON.stringify({
           winningIds: currentClaim.winningIds,
-          txHash
+          txHash,
+          isDonation: isDonating // Pass donation flag
         })
       });
 
@@ -370,8 +380,10 @@ export default function DailySpinClient() {
       } else {
         // All claims complete!
         setClaimedWinnings([...allSpins]); // Save winnings for sharing before clearing
+        setWasDonation(isDonating); // Remember if this was a donation
         setClaimSuccess(true);
         setIsClaiming(false);
+        setIsDonating(false);
         setAllSpins([]); // Clear winnings display
         triggerHaptic('success', isInFarcaster);
       }
@@ -732,35 +744,54 @@ export default function DailySpinClient() {
           {/* Claim Button */}
           {!status.canSpin && allSpins.length > 0 && !claimSuccess && (
             <div className="space-y-2">
-              {status.canClaim === false && (
-                <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-3 text-center">
-                  <p className="text-yellow-400 text-sm">
-                    ⚠️ Neynar score of 0.6+ required to claim tokens
-                  </p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    Your score: {status.neynarScore} - Keep engaging on Farcaster!
-                  </p>
-                </div>
+              {status.canClaim === false ? (
+                <>
+                  {/* Low Neynar score - show donate option */}
+                  <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-3 text-center">
+                    <p className="text-yellow-400 text-sm">
+                      ⚠️ Neynar score of 0.6+ required to claim tokens
+                    </p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      Your score: {status.neynarScore} - You can donate your winnings instead!
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleClaim(true)}
+                    disabled={isClaiming || !isConnected}
+                    className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl 
+                             disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
+                  >
+                    {isClaiming && isDonating ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                        Donating {currentClaimIndex + 1}/{claimsData.length}...
+                      </span>
+                    ) : !isConnected ? (
+                      'Connect Wallet to Donate'
+                    ) : (
+                      '🎁 Donate to Community Pool'
+                    )}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => handleClaim(false)}
+                  disabled={isClaiming || !isConnected}
+                  className="w-full py-4 bg-[#3eb489] hover:bg-[#2d9970] text-white font-bold rounded-xl 
+                           disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
+                >
+                  {isClaiming && !isDonating ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                      Claiming {currentClaimIndex + 1}/{claimsData.length}...
+                    </span>
+                  ) : !isConnected ? (
+                    'Connect Wallet to Claim'
+                  ) : (
+                    'Claim Winnings'
+                  )}
+                </button>
               )}
-              <button
-                onClick={handleClaim}
-                disabled={isClaiming || !isConnected || status.canClaim === false}
-                className="w-full py-4 bg-[#3eb489] hover:bg-[#2d9970] text-white font-bold rounded-xl 
-                         disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
-              >
-                {isClaiming ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                    Claiming {currentClaimIndex + 1}/{claimsData.length}...
-                  </span>
-                ) : !isConnected ? (
-                  'Connect Wallet to Claim'
-                ) : status.canClaim === false ? (
-                  'Neynar Score Too Low'
-                ) : (
-                  'Claim Winnings'
-                )}
-              </button>
             </div>
           )}
 
@@ -809,7 +840,14 @@ export default function DailySpinClient() {
         {/* Your Winnings Today - show allSpins before claim, claimedWinnings after */}
         {(allSpins.length > 0 || claimedWinnings.length > 0) && (
           <div className="bg-gray-800/50 rounded-xl px-4 py-2 mt-4 border border-gray-700">
-            <h3 className="text-white font-bold mb-1">Recent Winnings</h3>
+            <h3 className="text-white font-bold mb-1">
+              Recent Winnings
+              {claimSuccess && (
+                <span className={`ml-2 text-sm font-normal ${wasDonation ? 'text-purple-400' : 'text-green-400'}`}>
+                  ({wasDonation ? 'Donated' : 'Claimed'})
+                </span>
+              )}
+            </h3>
             <div className="space-y-1">
               {/* Show allSpins if still unclaimed, otherwise show claimedWinnings */}
               {(allSpins.length > 0 ? allSpins : claimedWinnings).map((spin, i) => (
@@ -822,17 +860,14 @@ export default function DailySpinClient() {
           </div>
         )}
 
-        {/* Tokens Claimed success message - below winnings */}
-        {claimSuccess && (
-          <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl p-4 mt-4 border border-green-500/30">
-            <h3 className="text-xl font-bold text-white text-center">Tokens Claimed 🤌</h3>
-            {!status.canSpin && (
-              <p className="text-gray-400 text-sm text-center mt-2">
-                Next spin in: {String(countdown.hours).padStart(2, '0')}:
-                {String(countdown.minutes).padStart(2, '0')}:
-                {String(countdown.seconds).padStart(2, '0')}
-              </p>
-            )}
+        {/* Next spin countdown - show after claiming when no spins left */}
+        {claimSuccess && !status.canSpin && (
+          <div className="text-center mt-4">
+            <p className="text-gray-400 text-sm">
+              Next spin in: {String(countdown.hours).padStart(2, '0')}:
+              {String(countdown.minutes).padStart(2, '0')}:
+              {String(countdown.seconds).padStart(2, '0')}
+            </p>
           </div>
         )}
 
