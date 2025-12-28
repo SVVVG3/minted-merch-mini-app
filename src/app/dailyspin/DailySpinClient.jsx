@@ -395,10 +395,17 @@ export default function DailySpinClient() {
       aggregated[spin.symbol] += parseFloat(spin.displayAmount);
     }
     
-    // Format the aggregated winnings
-    const winningsSummary = Object.entries(aggregated).length > 0
-      ? Object.entries(aggregated).map(([symbol, amount]) => `${amount.toFixed(4)} $${symbol}`).join(' and ')
-      : 'tokens';
+    // Format the aggregated winnings with proper grammar
+    const tokenList = Object.entries(aggregated).map(([symbol, amount]) => `${amount.toFixed(4)} $${symbol}`);
+    let winningsSummary = 'tokens';
+    if (tokenList.length === 1) {
+      winningsSummary = tokenList[0];
+    } else if (tokenList.length === 2) {
+      winningsSummary = `${tokenList[0]} and ${tokenList[1]}`;
+    } else if (tokenList.length > 2) {
+      // Oxford comma: "A, B, and C"
+      winningsSummary = `${tokenList.slice(0, -1).join(', ')}, and ${tokenList[tokenList.length - 1]}`;
+    }
     const shareText = `I just claimed ${winningsSummary} on the /mintedmerch Daily Spin and boosted my Mojo Score!\n\nSpin to win tokens daily 👇`;
     
     try {
