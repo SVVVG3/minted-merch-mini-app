@@ -613,35 +613,41 @@ export default function DailySpinClient() {
         {showWinModal && currentSpin?.isWin && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl p-6 max-w-sm w-full border border-[#3eb489]/30 shadow-2xl">
-              {/* Header */}
-              <div className="text-center mb-3">
-                <h2 className="text-2xl font-bold text-white">You Won:</h2>
-              </div>
-
-              {/* Token info */}
-              <div className="bg-black/30 rounded-xl p-4 mb-4">
-                <div className="flex flex-col items-center gap-2">
+              {/* Header with token info - compact 2-line layout */}
+              <div className="bg-black/30 rounded-xl p-4 mb-3">
+                <div className="flex items-center gap-3">
                   {/* Token logo */}
                   {tokens.find(t => t.id === currentSpin.token.id)?.logoUrl ? (
                     <img 
                       src={tokens.find(t => t.id === currentSpin.token.id)?.logoUrl}
                       alt={currentSpin.token.symbol}
-                      className="w-16 h-16 rounded-full border-2 border-white/20"
+                      className="w-14 h-14 rounded-full border-2 border-white/20 flex-shrink-0"
                     />
                   ) : (
                     <div 
-                      className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl"
+                      className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
                       style={{ backgroundColor: currentSpin.token.color }}
                     >
                       {currentSpin.token.symbol.slice(0, 2)}
                     </div>
                   )}
-                  <p className="text-white font-bold text-lg">${currentSpin.token.symbol}</p>
-                  <p className="text-3xl font-bold" style={{ color: currentSpin.token.color }}>
-                    {currentSpin.displayAmount}
-                  </p>
-                  <p className="text-gray-500 text-xs">≈ ${currentSpin.usdValue}</p>
+                  {/* Token name and amount */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-bold text-lg">${currentSpin.token.symbol}</span>
+                      <span className="text-gray-500 text-xs">≈ ${currentSpin.usdValue}</span>
+                    </div>
+                    <p className="text-2xl font-bold truncate" style={{ color: currentSpin.token.color }}>
+                      {currentSpin.displayAmount}
+                    </p>
+                  </div>
                 </div>
+                {/* Token description */}
+                {tokens.find(t => t.id === currentSpin.token.id)?.description && (
+                  <p className="text-gray-400 text-sm mt-3 pt-3 border-t border-white/10">
+                    {tokens.find(t => t.id === currentSpin.token.id)?.description}
+                  </p>
+                )}
               </div>
 
               {/* Action buttons */}
@@ -803,7 +809,7 @@ export default function DailySpinClient() {
         {/* Your Winnings Today - show allSpins before claim, claimedWinnings after */}
         {(allSpins.length > 0 || claimedWinnings.length > 0) && (
           <div className="bg-gray-800/50 rounded-xl px-4 py-2 mt-4 border border-gray-700">
-            <h3 className="text-white font-bold mb-1">Today's Winnings</h3>
+            <h3 className="text-white font-bold mb-1">Recent Winnings</h3>
             <div className="space-y-1">
               {/* Show allSpins if still unclaimed, otherwise show claimedWinnings */}
               {(allSpins.length > 0 ? allSpins : claimedWinnings).map((spin, i) => (
@@ -840,7 +846,7 @@ export default function DailySpinClient() {
               status.mojoTier === 'Silver' ? 'text-gray-300' :
               'text-orange-400'
             }`}>
-              {status.mojoTier} ({status.dailyAllocation} spins/day)
+              {status.mojoTier} ({status.dailyAllocation} {status.dailyAllocation === 1 ? 'spin' : 'spins'}/day)
             </span>
             <span className="text-white">{status.spinsUsedToday}/{status.dailyAllocation} used</span>
           </div>
