@@ -124,7 +124,7 @@ export async function GET() {
         logoUrl: token.logo_url ? `${baseUrl}${token.logo_url}` : null,
         shopUrl: token.shop_url || null, // Link to collection/product page
         dexscreenerUrl: token.dexscreener_url || null, // Custom DexScreener link
-        description: token.description || null // Token description for win modal
+        description: token.description || null, // Token description for win modal
         priceUsd: token.price_usd,
         tokensPerSpin: token.tokens_per_spin,
         probability: token.probability_weight / totalWeight,
