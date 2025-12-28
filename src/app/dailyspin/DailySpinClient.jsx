@@ -843,7 +843,7 @@ export default function DailySpinClient() {
             <h3 className="text-white font-bold mb-1">
               Recent Winnings
               {claimSuccess && (
-                <span className={`ml-2 text-sm font-normal ${wasDonation ? 'text-purple-400' : 'text-green-400'}`}>
+                <span className="ml-2 text-sm font-normal text-green-400">
                   ({wasDonation ? 'Donated' : 'Claimed'})
                 </span>
               )}
@@ -862,8 +862,8 @@ export default function DailySpinClient() {
 
         {/* Next spin countdown - show after claiming when no spins left */}
         {claimSuccess && !status.canSpin && (
-          <div className="text-center mt-4">
-            <p className="text-gray-400 text-sm">
+          <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl p-4 mt-4 border border-green-500/30">
+            <p className="text-gray-400 text-sm text-center">
               Next spin in: {String(countdown.hours).padStart(2, '0')}:
               {String(countdown.minutes).padStart(2, '0')}:
               {String(countdown.seconds).padStart(2, '0')}
