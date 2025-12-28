@@ -37,8 +37,41 @@ export const GET = withAdminAuth(async (request) => {
       console.error('Error fetching today spins:', todayError);
     }
 
-    // Total wins (excluding MISS - amount > 0)
-    const { count: totalWins, error: winsError } = await supabaseAdmin
+    // Unique users who spun today
+    const { data: todaySpinners, error: todaySpinnersError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('user_fid')
+      .eq('spin_date', todayDate);
+
+    if (todaySpinnersError) {
+      console.error('Error fetching today spinners:', todaySpinnersError);
+    }
+    const uniqueUsersToday = new Set(todaySpinners?.map(s => s.user_fid) || []).size;
+
+    // Wins today
+    const { count: winsToday, error: winsTodayError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('*', { count: 'exact', head: true })
+      .eq('spin_date', todayDate)
+      .gt('amount', '0');
+
+    if (winsTodayError) {
+      console.error('Error fetching wins today:', winsTodayError);
+    }
+
+    // Misses today
+    const { count: missesToday, error: missesTodayError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('*', { count: 'exact', head: true })
+      .eq('spin_date', todayDate)
+      .eq('amount', '0');
+
+    if (missesTodayError) {
+      console.error('Error fetching misses today:', missesTodayError);
+    }
+
+    // Total wins all time (excluding MISS - amount > 0)
+    const { count: totalWinsAllTime, error: winsError } = await supabaseAdmin
       .from('spin_winnings')
       .select('*', { count: 'exact', head: true })
       .gt('amount', '0');
@@ -47,8 +80,8 @@ export const GET = withAdminAuth(async (request) => {
       console.error('Error fetching total wins:', winsError);
     }
 
-    // Total misses (amount = 0)
-    const { count: totalMisses, error: missesError } = await supabaseAdmin
+    // Total misses all time (amount = 0)
+    const { count: totalMissesAllTime, error: missesError } = await supabaseAdmin
       .from('spin_winnings')
       .select('*', { count: 'exact', head: true })
       .eq('amount', '0');
@@ -213,13 +246,19 @@ export const GET = withAdminAuth(async (request) => {
     return NextResponse.json({
       success: true,
       stats: {
-        totalSpinsAllTime: totalSpinsAllTime || 0,
+        // Today stats
+        todayDate,
         totalSpinsToday: totalSpinsToday || 0,
-        totalWins: totalWins || 0,
-        totalMisses: totalMisses || 0,
-        winRate: totalSpinsAllTime > 0 ? ((totalWins / totalSpinsAllTime) * 100).toFixed(1) : '0',
-        uniqueSpinnersLast7Days: uniqueSpinners.size,
-        todayDate
+        uniqueUsersToday: uniqueUsersToday || 0,
+        winsToday: winsToday || 0,
+        missesToday: missesToday || 0,
+        winRateToday: totalSpinsToday > 0 ? ((winsToday / totalSpinsToday) * 100).toFixed(1) : '0',
+        // All time stats
+        totalSpinsAllTime: totalSpinsAllTime || 0,
+        totalWinsAllTime: totalWinsAllTime || 0,
+        totalMissesAllTime: totalMissesAllTime || 0,
+        winRateAllTime: totalSpinsAllTime > 0 ? ((totalWinsAllTime / totalSpinsAllTime) * 100).toFixed(1) : '0',
+        uniqueSpinnersLast7Days: uniqueSpinners.size
       },
       tokenStats: tokenStatsArray,
       spinLog

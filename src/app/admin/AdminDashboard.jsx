@@ -3980,23 +3980,49 @@ export default function AdminDashboard() {
                 <div className="p-6 text-center text-red-600">{dailySpinError}</div>
               ) : dailySpinStats ? (
                 <div className="p-6 space-y-6">
-                  {/* Stats Overview */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-blue-50 rounded-lg p-4 text-center">
-                      <div className="text-3xl font-bold text-blue-600">{dailySpinStats.totalSpinsAllTime}</div>
-                      <div className="text-sm text-gray-600">Total Spins (All Time)</div>
+                  {/* Today's Stats */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">📅 Today ({dailySpinStats.todayDate})</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-green-50 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-green-600">{dailySpinStats.totalSpinsToday}</div>
+                        <div className="text-sm text-gray-600">Total Spins</div>
+                      </div>
+                      <div className="bg-blue-50 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-blue-600">{dailySpinStats.uniqueUsersToday}</div>
+                        <div className="text-sm text-gray-600">Unique Users</div>
+                      </div>
+                      <div className="bg-purple-50 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-purple-600">{dailySpinStats.winsToday}</div>
+                        <div className="text-sm text-gray-600">Wins ({dailySpinStats.winRateToday}%)</div>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-gray-600">{dailySpinStats.missesToday}</div>
+                        <div className="text-sm text-gray-600">Misses</div>
+                      </div>
                     </div>
-                    <div className="bg-green-50 rounded-lg p-4 text-center">
-                      <div className="text-3xl font-bold text-green-600">{dailySpinStats.totalSpinsToday}</div>
-                      <div className="text-sm text-gray-600">Spins Today ({dailySpinStats.todayDate})</div>
-                    </div>
-                    <div className="bg-purple-50 rounded-lg p-4 text-center">
-                      <div className="text-3xl font-bold text-purple-600">{dailySpinStats.totalWins}</div>
-                      <div className="text-sm text-gray-600">Total Wins ({dailySpinStats.winRate}%)</div>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-4 text-center">
-                      <div className="text-3xl font-bold text-gray-600">{dailySpinStats.totalMisses}</div>
-                      <div className="text-sm text-gray-600">Total Misses</div>
+                  </div>
+
+                  {/* All Time Stats */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">📊 All Time</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-blue-50 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-blue-600">{dailySpinStats.totalSpinsAllTime}</div>
+                        <div className="text-sm text-gray-600">Total Spins</div>
+                      </div>
+                      <div className="bg-indigo-50 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-indigo-600">{dailySpinStats.uniqueSpinnersLast7Days}</div>
+                        <div className="text-sm text-gray-600">Users (Last 7 Days)</div>
+                      </div>
+                      <div className="bg-purple-50 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-purple-600">{dailySpinStats.totalWinsAllTime}</div>
+                        <div className="text-sm text-gray-600">Wins ({dailySpinStats.winRateAllTime}%)</div>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-gray-600">{dailySpinStats.totalMissesAllTime}</div>
+                        <div className="text-sm text-gray-600">Misses</div>
+                      </div>
                     </div>
                   </div>
 
