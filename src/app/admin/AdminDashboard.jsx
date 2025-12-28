@@ -4003,6 +4003,29 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
+                  {/* Yesterday's Stats */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">📆 Yesterday ({dailySpinStats.yesterdayDate})</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-green-50/70 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-green-500">{dailySpinStats.totalSpinsYesterday}</div>
+                        <div className="text-sm text-gray-600">Total Spins</div>
+                      </div>
+                      <div className="bg-blue-50/70 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-blue-500">{dailySpinStats.uniqueUsersYesterday}</div>
+                        <div className="text-sm text-gray-600">Unique Users</div>
+                      </div>
+                      <div className="bg-purple-50/70 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-purple-500">{dailySpinStats.winsYesterday}</div>
+                        <div className="text-sm text-gray-600">Wins ({dailySpinStats.winRateYesterday}%)</div>
+                      </div>
+                      <div className="bg-gray-50/70 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-gray-500">{dailySpinStats.missesYesterday}</div>
+                        <div className="text-sm text-gray-600">Misses</div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* All Time Stats */}
                   <div>
                     <h3 className="text-lg font-semibold mb-3">📊 All Time</h3>
@@ -4078,12 +4101,13 @@ export default function AdminDashboard() {
                         <thead className="bg-gray-50 sticky top-0">
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">FID</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
                             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total</th>
                             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Wins</th>
                             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Misses</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tokens Won</th>
                             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Claimed</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Donated</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
@@ -4121,9 +4145,20 @@ export default function AdminDashboard() {
                                   <span className={`px-2 py-1 rounded-full text-xs ${
                                     log.claimed === log.wins 
                                       ? 'bg-green-100 text-green-700' 
-                                      : 'bg-orange-100 text-orange-700'
+                                      : log.claimed > 0 
+                                        ? 'bg-yellow-100 text-yellow-700'
+                                        : 'bg-orange-100 text-orange-700'
                                   }`}>
                                     {log.claimed}/{log.wins}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2 text-center">
+                                {log.donated > 0 ? (
+                                  <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
+                                    {log.donated}
                                   </span>
                                 ) : (
                                   <span className="text-gray-400">-</span>

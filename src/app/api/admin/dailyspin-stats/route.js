@@ -17,6 +17,11 @@ export const GET = withAdminAuth(async (request) => {
     // Get today's date (8 AM PST boundary)
     const todayStart = getCurrent8AMPST();
     const todayDate = todayStart.toISOString().split('T')[0];
+    
+    // Get yesterday's date
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+    const yesterdayDate = yesterdayStart.toISOString().split('T')[0];
 
     // Total spins all time (including misses)
     const { count: totalSpinsAllTime, error: totalError } = await supabaseAdmin
@@ -68,6 +73,50 @@ export const GET = withAdminAuth(async (request) => {
 
     if (missesTodayError) {
       console.error('Error fetching misses today:', missesTodayError);
+    }
+
+    // ===== YESTERDAY'S STATS =====
+    // Total spins yesterday
+    const { count: totalSpinsYesterday, error: yesterdayError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('*', { count: 'exact', head: true })
+      .eq('spin_date', yesterdayDate);
+
+    if (yesterdayError) {
+      console.error('Error fetching yesterday spins:', yesterdayError);
+    }
+
+    // Unique users who spun yesterday
+    const { data: yesterdaySpinners, error: yesterdaySpinnersError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('user_fid')
+      .eq('spin_date', yesterdayDate);
+
+    if (yesterdaySpinnersError) {
+      console.error('Error fetching yesterday spinners:', yesterdaySpinnersError);
+    }
+    const uniqueUsersYesterday = new Set(yesterdaySpinners?.map(s => s.user_fid) || []).size;
+
+    // Wins yesterday
+    const { count: winsYesterday, error: winsYesterdayError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('*', { count: 'exact', head: true })
+      .eq('spin_date', yesterdayDate)
+      .gt('amount', '0');
+
+    if (winsYesterdayError) {
+      console.error('Error fetching wins yesterday:', winsYesterdayError);
+    }
+
+    // Misses yesterday
+    const { count: missesYesterday, error: missesYesterdayError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('*', { count: 'exact', head: true })
+      .eq('spin_date', yesterdayDate)
+      .eq('amount', '0');
+
+    if (missesYesterdayError) {
+      console.error('Error fetching misses yesterday:', missesYesterdayError);
     }
 
     // Total wins all time (excluding MISS - amount > 0)
@@ -165,13 +214,14 @@ export const GET = withAdminAuth(async (request) => {
         spin_date,
         amount,
         claimed,
+        donated,
+        created_at,
         spin_tokens (
           symbol
         )
       `)
       .gte('spin_date', sevenDaysAgoDate)
-      .order('spin_date', { ascending: false })
-      .order('user_fid', { ascending: true });
+      .order('created_at', { ascending: false });
 
     if (recentError) {
       console.error('Error fetching recent spins:', recentError);
@@ -206,12 +256,18 @@ export const GET = withAdminAuth(async (request) => {
           username: profile.username || null,
           pfpUrl: profile.pfpUrl || null,
           spinDate: spin.spin_date,
+          latestSpinTime: spin.created_at, // Track latest spin time for sorting
           totalSpins: 0,
           wins: 0,
           misses: 0,
           tokensWon: {},
-          claimed: 0
+          claimed: 0,
+          donated: 0
         };
+      }
+      // Update latest spin time if this spin is more recent
+      if (spin.created_at > userDayStats[key].latestSpinTime) {
+        userDayStats[key].latestSpinTime = spin.created_at;
       }
       userDayStats[key].totalSpins += 1;
       if (spin.amount !== '0' && spin.amount !== 0) {
@@ -221,12 +277,15 @@ export const GET = withAdminAuth(async (request) => {
         if (spin.claimed) {
           userDayStats[key].claimed += 1;
         }
+        if (spin.donated) {
+          userDayStats[key].donated += 1;
+        }
       } else {
         userDayStats[key].misses += 1;
       }
     }
 
-    // Convert to array and sort by date desc, then fid
+    // Convert to array and sort by latest spin time (most recent first)
     const spinLog = Object.values(userDayStats)
       .map(stat => ({
         ...stat,
@@ -235,9 +294,8 @@ export const GET = withAdminAuth(async (request) => {
           .join(', ') || 'None'
       }))
       .sort((a, b) => {
-        const dateCompare = b.spinDate.localeCompare(a.spinDate);
-        if (dateCompare !== 0) return dateCompare;
-        return a.userFid - b.userFid;
+        // Sort by latest spin time (most recent first)
+        return new Date(b.latestSpinTime) - new Date(a.latestSpinTime);
       });
 
     // Unique users who have spun
@@ -253,6 +311,13 @@ export const GET = withAdminAuth(async (request) => {
         winsToday: winsToday || 0,
         missesToday: missesToday || 0,
         winRateToday: totalSpinsToday > 0 ? ((winsToday / totalSpinsToday) * 100).toFixed(1) : '0',
+        // Yesterday stats
+        yesterdayDate,
+        totalSpinsYesterday: totalSpinsYesterday || 0,
+        uniqueUsersYesterday: uniqueUsersYesterday || 0,
+        winsYesterday: winsYesterday || 0,
+        missesYesterday: missesYesterday || 0,
+        winRateYesterday: totalSpinsYesterday > 0 ? ((winsYesterday / totalSpinsYesterday) * 100).toFixed(1) : '0',
         // All time stats
         totalSpinsAllTime: totalSpinsAllTime || 0,
         totalWinsAllTime: totalWinsAllTime || 0,
