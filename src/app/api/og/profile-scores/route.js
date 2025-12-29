@@ -203,7 +203,7 @@ export async function GET(request) {
                   <img
                     src={mogulBadgeSrc}
                     style={{
-                      height: '40px',
+                      height: '100px',
                       objectFit: 'contain',
                     }}
                   />
