@@ -600,82 +600,79 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
             </svg>
           </button>
           
-          {/* User Info - Compact Layout */}
-          <div>
-            {/* Top row: Profile Image + Name/FID + Share */}
-            <div className="flex items-center gap-3">
-              {/* Profile Image */}
-              {user?.pfpUrl && (
-                <img 
-                  src={user.pfpUrl} 
-                  alt={user.displayName || user.username}
-                  className="w-12 h-12 rounded-full border-2 border-white/20 shadow-lg flex-shrink-0"
-                />
-              )}
-              
-              {/* Name, FID, and Share Button */}
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold leading-tight truncate pr-8">
-                  {user?.displayName || user?.username}
-                </h3>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-white/80 text-xs">FID: {user?.fid}</span>
-                  {/* Share Button - Next to FID */}
-                  {(profileData?.neynar_score || profileData?.quotient_score) && (
-                    <div className="relative" ref={shareDropdownRef}>
+          {/* User Info - Centered Layout */}
+          <div className="text-center">
+            {/* Profile Image */}
+            {user?.pfpUrl && (
+              <img 
+                src={user.pfpUrl} 
+                alt={user.displayName || user.username}
+                className="w-14 h-14 rounded-full border-2 border-white/20 shadow-lg mx-auto"
+              />
+            )}
+            
+            {/* Name */}
+            <h3 className="text-lg font-bold leading-tight mt-2">
+              {user?.displayName || user?.username}
+            </h3>
+            
+            {/* FID and Share Button */}
+            <div className="flex items-center justify-center gap-2 mt-1">
+              <span className="text-white/80 text-xs">FID: {user?.fid}</span>
+              {/* Share Button */}
+              {(profileData?.neynar_score || profileData?.quotient_score) && (
+                <div className="relative" ref={shareDropdownRef}>
+                  <button
+                    onClick={() => setShowShareDropdown(!showShareDropdown)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white rounded-md transition-colors text-sm font-medium"
+                    title="Share"
+                  >
+                    <span>Share</span>
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 520 457" fill="currentColor">
+                      <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
+                    </svg>
+                  </button>
+                  
+                  {/* Share Dropdown */}
+                  {showShareDropdown && (
+                    <div className="absolute left-1/2 -translate-x-1/2 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
                       <button
-                        onClick={() => setShowShareDropdown(!showShareDropdown)}
-                        className="flex items-center gap-1.5 px-2.5 py-1 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white rounded-md transition-colors text-sm font-medium"
-                        title="Share"
+                        onClick={() => handleShareScores('copy')}
+                        className="w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
                       >
-                        <span>Share</span>
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 520 457" fill="currentColor">
+                        {copySuccess ? (
+                          <>
+                            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span className="text-green-500 font-medium">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            <span>Copy Link</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleShareScores('cast')}
+                        className="w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors border-t border-gray-100"
+                      >
+                        <svg className="w-4 h-4 text-[#6A3CFF]" viewBox="0 0 520 457" fill="currentColor">
                           <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
                         </svg>
+                        <span>Share Cast</span>
                       </button>
-                      
-                      {/* Share Dropdown */}
-                      {showShareDropdown && (
-                        <div className="absolute left-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
-                          <button
-                            onClick={() => handleShareScores('copy')}
-                            className="w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
-                          >
-                            {copySuccess ? (
-                              <>
-                                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                                <span className="text-green-500 font-medium">Copied!</span>
-                              </>
-                            ) : (
-                              <>
-                                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                                </svg>
-                                <span>Copy Link</span>
-                              </>
-                            )}
-                          </button>
-                          <button
-                            onClick={() => handleShareScores('cast')}
-                            className="w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors border-t border-gray-100"
-                          >
-                            <svg className="w-4 h-4 text-[#6A3CFF]" viewBox="0 0 520 457" fill="currentColor">
-                              <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
-                            </svg>
-                            <span>Share Cast</span>
-                          </button>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
-              </div>
+              )}
             </div>
             
-            {/* All 3 scores on one full-width line */}
-            <div className="flex items-center gap-1.5 mt-2">
+            {/* All 3 scores centered */}
+            <div className="flex items-center justify-center gap-1.5 mt-2">
               {profileData?.mojo_score !== null && profileData?.mojo_score !== undefined && (
                 <span className="px-1.5 py-0.5 bg-white/20 rounded-full text-xs font-medium whitespace-nowrap">
                   MMM: {parseFloat(profileData.mojo_score).toFixed(2)}
@@ -693,7 +690,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               )}
             </div>
             
-            <p className="text-white/90 text-xl font-semibold mt-1.5">Profile & Order History</p>
+            <p className="text-white/90 text-xl font-semibold mt-2">Profile & Order History</p>
           </div>
         </div>
         
