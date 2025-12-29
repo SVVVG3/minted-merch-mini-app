@@ -1,7 +1,7 @@
 // Minted Merch Missions helper functions
 // Handles checking missions eligibility:
 // - Merch Moguls: 50M+ tokens (wallet + staked)
-// - Stakers: 1M+ tokens staked
+// - Stakers: 10M+ tokens staked
 // Both groups can access missions, complete bounties, and earn payouts
 
 import { supabaseAdmin } from './supabase';
@@ -114,13 +114,13 @@ export async function getMogulSubmissionCount(fid, bountyId) {
 
 /**
  * Get all users eligible for Minted Merch Missions
- * Includes: Merch Moguls (50M+ tokens) AND Stakers (1M+ staked)
+ * Includes: Merch Moguls (50M+ tokens) AND Stakers (10M+ staked)
  * Used for sending notifications
  * @returns {Promise<number[]>} Array of FIDs
  */
 export async function getAllMissionsEligibleUsers() {
   try {
-    console.log(`🎯 Fetching all missions-eligible users (50M+ tokens OR 1M+ staked)...`);
+    console.log(`🎯 Fetching all missions-eligible users (50M+ tokens OR 10M+ staked)...`);
 
     // Get all users with 50M+ tokens (Merch Moguls)
     const { data: moguls, error: mogulsError } = await supabaseAdmin
@@ -132,7 +132,7 @@ export async function getAllMissionsEligibleUsers() {
       console.error('❌ Error fetching Merch Moguls:', mogulsError);
     }
 
-    // Get all users with 1M+ staked tokens (Stakers)
+    // Get all users with 10M+ staked tokens (Stakers)
     const { data: stakers, error: stakersError } = await supabaseAdmin
       .from('profiles')
       .select('fid')

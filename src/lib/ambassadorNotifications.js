@@ -37,13 +37,13 @@ export async function getAllActiveAmbassadors() {
 
 /**
  * Get all users eligible for Minted Merch Missions
- * Includes: Merch Moguls (50M+ tokens) AND Stakers (1M+ staked)
+ * Includes: Merch Moguls (50M+ tokens) AND Stakers (10M+ staked)
  * @returns {Promise<number[]>} Array of FIDs for eligible users
  */
 export async function getAllMissionsEligibleUsers() {
   try {
     const MOGUL_TOKEN_THRESHOLD = 50_000_000;
-    const STAKER_TOKEN_THRESHOLD = 1_000_000;
+    const STAKER_TOKEN_THRESHOLD = 10_000_000; // 10M staked required
     
     // Get Merch Moguls (50M+ tokens)
     const { data: moguls, error: mogulsError } = await supabaseAdmin
@@ -55,7 +55,7 @@ export async function getAllMissionsEligibleUsers() {
       console.error('❌ Error fetching Merch Moguls:', mogulsError);
     }
 
-    // Get Stakers (1M+ staked)
+    // Get Stakers (10M+ staked)
     const { data: stakers, error: stakersError } = await supabaseAdmin
       .from('profiles')
       .select('fid')
@@ -89,7 +89,7 @@ export async function getAllMerchMoguls() {
 
 /**
  * Send new bounty notification - routes to correct recipients based on bounty type
- * - Interaction bounties (like, recast, comment, engagement) → Missions-eligible users (50M+ tokens OR 1M+ staked)
+ * - Interaction bounties (like, recast, comment, engagement) → Missions-eligible users (50M+ tokens OR 10M+ staked)
  * - Custom bounties → 50M+ Stakers (Moguls) or targeted users
  * OPTIMIZED: Uses batch API - 1 API call instead of N calls
  * @param {object} bountyData - The bounty data (from database)
@@ -107,7 +107,7 @@ export async function sendNewBountyNotification(bountyData) {
     let targetUrl;
     
     if (isInteractionBounty) {
-      // INTERACTION BOUNTY → Notify missions-eligible users (50M+ tokens OR 1M+ staked)
+      // INTERACTION BOUNTY → Notify missions-eligible users (50M+ tokens OR 10M+ staked)
       console.log(`🎯 Interaction bounty: notifying missions-eligible users`);
       recipientFids = await getAllMissionsEligibleUsers();
       recipientType = 'missions_users';

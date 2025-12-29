@@ -45,7 +45,7 @@ export async function GET(request, { params }) {
         tokenBalance,
         stakedBalance,
         requiredBalance: 50_000_000,
-        requiredStaked: 1_000_000
+        requiredStaked: 10_000_000
       }, { status: 403 });
     }
     

@@ -43,7 +43,7 @@ export async function GET(request) {
         stakedBalance,
         requirements: {
           mogulThreshold: 50_000_000,
-          stakerThreshold: 1_000_000
+          stakerThreshold: 10_000_000
         }
       }, { status: 403 });
     }
