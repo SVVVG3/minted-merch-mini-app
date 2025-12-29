@@ -7,7 +7,7 @@ export async function generateMetadata({ params }) {
   // Fetch user data for OG image
   const { data: profile } = await supabaseAdmin
     .from('profiles')
-    .select('username, pfp_url, neynar_score, quotient_score, mojo_score')
+    .select('username, pfp_url, neynar_score, quotient_score, mojo_score, staked_balance')
     .eq('fid', fid)
     .single();
   
@@ -16,6 +16,7 @@ export async function generateMetadata({ params }) {
   const neynarScore = profile?.neynar_score || '0.00';
   const quotientScore = profile?.quotient_score || '0.00';
   const mojoScore = profile?.mojo_score || '0.00';
+  const stakedBalance = profile?.staked_balance || '0';
   
   const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://app.mintedmerch.shop';
   
@@ -26,11 +27,12 @@ export async function generateMetadata({ params }) {
     neynar: neynarScore,
     quotient: quotientScore,
     mojo: mojoScore,
+    staked: stakedBalance, // For Merch Mogul badge
   });
   const ogImageUrl = `${baseUrl}/api/og/profile-scores?${ogParams.toString()}`;
   
   // Build scores text for description
-  const scoresText = `Mojo: ${parseFloat(mojoScore).toFixed(2)} | Neynar: ${parseFloat(neynarScore).toFixed(2)} | Quotient: ${parseFloat(quotientScore).toFixed(2)}`;
+  const scoresText = `MMM: ${parseFloat(mojoScore).toFixed(2)} | Neynar: ${parseFloat(neynarScore).toFixed(2)} | Quotient: ${parseFloat(quotientScore).toFixed(2)}`;
   
   const title = `${username}'s Minted Merch Scores`;
   const description = `Check out @${username}'s scores on Minted Merch! ${scoresText}`;

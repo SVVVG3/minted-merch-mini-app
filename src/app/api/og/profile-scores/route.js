@@ -33,6 +33,10 @@ export async function GET(request) {
     const neynarScore = searchParams.get('neynar') || '0.00';
     const quotientScore = searchParams.get('quotient') || '0.00';
     const mojoScore = searchParams.get('mojo') || '0.00';
+    const stakedBalance = parseFloat(searchParams.get('staked') || '0');
+    
+    // Check if user is a Merch Mogul (50M+ staked)
+    const isMerchMogul = stakedBalance >= 50_000_000;
     
     // Format scores to 2 decimal places
     const formattedNeynar = parseFloat(neynarScore).toFixed(2);
@@ -67,7 +71,8 @@ export async function GET(request) {
     const profileImageData = pfpUrl ? await fetchImageAsDataUrl(pfpUrl) : null;
     
     // Fetch logo with proper error handling
-    const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop';
+    const logoUrl = `${baseUrl}/logo.png`;
     console.log('🖼️ Fetching logo from:', logoUrl);
     let logoImageSrc = null;
     try {
@@ -78,6 +83,19 @@ export async function GET(request) {
       }
     } catch (error) {
       console.error('❌ Error fetching logo:', error);
+    }
+    
+    // Fetch Merch Mogul badge if user qualifies
+    let mogulBadgeSrc = null;
+    if (isMerchMogul) {
+      const badgeUrl = `${baseUrl}/VerifiedMerchMogulBadge.png`;
+      console.log('🏆 User is Merch Mogul, fetching badge from:', badgeUrl);
+      try {
+        mogulBadgeSrc = await fetchImageAsDataUrl(badgeUrl);
+        console.log('✅ Badge fetch result:', mogulBadgeSrc ? 'SUCCESS' : 'FAILED');
+      } catch (error) {
+        console.error('❌ Error fetching badge:', error);
+      }
     }
 
     return new ImageResponse(
@@ -172,6 +190,25 @@ export async function GET(request) {
               >
                 @{username}
               </div>
+
+              {/* Merch Mogul Badge (if 50M+ staked) */}
+              {mogulBadgeSrc && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-start',
+                  }}
+                >
+                  <img
+                    src={mogulBadgeSrc}
+                    style={{
+                      height: '40px',
+                      objectFit: 'contain',
+                    }}
+                  />
+                </div>
+              )}
 
               {/* Scores */}
               <div
