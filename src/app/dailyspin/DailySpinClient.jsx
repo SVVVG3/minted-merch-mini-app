@@ -627,7 +627,9 @@ export default function DailySpinClient() {
             <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl p-6 max-w-sm w-full border border-[#3eb489]/30 shadow-2xl">
               {/* Header */}
               <div className="text-center mb-3">
-                <h2 className="text-2xl font-bold text-white">You Won:</h2>
+                <h2 className="text-2xl font-bold text-white">
+                  {status?.canClaim ? 'You Won:' : 'You Could Win:'}
+                </h2>
               </div>
               {/* Token info - compact 2-line layout */}
               <div className="bg-black/30 rounded-xl p-4 mb-3">
@@ -745,10 +747,10 @@ export default function DailySpinClient() {
             </button>
           )}
 
-          {/* Claim Button */}
-          {!status.canSpin && allSpins.length > 0 && !claimSuccess && (
+          {/* Claim Button - show if has winnings OR if all spins used (all misses get Mojo boost) */}
+          {!status.canSpin && !claimSuccess && (allSpins.length > 0 || status.spinsUsedToday > 0) && (
             <div className="space-y-2">
-              {status.canClaim === false ? (
+              {status.canClaim === false || allSpins.length === 0 ? (
                 <>
                   {/* Low Mojo score - show Mojo boost option */}
                   <button
@@ -769,12 +771,25 @@ export default function DailySpinClient() {
                     )}
                   </button>
                   <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-3 text-center">
-                    <p className="text-yellow-400 text-sm">
-                      ⚠️ Mojo score of 0.2+ required to claim tokens.
-                    </p>
-                    <p className="text-gray-400 text-xs mt-1">
-                      Your score: {status.mojoScore} - Claim your Mojo boost & try again tomorrow!
-                    </p>
+                    {allSpins.length === 0 ? (
+                      <>
+                        <p className="text-yellow-400 text-sm">
+                          🎰 No tokens won today
+                        </p>
+                        <p className="text-gray-400 text-xs mt-1">
+                          Claim your Mojo boost & try again tomorrow!
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-yellow-400 text-sm">
+                          ⚠️ Mojo score of 0.2+ required to claim tokens.
+                        </p>
+                        <p className="text-gray-400 text-xs mt-1">
+                          Your score: {status.mojoScore} - Claim your Mojo boost & try again tomorrow!
+                        </p>
+                      </>
+                    )}
                   </div>
                 </>
               ) : (
@@ -803,11 +818,11 @@ export default function DailySpinClient() {
           {claimSuccess && (
             <div className="text-center">
               <button
-                onClick={handleShare}
+                onClick={wasDonation ? handleShareGeneric : handleShare}
                 className="w-full py-4 bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED] text-white font-bold rounded-xl 
                          hover:from-[#7C3AED] hover:to-[#6D28D9] transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
               >
-                <span>Share Your Winnings</span>
+                <span>{wasDonation ? 'Share Daily Spin' : 'Share Your Winnings'}</span>
                 <svg className="w-5 h-5" viewBox="0 0 520 457" fill="currentColor">
                   <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
                 </svg>
@@ -815,8 +830,8 @@ export default function DailySpinClient() {
             </div>
           )}
 
-          {/* No spins left, nothing to claim */}
-          {!status.canSpin && allSpins.length === 0 && !claimSuccess && (
+          {/* No spins left and already processed (nothing more to do) */}
+          {!status.canSpin && allSpins.length === 0 && !claimSuccess && status.spinsUsedToday === 0 && (
             <div className="text-center space-y-4">
               <div className="text-gray-400">
                 <p>No spins remaining today.</p>
@@ -845,11 +860,20 @@ export default function DailySpinClient() {
         {(allSpins.length > 0 || claimedWinnings.length > 0) && (
           <div className="bg-gray-800/50 rounded-xl px-4 py-2 mt-4 border border-gray-700">
             <h3 className="text-white font-bold mb-1">
-              Recent Winnings
-              {claimSuccess && (
-                <span className="ml-2 text-sm font-normal text-green-400">
-                  ({wasDonation ? 'Mojo Boosted' : 'Claimed'})
-                </span>
+              {claimSuccess ? (
+                <>
+                  Recent Winnings
+                  <span className="ml-2 text-sm font-normal text-green-400">
+                    ({wasDonation ? 'Mojo Boosted' : 'Claimed'})
+                  </span>
+                </>
+              ) : status?.canClaim ? (
+                'Recent Winnings'
+              ) : (
+                <>
+                  Potential Winnings
+                  <span className="ml-2 text-sm font-normal text-yellow-400">(MMM {'>'} 0.2 required)</span>
+                </>
               )}
             </h3>
             <div className="space-y-1">

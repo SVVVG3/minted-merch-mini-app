@@ -37,16 +37,32 @@ export async function POST(request) {
     const actionType = isDonation ? 'donation' : 'claim';
 
     // Validate inputs
-    if (!winningIds || !Array.isArray(winningIds) || winningIds.length === 0) {
+    if (!txHash || typeof txHash !== 'string') {
       return NextResponse.json(
-        { success: false, error: 'winningIds array required' },
+        { success: false, error: 'Transaction hash required' },
         { status: 400 }
       );
     }
 
-    if (!txHash || typeof txHash !== 'string') {
+    // Handle Mojo boost only (all misses) - no winnings to mark
+    if (!winningIds || !Array.isArray(winningIds) || winningIds.length === 0) {
+      if (isDonation) {
+        // This is a Mojo boost with no actual winnings - just log the transaction
+        console.log(`[${requestId}] 📝 Mojo boost only (no winnings) for FID ${fid}, tx: ${txHash}`);
+        return NextResponse.json({
+          success: true,
+          isDonation: true,
+          isMojoBoostOnly: true,
+          result: {
+            count: 0,
+            txHash,
+            processedAt: new Date().toISOString(),
+            summary: []
+          }
+        });
+      }
       return NextResponse.json(
-        { success: false, error: 'Transaction hash required' },
+        { success: false, error: 'winningIds array required' },
         { status: 400 }
       );
     }
