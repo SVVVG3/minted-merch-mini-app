@@ -301,7 +301,11 @@ export function Leaderboard({ isVisible = true }) {
       {/* Header */}
       <div className="border-b border-gray-200 p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-800">MMM Leaderboard</h2>
+          <img 
+            src="/MintedMerchLeaderboardGraphic.png" 
+            alt="Minted Merch Leaderboard" 
+            className="h-8"
+          />
           
           <div className="flex items-center gap-4">
             {/* Share Button - Always show for logged in users */}
