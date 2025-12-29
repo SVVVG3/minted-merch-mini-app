@@ -152,8 +152,8 @@ export async function GET(request) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '150px',
-                height: '150px',
+                width: '200px',
+                height: '200px',
                 borderRadius: '20px',
                 backgroundColor: 'rgba(62, 180, 137, 0.1)',
                 border: '3px solid rgba(62, 180, 137, 0.3)',
@@ -179,7 +179,7 @@ export async function GET(request) {
                     width: '100%',
                     height: '100%',
                     backgroundColor: '#3eb489',
-                    fontSize: 60,
+                    fontSize: 80,
                     color: 'white',
                   }}
                 >
