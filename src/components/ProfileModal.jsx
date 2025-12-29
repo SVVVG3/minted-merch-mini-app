@@ -585,7 +585,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-hidden" style={{ boxShadow: '0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4)' }}>
-        <div className="relative bg-gradient-to-br from-[#3eb489] to-[#2d8a66] px-4 py-3 text-white">
+        <div className="relative bg-gradient-to-br from-[#3eb489] to-[#2d8a66] px-4 pt-5 pb-3 text-white">
           {/* Close Button */}
           <button
             onClick={() => {
@@ -693,7 +693,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               )}
             </div>
             
-            <p className="text-white/90 text-base font-semibold mt-1.5">Profile & Order History</p>
+            <p className="text-white/90 text-xl font-semibold mt-1.5">Profile & Order History</p>
           </div>
         </div>
         
