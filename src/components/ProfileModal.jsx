@@ -711,7 +711,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               </div>
             )}
             
-            <p className="text-white/90 text-xl font-semibold mt-2">Profile & Order History</p>
+            <p className="text-white/90 text-xl font-semibold mt-1">Profile & Order History</p>
           </div>
         </div>
         
