@@ -198,6 +198,7 @@ export async function GET(request) {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'flex-start',
+                    marginTop: '-15px',
                   }}
                 >
                   <img
