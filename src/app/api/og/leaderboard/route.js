@@ -40,17 +40,16 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const position = searchParams.get('position') || '?';
-    const points = searchParams.get('points') || '0';
+    const mojoScore = searchParams.get('mojo') || '0';
     const username = searchParams.get('username') || 'Anonymous';
-    const multiplier = searchParams.get('multiplier') || '1';
-    const tier = searchParams.get('tier') || 'none';
-    const category = searchParams.get('category') || 'points';
+    const category = searchParams.get('category') || 'mojo';
     const profileImage = searchParams.get('pfp') || null;
+    const stakedBalance = parseFloat(searchParams.get('staked') || '0');
     
-    console.log('🎯 OG Image params received:', { position, points, username, multiplier, tier, category, profileImage });
+    console.log('🎯 OG Image params received:', { position, mojoScore, username, category, profileImage, stakedBalance });
 
-    // Format points with commas
-    const formattedPoints = parseInt(points).toLocaleString();
+    // Format Mojo score
+    const formattedMojo = parseFloat(mojoScore).toFixed(2);
     
     // Get position suffix
     const getPositionSuffix = (pos) => {
@@ -68,22 +67,24 @@ export async function GET(request) {
 
     const positionText = getPositionSuffix(position);
     
-    // Get category display name
-    const categoryNames = {
-      'points': 'Points',
-      'streaks': 'Streaks', 
-      'purchases': 'Purchases',
-      'holders': '$MINTEDMERCH Holders'
+    // Get Mojo tier info
+    const getMojoTier = (score) => {
+      const s = parseFloat(score);
+      if (s >= 0.5) return { name: 'Gold', color: '#eab308' };
+      if (s >= 0.3) return { name: 'Silver', color: '#9ca3af' };
+      return { name: 'Bronze', color: '#cd7f32' };
     };
-    const categoryName = categoryNames[category] || 'Points';
     
-    // Get multiplier info
-    const multiplierDisplay = multiplier > 1 ? `${multiplier}x` : '';
-    const multiplierEmoji = tier === 'legendary' ? '🏆' : tier === 'elite' ? '⭐' : '';
+    const mojoTier = getMojoTier(mojoScore);
+    
+    // Check for whale/mogul status
+    const isWhale = stakedBalance >= 200_000_000;
+    const isMerchMogul = stakedBalance >= 50_000_000;
 
     // Fetch profile image and logo
     const profileImageData = profileImage ? await fetchImageAsDataUrl(profileImage) : null;
-    const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/logo.png`;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop';
+    const logoUrl = `${baseUrl}/logo.png`;
     console.log('🖼️ Fetching logo from:', logoUrl);
     let logoImageSrc = null;
     try {
@@ -93,20 +94,25 @@ export async function GET(request) {
       console.error('❌ Error fetching logo:', error);
     }
 
-    // Check if user is a Merch Mogul (50M+ tokens) and fetch badge
-    // Token balance is already stored as actual token values (not wei) after migration
-    const tokenBalance = parseFloat(searchParams.get('tokenBalance') || '0');
-    const isMerchMogul = tokenBalance >= 50000000; // 50M+ tokens
+    console.log('🏆 Staking check:', { stakedBalance, isWhale, isMerchMogul });
     
-    console.log('🏆 Token balance check:', { tokenBalance, isMerchMogul });
-    
-    let merchMogulBadgeData = null;
-    if (isMerchMogul) {
-      const badgeUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}/MerchMogulBadge.png`;
+    // Fetch appropriate badge based on staking tier
+    let mogulBadgeData = null;
+    if (isWhale) {
+      const badgeUrl = `${baseUrl}/GoldVerifiedMerchMogulBadge.png`;
+      console.log('🐋 Fetching whale badge from:', badgeUrl);
+      try {
+        mogulBadgeData = await fetchImageAsDataUrl(badgeUrl);
+        console.log('✅ Whale badge fetch result:', mogulBadgeData ? 'SUCCESS' : 'FAILED');
+      } catch (error) {
+        console.error('❌ Error fetching whale badge:', error);
+      }
+    } else if (isMerchMogul) {
+      const badgeUrl = `${baseUrl}/VerifiedMerchMogulBadge.png`;
       console.log('🏆 Fetching Merch Mogul badge from:', badgeUrl);
       try {
-        merchMogulBadgeData = await fetchImageAsDataUrl(badgeUrl);
-        console.log('✅ Merch Mogul badge fetch result:', merchMogulBadgeData ? 'SUCCESS' : 'FAILED');
+        mogulBadgeData = await fetchImageAsDataUrl(badgeUrl);
+        console.log('✅ Merch Mogul badge fetch result:', mogulBadgeData ? 'SUCCESS' : 'FAILED');
       } catch (error) {
         console.error('❌ Error fetching Merch Mogul badge:', error);
       }
@@ -201,52 +207,50 @@ export async function GET(request) {
                   fontWeight: 'bold',
                 }}
               >
-                #{positionText} place
+                #{positionText} on MMM Leaderboard
               </div>
 
               <div
                 style={{
-                  fontSize: 28,
-                  color: '#cccccc',
+                  fontSize: 48,
+                  color: mojoTier.color,
                   lineHeight: 1.3,
+                  textAlign: 'left',
+                  display: 'flex',
+                  fontWeight: 'bold',
+                }}
+              >
+                {formattedMojo} MMM
+              </div>
+
+              <div
+                style={{
+                  fontSize: 24,
+                  color: '#9ca3af',
                   textAlign: 'left',
                   display: 'flex',
                 }}
               >
-                {formattedPoints} points
+                {mojoTier.name} Tier
               </div>
 
-              {/* Merch Mogul Badge */}
-              {merchMogulBadgeData && (
+              {/* Merch Mogul/Whale Badge */}
+              {mogulBadgeData && (
                 <div
                   style={{
-                    marginTop: '15px',
+                    marginTop: '10px',
                     display: 'flex',
                   }}
                 >
                   <img
-                    src={merchMogulBadgeData}
-                    alt="Merch Mogul"
+                    src={mogulBadgeData}
                     style={{
-                      width: '120px',
-                      height: '30px',
+                      height: '50px',
                       objectFit: 'contain',
                     }}
                   />
                 </div>
               )}
-
-              <div
-                style={{
-                  fontSize: 24,
-                  color: '#3eb489',
-                  textAlign: 'left',
-                  marginTop: '20px',
-                  display: 'flex',
-                }}
-              >
-                {multiplierDisplay ? `${multiplierDisplay} ${multiplierEmoji} Multiplier` : ''}
-              </div>
             </div>
           </div>
           
@@ -300,7 +304,8 @@ export async function GET(request) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#3eb489',
+            backgroundColor: '#000000',
+            backgroundImage: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%)',
             fontFamily: 'system-ui, -apple-system, sans-serif',
           }}
         >
@@ -322,7 +327,7 @@ export async function GET(request) {
               display: 'flex',
             }}
           >
-            Minted Merch Leaderboard
+            MMM Leaderboard
           </div>
           <div
             style={{
@@ -333,7 +338,7 @@ export async function GET(request) {
               display: 'flex',
             }}
           >
-            Pay with 1200+ tokens across 20+ chains ✨
+            Minted Merch Mojo Rankings
           </div>
         </div>
       ),

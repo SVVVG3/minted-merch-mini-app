@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
-import { applyTokenMultiplier } from '@/lib/points';
 
 export async function generateMetadata({ searchParams }) {
   try {
@@ -9,33 +8,34 @@ export async function generateMetadata({ searchParams }) {
     
     console.log('🏆 generateMetadata called with searchParams:', resolvedSearchParams);
     
-    const category = resolvedSearchParams?.category || 'points';
     const userFid = resolvedSearchParams?.user;
     const cacheBust = resolvedSearchParams?.t || Date.now();
 
-    console.log('📋 Leaderboard params:', { category, userFid, cacheBust });
+    console.log('📋 Leaderboard params:', { userFid, cacheBust });
+
+    const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
 
     if (!userFid) {
       // Default metadata for general leaderboard
       return {
-        title: 'Minted Merch Leaderboard',
-        description: 'Check out the top performers on Minted Merch! Shop & earn points with USDC on Base.',
+        title: 'MMM Leaderboard',
+        description: 'Check out the top Minted Merch Mojo scores! Boost your MMM by staking, shopping, and staying active.',
         openGraph: {
-          title: 'Minted Merch Leaderboard 🏆',
-          description: 'Check out the top performers on Minted Merch! Shop & earn points with USDC on Base.',
-          images: ['/api/og/leaderboard?title=Leaderboard&category=' + category + '&t=' + cacheBust],
+          title: 'MMM Leaderboard 🏆',
+          description: 'Check out the top Minted Merch Mojo scores! Boost your MMM by staking, shopping, and staying active.',
+          images: [`${baseUrl}/api/og/leaderboard?t=${cacheBust}`],
         },
         other: {
           'fc:frame': JSON.stringify({
             version: "next",
-            imageUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/og/leaderboard?title=Leaderboard&category=${category}&t=${cacheBust}`,
+            imageUrl: `${baseUrl}/api/og/leaderboard?t=${cacheBust}`,
             button: {
-              title: `View ${category === 'points' ? 'Points' : category === 'holders' ? 'Holders' : category === 'purchases' ? 'Purchases' : 'Streaks'} Leaderboard 🏆`,
+              title: `View MMM Leaderboard 🏆`,
               action: {
                 type: "launch_frame",
-                url: process.env.NEXT_PUBLIC_BASE_URL || 'https://app.mintedmerch.shop',
+                url: baseUrl,
                 name: "Minted Merch Shop",
-                splashImageUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/splash.png`,
+                splashImageUrl: `${baseUrl}/splash.png`,
                 splashBackgroundColor: "#000000"
               }
             }
@@ -44,126 +44,56 @@ export async function generateMetadata({ searchParams }) {
       };
     }
 
-    // Get user data for personalized metadata
+    // Get user data for personalized metadata from profiles table
     const { data: userData, error: userError } = await supabaseAdmin
-      .from('user_leaderboard')
-      .select(`
-        *,
-        profiles!user_fid (
-          username,
-          display_name,
-          pfp_url,
-          token_balance
-        )
-      `)
-      .eq('user_fid', parseInt(userFid))
+      .from('profiles')
+      .select('fid, username, display_name, pfp_url, mojo_score, staked_balance')
+      .eq('fid', parseInt(userFid))
       .single();
 
     console.log('🔍 User data query result:', { userData, userError });
-    console.log('🔍 User FID being queried:', parseInt(userFid));
 
     if (userError || !userData) {
       console.error('❌ Error fetching user data:', userError);
-      console.log('❌ No user data found for FID:', userFid);
       return {
-        title: 'Minted Merch Leaderboard',
-        description: 'Check out the leaderboard on Minted Merch!',
+        title: 'MMM Leaderboard',
+        description: 'Check out the MMM leaderboard on Minted Merch!',
       };
     }
 
-    // Apply token multiplier to user's points
-    const tokenBalance = userData.profiles?.token_balance || 0;
-    const basePoints = userData.total_points || 0;
-    const multiplierResult = applyTokenMultiplier(basePoints, tokenBalance);
+    const mojoScore = userData.mojo_score || 0;
+    const stakedBalance = userData.staked_balance || 0;
 
-    // Get user's position by querying the database directly (no API call needed)
-    // Fetch all users and calculate their multiplied points to determine accurate ranking
-    const { data: allUsers, error: leaderboardError } = await supabaseAdmin
-      .from('user_leaderboard')
-      .select(`
-        user_fid,
-        total_points,
-        profiles!user_fid (
-          token_balance
-        )
-      `)
-      .order('total_points', { ascending: false });
+    // Get user's position by counting users with higher mojo scores
+    const { count, error: countError } = await supabaseAdmin
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .gt('mojo_score', mojoScore);
 
-    console.log('🔍 Fetched leaderboard data for position calculation:', { 
-      totalUsers: allUsers?.length, 
-      error: leaderboardError 
-    });
+    const position = countError ? 1 : (count || 0) + 1;
 
-    // Calculate multiplied points for all users and sort
-    let position = 1;
-    if (allUsers && !leaderboardError) {
-      const usersWithMultipliers = allUsers.map(user => {
-        const userTokenBalance = user.profiles?.token_balance || 0;
-        const userBasePoints = user.total_points || 0;
-        const userMultiplierResult = applyTokenMultiplier(userBasePoints, userTokenBalance);
-        return {
-          user_fid: user.user_fid,
-          multipliedPoints: userMultiplierResult.multipliedPoints
-        };
-      });
-
-      // Sort by multiplied points (descending)
-      usersWithMultipliers.sort((a, b) => b.multipliedPoints - a.multipliedPoints);
-
-      // Find current user's position
-      const userIndex = usersWithMultipliers.findIndex(user => user.user_fid === parseInt(userFid));
-      position = userIndex >= 0 ? userIndex + 1 : 1;
-
-      console.log('🎯 Position calculation complete:', { 
-        userFid, 
-        position, 
-        totalUsers: usersWithMultipliers.length,
-        userMultipliedPoints: multiplierResult.multipliedPoints
-      });
-    } else {
-      console.error('❌ Failed to fetch leaderboard data for position calculation');
-    }
+    console.log('🎯 Position calculation complete:', { userFid, position, mojoScore });
     
-    const username = userData.profiles?.display_name || userData.profiles?.username || `User ${userFid}`;
-    const pfpUrl = userData.profiles?.pfp_url;
-
-    console.log('🔍 Profile data extracted:', { username, pfpUrl, tokenBalance });
-    console.log('🔍 Multiplier result:', multiplierResult);
-    console.log('🔍 Position calculated:', position);
+    const username = userData.display_name || userData.username || `User ${userFid}`;
+    const pfpUrl = userData.pfp_url;
 
     // Build dynamic OG image URL
     const ogImageParams = new URLSearchParams({
       position: position.toString(),
-      points: multiplierResult.multipliedPoints.toString(),
+      mojo: mojoScore.toString(),
       username: username,
-      category: category,
-      multiplier: multiplierResult.multiplier.toString(),
-      tier: multiplierResult.tier,
-      tokenBalance: tokenBalance.toString(),
+      category: 'mojo',
+      staked: stakedBalance.toString(),
       t: cacheBust.toString()
     });
 
     if (pfpUrl) {
       ogImageParams.append('pfp', pfpUrl);
-      console.log('✅ Added pfp URL to OG params:', pfpUrl);
-    } else {
-      console.log('⚠️ No pfp URL available for user');
     }
 
-    console.log('🔍 Final OG image params:', ogImageParams.toString());
-
-    const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
     const dynamicImageUrl = `${baseUrl}/api/og/leaderboard?${ogImageParams}`;
     
     console.log('🖼️ Dynamic OG image URL:', dynamicImageUrl);
-
-    const categoryNames = {
-      'points': 'Points',
-      'streaks': 'Streaks', 
-      'purchases': 'Purchases',
-      'holders': '$MINTEDMERCH Holders'
-    };
-    const categoryName = categoryNames[category] || 'Points';
 
     const getPositionSuffix = (pos) => {
       const num = parseInt(pos);
@@ -179,14 +109,14 @@ export async function generateMetadata({ searchParams }) {
     };
 
     const positionText = getPositionSuffix(position);
-    const multiplierText = multiplierResult.multiplier > 1 ? ` (${multiplierResult.multiplier}x)` : '';
+    const formattedMojo = parseFloat(mojoScore).toFixed(2);
 
-    // Create Mini App frame embed (same format as products/collections)
+    // Create Mini App frame embed
     const frame = {
       version: "next",
       imageUrl: dynamicImageUrl,
       button: {
-        title: `View Leaderboard 🏆`,
+        title: `View MMM Leaderboard 🏆`,
         action: {
           type: "launch_frame",
           url: baseUrl,
@@ -198,30 +128,30 @@ export async function generateMetadata({ searchParams }) {
     };
 
     return {
-      title: `${username} - #${positionText} on Minted Merch Leaderboard`,
-      description: `${username} is ranked #${positionText} in ${categoryName} with ${multiplierResult.multipliedPoints.toLocaleString()} points${multiplierText}!`,
+      title: `${username} - #${positionText} on MMM Leaderboard`,
+      description: `${username} is ranked #${positionText} with a Minted Merch Mojo score of ${formattedMojo}!`,
       metadataBase: new URL(baseUrl),
       other: {
         'fc:frame': JSON.stringify(frame),
       },
       openGraph: {
-        title: `${username} - #${positionText} on Minted Merch Leaderboard 🏆`,
-        description: `${username} is ranked #${positionText} in ${categoryName} with ${multiplierResult.multipliedPoints.toLocaleString()} points${multiplierText}!`,
+        title: `${username} - #${positionText} on MMM Leaderboard 🏆`,
+        description: `${username} is ranked #${positionText} with a Minted Merch Mojo score of ${formattedMojo}!`,
         siteName: 'Minted Merch Shop',
         images: [
           {
             url: dynamicImageUrl,
             width: 1200,
-            height: 800,
-            alt: `${username} - #${positionText} on Minted Merch Leaderboard`,
+            height: 630,
+            alt: `${username} - #${positionText} on MMM Leaderboard`,
           },
         ],
         type: 'website',
       },
       twitter: {
         card: 'summary_large_image',
-        title: `${username} - #${positionText} on Minted Merch Leaderboard 🏆`,
-        description: `${username} is ranked #${positionText} in ${categoryName} with ${multiplierResult.multipliedPoints.toLocaleString()} points${multiplierText}!`,
+        title: `${username} - #${positionText} on MMM Leaderboard 🏆`,
+        description: `${username} is ranked #${positionText} with a Minted Merch Mojo score of ${formattedMojo}!`,
         images: [dynamicImageUrl],
       },
     };
@@ -229,8 +159,8 @@ export async function generateMetadata({ searchParams }) {
   } catch (error) {
     console.error('❌ Error in generateMetadata:', error);
     return {
-      title: 'Minted Merch Leaderboard',
-      description: 'Check out the leaderboard on Minted Merch!',
+      title: 'MMM Leaderboard',
+      description: 'Check out the MMM leaderboard on Minted Merch!',
     };
   }
 }
@@ -240,19 +170,19 @@ function LeaderboardContent() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-md mx-auto text-center">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">🏆 Leaderboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">MMM Leaderboard</h1>
           <p className="text-gray-600">
-            Check out the rankings and compete for the top spot!
+            Check out the top Minted Merch Mojo scores!
           </p>
         </div>
         
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
           <div className="text-6xl mb-4">🏆</div>
           <h2 className="text-xl font-semibold text-gray-800 mb-2">
-            Minted Merch Leaderboard
+            Minted Merch Mojo Leaderboard
           </h2>
           <p className="text-gray-600 mb-4">
-            Compete with other users and climb the rankings!
+            Boost your MMM by staking, shopping, and staying active!
           </p>
         </div>
 

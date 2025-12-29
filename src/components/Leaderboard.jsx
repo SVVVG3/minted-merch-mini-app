@@ -10,7 +10,7 @@ export function Leaderboard({ isVisible = true }) {
   const [userPosition, setUserPosition] = useState(null);
   const [userProfiles, setUserProfiles] = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  const [category, setCategory] = useState('points');
+  const [category, setCategory] = useState('mojo'); // MMM (Mojo) leaderboard only
   const [error, setError] = useState(null);
 
   // Get current user FID from either mini-app context or AuthKit
@@ -24,77 +24,35 @@ export function Leaderboard({ isVisible = true }) {
     if (!currentUserFid) return;
 
     try {
-      // Always fetch the user's POINTS leaderboard position for sharing, regardless of current category
-      let pointsPosition, points, multiplier, tier, username;
+      // Get user's MMM leaderboard position for sharing
+      let mojoPosition, mojoScore, username;
       
-      console.log('🔍 Share position debug - fetching points position for sharing');
+      console.log('🔍 Share position debug - fetching MMM position for sharing');
       
-      try {
-        // Fetch user's points leaderboard position specifically for sharing
-        const pointsParams = new URLSearchParams({
-          limit: '50',
-          category: 'points',
-          userFid: currentUserFid
-        });
+      // Use current userPosition if available
+      if (userPosition && userPosition.position) {
+        mojoPosition = userPosition.position;
+        mojoScore = userPosition.mojo_score || 0;
+        username = userPosition.username || userProfiles[currentUserFid]?.username || `User ${currentUserFid}`;
+        console.log('✅ Using current userPosition for sharing:', { mojoPosition, mojoScore, username });
+      } else {
+        // Try to find position in leaderboard data as fallback
+        const userInLeaderboard = leaderboardData.find(user => user.user_fid === parseInt(currentUserFid));
         
-        const pointsResponse = await fetch(`/api/points/leaderboard?${pointsParams}`);
-        const pointsResult = await pointsResponse.json();
-        
-        if (pointsResult.success && pointsResult.data.userPosition) {
-          const pointsUserPos = pointsResult.data.userPosition;
-          pointsPosition = pointsUserPos.position;
-          points = pointsUserPos.totalPoints || 0;
-          multiplier = pointsUserPos.tokenMultiplier || 1;
-          tier = pointsUserPos.tokenTier || 'none';
-          username = pointsUserPos.username || userProfiles[currentUserFid]?.username || `User ${currentUserFid}`;
-          console.log('✅ Using points leaderboard position for sharing:', { pointsPosition, points, multiplier, tier, username });
+        if (userInLeaderboard) {
+          const userIndex = leaderboardData.findIndex(user => user.user_fid === parseInt(currentUserFid));
+          mojoPosition = userIndex + 1;
+          mojoScore = userInLeaderboard.mojo_score || 0;
+          username = userProfiles[currentUserFid]?.username || userInLeaderboard.username || `User ${currentUserFid}`;
+          console.log('✅ Using leaderboard data as fallback:', { mojoPosition, mojoScore, username });
         } else {
-          throw new Error('Could not fetch points position');
-        }
-      } catch (error) {
-        console.log('⚠️ Could not fetch points position, falling back to current category data');
-        // Fallback to current userPosition if points fetch fails
-        if (userPosition && userPosition.position) {
-          pointsPosition = userPosition.position;
-          points = userPosition.totalPoints || 0;
-          multiplier = userPosition.tokenMultiplier || 1;
-          tier = userPosition.tokenTier || 'none';
-          username = userPosition.username || userProfiles[currentUserFid]?.username || `User ${currentUserFid}`;
-        } else {
-          // Try to find position in leaderboard data as fallback
-          const userInLeaderboard = leaderboardData.find(user => 
-            (category === 'holders' ? user.fid : user.user_fid) === parseInt(currentUserFid)
-          );
-          
-          if (userInLeaderboard) {
-            const userIndex = leaderboardData.findIndex(user => 
-              (category === 'holders' ? user.fid : user.user_fid) === parseInt(currentUserFid)
-            );
-            pointsPosition = userIndex + 1;
-            points = userInLeaderboard.total_points || 0;
-            multiplier = userInLeaderboard.token_multiplier || 1;
-            tier = userInLeaderboard.token_tier || 'none';
-            username = userProfiles[currentUserFid]?.username || userInLeaderboard.username || `User ${currentUserFid}`;
-            console.log('✅ Using leaderboard data as fallback:', { pointsPosition, points, multiplier, tier, username });
-          } else {
-            // Final fallback when user not found anywhere
-            pointsPosition = '?';
-            points = 0;
-            multiplier = 1;
-            tier = 'none';
-            username = userProfiles[currentUserFid]?.username || `User ${currentUserFid}`;
-            console.log('⚠️ Using final fallback - user not found in leaderboard');
-          }
+          // Final fallback when user not found anywhere
+          mojoPosition = '?';
+          mojoScore = 0;
+          username = userProfiles[currentUserFid]?.username || `User ${currentUserFid}`;
+          console.log('⚠️ Using final fallback - user not found in leaderboard');
         }
       }
-
-      const categoryNames = {
-        'points': 'Points',
-        'streaks': 'Streaks', 
-        'purchases': 'Purchases',
-        'holders': '$MINTEDMERCH Holders'
-      };
-      const categoryName = categoryNames[category] || 'Points';
       
       const getPositionSuffix = (pos) => {
         const num = parseInt(pos);
@@ -109,24 +67,24 @@ export function Leaderboard({ isVisible = true }) {
         return `${num}th`;
       };
 
-      const positionText = getPositionSuffix(pointsPosition);
+      const positionText = getPositionSuffix(mojoPosition);
       
       // Get user profile data for share image
       const userProfile = userProfiles[currentUserFid];
       const tokenBalance = userPosition?.token_balance || 0;
+      const stakedBalance = userPosition?.staked_balance || 0;
       // Use fresh Farcaster pfp if available, otherwise fall back to database
       const freshPfp = getPfpUrl() || userProfile?.pfp_url;
       
       // Use the new utility function to handle sharing (works in both mini-app and non-mini-app)
       await shareLeaderboardPosition({
-        position: pointsPosition,
-        totalPoints: points,
-        category: 'points',
+        position: mojoPosition,
+        mojoScore: mojoScore,
+        category: 'mojo',
         username,
-        multiplier,
-        tier,
         pfp: freshPfp,
         tokenBalance,
+        stakedBalance,
         fid: currentUserFid,
         isInFarcaster,
       });
@@ -135,7 +93,7 @@ export function Leaderboard({ isVisible = true }) {
       console.error('Error sharing leaderboard position:', error);
       // Fallback to copying link
       try {
-        const fallbackUrl = `${window.location.origin}/leaderboard?category=points&user=${currentUserFid}&t=${Date.now()}`;
+        const fallbackUrl = `${window.location.origin}/leaderboard?category=mojo&user=${currentUserFid}&t=${Date.now()}`;
         await navigator.clipboard.writeText(fallbackUrl);
         alert('Link copied to clipboard!');
       } catch (err) {
@@ -343,8 +301,8 @@ export function Leaderboard({ isVisible = true }) {
     <div className="bg-white rounded-lg shadow-lg max-w-2xl mx-auto">
       {/* Header */}
       <div className="border-b border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-800">🏆 Leaderboard</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-gray-800">MMM Leaderboard</h2>
           
           <div className="flex items-center gap-4">
             {/* Share Button - Always show for logged in users */}
@@ -363,25 +321,6 @@ export function Leaderboard({ isVisible = true }) {
             
             {/* Close button placeholder for spacing */}
             <div className="w-12 h-12"></div>
-          </div>
-        </div>
-        
-        {/* Category Dropdown */}
-        <div className="relative">
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-transparent appearance-none cursor-pointer"
-          >
-            <option value="points">Points</option>
-            <option value="holders">$mintedmerch Holders</option>
-            <option value="purchases">Purchases</option>
-            <option value="streaks">Streaks</option>
-          </select>
-          <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
           </div>
         </div>
       </div>
@@ -473,41 +412,10 @@ export function Leaderboard({ isVisible = true }) {
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-green-600">
-                      {category === 'points' && (userPosition.totalPoints || 0).toLocaleString()}
-                      {category === 'streaks' && (userPosition.checkin_streak || 0)}
-                      {category === 'purchases' && (userPosition.pointsFromPurchases || 0).toLocaleString()}
-                      {category === 'holders' && userPosition.token_balance_formatted}
+                      {parseFloat(userPosition.mojo_score || 0).toFixed(2)}
                     </div>
                     <div className="text-sm text-gray-500">
-                      {category === 'points' && (
-                        <div className="flex flex-col items-end">
-                          <span>points</span>
-                          {userPosition.tokenMultiplier && userPosition.tokenMultiplier > 1 && (
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                              userPosition.tokenMultiplier === 5 
-                                ? 'bg-purple-100 text-purple-700' 
-                                : 'bg-blue-100 text-blue-700'
-                            }`}>
-                              {userPosition.tokenMultiplier}x {userPosition.tokenTier === 'legendary' ? '🏆' : '⭐'}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      {category === 'streaks' && ((userPosition.checkin_streak || 0) === 1 ? 'day' : 'days')}
-                      {category === 'purchases' && (
-                        <div className="flex flex-col items-end">
-                          <span>points</span>
-                          {userPosition.tokenMultiplier && userPosition.tokenMultiplier > 1 && (
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                              userPosition.tokenMultiplier === 5 
-                                ? 'bg-purple-100 text-purple-700' 
-                                : 'bg-blue-100 text-blue-700'
-                            }`}>
-                              {userPosition.tokenMultiplier}x {userPosition.tokenTier === 'legendary' ? '🏆' : '⭐'}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      <span>MMM</span>
                     </div>
                   </div>
                 </div>
@@ -584,44 +492,13 @@ export function Leaderboard({ isVisible = true }) {
                     </div>
                   </div>
                   
-                  {/* Category-specific Display */}
+                  {/* MMM Score Display */}
                   <div className="text-right">
                     <div className={`font-bold ${isCurrentUser ? 'text-green-600' : 'text-gray-800'}`}>
-                      {category === 'points' && (user.total_points || 0).toLocaleString()}
-                      {category === 'streaks' && (user.checkin_streak || 0)}
-                      {category === 'purchases' && (user.points_from_purchases || 0).toLocaleString()}
-                      {category === 'holders' && user.token_balance_formatted}
+                      {parseFloat(user.mojo_score || 0).toFixed(2)}
                     </div>
                     <div className="text-sm text-gray-500">
-                      {category === 'points' && (
-                        <div className="flex flex-col items-end">
-                          <span>points</span>
-                          {user.token_multiplier && user.token_multiplier > 1 && (
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                              user.token_multiplier === 5 
-                                ? 'bg-purple-100 text-purple-700' 
-                                : 'bg-blue-100 text-blue-700'
-                            }`}>
-                              {user.token_multiplier}x {user.token_tier === 'legendary' ? '🏆' : '⭐'}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      {category === 'streaks' && ((user.checkin_streak || 0) === 1 ? 'day' : 'days')}
-                      {category === 'purchases' && (
-                        <div className="flex flex-col items-end">
-                          <span>points</span>
-                          {user.token_multiplier && user.token_multiplier > 1 && (
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                              user.token_multiplier === 5 
-                                ? 'bg-purple-100 text-purple-700' 
-                                : 'bg-blue-100 text-blue-700'
-                            }`}>
-                              {user.token_multiplier}x {user.token_tier === 'legendary' ? '🏆' : '⭐'}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      <span>MMM</span>
                     </div>
                   </div>
                 </div>
@@ -633,7 +510,7 @@ export function Leaderboard({ isVisible = true }) {
         {/* Footer Info */}
         {leaderboardData.length > 0 && (
           <div className="text-center mt-6 text-sm text-gray-500">
-            Showing top {leaderboardData.length} players • Ranked by {formatCategory(category)}
+            Showing top {leaderboardData.length} users • Ranked by Minted Merch Mojo
           </div>
         )}
       </div>

@@ -113,45 +113,43 @@ export async function shareToFarcaster({ text, embeds = [], isInFarcaster = fals
  * Share leaderboard position to Farcaster
  * @param {Object} options - Share options
  * @param {number} options.position - User's leaderboard position
- * @param {number} options.totalPoints - User's total points
+ * @param {number} [options.mojoScore] - User's Mojo score
  * @param {string} options.category - Leaderboard category
  * @param {string} [options.username] - User's username
- * @param {number} [options.multiplier] - User's token multiplier
- * @param {string} [options.tier] - User's tier (legendary, elite, none)
  * @param {string} [options.pfp] - User's profile picture URL
  * @param {number} [options.tokenBalance] - User's token balance
+ * @param {number} [options.stakedBalance] - User's staked balance
  * @param {number} [options.fid] - User's FID
  * @param {boolean} [options.isInFarcaster] - Whether user is in mini app
  * @returns {Promise<boolean>}
  */
 export async function shareLeaderboardPosition({ 
   position, 
-  totalPoints, 
-  category, 
+  mojoScore = 0,
+  category = 'mojo', 
   username = 'Anonymous',
-  multiplier = 1,
-  tier = 'none',
   pfp = null,
   tokenBalance = 0,
+  stakedBalance = 0,
   fid = null,
   isInFarcaster = false 
 }) {
   const positionText = position === 1 ? '1st' : position === 2 ? '2nd' : position === 3 ? '3rd' : `${position}th`;
   
-  // Build leaderboard page URL with user FID and category
-  // This will trigger the generateMetadata in /leaderboard/page.js which creates the mini app embed
+  // Build leaderboard page URL with user FID
   const leaderboardParams = new URLSearchParams({
     user: fid.toString(),
-    category: category,
+    category: 'mojo',
     t: Date.now().toString() // Cache busting
   });
   
   const leaderboardUrl = `${window.location.origin}/leaderboard?${leaderboardParams.toString()}`;
   
   console.log('🔗 Sharing leaderboard URL:', leaderboardUrl);
-  console.log('📊 Leaderboard share data:', { position, totalPoints, username, multiplier, tier, pfp, tokenBalance, fid });
+  console.log('📊 Leaderboard share data:', { position, mojoScore, username, pfp, tokenBalance, stakedBalance, fid });
   
-  const shareText = `I'm currently ranked ${positionText} place on the @mintedmerch mini app leaderboard!\n\nSpin the wheel daily (for free) & shop using 1200+ coins across 20+ chains to earn more points on /mintedmerch. The more $mintedmerch you hold, the higher your multiplier!`;
+  const formattedMojo = parseFloat(mojoScore).toFixed(2);
+  const shareText = `I'm ranked ${positionText} on the Minted Merch Mojo leaderboard with a score of ${formattedMojo}!\n\nBoost your Mojo by staking $mintedmerch, shopping, and staying active on /mintedmerch 👇`;
   
   return shareToFarcaster({
     text: shareText,
