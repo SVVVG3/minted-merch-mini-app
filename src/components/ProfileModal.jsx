@@ -602,47 +602,55 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
           
           {/* User Info - Compact Layout */}
           <div className="flex items-start gap-3">
-            {/* Profile Image with MMM Score underneath */}
-            <div className="flex flex-col items-center gap-1.5">
-              {user?.pfpUrl && (
-                <img 
-                  src={user.pfpUrl} 
-                  alt={user.displayName || user.username}
-                  className="w-14 h-14 rounded-full border-2 border-white/20 shadow-lg"
-                />
-              )}
-              {/* MMM Score - Under Profile Image */}
-              {profileData?.mojo_score !== null && profileData?.mojo_score !== undefined && (
-                <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs font-medium whitespace-nowrap">
-                  MMM: {parseFloat(profileData.mojo_score).toFixed(2)}
-                </span>
-              )}
-            </div>
+            {/* Profile Image */}
+            {user?.pfpUrl && (
+              <img 
+                src={user.pfpUrl} 
+                alt={user.displayName || user.username}
+                className="w-14 h-14 rounded-full border-2 border-white/20 shadow-lg flex-shrink-0"
+              />
+            )}
             
             {/* User Details */}
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-bold leading-tight truncate pr-8">
                 {user?.displayName || user?.username}
               </h3>
-              <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                <span className="text-white/80 text-xs">FID: {user?.fid}</span>
-                {/* Share Button - Next to FID */}
+              <p className="text-white/80 text-xs mt-0.5">FID: {user?.fid}</p>
+              {/* All 3 scores + Share button on one line */}
+              <div className="flex flex-wrap items-center gap-1 mt-1">
+                {profileData?.mojo_score !== null && profileData?.mojo_score !== undefined && (
+                  <span className="px-1.5 py-0.5 bg-white/20 rounded-full text-xs font-medium whitespace-nowrap">
+                    MMM: {parseFloat(profileData.mojo_score).toFixed(2)}
+                  </span>
+                )}
+                {profileData?.neynar_score !== null && profileData?.neynar_score !== undefined && (
+                  <span className="px-1.5 py-0.5 bg-white/20 rounded-full text-xs text-white/80 whitespace-nowrap">
+                    Neynar: {parseFloat(profileData.neynar_score).toFixed(2)}
+                  </span>
+                )}
+                {profileData?.quotient_score !== null && profileData?.quotient_score !== undefined && (
+                  <span className="px-1.5 py-0.5 bg-white/20 rounded-full text-xs text-white/80 whitespace-nowrap">
+                    Quotient: {parseFloat(profileData.quotient_score).toFixed(2)}
+                  </span>
+                )}
+                {/* Share Button */}
                 {(profileData?.neynar_score || profileData?.quotient_score) && (
                   <div className="relative" ref={shareDropdownRef}>
                     <button
                       onClick={() => setShowShareDropdown(!showShareDropdown)}
-                      className="flex items-center gap-1.5 px-2.5 py-1 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white rounded-md transition-colors text-sm font-medium"
+                      className="flex items-center gap-1 px-2 py-0.5 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white rounded-md transition-colors text-xs font-medium"
                       title="Share"
                     >
                       <span>Share</span>
-                      <svg className="w-3.5 h-3.5" viewBox="0 0 520 457" fill="currentColor">
+                      <svg className="w-3 h-3" viewBox="0 0 520 457" fill="currentColor">
                         <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
                       </svg>
                     </button>
                     
                     {/* Share Dropdown */}
                     {showShareDropdown && (
-                      <div className="absolute left-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
+                      <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
                         <button
                           onClick={() => handleShareScores('copy')}
                           className="w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
@@ -675,18 +683,6 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                {profileData?.neynar_score !== null && profileData?.neynar_score !== undefined && (
-                  <span className="px-1.5 py-0.5 bg-white/20 rounded-full text-xs text-white/80">
-                    Neynar: {parseFloat(profileData.neynar_score).toFixed(2)}
-                  </span>
-                )}
-                {profileData?.quotient_score !== null && profileData?.quotient_score !== undefined && (
-                  <span className="px-1.5 py-0.5 bg-white/20 rounded-full text-xs text-white/80">
-                    Quotient: {parseFloat(profileData.quotient_score).toFixed(2)}
-                  </span>
                 )}
               </div>
               <p className="text-white/90 text-base font-semibold mt-1">Profile & Order History</p>
