@@ -444,7 +444,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                             <div className="bg-white p-2 rounded">
                               <span className="text-gray-500">Missions (10%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.missions?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.missions?.weighted || 0).toFixed(2)}</p>
-                              <p className="text-gray-400">{userData.mojo_breakdown.breakdown?.missions?.raw || 0}/25</p>
+                              <p className="text-gray-400">{userData.mojo_breakdown.breakdown?.missions?.raw || 0}/35</p>
                             </div>
                             <div className="bg-white p-2 rounded">
                               <span className="text-gray-500">Mints (3%)</span>

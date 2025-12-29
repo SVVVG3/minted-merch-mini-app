@@ -29,7 +29,7 @@ const STAKING_MAX = 1_000_000_000; // 1B tokens for 1.0
 const HOLDINGS_MAX = 1_000_000_000; // 1B tokens for 1.0
 const PURCHASE_MAX = 500; // $500 for 1.0
 const CHECKIN_DAYS = 100; // 100 days for 1.0
-const MISSIONS_MAX = 25; // 25 approved missions for 1.0
+const MISSIONS_MAX = 35; // 35 approved missions for 1.0
 const MINTS_MAX = 30_000; // 30,000 mint points for 1.0
 
 // Key thresholds for tiered scaling (staking/holdings)
@@ -53,6 +53,13 @@ const MINTS_TIERS = {
   active: 10_000,   // 10K points → 0.40
   dedicated: 20_000, // 20K points → 0.80
   max: 30_000,      // 30K points → 1.0
+};
+
+// Missions tier thresholds
+const MISSIONS_TIERS = {
+  active: 15,      // 15 missions → 0.40
+  dedicated: 25,   // 25 missions → 0.80
+  max: 35,         // 35 missions → 1.0
 };
 
 /**
@@ -123,13 +130,25 @@ function calculateCheckInScore(checkInCount) {
 }
 
 /**
- * Calculate missions score
+ * Calculate missions score with tier boosts
  * Based on approved mission submissions
- * 0 missions = 0, 50 missions = 1.0
+ * 15 missions → 0.40, 25 missions → 0.80, 35 missions → 1.0
  */
 function calculateMissionsScore(approvedMissions) {
   if (!approvedMissions || approvedMissions <= 0) return 0;
-  return Math.min(1, approvedMissions / MISSIONS_MAX);
+  if (approvedMissions >= MISSIONS_MAX) return 1.0;
+  
+  // Linear base score
+  let score = approvedMissions / MISSIONS_MAX;
+  
+  // Apply tier bumps
+  if (approvedMissions >= MISSIONS_TIERS.dedicated) {
+    score = Math.max(score, 0.80);
+  } else if (approvedMissions >= MISSIONS_TIERS.active) {
+    score = Math.max(score, 0.40);
+  }
+  
+  return Math.min(1, score);
 }
 
 /**
