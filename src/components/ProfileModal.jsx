@@ -181,7 +181,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
     // Build scores text with all scores
     let scoresText = '';
     if (profileData?.mojo_score) {
-      scoresText += `Mojo: ${parseFloat(profileData.mojo_score).toFixed(2)}`;
+      scoresText += `MMM: ${parseFloat(profileData.mojo_score).toFixed(2)}`;
     }
     if (profileData?.neynar_score) {
       scoresText += scoresText ? ' | ' : '';
@@ -192,7 +192,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
       scoresText += `Quotient: ${parseFloat(profileData.quotient_score).toFixed(2)}`;
     }
     
-    const shareText = `Just checked my scores:\n\n${scoresText}\n\nSee yours on the $mintedmerch mini app 👇`;
+    const shareText = `Just checked my Minted Merch Mojo & social scores:\n\n${scoresText}\n\nSee yours on the $mintedmerch mini app 👇`;
     
     if (method === 'copy') {
       try {
@@ -617,7 +617,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                 <span>FID: {user?.fid}</span>
                 {profileData?.mojo_score !== null && profileData?.mojo_score !== undefined && (
                   <span className="px-1.5 py-0.5 bg-white/20 rounded-full text-xs font-medium">
-                    Mojo: {parseFloat(profileData.mojo_score).toFixed(2)}
+                    MMM: {parseFloat(profileData.mojo_score).toFixed(2)}
                   </span>
                 )}
               </p>

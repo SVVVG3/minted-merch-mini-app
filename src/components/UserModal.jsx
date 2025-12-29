@@ -390,11 +390,11 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="text-lg font-semibold mb-3">User Quality & Memberships</h3>
                     
-                    {/* Mojo Score with Breakdown */}
+                    {/* Minted Merch Mojo with Breakdown */}
                     <div className="mb-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <label className="text-sm font-medium text-gray-600">Mojo Score</label>
+                          <label className="text-sm font-medium text-gray-600">Minted Merch Mojo</label>
                           <p className={`text-2xl font-bold ${getMojoColor(parseFloat(userData.mojo_score) || 0)}`}>
                             {userData.mojo_score !== null && userData.mojo_score !== undefined 
                               ? parseFloat(userData.mojo_score).toFixed(2) 

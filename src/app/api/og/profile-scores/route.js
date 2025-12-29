@@ -193,7 +193,7 @@ export async function GET(request) {
                   }}
                 >
                   <span style={{ color: '#9ca3af', fontSize: '18px', marginBottom: '6px', display: 'flex' }}>
-                    Mojo
+                    MMM
                   </span>
                   <span
                     style={{
