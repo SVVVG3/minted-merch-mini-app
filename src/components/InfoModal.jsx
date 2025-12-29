@@ -10,7 +10,7 @@ export function InfoModal({ isOpen, onClose }) {
   const [isMerchMogul, setIsMerchMogul] = useState(false);
   const [isCheckingBalance, setIsCheckingBalance] = useState(true);
 
-  // Check if user is a Merch Mogul (50M+ tokens)
+  // Check if user is a Merch Mogul (50M+ staked)
   useEffect(() => {
     const checkMerchMogulStatus = async () => {
       if (!user?.fid || !isOpen) {
@@ -42,11 +42,11 @@ export function InfoModal({ isOpen, onClose }) {
         
         const profileData = await profileResponse.json();
         
-        if (profileData.success && profileData.data?.token_balance) {
-          const tokenBalance = parseFloat(profileData.data.token_balance);
-          const isMogul = tokenBalance >= 50000000; // 50M tokens required
+        if (profileData.success && profileData.data?.staked_balance) {
+          const stakedBalance = parseFloat(profileData.data.staked_balance);
+          const isMogul = stakedBalance >= 50000000; // 50M staked required
           setIsMerchMogul(isMogul);
-          console.log(`💼 Merch Mogul Status: ${isMogul} (Balance: ${tokenBalance.toLocaleString()} tokens)`);
+          console.log(`💼 Merch Mogul Status: ${isMogul} (Staked: ${stakedBalance.toLocaleString()} tokens)`);
         } else {
           setIsMerchMogul(false);
         }
@@ -175,12 +175,12 @@ export function InfoModal({ isOpen, onClose }) {
               <p>1. <strong>Check-in Daily:</strong> Spin the wheel to earn points, move up the leaderboard, and be entered into random raffles for $mintedmerch, gift cards, and FREE merch!</p>
               <p>2. <strong>Spin The Wheel Often:</strong> Earn daily streak bonuses at 3, 7, and 30+ days!</p>
               <p>3. <strong>Buy Your Favorite Merch:</strong> Earn 100 points for every 1 USDC spent.</p>
-              <p>4. <strong>Hold $mintedmerch:</strong> Earn multipliers for holding 50M, 200M, and 1B+ tokens.</p>
+              <p>4. <strong>Stake $mintedmerch:</strong> Earn multipliers for staking 50M, 200M, and 1B+ tokens.</p>
               <p>5. <strong>Add The Mini App:</strong> Receive daily check-in reminders, new product alerts, order confirmations, shipping alerts, and 15% off your first order!</p>
             </div>
           </div>
 
-          {/* Merch Mogul Section - Conditional based on token holdings */}
+          {/* Merch Mogul Section - Conditional based on staked balance */}
           {!isCheckingBalance && isMerchMogul ? (
             // For Merch Moguls: Show action buttons
             <div className="bg-gradient-to-r from-purple-50 to-green-50 rounded-lg p-4 border border-purple-200">
@@ -248,7 +248,7 @@ export function InfoModal({ isOpen, onClose }) {
 
               <div className="space-y-3 text-sm text-gray-700">
                 <p>
-                  Hold <span className="font-bold text-green-600">50M+ $MINTEDMERCH tokens</span> and become a <span className="font-bold text-purple-600">Merch Mogul</span>!
+                  Stake <span className="font-bold text-green-600">50M+ $MINTEDMERCH tokens</span> and become a <span className="font-bold text-purple-600">Merch Mogul</span>!
                 </p>
                 
                 {/* Benefits */}
@@ -257,7 +257,7 @@ export function InfoModal({ isOpen, onClose }) {
                   <ul className="text-sm text-gray-600 space-y-1">
                     <li>• Exclusive collab partner access</li>
                     <li>• Create/order custom merch</li>
-                    <li>• 15% off store wide while you hold</li>
+                    <li>• 15% off store wide while you stake</li>
                     <li>• Merch Moguls group chat access</li>
                   </ul>
                 </div>

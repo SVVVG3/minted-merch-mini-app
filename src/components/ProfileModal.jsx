@@ -693,6 +693,24 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               )}
             </div>
             
+            {/* Merch Mogul Badge - based on staked amount */}
+            {profileData?.staked_balance && parseFloat(profileData.staked_balance) >= 50000000 && (
+              <div className="flex justify-center mt-2">
+                <img 
+                  src={parseFloat(profileData.staked_balance) >= 200000000 
+                    ? "/GoldVerifiedMerchMogulBadge.png" 
+                    : "/VerifiedMerchMogulBadge.png"
+                  }
+                  alt={parseFloat(profileData.staked_balance) >= 200000000 ? "Whale" : "Merch Mogul"}
+                  className="h-6"
+                  title={parseFloat(profileData.staked_balance) >= 200000000 
+                    ? "Whale - 200M+ $MINTEDMERCH staked" 
+                    : "Merch Mogul - 50M+ $MINTEDMERCH staked"
+                  }
+                />
+              </div>
+            )}
+            
             <p className="text-white/90 text-xl font-semibold mt-2">Profile & Order History</p>
           </div>
         </div>
@@ -906,7 +924,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               )}
 
               {/* Status Card */}
-              {profileData.token_balance && parseFloat(profileData.token_balance) >= 50000000 ? (
+              {profileData.staked_balance && parseFloat(profileData.staked_balance) >= 50000000 ? (
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-5 shadow-sm">
                   <div className="flex items-center space-x-2 mb-3">
                     <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
@@ -914,7 +932,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                     </div>
                     <div>
                       <h4 className="font-bold text-purple-800">Merch Mogul Status</h4>
-                      <p className="text-xs text-purple-600">Holding 50M+ $mintedmerch</p>
+                      <p className="text-xs text-purple-600">Staking 50M+ $mintedmerch</p>
                     </div>
                   </div>
                   <div className="bg-white/50 rounded-lg p-3">
@@ -942,7 +960,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                     </div>
                   </div>
                   <div className="bg-white/50 rounded-lg p-3">
-                    <p className="text-gray-700 font-medium mb-2">Hold 50M+ tokens to unlock:</p>
+                    <p className="text-gray-700 font-medium mb-2">Stake 50M+ tokens to unlock:</p>
                     <div className="text-sm text-gray-700 mb-3">
                       <div className="flex flex-wrap items-center gap-1">
                         <span>• 15% off store wide</span>
@@ -953,8 +971,8 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                       </div>
                     </div>
                     <div className="text-xs text-gray-600 bg-gray-100 rounded-lg p-2">
-                      Current: {profileData.token_balance ? 
-                        `${formatTokenBalance(profileData.token_balance)} tokens` : 
+                      Currently staked: {profileData.staked_balance ? 
+                        `${formatTokenBalance(profileData.staked_balance)} tokens` : 
                         '0 tokens'
                       }
                     </div>
