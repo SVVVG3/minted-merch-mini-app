@@ -750,7 +750,7 @@ export default function DailySpinClient() {
             <div className="space-y-2">
               {status.canClaim === false ? (
                 <>
-                  {/* Low Neynar score - show donate option */}
+                  {/* Low Mojo score - show Mojo boost option */}
                   <button
                     onClick={() => handleClaim(true)}
                     disabled={isClaiming || !isConnected}
@@ -760,20 +760,20 @@ export default function DailySpinClient() {
                     {isClaiming && isDonating ? (
                       <span className="flex items-center justify-center gap-2">
                         <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                        Donating {currentClaimIndex + 1}/{claimsData.length}...
+                        Processing {currentClaimIndex + 1}/{claimsData.length}...
                       </span>
                     ) : !isConnected ? (
-                      'Connect Wallet to Donate'
+                      'Connect Wallet'
                     ) : (
-                      'Donate to Community Pool'
+                      'Claim Mojo Boost'
                     )}
                   </button>
                   <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-3 text-center">
                     <p className="text-yellow-400 text-sm">
-                      ⚠️ Neynar score of 0.6+ required to claim.
+                      ⚠️ Mojo score of 0.2+ required to claim tokens.
                     </p>
                     <p className="text-gray-400 text-xs mt-1">
-                      Your score: {status.neynarScore} - Donate your winnings to boost your Mojo!
+                      Your score: {status.mojoScore} - Claim your Mojo boost & try again tomorrow!
                     </p>
                   </div>
                 </>
@@ -848,7 +848,7 @@ export default function DailySpinClient() {
               Recent Winnings
               {claimSuccess && (
                 <span className="ml-2 text-sm font-normal text-green-400">
-                  ({wasDonation ? 'Donated' : 'Claimed'})
+                  ({wasDonation ? 'Mojo Boosted' : 'Claimed'})
                 </span>
               )}
             </h3>

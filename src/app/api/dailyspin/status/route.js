@@ -196,7 +196,7 @@ export async function GET(request) {
         mojoScore: parseFloat(mojoScore).toFixed(2),
         mojoTier,
         neynarScore: parseFloat(neynarScore).toFixed(2),
-        canClaim: neynarScore >= 0.6, // Require 0.6+ Neynar score to claim
+        canClaim: mojoScore >= 0.2, // Require 0.2+ Mojo score to claim
         dailyAllocation,
         spinsUsedToday: usedSpins,
         spinsRemaining: remainingSpins,
