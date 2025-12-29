@@ -192,7 +192,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
       scoresText += `Quotient: ${parseFloat(profileData.quotient_score).toFixed(2)}`;
     }
     
-    const shareText = `Just checked my Minted Merch Mojo & social scores:\n\n${scoresText}\n\nSee yours on the $mintedmerch mini app 👇`;
+    const shareText = `Just checked my Minted Merch Mojo, Neynar, & Quotient scores on /mintedmerch:\n\n${scoresText}\n\nSee yours 👇`;
     
     if (method === 'copy') {
       try {
