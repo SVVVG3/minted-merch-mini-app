@@ -5,7 +5,7 @@ export async function generateMetadata() {
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
   
   const title = '🎯 Minted Merch Missions';
-  const description = 'Complete missions to earn $mintedmerch tokens! Available to Merch Moguls (50M+ tokens) and stakers (1M+ staked).';
+  const description = 'Complete missions to earn $mintedmerch tokens! Available to Merch Moguls (50M+ tokens) and stakers (10M+ staked).';
   
   // Use dynamic OG image API for properly sized embed
   const imageUrl = `${baseUrl}/api/og/mogul-missions`;

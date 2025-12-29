@@ -201,7 +201,7 @@ export default function MissionsClient() {
           <p className="text-gray-600 mb-6">
             Hold <span className="font-bold text-[#3eb489]">50M+ $mintedmerch</span> tokens<br />
             <span className="text-gray-500">or</span><br />
-            Stake <span className="font-bold text-[#3eb489]">1M+ $mintedmerch</span> tokens
+            Stake <span className="font-bold text-[#3eb489]">10M+ $mintedmerch</span> tokens
           </p>
           <div className="bg-gray-100 rounded-xl p-4 mb-6">
             <p className="text-sm text-gray-500">Your Balance</p>
@@ -214,7 +214,7 @@ export default function MissionsClient() {
             }}
             className="w-full bg-[#3eb489] text-white py-3 px-6 rounded-xl font-semibold hover:bg-[#359970] transition-colors"
           >
-            Stake 1M+ to Unlock →
+            Stake 10M+ to Unlock →
           </button>
           <button 
             onClick={() => {

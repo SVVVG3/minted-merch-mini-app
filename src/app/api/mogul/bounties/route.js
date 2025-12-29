@@ -1,7 +1,7 @@
 // API endpoint to list ALL bounties for Minted Merch Missions
 // GET /api/mogul/bounties
 // Returns:
-// - Interaction bounties (farcaster_like, recast, comment, engagement) → Available to 50M+ holders OR 1M+ stakers
+// - Interaction bounties (farcaster_like, recast, comment, engagement) → Available to 50M+ holders OR 10M+ stakers
 // - Custom bounties → Available to 50M+ STAKERS only (or targeted users)
 // SECURITY: Requires JWT authentication
 
@@ -51,12 +51,12 @@ export async function GET(request) {
     if (!isEligible) {
       return NextResponse.json({
         success: false,
-        error: 'Missions eligibility required (50M+ $mintedmerch tokens OR 1M+ staked)',
+        error: 'Missions eligibility required (50M+ $mintedmerch tokens OR 10M+ staked)',
         tokenBalance,
         stakedBalance,
         requirements: {
           mogulThreshold: 50_000_000,
-          stakerThreshold: 1_000_000
+          stakerThreshold: 10_000_000
         }
       }, { status: 403 });
     }

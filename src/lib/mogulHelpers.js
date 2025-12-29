@@ -7,12 +7,12 @@
 import { supabaseAdmin } from './supabase';
 
 const MOGUL_TOKEN_THRESHOLD = 50_000_000; // 50M tokens required for Merch Mogul status
-const STAKER_TOKEN_THRESHOLD = 1_000_000; // 1M staked tokens required for interaction missions
+const STAKER_TOKEN_THRESHOLD = 10_000_000; // 10M staked tokens required for interaction missions
 const CUSTOM_BOUNTY_STAKED_THRESHOLD = 50_000_000; // 50M staked required for custom bounties
 
 /**
  * Check if a user is eligible for Minted Merch Missions
- * Eligible if: 50M+ tokens (Merch Mogul) OR 1M+ staked tokens
+ * Eligible if: 50M+ tokens (Merch Mogul) OR 10M+ staked tokens
  * @param {number} fid - Farcaster ID
  * @returns {Promise<{isEligible: boolean, isMogul: boolean, isStaker: boolean, tokenBalance: number, stakedBalance: number}>}
  */
