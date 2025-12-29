@@ -208,7 +208,7 @@ export async function GET(request) {
                   fontWeight: 'bold',
                 }}
               >
-                {formattedMojo} Mojo
+                {formattedMojo} MMM
               </div>
 
               <div
