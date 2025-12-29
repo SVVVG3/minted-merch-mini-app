@@ -304,7 +304,7 @@ export function Leaderboard({ isVisible = true }) {
           <img 
             src="/MintedMerchLeaderboardGraphic.png" 
             alt="Minted Merch Leaderboard" 
-            className="h-8"
+            className="h-16"
           />
           
           <div className="flex items-center gap-4">
