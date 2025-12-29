@@ -35,8 +35,9 @@ export async function GET(request) {
     const mojoScore = searchParams.get('mojo') || '0.00';
     const stakedBalance = parseFloat(searchParams.get('staked') || '0');
     
-    // Check if user is a Merch Mogul (50M+ staked)
-    const isMerchMogul = stakedBalance >= 50_000_000;
+    // Check badge tier based on staked amount
+    const isWhale = stakedBalance >= 200_000_000; // 200M+ = whale (gold badge)
+    const isMerchMogul = stakedBalance >= 50_000_000; // 50M+ = mogul (regular badge)
     
     // Format scores to 2 decimal places
     const formattedNeynar = parseFloat(neynarScore).toFixed(2);
@@ -85,11 +86,22 @@ export async function GET(request) {
       console.error('❌ Error fetching logo:', error);
     }
     
-    // Fetch Merch Mogul badge if user qualifies
+    // Fetch appropriate badge based on staking tier
     let mogulBadgeSrc = null;
-    if (isMerchMogul) {
+    if (isWhale) {
+      // Whale tier: 200M+ staked - gold badge
+      const badgeUrl = `${baseUrl}/GoldVerifiedMerchMogulBadge.png`;
+      console.log('🐋 User is Whale (200M+), fetching gold badge from:', badgeUrl);
+      try {
+        mogulBadgeSrc = await fetchImageAsDataUrl(badgeUrl);
+        console.log('✅ Gold badge fetch result:', mogulBadgeSrc ? 'SUCCESS' : 'FAILED');
+      } catch (error) {
+        console.error('❌ Error fetching gold badge:', error);
+      }
+    } else if (isMerchMogul) {
+      // Mogul tier: 50M+ staked - regular badge
       const badgeUrl = `${baseUrl}/VerifiedMerchMogulBadge.png`;
-      console.log('🏆 User is Merch Mogul, fetching badge from:', badgeUrl);
+      console.log('🏆 User is Merch Mogul (50M+), fetching badge from:', badgeUrl);
       try {
         mogulBadgeSrc = await fetchImageAsDataUrl(badgeUrl);
         console.log('✅ Badge fetch result:', mogulBadgeSrc ? 'SUCCESS' : 'FAILED');
