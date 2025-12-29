@@ -25,8 +25,8 @@ const WEIGHTS = {
 };
 
 // Thresholds
-const STAKING_MAX = 1_000_000_000; // 1B tokens for 1.0
-const HOLDINGS_MAX = 1_000_000_000; // 1B tokens for 1.0
+const STAKING_MAX = 2_000_000_000; // 2B tokens for 1.0
+const HOLDINGS_MAX = 2_000_000_000; // 2B tokens for 1.0
 const PURCHASE_MAX = 500; // $500 for 1.0
 const CHECKIN_DAYS = 100; // 100 days for 1.0
 const MISSIONS_MAX = 35; // 35 approved missions for 1.0
@@ -34,10 +34,11 @@ const MINTS_MAX = 30_000; // 30,000 mint points for 1.0
 
 // Key thresholds for tiered scaling (staking/holdings)
 const TIER_THRESHOLDS = {
-  prizeEligible: 10_000_000,   // 10M
-  merchMogul: 50_000_000,      // 50M
-  whale: 200_000_000,          // 200M
-  max: 1_000_000_000,          // 1B
+  prizeEligible: 10_000_000,   // 10M → 0.15
+  merchMogul: 50_000_000,      // 50M → 0.45
+  whale: 200_000_000,          // 200M → 0.60
+  elite: 1_000_000_000,        // 1B → 0.90
+  max: 2_000_000_000,          // 2B → 1.0
 };
 
 // Purchase tier thresholds
@@ -65,17 +66,17 @@ const MISSIONS_TIERS = {
 /**
  * Calculate tiered logarithmic score for staking/holdings
  * Provides meaningful bumps at key thresholds:
- * - 10M (prize eligible) → ~0.25
- * - 50M (Merch Mogul) → ~0.50
- * - 200M (Whale) → ~0.75
- * - 1B (Max) → 1.00
+ * - 10M (prize eligible) → 0.15
+ * - 50M (Merch Mogul) → 0.45
+ * - 200M (Whale) → 0.60
+ * - 1B (Elite) → 0.90
+ * - 2B (Max) → 1.00
  */
 function calculateTieredTokenScore(amount) {
   if (!amount || amount <= 0) return 0;
   if (amount >= TIER_THRESHOLDS.max) return 1.0;
   
   // Use logarithmic scaling with adjustments for tier bumps
-  // log10(1B) ≈ 9, log10(10M) ≈ 7, log10(50M) ≈ 7.7, log10(200M) ≈ 8.3
   const logAmount = Math.log10(amount + 1);
   const logMax = Math.log10(TIER_THRESHOLDS.max);
   const logMin = Math.log10(1_000_000); // Start meaningful scoring at 1M
@@ -84,13 +85,15 @@ function calculateTieredTokenScore(amount) {
   let score = (logAmount - logMin) / (logMax - logMin);
   score = Math.max(0, Math.min(1, score));
   
-  // Apply slight boost at tier thresholds for psychological impact
-  if (amount >= TIER_THRESHOLDS.whale) {
-    score = Math.max(score, 0.75);
+  // Apply tier bumps
+  if (amount >= TIER_THRESHOLDS.elite) {
+    score = Math.max(score, 0.90);
+  } else if (amount >= TIER_THRESHOLDS.whale) {
+    score = Math.max(score, 0.60);
   } else if (amount >= TIER_THRESHOLDS.merchMogul) {
-    score = Math.max(score, 0.50);
+    score = Math.max(score, 0.45);
   } else if (amount >= TIER_THRESHOLDS.prizeEligible) {
-    score = Math.max(score, 0.25);
+    score = Math.max(score, 0.15);
   }
   
   return Math.min(1, score);
