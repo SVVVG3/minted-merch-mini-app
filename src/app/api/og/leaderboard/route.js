@@ -152,8 +152,8 @@ export async function GET(request) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '300px',
-                height: '300px',
+                width: '150px',
+                height: '150px',
                 borderRadius: '20px',
                 backgroundColor: 'rgba(62, 180, 137, 0.1)',
                 border: '3px solid rgba(62, 180, 137, 0.3)',
@@ -179,7 +179,7 @@ export async function GET(request) {
                     width: '100%',
                     height: '100%',
                     backgroundColor: '#3eb489',
-                    fontSize: 120,
+                    fontSize: 60,
                     color: 'white',
                   }}
                 >
@@ -194,44 +194,35 @@ export async function GET(request) {
                 flexDirection: 'column',
                 alignItems: 'flex-start',
                 justifyContent: 'center',
-                maxWidth: '600px',
-                gap: '15px',
+                maxWidth: '700px',
+                gap: '12px',
               }}
             >
               <div
                 style={{
-                  fontSize: 40,
-                  color: '#3eb489',
-                  textAlign: 'left',
-                  display: 'flex',
-                  fontWeight: 'bold',
-                }}
-              >
-                #{positionText} on MMM Leaderboard
-              </div>
-
-              <div
-                style={{
-                  fontSize: 48,
+                  fontSize: 56,
                   color: mojoTier.color,
-                  lineHeight: 1.3,
+                  lineHeight: 1.2,
                   textAlign: 'left',
                   display: 'flex',
                   fontWeight: 'bold',
                 }}
               >
-                {formattedMojo} MMM
+                {formattedMojo} Mojo
               </div>
 
               <div
                 style={{
-                  fontSize: 24,
+                  fontSize: 28,
                   color: '#9ca3af',
                   textAlign: 'left',
                   display: 'flex',
+                  gap: '20px',
                 }}
               >
-                {mojoTier.name} Tier
+                <span>{mojoTier.name} Tier</span>
+                <span style={{ color: '#3eb489' }}>•</span>
+                <span style={{ color: '#3eb489' }}>{positionText} Place</span>
               </div>
 
               {/* Merch Mogul/Whale Badge */}

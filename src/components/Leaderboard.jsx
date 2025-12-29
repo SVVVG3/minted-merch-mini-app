@@ -272,27 +272,26 @@ export function Leaderboard({ isVisible = true }) {
     return profile?.avatar_url || leaderboardUser.pfp_url || null;
   };
 
-  // Helper function to check if user has 50M+ tokens (Merch Mogul status)
-  const isMerchMogul = (user) => {
-    // First check if we have token multiplier info (more reliable for userPosition)
-    if (user.tokenMultiplier && user.tokenMultiplier >= 2) {
-      return true; // 2x+ multiplier means 50M+ tokens
+  // Helper function to check staking tier for badges
+  const getStakingTier = (user) => {
+    // Get staked balance from different possible sources
+    let stakedBalance = 0;
+    
+    if (user.staked_balance) {
+      stakedBalance = parseFloat(user.staked_balance);
+    } else if (user.profiles?.staked_balance) {
+      stakedBalance = parseFloat(user.profiles.staked_balance);
+    } else if (user.profile?.staked_balance) {
+      stakedBalance = parseFloat(user.profile.staked_balance);
     }
     
-    // Fallback: Get token balance from different possible sources
-    let tokenBalance = 0;
-    
-    if (user.token_balance) {
-      tokenBalance = parseFloat(user.token_balance);
-    } else if (user.profiles?.token_balance) {
-      tokenBalance = parseFloat(user.profiles.token_balance);
-    } else if (user.profile?.token_balance) {
-      tokenBalance = parseFloat(user.profile.token_balance);
+    // Check tiers: whale (200M+), mogul (50M+), none
+    if (stakedBalance >= 200000000) {
+      return 'whale';
+    } else if (stakedBalance >= 50000000) {
+      return 'mogul';
     }
-    
-    // Balance is now stored in tokens (not wei), so no conversion needed
-    // Check if balance is 50M or more tokens (50,000,000)
-    return tokenBalance >= 50000000;
+    return 'none';
   };
 
   if (!isVisible) return null;
@@ -302,7 +301,7 @@ export function Leaderboard({ isVisible = true }) {
       {/* Header */}
       <div className="border-b border-gray-200 p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-800">MMM Leaderboard</h2>
+          <h2 className="text-xl font-bold text-gray-800">MMM Leaderboard</h2>
           
           <div className="flex items-center gap-4">
             {/* Share Button - Always show for logged in users */}
@@ -385,25 +384,24 @@ export function Leaderboard({ isVisible = true }) {
                     <div>
                       <div className="text-xs font-medium text-gray-800">You</div>
                       <div className="text-sm text-gray-500">
-                        {category === 'purchases' ? (
-                          <span>{userPosition.totalOrders || 0} orders</span>
-                        ) : (userPosition.checkin_streak || 0) > 0 ? (
-                          <span className="flex items-center gap-1">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-                              <path d="M5.52.359A.5.5 0 0 1 6 0h4a.5.5 0 0 1 .474.658L8.694 6H12.5a.5.5 0 0 1 .395.807l-7 9a.5.5 0 0 1-.873-.454L6.823 9.5H3.5a.5.5 0 0 1-.48-.641l2.5-8.5z"/>
-                            </svg>
-                            {userPosition.checkin_streak} day{(userPosition.checkin_streak || 0) === 1 ? '' : 's'} streak
-                          </span>
-                        ) : null}
-                        
-                        {/* Merch Mogul Badge for current user if they have 50M+ tokens */}
-                        {isMerchMogul(userPosition) && (
+                        {/* Staking Badge */}
+                        {getStakingTier(userPosition) === 'whale' && (
                           <div className="flex items-center mt-1">
                             <img 
-                              src="/MerchMogulBadge.png" 
+                              src="/GoldVerifiedMerchMogulBadge.png" 
+                              alt="Whale" 
+                              className="h-5"
+                              title="Whale - 200M+ $MINTEDMERCH staked"
+                            />
+                          </div>
+                        )}
+                        {getStakingTier(userPosition) === 'mogul' && (
+                          <div className="flex items-center mt-1">
+                            <img 
+                              src="/VerifiedMerchMogulBadge.png" 
                               alt="Merch Mogul" 
-                              className="w-16 h-4"
-                              title="Merch Mogul - 50M+ $MINTEDMERCH holder"
+                              className="h-5"
+                              title="Merch Mogul - 50M+ $MINTEDMERCH staked"
                             />
                           </div>
                         )}
@@ -415,7 +413,7 @@ export function Leaderboard({ isVisible = true }) {
                       {parseFloat(userPosition.mojo_score || 0).toFixed(2)}
                     </div>
                     <div className="text-sm text-gray-500">
-                      <span>MMM</span>
+                      <span>Mojo</span>
                     </div>
                   </div>
                 </div>
@@ -466,25 +464,24 @@ export function Leaderboard({ isVisible = true }) {
                         {isCurrentUser ? 'You' : getUserDisplayName(user)}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {category === 'purchases' ? (
-                          <span>{user.total_orders || 0} orders</span>
-                        ) : (user.checkin_streak || 0) > 0 ? (
-                          <span className="flex items-center gap-1">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-                              <path d="M5.52.359A.5.5 0 0 1 6 0h4a.5.5 0 0 1 .474.658L8.694 6H12.5a.5.5 0 0 1 .395.807l-7 9a.5.5 0 0 1-.873-.454L6.823 9.5H3.5a.5.5 0 0 1-.48-.641l2.5-8.5z"/>
-                            </svg>
-                            {user.checkin_streak} day streak
-                          </span>
-                        ) : null}
-                        
-                        {/* Merch Mogul Badge for users with 50M+ tokens */}
-                        {isMerchMogul(user) && (
+                        {/* Staking Badge */}
+                        {getStakingTier(user) === 'whale' && (
                           <div className="flex items-center mt-1">
                             <img 
-                              src="/MerchMogulBadge.png" 
+                              src="/GoldVerifiedMerchMogulBadge.png" 
+                              alt="Whale" 
+                              className="h-5"
+                              title="Whale - 200M+ $MINTEDMERCH staked"
+                            />
+                          </div>
+                        )}
+                        {getStakingTier(user) === 'mogul' && (
+                          <div className="flex items-center mt-1">
+                            <img 
+                              src="/VerifiedMerchMogulBadge.png" 
                               alt="Merch Mogul" 
-                              className="w-16 h-4"
-                              title="Merch Mogul - 50M+ $MINTEDMERCH holder"
+                              className="h-5"
+                              title="Merch Mogul - 50M+ $MINTEDMERCH staked"
                             />
                           </div>
                         )}
@@ -492,13 +489,13 @@ export function Leaderboard({ isVisible = true }) {
                     </div>
                   </div>
                   
-                  {/* MMM Score Display */}
+                  {/* Mojo Score Display */}
                   <div className="text-right">
                     <div className={`font-bold ${isCurrentUser ? 'text-green-600' : 'text-gray-800'}`}>
                       {parseFloat(user.mojo_score || 0).toFixed(2)}
                     </div>
                     <div className="text-sm text-gray-500">
-                      <span>MMM</span>
+                      <span>Mojo</span>
                     </div>
                   </div>
                 </div>

@@ -30,7 +30,7 @@ export async function generateMetadata({ searchParams }) {
             version: "next",
             imageUrl: `${baseUrl}/api/og/leaderboard?t=${cacheBust}`,
             button: {
-              title: `View MMM Leaderboard 🏆`,
+              title: `View Leaderboard`,
               action: {
                 type: "launch_frame",
                 url: baseUrl,
