@@ -437,17 +437,17 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                               <p className="text-gray-400">${(userData.mojo_breakdown.breakdown?.purchases?.raw || 0).toFixed(2)}</p>
                             </div>
                             <div className="bg-white p-2 rounded">
-                              <span className="text-gray-500">Check-ins (10%)</span>
+                              <span className="text-gray-500">Check-ins (12%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.checkIns?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.checkIns?.weighted || 0).toFixed(2)}</p>
                               <p className="text-gray-400">{userData.mojo_breakdown.breakdown?.checkIns?.raw || 0}/100 days</p>
                             </div>
                             <div className="bg-white p-2 rounded">
                               <span className="text-gray-500">Missions (10%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.missions?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.missions?.weighted || 0).toFixed(2)}</p>
-                              <p className="text-gray-400">{userData.mojo_breakdown.breakdown?.missions?.raw || 0}/50</p>
+                              <p className="text-gray-400">{userData.mojo_breakdown.breakdown?.missions?.raw || 0}/25</p>
                             </div>
                             <div className="bg-white p-2 rounded">
-                              <span className="text-gray-500">Mints (5%)</span>
+                              <span className="text-gray-500">Mints (3%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.mints?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.mints?.weighted || 0).toFixed(2)}</p>
                               <p className="text-gray-400">{(userData.mojo_breakdown.breakdown?.mints?.raw || 0).toLocaleString()}/30K</p>
                             </div>

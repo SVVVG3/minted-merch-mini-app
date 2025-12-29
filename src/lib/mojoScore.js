@@ -7,9 +7,9 @@
  * - Staking Amount (20%)
  * - Holdings (5%)
  * - Purchase $ Amount (25%)
- * - Check-in Engagement (10%)
+ * - Check-in Engagement (12%)
  * - Missions (10%)
- * - Mints (5%)
+ * - Mints (3%)
  */
 
 // Weights for each factor
@@ -19,9 +19,9 @@ const WEIGHTS = {
   staking: 0.20,
   holdings: 0.05,
   purchases: 0.25,
-  checkIns: 0.10,
+  checkIns: 0.12,
   missions: 0.10,
-  mints: 0.05,
+  mints: 0.03,
 };
 
 // Thresholds
@@ -29,7 +29,7 @@ const STAKING_MAX = 1_000_000_000; // 1B tokens for 1.0
 const HOLDINGS_MAX = 1_000_000_000; // 1B tokens for 1.0
 const PURCHASE_MAX = 500; // $500 for 1.0
 const CHECKIN_DAYS = 100; // 100 days for 1.0
-const MISSIONS_MAX = 50; // 50 approved missions for 1.0
+const MISSIONS_MAX = 25; // 25 approved missions for 1.0
 const MINTS_MAX = 30_000; // 30,000 mint points for 1.0
 
 // Key thresholds for tiered scaling (staking/holdings)
@@ -46,6 +46,13 @@ const PURCHASE_TIERS = {
   regular: 100,     // $100 → ~0.50
   loyal: 250,       // $250 → ~0.75
   max: 500,         // $500 → 1.0
+};
+
+// Mints tier thresholds
+const MINTS_TIERS = {
+  active: 10_000,   // 10K points → 0.40
+  dedicated: 20_000, // 20K points → 0.80
+  max: 30_000,      // 30K points → 1.0
 };
 
 /**
@@ -126,13 +133,25 @@ function calculateMissionsScore(approvedMissions) {
 }
 
 /**
- * Calculate mints score
+ * Calculate mints score with tier boosts
  * Based on mint points earned
- * 0 points = 0, 30,000 points = 1.0
+ * 10K points → 0.40, 20K points → 0.80, 30K points → 1.0
  */
 function calculateMintsScore(mintPoints) {
   if (!mintPoints || mintPoints <= 0) return 0;
-  return Math.min(1, mintPoints / MINTS_MAX);
+  if (mintPoints >= MINTS_MAX) return 1.0;
+  
+  // Linear base score
+  let score = mintPoints / MINTS_MAX;
+  
+  // Apply tier bumps
+  if (mintPoints >= MINTS_TIERS.dedicated) {
+    score = Math.max(score, 0.80);
+  } else if (mintPoints >= MINTS_TIERS.active) {
+    score = Math.max(score, 0.40);
+  }
+  
+  return Math.min(1, score);
 }
 
 /**
