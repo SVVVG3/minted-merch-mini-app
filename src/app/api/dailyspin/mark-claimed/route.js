@@ -44,11 +44,13 @@ export async function POST(request) {
       );
     }
 
-    // Handle Mojo boost only (all misses) - mark miss records as donated
+    // Handle Mojo boost - mark miss records as donated
+    // This happens for: 1) all misses, or 2) low Mojo users who have wins but can't claim them
+    // In both cases, we only mark miss records as donated, wins remain unclaimed for later
     if (!winningIds || !Array.isArray(winningIds) || winningIds.length === 0) {
       if (isDonation) {
-        // This is a Mojo boost with no actual winnings - mark miss records as donated for tracking
-        console.log(`[${requestId}] 📝 Mojo boost only (no winnings) for FID ${fid}, tx: ${txHash}`);
+        // Mojo boost - mark miss records as donated for tracking
+        console.log(`[${requestId}] 📝 Mojo boost for FID ${fid}, tx: ${txHash}`);
         
         // Mark all miss records (amount = 0) that haven't been donated yet
         // Note: Miss records are pre-marked as claimed=true during spin, so we check donated=false instead

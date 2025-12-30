@@ -168,92 +168,95 @@ export async function POST(request) {
       );
     }
 
-    // Handle "all miss" scenario - create minimum $mintedmerch transaction for Mojo boost
-    if (!unclaimedWinnings || unclaimedWinnings.length === 0) {
-      if (donate) {
-        // All misses but user wants Mojo boost - generate 1 $mintedmerch donation
-        console.log(`[${requestId}] All misses - generating minimum $mintedmerch Mojo boost transaction`);
-        
-        // Get $mintedmerch token data
-        const { data: mintedMerchToken, error: tokenError } = await supabaseAdmin
-          .from('spin_tokens')
-          .select('id, symbol, name, contract_address, decimals')
-          .eq('symbol', 'mintedmerch')
-          .single();
-        
-        if (tokenError || !mintedMerchToken) {
-          console.error(`[${requestId}] Failed to get $mintedmerch token for Mojo boost:`, tokenError);
-          return NextResponse.json(
-            { success: false, error: 'Failed to process Mojo boost' },
-            { status: 500 }
-          );
-        }
-        
-        // Generate 1 token (in smallest unit - 18 decimals)
-        const mojoBoostAmount = BigInt(1 * Math.pow(10, mintedMerchToken.decimals));
-        const claimId = `mojoboost-${fid}-${Date.now()}`;
-        const deadline = new Date();
-        deadline.setDate(deadline.getDate() + 30);
-        
-        try {
-          const { req, signature } = await generateTokenClaimSignature({
-            wallet: recipientWallet.toLowerCase(),
-            tokenAddress: mintedMerchToken.contract_address,
-            amount: mojoBoostAmount.toString(),
-            claimId,
-            deadline
-          });
-          
-          const serializableReq = {
-            uid: req.uid,
-            tokenAddress: req.tokenAddress,
-            expirationTimestamp: req.expirationTimestamp.toString(),
-            contents: req.contents.map(content => ({
-              recipient: content.recipient,
-              amount: content.amount.toString()
-            }))
-          };
-          
-          console.log(`[${requestId}] ✅ Generated Mojo boost signature for ${mintedMerchToken.symbol}`);
-          
-          return NextResponse.json({
-            success: true,
-            claims: [{
-              tokenId: mintedMerchToken.id,
-              symbol: mintedMerchToken.symbol,
-              name: mintedMerchToken.name,
-              contractAddress: getAddress(mintedMerchToken.contract_address),
-              decimals: mintedMerchToken.decimals,
-              totalAmount: mojoBoostAmount.toString(),
-              displayAmount: '1.0000',
-              totalUsdValue: '0.0001',
-              winningIds: [], // No winning IDs for Mojo boost
-              isMojoBoostOnly: true, // Flag for frontend
-              claimData: {
-                contractAddress: getAddress(AIRDROP_CONTRACT_ADDRESS),
-                chainId: CHAIN_ID,
-                req: serializableReq,
-                signature
-              }
-            }],
-            totalTokenTypes: 1,
-            totalWinnings: 0,
-            isDonation: true,
-            isMojoBoostOnly: true,
-            recipientWallet: getAddress(recipientWallet),
-            signerWallet: getAddress(walletAddress),
-            expiresAt: deadline.toISOString()
-          });
-          
-        } catch (signatureError) {
-          console.error(`[${requestId}] Error generating Mojo boost signature:`, signatureError);
-          return NextResponse.json(
-            { success: false, error: 'Failed to generate Mojo boost' },
-            { status: 500 }
-          );
-        }
+    // Handle Mojo boost scenario (donate=true):
+    // - For low Mojo users (< 0.2), they can't claim tokens, so we just do a Mojo boost
+    // - This sends 1 $mintedmerch to donation wallet regardless of whether they won tokens
+    // - Their unclaimed tokens remain unclaimed (they can claim later if Mojo increases)
+    if (donate) {
+      console.log(`[${requestId}] Mojo boost requested - generating 1 $mintedmerch donation transaction`);
+      
+      // Get $mintedmerch token data
+      const { data: mintedMerchToken, error: tokenError } = await supabaseAdmin
+        .from('spin_tokens')
+        .select('id, symbol, name, contract_address, decimals')
+        .eq('symbol', 'mintedmerch')
+        .single();
+      
+      if (tokenError || !mintedMerchToken) {
+        console.error(`[${requestId}] Failed to get $mintedmerch token for Mojo boost:`, tokenError);
+        return NextResponse.json(
+          { success: false, error: 'Failed to process Mojo boost' },
+          { status: 500 }
+        );
       }
       
+      // Generate 1 token (in smallest unit - 18 decimals)
+      const mojoBoostAmount = BigInt(1 * Math.pow(10, mintedMerchToken.decimals));
+      const claimId = `mojoboost-${fid}-${Date.now()}`;
+      const deadline = new Date();
+      deadline.setDate(deadline.getDate() + 30);
+      
+      try {
+        const { req, signature } = await generateTokenClaimSignature({
+          wallet: recipientWallet.toLowerCase(),
+          tokenAddress: mintedMerchToken.contract_address,
+          amount: mojoBoostAmount.toString(),
+          claimId,
+          deadline
+        });
+        
+        const serializableReq = {
+          uid: req.uid,
+          tokenAddress: req.tokenAddress,
+          expirationTimestamp: req.expirationTimestamp.toString(),
+          contents: req.contents.map(content => ({
+            recipient: content.recipient,
+            amount: content.amount.toString()
+          }))
+        };
+        
+        console.log(`[${requestId}] ✅ Generated Mojo boost signature for ${mintedMerchToken.symbol}`);
+        
+        return NextResponse.json({
+          success: true,
+          claims: [{
+            tokenId: mintedMerchToken.id,
+            symbol: mintedMerchToken.symbol,
+            name: mintedMerchToken.name,
+            contractAddress: getAddress(mintedMerchToken.contract_address),
+            decimals: mintedMerchToken.decimals,
+            totalAmount: mojoBoostAmount.toString(),
+            displayAmount: '1.0000',
+            totalUsdValue: '0.0001',
+            winningIds: [], // No winning IDs for Mojo boost - tokens remain unclaimed
+            isMojoBoostOnly: true, // Flag for frontend
+            claimData: {
+              contractAddress: getAddress(AIRDROP_CONTRACT_ADDRESS),
+              chainId: CHAIN_ID,
+              req: serializableReq,
+              signature
+            }
+          }],
+          totalTokenTypes: 1,
+          totalWinnings: 0,
+          isDonation: true,
+          isMojoBoostOnly: true,
+          recipientWallet: getAddress(recipientWallet),
+          signerWallet: getAddress(walletAddress),
+          expiresAt: deadline.toISOString()
+        });
+        
+      } catch (signatureError) {
+        console.error(`[${requestId}] Error generating Mojo boost signature:`, signatureError);
+        return NextResponse.json(
+          { success: false, error: 'Failed to generate Mojo boost' },
+          { status: 500 }
+        );
+      }
+    }
+
+    // No unclaimed winnings and not donating
+    if (!unclaimedWinnings || unclaimedWinnings.length === 0) {
       return NextResponse.json(
         { success: false, error: 'No unclaimed winnings found' },
         { status: 400 }
