@@ -60,6 +60,20 @@ export async function GET(request) {
     const neynarScore = profile?.neynar_score || 0;
     const dailyAllocation = getSpinAllocation(mojoScore);
 
+    // Fetch user's streak from user_leaderboard (continues from old check-in system)
+    const { data: leaderboardEntry, error: streakError } = await supabaseAdmin
+      .from('user_leaderboard')
+      .select('checkin_streak, last_checkin')
+      .eq('user_fid', fid)
+      .single();
+
+    if (streakError && streakError.code !== 'PGRST116') {
+      console.error('Error fetching streak:', streakError);
+    }
+
+    const currentStreak = leaderboardEntry?.checkin_streak || 0;
+    const lastCheckin = leaderboardEntry?.last_checkin;
+
     // Count spins used today
     const { count: spinsUsedToday, error: countError } = await supabaseAdmin
       .from('spin_winnings')
@@ -201,7 +215,10 @@ export async function GET(request) {
         spinsUsedToday: usedSpins,
         spinsRemaining: remainingSpins,
         canSpin: remainingSpins > 0,
-        todayDate
+        todayDate,
+        // Streak data (continues from old check-in system)
+        streak: currentStreak,
+        lastSpinDate: lastCheckin
       },
       unclaimed: {
         total: unclaimedWinnings?.length || 0,

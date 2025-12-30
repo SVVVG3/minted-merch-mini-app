@@ -114,6 +114,72 @@ function calculateTokenAmount(usdValue, tokenPrice, decimals = 18) {
 }
 
 /**
+ * Update user's streak in user_leaderboard table
+ * This maintains continuity from old check-in system to new daily spin system
+ */
+async function updateUserStreak(fid, todayDate, requestId) {
+  try {
+    // Get user's current streak data from user_leaderboard
+    const { data: leaderboardEntry, error: fetchError } = await supabaseAdmin
+      .from('user_leaderboard')
+      .select('checkin_streak, last_checkin, total_points')
+      .eq('user_fid', fid)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error(`[${requestId}] Error fetching leaderboard entry:`, fetchError);
+      return;
+    }
+
+    const currentStreak = leaderboardEntry?.checkin_streak || 0;
+    const lastCheckin = leaderboardEntry?.last_checkin;
+    
+    // Calculate yesterday's date for streak comparison
+    const today = new Date(todayDate + 'T00:00:00Z');
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayDate = yesterday.toISOString().split('T')[0];
+
+    let newStreak;
+    
+    // Check if last check-in was yesterday (continue streak) or today (already counted)
+    if (lastCheckin === todayDate) {
+      // Already spun today, no streak update needed
+      console.log(`[${requestId}] 📊 Streak already updated today for FID ${fid}`);
+      return;
+    } else if (lastCheckin === yesterdayDate) {
+      // Continue streak
+      newStreak = currentStreak + 1;
+      console.log(`[${requestId}] 🔥 Continuing streak for FID ${fid}: ${currentStreak} -> ${newStreak}`);
+    } else {
+      // Streak broken, start fresh
+      newStreak = 1;
+      console.log(`[${requestId}] 📊 Starting new streak for FID ${fid} (last: ${lastCheckin || 'never'})`);
+    }
+
+    // Upsert the leaderboard entry
+    const { error: upsertError } = await supabaseAdmin
+      .from('user_leaderboard')
+      .upsert({
+        user_fid: fid,
+        checkin_streak: newStreak,
+        last_checkin: todayDate,
+        total_points: leaderboardEntry?.total_points || 0
+      }, {
+        onConflict: 'user_fid'
+      });
+
+    if (upsertError) {
+      console.error(`[${requestId}] Error updating streak:`, upsertError);
+    } else {
+      console.log(`[${requestId}] ✅ Updated streak for FID ${fid} to ${newStreak}`);
+    }
+  } catch (error) {
+    console.error(`[${requestId}] Error in updateUserStreak:`, error);
+  }
+}
+
+/**
  * POST /api/dailyspin/spin
  * 
  * Execute a daily spin:
@@ -122,6 +188,7 @@ function calculateTokenAmount(usdValue, tokenPrice, decimals = 18) {
  * 3. Fetch live price from DexScreener
  * 4. Calculate token amount for $0.01
  * 5. Record winning in database
+ * 6. Update streak (first spin of day only)
  * 
  * Requires authentication.
  */
@@ -171,6 +238,11 @@ export async function POST(request) {
 
     const usedSpins = spinsUsedToday || 0;
     const remainingSpins = dailyAllocation - usedSpins;
+
+    // Update streak if this is user's first spin of the day
+    if (usedSpins === 0) {
+      await updateUserStreak(fid, todayDate, requestId);
+    }
 
     // SECURITY: Check if user has spins remaining
     if (remainingSpins <= 0) {

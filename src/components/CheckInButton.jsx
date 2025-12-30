@@ -2,18 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
-import { CheckInModal } from './CheckInModal';
+import { DailySpinModal } from './DailySpinModal';
 import { haptics } from '@/lib/haptics';
 import { deduplicateRequest, clearCachedResult } from '@/lib/requestDeduplication';
 
 export function CheckInButton() {
-  const { user, isReady, getFid } = useFarcaster();
+  const { user, isReady, getFid, getSessionToken } = useFarcaster();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [userStatus, setUserStatus] = useState(null);
+  const [spinStatus, setSpinStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
 
-  // Load user's check-in status and points
+  // Get session token from hook or localStorage
+  const getToken = () => getSessionToken?.() || localStorage.getItem('fc_session_token');
+
+  // Load user's daily spin status
   useEffect(() => {
     if (!user || !isReady) {
       setIsLoading(false);
@@ -26,20 +29,20 @@ export function CheckInButton() {
       return;
     }
 
-    loadUserStatus(userFid);
-  }, [user?.fid, isReady]); // Only refetch when FID changes, not when user object is recreated
+    loadSpinStatus(userFid);
+  }, [user?.fid, isReady]);
 
-  // Auto-open modal after 2 seconds if user can check in and hasn't opened it yet
+  // Auto-open modal after short delay if user has spins available
   useEffect(() => {
-    if (!userStatus || isLoading || hasAutoOpened) {
+    if (!spinStatus || isLoading || hasAutoOpened) {
       return;
     }
 
-    const canCheckIn = userStatus?.canCheckInToday;
+    const canSpin = spinStatus?.canSpin;
     
-    if (canCheckIn) {
+    if (canSpin) {
       const timer = setTimeout(async () => {
-        console.log('🎯 Auto-opening daily check-in modal');
+        console.log('🎯 Auto-opening daily spin modal');
         
         // Add haptic feedback for auto-open (works in mini app)
         const isInMiniApp = user && !user.isAuthKit;
@@ -47,37 +50,47 @@ export function CheckInButton() {
         
         setIsModalOpen(true);
         setHasAutoOpened(true);
-      }, 500); // 0.5 seconds delay
+      }, 500);
 
       return () => clearTimeout(timer);
     }
-  }, [userStatus, isLoading, hasAutoOpened, user]);
+  }, [spinStatus, isLoading, hasAutoOpened, user]);
 
-  const loadUserStatus = async (userFid) => {
+  const loadSpinStatus = async (userFid) => {
     try {
       setIsLoading(true);
-      // Use deduplication to prevent duplicate API calls when CheckInButton and SpinWheel mount close together
+      const token = getToken();
+      
+      if (!token) {
+        console.log('No session token available for spin status');
+        setIsLoading(false);
+        return;
+      }
+
+      // Use deduplication to prevent duplicate API calls
       const result = await deduplicateRequest(
-        `checkin-status-${userFid}`,
+        `dailyspin-status-${userFid}`,
         async () => {
-          const response = await fetch(`/api/points/checkin?userFid=${userFid}`);
+          const response = await fetch('/api/dailyspin/status', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
           return response.json();
         },
-        5000 // 5 second cache - short enough to stay fresh, long enough to dedupe
+        5000 // 5 second cache
       );
       
       if (result.success) {
-        setUserStatus(result.data);
+        setSpinStatus(result.status);
       }
     } catch (error) {
-      console.error('Error loading user status:', error);
+      console.error('Error loading spin status:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleOpenModal = async () => {
-    // Add haptic feedback for check-in action (works in mini app)
+    // Add haptic feedback (works in mini app)
     const isInMiniApp = user && !user.isAuthKit;
     await haptics.medium(isInMiniApp);
     
@@ -88,14 +101,13 @@ export function CheckInButton() {
     setIsModalOpen(false);
   };
 
-  const handleCheckInComplete = (result) => {
-    // Reload user status after successful check-in
+  const handleSpinComplete = (result) => {
+    // Reload status after spin
     if (user && isReady) {
       const userFid = getFid();
       if (userFid) {
-        // Clear cache to get fresh data after spin
-        clearCachedResult(`checkin-status-${userFid}`);
-        loadUserStatus(userFid);
+        clearCachedResult(`dailyspin-status-${userFid}`);
+        loadSpinStatus(userFid);
       }
     }
   };
@@ -105,19 +117,18 @@ export function CheckInButton() {
     return null;
   }
 
-  const canCheckIn = userStatus?.canCheckInToday;
-  const totalPoints = userStatus?.totalPoints || 0;
-  const streak = userStatus?.checkinStreak || 0;
+  const canSpin = spinStatus?.canSpin;
+  const streak = spinStatus?.streak || 0;
 
   return (
     <>
-      {/* Check-in Button - Wider rectangle for horizontal content layout */}
+      {/* Daily Spin Button */}
       <button
         onClick={handleOpenModal}
         className="flex items-center justify-center min-w-[3rem] h-12 px-2 bg-[#3eb489] hover:bg-[#359970] text-white rounded-lg transition-colors relative"
-        title={canCheckIn ? "Daily Check-in Available!" : "View Points & Streak"}
+        title={canSpin ? "Daily Spin Available!" : "View Daily Spin & Streak"}
       >
-        {canCheckIn ? (
+        {canSpin ? (
           <>
             {/* Custom Rewards Icon */}
             <img 
@@ -126,7 +137,7 @@ export function CheckInButton() {
               className="w-6 h-6" 
             />
             
-            {/* New Check-in Available Indicator */}
+            {/* New Spin Available Indicator */}
             <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
           </>
         ) : (
@@ -150,12 +161,12 @@ export function CheckInButton() {
         )}
       </button>
 
-      {/* Check-in Modal */}
-      <CheckInModal
+      {/* Daily Spin Modal */}
+      <DailySpinModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        onCheckInComplete={handleCheckInComplete}
+        onSpinComplete={handleSpinComplete}
       />
     </>
   );
-} 
+}
