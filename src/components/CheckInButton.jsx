@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { DailySpinModal } from './DailySpinModal';
 import { haptics } from '@/lib/haptics';
@@ -8,6 +9,7 @@ import { deduplicateRequest, clearCachedResult } from '@/lib/requestDeduplicatio
 
 export function CheckInButton() {
   const { user, isReady, getFid, getSessionToken } = useFarcaster();
+  const searchParams = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [spinStatus, setSpinStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,6 +33,16 @@ export function CheckInButton() {
 
     loadSpinStatus(userFid);
   }, [user?.fid, isReady]);
+
+  // Auto-open modal if showDailySpin=1 param is present (from share links)
+  useEffect(() => {
+    const showDailySpin = searchParams?.get('showDailySpin');
+    if (showDailySpin === '1' && !hasAutoOpened && user && isReady) {
+      console.log('🎯 Auto-opening daily spin modal from URL param');
+      setIsModalOpen(true);
+      setHasAutoOpened(true);
+    }
+  }, [searchParams, hasAutoOpened, user, isReady]);
 
   // Auto-open modal after short delay if user has spins available
   useEffect(() => {

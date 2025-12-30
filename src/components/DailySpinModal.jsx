@@ -430,7 +430,8 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
     }
   };
 
-  // Handle share - links to home page now
+  // Handle share - links to home page where modal opens
+  // Note: To get DailySpinEmbed.png, we'd need to add OG meta handling for ?showDailySpin param
   const handleShare = async () => {
     triggerHaptic('medium', isInFarcaster);
     
@@ -456,7 +457,7 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
       const { sdk } = await import('@farcaster/frame-sdk');
       await sdk.actions.composeCast({
         text: shareText,
-        embeds: [`${window.location.origin}/`] // Link to home page where modal is
+        embeds: [`${window.location.origin}/?showDailySpin=1`] // Links to home with daily spin modal
       });
     } catch (err) {
       console.error('Share error:', err);
@@ -465,6 +466,7 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
     }
   };
 
+  // Handle share for mojo boost only (all misses or low mojo)
   const handleShareGeneric = async () => {
     triggerHaptic('medium', isInFarcaster);
     const shareText = `I just spun the /mintedmerch Daily Spin and boosted my Mojo Score!\n\nSpin to win tokens daily 👇`;
@@ -473,7 +475,7 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
       const { sdk } = await import('@farcaster/frame-sdk');
       await sdk.actions.composeCast({
         text: shareText,
-        embeds: [`${window.location.origin}/`] // Link to home page where modal is
+        embeds: [`${window.location.origin}/?showDailySpin=1`] // Links to home with daily spin modal
       });
     } catch (err) {
       console.error('Share error:', err);

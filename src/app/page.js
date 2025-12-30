@@ -74,6 +74,55 @@ export async function generateMetadata({ searchParams }) {
     }
   }
   
+  // Check if this is a Daily Spin share URL
+  const isDailySpinShare = searchParams?.showDailySpin === '1';
+  
+  if (isDailySpinShare) {
+    const frame = {
+      version: "next",
+      imageUrl: `${baseUrl}/DailySpinEmbed.png`,
+      button: {
+        title: "Spin To Win 🎰",
+        action: {
+          type: "launch_frame",
+          url: `${baseUrl}/?showDailySpin=1`,
+          name: "Minted Merch Daily Spin",
+          splashImageUrl: `${baseUrl}/splash.png`,
+          splashBackgroundColor: "#000000"
+        }
+      }
+    };
+
+    return {
+      title: 'Daily Spin - Win Free Tokens on Minted Merch',
+      description: 'Spin the wheel daily to win free tokens! Your Mojo Score determines how many spins you get.',
+      metadataBase: new URL(baseUrl),
+      other: {
+        'fc:frame': JSON.stringify(frame),
+      },
+      openGraph: {
+        title: 'Daily Spin - Win Free Tokens on Minted Merch',
+        description: 'Spin the wheel daily to win free tokens! Your Mojo Score determines how many spins you get.',
+        siteName: 'Minted Merch Shop',
+        images: [
+          {
+            url: `${baseUrl}/DailySpinEmbed.png`,
+            width: 1200,
+            height: 800,
+            alt: 'Minted Merch Daily Spin',
+          },
+        ],
+        type: 'website',
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: 'Daily Spin - Win Free Tokens on Minted Merch',
+        description: 'Spin the wheel daily to win free tokens! Your Mojo Score determines how many spins you get.',
+        images: [`${baseUrl}/DailySpinEmbed.png`],
+      },
+    };
+  }
+
   // Check if this is a check-in share URL
   const isCheckinShare = searchParams?.checkin === 'true';
   

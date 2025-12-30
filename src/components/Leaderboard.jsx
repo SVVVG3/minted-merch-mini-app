@@ -218,25 +218,25 @@ export function Leaderboard({ isVisible = true }) {
   const getRankBadge = (position) => {
     if (position === 1) {
       return (
-        <div className="flex items-center justify-center w-8 h-8 bg-yellow-400 text-yellow-900 rounded-full font-bold text-sm">
+        <div className="flex items-center justify-center w-8 h-8 bg-yellow-500/30 text-yellow-400 rounded-full font-bold text-sm">
           👑
         </div>
       );
     } else if (position === 2) {
       return (
-        <div className="flex items-center justify-center w-8 h-8 bg-gray-300 text-gray-700 rounded-full font-bold text-sm">
+        <div className="flex items-center justify-center w-8 h-8 bg-gray-400/30 text-gray-300 rounded-full font-bold text-sm">
           🥈
         </div>
       );
     } else if (position === 3) {
       return (
-        <div className="flex items-center justify-center w-8 h-8 bg-orange-400 text-orange-900 rounded-full font-bold text-sm">
+        <div className="flex items-center justify-center w-8 h-8 bg-orange-500/30 text-orange-400 rounded-full font-bold text-sm">
           🥉
         </div>
       );
     } else {
       return (
-        <div className="flex items-center justify-center w-8 h-8 bg-gray-100 text-gray-600 rounded-full font-semibold text-sm">
+        <div className="flex items-center justify-center w-8 h-8 bg-gray-700 text-gray-400 rounded-full font-semibold text-sm">
           #{position}
         </div>
       );
@@ -297,9 +297,9 @@ export function Leaderboard({ isVisible = true }) {
   if (!isVisible) return null;
 
   return (
-    <div className="bg-white rounded-lg shadow-lg max-w-2xl mx-auto overflow-x-hidden">
+    <div className="max-w-2xl mx-auto overflow-x-hidden">
       {/* Header */}
-      <div className="border-b border-gray-200 p-6">
+      <div className="border-b border-gray-700 p-6 pt-12">
         <div className="flex flex-col items-center gap-3">
           <img 
             src="/MintedMerchLeaderboardGraphic.png" 
@@ -311,7 +311,7 @@ export function Leaderboard({ isVisible = true }) {
           {currentUserFid && (
             <button
               onClick={handleSharePosition}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white rounded-lg transition-colors font-medium"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white rounded-xl transition-colors font-medium"
               title="Share your Mojo score"
             >
               <span>Share My Mojo</span>
@@ -328,41 +328,41 @@ export function Leaderboard({ isVisible = true }) {
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <svg className="animate-spin h-8 w-8 text-gray-400 mx-auto mb-2" viewBox="0 0 24 24">
+              <svg className="animate-spin h-8 w-8 text-[#3eb489] mx-auto mb-2" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              <p className="text-gray-500">Loading rankings...</p>
+              <p className="text-gray-400">Loading rankings...</p>
             </div>
           </div>
         ) : error ? (
           <div className="text-center py-12">
-            <div className="text-red-500 mb-2">⚠️ {error}</div>
+            <div className="text-red-400 mb-2">⚠️ {error}</div>
             <button
               onClick={loadLeaderboard}
-              className="px-4 py-2 bg-[#3eb489] hover:bg-[#359970] text-white rounded-lg transition-colors"
+              className="px-4 py-2 bg-[#3eb489] hover:bg-[#359970] text-white rounded-xl transition-colors"
             >
               Try Again
             </button>
           </div>
         ) : leaderboardData.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-gray-500 mb-2">🎯 No rankings yet</div>
-            <p className="text-sm text-gray-400">Be the first to check in and earn points!</p>
+            <div className="text-gray-400 mb-2">🎯 No rankings yet</div>
+            <p className="text-sm text-gray-500">Be the first to check in and earn points!</p>
           </div>
         ) : (
           <div className="space-y-3">
             {/* Current User Position (always show if available) */}
             {userPosition && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+              <div className="bg-[#3eb489]/20 border border-[#3eb489]/40 rounded-xl p-4 mb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center justify-center w-8 h-8 bg-green-100 text-green-700 rounded-full font-semibold text-sm">
+                    <div className="flex items-center justify-center w-8 h-8 bg-[#3eb489]/30 text-[#3eb489] rounded-full font-semibold text-sm">
                       #{userPosition.position}
                     </div>
                     
                     {/* User Avatar */}
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                    <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
                       {getUserAvatar(userPosition) ? (
                         <img 
                           src={getUserAvatar(userPosition)} 
@@ -374,15 +374,15 @@ export function Leaderboard({ isVisible = true }) {
                           }}
                         />
                       ) : (
-                        <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-600 text-sm font-medium">
+                        <div className="w-full h-full bg-gray-600 flex items-center justify-center text-gray-300 text-sm font-medium">
                           You
                         </div>
                       )}
                     </div>
                     
                     <div>
-                      <div className="text-xs font-medium text-green-800">You</div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-xs font-medium text-[#3eb489]">You</div>
+                      <div className="text-sm">
                         {/* Staking Badge */}
                         {getStakingTier(userPosition) === 'whale' && (
                           <div className="flex items-center mt-1">
@@ -408,10 +408,10 @@ export function Leaderboard({ isVisible = true }) {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-green-600">
+                    <div className="font-bold text-[#3eb489]">
                       {parseFloat(userPosition.mojo_score || 0).toFixed(2)}
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-400">
                       <span>Mojo</span>
                     </div>
                   </div>
@@ -428,10 +428,10 @@ export function Leaderboard({ isVisible = true }) {
               return (
                 <div
                   key={userFid}
-                  className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
+                  className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
                     isCurrentUser 
-                      ? 'bg-green-50 border-green-200 ring-2 ring-green-100' 
-                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                      ? 'bg-[#3eb489]/20 border-[#3eb489]/40 ring-2 ring-[#3eb489]/20' 
+                      : 'bg-gray-800/50 border-gray-700 hover:bg-gray-700/50'
                   }`}
                 >
                   <div className="flex items-center gap-4">
@@ -439,7 +439,7 @@ export function Leaderboard({ isVisible = true }) {
                     {getRankBadge(position)}
                     
                     {/* User Avatar */}
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                    <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
                       {getUserAvatar(user) ? (
                         <img 
                           src={getUserAvatar(user)} 
@@ -451,7 +451,7 @@ export function Leaderboard({ isVisible = true }) {
                           }}
                         />
                       ) : (
-                        <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-600 text-sm font-medium">
+                        <div className="w-full h-full bg-gray-600 flex items-center justify-center text-gray-300 text-sm font-medium">
                           {getUserDisplayName(user).charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -459,10 +459,10 @@ export function Leaderboard({ isVisible = true }) {
                     
                     {/* User Info */}
                     <div>
-                      <div className={`text-xs font-medium ${isCurrentUser ? 'text-green-800' : 'text-gray-800'}`}>
+                      <div className={`text-xs font-medium ${isCurrentUser ? 'text-[#3eb489]' : 'text-white'}`}>
                         {isCurrentUser ? 'You' : getUserDisplayName(user)}
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm">
                         {/* Staking Badge */}
                         {getStakingTier(user) === 'whale' && (
                           <div className="flex items-center mt-1">
@@ -490,10 +490,10 @@ export function Leaderboard({ isVisible = true }) {
                   
                   {/* Mojo Score Display */}
                   <div className="text-right">
-                    <div className={`font-bold ${isCurrentUser ? 'text-green-600' : 'text-gray-800'}`}>
+                    <div className={`font-bold ${isCurrentUser ? 'text-[#3eb489]' : 'text-white'}`}>
                       {parseFloat(user.mojo_score || 0).toFixed(2)}
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-400">
                       <span>Mojo</span>
                     </div>
                   </div>
@@ -505,7 +505,7 @@ export function Leaderboard({ isVisible = true }) {
 
         {/* Footer Info */}
         {leaderboardData.length > 0 && (
-          <div className="text-center mt-6 text-sm text-gray-500">
+          <div className="text-center mt-6 text-sm text-gray-400">
             Showing top {leaderboardData.length} users • Ranked by Minted Merch Mojo
           </div>
         )}
