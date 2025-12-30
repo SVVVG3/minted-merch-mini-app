@@ -63,7 +63,7 @@ export async function GET(request) {
     // Fetch user's streak from user_leaderboard (continues from old check-in system)
     const { data: leaderboardEntry, error: streakError } = await supabaseAdmin
       .from('user_leaderboard')
-      .select('checkin_streak, last_checkin, total_points')
+      .select('checkin_streak, last_checkin_date, total_points')
       .eq('user_fid', fid)
       .single();
 
@@ -72,11 +72,11 @@ export async function GET(request) {
     }
 
     let currentStreak = leaderboardEntry?.checkin_streak || 0;
-    let lastCheckin = leaderboardEntry?.last_checkin;
+    let lastCheckinDate = leaderboardEntry?.last_checkin_date;
 
     // Backfill: If user spun today but streak hasn't been updated yet, update it now
     // This handles users who spun before streak tracking was added
-    if (usedSpins > 0 && lastCheckin !== todayDate) {
+    if (usedSpins > 0 && lastCheckinDate !== todayDate) {
       console.log(`🔄 Backfilling streak for FID ${fid} (spun today but streak not recorded)`);
       
       // Calculate yesterday's date
@@ -86,7 +86,7 @@ export async function GET(request) {
       const yesterdayDate = yesterday.toISOString().split('T')[0];
 
       let newStreak;
-      if (lastCheckin === yesterdayDate) {
+      if (lastCheckinDate === yesterdayDate) {
         // Continue streak from yesterday
         newStreak = currentStreak + 1;
       } else {
@@ -100,7 +100,7 @@ export async function GET(request) {
         .upsert({
           user_fid: fid,
           checkin_streak: newStreak,
-          last_checkin: todayDate,
+          last_checkin_date: todayDate,
           total_points: leaderboardEntry?.total_points || 0
         }, {
           onConflict: 'user_fid'
@@ -108,7 +108,7 @@ export async function GET(request) {
 
       if (!upsertError) {
         currentStreak = newStreak;
-        lastCheckin = todayDate;
+        lastCheckinDate = todayDate;
         console.log(`✅ Backfilled streak for FID ${fid}: now ${newStreak}`);
       } else {
         console.error('Error backfilling streak:', upsertError);
@@ -259,7 +259,7 @@ export async function GET(request) {
         todayDate,
         // Streak data (continues from old check-in system)
         streak: currentStreak,
-        lastSpinDate: lastCheckin
+        lastSpinDate: lastCheckinDate
       },
       unclaimed: {
         total: unclaimedWinnings?.length || 0,

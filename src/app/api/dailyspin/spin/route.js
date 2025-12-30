@@ -122,7 +122,7 @@ async function updateUserStreak(fid, todayDate, requestId) {
     // Get user's current streak data from user_leaderboard
     const { data: leaderboardEntry, error: fetchError } = await supabaseAdmin
       .from('user_leaderboard')
-      .select('checkin_streak, last_checkin, total_points')
+      .select('checkin_streak, last_checkin_date, total_points')
       .eq('user_fid', fid)
       .single();
 
@@ -132,7 +132,7 @@ async function updateUserStreak(fid, todayDate, requestId) {
     }
 
     const currentStreak = leaderboardEntry?.checkin_streak || 0;
-    const lastCheckin = leaderboardEntry?.last_checkin;
+    const lastCheckinDate = leaderboardEntry?.last_checkin_date;
     
     // Calculate yesterday's date for streak comparison
     const today = new Date(todayDate + 'T00:00:00Z');
@@ -143,18 +143,18 @@ async function updateUserStreak(fid, todayDate, requestId) {
     let newStreak;
     
     // Check if last check-in was yesterday (continue streak) or today (already counted)
-    if (lastCheckin === todayDate) {
+    if (lastCheckinDate === todayDate) {
       // Already spun today, no streak update needed
       console.log(`[${requestId}] 📊 Streak already updated today for FID ${fid}`);
       return;
-    } else if (lastCheckin === yesterdayDate) {
+    } else if (lastCheckinDate === yesterdayDate) {
       // Continue streak
       newStreak = currentStreak + 1;
       console.log(`[${requestId}] 🔥 Continuing streak for FID ${fid}: ${currentStreak} -> ${newStreak}`);
     } else {
       // Streak broken, start fresh
       newStreak = 1;
-      console.log(`[${requestId}] 📊 Starting new streak for FID ${fid} (last: ${lastCheckin || 'never'})`);
+      console.log(`[${requestId}] 📊 Starting new streak for FID ${fid} (last: ${lastCheckinDate || 'never'})`);
     }
 
     // Upsert the leaderboard entry
@@ -163,7 +163,7 @@ async function updateUserStreak(fid, todayDate, requestId) {
       .upsert({
         user_fid: fid,
         checkin_streak: newStreak,
-        last_checkin: todayDate,
+        last_checkin_date: todayDate,
         total_points: leaderboardEntry?.total_points || 0
       }, {
         onConflict: 'user_fid'
