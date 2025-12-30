@@ -790,6 +790,32 @@ export default function DailySpinClient() {
                         </p>
                       </>
                     )}
+                    {/* Mojo Boost Tips */}
+                    <div className="mt-3 pt-3 border-t border-yellow-500/20">
+                      <p className="text-yellow-400/80 text-xs font-medium mb-2">Ways to boost your Mojo:</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <a 
+                          href="/" 
+                          className="text-xs bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-300 px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          📅 Daily Check-in
+                        </a>
+                        <a 
+                          href="/stake" 
+                          className="text-xs bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-300 px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          🔒 Stake Tokens
+                        </a>
+                        <a 
+                          href="https://app.uniswap.org/swap?outputCurrency=0xE3086852A4B125803C815a158249ae468A3254Ca&chain=base" 
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-300 px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          💰 Buy $MINTEDMERCH
+                        </a>
+                      </div>
+                    </div>
                   </div>
                 </>
               ) : (

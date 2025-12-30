@@ -1230,9 +1230,52 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                 </div>
               )}
             </div>
-          ) : (
+          ) : !user?.fid ? (
+            <div className="text-center py-8 px-4">
+              <div className="mb-4">
+                <svg className="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <p className="text-gray-600 font-medium">Sign in to view your profile</p>
+              <p className="text-gray-500 text-sm mt-1">Connect with Farcaster to see your stats, orders, and more</p>
+            </div>
+          ) : !isReady ? (
             <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-3 border-[#3eb489] border-t-transparent mx-auto"></div>
+              <p className="text-gray-600 mt-3">Connecting to Farcaster...</p>
+            </div>
+          ) : (
+            <div className="text-center py-8 px-4">
               <p className="text-gray-600">Unable to load profile data</p>
+              <p className="text-gray-500 text-sm mt-1">Please try closing and reopening the modal</p>
+              <button 
+                onClick={() => {
+                  setProfileLoading(true);
+                  const sessionToken = getSessionToken();
+                  if (sessionToken && user?.fid) {
+                    fetch('/api/user-profile', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionToken}`
+                      },
+                      body: JSON.stringify({ fid: user.fid })
+                    })
+                      .then(response => response.json())
+                      .then(data => {
+                        if (data.success) setProfileData(data.data);
+                      })
+                      .catch(console.error)
+                      .finally(() => setProfileLoading(false));
+                  } else {
+                    setProfileLoading(false);
+                  }
+                }}
+                className="mt-3 text-[#3eb489] hover:text-[#2d9970] text-sm font-medium"
+              >
+                Try Again
+              </button>
             </div>
           )}
         </div>
