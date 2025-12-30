@@ -516,7 +516,7 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
           </button>
           
           {/* Scrollable Content */}
-          <div className="overflow-y-auto overscroll-contain p-4">
+          <div className="overflow-y-auto overscroll-contain p-4 pt-12">
             {isLoading ? (
               <div className="flex items-center justify-center py-20">
                 <div className="text-center">
