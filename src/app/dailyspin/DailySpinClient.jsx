@@ -798,21 +798,25 @@ export default function DailySpinClient() {
                           href="/" 
                           className="text-xs bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-300 px-3 py-1.5 rounded-lg transition-colors"
                         >
-                          📅 Daily Check-in
+                          Check-in Daily
                         </a>
                         <a 
                           href="/stake" 
                           className="text-xs bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-300 px-3 py-1.5 rounded-lg transition-colors"
                         >
-                          🔒 Stake Tokens
+                          Stake $mintedmerch
                         </a>
                         <a 
-                          href="https://app.uniswap.org/swap?outputCurrency=0xE3086852A4B125803C815a158249ae468A3254Ca&chain=base" 
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          href="/missions" 
                           className="text-xs bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-300 px-3 py-1.5 rounded-lg transition-colors"
                         >
-                          💰 Buy $MINTEDMERCH
+                          Complete Missions
+                        </a>
+                        <a 
+                          href="/" 
+                          className="text-xs bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-300 px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          Shop on Minted Merch
                         </a>
                       </div>
                     </div>
