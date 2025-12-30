@@ -83,6 +83,18 @@ export const GET = withAdminAuth(async (request) => {
       console.error('Error fetching claims today:', claimsError);
     }
 
+    // Count unique users who spun today
+    const { data: uniqueSpinnersToday, error: uniqueSpinnersError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('user_fid')
+      .eq('spin_date', todayDate);
+
+    const uniqueUsersToday = uniqueSpinnersError ? 0 : new Set(uniqueSpinnersToday?.map(s => s.user_fid) || []).size;
+
+    if (uniqueSpinnersError) {
+      console.error('Error fetching unique spinners today:', uniqueSpinnersError);
+    }
+
     // Get last raffle information
     const { data: lastRaffleData, error: lastRaffleError } = await supabaseAdmin
       .from('raffle_winners')
@@ -273,6 +285,7 @@ export const GET = withAdminAuth(async (request) => {
       usersOnLeaderboard: usersOnLeaderboard || 0,
       activeStreaks: activeStreaks || 0,
       claimsToday: claimsToday || 0,
+      uniqueUsersToday: uniqueUsersToday || 0,
       usersWithNotifications: usersWithNotifications || 0,
       discountsUsed: discountsUsed || 0,
       totalPoints: totalPoints,

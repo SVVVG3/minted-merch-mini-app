@@ -2043,14 +2043,14 @@ export default function AdminDashboard() {
             <nav className="-mb-px flex space-x-8">
               {[
                 { key: 'dashboard', label: '📊 Dashboard' },
+                { key: 'dailyspin', label: '🎰 Daily Spins' },
                 { key: 'nft-campaigns', label: '🎨 NFT Campaigns' },
+                { key: 'leaderboard', label: '🏆 Leaderboard' },
                 { key: 'chat', label: '💬 Chat' },
                 { key: 'orders', label: '🛍️ Orders' },
                 { key: 'partners', label: '🤝 Partners' },
                 { key: 'discounts', label: '🎫 Discounts' },
-                { key: 'leaderboard', label: '🏆 Leaderboard' },
                 { key: 'checkins', label: '📅 Check-ins' },
-                { key: 'dailyspin', label: '🎰 Daily Spins' },
                 { key: 'raffle', label: '🎲 Raffle Tool' },
                 { key: 'past-raffles', label: '📚 Past Raffles' }
               ].map((tab) => (
@@ -2134,10 +2134,10 @@ export default function AdminDashboard() {
               {dashboardStats && [
                 { label: 'Total Users', value: dashboardStats.totalUsers, icon: '👥' },
                 { label: 'Users on Leaderboard', value: dashboardStats.usersOnLeaderboard, icon: '🏆' },
-                { label: 'Active Streaks', value: dashboardStats.activeStreaks, icon: '🔥' },
+                { label: 'Unique Users Today', value: dashboardStats.uniqueUsersToday, icon: '🎯' },
                 { label: 'Claims Today', value: dashboardStats.claimsToday, icon: '🎰' },
                 { label: 'Users with Notifications', value: dashboardStats.usersWithNotifications, icon: '🔔' },
-                { label: 'Total Points Awarded', value: dashboardStats.totalPoints?.toLocaleString(), icon: '⭐' },
+                { label: 'Active Streaks', value: dashboardStats.activeStreaks, icon: '🔥' },
                 { label: 'Discounts Used', value: dashboardStats.discountsUsed, icon: '🎫' },
                 { label: 'Total Orders', value: dashboardStats.totalOrders, icon: '🛍️' },
                 { label: 'Wallets Staked', value: dashboardStats.walletsStaked, icon: '🔒' },
