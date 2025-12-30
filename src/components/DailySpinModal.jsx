@@ -765,16 +765,15 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                   {claimSuccess && (
                     <div className="text-center">
                       <button
-                        disabled={true}
-                        className="w-full py-4 bg-gradient-to-r from-[#8B5CF6]/50 to-[#7C3AED]/50 text-white/50 font-bold rounded-xl 
-                                 cursor-not-allowed transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
+                        onClick={wasDonation ? handleShareGeneric : handleShare}
+                        className="w-full py-4 bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED] hover:from-[#7C3AED] hover:to-[#6D28D9] text-white font-bold rounded-xl 
+                                 transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
                       >
                         <span>{wasDonation ? 'Share Daily Spin' : 'Share Your Winnings'}</span>
                         <svg className="w-5 h-5" viewBox="0 0 520 457" fill="currentColor">
                           <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
                         </svg>
                       </button>
-                      <p className="text-gray-500 text-xs mt-2">Coming soon</p>
                     </div>
                   )}
 
@@ -790,16 +789,15 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                         </p>
                       </div>
                       <button
-                        disabled={true}
-                        className="w-full py-4 bg-gradient-to-r from-[#8B5CF6]/50 to-[#7C3AED]/50 text-white/50 font-bold rounded-xl 
-                                 cursor-not-allowed transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
+                        onClick={claimedWinnings.length > 0 ? handleShare : handleShareGeneric}
+                        className="w-full py-4 bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED] hover:from-[#7C3AED] hover:to-[#6D28D9] text-white font-bold rounded-xl 
+                                 transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
                       >
                         <span>{claimedWinnings.length > 0 ? 'Share Your Winnings' : 'Share Daily Spin'}</span>
                         <svg className="w-5 h-5" viewBox="0 0 520 457" fill="currentColor">
                           <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
                         </svg>
                       </button>
-                      <p className="text-gray-500 text-xs">Coming soon</p>
                     </div>
                   )}
                 </div>
@@ -840,17 +838,22 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
 
                 {/* Mojo Status */}
                 <div className="bg-gray-800/50 rounded-xl px-4 py-3 my-4 border border-gray-700">
-                  <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
-                    <span className="text-gray-400">Mojo Score:</span>
-                    <span className="text-[#3eb489] font-bold">{status.mojoScore}</span>
-                    <span className={`font-bold ${
-                      status.mojoTier === 'Gold' ? 'text-yellow-400' :
-                      status.mojoTier === 'Silver' ? 'text-gray-300' :
-                      'text-orange-400'
-                    }`}>
-                      {status.mojoTier} ({status.dailyAllocation} {status.dailyAllocation === 1 ? 'spin' : 'spins'}/day)
-                    </span>
-                    <span className="text-white">{status.spinsUsedToday}/{status.dailyAllocation} used</span>
+                  <div className="text-center text-sm">
+                    <div className="mb-1">
+                      <span className="text-gray-400">Minted Merch Mojo Score: </span>
+                      <span className="text-[#3eb489] font-bold">{status.mojoScore}</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className={`font-bold ${
+                        status.mojoTier === 'Gold' ? 'text-yellow-400' :
+                        status.mojoTier === 'Silver' ? 'text-gray-300' :
+                        'text-orange-400'
+                      }`}>
+                        {status.mojoTier} ({status.dailyAllocation} {status.dailyAllocation === 1 ? 'spin' : 'spins'}/day)
+                      </span>
+                      <span className="text-gray-500">|</span>
+                      <span className="text-white">{status.spinsUsedToday}/{status.dailyAllocation} used</span>
+                    </div>
                   </div>
                 </div>
 
@@ -877,7 +880,7 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                 <div className="mt-6 p-4 bg-gray-800/30 rounded-xl border border-gray-700">
                   <h3 className="text-white font-bold mb-2">How It Works:</h3>
                   <ul className="text-gray-400 text-sm space-y-1">
-                    <li>• Your Mojo Score determines daily spins (1-3)</li>
+                    <li>• Your Mojo Score determines daily spins</li>
                     <li>• Each spin is a chance to win tokens</li>
                     <li>• Complete all spins, then claim all tokens</li>
                     <li>• Resets daily at 8:00 AM PST</li>
