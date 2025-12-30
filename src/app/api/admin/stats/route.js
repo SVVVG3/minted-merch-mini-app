@@ -68,25 +68,19 @@ export const GET = withAdminAuth(async (request) => {
       console.error('Error fetching active streaks:', streaksError);
     }
 
-    // Get check-ins today using proper 8 AM PST reset logic
-    // Uses the timezone utilities which properly handle DST transitions
-    const todayPSTStart = getCurrent8AMPST();
+    // Get daily spin claims today (replaces old check-ins)
+    // Get today's date in UTC for spin_date comparison
+    const todayDate = new Date().toISOString().split('T')[0];
     
-    console.log('🕐 Check-ins today calculation (8 AM Pacific reset):');
-    console.log('  Current Pacific time:', formatPSTTime());
-    console.log('  Today Pacific start (8 AM):', todayPSTStart.toISOString());
-    console.log('  Using America/Los_Angeles timezone (automatic DST handling)');
-
-    // Count only COMPLETED check-ins (not pending transactions)
-    const { count: checkInsToday, error: checkInsError } = await supabaseAdmin
-      .from('point_transactions')
+    // Count actual claims today (where user submitted a transaction)
+    const { count: claimsToday, error: claimsError } = await supabaseAdmin
+      .from('spin_winnings')
       .select('id', { count: 'exact', head: true })
-      .eq('transaction_type', 'daily_checkin')
-      .gt('points_earned', 0) // Only count completed check-ins with points
-      .gte('created_at', todayPSTStart.toISOString());
+      .eq('spin_date', todayDate)
+      .not('claim_tx_hash', 'is', null);
 
-    if (checkInsError) {
-      console.error('Error fetching check-ins today:', checkInsError);
+    if (claimsError) {
+      console.error('Error fetching claims today:', claimsError);
     }
 
     // Get last raffle information
@@ -278,7 +272,7 @@ export const GET = withAdminAuth(async (request) => {
       totalUsers: totalUsers || 0,
       usersOnLeaderboard: usersOnLeaderboard || 0,
       activeStreaks: activeStreaks || 0,
-      checkInsToday: checkInsToday || 0,
+      claimsToday: claimsToday || 0,
       usersWithNotifications: usersWithNotifications || 0,
       discountsUsed: discountsUsed || 0,
       totalPoints: totalPoints,

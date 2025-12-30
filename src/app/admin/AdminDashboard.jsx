@@ -2135,7 +2135,7 @@ export default function AdminDashboard() {
                 { label: 'Total Users', value: dashboardStats.totalUsers, icon: '👥' },
                 { label: 'Users on Leaderboard', value: dashboardStats.usersOnLeaderboard, icon: '🏆' },
                 { label: 'Active Streaks', value: dashboardStats.activeStreaks, icon: '🔥' },
-                { label: 'Check-Ins Today', value: dashboardStats.checkInsToday, icon: '📅' },
+                { label: 'Claims Today', value: dashboardStats.claimsToday, icon: '🎰' },
                 { label: 'Users with Notifications', value: dashboardStats.usersWithNotifications, icon: '🔔' },
                 { label: 'Total Points Awarded', value: dashboardStats.totalPoints?.toLocaleString(), icon: '⭐' },
                 { label: 'Discounts Used', value: dashboardStats.discountsUsed, icon: '🎫' },
@@ -3983,7 +3983,7 @@ export default function AdminDashboard() {
                   {/* Today's Stats */}
                   <div>
                     <h3 className="text-lg font-semibold mb-3">📅 Today ({dailySpinStats.todayDate})</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                       <div className="bg-green-50 rounded-lg p-4 text-center">
                         <div className="text-3xl font-bold text-green-600">{dailySpinStats.totalSpinsToday}</div>
                         <div className="text-sm text-gray-600">Total Spins</div>
@@ -4002,7 +4002,15 @@ export default function AdminDashboard() {
                       </div>
                       <div className="bg-emerald-50 rounded-lg p-4 text-center">
                         <div className="text-3xl font-bold text-emerald-600">{dailySpinStats.claimsToday || 0}</div>
-                        <div className="text-sm text-gray-600">Claims</div>
+                        <div className="text-sm text-gray-600">Total Claims</div>
+                      </div>
+                      <div className="bg-teal-50 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-teal-600">{dailySpinStats.tokenClaimsToday || 0}</div>
+                        <div className="text-sm text-gray-600">Token Claims</div>
+                      </div>
+                      <div className="bg-amber-50 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-amber-600">{dailySpinStats.mojoBoostsToday || 0}</div>
+                        <div className="text-sm text-gray-600">Mojo Boosts</div>
                       </div>
                     </div>
                   </div>
@@ -4010,7 +4018,7 @@ export default function AdminDashboard() {
                   {/* Yesterday's Stats */}
                   <div>
                     <h3 className="text-lg font-semibold mb-3">📆 Yesterday ({dailySpinStats.yesterdayDate})</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                       <div className="bg-green-50/70 rounded-lg p-4 text-center">
                         <div className="text-3xl font-bold text-green-500">{dailySpinStats.totalSpinsYesterday}</div>
                         <div className="text-sm text-gray-600">Total Spins</div>
@@ -4029,7 +4037,15 @@ export default function AdminDashboard() {
                       </div>
                       <div className="bg-emerald-50/70 rounded-lg p-4 text-center">
                         <div className="text-3xl font-bold text-emerald-500">{dailySpinStats.claimsYesterday || 0}</div>
-                        <div className="text-sm text-gray-600">Claims</div>
+                        <div className="text-sm text-gray-600">Total Claims</div>
+                      </div>
+                      <div className="bg-teal-50/70 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-teal-500">{dailySpinStats.tokenClaimsYesterday || 0}</div>
+                        <div className="text-sm text-gray-600">Token Claims</div>
+                      </div>
+                      <div className="bg-amber-50/70 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-amber-500">{dailySpinStats.mojoBoostsYesterday || 0}</div>
+                        <div className="text-sm text-gray-600">Mojo Boosts</div>
                       </div>
                     </div>
                   </div>
@@ -4037,7 +4053,7 @@ export default function AdminDashboard() {
                   {/* All Time Stats */}
                   <div>
                     <h3 className="text-lg font-semibold mb-3">📊 All Time</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                       <div className="bg-blue-50 rounded-lg p-4 text-center">
                         <div className="text-3xl font-bold text-blue-600">{dailySpinStats.totalSpinsAllTime}</div>
                         <div className="text-sm text-gray-600">Total Spins</div>
@@ -4056,7 +4072,15 @@ export default function AdminDashboard() {
                       </div>
                       <div className="bg-emerald-50 rounded-lg p-4 text-center">
                         <div className="text-3xl font-bold text-emerald-600">{dailySpinStats.totalClaimsAllTime || 0}</div>
-                        <div className="text-sm text-gray-600">Claims</div>
+                        <div className="text-sm text-gray-600">Total Claims</div>
+                      </div>
+                      <div className="bg-teal-50 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-teal-600">{dailySpinStats.tokenClaimsAllTime || 0}</div>
+                        <div className="text-sm text-gray-600">Token Claims</div>
+                      </div>
+                      <div className="bg-amber-50 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-amber-600">{dailySpinStats.mojoBoostsAllTime || 0}</div>
+                        <div className="text-sm text-gray-600">Mojo Boosts</div>
                       </div>
                     </div>
                   </div>

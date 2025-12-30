@@ -374,6 +374,11 @@ export const GET = withAdminAuth(async (request) => {
     // Unique users who have spun
     const uniqueSpinners = new Set(recentSpins?.map(s => s.user_fid) || []);
 
+    // Calculate token claims (claims minus mojo boosts)
+    const tokenClaimsToday = (claimsToday || 0) - (donationsToday || 0);
+    const tokenClaimsYesterday = (claimsYesterday || 0) - (donationsYesterday || 0);
+    const tokenClaimsAllTime = (totalClaimsAllTime || 0) - (totalDonationsAllTime || 0);
+
     return NextResponse.json({
       success: true,
       stats: {
@@ -385,7 +390,8 @@ export const GET = withAdminAuth(async (request) => {
         missesToday: missesToday || 0,
         winRateToday: totalSpinsToday > 0 ? ((winsToday / totalSpinsToday) * 100).toFixed(1) : '0',
         claimsToday: claimsToday || 0,
-        donationsToday: donationsToday || 0,
+        tokenClaimsToday,
+        mojoBoostsToday: donationsToday || 0,
         // Yesterday stats
         yesterdayDate,
         totalSpinsYesterday: totalSpinsYesterday || 0,
@@ -394,14 +400,16 @@ export const GET = withAdminAuth(async (request) => {
         missesYesterday: missesYesterday || 0,
         winRateYesterday: totalSpinsYesterday > 0 ? ((winsYesterday / totalSpinsYesterday) * 100).toFixed(1) : '0',
         claimsYesterday: claimsYesterday || 0,
-        donationsYesterday: donationsYesterday || 0,
+        tokenClaimsYesterday,
+        mojoBoostsYesterday: donationsYesterday || 0,
         // All time stats
         totalSpinsAllTime: totalSpinsAllTime || 0,
         totalWinsAllTime: totalWinsAllTime || 0,
         totalMissesAllTime: totalMissesAllTime || 0,
         winRateAllTime: totalSpinsAllTime > 0 ? ((totalWinsAllTime / totalSpinsAllTime) * 100).toFixed(1) : '0',
         totalClaimsAllTime: totalClaimsAllTime || 0,
-        totalDonationsAllTime: totalDonationsAllTime || 0,
+        tokenClaimsAllTime,
+        mojoBoostsAllTime: totalDonationsAllTime || 0,
         uniqueSpinnersLast7Days: uniqueSpinners.size
       },
       tokenStats: tokenStatsArray,
