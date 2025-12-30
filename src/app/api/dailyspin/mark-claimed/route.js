@@ -44,17 +44,18 @@ export async function POST(request) {
       );
     }
 
-    // Handle Mojo boost - mark miss records as donated
+    // Handle Mojo boost - mark ALL unclaimed records (misses AND wins) as donated
     // This happens for: 1) all misses, or 2) low Mojo users who have wins but can't claim them
-    // In both cases, we only mark miss records as donated, wins remain unclaimed for later
+    // Low Mojo users forfeit their tokens when they do a Mojo boost
     if (!winningIds || !Array.isArray(winningIds) || winningIds.length === 0) {
       if (isDonation) {
-        // Mojo boost - mark miss records as donated for tracking
+        // Mojo boost - mark ALL unclaimed records as donated (forfeited)
         console.log(`[${requestId}] 📝 Mojo boost for FID ${fid}, tx: ${txHash}`);
         
-        // Mark all miss records (amount = 0) that haven't been donated yet
-        // Note: Miss records are pre-marked as claimed=true during spin, so we check donated=false instead
         const now = new Date().toISOString();
+        
+        // Mark all miss records (amount = 0) that haven't been donated yet
+        // Note: Miss records are pre-marked as claimed=true during spin, so we check donated=false
         const { data: updatedMisses, error: missUpdateError } = await supabaseAdmin
           .from('spin_winnings')
           .update({
@@ -64,15 +65,34 @@ export async function POST(request) {
             claimed_at: now
           })
           .eq('user_fid', fid)
-          .eq('donated', false) // Check donated instead of claimed (misses are pre-claimed)
-          .eq('amount', '0') // Only update miss records
+          .eq('donated', false)
+          .eq('amount', '0') // Miss records
           .select('id');
         
         if (missUpdateError) {
           console.error(`[${requestId}] Error marking misses as donated:`, missUpdateError);
-          // Continue anyway - mojo boost transaction was successful
         } else {
           console.log(`[${requestId}] ✅ Marked ${updatedMisses?.length || 0} miss records as donated`);
+        }
+        
+        // Also mark any unclaimed WIN records as donated (forfeited by low Mojo user)
+        const { data: updatedWins, error: winsUpdateError } = await supabaseAdmin
+          .from('spin_winnings')
+          .update({
+            claimed: true,
+            donated: true,
+            claim_tx_hash: txHash,
+            claimed_at: now
+          })
+          .eq('user_fid', fid)
+          .eq('claimed', false) // Only unclaimed wins
+          .gt('amount', '0') // Win records (amount > 0)
+          .select('id, amount, spin_tokens(symbol)');
+        
+        if (winsUpdateError) {
+          console.error(`[${requestId}] Error marking wins as forfeited:`, winsUpdateError);
+        } else if (updatedWins?.length > 0) {
+          console.log(`[${requestId}] ⚠️ Forfeited ${updatedWins?.length || 0} unclaimed win records (low Mojo user)`);
         }
         
         return NextResponse.json({
@@ -80,7 +100,9 @@ export async function POST(request) {
           isDonation: true,
           isMojoBoostOnly: true,
           result: {
-            count: updatedMisses?.length || 0,
+            count: (updatedMisses?.length || 0) + (updatedWins?.length || 0),
+            missesMarked: updatedMisses?.length || 0,
+            winsForfeited: updatedWins?.length || 0,
             txHash,
             processedAt: now,
             summary: []
