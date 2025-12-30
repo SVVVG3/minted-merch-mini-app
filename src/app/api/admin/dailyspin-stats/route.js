@@ -140,23 +140,25 @@ export const GET = withAdminAuth(async (request) => {
     }
 
     // ===== CLAIM TRANSACTION STATS =====
-    // Claims today (any spin marked as claimed - includes both wins and mojo boosts)
+    // Claims today - only count actual claim transactions (where claim_tx_hash is set)
+    // Note: Miss records are pre-marked claimed=true during spin but don't have tx hash until claimed
     const { count: claimsToday, error: claimsTodayError } = await supabaseAdmin
       .from('spin_winnings')
       .select('*', { count: 'exact', head: true })
       .eq('spin_date', todayDate)
-      .eq('claimed', true);
+      .not('claim_tx_hash', 'is', null);
 
     if (claimsTodayError) {
       console.error('Error fetching claims today:', claimsTodayError);
     }
 
-    // Donations today (mojo boosts)
+    // Donations today (mojo boosts) - these will have both donated=true AND claim_tx_hash
     const { count: donationsToday, error: donationsTodayError } = await supabaseAdmin
       .from('spin_winnings')
       .select('*', { count: 'exact', head: true })
       .eq('spin_date', todayDate)
-      .eq('donated', true);
+      .eq('donated', true)
+      .not('claim_tx_hash', 'is', null);
 
     if (donationsTodayError) {
       console.error('Error fetching donations today:', donationsTodayError);
@@ -167,7 +169,7 @@ export const GET = withAdminAuth(async (request) => {
       .from('spin_winnings')
       .select('*', { count: 'exact', head: true })
       .eq('spin_date', yesterdayDate)
-      .eq('claimed', true);
+      .not('claim_tx_hash', 'is', null);
 
     if (claimsYesterdayError) {
       console.error('Error fetching claims yesterday:', claimsYesterdayError);
@@ -178,27 +180,29 @@ export const GET = withAdminAuth(async (request) => {
       .from('spin_winnings')
       .select('*', { count: 'exact', head: true })
       .eq('spin_date', yesterdayDate)
-      .eq('donated', true);
+      .eq('donated', true)
+      .not('claim_tx_hash', 'is', null);
 
     if (donationsYesterdayError) {
       console.error('Error fetching donations yesterday:', donationsYesterdayError);
     }
 
-    // Total claims all time
+    // Total claims all time (with actual transaction)
     const { count: totalClaimsAllTime, error: claimsAllTimeError } = await supabaseAdmin
       .from('spin_winnings')
       .select('*', { count: 'exact', head: true })
-      .eq('claimed', true);
+      .not('claim_tx_hash', 'is', null);
 
     if (claimsAllTimeError) {
       console.error('Error fetching total claims:', claimsAllTimeError);
     }
 
-    // Total donations all time (mojo boosts)
+    // Total donations all time (mojo boosts with actual transaction)
     const { count: totalDonationsAllTime, error: donationsAllTimeError } = await supabaseAdmin
       .from('spin_winnings')
       .select('*', { count: 'exact', head: true })
-      .eq('donated', true);
+      .eq('donated', true)
+      .not('claim_tx_hash', 'is', null);
 
     if (donationsAllTimeError) {
       console.error('Error fetching total donations:', donationsAllTimeError);

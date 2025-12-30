@@ -50,7 +50,8 @@ export async function POST(request) {
         // This is a Mojo boost with no actual winnings - mark miss records as donated for tracking
         console.log(`[${requestId}] 📝 Mojo boost only (no winnings) for FID ${fid}, tx: ${txHash}`);
         
-        // Mark all unclaimed miss records (amount = 0) as donated for this user
+        // Mark all miss records (amount = 0) that haven't been donated yet
+        // Note: Miss records are pre-marked as claimed=true during spin, so we check donated=false instead
         const now = new Date().toISOString();
         const { data: updatedMisses, error: missUpdateError } = await supabaseAdmin
           .from('spin_winnings')
@@ -61,7 +62,7 @@ export async function POST(request) {
             claimed_at: now
           })
           .eq('user_fid', fid)
-          .eq('claimed', false)
+          .eq('donated', false) // Check donated instead of claimed (misses are pre-claimed)
           .eq('amount', '0') // Only update miss records
           .select('id');
         
