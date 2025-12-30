@@ -139,6 +139,71 @@ export const GET = withAdminAuth(async (request) => {
       console.error('Error fetching total misses:', missesError);
     }
 
+    // ===== CLAIM TRANSACTION STATS =====
+    // Claims today (any spin marked as claimed - includes both wins and mojo boosts)
+    const { count: claimsToday, error: claimsTodayError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('*', { count: 'exact', head: true })
+      .eq('spin_date', todayDate)
+      .eq('claimed', true);
+
+    if (claimsTodayError) {
+      console.error('Error fetching claims today:', claimsTodayError);
+    }
+
+    // Donations today (mojo boosts)
+    const { count: donationsToday, error: donationsTodayError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('*', { count: 'exact', head: true })
+      .eq('spin_date', todayDate)
+      .eq('donated', true);
+
+    if (donationsTodayError) {
+      console.error('Error fetching donations today:', donationsTodayError);
+    }
+
+    // Claims yesterday
+    const { count: claimsYesterday, error: claimsYesterdayError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('*', { count: 'exact', head: true })
+      .eq('spin_date', yesterdayDate)
+      .eq('claimed', true);
+
+    if (claimsYesterdayError) {
+      console.error('Error fetching claims yesterday:', claimsYesterdayError);
+    }
+
+    // Donations yesterday
+    const { count: donationsYesterday, error: donationsYesterdayError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('*', { count: 'exact', head: true })
+      .eq('spin_date', yesterdayDate)
+      .eq('donated', true);
+
+    if (donationsYesterdayError) {
+      console.error('Error fetching donations yesterday:', donationsYesterdayError);
+    }
+
+    // Total claims all time
+    const { count: totalClaimsAllTime, error: claimsAllTimeError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('*', { count: 'exact', head: true })
+      .eq('claimed', true);
+
+    if (claimsAllTimeError) {
+      console.error('Error fetching total claims:', claimsAllTimeError);
+    }
+
+    // Total donations all time (mojo boosts)
+    const { count: totalDonationsAllTime, error: donationsAllTimeError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('*', { count: 'exact', head: true })
+      .eq('donated', true);
+
+    if (donationsAllTimeError) {
+      console.error('Error fetching total donations:', donationsAllTimeError);
+    }
+
     // Claims by token (grouped)
     const { data: claimsByToken, error: claimsError } = await supabaseAdmin
       .from('spin_winnings')
@@ -270,16 +335,19 @@ export const GET = withAdminAuth(async (request) => {
         userDayStats[key].latestSpinTime = spin.created_at;
       }
       userDayStats[key].totalSpins += 1;
+      
+      // Track claimed/donated for ALL spins (wins AND misses/mojo boosts)
+      if (spin.claimed) {
+        userDayStats[key].claimed += 1;
+      }
+      if (spin.donated) {
+        userDayStats[key].donated += 1;
+      }
+      
       if (spin.amount !== '0' && spin.amount !== 0) {
         userDayStats[key].wins += 1;
         const symbol = spin.spin_tokens?.symbol || 'Unknown';
         userDayStats[key].tokensWon[symbol] = (userDayStats[key].tokensWon[symbol] || 0) + 1;
-        if (spin.claimed) {
-          userDayStats[key].claimed += 1;
-        }
-        if (spin.donated) {
-          userDayStats[key].donated += 1;
-        }
       } else {
         userDayStats[key].misses += 1;
       }
@@ -311,6 +379,8 @@ export const GET = withAdminAuth(async (request) => {
         winsToday: winsToday || 0,
         missesToday: missesToday || 0,
         winRateToday: totalSpinsToday > 0 ? ((winsToday / totalSpinsToday) * 100).toFixed(1) : '0',
+        claimsToday: claimsToday || 0,
+        donationsToday: donationsToday || 0,
         // Yesterday stats
         yesterdayDate,
         totalSpinsYesterday: totalSpinsYesterday || 0,
@@ -318,11 +388,15 @@ export const GET = withAdminAuth(async (request) => {
         winsYesterday: winsYesterday || 0,
         missesYesterday: missesYesterday || 0,
         winRateYesterday: totalSpinsYesterday > 0 ? ((winsYesterday / totalSpinsYesterday) * 100).toFixed(1) : '0',
+        claimsYesterday: claimsYesterday || 0,
+        donationsYesterday: donationsYesterday || 0,
         // All time stats
         totalSpinsAllTime: totalSpinsAllTime || 0,
         totalWinsAllTime: totalWinsAllTime || 0,
         totalMissesAllTime: totalMissesAllTime || 0,
         winRateAllTime: totalSpinsAllTime > 0 ? ((totalWinsAllTime / totalSpinsAllTime) * 100).toFixed(1) : '0',
+        totalClaimsAllTime: totalClaimsAllTime || 0,
+        totalDonationsAllTime: totalDonationsAllTime || 0,
         uniqueSpinnersLast7Days: uniqueSpinners.size
       },
       tokenStats: tokenStatsArray,

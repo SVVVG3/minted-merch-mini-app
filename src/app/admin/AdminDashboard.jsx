@@ -3983,7 +3983,7 @@ export default function AdminDashboard() {
                   {/* Today's Stats */}
                   <div>
                     <h3 className="text-lg font-semibold mb-3">📅 Today ({dailySpinStats.todayDate})</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                       <div className="bg-green-50 rounded-lg p-4 text-center">
                         <div className="text-3xl font-bold text-green-600">{dailySpinStats.totalSpinsToday}</div>
                         <div className="text-sm text-gray-600">Total Spins</div>
@@ -4000,13 +4000,17 @@ export default function AdminDashboard() {
                         <div className="text-3xl font-bold text-gray-600">{dailySpinStats.missesToday}</div>
                         <div className="text-sm text-gray-600">Misses</div>
                       </div>
+                      <div className="bg-emerald-50 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-emerald-600">{dailySpinStats.claimsToday || 0}</div>
+                        <div className="text-sm text-gray-600">Claims</div>
+                      </div>
                     </div>
                   </div>
 
                   {/* Yesterday's Stats */}
                   <div>
                     <h3 className="text-lg font-semibold mb-3">📆 Yesterday ({dailySpinStats.yesterdayDate})</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                       <div className="bg-green-50/70 rounded-lg p-4 text-center">
                         <div className="text-3xl font-bold text-green-500">{dailySpinStats.totalSpinsYesterday}</div>
                         <div className="text-sm text-gray-600">Total Spins</div>
@@ -4023,13 +4027,17 @@ export default function AdminDashboard() {
                         <div className="text-3xl font-bold text-gray-500">{dailySpinStats.missesYesterday}</div>
                         <div className="text-sm text-gray-600">Misses</div>
                       </div>
+                      <div className="bg-emerald-50/70 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-emerald-500">{dailySpinStats.claimsYesterday || 0}</div>
+                        <div className="text-sm text-gray-600">Claims</div>
+                      </div>
                     </div>
                   </div>
 
                   {/* All Time Stats */}
                   <div>
                     <h3 className="text-lg font-semibold mb-3">📊 All Time</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                       <div className="bg-blue-50 rounded-lg p-4 text-center">
                         <div className="text-3xl font-bold text-blue-600">{dailySpinStats.totalSpinsAllTime}</div>
                         <div className="text-sm text-gray-600">Total Spins</div>
@@ -4045,6 +4053,10 @@ export default function AdminDashboard() {
                       <div className="bg-gray-50 rounded-lg p-4 text-center">
                         <div className="text-3xl font-bold text-gray-600">{dailySpinStats.totalMissesAllTime}</div>
                         <div className="text-sm text-gray-600">Misses</div>
+                      </div>
+                      <div className="bg-emerald-50 rounded-lg p-4 text-center">
+                        <div className="text-3xl font-bold text-emerald-600">{dailySpinStats.totalClaimsAllTime || 0}</div>
+                        <div className="text-sm text-gray-600">Claims</div>
                       </div>
                     </div>
                   </div>
