@@ -60,6 +60,24 @@ export async function GET(request) {
     const neynarScore = profile?.neynar_score || 0;
     const dailyAllocation = getSpinAllocation(mojoScore);
 
+    // Count spins used today (need this first for backfill logic)
+    const { count: spinsUsedToday, error: countError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_fid', fid)
+      .eq('spin_date', todayDate);
+
+    if (countError) {
+      console.error('Error counting spins:', countError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch spin count' },
+        { status: 500 }
+      );
+    }
+
+    const usedSpins = spinsUsedToday || 0;
+    const remainingSpins = Math.max(0, dailyAllocation - usedSpins);
+
     // Fetch user's streak from user_leaderboard (continues from old check-in system)
     const { data: leaderboardEntry, error: streakError } = await supabaseAdmin
       .from('user_leaderboard')
@@ -114,24 +132,6 @@ export async function GET(request) {
         console.error('Error backfilling streak:', upsertError);
       }
     }
-
-    // Count spins used today
-    const { count: spinsUsedToday, error: countError } = await supabaseAdmin
-      .from('spin_winnings')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_fid', fid)
-      .eq('spin_date', todayDate);
-
-    if (countError) {
-      console.error('Error counting spins:', countError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch spin count' },
-        { status: 500 }
-      );
-    }
-
-    const usedSpins = spinsUsedToday || 0;
-    const remainingSpins = Math.max(0, dailyAllocation - usedSpins);
 
     // Fetch unclaimed winnings with token details (exclude MISS entries)
     const { data: unclaimedWinnings, error: winningsError } = await supabaseAdmin
