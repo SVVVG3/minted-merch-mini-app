@@ -82,7 +82,7 @@ export async function generateMetadata({ searchParams }) {
       version: "next",
       imageUrl: `${baseUrl}/DailySpinEmbed.png`,
       button: {
-        title: "Spin To Win 🎰",
+        title: "Spin to Win!",
         action: {
           type: "launch_frame",
           url: `${baseUrl}/?showDailySpin=1`,
