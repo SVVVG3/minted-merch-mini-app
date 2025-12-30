@@ -336,10 +336,7 @@ export const GET = withAdminAuth(async (request) => {
       }
       userDayStats[key].totalSpins += 1;
       
-      // Track claimed/donated for ALL spins (wins AND misses/mojo boosts)
-      if (spin.claimed) {
-        userDayStats[key].claimed += 1;
-      }
+      // Track donated for ALL spins (mojo boosts can be from wins OR misses)
       if (spin.donated) {
         userDayStats[key].donated += 1;
       }
@@ -348,6 +345,10 @@ export const GET = withAdminAuth(async (request) => {
         userDayStats[key].wins += 1;
         const symbol = spin.spin_tokens?.symbol || 'Unknown';
         userDayStats[key].tokensWon[symbol] = (userDayStats[key].tokensWon[symbol] || 0) + 1;
+        // Only count claimed for WINS (this is the "X/Y" display where Y = wins)
+        if (spin.claimed) {
+          userDayStats[key].claimed += 1;
+        }
       } else {
         userDayStats[key].misses += 1;
       }

@@ -44,19 +44,42 @@ export async function POST(request) {
       );
     }
 
-    // Handle Mojo boost only (all misses) - no winnings to mark
+    // Handle Mojo boost only (all misses) - mark miss records as donated
     if (!winningIds || !Array.isArray(winningIds) || winningIds.length === 0) {
       if (isDonation) {
-        // This is a Mojo boost with no actual winnings - just log the transaction
+        // This is a Mojo boost with no actual winnings - mark miss records as donated for tracking
         console.log(`[${requestId}] 📝 Mojo boost only (no winnings) for FID ${fid}, tx: ${txHash}`);
+        
+        // Mark all unclaimed miss records (amount = 0) as donated for this user
+        const now = new Date().toISOString();
+        const { data: updatedMisses, error: missUpdateError } = await supabaseAdmin
+          .from('spin_winnings')
+          .update({
+            claimed: true,
+            donated: true,
+            claim_tx_hash: txHash,
+            claimed_at: now
+          })
+          .eq('user_fid', fid)
+          .eq('claimed', false)
+          .eq('amount', '0') // Only update miss records
+          .select('id');
+        
+        if (missUpdateError) {
+          console.error(`[${requestId}] Error marking misses as donated:`, missUpdateError);
+          // Continue anyway - mojo boost transaction was successful
+        } else {
+          console.log(`[${requestId}] ✅ Marked ${updatedMisses?.length || 0} miss records as donated`);
+        }
+        
         return NextResponse.json({
           success: true,
           isDonation: true,
           isMojoBoostOnly: true,
           result: {
-            count: 0,
+            count: updatedMisses?.length || 0,
             txHash,
-            processedAt: new Date().toISOString(),
+            processedAt: now,
             summary: []
           }
         });

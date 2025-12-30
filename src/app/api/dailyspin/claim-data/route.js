@@ -134,7 +134,7 @@ export async function POST(request) {
 
     console.log(`[${requestId}] 🔐 Generating ${actionType} data for FID ${fid}, recipient ${recipientWallet}`);
 
-    // Build query for unclaimed winnings
+    // Build query for unclaimed winnings (only actual wins, not misses)
     let query = supabaseAdmin
       .from('spin_winnings')
       .select(`
@@ -150,7 +150,8 @@ export async function POST(request) {
         )
       `)
       .eq('user_fid', fid)
-      .eq('claimed', false);
+      .eq('claimed', false)
+      .gt('amount', '0'); // Only include wins, not misses (amount = 0)
 
     // Filter by specific token if provided
     if (tokenId) {
