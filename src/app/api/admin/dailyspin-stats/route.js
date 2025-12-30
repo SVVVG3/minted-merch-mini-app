@@ -262,9 +262,9 @@ export const GET = withAdminAuth(async (request) => {
       totalSpins: stat.totalSpins,
       totalClaimed: stat.totalClaimed,
       totalUnclaimed: stat.totalUnclaimed,
-      totalAmount: (Number(stat.totalAmountWei) / Math.pow(10, stat.decimals)).toFixed(2),
-      claimedAmount: (Number(stat.claimedAmountWei) / Math.pow(10, stat.decimals)).toFixed(2),
-      unclaimedAmount: (Number(stat.unclaimedAmountWei) / Math.pow(10, stat.decimals)).toFixed(2),
+      totalAmount: (Number(stat.totalAmountWei) / Math.pow(10, stat.decimals)).toFixed(4),
+      claimedAmount: (Number(stat.claimedAmountWei) / Math.pow(10, stat.decimals)).toFixed(4),
+      unclaimedAmount: (Number(stat.unclaimedAmountWei) / Math.pow(10, stat.decimals)).toFixed(4),
     }));
 
     // Spin log by user and day (last 7 days, aggregated)
