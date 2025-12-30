@@ -2044,15 +2044,15 @@ export default function AdminDashboard() {
               {[
                 { key: 'dashboard', label: '📊 Dashboard' },
                 { key: 'dailyspin', label: '🎰 Daily Spins' },
-                { key: 'nft-campaigns', label: '🎨 NFT Campaigns' },
                 { key: 'leaderboard', label: '🏆 Leaderboard' },
                 { key: 'chat', label: '💬 Chat' },
                 { key: 'orders', label: '🛍️ Orders' },
                 { key: 'partners', label: '🤝 Partners' },
                 { key: 'discounts', label: '🎫 Discounts' },
-                { key: 'checkins', label: '📅 Check-ins' },
+                { key: 'nft-campaigns', label: '🎨 NFT Campaigns' },
                 { key: 'raffle', label: '🎲 Raffle Tool' },
-                { key: 'past-raffles', label: '📚 Past Raffles' }
+                { key: 'past-raffles', label: '📚 Past Raffles' },
+                { key: 'checkins', label: '📅 Check-ins' }
               ].map((tab) => (
                 <button
                   key={tab.key}
