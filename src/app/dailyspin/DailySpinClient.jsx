@@ -818,15 +818,16 @@ export default function DailySpinClient() {
           {claimSuccess && (
             <div className="text-center">
               <button
-                onClick={wasDonation ? handleShareGeneric : handleShare}
-                className="w-full py-4 bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED] text-white font-bold rounded-xl 
-                         hover:from-[#7C3AED] hover:to-[#6D28D9] transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
+                disabled={true} // TODO: Enable when share feature is ready
+                className="w-full py-4 bg-gradient-to-r from-[#8B5CF6]/50 to-[#7C3AED]/50 text-white/50 font-bold rounded-xl 
+                         cursor-not-allowed transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
               >
                 <span>{wasDonation ? 'Share Daily Spin' : 'Share Your Winnings'}</span>
                 <svg className="w-5 h-5" viewBox="0 0 520 457" fill="currentColor">
                   <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
                 </svg>
               </button>
+              <p className="text-gray-500 text-xs mt-2">Coming soon</p>
             </div>
           )}
 
@@ -843,15 +844,16 @@ export default function DailySpinClient() {
               </div>
               
               <button
-                onClick={claimedWinnings.length > 0 ? handleShare : handleShareGeneric}
-                className="w-full py-4 bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED] text-white font-bold rounded-xl 
-                         hover:from-[#7C3AED] hover:to-[#6D28D9] transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
+                disabled={true} // TODO: Enable when share feature is ready
+                className="w-full py-4 bg-gradient-to-r from-[#8B5CF6]/50 to-[#7C3AED]/50 text-white/50 font-bold rounded-xl 
+                         cursor-not-allowed transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
               >
                 <span>{claimedWinnings.length > 0 ? 'Share Your Winnings' : 'Share Daily Spin'}</span>
                 <svg className="w-5 h-5" viewBox="0 0 520 457" fill="currentColor">
                   <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
                 </svg>
               </button>
+              <p className="text-gray-500 text-xs">Coming soon</p>
             </div>
           )}
         </div>
