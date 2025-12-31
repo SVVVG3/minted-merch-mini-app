@@ -4112,9 +4112,11 @@ export default function AdminDashboard() {
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Token</th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Wins</th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Claimed</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Mojo Boosted</th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Unclaimed</th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Amount</th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Claimed Amount</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Mojo Boosted Amt</th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Unclaimed Amount</th>
                           </tr>
                         </thead>
@@ -4132,9 +4134,11 @@ export default function AdminDashboard() {
                               </td>
                               <td className="px-4 py-3 text-right">{token.totalSpins}</td>
                               <td className="px-4 py-3 text-right text-green-600">{token.totalClaimed}</td>
+                              <td className="px-4 py-3 text-right text-purple-600">{token.totalMojoBoosted || 0}</td>
                               <td className="px-4 py-3 text-right text-orange-600">{token.totalUnclaimed}</td>
                               <td className="px-4 py-3 text-right font-mono">{Number(token.totalAmount).toLocaleString()}</td>
                               <td className="px-4 py-3 text-right font-mono text-green-600">{Number(token.claimedAmount).toLocaleString()}</td>
+                              <td className="px-4 py-3 text-right font-mono text-purple-600">{Number(token.mojoBoostedAmount || 0).toLocaleString()}</td>
                               <td className="px-4 py-3 text-right font-mono text-orange-600">{Number(token.unclaimedAmount).toLocaleString()}</td>
                             </tr>
                           ))}

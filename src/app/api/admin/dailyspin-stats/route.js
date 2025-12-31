@@ -232,7 +232,7 @@ export const GET = withAdminAuth(async (request) => {
     // Aggregate claims by token
     // FIXED: Properly categorize claimed vs donated vs unclaimed
     // - CLAIMED: claimed=true AND donated=false (user actually received tokens)
-    // - DONATED: donated=true (low Mojo users who forfeited tokens)
+    // - MOJO BOOSTED: donated=true (low Mojo users who forfeited tokens for a Mojo boost)
     // - UNCLAIMED: claimed=false AND donated=false (still pending)
     const tokenStats = {};
     for (const claim of claimsByToken || []) {
@@ -246,9 +246,11 @@ export const GET = withAdminAuth(async (request) => {
           totalSpins: 0,
           totalClaimed: 0,
           totalUnclaimed: 0,
+          totalMojoBoosted: 0,
           totalAmountWei: BigInt(0),
           claimedAmountWei: BigInt(0),
-          unclaimedAmountWei: BigInt(0)
+          unclaimedAmountWei: BigInt(0),
+          mojoBoostedAmountWei: BigInt(0)
         };
       }
       tokenStats[symbol].totalSpins += 1;
@@ -258,13 +260,15 @@ export const GET = withAdminAuth(async (request) => {
       if (claim.claimed && !claim.donated) {
         tokenStats[symbol].totalClaimed += 1;
         tokenStats[symbol].claimedAmountWei += BigInt(claim.amount);
+      } else if (claim.donated) {
+        // MOJO BOOSTED: user forfeited these tokens for a Mojo boost
+        tokenStats[symbol].totalMojoBoosted += 1;
+        tokenStats[symbol].mojoBoostedAmountWei += BigInt(claim.amount);
       } else if (!claim.claimed && !claim.donated) {
         // Only count as UNCLAIMED if not yet claimed and not donated
         tokenStats[symbol].totalUnclaimed += 1;
         tokenStats[symbol].unclaimedAmountWei += BigInt(claim.amount);
       }
-      // If donated=true, it doesn't count in either claimed or unclaimed
-      // (these tokens were forfeited by low Mojo users)
     }
 
     // Convert BigInt to display amounts
@@ -276,9 +280,11 @@ export const GET = withAdminAuth(async (request) => {
       totalSpins: stat.totalSpins,
       totalClaimed: stat.totalClaimed,
       totalUnclaimed: stat.totalUnclaimed,
+      totalMojoBoosted: stat.totalMojoBoosted,
       totalAmount: (Number(stat.totalAmountWei) / Math.pow(10, stat.decimals)).toFixed(4),
       claimedAmount: (Number(stat.claimedAmountWei) / Math.pow(10, stat.decimals)).toFixed(4),
       unclaimedAmount: (Number(stat.unclaimedAmountWei) / Math.pow(10, stat.decimals)).toFixed(4),
+      mojoBoostedAmount: (Number(stat.mojoBoostedAmountWei) / Math.pow(10, stat.decimals)).toFixed(4),
     }));
 
     // Spin log by user and day (last 7 days, aggregated)
