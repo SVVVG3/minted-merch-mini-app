@@ -507,18 +507,8 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
           className="relative z-10 w-full max-w-md max-h-[90vh] flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl overflow-hidden"
           style={{ boxShadow: '0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.6)' }}
         >
-          {/* Close Button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 z-20 w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center transition-colors"
-          >
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          
           {/* Scrollable Content */}
-          <div className="overflow-y-auto overscroll-contain p-4 pt-12">
+          <div className="overflow-y-auto overscroll-contain p-4 pt-4">
             {isLoading ? (
               <div className="flex items-center justify-center py-20">
                 <div className="text-center">
@@ -765,7 +755,14 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
 
                   {/* Claim Success */}
                   {claimSuccess && (
-                    <div className="text-center">
+                    <div className="space-y-3">
+                      <button
+                        onClick={onClose}
+                        className="w-full py-4 bg-[#3eb489] hover:bg-[#2d9970] text-white font-bold rounded-xl 
+                                 transition-all duration-200 shadow-lg"
+                      >
+                        Back to Shop
+                      </button>
                       <button
                         onClick={wasDonation ? handleShareGeneric : handleShare}
                         className="w-full py-4 bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED] hover:from-[#7C3AED] hover:to-[#6D28D9] text-white font-bold rounded-xl 
@@ -776,13 +773,20 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                           <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
                         </svg>
                       </button>
+                      <a
+                        href="/stake"
+                        className="w-full py-4 bg-[#3eb489] hover:bg-[#2d9970] text-white font-bold rounded-xl 
+                                 transition-all duration-200 shadow-lg flex items-center justify-center"
+                      >
+                        Stake Your Winnings
+                      </a>
                     </div>
                   )}
 
                   {/* No spins left */}
                   {!status.canSpin && allSpins.length === 0 && !claimSuccess && status.spinsUsedToday === 0 && (
-                    <div className="text-center space-y-4">
-                      <div className="text-gray-400">
+                    <div className="space-y-3">
+                      <div className="text-gray-400 text-center">
                         <p>No spins remaining today.</p>
                         <p className="text-sm mt-2">
                           Next spin in: {String(countdown.hours).padStart(2, '0')}:
@@ -790,6 +794,13 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                           {String(countdown.seconds).padStart(2, '0')}
                         </p>
                       </div>
+                      <button
+                        onClick={onClose}
+                        className="w-full py-4 bg-[#3eb489] hover:bg-[#2d9970] text-white font-bold rounded-xl 
+                                 transition-all duration-200 shadow-lg"
+                      >
+                        Back to Shop
+                      </button>
                       <button
                         onClick={claimedWinnings.length > 0 ? handleShare : handleShareGeneric}
                         className="w-full py-4 bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED] hover:from-[#7C3AED] hover:to-[#6D28D9] text-white font-bold rounded-xl 
@@ -800,6 +811,13 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                           <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
                         </svg>
                       </button>
+                      <a
+                        href="/stake"
+                        className="w-full py-4 bg-[#3eb489] hover:bg-[#2d9970] text-white font-bold rounded-xl 
+                                 transition-all duration-200 shadow-lg flex items-center justify-center"
+                      >
+                        Stake Your Winnings
+                      </a>
                     </div>
                   )}
                 </div>
