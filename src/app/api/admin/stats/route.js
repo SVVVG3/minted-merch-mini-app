@@ -69,8 +69,9 @@ export const GET = withAdminAuth(async (request) => {
     }
 
     // Get daily spin claims today (replaces old check-ins)
-    // Get today's date in UTC for spin_date comparison
-    const todayDate = new Date().toISOString().split('T')[0];
+    // Use 8 AM PST boundary to match how spin_date is recorded
+    const todayStart = getCurrent8AMPST();
+    const todayDate = todayStart.toISOString().split('T')[0];
     
     // Count actual claims today (where user submitted a transaction)
     const { count: claimsToday, error: claimsError } = await supabaseAdmin
