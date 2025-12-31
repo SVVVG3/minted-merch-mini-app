@@ -659,22 +659,31 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                 <div className="space-y-3">
                   {/* Spin Button */}
                   {status.canSpin && (
-                    <button
-                      onClick={handleSpin}
-                      disabled={isSpinning}
-                      className="w-full py-4 bg-gradient-to-r from-[#3eb489] to-emerald-600 text-white font-bold rounded-xl 
-                               hover:from-[#2d9970] hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed
-                               transition-all duration-200 shadow-lg"
-                    >
-                      {isSpinning ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                          Spinning...
-                        </span>
-                      ) : (
-                        'Spin To Win'
-                      )}
-                    </button>
+                    <>
+                      <button
+                        onClick={handleSpin}
+                        disabled={isSpinning}
+                        className="w-full py-4 bg-gradient-to-r from-[#3eb489] to-emerald-600 text-white font-bold rounded-xl 
+                                 hover:from-[#2d9970] hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed
+                                 transition-all duration-200 shadow-lg"
+                      >
+                        {isSpinning ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                            Spinning...
+                          </span>
+                        ) : (
+                          'Spin To Win'
+                        )}
+                      </button>
+                      <button
+                        onClick={onClose}
+                        className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-xl 
+                                 transition-all duration-200"
+                      >
+                        Back to Shop
+                      </button>
+                    </>
                   )}
 
                   {/* Claim Button */}
@@ -750,6 +759,13 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                           )}
                         </button>
                       )}
+                      <button
+                        onClick={onClose}
+                        className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-xl 
+                                 transition-all duration-200"
+                      >
+                        Back to Shop
+                      </button>
                     </div>
                   )}
 
