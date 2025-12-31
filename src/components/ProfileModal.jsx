@@ -716,7 +716,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                   <div className="flex-1">
                     <h4 className="font-bold text-green-400">$MINTEDMERCH Holdings</h4>
                     <div className="flex items-center justify-between">
-                      <p className="text-xs text-green-500">
+                      <p className="text-xs text-green-500 whitespace-nowrap">
                         {(() => {
                           if (!profileData.all_wallet_addresses) return '';
                           if (Array.isArray(profileData.all_wallet_addresses)) {
