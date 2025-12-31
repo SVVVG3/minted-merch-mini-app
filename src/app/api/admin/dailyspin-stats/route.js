@@ -208,13 +208,14 @@ export const GET = withAdminAuth(async (request) => {
       console.error('Error fetching total donations:', donationsAllTimeError);
     }
 
-    // Claims by token (grouped)
+    // Claims by token (grouped) - include donated status to properly categorize
     const { data: claimsByToken, error: claimsError } = await supabaseAdmin
       .from('spin_winnings')
       .select(`
         token_id,
         amount,
         claimed,
+        donated,
         spin_tokens (
           symbol,
           name,
@@ -229,6 +230,10 @@ export const GET = withAdminAuth(async (request) => {
     }
 
     // Aggregate claims by token
+    // FIXED: Properly categorize claimed vs donated vs unclaimed
+    // - CLAIMED: claimed=true AND donated=false (user actually received tokens)
+    // - DONATED: donated=true (low Mojo users who forfeited tokens)
+    // - UNCLAIMED: claimed=false AND donated=false (still pending)
     const tokenStats = {};
     for (const claim of claimsByToken || []) {
       const symbol = claim.spin_tokens?.symbol || 'Unknown';
@@ -248,13 +253,18 @@ export const GET = withAdminAuth(async (request) => {
       }
       tokenStats[symbol].totalSpins += 1;
       tokenStats[symbol].totalAmountWei += BigInt(claim.amount);
-      if (claim.claimed) {
+      
+      // Only count as CLAIMED if actually claimed AND not donated (forfeited)
+      if (claim.claimed && !claim.donated) {
         tokenStats[symbol].totalClaimed += 1;
         tokenStats[symbol].claimedAmountWei += BigInt(claim.amount);
-      } else {
+      } else if (!claim.claimed && !claim.donated) {
+        // Only count as UNCLAIMED if not yet claimed and not donated
         tokenStats[symbol].totalUnclaimed += 1;
         tokenStats[symbol].unclaimedAmountWei += BigInt(claim.amount);
       }
+      // If donated=true, it doesn't count in either claimed or unclaimed
+      // (these tokens were forfeited by low Mojo users)
     }
 
     // Convert BigInt to display amounts
