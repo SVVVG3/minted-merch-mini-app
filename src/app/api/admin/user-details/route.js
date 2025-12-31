@@ -114,7 +114,7 @@ export const GET = withAdminAuth(async (request, context) => {
       console.error('Error fetching raffle wins:', raffleWinsError);
     }
 
-    // Fetch point transactions
+    // Fetch point transactions (old check-ins)
     const { data: pointTransactions, error: pointTransactionsError } = await supabaseAdmin
       .from('point_transactions')
       .select('*')
@@ -124,6 +124,36 @@ export const GET = withAdminAuth(async (request, context) => {
 
     if (pointTransactionsError) {
       console.error('Error fetching point transactions:', pointTransactionsError);
+    }
+
+    // Fetch daily spin winnings (new daily spins)
+    const { data: spinWinnings, error: spinWinningsError } = await supabaseAdmin
+      .from('spin_winnings')
+      .select(`
+        id,
+        user_fid,
+        token_id,
+        amount,
+        usd_value,
+        spin_date,
+        claimed,
+        donated,
+        claim_tx_hash,
+        claimed_at,
+        created_at,
+        spin_tokens (
+          id,
+          symbol,
+          name,
+          segment_color
+        )
+      `)
+      .eq('user_fid', fid)
+      .order('created_at', { ascending: false })
+      .limit(100); // Get more spins since users can have multiple per day
+
+    if (spinWinningsError) {
+      console.error('Error fetching spin winnings:', spinWinningsError);
     }
 
     // Fetch ALL bounty submissions for this user (both interaction and custom bounties)
@@ -441,8 +471,11 @@ export const GET = withAdminAuth(async (request, context) => {
       // Raffle wins
       raffleWins: raffleWins || [],
 
-      // Point transactions (latest 20)
+      // Point transactions (latest 20) - old check-ins
       recentPointTransactions: pointTransactions?.slice(0, 20) || [],
+
+      // Daily spin winnings (new daily spins)
+      dailySpins: spinWinnings || [],
 
       // Missions (interaction bounties)
       missions: enrichedMissions || [],
