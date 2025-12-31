@@ -172,9 +172,8 @@ export function InfoModal({ isOpen, onClose }) {
           <div className="p-6 space-y-6">
           {/* Getting Started - Moved to top */}
           <div className="bg-gradient-to-r from-green-900/30 to-blue-900/30 rounded-xl p-4 border border-green-700/50">
-            <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-              <span>🚀</span>
-              How To Get Started:
+            <h3 className="text-lg font-semibold text-white mb-3">
+              How To Boost Your Mojo:
             </h3>
             <div className="space-y-2 text-sm text-gray-300">
               <p>1. <strong className="text-white">Stake $mintedmerch:</strong> Boost your Mojo & spin-to-claim daily to compound your $mintedmerch rewards, with a bonus chance to win physical merch packs!</p>
