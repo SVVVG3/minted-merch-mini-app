@@ -133,23 +133,49 @@ export async function GET(request) {
               console.log(`🔍 Product-specific token discounts: ${productSpecificTokenDiscounts.map(d => d.code).join(', ')}`);
               console.log(`🔍 Site-wide token discounts: ${siteWideTokenDiscounts.map(d => d.code).join(', ')}`);
               
-              // Prioritize: product-specific token > site-wide token > regular product > regular site-wide
+              // FIXED: Compare ALL token-gated discounts by value first, not by scope preference
+              // Value should win, then product-specific beats site-wide at same value
+              let bestProductDiscount = null;
+              let bestSiteWideDiscount = null;
+              
               if (productSpecificTokenDiscounts.length > 0) {
                 // Find the best product-specific token-gated discount
-                tokenGatedDiscount = productSpecificTokenDiscounts.reduce((best, current) => {
+                bestProductDiscount = productSpecificTokenDiscounts.reduce((best, current) => {
                   if (current.discount_value > best.discount_value) return current;
                   if (current.discount_value === best.discount_value && current.priority_level > best.priority_level) return current;
                   return best;
                 });
-                console.log(`🎯 Best product-specific token-gated discount: ${tokenGatedDiscount.code} (${tokenGatedDiscount.discount_value}% off)`);
-              } else if (siteWideTokenDiscounts.length > 0) {
+                console.log(`🎯 Best product-specific token-gated discount: ${bestProductDiscount.code} (${bestProductDiscount.discount_value}% off)`);
+              }
+              
+              if (siteWideTokenDiscounts.length > 0) {
                 // Find the best site-wide token-gated discount
-                tokenGatedDiscount = siteWideTokenDiscounts.reduce((best, current) => {
+                bestSiteWideDiscount = siteWideTokenDiscounts.reduce((best, current) => {
                   if (current.discount_value > best.discount_value) return current;
                   if (current.discount_value === best.discount_value && current.priority_level > best.priority_level) return current;
                   return best;
                 });
-                console.log(`🎯 Best site-wide token-gated discount: ${tokenGatedDiscount.code} (${tokenGatedDiscount.discount_value}% off)`);
+                console.log(`🎯 Best site-wide token-gated discount: ${bestSiteWideDiscount.code} (${bestSiteWideDiscount.discount_value}% off)`);
+              }
+              
+              // Now compare the best from each category - HIGHEST VALUE WINS
+              if (bestProductDiscount && bestSiteWideDiscount) {
+                if (bestSiteWideDiscount.discount_value > bestProductDiscount.discount_value) {
+                  tokenGatedDiscount = bestSiteWideDiscount;
+                  console.log(`🏆 Site-wide discount wins: ${bestSiteWideDiscount.code} (${bestSiteWideDiscount.discount_value}%) > ${bestProductDiscount.code} (${bestProductDiscount.discount_value}%)`);
+                } else if (bestProductDiscount.discount_value > bestSiteWideDiscount.discount_value) {
+                  tokenGatedDiscount = bestProductDiscount;
+                  console.log(`🏆 Product discount wins: ${bestProductDiscount.code} (${bestProductDiscount.discount_value}%) > ${bestSiteWideDiscount.code} (${bestSiteWideDiscount.discount_value}%)`);
+                } else {
+                  // Same value - prefer product-specific (more targeted)
+                  tokenGatedDiscount = bestProductDiscount;
+                  console.log(`🏆 Same value, product discount wins (more targeted): ${bestProductDiscount.code}`);
+                }
+              } else {
+                tokenGatedDiscount = bestProductDiscount || bestSiteWideDiscount;
+                if (tokenGatedDiscount) {
+                  console.log(`🎯 Only one category available: ${tokenGatedDiscount.code} (${tokenGatedDiscount.discount_value}% off)`);
+                }
               }
               
               // Mark the token-gated discount
