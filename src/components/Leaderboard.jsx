@@ -299,7 +299,7 @@ export function Leaderboard({ isVisible = true }) {
   return (
     <div className="max-w-2xl mx-auto overflow-x-hidden">
       {/* Header */}
-      <div className="border-b border-gray-700 p-6 pt-12">
+      <div className="border-b border-gray-700 p-6 pt-6">
         <div className="flex flex-col items-center gap-3">
           <img 
             src="/MintedMerchLeaderboardGraphic.png" 

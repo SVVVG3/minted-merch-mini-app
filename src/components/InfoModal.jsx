@@ -154,8 +154,8 @@ export function InfoModal({ isOpen, onClose }) {
         {/* Scrollable Content */}
         <div className="overflow-y-auto overscroll-contain">
           {/* Header */}
-          <div className="border-b border-gray-700 p-6 pt-12">
-            <div className="flex items-center gap-3 mb-4">
+          <div className="border-b border-gray-700 p-3 pt-6">
+            <div className="flex items-center gap-3 mb-2">
               <img 
                 src="/MintedMerchHeaderLogo.png" 
                 alt="Minted Merch" 

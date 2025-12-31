@@ -176,10 +176,10 @@ export default function MissionsClient() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3eb489] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading Minted Merch Missions...</p>
+          <p className="text-gray-400">Loading Minted Merch Missions...</p>
         </div>
       </div>
     );
@@ -188,24 +188,24 @@ export default function MissionsClient() {
   // Not eligible for missions
   if (!isEligible) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-gray-800/50 border border-gray-700 rounded-2xl shadow-xl p-8 text-center">
           <img 
             src="/MintedMerchMissionsLogo.png" 
             alt="Minted Merch Missions" 
             className="h-20 object-contain mx-auto mb-4"
           />
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+          <h1 className="text-2xl font-bold text-white mb-4">
             🎯 Missions Access Required
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-400 mb-6">
             Hold <span className="font-bold text-[#3eb489]">50M+ $mintedmerch</span> tokens<br />
             <span className="text-gray-500">or</span><br />
             Stake <span className="font-bold text-[#3eb489]">10M+ $mintedmerch</span> tokens
           </p>
-          <div className="bg-gray-100 rounded-xl p-4 mb-6">
-            <p className="text-sm text-gray-500">Your Balance</p>
-            <p className="text-2xl font-bold text-gray-900">{formatNumber(tokenBalance)} tokens</p>
+          <div className="bg-gray-700/50 rounded-xl p-4 mb-6 border border-gray-600">
+            <p className="text-sm text-gray-400">Your Balance</p>
+            <p className="text-2xl font-bold text-white">{formatNumber(tokenBalance)} tokens</p>
           </div>
           <button 
             onClick={() => {
@@ -221,7 +221,7 @@ export default function MissionsClient() {
               triggerHaptic('light', isInFarcaster);
               window.location.href = '/';
             }}
-            className="block mt-4 text-gray-500 hover:text-gray-700 mx-auto"
+            className="block mt-4 text-gray-400 hover:text-gray-300 mx-auto"
           >
             ← Back to Shop
           </button>
@@ -232,7 +232,7 @@ export default function MissionsClient() {
 
   // Mogul dashboard
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-600 to-[#3eb489] text-white p-4">
         <div className="max-w-4xl mx-auto">
@@ -290,12 +290,12 @@ export default function MissionsClient() {
 
       {/* Tabs */}
       <div className="max-w-4xl mx-auto px-4 -mt-4">
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          <div className="flex border-b">
+        <div className="bg-gray-800/50 border border-gray-700 rounded-xl shadow-lg overflow-hidden">
+          <div className="flex border-b border-gray-700">
             <button
               onClick={() => { setActiveTab('bounties'); triggerHaptic('light', isInFarcaster); }}
               className={`flex-1 py-4 text-center font-semibold transition-colors ${
-                activeTab === 'bounties' ? 'text-[#3eb489] border-b-2 border-[#3eb489]' : 'text-gray-500'
+                activeTab === 'bounties' ? 'text-[#3eb489] border-b-2 border-[#3eb489]' : 'text-gray-400'
               }`}
             >
               🎯 Missions
@@ -303,7 +303,7 @@ export default function MissionsClient() {
             <button
               onClick={() => { setActiveTab('payouts'); triggerHaptic('light', isInFarcaster); }}
               className={`flex-1 py-4 text-center font-semibold transition-colors ${
-                activeTab === 'payouts' ? 'text-[#3eb489] border-b-2 border-[#3eb489]' : 'text-gray-500'
+                activeTab === 'payouts' ? 'text-[#3eb489] border-b-2 border-[#3eb489]' : 'text-gray-400'
               }`}
             >
               💰 Payouts
@@ -312,7 +312,7 @@ export default function MissionsClient() {
 
           <div className="p-4">
             {error && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
+              <div className="mb-4 p-4 bg-red-900/30 border border-red-700/50 rounded-xl text-red-400">
                 {error}
               </div>
             )}
@@ -361,8 +361,8 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
     return (
       <div className="text-center py-12">
         <div className="text-6xl mb-4">🎯</div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Active Missions</h3>
-        <p className="text-gray-600">Check back later for new missions!</p>
+        <h3 className="text-lg font-semibold text-white mb-2">No Active Missions</h3>
+        <p className="text-gray-400">Check back later for new missions!</p>
       </div>
     );
   }
@@ -449,35 +449,35 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
     return (
       <div
         key={bounty.id}
-        className={`border-2 rounded-xl p-5 bg-white transition-all ${
+        className={`border-2 rounded-xl p-5 bg-gray-800/50 transition-all ${
           bounty.hasPendingSubmission
-            ? 'border-yellow-300 bg-yellow-50/30'
+            ? 'border-yellow-600/50 bg-yellow-900/20'
             : bounty.hasRejectedSubmission
-              ? 'border-red-200 bg-red-50/30'
+              ? 'border-red-600/50 bg-red-900/20'
               : bounty.hasApprovedSubmission
-                ? 'border-green-300 bg-green-50/30'
+                ? 'border-green-600/50 bg-green-900/20'
                 : bounty.isCustomBounty 
-                  ? 'border-purple-200 hover:border-purple-400 hover:shadow-lg' 
-                  : 'border-gray-200 hover:border-[#3eb489] hover:shadow-lg'
+                  ? 'border-purple-600/50 hover:border-purple-500 hover:shadow-lg' 
+                  : 'border-gray-600 hover:border-[#3eb489] hover:shadow-lg'
         }`}
       >
         <div className="flex items-start gap-4">
           <div className="text-4xl">{getBountyIcon(bounty)}</div>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <h3 className="font-bold text-gray-900">{bounty.title}</h3>
+              <h3 className="font-bold text-white">{bounty.title}</h3>
               {bounty.isCustomBounty && (
-                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-purple-900/50 text-purple-400 px-2 py-0.5 rounded-full">
                   Mogul Mission
                 </span>
               )}
               {bounty.hasPendingSubmission && (
-                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-yellow-900/50 text-yellow-400 px-2 py-0.5 rounded-full">
                   ⏳ Under Review
                 </span>
               )}
               {bounty.hasRejectedSubmission && (
-                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-red-900/50 text-red-400 px-2 py-0.5 rounded-full">
                   ❌ Denied - {bounty.canSubmit ? 'Can Resubmit' : 'No Resubmit'}
                 </span>
               )}
@@ -485,17 +485,17 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
             
             {/* Show rejection reason if available */}
             {bounty.hasRejectedSubmission && bounty.rejectionReason && (
-              <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-xs text-red-700">
+              <div className="mb-2 p-2 bg-red-900/30 border border-red-700/50 rounded-lg">
+                <p className="text-xs text-red-400">
                   <span className="font-semibold">Reason:</span> {bounty.rejectionReason}
                 </p>
               </div>
             )}
             
-            <p className="text-sm text-gray-600 mb-3">{bounty.description || getBountyAction(bounty)}</p>
+            <p className="text-sm text-gray-400 mb-3">{bounty.description || getBountyAction(bounty)}</p>
             
             <div className="flex items-center gap-4 text-sm">
-              <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full font-semibold">
+              <span className="bg-green-900/50 text-green-400 px-3 py-1 rounded-full font-semibold">
                 +{formatNumber(bounty.rewardTokens)} tokens
               </span>
               <span className="text-gray-500">
@@ -526,7 +526,7 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
       {/* Interaction Bounties Section */}
       {interactionBounties.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
             ⚡ Quick Missions
           </h3>
           <div className="space-y-4">
@@ -538,8 +538,8 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
       {/* Custom Bounties Section */}
       {customBounties.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            📝 Mogul Missions <span className="text-purple-600">(50M+ Staked)</span>
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+            📝 Mogul Missions <span className="text-purple-400">(50M+ Staked)</span>
           </h3>
           <div className="space-y-4">
             {customBounties.map(renderBountyCard)}
@@ -548,7 +548,7 @@ function BountiesTab({ bounties, onSelectBounty, isInFarcaster }) {
       )}
 
       {visibleBounties.length === 0 && bounties.length > 0 && (
-        <div className="text-center py-8 text-gray-500">
+        <div className="text-center py-8 text-gray-400">
           You've completed all available missions! Check back later for more.
         </div>
       )}
@@ -708,15 +708,15 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'claimable':
-        return { bg: 'bg-purple-100 text-purple-800', icon: '', text: 'CLAIM' };
+        return { bg: 'bg-purple-900/50 text-purple-400', icon: '', text: 'CLAIM' };
       case 'pending':
-        return { bg: 'bg-yellow-100 text-yellow-800', icon: '⏳', text: 'PENDING' };
+        return { bg: 'bg-yellow-900/50 text-yellow-400', icon: '⏳', text: 'PENDING' };
       case 'completed':
-        return { bg: 'bg-green-100 text-green-800', icon: '✅', text: 'CLAIMED' };
+        return { bg: 'bg-green-900/50 text-green-400', icon: '✅', text: 'CLAIMED' };
       case 'failed':
-        return { bg: 'bg-red-100 text-red-800', icon: '❌', text: 'FAILED' };
+        return { bg: 'bg-red-900/50 text-red-400', icon: '❌', text: 'FAILED' };
       default:
-        return { bg: 'bg-gray-100 text-gray-800', icon: '', text: status.toUpperCase() };
+        return { bg: 'bg-gray-700/50 text-gray-400', icon: '', text: status.toUpperCase() };
     }
   };
 
@@ -724,8 +724,8 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
     return (
       <div className="text-center py-12">
         <div className="text-6xl mb-4">💰</div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Payouts Yet</h3>
-        <p className="text-gray-600">Complete missions to earn $mintedmerch tokens!</p>
+        <h3 className="text-lg font-semibold text-white mb-2">No Payouts Yet</h3>
+        <p className="text-gray-400">Complete missions to earn $mintedmerch tokens!</p>
       </div>
     );
   }
@@ -742,7 +742,7 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
     <div className="space-y-3">
       {/* Summary */}
       {totalClaimable > 0 && (
-        <div className="bg-green-50 border border-[#3eb489] rounded-xl p-3 mb-4">
+        <div className="bg-green-900/30 border border-[#3eb489]/50 rounded-xl p-3 mb-4">
           <p className="text-[#3eb489] font-semibold text-sm text-center">
             Ready to Claim: {formatNumber(totalClaimable)} $mintedmerch
           </p>
@@ -750,7 +750,7 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
       )}
       
       {totalClaimed > 0 && (
-        <div className="bg-green-50 border border-[#3eb489] rounded-xl p-3 mb-4">
+        <div className="bg-green-900/30 border border-[#3eb489]/50 rounded-xl p-3 mb-4">
           <p className="text-[#3eb489] font-semibold text-sm text-center">
             ✅ Total Claimed: {formatNumber(totalClaimed)} $mintedmerch
           </p>
@@ -767,7 +767,7 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
       )}
 
       {claimError && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-red-700">
+        <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-4 mb-4 text-red-400">
           {claimError}
         </div>
       )}
@@ -779,10 +779,10 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
         const isThisConfirmed = claimSuccess === payout.id;
 
         return (
-          <div key={payout.id} className="border rounded-xl p-4 bg-gray-50">
+          <div key={payout.id} className="border border-gray-700 rounded-xl p-4 bg-gray-800/50">
             <div className="flex items-center justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-gray-900 text-sm truncate">{payout.bounty?.title || 'Mission Payout'}</h4>
+                <h4 className="font-semibold text-white text-sm truncate">{payout.bounty?.title || 'Mission Payout'}</h4>
                 <p className="text-xs text-gray-500">
                   {new Date(payout.createdAt).toLocaleDateString()}
                 </p>
@@ -799,7 +799,7 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
                       isThisConfirmed
                         ? 'bg-green-600 text-white'
                         : isClaiming || isConfirming
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                         : 'bg-[#3eb489] hover:bg-[#359970] text-white'
                     }`}
                   >
@@ -866,26 +866,26 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-gray-700 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">{bounty.title}</h2>
+              <h2 className="text-xl font-bold text-white">{bounty.title}</h2>
               {isCustomBounty && (
-                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-purple-900/50 text-purple-400 px-2 py-0.5 rounded-full">
                   Mogul Mission
                 </span>
               )}
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-300">
               ✕
             </button>
           </div>
 
-          <div className={`rounded-xl p-4 mb-6 text-center ${isCustomBounty ? 'bg-purple-50' : 'bg-green-50'}`}>
-            <p className={`text-sm ${isCustomBounty ? 'text-purple-600' : 'text-green-600'}`}>Reward</p>
-            <p className={`text-2xl font-bold ${isCustomBounty ? 'text-purple-800' : 'text-green-800'}`}>
+          <div className={`rounded-xl p-4 mb-6 text-center ${isCustomBounty ? 'bg-purple-900/30 border border-purple-700/50' : 'bg-green-900/30 border border-green-700/50'}`}>
+            <p className={`text-sm ${isCustomBounty ? 'text-purple-400' : 'text-green-400'}`}>Reward</p>
+            <p className={`text-2xl font-bold ${isCustomBounty ? 'text-purple-300' : 'text-green-300'}`}>
               {formatNumber(bounty.rewardTokens)} $mintedmerch
             </p>
           </div>
@@ -893,15 +893,15 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
           {/* Requirements section for custom bounties */}
           {isCustomBounty && (
             <div className="mb-6">
-              <h3 className="font-semibold text-gray-900 mb-2">📋 Requirements</h3>
-              <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700">
+              <h3 className="font-semibold text-white mb-2">📋 Requirements</h3>
+              <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 text-sm text-gray-300">
                 {bounty.requirements || bounty.description || 'Complete the mission requirements'}
               </div>
               
               {bounty.proofRequirements && (
                 <div className="mt-3">
-                  <h4 className="font-medium text-gray-700 mb-1">📎 Proof Required</h4>
-                  <p className="text-sm text-gray-600">{bounty.proofRequirements}</p>
+                  <h4 className="font-medium text-gray-300 mb-1">📎 Proof Required</h4>
+                  <p className="text-sm text-gray-400">{bounty.proofRequirements}</p>
                 </div>
               )}
             </div>
@@ -928,20 +928,20 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
           {isCustomBounty && (
             <div className="mb-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Proof URL <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Proof URL <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="url"
                   value={proofUrl}
                   onChange={(e) => setProofUrl(e.target.value)}
                   placeholder="https://warpcast.com/... or link to your proof"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Description (optional)
                 </label>
                 <textarea
@@ -949,14 +949,14 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
                   onChange={(e) => setProofDescription(e.target.value)}
                   placeholder="Add any notes about your submission..."
                   rows={2}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                 />
               </div>
             </div>
           )}
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+            <div className="mb-4 p-3 bg-red-900/30 border border-red-700/50 rounded-xl text-red-400 text-sm">
               {error}
             </div>
           )}
@@ -966,7 +966,7 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
             disabled={submitting || (isCustomBounty && !proofUrl)}
             className={`w-full py-3 rounded-xl font-semibold transition-colors ${
               submitting || (isCustomBounty && !proofUrl)
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                 : isCustomBounty
                   ? 'bg-purple-600 hover:bg-purple-700 text-white'
                   : 'bg-[#3eb489] hover:bg-[#359970] text-white'
@@ -991,7 +991,7 @@ function BountyModal({ bounty, onClose, onComplete, submitting, error, isInFarca
 
           <button
             onClick={onClose}
-            className="w-full mt-3 py-3 text-gray-500 hover:text-gray-700"
+            className="w-full mt-3 py-3 text-gray-400 hover:text-gray-300"
           >
             Cancel
           </button>
