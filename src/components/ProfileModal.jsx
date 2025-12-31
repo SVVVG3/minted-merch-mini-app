@@ -693,32 +693,12 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               )}
             </div>
             
-            {/* Merch Mogul Badge - based on staked amount */}
-            {profileData?.staked_balance && parseFloat(profileData.staked_balance) >= 50000000 && (
-              <div className="flex justify-center mt-2">
-                <span className="px-2 py-1 bg-gray-800/80 rounded-full">
-                  <img 
-                    src={parseFloat(profileData.staked_balance) >= 200000000 
-                      ? "/GoldVerifiedMerchMogulBadge.png" 
-                      : "/VerifiedMerchMogulBadge.png"
-                    }
-                    alt={parseFloat(profileData.staked_balance) >= 200000000 ? "Whale" : "Merch Mogul"}
-                    className="h-6"
-                    title={parseFloat(profileData.staked_balance) >= 200000000 
-                      ? "Whale - 200M+ $MINTEDMERCH staked" 
-                      : "Merch Mogul - 50M+ $MINTEDMERCH staked"
-                    }
-                  />
-                </span>
-              </div>
-            )}
-            
             <p className="text-white/90 text-xl font-semibold mt-1">Profile & Order History</p>
           </div>
         </div>
         
         {/* Content Area */}
-        <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className="overflow-y-auto max-h-[calc(90vh-160px)] pb-4">
           
           {profileLoading ? (
             <div className="text-center py-12">
@@ -734,21 +714,40 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                     <img src="/splash.png" alt="$MINTEDMERCH" className="w-full h-full object-contain" />
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-bold text-green-400">$MINTEDMERCH Holdings</h4>
-                    <p className="text-xs text-green-500">
-                      {(() => {
-                        if (!profileData.all_wallet_addresses) return '';
-                        if (Array.isArray(profileData.all_wallet_addresses)) {
-                          return `${profileData.all_wallet_addresses.length} wallets tracked`;
-                        }
-                        try {
-                          const wallets = JSON.parse(profileData.all_wallet_addresses);
-                          return `${wallets.length} wallets tracked`;
-                        } catch (e) {
-                          return '';
-                        }
-                      })()}
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-bold text-green-400">$MINTEDMERCH Holdings</h4>
+                        <p className="text-xs text-green-500">
+                          {(() => {
+                            if (!profileData.all_wallet_addresses) return '';
+                            if (Array.isArray(profileData.all_wallet_addresses)) {
+                              return `${profileData.all_wallet_addresses.length} wallets tracked`;
+                            }
+                            try {
+                              const wallets = JSON.parse(profileData.all_wallet_addresses);
+                              return `${wallets.length} wallets tracked`;
+                            } catch (e) {
+                              return '';
+                            }
+                          })()}
+                        </p>
+                      </div>
+                      {/* Merch Mogul Badge - based on staked amount */}
+                      {profileData?.staked_balance && parseFloat(profileData.staked_balance) >= 50000000 && (
+                        <img 
+                          src={parseFloat(profileData.staked_balance) >= 200000000 
+                            ? "/GoldVerifiedMerchMogulBadge.png" 
+                            : "/VerifiedMerchMogulBadge.png"
+                          }
+                          alt={parseFloat(profileData.staked_balance) >= 200000000 ? "Whale" : "Merch Mogul"}
+                          className="h-6"
+                          title={parseFloat(profileData.staked_balance) >= 200000000 
+                            ? "Whale - 200M+ $MINTEDMERCH staked" 
+                            : "Merch Mogul - 50M+ $MINTEDMERCH staked"
+                          }
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
                 
