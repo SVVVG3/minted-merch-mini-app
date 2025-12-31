@@ -294,16 +294,31 @@ export const GET = withAdminAuth(async (request, context) => {
     const totalSpent = orders?.reduce((sum, order) => sum + (parseFloat(order.amount_total) || 0), 0) || 0;
     const totalDiscountSaved = discountUsage?.reduce((sum, usage) => sum + (parseFloat(usage.discount_amount) || 0), 0) || 0;
 
-    // Get check-in count from last 100 days for Mojo breakdown
+    // Get check-in count from last 100 days for Mojo breakdown (combines old check-ins + new daily spins)
     const hundredDaysAgo = new Date();
     hundredDaysAgo.setDate(hundredDaysAgo.getDate() - 100);
+    const hundredDaysAgoDate = hundredDaysAgo.toISOString().split('T')[0]; // YYYY-MM-DD format
     
-    const { count: checkInCount } = await supabaseAdmin
+    // Count OLD check-ins from point_transactions (legacy system)
+    const { count: oldCheckInCount } = await supabaseAdmin
       .from('point_transactions')
       .select('*', { count: 'exact', head: true })
       .eq('user_fid', fid)
       .eq('transaction_type', 'daily_checkin')
       .gte('created_at', hundredDaysAgo.toISOString());
+    
+    // Count NEW daily spin days from spin_winnings (new system)
+    // We count unique spin_date values since users can have multiple spins per day
+    const { data: spinDaysData } = await supabaseAdmin
+      .from('spin_winnings')
+      .select('spin_date')
+      .eq('user_fid', fid)
+      .gte('spin_date', hundredDaysAgoDate);
+    
+    const uniqueSpinDays = new Set(spinDaysData?.map(s => s.spin_date) || []).size;
+    
+    // Total check-in engagement = old check-ins + new spin days
+    const checkInCount = (oldCheckInCount || 0) + uniqueSpinDays;
 
     // Get approved mission submissions count for Mojo breakdown
     const { count: approvedMissionsCount } = await supabaseAdmin
