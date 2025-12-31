@@ -188,6 +188,10 @@ export async function checkTokenGatedEligibility(discount, fid, userWalletAddres
         blockchainCallsCount = result.blockchainCalls || 0;
         break;
         
+      case 'staked_balance':
+        result = await checkStakedBalance(discount, fid);
+        break;
+        
       case 'combined':
         result = await checkCombinedGating(discount, fid, userWalletAddresses);
         blockchainCallsCount = result.blockchainCalls || 0;
@@ -688,6 +692,82 @@ async function checkTokenBalance(discount, userWalletAddresses, fid = null, useC
       reason: `Token balance check failed: ${error.message}`,
       details: { error: error.message },
       blockchainCalls: 0
+    };
+  }
+}
+
+/**
+ * Check STAKED balance eligibility using cached staked_balance from profiles table
+ * This ONLY checks tokens in the staking contract, not wallet holdings
+ */
+async function checkStakedBalance(discount, fid) {
+  const requiredBalance = parseFloat(discount.required_balance) || 1;
+  
+  if (!fid) {
+    return {
+      eligible: false,
+      reason: 'FID required for staked balance check',
+      details: { fid: null }
+    };
+  }
+
+  console.log(`🔒 Checking STAKED balance for FID ${fid} (required: ${requiredBalance.toLocaleString()})`);
+  
+  try {
+    // Get cached staked balance from profiles table
+    const { data: profile, error } = await supabaseAdmin
+      .from('profiles')
+      .select('staked_balance, token_balance_updated_at')
+      .eq('fid', fid)
+      .maybeSingle();
+
+    if (error) {
+      console.error('❌ Error fetching staked balance:', error);
+      return {
+        eligible: false,
+        reason: `Staked balance check failed: ${error.message}`,
+        details: { error: error.message, fid }
+      };
+    }
+
+    if (!profile) {
+      return {
+        eligible: false,
+        reason: 'User profile not found',
+        details: { fid }
+      };
+    }
+
+    const stakedBalance = parseFloat(profile.staked_balance) || 0;
+    const eligible = stakedBalance >= requiredBalance;
+
+    console.log(`🔒 Staked balance check result:`, {
+      fid,
+      stakedBalance: stakedBalance.toLocaleString(),
+      requiredBalance: requiredBalance.toLocaleString(),
+      eligible,
+      lastUpdated: profile.token_balance_updated_at
+    });
+
+    return {
+      eligible,
+      reason: eligible
+        ? `Staking ${stakedBalance.toLocaleString()} tokens (required: ${requiredBalance.toLocaleString()})`
+        : `Only staking ${stakedBalance.toLocaleString()} tokens, need ${requiredBalance.toLocaleString()}`,
+      details: {
+        required_balance: requiredBalance,
+        staked_balance: stakedBalance,
+        fid,
+        last_updated: profile.token_balance_updated_at
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ Error checking staked balance:', error);
+    return {
+      eligible: false,
+      reason: `Staked balance check failed: ${error.message}`,
+      details: { error: error.message, fid }
     };
   }
 }
