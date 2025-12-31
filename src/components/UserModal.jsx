@@ -934,60 +934,64 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                     </div>
                   </div>
 
-                  {/* Recent Activity - Combined old check-ins and new daily spins */}
+                  {/* Recent Activity - All activity in one chronological list */}
                   <div>
-                    <h4 className="font-medium mb-3">Recent Activity (Check-ins & Spins)</h4>
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                    <h4 className="font-medium mb-3">Recent Activity</h4>
+                    <div className="space-y-2 max-h-[500px] overflow-y-auto">
                       {(() => {
-                        // Combine old point transactions and new daily spins
-                        const oldCheckins = (userData.recentPointTransactions || [])
-                          .filter(t => t.transaction_type === 'daily_checkin')
-                          .map(t => ({
-                            type: 'old_checkin',
-                            id: `old-${t.id}`,
-                            date: new Date(t.created_at),
-                            created_at: t.created_at,
-                            points_earned: t.points_earned,
-                            points_before: t.points_before,
-                            points_after: t.points_after,
-                            description: t.description
-                          }));
+                        // Process all point transactions
+                        const pointTransactionItems = (userData.recentPointTransactions || []).map(t => ({
+                          type: t.transaction_type === 'daily_checkin' ? 'old_checkin' : 'point_transaction',
+                          id: `pt-${t.id}`,
+                          date: new Date(t.created_at),
+                          created_at: t.created_at,
+                          transaction_type: t.transaction_type,
+                          points_earned: t.points_earned,
+                          points_before: t.points_before,
+                          points_after: t.points_after,
+                          description: t.description
+                        }));
                         
-                        const newSpins = (userData.dailySpins || []).map(s => ({
-                          type: 'new_spin',
-                          id: `spin-${s.id}`,
-                          date: new Date(s.created_at),
-                          created_at: s.created_at,
-                          spin_date: s.spin_date,
-                          token_symbol: s.spin_tokens?.symbol || 'MISS',
-                          token_name: s.spin_tokens?.name || 'Miss',
-                          token_color: s.spin_tokens?.segment_color || '#666',
-                          amount: s.amount,
-                          usd_value: s.usd_value,
-                          claimed: s.claimed,
-                          donated: s.donated,
-                          claim_tx_hash: s.claim_tx_hash
+                        // Group daily spins by date
+                        const spinsByDate = {};
+                        (userData.dailySpins || []).forEach(s => {
+                          const spinDate = s.spin_date;
+                          if (!spinsByDate[spinDate]) {
+                            spinsByDate[spinDate] = {
+                              spins: [],
+                              firstSpinTime: new Date(s.created_at),
+                              lastSpinTime: new Date(s.created_at)
+                            };
+                          }
+                          spinsByDate[spinDate].spins.push(s);
+                          const spinTime = new Date(s.created_at);
+                          if (spinTime > spinsByDate[spinDate].lastSpinTime) {
+                            spinsByDate[spinDate].lastSpinTime = spinTime;
+                          }
+                          if (spinTime < spinsByDate[spinDate].firstSpinTime) {
+                            spinsByDate[spinDate].firstSpinTime = spinTime;
+                          }
+                        });
+                        
+                        // Convert grouped spins to items (one item per day)
+                        const spinDayItems = Object.entries(spinsByDate).map(([spinDate, data]) => ({
+                          type: 'spin_day',
+                          id: `spinday-${spinDate}`,
+                          date: data.lastSpinTime, // Sort by last spin of the day
+                          spin_date: spinDate,
+                          spins: data.spins
                         }));
                         
                         // Combine and sort by date (newest first)
-                        const combined = [...oldCheckins, ...newSpins].sort((a, b) => b.date - a.date);
-                        
-                        // Group spins by date to show daily totals
-                        const spinsByDate = {};
-                        newSpins.forEach(spin => {
-                          if (!spinsByDate[spin.spin_date]) {
-                            spinsByDate[spin.spin_date] = [];
-                          }
-                          spinsByDate[spin.spin_date].push(spin);
-                        });
+                        const combined = [...pointTransactionItems, ...spinDayItems].sort((a, b) => b.date - a.date);
                         
                         if (combined.length === 0) {
-                          return <div className="text-center text-gray-500 py-4">No check-ins or spins found</div>;
+                          return <div className="text-center text-gray-500 py-4">No activity found</div>;
                         }
                         
-                        return combined.map((item, index) => {
+                        return combined.map((item) => {
                           if (item.type === 'old_checkin') {
-                            // Old check-in display
+                            // Old check-in display (blue)
                             return (
                               <div key={item.id} className="bg-blue-50 rounded-lg p-3 border border-blue-200">
                                 <div className="flex justify-between items-center">
@@ -1009,48 +1013,112 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                                 </div>
                               </div>
                             );
-                          } else {
-                            // New daily spin display
-                            const isMiss = !item.amount || item.amount === '0' || item.amount === 0;
-                            const displayAmount = isMiss ? 'MISS' : 
-                              (parseFloat(item.amount) / Math.pow(10, 18)).toFixed(4);
+                          } else if (item.type === 'spin_day') {
+                            // New daily spin day (grouped) - green/orange
+                            const wins = item.spins.filter(s => s.amount && s.amount !== '0' && s.amount !== 0);
+                            const misses = item.spins.filter(s => !s.amount || s.amount === '0' || s.amount === 0);
+                            const allClaimed = item.spins.every(s => s.claimed);
+                            const allDonated = item.spins.every(s => s.donated);
+                            const hasDonations = item.spins.some(s => s.donated);
+                            
+                            // Calculate total USD value of wins
+                            const totalUsdValue = wins.reduce((sum, s) => sum + (parseFloat(s.usd_value) || 0), 0);
+                            
+                            // Group wins by token
+                            const winsByToken = {};
+                            wins.forEach(w => {
+                              const symbol = w.spin_tokens?.symbol || 'TOKEN';
+                              if (!winsByToken[symbol]) {
+                                winsByToken[symbol] = { amount: BigInt(0), count: 0 };
+                              }
+                              winsByToken[symbol].amount += BigInt(w.amount || 0);
+                              winsByToken[symbol].count += 1;
+                            });
                             
                             return (
                               <div key={item.id} className={`rounded-lg p-3 border ${
-                                isMiss ? 'bg-gray-50 border-gray-200' : 'bg-green-50 border-green-200'
+                                wins.length > 0 ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
                               }`}>
-                                <div className="flex justify-between items-center">
+                                <div className="flex justify-between items-start">
                                   <div>
                                     <div className="font-medium flex items-center gap-2">
                                       <span>🎰 Daily Spin</span>
-                                      {isMiss ? (
-                                        <span className="text-gray-500 text-sm">❌ Miss</span>
-                                      ) : (
-                                        <span className="text-green-600 text-sm">
-                                          🎉 Won ${item.token_symbol}
-                                        </span>
-                                      )}
+                                      <span className="text-xs bg-gray-200 px-2 py-0.5 rounded">
+                                        {item.spins.length} spin{item.spins.length !== 1 ? 's' : ''}
+                                      </span>
                                     </div>
-                                    <div className="text-sm text-gray-600">{formatDate(item.created_at)}</div>
-                                    <div className="text-xs text-gray-500">Spin Date: {item.spin_date}</div>
+                                    <div className="text-sm text-gray-600">{item.spin_date}</div>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      {wins.length > 0 && <span className="text-green-600">🎉 {wins.length} win{wins.length !== 1 ? 's' : ''}</span>}
+                                      {wins.length > 0 && misses.length > 0 && ' • '}
+                                      {misses.length > 0 && <span className="text-gray-500">❌ {misses.length} miss{misses.length !== 1 ? 'es' : ''}</span>}
+                                    </div>
                                   </div>
                                   <div className="text-right">
-                                    {!isMiss && (
+                                    {wins.length > 0 && (
                                       <>
-                                        <div className="font-medium text-green-600">
-                                          {displayAmount} ${item.token_symbol}
-                                        </div>
+                                        {Object.entries(winsByToken).map(([symbol, data]) => (
+                                          <div key={symbol} className="text-sm font-medium text-green-600">
+                                            {(Number(data.amount) / Math.pow(10, 18)).toFixed(2)} ${symbol}
+                                          </div>
+                                        ))}
                                         <div className="text-xs text-gray-500">
-                                          ~${parseFloat(item.usd_value || 0).toFixed(4)}
+                                          ~${totalUsdValue.toFixed(4)}
                                         </div>
                                       </>
                                     )}
                                     <div className={`text-xs px-2 py-0.5 rounded mt-1 inline-block ${
-                                      item.donated ? 'bg-purple-100 text-purple-800' :
-                                      item.claimed ? 'bg-green-100 text-green-800' :
+                                      allDonated ? 'bg-purple-100 text-purple-800' :
+                                      allClaimed ? 'bg-green-100 text-green-800' :
+                                      hasDonations ? 'bg-purple-100 text-purple-800' :
                                       'bg-yellow-100 text-yellow-800'
                                     }`}>
-                                      {item.donated ? 'Mojo Boost' : item.claimed ? 'Claimed' : 'Unclaimed'}
+                                      {allDonated ? 'Mojo Boost' : 
+                                       allClaimed ? 'Claimed' : 
+                                       hasDonations ? 'Partial Boost' :
+                                       'Unclaimed'}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          } else {
+                            // Other point transactions (purple for purchases, gray for others)
+                            const isPurchase = item.transaction_type === 'purchase';
+                            const isBonus = item.transaction_type === 'bonus';
+                            const isMint = item.transaction_type === 'nft_mint';
+                            
+                            return (
+                              <div key={item.id} className={`rounded-lg p-3 border ${
+                                isPurchase ? 'bg-purple-50 border-purple-200' :
+                                isBonus ? 'bg-yellow-50 border-yellow-200' :
+                                isMint ? 'bg-pink-50 border-pink-200' :
+                                'bg-gray-50 border-gray-200'
+                              }`}>
+                                <div className="flex justify-between items-center">
+                                  <div>
+                                    <div className={`font-medium ${
+                                      isPurchase ? 'text-purple-800' :
+                                      isBonus ? 'text-yellow-800' :
+                                      isMint ? 'text-pink-800' :
+                                      'text-gray-800'
+                                    }`}>
+                                      {isPurchase ? '🛍️ Purchase' :
+                                       isBonus ? '🎁 Bonus' :
+                                       isMint ? '🎨 NFT Mint' :
+                                       '⚙️ Adjustment'}
+                                    </div>
+                                    <div className="text-sm text-gray-600">{formatDate(item.created_at)}</div>
+                                    {item.description && (
+                                      <div className="text-sm text-gray-600">{item.description}</div>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-medium text-green-600">
+                                      +{item.points_earned?.toLocaleString() || 0}
+                                    </div>
+                                    <div className="text-sm text-gray-600">
+                                      {item.points_before?.toLocaleString() || 0} → {item.points_after?.toLocaleString() || 0}
                                     </div>
                                   </div>
                                 </div>
@@ -1059,43 +1127,6 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                           }
                         });
                       })()}
-                    </div>
-                  </div>
-
-                  {/* Non-checkin Point Transactions */}
-                  <div>
-                    <h4 className="font-medium mb-3">Other Point Transactions</h4>
-                    <div className="space-y-2">
-                      {userData.recentPointTransactions.filter(t => t.transaction_type !== 'daily_checkin').length > 0 ? (
-                        userData.recentPointTransactions.filter(t => t.transaction_type !== 'daily_checkin').map((transaction) => (
-                          <div key={transaction.id} className="bg-gray-50 rounded-lg p-3">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <div className="font-medium">
-                                  {transaction.transaction_type === 'purchase' ? '🛍️ Purchase' :
-                                   transaction.transaction_type === 'bonus' ? '🎁 Bonus' :
-                                   transaction.transaction_type === 'nft_mint' ? '🎨 NFT Mint' :
-                                   '⚙️ Adjustment'}
-                                </div>
-                                <div className="text-sm text-gray-600">{formatDate(transaction.created_at)}</div>
-                                {transaction.description && (
-                                  <div className="text-sm text-gray-600">{transaction.description}</div>
-                                )}
-                              </div>
-                              <div className="text-right">
-                                <div className="font-medium text-green-600">
-                                  +{transaction.points_earned.toLocaleString()}
-                                </div>
-                                <div className="text-sm text-gray-600">
-                                  {transaction.points_before.toLocaleString()} → {transaction.points_after.toLocaleString()}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center text-gray-500 py-4">No other point transactions found</div>
-                      )}
                     </div>
                   </div>
                 </div>
