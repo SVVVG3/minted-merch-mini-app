@@ -117,7 +117,7 @@ export async function getUsersNeedingCheckInReminders() {
 }
 
 /**
- * Create check-in reminder message
+ * Create check-in reminder message (Morning - 8 AM PST)
  * @param {number} userFid - User's Farcaster ID
  * @returns {object} Notification message object
  */
@@ -128,33 +128,32 @@ export async function createCheckInReminderMessage(userFid) {
     const userData = await getUserLeaderboardData(userFid);
 
     const currentStreak = userData?.checkin_streak || 0;
-    const totalPoints = userData?.total_points || 0;
 
-    // Create personalized message based on streak
-    let message = "Spin the wheel to earn points and be entered into raffles for FREE merch!";
+    // Create personalized message based on streak - aligned with Daily Spin
+    let message = "🎰 Spin the wheel for a chance to win tokens!";
     
-    if (currentStreak >= 7) {
-      message = `🔥 ${currentStreak}-day streak! Don't break it - spin now for bonus points!`;
+    if (currentStreak >= 30) {
+      message = `🏆 Legendary ${currentStreak}-day streak! Spin to win tokens & keep it alive!`;
+    } else if (currentStreak >= 7) {
+      message = `🔥 Your ${currentStreak}-day streak is on fire! Spin to win tokens today!`;
     } else if (currentStreak >= 3) {
-      message = `⚡ ${currentStreak}-day streak! Keep it going - spin for bonus points!`;
+      message = `⚡ ${currentStreak}-day streak! Spin to win tokens & boost your Mojo!`;
     } else if (currentStreak >= 1) {
-      message = `🎯 Day ${currentStreak + 1} awaits! Spin now to continue your streak!`;
-    } else if (totalPoints > 0) {
-      message = `🎲 Daily spin available! Add to your ${totalPoints} points & keep moving up the leaderboard!`;
+      message = `🎯 Spin to win tokens & keep your ${currentStreak}-day streak going!`;
     }
 
     return {
-      title: "🎯 Daily Check-in Time",
+      title: "🎰 Daily Spin Available!",
       body: message,
-      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=checkin_reminder&t=${Date.now()}`
+      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?showDailySpin=1&from=checkin_reminder&t=${Date.now()}`
     };
 
   } catch (error) {
     console.error('Error creating check-in reminder message:', error);
     return {
-      title: "🎯 Daily Check-in Time",
-      body: "Spin the wheel to earn points and be entered into raffles for FREE merch!",
-      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=checkin_reminder&t=${Date.now()}`
+      title: "🎰 Daily Spin Available!",
+      body: "🎰 Spin the wheel for a chance to win tokens!",
+      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?showDailySpin=1&from=checkin_reminder&t=${Date.now()}`
     };
   }
 }
@@ -321,16 +320,16 @@ export async function sendDailyCheckInReminders() {
       }
       
       // Determine message body - OPTIMIZED: Use ranges instead of exact numbers to reduce API calls
-      // Now only 4 groups (streak holders only)
+      // Now only 4 groups (streak holders only) - Updated for Daily Spin
       let messageBody;
       if (currentStreak >= 30) {
-        messageBody = "🏆 Legendary streak! You're in the top 1% - keep it going!";
+        messageBody = "🏆 Legendary streak! Spin to win tokens & keep it alive!";
       } else if (currentStreak >= 7) {
-        messageBody = "🔥 You're on fire! Don't break your streak - spin now!";
+        messageBody = "🔥 Your streak is on fire! Spin to win tokens today!";
       } else if (currentStreak >= 3) {
-        messageBody = "⚡ Nice streak! Keep it going - spin for bonus points!";
+        messageBody = "⚡ Nice streak! Spin to win tokens & boost your Mojo!";
       } else {
-        messageBody = "🎯 Keep your streak going! Spin now to continue!";
+        messageBody = "🎯 Spin to win tokens & keep your streak going!";
       }
       
       // Group users by message body
@@ -359,9 +358,9 @@ export async function sendDailyCheckInReminders() {
       console.log(`📤 Sending batch ${groupNumber}/${messageGroups.size}: ${fids.length} users...`);
       
       const message = {
-        title: "🎯 Daily Check-in Time",
+        title: "🎰 Daily Spin Available!",
         body: messageBody,
-        targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=checkin_reminder&t=${Date.now()}`
+        targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?showDailySpin=1&from=checkin_reminder&t=${Date.now()}`
       };
       
       const batchResult = await sendBatchNotificationWithNeynar(fids, message);
@@ -533,7 +532,7 @@ export function shouldSendEveningNotifications() {
  * @returns {object} Notification message object
  */
 /**
- * Create personalized afternoon check-in reminder message (2 PM PST)
+ * Create personalized afternoon spin reminder message (2 PM PST)
  * @param {number} userFid - User's Farcaster ID
  * @returns {string} Personalized reminder message
  */
@@ -544,33 +543,32 @@ export async function createAfternoonCheckInReminderMessage(userFid) {
     const userData = await getUserLeaderboardData(userFid);
 
     const currentStreak = userData?.checkin_streak || 0;
-    const totalPoints = userData?.total_points || 0;
 
-    // Create afternoon message with a sense of urgency (halfway through the day)
-    let message = "🎡 Afternoon reminder: Spin the wheel today to earn points!";
+    // Create afternoon message with a sense of urgency - aligned with Daily Spin
+    let message = "🎰 Friendly reminder: Spin the wheel for a chance to win tokens today!";
     
-    if (currentStreak >= 7) {
-      message = `🔥 Your ${currentStreak}-day streak is waiting! Check in before 8 AM PST tomorrow!`;
+    if (currentStreak >= 30) {
+      message = `🏆 Don't lose your legendary ${currentStreak}-day streak! Spin before 8 AM PST!`;
+    } else if (currentStreak >= 7) {
+      message = `🔥 Your ${currentStreak}-day streak is on fire! Spin before 8 AM PST tomorrow!`;
     } else if (currentStreak >= 3) {
-      message = `⚡ Keep building your ${currentStreak}-day streak! Don't forget to check in today!`;
+      message = `⚡ Spin today to keep your ${currentStreak}-day streak & win tokens!`;
     } else if (currentStreak >= 1) {
-      message = `🎯 Afternoon check-in! Keep your ${currentStreak}-day streak going!`;
-    } else if (totalPoints > 0) {
-      message = `🎲 Add to your ${totalPoints} points! Spin the wheel before 8 AM PST tomorrow!`;
+      message = `🎯 Spin today to keep your ${currentStreak}-day streak going!`;
     }
 
     return {
-      title: "☀️ Afternoon Check-in Reminder",
+      title: "☀️ Daily Spin Reminder",
       body: message,
-      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=afternoon_reminder&t=${Date.now()}`
+      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?showDailySpin=1&from=afternoon_reminder&t=${Date.now()}`
     };
 
   } catch (error) {
     console.error('Error creating afternoon check-in reminder message:', error);
     return {
-      title: "☀️ Afternoon Check-in Reminder",
-      body: "🎡 Friendly reminder: Don't forget to spin the wheel and earn points today!",
-      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=afternoon_reminder&t=${Date.now()}`
+      title: "☀️ Daily Spin Reminder",
+      body: "🎰 Friendly reminder: Spin the wheel for a chance to win tokens today!",
+      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?showDailySpin=1&from=afternoon_reminder&t=${Date.now()}`
     };
   }
 }
@@ -638,33 +636,32 @@ export async function createEveningCheckInReminderMessage(userFid) {
     const userData = await getUserLeaderboardData(userFid);
 
     const currentStreak = userData?.checkin_streak || 0;
-    const totalPoints = userData?.total_points || 0;
 
-    // Create more urgent evening message based on streak
-    let message = "⏰ Last chance today! Spin the wheel before 8 AM PST to earn points!";
+    // Create more urgent evening message based on streak - aligned with Daily Spin
+    let message = "⏰ Last chance today! Spin the wheel for a chance to win tokens!";
     
-    if (currentStreak >= 7) {
-      message = `🔥 Don't lose your ${currentStreak}-day streak! Check in before 8 AM PST tomorrow!`;
+    if (currentStreak >= 30) {
+      message = `🏆 Last chance! Don't lose your legendary ${currentStreak}-day streak - spin now!`;
+    } else if (currentStreak >= 7) {
+      message = `🔥 Last chance! Spin now to keep your ${currentStreak}-day streak & win tokens!`;
     } else if (currentStreak >= 3) {
-      message = `⚡ Keep your ${currentStreak}-day streak alive! Check in before 8 AM PST tomorrow!`;
+      message = `⚡ Hours left! Spin now to keep your ${currentStreak}-day streak alive!`;
     } else if (currentStreak >= 1) {
-      message = `🎯 Don't break your streak! Check in before 8 AM PST tomorrow for day ${currentStreak + 1}!`;
-    } else if (totalPoints > 0) {
-      message = `🎲 Final reminder! Add to your ${totalPoints} points before 8 AM PST tomorrow!`;
+      message = `🎯 Don't break your ${currentStreak}-day streak! Spin before 8 AM PST tomorrow!`;
     }
 
     return {
-      title: "🌅 Daily Check-in Ending Soon",
+      title: "🌅 Last Chance to Spin!",
       body: message,
-      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=evening_checkin_reminder&t=${Date.now()}`
+      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?showDailySpin=1&from=evening_checkin_reminder&t=${Date.now()}`
     };
 
   } catch (error) {
     console.error('Error creating evening check-in reminder message:', error);
     return {
-      title: "🌅 Daily Check-in Ending Soon",
-      body: "⏰ Last chance today! Spin the wheel before 8 AM PST to earn points!",
-      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=evening_checkin_reminder&t=${Date.now()}`
+      title: "🌅 Last Chance to Spin!",
+      body: "⏰ Last chance today! Spin the wheel for a chance to win tokens!",
+      targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?showDailySpin=1&from=evening_checkin_reminder&t=${Date.now()}`
     };
   }
 }
@@ -1002,16 +999,16 @@ export async function sendAfternoonCheckInReminders() {
       }
       
       // OPTIMIZED: Use ranges instead of exact numbers to reduce API calls
-      // Now only 4 groups (streak holders only)
+      // Now only 4 groups (streak holders only) - Updated for Daily Spin
       let messageBody;
       if (currentStreak >= 30) {
-        messageBody = "🏆 Legendary streak! Don't forget to check in before 8 AM PST!";
+        messageBody = "🏆 Don't lose your legendary streak! Spin before 8 AM PST!";
       } else if (currentStreak >= 7) {
-        messageBody = "🔥 You're on fire! Check in before 8 AM PST tomorrow!";
+        messageBody = "🔥 Your streak is on fire! Spin before 8 AM PST tomorrow!";
       } else if (currentStreak >= 3) {
-        messageBody = "⚡ Nice streak! Don't forget to check in today!";
+        messageBody = "⚡ Spin today to keep your streak & win tokens!";
       } else {
-        messageBody = "🎯 Keep your streak going! Check in today!";
+        messageBody = "🎯 Spin today to keep your streak going!";
       }
       
       if (!messageGroups.has(messageBody)) {
@@ -1033,9 +1030,9 @@ export async function sendAfternoonCheckInReminders() {
       console.log(`📤 Sending batch ${groupNumber}/${messageGroups.size}: ${fids.length} users...`);
       
       const message = {
-        title: "☀️ Afternoon Check-in Reminder",
+        title: "☀️ Daily Spin Reminder",
         body: messageBody,
-        targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=afternoon_reminder&t=${Date.now()}`
+        targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?showDailySpin=1&from=afternoon_reminder&t=${Date.now()}`
       };
       
       const batchResult = await sendBatchNotificationWithNeynar(fids, message);
@@ -1153,16 +1150,16 @@ export async function sendEveningCheckInReminders() {
       }
       
       // OPTIMIZED: Use ranges instead of exact numbers to reduce API calls
-      // Now only 4 groups (streak holders only)
+      // Now only 4 groups (streak holders only) - Updated for Daily Spin
       let messageBody;
       if (currentStreak >= 30) {
         messageBody = "🏆 Last chance! Don't lose your legendary streak - spin now!";
       } else if (currentStreak >= 7) {
-        messageBody = "🔥 Don't lose your streak! Check in before 8 AM PST tomorrow!";
+        messageBody = "🔥 Last chance! Spin now to keep your streak & win tokens!";
       } else if (currentStreak >= 3) {
-        messageBody = "⚡ Keep your streak alive! Check in before 8 AM PST tomorrow!";
+        messageBody = "⚡ Hours left! Spin now to keep your streak alive!";
       } else {
-        messageBody = "🎯 Don't break your streak! Check in before 8 AM PST tomorrow!";
+        messageBody = "🎯 Don't break your streak! Spin before 8 AM PST tomorrow!";
       }
       
       if (!messageGroups.has(messageBody)) {
@@ -1184,9 +1181,9 @@ export async function sendEveningCheckInReminders() {
       console.log(`📤 Sending batch ${groupNumber}/${messageGroups.size}: ${fids.length} users...`);
       
       const message = {
-        title: "🌅 Daily Check-in Ending Soon",
+        title: "🌅 Last Chance to Spin!",
         body: messageBody,
-        targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?from=evening_checkin_reminder&t=${Date.now()}`
+        targetUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop'}?showDailySpin=1&from=evening_checkin_reminder&t=${Date.now()}`
       };
       
       const batchResult = await sendBatchNotificationWithNeynar(fids, message);
