@@ -714,8 +714,22 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                     <img src="/splash.png" alt="$MINTEDMERCH" className="w-full h-full object-contain" />
                   </div>
                   <div className="flex-1">
+                    <h4 className="font-bold text-green-400">$MINTEDMERCH Holdings</h4>
                     <div className="flex items-center justify-between">
-                      <h4 className="font-bold text-green-400">$MINTEDMERCH Holdings</h4>
+                      <p className="text-xs text-green-500">
+                        {(() => {
+                          if (!profileData.all_wallet_addresses) return '';
+                          if (Array.isArray(profileData.all_wallet_addresses)) {
+                            return `${profileData.all_wallet_addresses.length} wallets tracked`;
+                          }
+                          try {
+                            const wallets = JSON.parse(profileData.all_wallet_addresses);
+                            return `${wallets.length} wallets tracked`;
+                          } catch (e) {
+                            return '';
+                          }
+                        })()}
+                      </p>
                       {/* Merch Mogul Badge - based on staked amount */}
                       {profileData?.staked_balance && parseFloat(profileData.staked_balance) >= 50000000 && (
                         <img 
@@ -732,20 +746,6 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                         />
                       )}
                     </div>
-                    <p className="text-xs text-green-500">
-                      {(() => {
-                        if (!profileData.all_wallet_addresses) return '';
-                        if (Array.isArray(profileData.all_wallet_addresses)) {
-                          return `${profileData.all_wallet_addresses.length} wallets tracked`;
-                        }
-                        try {
-                          const wallets = JSON.parse(profileData.all_wallet_addresses);
-                          return `${wallets.length} wallets tracked`;
-                        } catch (e) {
-                          return '';
-                        }
-                      })()}
-                    </p>
                   </div>
                 </div>
                 
