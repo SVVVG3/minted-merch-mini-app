@@ -677,7 +677,10 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                         )}
                       </button>
                       <button
-                        onClick={onClose}
+                        onClick={() => {
+                          triggerHaptic('light', isInFarcaster);
+                          onClose();
+                        }}
                         className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-xl 
                                  transition-all duration-200"
                       >
@@ -760,7 +763,10 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                         </button>
                       )}
                       <button
-                        onClick={onClose}
+                        onClick={() => {
+                          triggerHaptic('light', isInFarcaster);
+                          onClose();
+                        }}
                         className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-xl 
                                  transition-all duration-200"
                       >
@@ -773,7 +779,10 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                   {claimSuccess && (
                     <div className="space-y-3">
                       <button
-                        onClick={onClose}
+                        onClick={() => {
+                          triggerHaptic('light', isInFarcaster);
+                          onClose();
+                        }}
                         className="w-full py-4 bg-[#3eb489] hover:bg-[#2d9970] text-white font-bold rounded-xl 
                                  transition-all duration-200 shadow-lg"
                       >
@@ -789,13 +798,16 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                           <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
                         </svg>
                       </button>
-                      <a
-                        href="/stake"
+                      <button
+                        onClick={() => {
+                          triggerHaptic('light', isInFarcaster);
+                          window.location.href = '/stake';
+                        }}
                         className="w-full py-4 bg-[#3eb489] hover:bg-[#2d9970] text-white font-bold rounded-xl 
                                  transition-all duration-200 shadow-lg flex items-center justify-center"
                       >
-                        Stake Your Winnings
-                      </a>
+                        Stake Your $mintedmerch
+                      </button>
                     </div>
                   )}
 
@@ -811,7 +823,10 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                         </p>
                       </div>
                       <button
-                        onClick={onClose}
+                        onClick={() => {
+                          triggerHaptic('light', isInFarcaster);
+                          onClose();
+                        }}
                         className="w-full py-4 bg-[#3eb489] hover:bg-[#2d9970] text-white font-bold rounded-xl 
                                  transition-all duration-200 shadow-lg"
                       >
@@ -827,13 +842,16 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                           <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
                         </svg>
                       </button>
-                      <a
-                        href="/stake"
+                      <button
+                        onClick={() => {
+                          triggerHaptic('light', isInFarcaster);
+                          window.location.href = '/stake';
+                        }}
                         className="w-full py-4 bg-[#3eb489] hover:bg-[#2d9970] text-white font-bold rounded-xl 
                                  transition-all duration-200 shadow-lg flex items-center justify-center"
                       >
-                        Stake Your Winnings
-                      </a>
+                        Stake Your $mintedmerch
+                      </button>
                     </div>
                   )}
                 </div>
