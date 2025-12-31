@@ -3960,15 +3960,32 @@ export default function AdminDashboard() {
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h2 className="text-lg font-semibold text-gray-800">🎰 Daily Spins</h2>
-                <button
-                  onClick={() => {
-                    setDailySpinStats(null);
-                    loadDailySpinStats();
-                  }}
-                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm flex items-center gap-2"
-                >
-                  🔄 Refresh
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      const spinUrl = `${window.location.origin}/?showDailySpin=1`;
+                      try {
+                        await navigator.clipboard.writeText(spinUrl);
+                        alert('Daily Spin URL copied to clipboard!');
+                      } catch (err) {
+                        console.error('Failed to copy:', err);
+                        prompt('Copy this URL:', spinUrl);
+                      }
+                    }}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm flex items-center gap-2"
+                  >
+                    📋 Copy Spin URL
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDailySpinStats(null);
+                      loadDailySpinStats();
+                    }}
+                    className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm flex items-center gap-2"
+                  >
+                    🔄 Refresh
+                  </button>
+                </div>
               </div>
               
               {dailySpinLoading ? (
