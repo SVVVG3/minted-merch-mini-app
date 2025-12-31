@@ -535,7 +535,7 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                 </div>
 
                 {/* Wheel */}
-                <div className="relative mb-6">
+                <div className="relative mb-3">
                   {/* Pointer */}
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 z-10">
                     <div className="w-0 h-0 border-l-[15px] border-r-[15px] border-t-[25px] border-l-transparent border-r-transparent border-t-white drop-shadow-lg"></div>
@@ -789,9 +789,9 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                       <div className="text-gray-400 text-center">
                         <p>No spins remaining today.</p>
                         <p className="text-sm mt-2">
-                          Next spin in: {String(countdown.hours).padStart(2, '0')}:
+                          ↓ Next spin in: {String(countdown.hours).padStart(2, '0')}:
                           {String(countdown.minutes).padStart(2, '0')}:
-                          {String(countdown.seconds).padStart(2, '0')}
+                          {String(countdown.seconds).padStart(2, '0')} ↓
                         </p>
                       </div>
                       <button
@@ -826,9 +826,9 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                 {claimSuccess && !status.canSpin && (
                   <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl p-4 mt-4 border border-green-500/30">
                     <p className="text-gray-400 text-sm text-center">
-                      Next spin in: {String(countdown.hours).padStart(2, '0')}:
+                      ↓ Next spin in: {String(countdown.hours).padStart(2, '0')}:
                       {String(countdown.minutes).padStart(2, '0')}:
-                      {String(countdown.seconds).padStart(2, '0')}
+                      {String(countdown.seconds).padStart(2, '0')} ↓
                     </p>
                   </div>
                 )}
