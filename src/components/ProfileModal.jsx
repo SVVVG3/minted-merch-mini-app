@@ -738,7 +738,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                             : "/VerifiedMerchMogulBadge.png"
                           }
                           alt={parseFloat(profileData.staked_balance) >= 200000000 ? "Whale" : "Merch Mogul"}
-                          className="h-5"
+                          className="h-8"
                           title={parseFloat(profileData.staked_balance) >= 200000000 
                             ? "Whale - 200M+ $MINTEDMERCH staked" 
                             : "Merch Mogul - 50M+ $MINTEDMERCH staked"
