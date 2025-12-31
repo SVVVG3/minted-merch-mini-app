@@ -804,6 +804,17 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                   )}
                 </div>
 
+                {/* Countdown after claim */}
+                {claimSuccess && !status.canSpin && (
+                  <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl p-4 mt-4 border border-green-500/30">
+                    <p className="text-gray-400 text-sm text-center">
+                      Next spin in: {String(countdown.hours).padStart(2, '0')}:
+                      {String(countdown.minutes).padStart(2, '0')}:
+                      {String(countdown.seconds).padStart(2, '0')}
+                    </p>
+                  </div>
+                )}
+
                 {/* Winnings Display */}
                 {(allSpins.length > 0 || claimedWinnings.length > 0) && (
                   <div className="bg-gray-800/50 rounded-xl px-4 py-2 mt-4 border border-gray-700">
@@ -824,17 +835,6 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-
-                {/* Countdown after claim */}
-                {claimSuccess && !status.canSpin && (
-                  <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl p-4 mt-4 border border-green-500/30">
-                    <p className="text-gray-400 text-sm text-center">
-                      Next spin in: {String(countdown.hours).padStart(2, '0')}:
-                      {String(countdown.minutes).padStart(2, '0')}:
-                      {String(countdown.seconds).padStart(2, '0')}
-                    </p>
                   </div>
                 )}
 

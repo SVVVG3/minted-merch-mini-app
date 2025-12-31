@@ -177,11 +177,11 @@ export function InfoModal({ isOpen, onClose }) {
               How To Get Started:
             </h3>
             <div className="space-y-2 text-sm text-gray-300">
-              <p>1. <strong className="text-white">Check-in Daily:</strong> Spin the wheel to earn points, move up the leaderboard, and be entered into random raffles for $mintedmerch, gift cards, and FREE merch!</p>
-              <p>2. <strong className="text-white">Spin The Wheel Often:</strong> Earn daily streak bonuses at 3, 7, and 30+ days!</p>
-              <p>3. <strong className="text-white">Buy Your Favorite Merch:</strong> Earn 100 points for every 1 USDC spent.</p>
-              <p>4. <strong className="text-white">Stake $mintedmerch:</strong> Earn multipliers for staking 50M, 200M, and 1B+ tokens.</p>
-              <p>5. <strong className="text-white">Add The Mini App:</strong> Receive daily check-in reminders, new product alerts, order confirmations, shipping alerts, and 15% off your first order!</p>
+              <p>1. <strong className="text-white">Stake $mintedmerch:</strong> Boost your Mojo & spin-to-claim daily to compound your $mintedmerch rewards, with a bonus chance to win physical merch packs!</p>
+              <p>2. <strong className="text-white">Check-in Daily:</strong> Spin the wheel for a chance to win tokens and earn a Mojo boost. The higher Mojo score, the more spins you get!</p>
+              <p>3. <strong className="text-white">Buy Your Favorite Merch:</strong> Boost your Mojo score with every purchase!</p>
+              <p>4. <strong className="text-white">Complete Missions:</strong> Boost your Mojo score by completing Minted Merch Missions. Must be staking 10M+ $mintedmerch to be eligible!</p>
+              <p>5. <strong className="text-white">Add The Mini App:</strong> Receive daily check-in & staking reminders, new product alerts, order confirmations, shipping alerts, and 15% off your first order!</p>
             </div>
           </div>
 
