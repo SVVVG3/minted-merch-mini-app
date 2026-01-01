@@ -271,7 +271,7 @@ export default function MissionsClient() {
           <p className="text-white/80 text-center text-sm">Complete missions to earn $mintedmerch!</p>
           
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-2 mt-4 mb-4">
+          <div className="grid grid-cols-3 gap-2 mt-4">
             <div className="bg-white/20 rounded-xl p-3 flex flex-col items-center justify-center min-h-[70px]">
               <p className="text-xl font-bold text-center">{bounties.filter(b => b.canSubmit).length}</p>
               <p className="text-xs text-white/80 text-center">Available</p>
@@ -289,7 +289,7 @@ export default function MissionsClient() {
       </div>
 
       {/* Tabs */}
-      <div className="max-w-4xl mx-auto px-4 -mt-4">
+      <div className="max-w-4xl mx-auto px-4 mt-4">
         <div className="bg-gray-800/50 border border-gray-700 rounded-xl shadow-lg overflow-hidden">
           <div className="flex border-b border-gray-700">
             <button
