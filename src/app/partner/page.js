@@ -136,7 +136,7 @@ function PartnerDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#3eb489] to-teal-600 shadow">
+      <div className="bg-gray-800/50 border-b border-gray-700/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-4 flex items-center justify-between">
             {/* Logo - links back to shop */}
@@ -160,9 +160,9 @@ function PartnerDashboard() {
                 triggerHaptic('light', isInFarcaster);
                 setShowProfileModal(true);
               }}
-              className="flex items-center gap-2 bg-white/20 hover:bg-white/30 rounded-full px-3 py-1 transition-colors"
+              className="flex items-center gap-2 bg-gray-700/50 hover:bg-gray-600/50 rounded-full px-3 py-1 transition-colors"
             >
-              <div className="w-8 h-8 rounded-full overflow-hidden bg-white/20 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-600 flex items-center justify-center">
                 {profilePicUrl ? (
                   <img 
                     src={profilePicUrl} 
@@ -170,7 +170,7 @@ function PartnerDashboard() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <span className="text-white/80 text-sm">👤</span>
+                  <span className="text-gray-400 text-sm">👤</span>
                 )}
               </div>
               <span className="text-white text-sm">
