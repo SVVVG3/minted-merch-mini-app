@@ -570,8 +570,8 @@ export function HomePage({ collection: initialCollection, products: initialProdu
         </div>
       </header>
       
-      {/* Collection Selector Section */}
-      <div className="bg-[#3eb489] px-4 py-1.5">
+      {/* Collection Selector Section - Sticky below header */}
+      <div className="bg-[#3eb489] px-4 py-1.5 sticky top-[60px] z-10">
         <div className="flex justify-center items-center gap-2">
           <div className="w-full max-w-[250px]">
             <CollectionSelector
