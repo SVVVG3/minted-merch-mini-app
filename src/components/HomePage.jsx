@@ -16,6 +16,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { useDgenWallet } from '@/lib/useDgenWallet';
 import { useWalletConnectContext } from './WalletConnectProvider';
 import { ShareDropdown } from './ShareDropdown';
+import { ChatWidget } from './ChatWidget';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
 import { sdk } from '@farcaster/miniapp-sdk';
 // Token-gating functions moved to API routes to avoid client-side Node.js imports
@@ -571,8 +572,8 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       
       {/* Collection Selector Section */}
       <div className="bg-[#3eb489] px-4 py-1.5">
-        <div className="flex justify-center items-center gap-3">
-          <div className="w-full max-w-xs">
+        <div className="flex justify-center items-center gap-2">
+          <div className="w-full max-w-[200px]">
             <CollectionSelector
               selectedCollection={selectedCollection}
               onCollectionChange={handleCollectionChange}
@@ -589,6 +590,9 @@ export function HomePage({ collection: initialCollection, products: initialProdu
               isInFarcaster={isInFarcaster}
             />
           )}
+          
+          {/* Chat Widget Button */}
+          <ChatWidget />
         </div>
       </div>
       

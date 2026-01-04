@@ -7,7 +7,6 @@ import { FarcasterHeader } from "@/components/FarcasterHeader";
 import { PriceTicker } from "@/components/PriceTicker";
 import { ChatEligibilityBanner } from "@/components/ChatEligibilityBanner";
 import { ChatEligibilityPopup } from "@/components/ChatEligibilityPopup";
-import { ChatWidget } from "@/components/ChatWidget";
 import { Providers } from "@/components/Providers";
 
 const geistSans = Geist({
@@ -30,6 +29,13 @@ export const metadata = {
   },
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
@@ -49,7 +55,6 @@ export default function RootLayout({ children }) {
             <ChatEligibilityBanner />
             {children}
             <ChatEligibilityPopup />
-            <ChatWidget />
           </div>
         </Providers>
       </body>
