@@ -6,10 +6,11 @@ export function ChatWidget() {
   const widgetRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasBeenOpened, setHasBeenOpened] = useState(false);
 
   // Load and mount widget when opened for the first time
   useEffect(() => {
-    if (!isOpen || isLoaded || typeof window === 'undefined') return;
+    if (!hasBeenOpened || isLoaded || typeof window === 'undefined') return;
 
     // Check if script is already loaded
     if (window.OnChat) {
@@ -32,7 +33,7 @@ export function ChatWidget() {
     };
 
     document.body.appendChild(script);
-  }, [isOpen, isLoaded]);
+  }, [hasBeenOpened, isLoaded]);
 
   const mountWidget = () => {
     if (window.OnChat && widgetRef.current) {
@@ -55,11 +56,18 @@ export function ChatWidget() {
     }
   };
 
+  const handleToggle = () => {
+    if (!hasBeenOpened) {
+      setHasBeenOpened(true);
+    }
+    setIsOpen(!isOpen);
+  };
+
   return (
     <>
       {/* Chat Bubble Button - always visible */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className="fixed bottom-4 right-4 z-[9999] w-14 h-14 rounded-full bg-[#3eb489] hover:bg-[#359970] shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105"
         aria-label={isOpen ? 'Close chat' : 'Open chat'}
       >
@@ -76,10 +84,12 @@ export function ChatWidget() {
         )}
       </button>
 
-      {/* Chat Window - only shown when open */}
-      {isOpen && (
+      {/* Chat Window - stays mounted after first open, just hidden with CSS */}
+      {hasBeenOpened && (
         <div 
-          className="fixed bottom-20 right-4 z-[9998] w-[350px] h-[500px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-6rem)] rounded-xl overflow-hidden shadow-2xl border border-gray-700"
+          className={`fixed bottom-20 right-4 z-[9998] w-[350px] h-[500px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-6rem)] rounded-xl overflow-hidden shadow-2xl border border-gray-700 transition-opacity duration-200 ${
+            isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          }`}
           style={{ backgroundColor: '#1a1a1a' }}
         >
           {/* OnChat widget container */}
