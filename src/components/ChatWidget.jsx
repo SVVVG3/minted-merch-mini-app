@@ -87,7 +87,7 @@ export function ChatWidget() {
       {/* Chat Window - stays mounted after first open, just hidden with CSS */}
       {hasBeenOpened && (
         <div 
-          className={`fixed bottom-20 right-4 z-[9998] w-[350px] h-[500px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-6rem)] rounded-xl overflow-hidden shadow-2xl border border-gray-700 transition-opacity duration-200 ${
+          className={`fixed bottom-20 right-4 z-[9998] w-[350px] h-[600px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-7rem)] rounded-xl overflow-hidden shadow-2xl border border-gray-700 transition-opacity duration-200 ${
             isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}
           style={{ backgroundColor: '#1a1a1a' }}
