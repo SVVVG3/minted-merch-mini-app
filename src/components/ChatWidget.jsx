@@ -100,14 +100,14 @@ export function ChatWidget({ buttonClassName = '' }) {
 
   return (
     <>
-      {/* Chat Button - inline, can be placed anywhere */}
+      {/* Chat Button - white background with green icon */}
       <button
         onClick={handleToggle}
-        className={`w-12 h-12 rounded-xl bg-[#3eb489] hover:bg-[#359970] shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 ${buttonClassName}`}
+        className={`w-12 h-12 rounded-xl bg-white hover:bg-gray-100 shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 ${buttonClassName}`}
         aria-label={isOpen ? 'Close chat' : 'Open chat'}
       >
-        {/* Chat icon */}
-        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {/* Chat icon - branded green */}
+        <svg className="w-6 h-6 text-[#3eb489]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
       </button>
@@ -125,34 +125,31 @@ export function ChatWidget({ buttonClassName = '' }) {
             onClick={() => setIsOpen(false)}
           />
           
-          {/* Chat Window - centered */}
+          {/* Chat Window - full height for OnChat widget */}
           <div 
-            className="absolute inset-4 top-16 bottom-4 max-w-md mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-700 flex flex-col"
+            className="absolute inset-4 top-16 bottom-4 max-w-md mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-700"
             style={{ backgroundColor: '#1a1a1a' }}
           >
-            {/* Header with close button */}
-            <div className="bg-[#3eb489] px-4 py-3 flex items-center justify-between shrink-0">
-              <span className="text-white font-semibold">Minted Merch Chat</span>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-white/80 hover:text-white p-1"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+            {/* Close button overlay */}
+            <button
+              onClick={() => setIsOpen(false)}
+              className="absolute top-2 right-2 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full p-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
             
-            {/* OnChat widget container */}
+            {/* OnChat widget container - takes full space */}
             <div 
               id="onchat-widget-container" 
               ref={widgetRef}
-              className="flex-1 overflow-hidden"
+              className="w-full h-full"
             />
             
             {/* Loading state */}
             {!isLoaded && (
-              <div className="absolute inset-0 top-12 flex items-center justify-center bg-gray-900">
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
                 <div className="text-gray-400">Loading chat...</div>
               </div>
             )}

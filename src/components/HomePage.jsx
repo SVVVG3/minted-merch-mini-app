@@ -573,7 +573,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       {/* Collection Selector Section */}
       <div className="bg-[#3eb489] px-4 py-1.5">
         <div className="flex justify-center items-center gap-2">
-          <div className="w-full max-w-[200px]">
+          <div className="w-full max-w-[250px]">
             <CollectionSelector
               selectedCollection={selectedCollection}
               onCollectionChange={handleCollectionChange}
