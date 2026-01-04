@@ -8,7 +8,7 @@ export function ChatWidget({ buttonClassName = '' }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasBeenOpened, setHasBeenOpened] = useState(false);
 
-  // Lock body scroll when chat is open - robust approach
+  // Lock body scroll and prevent Farcaster pull-to-minimize when chat is open
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
@@ -20,6 +20,9 @@ export function ChatWidget({ buttonClassName = '' }) {
       document.body.style.left = '0';
       document.body.style.right = '0';
       document.body.style.overflow = 'hidden';
+      // Prevent overscroll/pull-to-refresh behavior
+      document.body.style.overscrollBehavior = 'none';
+      document.documentElement.style.overscrollBehavior = 'none';
     } else {
       // Restore scroll position
       const scrollY = document.body.style.top;
@@ -28,6 +31,8 @@ export function ChatWidget({ buttonClassName = '' }) {
       document.body.style.left = '';
       document.body.style.right = '';
       document.body.style.overflow = '';
+      document.body.style.overscrollBehavior = '';
+      document.documentElement.style.overscrollBehavior = '';
       if (scrollY) {
         window.scrollTo(0, parseInt(scrollY || '0') * -1);
       }
@@ -40,6 +45,8 @@ export function ChatWidget({ buttonClassName = '' }) {
       document.body.style.left = '';
       document.body.style.right = '';
       document.body.style.overflow = '';
+      document.body.style.overscrollBehavior = '';
+      document.documentElement.style.overscrollBehavior = '';
     };
   }, [isOpen]);
 
@@ -119,16 +126,17 @@ export function ChatWidget({ buttonClassName = '' }) {
             isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}
         >
-          {/* Backdrop */}
+          {/* Backdrop - touch-action none to prevent pull gestures */}
           <div 
             className="absolute inset-0 bg-black/50"
             onClick={() => setIsOpen(false)}
+            style={{ touchAction: 'none' }}
           />
           
           {/* Chat Window - no header, widget takes full space */}
           <div 
             className="absolute left-4 right-4 top-16 max-w-md mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-700 flex flex-col"
-            style={{ backgroundColor: '#1a1a1a', bottom: '80px' }}
+            style={{ backgroundColor: '#1a1a1a', bottom: '80px', overscrollBehavior: 'contain' }}
           >
             {/* OnChat widget container - takes full space */}
             <div 

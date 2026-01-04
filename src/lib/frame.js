@@ -20,16 +20,16 @@ export async function initializeFrame() {
       // Setup real-time notification event listeners
       setupNotificationEventListeners(context.user.fid);
       
-      // Call ready to hide splash screen
-      await sdk.actions.ready();
+      // Call ready to hide splash screen (disableNativeGestures prevents pull-to-minimize conflicts)
+      await sdk.actions.ready({ disableNativeGestures: true });
     } else {
       // Still call ready in case we're in a frame without user context
-      await sdk.actions.ready();
+      await sdk.actions.ready({ disableNativeGestures: true });
     }
   } catch (error) {
     // Fallback: call ready anyway to prevent splash screen from staying
     try {
-      await sdk.actions.ready();
+      await sdk.actions.ready({ disableNativeGestures: true });
     } catch (readyError) {
       // Silent fail
     }

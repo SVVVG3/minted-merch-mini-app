@@ -75,12 +75,12 @@ function MiniAppBridge({ onInitialized }) {
             setupNotificationEventListeners(sdk, context.user.fid);
           }
           
-          // Call ready to hide splash screen
-          await sdk.actions.ready();
+          // Call ready to hide splash screen (disableNativeGestures prevents pull-to-minimize conflicts)
+          await sdk.actions.ready({ disableNativeGestures: true });
         } else {
           // Not in Farcaster - still call ready
           try {
-            await sdk.actions.ready();
+            await sdk.actions.ready({ disableNativeGestures: true });
           } catch (e) {
             // Silent fail
           }
@@ -141,10 +141,10 @@ async function initializeWithDirectSDK() {
         setupNotificationEventListeners(sdk, context.user.fid);
       }
       
-      await sdk.actions.ready();
+      await sdk.actions.ready({ disableNativeGestures: true });
     } else {
       try {
-        await sdk.actions.ready();
+        await sdk.actions.ready({ disableNativeGestures: true });
       } catch (e) {
         // Silent fail
       }
