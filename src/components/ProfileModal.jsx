@@ -6,6 +6,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { useWalletConnectContext } from './WalletConnectProvider';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useSignIn } from '@farcaster/auth-kit';
+import { Portal } from './Portal';
 
 // Separate component for wallet connection section to properly use context
 function WalletConnectSection({ setConnectedWallet, isInFarcaster }) {
@@ -583,7 +584,8 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <Portal>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
       <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl max-w-md w-full max-h-[90vh] overflow-hidden border border-[#3eb489]/30" style={{ boxShadow: '0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4)' }}>
         <div className="relative bg-gradient-to-br from-[#3eb489] to-[#2d8a66] px-4 pt-5 pb-3 text-white">
           {/* Close Button */}
@@ -1279,6 +1281,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </Portal>
   );
 }

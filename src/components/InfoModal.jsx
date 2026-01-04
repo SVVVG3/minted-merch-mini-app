@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { Portal } from './Portal';
 
 export function InfoModal({ isOpen, onClose }) {
   const modalRef = useRef(null);
@@ -123,12 +124,13 @@ export function InfoModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Overlay */}
-      <div 
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
+    <Portal>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        {/* Overlay */}
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+          onClick={onClose}
+        />
       
       {/* Modal Content */}
       <div
@@ -278,6 +280,7 @@ export function InfoModal({ isOpen, onClose }) {
         </div>
         </div>
       </div>
-    </div>
+      </div>
+    </Portal>
   );
 } 

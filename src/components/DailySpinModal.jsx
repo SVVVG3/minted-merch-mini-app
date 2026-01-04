@@ -6,6 +6,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 import { getTimeUntilReset } from '@/lib/timezone';
 import { triggerHaptic } from '@/lib/haptics';
 import { AddMiniAppPrompt } from './AddMiniAppPrompt';
+import { Portal } from './Portal';
 
 // Airdrop contract ABI
 const AIRDROP_ABI = [{
@@ -493,7 +494,7 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
   if (!isOpen) return null;
 
   return (
-    <>
+    <Portal>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         {/* Overlay */}
         <div 
@@ -1042,7 +1043,7 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
         isOpen={showAddMiniAppPrompt}
         onClose={() => setShowAddMiniAppPrompt(false)}
       />
-    </>
+    </Portal>
   );
 }
 

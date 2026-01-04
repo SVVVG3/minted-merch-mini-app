@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { SpinWheel } from './SpinWheel';
 import { AddMiniAppPrompt } from './AddMiniAppPrompt';
 import { useFarcaster } from '@/lib/useFarcaster';
+import { Portal } from './Portal';
 
 export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
   const [isVisible, setIsVisible] = useState(false);
@@ -180,7 +181,7 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
   if (!isOpen) return null;
 
   return (
-    <>
+    <Portal>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         {/* Overlay Background */}
         <div 
@@ -217,6 +218,6 @@ export function CheckInModal({ isOpen, onClose, onCheckInComplete }) {
         isOpen={showAddMiniAppPrompt}
         onClose={() => setShowAddMiniAppPrompt(false)}
       />
-    </>
+    </Portal>
   );
 } 
