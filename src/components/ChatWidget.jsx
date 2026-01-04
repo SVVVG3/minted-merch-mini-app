@@ -133,12 +133,31 @@ export function ChatWidget({ buttonClassName = '' }) {
             style={{ touchAction: 'none' }}
           />
           
-          {/* Chat Window - no header, widget takes full space */}
+          {/* Chat Window - with header and close button at bottom */}
           <div 
-            className="absolute left-4 right-4 top-12 max-w-md mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-700 flex flex-col"
-            style={{ backgroundColor: '#1a1a1a', bottom: '70px', overscrollBehavior: 'contain' }}
+            className="absolute left-4 right-4 top-16 max-w-md mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-700 flex flex-col"
+            style={{ backgroundColor: '#1a1a1a', bottom: '80px', overscrollBehavior: 'contain' }}
           >
-            {/* OnChat widget container - takes full space with explicit height */}
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-[#3eb489]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <span className="text-white font-semibold">Community Chat</span>
+              </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+                aria-label="Close chat"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* OnChat widget container */}
             <div 
               id="onchat-widget-container" 
               ref={widgetRef}
@@ -148,7 +167,7 @@ export function ChatWidget({ buttonClassName = '' }) {
             
             {/* Loading state */}
             {!isLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+              <div className="absolute inset-0 top-12 flex items-center justify-center bg-gray-900">
                 <div className="text-gray-400">Loading chat...</div>
               </div>
             )}
