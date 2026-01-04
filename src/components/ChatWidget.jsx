@@ -125,31 +125,35 @@ export function ChatWidget({ buttonClassName = '' }) {
             onClick={() => setIsOpen(false)}
           />
           
-          {/* Chat Window - full height for OnChat widget */}
+          {/* Chat Window - using calc for exact height */}
           <div 
-            className="absolute inset-4 top-16 bottom-4 max-w-md mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-700"
+            className="absolute left-4 right-4 top-16 bottom-4 max-w-md mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-700"
             style={{ backgroundColor: '#1a1a1a' }}
           >
-            {/* Close button overlay */}
-            <button
-              onClick={() => setIsOpen(false)}
-              className="absolute top-2 right-2 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full p-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            {/* Header - fixed height */}
+            <div className="h-12 bg-[#3eb489] px-4 flex items-center justify-between">
+              <span className="text-white font-semibold">Minted Merch Chat</span>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-white/80 hover:text-white p-1"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             
-            {/* OnChat widget container - takes full space */}
+            {/* OnChat widget container - fills remaining space */}
             <div 
               id="onchat-widget-container" 
               ref={widgetRef}
-              className="w-full h-full"
+              className="absolute left-0 right-0 bottom-0"
+              style={{ top: '48px' }}
             />
             
             {/* Loading state */}
             {!isLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+              <div className="absolute left-0 right-0 bottom-0 flex items-center justify-center bg-gray-900" style={{ top: '48px' }}>
                 <div className="text-gray-400">Loading chat...</div>
               </div>
             )}
