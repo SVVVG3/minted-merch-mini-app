@@ -135,14 +135,15 @@ export function ChatWidget({ buttonClassName = '' }) {
           
           {/* Chat Window - no header, widget takes full space */}
           <div 
-            className="absolute left-4 right-4 top-16 max-w-md mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-700 flex flex-col"
-            style={{ backgroundColor: '#1a1a1a', bottom: '80px', overscrollBehavior: 'contain' }}
+            className="absolute left-4 right-4 top-12 max-w-md mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-700 flex flex-col"
+            style={{ backgroundColor: '#1a1a1a', bottom: '70px', overscrollBehavior: 'contain' }}
           >
-            {/* OnChat widget container - takes full space */}
+            {/* OnChat widget container - takes full space with explicit height */}
             <div 
               id="onchat-widget-container" 
               ref={widgetRef}
-              className="flex-1 min-h-0"
+              className="flex-1 min-h-0 w-full"
+              style={{ height: '100%' }}
             />
             
             {/* Loading state */}
