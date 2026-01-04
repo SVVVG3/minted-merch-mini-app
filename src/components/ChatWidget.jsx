@@ -87,6 +87,9 @@ export function ChatWidget({ buttonClassName = '' }) {
           hideBrand: true,
           colors: {
             'primary': '#3eb489',
+            'primary-muted': '#3eb489',
+            'color-info': '#3eb489',
+            'color-nick': '#3eb489',
             'color-channel': '#3eb489'
           }
         });
