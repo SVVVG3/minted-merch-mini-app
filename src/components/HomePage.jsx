@@ -472,7 +472,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
         </div>
       )}
       
-      <header className="bg-white shadow-sm sticky top-0 z-10">
+      <header className="bg-white shadow-sm sticky top-0">
         <div className="px-2 py-1.5 flex items-center justify-between">
           {/* Logo - different logo for mini app vs browser */}
           <div className="flex items-center pr-2">
@@ -571,7 +571,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       </header>
       
       {/* Collection Selector Section - Sticky below header */}
-      <div className="bg-[#3eb489] px-4 py-1.5 sticky top-[60px] z-10">
+      <div className="bg-[#3eb489] px-4 py-1.5 sticky top-[60px]">
         <div className="flex justify-center items-center gap-2">
           <div className="w-full max-w-[250px]">
             <CollectionSelector
