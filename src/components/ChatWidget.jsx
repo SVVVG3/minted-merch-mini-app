@@ -100,10 +100,10 @@ export function ChatWidget({ buttonClassName = '' }) {
 
   return (
     <>
-      {/* Chat Button - white background with green icon */}
+      {/* Chat Button - white background with green icon, matches ShareDropdown size */}
       <button
         onClick={handleToggle}
-        className={`w-12 h-12 rounded-xl bg-white hover:bg-gray-100 shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 ${buttonClassName}`}
+        className={`w-12 h-12 rounded-lg bg-white hover:bg-gray-100 flex items-center justify-center transition-colors ${buttonClassName}`}
         aria-label={isOpen ? 'Close chat' : 'Open chat'}
       >
         {/* Chat icon - branded green */}
@@ -125,38 +125,34 @@ export function ChatWidget({ buttonClassName = '' }) {
             onClick={() => setIsOpen(false)}
           />
           
-          {/* Chat Window - using calc for exact height */}
+          {/* Chat Window - no header, widget takes full space */}
           <div 
-            className="absolute left-4 right-4 top-16 bottom-4 max-w-md mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-700"
-            style={{ backgroundColor: '#1a1a1a' }}
+            className="absolute left-4 right-4 top-16 max-w-md mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-700 flex flex-col"
+            style={{ backgroundColor: '#1a1a1a', bottom: '80px' }}
           >
-            {/* Header - fixed height */}
-            <div className="h-12 bg-[#3eb489] px-4 flex items-center justify-between">
-              <span className="text-white font-semibold">Minted Merch Chat</span>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-white/80 hover:text-white p-1"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            {/* OnChat widget container - fills remaining space */}
+            {/* OnChat widget container - takes full space */}
             <div 
               id="onchat-widget-container" 
               ref={widgetRef}
-              className="absolute left-0 right-0 bottom-0"
-              style={{ top: '48px' }}
+              className="flex-1 min-h-0"
             />
             
             {/* Loading state */}
             {!isLoaded && (
-              <div className="absolute left-0 right-0 bottom-0 flex items-center justify-center bg-gray-900" style={{ top: '48px' }}>
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
                 <div className="text-gray-400">Loading chat...</div>
               </div>
             )}
+          </div>
+          
+          {/* Close button at bottom */}
+          <div className="absolute left-4 right-4 bottom-4 max-w-md mx-auto">
+            <button
+              onClick={() => setIsOpen(false)}
+              className="w-full py-3 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-xl shadow-lg transition-colors"
+            >
+              Close Chat
+            </button>
           </div>
         </div>
       )}
