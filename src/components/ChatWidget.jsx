@@ -8,6 +8,20 @@ export function ChatWidget() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasBeenOpened, setHasBeenOpened] = useState(false);
 
+  // Lock body scroll when chat is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   // Load and mount widget when opened for the first time
   useEffect(() => {
     if (!hasBeenOpened || isLoaded || typeof window === 'undefined') return;
