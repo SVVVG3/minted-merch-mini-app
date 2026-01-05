@@ -47,7 +47,7 @@ export function ChatWidget({ buttonClassName = '', isInFarcaster = false }) {
   const handleShareCast = async () => {
     setShowShareDropdown(false);
     try {
-      const shareText = "Join the Minted Merch community chat! 💬\n\nConnect with fellow merch enthusiasts onchain 🤌";
+      const shareText = "Join the $mintedmerch community chat 💬";
       const chatUrl = getChatUrl();
       
       if (isInFarcaster) {
