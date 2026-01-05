@@ -131,7 +131,7 @@ export async function generateMetadata({ searchParams }) {
       version: "next",
       imageUrl: `${baseUrl}/ChatEmbed.png`,
       button: {
-        title: "Join the Chat! 💬",
+        title: "Chat Now 💬",
         action: {
           type: "launch_frame",
           url: `${baseUrl}/?showChat=1`,
