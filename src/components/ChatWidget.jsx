@@ -180,7 +180,7 @@ export function ChatWidget({ buttonClassName = '', isInFarcaster = false }) {
       {/* Chat Button - matches chat widget header color */}
       <button
         onClick={handleToggle}
-        className={`w-12 h-12 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center transition-colors ${buttonClassName}`}
+        className={`w-12 h-12 rounded-lg bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition-colors ${buttonClassName}`}
         aria-label={isOpen ? 'Close chat' : 'Open chat'}
       >
         {/* Chat icon - branded green */}
