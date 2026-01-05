@@ -1,5 +1,8 @@
+'use client';
+
 import { useEffect } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { Portal } from './Portal';
 
 export function TransactionViewer({ transactionHash, onBack }) {
   useEffect(() => {
@@ -55,9 +58,10 @@ export function TransactionViewer({ transactionHash, onBack }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col">
-      {/* Header with manual back button as fallback */}
-      <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+    <Portal>
+      <div className="fixed inset-0 bg-white z-50 flex flex-col">
+        {/* Header with manual back button as fallback */}
+        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
         <button
           onClick={onBack}
           className="flex items-center space-x-2 text-gray-600 hover:text-gray-800"
@@ -105,7 +109,8 @@ export function TransactionViewer({ transactionHash, onBack }) {
             This will open in your device's web browser
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </Portal>
   );
 } 

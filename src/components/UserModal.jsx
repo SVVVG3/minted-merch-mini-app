@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getMojoColor, getMojoTier, formatTokenAmount } from '@/lib/mojoScore';
+import { Portal } from './Portal';
 
 // Helper function for authenticated admin API calls
 const adminFetch = async (url, options = {}) => {
@@ -279,8 +280,9 @@ export default function UserModal({ isOpen, onClose, userFid }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] w-full overflow-hidden" style={{ boxShadow: '0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4)' }}>
+    <Portal>
+      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] w-full overflow-hidden" style={{ boxShadow: '0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4)' }}>
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
           <div className="flex items-center space-x-3">
@@ -1586,6 +1588,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </Portal>
   );
 } 

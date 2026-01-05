@@ -17,6 +17,7 @@ import { SignInWithBaseButton, BasePayButton } from './BaseAccountButtons';
 import { WalletConnectButton } from './WalletConnectButton';
 import { DaimoPayButton } from './DaimoPayButton';
 import { useDaimoPayUI } from '@daimo/pay';
+import { Portal } from './Portal';
 
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
@@ -1668,8 +1669,9 @@ Transaction Hash: ${transactionHash}`;
 
       {/* Checkout Modal */}
       {isCheckoutOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4)' }}>
+        <Portal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4)' }}>
             
             {/* Header */}
             <div className="p-4 border-b">
@@ -2381,8 +2383,9 @@ Transaction Hash: ${transactionHash}`;
               })()}
 
             </div>
+            </div>
           </div>
-        </div>
+        </Portal>
       )}
     </>
   );

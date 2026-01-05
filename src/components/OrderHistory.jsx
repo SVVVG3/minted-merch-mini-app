@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { Portal } from './Portal';
 
 export function OrderHistory({ isOpen, onClose }) {
   const { getFid, getSessionToken } = useFarcaster();
@@ -113,8 +114,9 @@ export function OrderHistory({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col" style={{ boxShadow: '0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4)' }}>
+    <Portal>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col" style={{ boxShadow: '0 50px 100px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4)' }}>
         
         {/* Header */}
         <div className="p-4 border-b flex items-center justify-between">
@@ -279,7 +281,8 @@ export function OrderHistory({ isOpen, onClose }) {
             </div>
           )}
         </div>
+        </div>
       </div>
-    </div>
+    </Portal>
   );
 } 

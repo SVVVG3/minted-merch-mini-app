@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { Portal } from './Portal';
 
 /**
  * ProductImageGallery - Main gallery component for displaying product images
@@ -249,10 +250,11 @@ export function ProductImageGallery({
 
       {/* Full Screen Modal */}
       {isFullScreen && currentImage && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center"
-          onClick={() => setIsFullScreen(false)}
-        >
+        <Portal>
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center"
+            onClick={() => setIsFullScreen(false)}
+          >
           <div className="relative max-w-full max-h-full p-4">
             {/* Close Button */}
             <button
@@ -305,7 +307,8 @@ export function ProductImageGallery({
               </div>
             )}
           </div>
-        </div>
+          </div>
+        </Portal>
       )}
     </div>
   );
