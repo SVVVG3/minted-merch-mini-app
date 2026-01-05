@@ -123,6 +123,55 @@ export async function generateMetadata({ searchParams }) {
     };
   }
 
+  // Check if this is a Chat share URL
+  const isChatShare = searchParams?.showChat === '1';
+  
+  if (isChatShare) {
+    const frame = {
+      version: "next",
+      imageUrl: `${baseUrl}/ChatEmbed.png`,
+      button: {
+        title: "Join the Chat! 💬",
+        action: {
+          type: "launch_frame",
+          url: `${baseUrl}/?showChat=1`,
+          name: "Minted Merch Community Chat",
+          splashImageUrl: `${baseUrl}/splash.png`,
+          splashBackgroundColor: "#000000"
+        }
+      }
+    };
+
+    return {
+      title: 'Community Chat - Minted Merch',
+      description: 'Join the Minted Merch community chat! Connect with fellow merch enthusiasts onchain.',
+      metadataBase: new URL(baseUrl),
+      other: {
+        'fc:frame': JSON.stringify(frame),
+      },
+      openGraph: {
+        title: 'Community Chat - Minted Merch',
+        description: 'Join the Minted Merch community chat! Connect with fellow merch enthusiasts onchain.',
+        siteName: 'Minted Merch Shop',
+        images: [
+          {
+            url: `${baseUrl}/ChatEmbed.png`,
+            width: 1200,
+            height: 800,
+            alt: 'Minted Merch Community Chat',
+          },
+        ],
+        type: 'website',
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: 'Community Chat - Minted Merch',
+        description: 'Join the Minted Merch community chat! Connect with fellow merch enthusiasts onchain.',
+        images: [`${baseUrl}/ChatEmbed.png`],
+      },
+    };
+  }
+
   // Check if this is a check-in share URL
   const isCheckinShare = searchParams?.checkin === 'true';
   

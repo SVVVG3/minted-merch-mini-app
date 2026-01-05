@@ -1,12 +1,25 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 export function ChatWidget({ buttonClassName = '' }) {
   const widgetRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasBeenOpened, setHasBeenOpened] = useState(false);
+  const [hasAutoOpened, setHasAutoOpened] = useState(false);
+  const searchParams = useSearchParams();
+
+  // Auto-open chat if showChat=1 param is present (from share links)
+  useEffect(() => {
+    const showChat = searchParams?.get('showChat');
+    if (showChat === '1' && !hasAutoOpened) {
+      setHasAutoOpened(true);
+      setHasBeenOpened(true);
+      setIsOpen(true);
+    }
+  }, [searchParams, hasAutoOpened]);
 
   // Lock body scroll and prevent Farcaster pull-to-minimize when chat is open
   useEffect(() => {
