@@ -592,7 +592,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
           )}
           
           {/* Chat Widget Button */}
-          <ChatWidget />
+          <ChatWidget isInFarcaster={isInFarcaster} />
         </div>
       </div>
       
