@@ -138,7 +138,7 @@ export function ChatWidget({ buttonClassName = '' }) {
           
           {/* Chat Window - with header and close button at bottom */}
           <div 
-            className="absolute left-4 right-4 top-16 max-w-md mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-700 flex flex-col"
+            className="absolute left-4 right-4 top-9 max-w-md mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-700 flex flex-col"
             style={{ backgroundColor: '#1a1a1a', bottom: '80px', overscrollBehavior: 'contain' }}
           >
             {/* Header */}
