@@ -63,6 +63,9 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   
   // Get wagmi account for signature verification
   const { address: wagmiAddress } = useAccount();
+  
+  // Wagmi hook for EIP-712 signature (for free order claims)
+  const { signTypedDataAsync } = useSignTypedData();
 
   // Helper function to detect if cart contains only digital products
   const isDigitalOnlyCart = () => {
@@ -1180,12 +1183,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         nonce
       });
       
-      // Request signature from wallet using wagmi
-      // We need to use the global signTypedDataAsync from wagmi
-      const { signTypedDataAsync } = await import('wagmi/actions');
-      const { getConfig } = await import('@/lib/wagmi');
-      
-      const signature = await signTypedDataAsync(getConfig(), {
+      // Request signature from wallet using wagmi's useSignTypedData hook
+      const signature = await signTypedDataAsync({
         domain,
         types,
         primaryType: 'FreeOrderClaim',
