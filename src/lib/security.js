@@ -351,17 +351,23 @@ export async function recalculateOrderTotals(orderData) {
     // Calculate final total
     let finalTotal = Math.max(0, totalBeforeGiftCard - giftCardDiscount);
     
-    // Apply minimum charge logic for gift card orders (same as client logic)
-    // Daimo Pay minimum is $0.10
-    const isCartFree = subtotal <= 0.10;
-    
-    // If gift card covers the entire order (including tax), apply minimum charge
-    if (giftCardDiscount >= totalBeforeGiftCard && (isCartFree || giftCardDiscount > 0)) {
-      finalTotal = 0.10;
-    }
-    
     // Round to 2 decimal places to avoid floating-point precision issues
     finalTotal = Math.round(finalTotal * 100) / 100;
+    
+    // NEW LOGIC for minimum charges:
+    // - $0.00 exactly: No minimum (uses signature claim for free orders)
+    // - $0.01 - $0.24: Round up to $0.25 (Daimo Pay minimum)
+    // - $0.25+: Use exact amount
+    const DAIMO_MINIMUM = 0.25;
+    
+    if (finalTotal === 0) {
+      // Exactly $0 - will use signature claim, no minimum charge needed
+      console.log('💰 Server: Order total is $0.00 - will use signature claim (no minimum charge)');
+    } else if (finalTotal > 0 && finalTotal < DAIMO_MINIMUM) {
+      // Between $0.01 and $0.24 - round up to Daimo minimum
+      console.log(`💰 Server: Rounding up $${finalTotal.toFixed(2)} to Daimo minimum $${DAIMO_MINIMUM}`);
+      finalTotal = DAIMO_MINIMUM;
+    }
     
     return {
       success: true,

@@ -10,6 +10,7 @@ import { debugBaseAccount } from '@/lib/baseAccount';
 import { calculateCheckout } from '@/lib/shopify';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { shareOrder } from '@/lib/farcasterShare';
+import { useSignTypedData, useAccount } from 'wagmi';
 
 import { ShippingForm } from './ShippingForm';
 import GiftCardSection, { GiftCardBalance } from './GiftCardSection';
@@ -55,6 +56,13 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const processedDaimoTxHashes = useRef(new Set());
   const daimoPaymentInitiated = useRef(false);
   const [daimoOrderId, setDaimoOrderId] = useState(`order-${Date.now()}`);
+  
+  // Free order signature claim state
+  const [isFreeOrderClaiming, setIsFreeOrderClaiming] = useState(false);
+  const [freeOrderClaimError, setFreeOrderClaimError] = useState(null);
+  
+  // Get wagmi account for signature verification
+  const { address: wagmiAddress } = useAccount();
 
   // Helper function to detect if cart contains only digital products
   const isDigitalOnlyCart = () => {
@@ -270,6 +278,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   };
 
   // Helper function to calculate final total safely (never negative)
+  // Updated: $0 orders now use signature claims (no Daimo minimum fee)
   const calculateFinalTotal = () => {
     if (!cart.checkout || !cart.checkout.subtotal || !cart.selectedShipping) {
       // If we don't have shipping info yet, use the pre-shipping calculation
@@ -288,16 +297,29 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     // Calculate final total with gift card
     let finalTotal = Math.max(0, totalBeforeGiftCard - giftCardDiscount);
     
-    // MINIMUM CHARGE: If total would be $0.00, charge $0.10 for payment processing
-    // (Daimo Pay minimum is $0.10)
-    // Use <= 0.10 to handle floating point precision issues
-    const isCartFree = cartTotal <= 0.10;
-    if (finalTotal <= 0.10 && (isCartFree || giftCardDiscount > 0)) {
-      finalTotal = 0.10;
-      console.log('💰 Applied minimum charge of $0.10 for free giveaway order processing (Daimo minimum)');
+    // NEW LOGIC: 
+    // - $0.00 exactly: Use signature claim (FREE - no processing fee!)
+    // - $0.01 - $0.24: Round up to $0.25 (Daimo Pay minimum)
+    // - $0.25+: Use exact amount
+    const DAIMO_MINIMUM = 0.25;
+    
+    if (finalTotal === 0) {
+      // Exactly $0 - will use signature claim, no fee needed
+      console.log('🆓 Order total is $0.00 - will use signature claim (no processing fee)');
+      return 0;
+    } else if (finalTotal > 0 && finalTotal < DAIMO_MINIMUM) {
+      // Between $0.01 and $0.24 - round up to Daimo minimum
+      console.log(`💰 Rounding up $${finalTotal.toFixed(2)} to Daimo minimum $${DAIMO_MINIMUM}`);
+      return DAIMO_MINIMUM;
     }
     
     return finalTotal;
+  };
+  
+  // Check if this is a free order (for showing the right button)
+  const isFreeOrder = () => {
+    const total = calculateFinalTotal();
+    return total === 0;
   };
 
   // Handle Buy Now functionality by adding item to cart
@@ -1095,6 +1117,166 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     }
   };
 
+  // 🆓 FREE ORDER CLAIM HANDLER - For $0 orders using signature verification
+  const handleFreeOrderClaim = async () => {
+    try {
+      setIsFreeOrderClaiming(true);
+      setFreeOrderClaimError(null);
+      
+      console.log('🆓 Starting free order claim process...');
+      
+      // Get the user's wallet address
+      const userWalletAddress = wagmiAddress || walletConnectAddress || userAddress;
+      
+      if (!userWalletAddress) {
+        throw new Error('Please connect your wallet to claim this free order');
+      }
+      
+      // Get FID with fallbacks
+      let userFid = getFid();
+      if (!userFid && user?.fid) userFid = user.fid;
+      if (!userFid && context?.user?.fid) userFid = context.user.fid;
+      
+      if (!userFid) {
+        throw new Error('Please sign in with Farcaster to claim this free order');
+      }
+      
+      // Generate the order ID for this claim
+      const orderId = `free-order-${Date.now()}`;
+      const discountCode = appliedDiscount?.code || 'NONE';
+      const itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+      const nonce = Date.now();
+      
+      // EIP-712 Domain and Types
+      const domain = {
+        name: 'Minted Merch',
+        version: '1',
+        chainId: 8453, // Base mainnet
+      };
+      
+      const types = {
+        FreeOrderClaim: [
+          { name: 'orderId', type: 'string' },
+          { name: 'fid', type: 'uint256' },
+          { name: 'discountCode', type: 'string' },
+          { name: 'itemCount', type: 'uint256' },
+          { name: 'nonce', type: 'uint256' },
+        ],
+      };
+      
+      const message = {
+        orderId: orderId,
+        fid: BigInt(userFid),
+        discountCode: discountCode.toUpperCase(),
+        itemCount: BigInt(itemCount),
+        nonce: BigInt(nonce),
+      };
+      
+      console.log('📝 Requesting signature for free order claim:', {
+        orderId,
+        fid: userFid,
+        discountCode,
+        itemCount,
+        nonce
+      });
+      
+      // Request signature from wallet using wagmi
+      // We need to use the global signTypedDataAsync from wagmi
+      const { signTypedDataAsync } = await import('wagmi/actions');
+      const { getConfig } = await import('@/lib/wagmi');
+      
+      const signature = await signTypedDataAsync(getConfig(), {
+        domain,
+        types,
+        primaryType: 'FreeOrderClaim',
+        message,
+      });
+      
+      console.log('✅ Signature obtained:', signature.substring(0, 20) + '...');
+      
+      // Now submit the order with the signature
+      const sessionToken = getSessionToken();
+      if (!sessionToken) {
+        throw new Error('Authentication required. Please refresh the page.');
+      }
+      
+      const finalTotal = calculateFinalTotal();
+      const discountAmount = calculateProductAwareDiscountAmount();
+      
+      const orderData = {
+        cartItems: cart.items,
+        shippingAddress: shippingData,
+        billingAddress: null,
+        customer: {
+          email: shippingData.email || '',
+          phone: shippingData.phone || ''
+        },
+        checkout: cart.checkout,
+        selectedShipping: cart.selectedShipping,
+        notes: cart.notes || '',
+        fid: userFid,
+        appliedDiscount: appliedDiscount,
+        discountAmount: discountAmount,
+        appliedGiftCard: appliedGiftCard,
+        giftCards: appliedGiftCard ? [{
+          code: appliedGiftCard.code,
+          balance: appliedGiftCard.balance
+        }] : [],
+        total: finalTotal,
+        paymentMethod: 'signature_claim',
+        // Signature claim specific fields
+        claimSignature: signature,
+        claimSignatureMessage: JSON.stringify({
+          orderId: orderId,
+          fid: userFid.toString(),
+          discountCode: discountCode.toUpperCase(),
+          itemCount: itemCount.toString(),
+          nonce: nonce.toString(),
+        }),
+        walletAddress: userWalletAddress,
+        // User data for Farcaster profile
+        userData: userFid ? {
+          username: getUsername(),
+          displayName: getDisplayName(),
+          pfpUrl: getPfpUrl()
+        } : null
+      };
+      
+      console.log('📦 Submitting free order claim to API...');
+      
+      const response = await fetch('/api/shopify/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify(orderData),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Free order claimed successfully:', result);
+        setOrderDetails(result.order);
+        setCheckoutStep('success');
+      } else {
+        throw new Error(result.error || result.message || 'Order claim failed');
+      }
+      
+    } catch (error) {
+      console.error('💥 Free order claim error:', error);
+      
+      // Handle user rejection
+      if (error.message?.includes('rejected') || error.message?.includes('denied')) {
+        setFreeOrderClaimError('Signature request was cancelled. Please try again.');
+      } else {
+        setFreeOrderClaimError(error.message || 'Failed to claim free order');
+      }
+    } finally {
+      setIsFreeOrderClaiming(false);
+    }
+  };
+
   // Daimo Pay handlers
   const handleDaimoPaymentStarted = (event) => {
     console.log('💰 Daimo payment started:', event);
@@ -1623,12 +1805,17 @@ Transaction Hash: ${transactionHash}`;
             className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
           >
             {(() => {
-              const isCartFree = cartTotal <= 0.01;
-              const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
+              // NEW LOGIC:
+              // - Exactly $0 with free shipping: Show "FREE" (signature claim)
+              // - $0.01-$0.24 with free shipping: Show "$0.25 min fee"  
+              // - Other amounts: Show actual amount
+              const isExactlyFree = cartTotal === 0 && appliedDiscount?.freeShipping;
+              const isUnderMinimum = cartTotal > 0 && cartTotal < 0.25 && appliedDiscount?.freeShipping;
 
-              // Standard checkout button
-              if (isFreeWithShipping) {
-                return 'Checkout (FREE + $0.10 processing fee)';
+              if (isExactlyFree) {
+                return 'Checkout (FREE 🎁)';
+              } else if (isUnderMinimum) {
+                return 'Checkout ($0.25 USDC min + free shipping)';
               } else if (appliedDiscount?.freeShipping) {
                 return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
               } else if (appliedDiscount) {
@@ -1648,12 +1835,17 @@ Transaction Hash: ${transactionHash}`;
             className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
           >
             {(() => {
-              const isCartFree = cartTotal <= 0.01;
-              const isFreeWithShipping = isCartFree && appliedDiscount?.freeShipping;
+              // NEW LOGIC:
+              // - Exactly $0 with free shipping: Show "FREE" (signature claim)
+              // - $0.01-$0.24 with free shipping: Show "$0.25 min fee"  
+              // - Other amounts: Show actual amount
+              const isExactlyFree = cartTotal === 0 && appliedDiscount?.freeShipping;
+              const isUnderMinimum = cartTotal > 0 && cartTotal < 0.25 && appliedDiscount?.freeShipping;
 
-              // Standard checkout button
-              if (isFreeWithShipping) {
-                return 'Checkout (FREE + $0.10 processing fee)';
+              if (isExactlyFree) {
+                return 'Checkout (FREE 🎁)';
+              } else if (isUnderMinimum) {
+                return 'Checkout ($0.25 USDC min + free shipping)';
               } else if (appliedDiscount?.freeShipping) {
                 return `Checkout (${cartTotal.toFixed(2)} USDC + free shipping)`;
               } else if (appliedDiscount) {
@@ -2276,19 +2468,61 @@ Transaction Hash: ${transactionHash}`;
                     </div>
                   )}
 
-                  <DaimoPayButton
-                    key={daimoOrderId} // Force remount when order ID changes (fixes amount update bug)
-                    amount={calculateFinalTotal()}
-                    orderId={daimoOrderId}
-                    onPaymentStarted={handleDaimoPaymentStarted}
-                    onPaymentCompleted={handleDaimoPaymentCompleted}
-                    metadata={{
-                      fid: String(getFid() || ''),
-                      items: cart.items.map(i => i.product?.title || i.title).join(', '),
-                      email: shippingData.email || ''
-                    }}
-                    disabled={!cart.checkout || isDaimoProcessing}
-                  />
+                  {/* 🆓 FREE ORDER CLAIM - For $0 orders */}
+                  {isFreeOrder() ? (
+                    <div className="space-y-2">
+                      {/* Free order claim error */}
+                      {freeOrderClaimError && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                          <div className="text-red-800 text-sm font-medium">Claim Failed</div>
+                          <div className="text-red-600 text-xs mt-1">{freeOrderClaimError}</div>
+                          <button
+                            onClick={() => setFreeOrderClaimError(null)}
+                            className="mt-2 bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+                          >
+                            Try Again
+                          </button>
+                        </div>
+                      )}
+                      
+                      {/* Processing state */}
+                      {isFreeOrderClaiming && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                          <div className="text-green-800 text-sm">Claiming your free order...</div>
+                          <div className="text-green-600 text-xs mt-1">Please sign the message in your wallet</div>
+                        </div>
+                      )}
+                      
+                      {/* Free order claim button */}
+                      <button
+                        onClick={handleFreeOrderClaim}
+                        disabled={!cart.checkout || isFreeOrderClaiming}
+                        className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                      >
+                        <span className="text-lg">🎁</span>
+                        <span>{isFreeOrderClaiming ? 'Claiming...' : 'Claim Free Order'}</span>
+                      </button>
+                      
+                      <p className="text-xs text-gray-500 text-center">
+                        Sign with your wallet to confirm your free order
+                      </p>
+                    </div>
+                  ) : (
+                    /* Regular Daimo Pay for non-free orders */
+                    <DaimoPayButton
+                      key={daimoOrderId} // Force remount when order ID changes (fixes amount update bug)
+                      amount={calculateFinalTotal()}
+                      orderId={daimoOrderId}
+                      onPaymentStarted={handleDaimoPaymentStarted}
+                      onPaymentCompleted={handleDaimoPaymentCompleted}
+                      metadata={{
+                        fid: String(getFid() || ''),
+                        items: cart.items.map(i => i.product?.title || i.title).join(', '),
+                        email: shippingData.email || ''
+                      }}
+                      disabled={!cart.checkout || isDaimoProcessing}
+                    />
+                  )}
                 </div>
               )}
 

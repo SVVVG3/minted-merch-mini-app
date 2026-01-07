@@ -266,7 +266,11 @@ export async function createOrder(orderData) {
       line_items: orderData.lineItems,
       payment_method: orderData.paymentMethod,
       payment_status: orderData.paymentStatus,
-      payment_intent_id: orderData.paymentIntentId
+      payment_intent_id: orderData.paymentIntentId,
+      // Signature claim fields (for $0 free orders)
+      claim_signature: orderData.claimSignature || null,
+      claim_signature_message: orderData.claimSignatureMessage || null,
+      payment_type: orderData.paymentType || 'daimo'
     };
     
     console.log('🔍 Insert data prepared:', {

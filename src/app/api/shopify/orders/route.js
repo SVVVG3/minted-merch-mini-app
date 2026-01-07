@@ -162,7 +162,11 @@ export async function POST(request) {
       discountAmount, // Discount amount
       giftCards = [], // Gift card information array
       paymentMethod, // Payment method used (e.g., 'daimo', 'walletconnect')
-      paymentMetadata // Additional payment metadata (e.g., daimoPaymentId)
+      paymentMetadata, // Additional payment metadata (e.g., daimoPaymentId)
+      // Signature claim fields (for $0 free orders)
+      claimSignature, // EIP-712 signature for free order claims
+      claimSignatureMessage, // The typed data message that was signed
+      walletAddress // User's wallet address (for signature verification)
     } = body;
 
     // Convert FID to integer to ensure proper database type matching
@@ -619,11 +623,16 @@ export async function POST(request) {
       );
     }
 
-    if (!transactionHash) {
-      console.error(`❌ [${requestId}] Validation failed: No transaction hash`);
+    // NOTE: Transaction hash validation is now deferred until after server-side total calculation
+    // This allows $0 orders to use signature claims instead of transaction hashes
+    // See "SIGNATURE CLAIM VALIDATION" section below (after serverTotals calculation)
+    const isSignatureClaim = !!claimSignature && !!claimSignatureMessage;
+    
+    if (!transactionHash && !isSignatureClaim) {
+      console.error(`❌ [${requestId}] Validation failed: No transaction hash or signature claim`);
       return NextResponse.json(
         { 
-          error: 'Transaction hash is required', 
+          error: 'Transaction hash or signature claim is required', 
           requestId: requestId,
           step: 'validation'
         },
@@ -730,7 +739,144 @@ export async function POST(request) {
     const subtotalAfterDiscount = serverTotals.subtotalAfterDiscount;
     const adjustedTax = serverTotals.adjustedTax;
     const shippingPrice = serverTotals.shippingPrice;
-    const finalTotalPrice = serverTotals.finalTotal;
+    let finalTotalPrice = serverTotals.finalTotal;
+    
+    // 🔒 SIGNATURE CLAIM VALIDATION - For $0 free orders only
+    // This section validates signature claims as an alternative to transaction hashes
+    let validatedSignatureClaim = null;
+    
+    if (isSignatureClaim) {
+      console.log(`🔐 [${requestId}] Processing signature claim for free order...`);
+      
+      // CRITICAL: Server MUST confirm total is $0 before accepting signature claim
+      // This prevents attackers from bypassing payment by claiming their order is free
+      if (finalTotalPrice !== 0) {
+        console.error(`🚨 [${requestId}] SECURITY ALERT: Signature claim attempted for non-free order!`, {
+          serverCalculatedTotal: finalTotalPrice,
+          claimAttempted: true,
+          walletAddress: walletAddress?.substring(0, 10) + '...'
+        });
+        
+        await logSecurityEvent('invalid_signature_claim_attempt', {
+          serverCalculatedTotal: finalTotalPrice,
+          walletAddress: walletAddress,
+          discountCode: appliedDiscount?.code,
+          requestId
+        }, fidInt, request);
+        
+        return NextResponse.json({
+          error: 'Signature claims are only valid for $0 orders',
+          message: 'Your order total is not $0. Please complete payment.',
+          requestId: requestId,
+          step: 'signature_claim_validation'
+        }, { status: 400 });
+      }
+      
+      // Import signature verification utilities
+      const { 
+        validateFreeOrderClaim, 
+        markNonceUsed,
+        recordFreeOrderClaim 
+      } = await import('@/lib/signatureVerification');
+      
+      // Validate wallet address is provided
+      if (!walletAddress) {
+        console.error(`❌ [${requestId}] Signature claim missing wallet address`);
+        return NextResponse.json({
+          error: 'Wallet address is required for signature claims',
+          requestId: requestId,
+          step: 'signature_claim_validation'
+        }, { status: 400 });
+      }
+      
+      // Parse the signature message (sent from frontend)
+      let parsedMessage;
+      try {
+        parsedMessage = typeof claimSignatureMessage === 'string' 
+          ? JSON.parse(claimSignatureMessage) 
+          : claimSignatureMessage;
+        
+        // Convert string numbers back to BigInt for verification
+        if (parsedMessage.fid) parsedMessage.fid = BigInt(parsedMessage.fid);
+        if (parsedMessage.itemCount) parsedMessage.itemCount = BigInt(parsedMessage.itemCount);
+        if (parsedMessage.nonce) parsedMessage.nonce = BigInt(parsedMessage.nonce);
+      } catch (parseError) {
+        console.error(`❌ [${requestId}] Failed to parse signature message:`, parseError);
+        return NextResponse.json({
+          error: 'Invalid signature message format',
+          requestId: requestId,
+          step: 'signature_claim_validation'
+        }, { status: 400 });
+      }
+      
+      // Verify the FID in the signed message matches the authenticated FID
+      if (parsedMessage.fid && fidInt && Number(parsedMessage.fid) !== fidInt) {
+        console.error(`🚨 [${requestId}] SECURITY ALERT: FID mismatch in signature claim!`, {
+          signedFid: Number(parsedMessage.fid),
+          authenticatedFid: fidInt
+        });
+        
+        await logSecurityEvent('signature_fid_mismatch', {
+          signedFid: Number(parsedMessage.fid),
+          authenticatedFid: fidInt,
+          walletAddress: walletAddress,
+          requestId
+        }, fidInt, request);
+        
+        return NextResponse.json({
+          error: 'FID mismatch in signature',
+          message: 'The signature does not match your account.',
+          requestId: requestId,
+          step: 'signature_claim_validation'
+        }, { status: 403 });
+      }
+      
+      // Validate the signature (includes rate limiting and nonce checks)
+      const signatureValidation = await validateFreeOrderClaim({
+        signature: claimSignature,
+        message: parsedMessage,
+        expectedAddress: walletAddress,
+        fid: fidInt
+      });
+      
+      if (!signatureValidation.success) {
+        console.error(`❌ [${requestId}] Signature validation failed:`, signatureValidation);
+        
+        await logSecurityEvent('signature_validation_failed', {
+          error: signatureValidation.error,
+          code: signatureValidation.code,
+          walletAddress: walletAddress,
+          requestId
+        }, fidInt, request);
+        
+        return NextResponse.json({
+          error: signatureValidation.error || 'Signature validation failed',
+          code: signatureValidation.code,
+          requestId: requestId,
+          step: 'signature_claim_validation',
+          rateLimit: signatureValidation.rateLimit
+        }, { status: 400 });
+      }
+      
+      console.log(`✅ [${requestId}] Signature claim validated successfully`);
+      
+      // Store validated signature data for later use
+      validatedSignatureClaim = {
+        signature: claimSignature,
+        message: parsedMessage,
+        walletAddress: walletAddress,
+        verifiedAt: new Date().toISOString()
+      };
+    } else if (!transactionHash) {
+      // Non-signature claim without transaction hash - this shouldn't happen
+      // (already checked earlier, but double-check here for safety)
+      console.error(`❌ [${requestId}] No valid payment method provided`);
+      return NextResponse.json({
+        error: 'Transaction hash or valid signature claim is required',
+        requestId: requestId,
+        step: 'payment_validation'
+      }, { status: 400 });
+    }
     
     // 🔒 CRITICAL SECURITY: Verify Daimo payment amount
     if (paymentMetadata?.daimoVerifiedAmount) {
@@ -740,9 +886,10 @@ export async function POST(request) {
       // but tax/shipping may still have minor rounding differences
       const tolerance = 0.25;
       
-      // BUSINESS RULE: Daimo has a $0.10 minimum order amount
-      // For orders < $0.10 (e.g. 100% discounts), user pays the minimum
-      const DAIMO_MINIMUM_PAYMENT = 0.10;
+      // BUSINESS RULE: Daimo has a $0.25 minimum order amount (updated from $0.10)
+      // For orders $0.01-$0.24, they round up to $0.25 minimum
+      // Note: $0.00 orders use signature claims and bypass Daimo entirely
+      const DAIMO_MINIMUM_PAYMENT = 0.25;
       const expectedPayment = Math.max(finalTotalPrice, DAIMO_MINIMUM_PAYMENT);
       
       // Check if payment matches expected amount (server total OR minimum, whichever is greater)
@@ -1019,14 +1166,26 @@ export async function POST(request) {
               imageUrl: productImageUrl // Store the product image URL!
             };
           }),
-          paymentMethod: paymentMethod || 'USDC', // Store actual payment method used
+          // Payment method: signature_claim for $0 free orders, otherwise use provided method
+          paymentMethod: validatedSignatureClaim ? 'signature_claim' : (paymentMethod || 'USDC'),
           paymentStatus: 'completed',
-          paymentIntentId: transactionHash,
+          // For signature claims, store signature as paymentIntentId; otherwise use transactionHash
+          paymentIntentId: validatedSignatureClaim ? `sig:${claimSignature.substring(0, 20)}...` : transactionHash,
           giftCards: serverTotals.validatedGiftCards || giftCards || [], // Include validated gift card data
           // Daimo-specific fields
           daimoPaymentId: paymentMetadata?.daimoPaymentId || null,
           daimoSourceChain: paymentMetadata?.sourceChain || null,
           daimoSourceToken: paymentMetadata?.sourceToken || null,
+          // Signature claim fields (for $0 free orders)
+          claimSignature: validatedSignatureClaim?.signature || null,
+          claimSignatureMessage: validatedSignatureClaim ? JSON.stringify({
+            orderId: validatedSignatureClaim.message.orderId,
+            fid: validatedSignatureClaim.message.fid?.toString(),
+            discountCode: validatedSignatureClaim.message.discountCode,
+            itemCount: validatedSignatureClaim.message.itemCount?.toString(),
+            nonce: validatedSignatureClaim.message.nonce?.toString()
+          }) : null,
+          paymentType: validatedSignatureClaim ? 'signature_claim' : (paymentMethod || 'daimo'),
         };
 
         console.log(`💾 [${requestId}] Creating Supabase order (attempt ${supabaseAttempts}):`, {
@@ -1098,6 +1257,38 @@ export async function POST(request) {
         }
       } catch (discountError) {
         console.error('❌ Error marking discount code as used:', discountError);
+      }
+    }
+    
+    // 🔒 SIGNATURE CLAIM: Mark nonce as used and record rate limit after successful order
+    if (shopifyOrder && validatedSignatureClaim) {
+      try {
+        const { markNonceUsed, recordFreeOrderClaim } = await import('@/lib/signatureVerification');
+        
+        // Mark the nonce as used (prevents replay attacks)
+        const nonceResult = await markNonceUsed({
+          nonce: validatedSignatureClaim.message.nonce.toString(),
+          fid: fidInt,
+          walletAddress: validatedSignatureClaim.walletAddress,
+          orderId: shopifyOrder.name
+        });
+        
+        if (!nonceResult.success && !nonceResult.alreadyUsed) {
+          console.error('❌ Failed to mark nonce as used:', nonceResult.error);
+        } else {
+          console.log('✅ Signature claim nonce marked as used');
+        }
+        
+        // Record the free order claim for rate limiting
+        const rateResult = await recordFreeOrderClaim(fidInt);
+        if (!rateResult.success) {
+          console.error('❌ Failed to record free order claim for rate limiting:', rateResult.error);
+        } else {
+          console.log('✅ Free order claim recorded for rate limiting');
+        }
+      } catch (signatureTrackingError) {
+        // Don't fail the order - just log the error
+        console.error('❌ Error tracking signature claim:', signatureTrackingError);
       }
     }
 
