@@ -4838,16 +4838,20 @@ export default function AdminDashboard() {
                                 {partner.orderStats?.assigned || 0} Assigned
                               </span>
                               <span className="flex items-center">
-                                <div className="w-2 h-2 bg-blue-400 rounded-full mr-1"></div>
-                                {partner.orderStats?.processing || 0} Processing
-                              </span>
-                              <span className="flex items-center">
-                                <div className="w-2 h-2 bg-green-400 rounded-full mr-1"></div>
-                                {partner.orderStats?.shipped || 0} Shipped
+                                <div className="w-2 h-2 bg-yellow-400 rounded-full mr-1"></div>
+                                {partner.orderStats?.payment_processing || 0} Processing
                               </span>
                               <span className="flex items-center">
                                 <div className="w-2 h-2 bg-teal-400 rounded-full mr-1"></div>
                                 {partner.orderStats?.vendor_paid || 0} Vendor Paid
+                              </span>
+                            </div>
+                            <div className="flex space-x-4 text-xs mt-2">
+                              <span className="text-teal-600 font-medium">
+                                💰 ${(partner.orderStats?.totalPaid || 0).toFixed(2)} Paid
+                              </span>
+                              <span className="text-yellow-600 font-medium">
+                                ⏳ ~${(partner.orderStats?.estProcessing || 0).toFixed(2)} Processing
                               </span>
                             </div>
                           </div>

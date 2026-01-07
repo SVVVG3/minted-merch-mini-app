@@ -23,9 +23,10 @@ export const GET = withAdminAuth(async (request) => {
       result.partners.map(async (partner) => {
         try {
           // Get assignment counts by status for this partner (using new multi-partner table)
+          // Also fetch payout amounts for financial stats
           const { data: assignments, error: statsError } = await supabaseAdmin
             .from('order_partner_assignments')
-            .select('status')
+            .select('status, vendor_payout_amount, vendor_payout_estimated')
             .eq('partner_id', partner.id);
 
           if (statsError) {
@@ -35,9 +36,10 @@ export const GET = withAdminAuth(async (request) => {
               orderStats: {
                 total: 0,
                 assigned: 0,
-                processing: 0,
-                shipped: 0,
-                vendor_paid: 0
+                payment_processing: 0,
+                vendor_paid: 0,
+                totalPaid: 0,
+                estProcessing: 0
               }
             };
           }
@@ -48,12 +50,23 @@ export const GET = withAdminAuth(async (request) => {
             return counts;
           }, {});
 
+          // Calculate total paid (sum of vendor_payout_amount where status = vendor_paid)
+          const totalPaid = (assignments || [])
+            .filter(a => a.status === 'vendor_paid')
+            .reduce((sum, a) => sum + (parseFloat(a.vendor_payout_amount) || 0), 0);
+
+          // Calculate estimated processing (sum of vendor_payout_estimated where status = payment_processing)
+          const estProcessing = (assignments || [])
+            .filter(a => a.status === 'payment_processing')
+            .reduce((sum, a) => sum + (parseFloat(a.vendor_payout_estimated) || 0), 0);
+
           const orderStatsForPartner = {
             total: assignments?.length || 0,
             assigned: statusCounts.assigned || 0,
-            processing: statusCounts.processing || 0,
-            shipped: statusCounts.shipped || 0,
-            vendor_paid: statusCounts.vendor_paid || 0
+            payment_processing: statusCounts.payment_processing || 0,
+            vendor_paid: statusCounts.vendor_paid || 0,
+            totalPaid,
+            estProcessing
           };
 
           console.log(`📊 Partner ${partner.name} stats:`, orderStatsForPartner);
@@ -69,9 +82,10 @@ export const GET = withAdminAuth(async (request) => {
             orderStats: {
               total: 0,
               assigned: 0,
-              processing: 0,
-              shipped: 0,
-              vendor_paid: 0
+              payment_processing: 0,
+              vendor_paid: 0,
+              totalPaid: 0,
+              estProcessing: 0
             }
           };
         }
