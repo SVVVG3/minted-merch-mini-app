@@ -11,11 +11,16 @@
 import { verifyTypedData, getAddress } from 'viem';
 import { supabaseAdmin } from './supabase';
 
+// USDC contract on Base - used as verifyingContract to help wallets recognize the signature
+const USDC_BASE_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+
 // EIP-712 Domain - identifies our application
+// verifyingContract helps wallets recognize this as a legitimate signature request
 export const FREE_ORDER_DOMAIN = {
   name: 'Minted Merch',
   version: '1',
   chainId: 8453, // Base mainnet
+  verifyingContract: USDC_BASE_ADDRESS,
 };
 
 // EIP-712 Types - structure of the message (NO PII)

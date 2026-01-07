@@ -1151,10 +1151,13 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       const nonce = Date.now();
       
       // EIP-712 Domain and Types
+      // verifyingContract helps wallets recognize this as a legitimate signature request
+      const USDC_BASE_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
       const domain = {
         name: 'Minted Merch',
         version: '1',
         chainId: 8453, // Base mainnet
+        verifyingContract: USDC_BASE_ADDRESS,
       };
       
       const types = {
