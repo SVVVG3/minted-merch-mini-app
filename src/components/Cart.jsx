@@ -261,10 +261,10 @@ export function Cart({ isOpen, onClose }) {
                     // - $0.01 - $0.24 with discount: Round up to $0.25 (Daimo Pay minimum)
                     // - $0.25+: Show exact amount
                     if (cartTotal === 0 && cart.appliedDiscount?.freeShipping) {
-                      return <span className="text-green-600">FREE 🎁</span>;
+                      return <span className="text-green-600">FREE</span>;
                     }
                     if (cartTotal > 0 && cartTotal < 0.25 && cart.appliedDiscount?.freeShipping) {
-                      return <span className="text-green-600">$0.25 <span className="text-xs">(min processing fee)</span></span>;
+                      return <span className="text-green-600">$0.25 <span className="text-xs">(min fee)</span></span>;
                     }
                     return `$${cartTotal.toFixed(2)} USD`;
                   })()}
@@ -276,7 +276,7 @@ export function Cart({ isOpen, onClose }) {
             <CheckoutFlow />
 
             <p className="text-xs text-gray-500 text-center">
-              Pay with USDC on Base network
+              Pay using 1200+ coins across 20+ chains
             </p>
           </div>
         )}

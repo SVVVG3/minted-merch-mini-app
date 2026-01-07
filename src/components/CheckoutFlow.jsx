@@ -1733,6 +1733,10 @@ Transaction Hash: ${transactionHash}`;
   };
 
   const handleCloseCheckout = () => {
+    // If closing from success screen, clear the cart
+    if (checkoutStep === 'success') {
+      clearCart();
+    }
     setIsCheckoutOpen(false);
     setCheckoutStep('shipping');
     setCheckoutError(null);
@@ -1812,7 +1816,7 @@ Transaction Hash: ${transactionHash}`;
               const isUnderMinimum = cartTotal > 0 && cartTotal < 0.25 && appliedDiscount?.freeShipping;
 
               if (isExactlyFree) {
-                return 'Checkout (FREE 🎁)';
+                return 'Checkout (FREE)';
               } else if (isUnderMinimum) {
                 return 'Checkout ($0.25 USDC min + free shipping)';
               } else if (appliedDiscount?.freeShipping) {
@@ -1842,7 +1846,7 @@ Transaction Hash: ${transactionHash}`;
               const isUnderMinimum = cartTotal > 0 && cartTotal < 0.25 && appliedDiscount?.freeShipping;
 
               if (isExactlyFree) {
-                return 'Checkout (FREE 🎁)';
+                return 'Checkout (FREE)';
               } else if (isUnderMinimum) {
                 return 'Checkout ($0.25 USDC min + free shipping)';
               } else if (appliedDiscount?.freeShipping) {
@@ -1906,7 +1910,7 @@ Transaction Hash: ${transactionHash}`;
                     <div className="space-y-4">
                       <h3 className="text-lg font-semibold">Delivery Information</h3>
                       <p className="text-sm text-gray-600">
-                        🎁 Digital products will be delivered via email - no shipping address needed!
+                        Digital products will be delivered via email - no shipping address needed!
                       </p>
                       
                       {/* Name Fields */}
@@ -2017,12 +2021,9 @@ Transaction Hash: ${transactionHash}`;
                         <span>
                           {(() => {
                             const finalTotal = calculateFinalTotal();
-                            if (finalTotal <= 0.10) {
-                              return (appliedDiscount?.freeShipping || appliedGiftCard) ? (
-                                <span className="text-green-600">$0.10 <span className="text-xs">(min processing fee)</span></span>
-                              ) : (
-                                <span className="text-green-600">FREE</span>
-                              );
+                            // $0 = FREE (signature claim), $0.01-$0.24 = $0.25 min, $0.25+ = exact
+                            if (finalTotal === 0) {
+                              return <span className="text-green-600">FREE</span>;
                             }
                             return `$${finalTotal.toFixed(2)}`;
                           })()}
@@ -2031,7 +2032,7 @@ Transaction Hash: ${transactionHash}`;
                     </div>
                     <div className="text-sm text-gray-600">
                       {isDigitalOnlyCart() ? (
-                        <span className="text-blue-600 font-medium">🎁 Digital products - no shipping required!</span>
+                        <span className="text-blue-600 font-medium">Digital products - no shipping required!</span>
                       ) : appliedDiscount?.freeShipping ? (
                         <span className="text-green-600 font-medium">Free shipping included! Taxes will be calculated in the next step</span>
                       ) : (
@@ -2251,7 +2252,7 @@ Transaction Hash: ${transactionHash}`;
                         {isDigitalOnlyCart() && shippingData.email && (
                           <>
                             Email: {shippingData.email}<br />
-                            <span className="text-green-600 text-xs">🎁 Digital delivery via email</span>
+                            <span className="text-green-600 text-xs">Digital delivery via email</span>
                           </>
                         )}
                       </div>
@@ -2498,7 +2499,6 @@ Transaction Hash: ${transactionHash}`;
                         disabled={!cart.checkout || isFreeOrderClaiming}
                         className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
                       >
-                        <span className="text-lg">🎁</span>
                         <span>{isFreeOrderClaiming ? 'Claiming...' : 'Claim Free Order'}</span>
                       </button>
                       
