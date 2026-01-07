@@ -45,6 +45,9 @@ function MiniAppBridge({ onInitialized }) {
           window.farcasterContext = context;
           window.neynarSdk = sdk; // Store SDK for useFarcaster
           
+          // Detect if we're in the Base app (client FID is not Warpcast's 9152)
+          const isBaseApp = context.client?.clientFid && context.client?.clientFid !== 9152;
+          
           // DEBUG: Log what SDK context contains
           console.log('📱 Farcaster SDK context received:', {
             hasFid: !!context.user?.fid,
@@ -56,12 +59,12 @@ function MiniAppBridge({ onInitialized }) {
             // Client info for debugging Base vs Farcaster
             clientFid: context.client?.clientFid,
             platformType: context.client?.platformType,
-            isBaseApp: context.client?.clientFid && context.client?.clientFid !== 9152
+            isBaseApp
           });
           
           // Store client info for easy access
           window.farcasterClientFid = context.client?.clientFid;
-          window.isBaseApp = context.client?.clientFid && context.client?.clientFid !== 9152;
+          window.isBaseApp = isBaseApp;
           
           if (context.user) {
             window.userFid = context.user.fid;
@@ -75,12 +78,14 @@ function MiniAppBridge({ onInitialized }) {
             setupNotificationEventListeners(sdk, context.user.fid);
           }
           
-          // Call ready to hide splash screen (disableNativeGestures prevents pull-to-minimize conflicts)
-          await sdk.actions.ready({ disableNativeGestures: true });
+          // Call ready to hide splash screen
+          // disableNativeGestures: true prevents pull-to-minimize in Farcaster/Warpcast
+          // BUT it breaks scrolling in the Base app, so we only enable it for non-Base clients
+          await sdk.actions.ready({ disableNativeGestures: !isBaseApp });
         } else {
           // Not in Farcaster - still call ready
           try {
-            await sdk.actions.ready({ disableNativeGestures: true });
+            await sdk.actions.ready({ disableNativeGestures: false });
           } catch (e) {
             // Silent fail
           }
@@ -120,6 +125,9 @@ async function initializeWithDirectSDK() {
       window.farcasterContext = context;
       window.neynarSdk = sdk;
       
+      // Detect if we're in the Base app (client FID is not Warpcast's 9152)
+      const isBaseApp = context.client?.clientFid && context.client?.clientFid !== 9152;
+      
       // DEBUG: Log what SDK context contains
       console.log('📱 Farcaster SDK context (direct):', {
         hasFid: !!context.user?.fid,
@@ -127,8 +135,13 @@ async function initializeWithDirectSDK() {
         username: context.user?.username,
         displayName: context.user?.displayName,
         pfpUrl: context.user?.pfpUrl || 'NOT PROVIDED',
-        userKeys: context.user ? Object.keys(context.user) : []
+        userKeys: context.user ? Object.keys(context.user) : [],
+        isBaseApp
       });
+      
+      // Store client info for easy access
+      window.farcasterClientFid = context.client?.clientFid;
+      window.isBaseApp = isBaseApp;
       
       if (context.user) {
         window.userFid = context.user.fid;
@@ -141,10 +154,12 @@ async function initializeWithDirectSDK() {
         setupNotificationEventListeners(sdk, context.user.fid);
       }
       
-      await sdk.actions.ready({ disableNativeGestures: true });
+      // disableNativeGestures: true prevents pull-to-minimize in Farcaster/Warpcast
+      // BUT it breaks scrolling in the Base app, so we only enable it for non-Base clients
+      await sdk.actions.ready({ disableNativeGestures: !isBaseApp });
     } else {
       try {
-        await sdk.actions.ready({ disableNativeGestures: true });
+        await sdk.actions.ready({ disableNativeGestures: false });
       } catch (e) {
         // Silent fail
       }
