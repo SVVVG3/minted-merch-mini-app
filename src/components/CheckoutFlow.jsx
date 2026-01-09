@@ -1171,18 +1171,45 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         discountCode,
         itemCount,
         nonce,
-        messagePreview: messageToSign.substring(0, 50) + '...'
+        messagePreview: messageToSign.substring(0, 50) + '...',
+        isInFarcaster: isInFarcaster
       });
       
-      // Request signature from wallet using personal_sign (signMessage)
+      // Request signature - use Farcaster SDK provider in mini app context, wagmi otherwise
       let signature;
       try {
-        signature = await signMessageAsync({
-          message: messageToSign,
-        });
+        if (isInFarcaster) {
+          // Use Farcaster SDK's wallet provider for signing in mini app context
+          console.log('🔐 Using Farcaster SDK wallet for signing...');
+          const provider = await sdk.wallet.getEthereumProvider();
+          
+          if (!provider) {
+            throw new Error('Wallet provider not available. Please try again.');
+          }
+          
+          // Convert message to hex for personal_sign
+          const messageHex = '0x' + Buffer.from(messageToSign, 'utf8').toString('hex');
+          
+          // Use personal_sign (eth_sign is deprecated)
+          signature = await provider.request({
+            method: 'personal_sign',
+            params: [messageHex, userWalletAddress],
+          });
+          
+          console.log('✅ Farcaster SDK signature obtained:', {
+            length: signature?.length,
+            prefix: signature?.substring(0, 20)
+          });
+        } else {
+          // Use wagmi's signMessageAsync for non-Farcaster contexts
+          console.log('🔐 Using wagmi for signing...');
+          signature = await signMessageAsync({
+            message: messageToSign,
+          });
+        }
       } catch (signError) {
         console.error('❌ Signing error:', signError);
-        if (signError.message?.includes('rejected') || signError.message?.includes('cancelled') || signError.message?.includes('denied')) {
+        if (signError.message?.includes('rejected') || signError.message?.includes('cancelled') || signError.message?.includes('denied') || signError.code === 4001) {
           throw new Error('Signing was cancelled. Please try again.');
         }
         throw new Error(`Failed to sign: ${signError.message || 'Unknown error'}`);
@@ -1191,6 +1218,12 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       // Check if signing was cancelled or returned empty
       if (!signature) {
         throw new Error('Signing was cancelled or returned empty. Please try again.');
+      }
+      
+      // Validate the signature isn't all zeros (Base app bug)
+      if (signature.replace(/0x/i, '').replace(/0/g, '').length < 10) {
+        console.error('❌ Received invalid signature (mostly zeros)');
+        throw new Error('Wallet returned an invalid signature. Please try again or use a different wallet.');
       }
       
       console.log('✅ Signature obtained:', {
