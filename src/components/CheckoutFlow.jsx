@@ -1264,7 +1264,13 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         setOrderDetails(result.order);
         setCheckoutStep('success');
       } else {
-        throw new Error(result.error || result.message || 'Order claim failed');
+        // Include details in error message for debugging
+        let errorMsg = result.error || result.message || 'Order claim failed';
+        if (result.details) {
+          console.log('🔍 Error details:', result.details);
+          errorMsg += ` (len: ${result.details.receivedLength || result.details.processedLength || 'unknown'})`;
+        }
+        throw new Error(errorMsg);
       }
       
     } catch (error) {
