@@ -88,11 +88,11 @@ export function getTypedDataForSigning(message) {
  * @param {string} params.expectedAddress - The wallet address that should have signed
  * @returns {Object} Verification result
  */
-export async function verifyFreeOrderSignature({ signature, message, expectedAddress }) {
+export async function verifyFreeOrderSignature({ signature: rawSignature, message, expectedAddress }) {
   try {
     console.log('🔐 Verifying free order signature:', {
-      hasSignature: !!signature,
-      signatureLength: signature?.length,
+      hasSignature: !!rawSignature,
+      signatureLength: rawSignature?.length,
       expectedAddress: expectedAddress?.substring(0, 10) + '...',
       orderId: message?.orderId,
       fid: message?.fid?.toString(),
@@ -100,12 +100,43 @@ export async function verifyFreeOrderSignature({ signature, message, expectedAdd
     });
 
     // Validate inputs
-    if (!signature || typeof signature !== 'string') {
+    if (!rawSignature || typeof rawSignature !== 'string') {
       return {
         success: false,
         error: 'Invalid signature format',
         code: 'INVALID_SIGNATURE_FORMAT'
       };
+    }
+    
+    let signature = rawSignature;
+    
+    // Validate signature length - should be 132 chars (0x + 130 hex) or 130 without prefix
+    const expectedLengths = [132, 130];
+    if (!expectedLengths.includes(signature.length)) {
+      console.error('❌ Invalid signature length:', signature.length, 'expected 132 or 130');
+      
+      // Try to extract a valid signature if embedded in malformed data
+      const sigMatch = signature.match(/0x[a-fA-F0-9]{130}/);
+      if (sigMatch) {
+        console.log('📝 Found valid signature embedded in data, extracting...');
+        signature = sigMatch[0];
+      } else {
+        return {
+          success: false,
+          error: `invalid signature length`,
+          code: 'INVALID_SIGNATURE_LENGTH',
+          details: {
+            received: signature.length,
+            expected: 132,
+            hint: 'Signature should be a hex string starting with 0x (132 chars total)'
+          }
+        };
+      }
+    }
+    
+    // Ensure 0x prefix
+    if (!signature.startsWith('0x')) {
+      signature = '0x' + signature;
     }
 
     if (!expectedAddress) {

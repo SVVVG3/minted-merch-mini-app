@@ -1187,14 +1187,53 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       });
       
       // Request signature from wallet using wagmi's useSignTypedData hook
-      const signature = await signTypedDataAsync({
+      const rawSignature = await signTypedDataAsync({
         domain,
         types,
         primaryType: 'FreeOrderClaim',
         message,
       });
       
-      console.log('✅ Signature obtained:', signature.substring(0, 20) + '...');
+      console.log('✅ Raw signature obtained:', {
+        type: typeof rawSignature,
+        length: rawSignature?.length,
+        preview: typeof rawSignature === 'string' ? rawSignature.substring(0, 20) + '...' : rawSignature
+      });
+      
+      // Validate signature format - should be a 132-char hex string (0x + 130 chars)
+      let signature = rawSignature;
+      
+      // Handle case where wallet returns an object with signature property
+      if (typeof rawSignature === 'object' && rawSignature !== null) {
+        signature = rawSignature.signature || rawSignature.sig || rawSignature;
+        console.log('📝 Extracted signature from object:', signature?.substring?.(0, 20) + '...');
+      }
+      
+      // Ensure signature is a string
+      if (typeof signature !== 'string') {
+        console.error('❌ Invalid signature type:', typeof signature);
+        throw new Error('Wallet returned invalid signature format');
+      }
+      
+      // Validate signature length (should be 132 chars for standard sig, or 130 without 0x)
+      if (signature.length !== 132 && signature.length !== 130) {
+        console.error('❌ Invalid signature length:', signature.length, 'expected 132');
+        // Try to extract if it's wrapped in quotes or has extra data
+        const sigMatch = signature.match(/0x[a-fA-F0-9]{130}/);
+        if (sigMatch) {
+          signature = sigMatch[0];
+          console.log('📝 Extracted valid signature from malformed data');
+        } else {
+          throw new Error(`Invalid signature format (length: ${signature.length}). Please try again.`);
+        }
+      }
+      
+      // Ensure 0x prefix
+      if (!signature.startsWith('0x')) {
+        signature = '0x' + signature;
+      }
+      
+      console.log('✅ Signature validated:', signature.substring(0, 20) + '...');
       
       // Now submit the order with the signature
       const sessionToken = getSessionToken();
