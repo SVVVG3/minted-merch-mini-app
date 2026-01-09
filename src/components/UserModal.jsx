@@ -1445,27 +1445,29 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                               </div>
                             )}
                             
-                            {/* Final Payout (vendor_paid) */}
-                            {order.vendor_payout_amount && (
-                              <div className={`border-t pt-2 mt-2 ${parseFloat(order.vendor_payout_amount) < 0 ? 'bg-red-50' : 'bg-teal-50'} -mx-4 -mb-4 px-4 py-2 rounded-b-lg`}>
-                                <div className="flex justify-between items-center">
-                                  <span className={`text-sm ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-700' : 'text-teal-700'}`}>Final Payout:</span>
-                                  <span className={`font-bold ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-700' : 'text-teal-700'}`}>
-                                    {formatCurrency(order.vendor_payout_amount)}
-                                  </span>
-                                </div>
+                            {/* Final Payout (vendor_paid) - Show if status is vendor_paid OR has payout amount/notes */}
+                            {(order.status === 'vendor_paid' || order.vendor_payout_amount || order.vendor_payout_internal_notes || order.vendor_payout_partner_notes) && order.status !== 'payment_processing' && (
+                              <div className={`border-t pt-2 mt-2 ${parseFloat(order.vendor_payout_amount || 0) < 0 ? 'bg-red-50' : 'bg-teal-50'} -mx-4 -mb-4 px-4 py-2 rounded-b-lg`}>
+                                {order.vendor_payout_amount && (
+                                  <div className="flex justify-between items-center">
+                                    <span className={`text-sm ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-700' : 'text-teal-700'}`}>Final Payout:</span>
+                                    <span className={`font-bold ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-700' : 'text-teal-700'}`}>
+                                      {formatCurrency(order.vendor_payout_amount)}
+                                    </span>
+                                  </div>
+                                )}
                                 {order.vendor_paid_at && (
-                                  <div className={`text-xs ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-600' : 'text-teal-600'} mt-1`}>
+                                  <div className={`text-xs ${parseFloat(order.vendor_payout_amount || 0) < 0 ? 'text-red-600' : 'text-teal-600'} mt-1`}>
                                     Paid: {formatDate(order.vendor_paid_at)}
                                   </div>
                                 )}
                                 {order.vendor_payout_internal_notes && (
-                                  <div className={`text-xs text-gray-600 mt-1 pt-1 border-t ${parseFloat(order.vendor_payout_amount) < 0 ? 'border-red-200' : 'border-teal-200'}`}>
+                                  <div className={`text-xs text-gray-600 mt-1 pt-1 border-t ${parseFloat(order.vendor_payout_amount || 0) < 0 ? 'border-red-200' : 'border-teal-200'}`}>
                                     <span className="font-medium">📝 Internal:</span> {order.vendor_payout_internal_notes}
                                   </div>
                                 )}
                                 {order.vendor_payout_partner_notes && (
-                                  <div className={`text-xs ${parseFloat(order.vendor_payout_amount) < 0 ? 'text-red-700' : 'text-teal-700'} mt-1`}>
+                                  <div className={`text-xs ${parseFloat(order.vendor_payout_amount || 0) < 0 ? 'text-red-700' : 'text-teal-700'} mt-1`}>
                                     <span className="font-medium">👤 Partner:</span> {order.vendor_payout_partner_notes}
                                   </div>
                                 )}
