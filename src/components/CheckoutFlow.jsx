@@ -1175,100 +1175,42 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         isInFarcaster: isInFarcaster
       });
       
-      // Request signature - try multiple methods, with fallback for embedded wallets
-      let signature = null;
-      let signatureSkipped = false;
+      // For free orders in the Farcaster mini app context, the embedded wallet
+      // doesn't support signing properly (returns all zeros). We skip signature
+      // verification for free orders since security is maintained through:
+      // - FID authentication (user must be logged in)
+      // - Discount code validation (must be valid 100% discount, server-verified)
+      // - Rate limiting (3/day, 1/hour)
+      // - Server-side price/total verification
       
-      try {
-        if (isInFarcaster) {
-          // Try using Farcaster SDK's wallet provider for signing in mini app context
-          console.log('🔐 Attempting to sign with Farcaster SDK wallet...');
-          try {
-            const provider = await sdk.wallet.getEthereumProvider();
-            
-            if (provider) {
-              // Convert message to hex for personal_sign
-              const messageHex = '0x' + Array.from(new TextEncoder().encode(messageToSign))
-                .map(b => b.toString(16).padStart(2, '0')).join('');
-              
-              // Use personal_sign
-              signature = await provider.request({
-                method: 'personal_sign',
-                params: [messageHex, userWalletAddress],
-              });
-              
-              console.log('✅ Farcaster SDK signature obtained:', {
-                length: signature?.length,
-                prefix: signature?.substring(0, 20)
-              });
-              
-              // Check if signature is valid (not all zeros)
-              if (signature && signature.replace(/0x/i, '').replace(/0/g, '').length < 10) {
-                console.warn('⚠️ Received invalid signature (mostly zeros), will skip signature verification');
-                signature = null;
-                signatureSkipped = true;
-              }
-            }
-          } catch (sdkSignError) {
-            console.warn('⚠️ Farcaster SDK signing failed:', sdkSignError.message);
-            // Will fall back to no-signature mode below
-          }
-          
-          // If SDK signing failed or returned invalid, try wagmi as backup
-          if (!signature && !signatureSkipped) {
-            try {
-              console.log('🔐 Trying wagmi as fallback...');
-              signature = await signMessageAsync({
-                message: messageToSign,
-              });
-              
-              // Check if wagmi signature is valid
-              if (signature && signature.replace(/0x/i, '').replace(/0/g, '').length < 10) {
-                console.warn('⚠️ Wagmi signature also invalid, will skip signature verification');
-                signature = null;
-                signatureSkipped = true;
-              }
-            } catch (wagmiError) {
-              console.warn('⚠️ Wagmi signing also failed:', wagmiError.message);
-              signatureSkipped = true;
-            }
-          }
-        } else {
-          // Use wagmi's signMessageAsync for non-Farcaster contexts
-          console.log('🔐 Using wagmi for signing...');
+      let signature = 'EMBEDDED_WALLET_SKIP';
+      
+      // Only attempt signing in non-Farcaster contexts where wallets work properly
+      if (!isInFarcaster) {
+        console.log('🔐 Using wagmi for signing (non-Farcaster context)...');
+        try {
           signature = await signMessageAsync({
             message: messageToSign,
           });
+          
+          if (!signature || signature.replace(/0x/i, '').replace(/0/g, '').length < 10) {
+            console.warn('⚠️ Invalid signature, using skip token');
+            signature = 'EMBEDDED_WALLET_SKIP';
+          }
+        } catch (signError) {
+          console.error('❌ Signing error:', signError);
+          if (signError.message?.includes('rejected') || signError.message?.includes('cancelled') || signError.message?.includes('denied') || signError.code === 4001) {
+            throw new Error('Signing was cancelled. Please try again.');
+          }
+          // For free orders, proceed without signature
+          console.warn('⚠️ Signing failed, using skip token for free order');
+          signature = 'EMBEDDED_WALLET_SKIP';
         }
-      } catch (signError) {
-        console.error('❌ Signing error:', signError);
-        if (signError.message?.includes('rejected') || signError.message?.includes('cancelled') || signError.message?.includes('denied') || signError.code === 4001) {
-          throw new Error('Signing was cancelled. Please try again.');
-        }
-        // For other errors in free order context, we'll proceed without signature
-        console.warn('⚠️ Signing failed, proceeding without signature for free order');
-        signatureSkipped = true;
+      } else {
+        console.log('ℹ️ Skipping signature for free order in Farcaster context (embedded wallet limitation)');
       }
       
-      // For free orders with embedded wallets that don't support signing,
-      // we can proceed without a signature since we have other security measures:
-      // - FID authentication
-      // - Discount code validation (server-verified)
-      // - Rate limiting
-      // - Server-side price/total verification
-      if (!signature && signatureSkipped) {
-        console.log('ℹ️ Proceeding without signature (embedded wallet limitation)');
-        signature = 'EMBEDDED_WALLET_SKIP';
-      } else if (!signature) {
-        throw new Error('Failed to obtain signature. Please try again.');
-      }
-      
-      console.log('✅ Signature status:', {
-        hasSignature: !!signature,
-        skipped: signatureSkipped,
-        length: signature?.length,
-        preview: signature?.substring(0, 20) + '...'
-      });
+      console.log('✅ Signature ready:', signature.substring(0, 20) + '...');
       
       // Now submit the order with the signature
       const sessionToken = getSessionToken();
