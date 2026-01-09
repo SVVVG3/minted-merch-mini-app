@@ -1208,10 +1208,13 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         throw new Error('Signing was cancelled or returned empty. Please try again.');
       }
       
+      // Detailed logging for debugging different wallet behaviors
       console.log('✅ Raw signature obtained:', {
         type: typeof rawSignature,
+        isArray: Array.isArray(rawSignature),
         length: rawSignature?.length,
-        preview: typeof rawSignature === 'string' ? rawSignature.substring(0, 20) + '...' : rawSignature
+        keys: typeof rawSignature === 'object' ? Object.keys(rawSignature) : 'N/A',
+        preview: typeof rawSignature === 'string' ? rawSignature.substring(0, 40) + '...' : JSON.stringify(rawSignature).substring(0, 100)
       });
       
       // Validate signature format - should be a 132-char hex string (0x + 130 chars)
@@ -1219,27 +1222,37 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       
       // Handle case where wallet returns an object with signature property
       if (typeof rawSignature === 'object' && rawSignature !== null) {
-        signature = rawSignature.signature || rawSignature.sig || rawSignature;
-        console.log('📝 Extracted signature from object:', signature?.substring?.(0, 20) + '...');
+        // Try various possible property names different wallets might use
+        signature = rawSignature.signature || rawSignature.sig || rawSignature.result || rawSignature.data || rawSignature;
+        console.log('📝 Extracted signature from object:', {
+          extractedType: typeof signature,
+          extractedLength: signature?.length,
+          preview: typeof signature === 'string' ? signature.substring(0, 40) + '...' : signature
+        });
       }
       
       // Ensure signature is a string
       if (typeof signature !== 'string') {
-        console.error('❌ Invalid signature type:', typeof signature);
+        console.error('❌ Invalid signature type:', typeof signature, 'value:', signature);
         throw new Error('Wallet returned invalid signature format. Please try again.');
       }
       
       // Validate signature length (should be 132 chars for standard sig, or 130 without 0x)
-      if (signature.length !== 132 && signature.length !== 130) {
-        console.error('❌ Invalid signature length:', signature.length, 'expected 132');
-        // Try to extract if it's wrapped in quotes or has extra data
+      // Some wallets might return longer signatures (e.g., with recovery byte)
+      if (signature.length < 130) {
+        console.error('❌ Signature too short:', signature.length);
+        throw new Error(`Signature too short (${signature.length} chars). Please try again.`);
+      }
+      
+      // If signature is longer than expected, try to extract the valid portion
+      if (signature.length > 132) {
+        console.log('📝 Signature longer than expected:', signature.length);
         const sigMatch = signature.match(/0x[a-fA-F0-9]{130}/);
         if (sigMatch) {
           signature = sigMatch[0];
-          console.log('📝 Extracted valid signature from malformed data');
-        } else {
-          throw new Error(`Invalid signature format (length: ${signature.length}). Please try again.`);
+          console.log('📝 Extracted 132-char signature from longer data');
         }
+        // Otherwise, use as-is and let the server handle it
       }
       
       // Ensure 0x prefix
@@ -1247,14 +1260,10 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         signature = '0x' + signature;
       }
       
-      // Validate signature is not all zeros (invalid ECDSA signature)
-      const sigWithoutPrefix = signature.slice(2);
-      if (sigWithoutPrefix.replace(/0/g, '').length < 10) {
-        console.error('❌ Signature appears to be mostly zeros (invalid)');
-        throw new Error('Invalid signature received from wallet. Please try again.');
-      }
-      
-      console.log('✅ Signature validated:', signature.substring(0, 20) + '...');
+      console.log('✅ Signature ready to send:', {
+        length: signature.length,
+        preview: signature.substring(0, 20) + '...' + signature.substring(signature.length - 10)
+      });
       
       // Now submit the order with the signature
       const sessionToken = getSessionToken();

@@ -139,16 +139,12 @@ export async function verifyFreeOrderSignature({ signature: rawSignature, messag
       signature = '0x' + signature;
     }
     
-    // Check for obviously invalid signatures (all zeros or mostly zeros = cancelled/invalid)
-    const sigWithoutPrefix = signature.slice(2);
-    if (sigWithoutPrefix.replace(/0/g, '').length < 10) {
-      console.error('❌ Signature appears to be invalid (mostly zeros)');
-      return {
-        success: false,
-        error: 'Invalid signature - appears to be empty or cancelled. Please try again.',
-        code: 'INVALID_SIGNATURE_CONTENT'
-      };
-    }
+    // Log signature details for debugging
+    console.log('🔍 Signature details:', {
+      length: signature.length,
+      prefix: signature.substring(0, 10),
+      suffix: signature.substring(signature.length - 10)
+    });
 
     if (!expectedAddress) {
       return {
