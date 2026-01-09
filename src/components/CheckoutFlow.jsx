@@ -1175,26 +1175,35 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         isInFarcaster: isInFarcaster
       });
       
-      // For free orders in the Farcaster mini app context, the embedded wallet
-      // doesn't support signing properly (returns all zeros). We skip signature
-      // verification for free orders since security is maintained through:
-      // - FID authentication (user must be logged in)
-      // - Discount code validation (must be valid 100% discount, server-verified)
-      // - Rate limiting (3/day, 1/hour)
-      // - Server-side price/total verification
+      // Detect if we're in the Base app (not Farcaster/Warpcast)
+      // Base app's embedded wallet doesn't support signing properly (returns all zeros)
+      // Farcaster/Warpcast (clientFid 9152) works fine
+      const isBaseApp = isInFarcaster && context?.client?.clientFid && context.client.clientFid !== 9152;
       
-      let signature = 'EMBEDDED_WALLET_SKIP';
+      console.log('🔍 Wallet context:', {
+        isInFarcaster,
+        clientFid: context?.client?.clientFid,
+        isBaseApp
+      });
       
-      // Only attempt signing in non-Farcaster contexts where wallets work properly
-      if (!isInFarcaster) {
-        console.log('🔐 Using wagmi for signing (non-Farcaster context)...');
+      let signature = null;
+      
+      if (isBaseApp) {
+        // Base app's embedded wallet doesn't support signing - skip it
+        // Security is maintained through FID auth, discount validation, rate limiting
+        console.log('ℹ️ Skipping signature for Base app (embedded wallet limitation)');
+        signature = 'EMBEDDED_WALLET_SKIP';
+      } else {
+        // Farcaster/Warpcast and other contexts - signing works fine
+        console.log('🔐 Requesting signature...');
         try {
           signature = await signMessageAsync({
             message: messageToSign,
           });
           
+          // Validate signature isn't garbage
           if (!signature || signature.replace(/0x/i, '').replace(/0/g, '').length < 10) {
-            console.warn('⚠️ Invalid signature, using skip token');
+            console.warn('⚠️ Invalid signature received, using skip token');
             signature = 'EMBEDDED_WALLET_SKIP';
           }
         } catch (signError) {
@@ -1206,8 +1215,6 @@ export function CheckoutFlow({ checkoutData, onBack }) {
           console.warn('⚠️ Signing failed, using skip token for free order');
           signature = 'EMBEDDED_WALLET_SKIP';
         }
-      } else {
-        console.log('ℹ️ Skipping signature for free order in Farcaster context (embedded wallet limitation)');
       }
       
       console.log('✅ Signature ready:', signature.substring(0, 20) + '...');
