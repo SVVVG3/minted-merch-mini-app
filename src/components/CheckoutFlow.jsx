@@ -10,7 +10,7 @@ import { debugBaseAccount } from '@/lib/baseAccount';
 import { calculateCheckout } from '@/lib/shopify';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { shareOrder } from '@/lib/farcasterShare';
-import { useSignTypedData, useAccount } from 'wagmi';
+import { useSignMessage, useAccount } from 'wagmi';
 
 import { ShippingForm } from './ShippingForm';
 import GiftCardSection, { GiftCardBalance } from './GiftCardSection';
@@ -64,8 +64,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   // Get wagmi account for signature verification
   const { address: wagmiAddress } = useAccount();
   
-  // Wagmi hook for EIP-712 signature (for free order claims)
-  const { signTypedDataAsync } = useSignTypedData();
+  // Wagmi hook for personal_sign (for free order claims - more universally supported)
+  const { signMessageAsync } = useSignMessage();
 
   // Helper function to detect if cart contains only digital products
   const isDigitalOnlyCart = () => {
@@ -1150,50 +1150,35 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       const itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
       const nonce = Date.now();
       
-      // EIP-712 Domain and Types
-      // verifyingContract helps wallets recognize this as a legitimate signature request
-      const USDC_BASE_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
-      const domain = {
-        name: 'Minted Merch',
-        version: '1',
-        chainId: 8453, // Base mainnet
-        verifyingContract: USDC_BASE_ADDRESS,
-      };
-      
-      const types = {
-        FreeOrderClaim: [
-          { name: 'orderId', type: 'string' },
-          { name: 'fid', type: 'uint256' },
-          { name: 'discountCode', type: 'string' },
-          { name: 'itemCount', type: 'uint256' },
-          { name: 'nonce', type: 'uint256' },
-        ],
-      };
-      
-      const message = {
-        orderId: orderId,
-        fid: BigInt(userFid),
-        discountCode: discountCode.toUpperCase(),
-        itemCount: BigInt(itemCount),
-        nonce: BigInt(nonce),
-      };
+      // Create a simple message for personal_sign (more universally supported than EIP-712)
+      // This message will be displayed to the user and signed
+      const messageToSign = [
+        'Minted Merch Free Order Claim',
+        '',
+        `Order ID: ${orderId}`,
+        `Farcaster ID: ${userFid}`,
+        `Discount Code: ${discountCode.toUpperCase()}`,
+        `Item Count: ${itemCount}`,
+        `Nonce: ${nonce}`,
+        '',
+        'Sign this message to confirm your free order.',
+        'This does not cost any gas or funds.'
+      ].join('\n');
       
       console.log('📝 Requesting signature for free order claim:', {
         orderId,
         fid: userFid,
         discountCode,
         itemCount,
-        nonce
+        nonce,
+        messagePreview: messageToSign.substring(0, 50) + '...'
       });
       
-      // Request signature from wallet using wagmi's useSignTypedData hook
-      let rawSignature;
+      // Request signature from wallet using personal_sign (signMessage)
+      let signature;
       try {
-        rawSignature = await signTypedDataAsync({
-          domain,
-          types,
-          primaryType: 'FreeOrderClaim',
-          message,
+        signature = await signMessageAsync({
+          message: messageToSign,
         });
       } catch (signError) {
         console.error('❌ Signing error:', signError);
@@ -1204,65 +1189,13 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       }
       
       // Check if signing was cancelled or returned empty
-      if (!rawSignature) {
+      if (!signature) {
         throw new Error('Signing was cancelled or returned empty. Please try again.');
       }
       
-      // Detailed logging for debugging different wallet behaviors
-      console.log('✅ Raw signature obtained:', {
-        type: typeof rawSignature,
-        isArray: Array.isArray(rawSignature),
-        length: rawSignature?.length,
-        keys: typeof rawSignature === 'object' ? Object.keys(rawSignature) : 'N/A',
-        preview: typeof rawSignature === 'string' ? rawSignature.substring(0, 40) + '...' : JSON.stringify(rawSignature).substring(0, 100)
-      });
-      
-      // Validate signature format - should be a 132-char hex string (0x + 130 chars)
-      let signature = rawSignature;
-      
-      // Handle case where wallet returns an object with signature property
-      if (typeof rawSignature === 'object' && rawSignature !== null) {
-        // Try various possible property names different wallets might use
-        signature = rawSignature.signature || rawSignature.sig || rawSignature.result || rawSignature.data || rawSignature;
-        console.log('📝 Extracted signature from object:', {
-          extractedType: typeof signature,
-          extractedLength: signature?.length,
-          preview: typeof signature === 'string' ? signature.substring(0, 40) + '...' : signature
-        });
-      }
-      
-      // Ensure signature is a string
-      if (typeof signature !== 'string') {
-        console.error('❌ Invalid signature type:', typeof signature, 'value:', signature);
-        throw new Error('Wallet returned invalid signature format. Please try again.');
-      }
-      
-      // Validate signature length (should be 132 chars for standard sig, or 130 without 0x)
-      // Some wallets might return longer signatures (e.g., with recovery byte)
-      if (signature.length < 130) {
-        console.error('❌ Signature too short:', signature.length);
-        throw new Error(`Signature too short (${signature.length} chars). Please try again.`);
-      }
-      
-      // If signature is longer than expected, try to extract the valid portion
-      if (signature.length > 132) {
-        console.log('📝 Signature longer than expected:', signature.length);
-        const sigMatch = signature.match(/0x[a-fA-F0-9]{130}/);
-        if (sigMatch) {
-          signature = sigMatch[0];
-          console.log('📝 Extracted 132-char signature from longer data');
-        }
-        // Otherwise, use as-is and let the server handle it
-      }
-      
-      // Ensure 0x prefix
-      if (!signature.startsWith('0x')) {
-        signature = '0x' + signature;
-      }
-      
-      console.log('✅ Signature ready to send:', {
+      console.log('✅ Signature obtained:', {
         length: signature.length,
-        preview: signature.substring(0, 20) + '...' + signature.substring(signature.length - 10)
+        preview: signature.substring(0, 20) + '...'
       });
       
       // Now submit the order with the signature
