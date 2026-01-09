@@ -1187,12 +1187,26 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       });
       
       // Request signature from wallet using wagmi's useSignTypedData hook
-      const rawSignature = await signTypedDataAsync({
-        domain,
-        types,
-        primaryType: 'FreeOrderClaim',
-        message,
-      });
+      let rawSignature;
+      try {
+        rawSignature = await signTypedDataAsync({
+          domain,
+          types,
+          primaryType: 'FreeOrderClaim',
+          message,
+        });
+      } catch (signError) {
+        console.error('❌ Signing error:', signError);
+        if (signError.message?.includes('rejected') || signError.message?.includes('cancelled') || signError.message?.includes('denied')) {
+          throw new Error('Signing was cancelled. Please try again.');
+        }
+        throw new Error(`Failed to sign: ${signError.message || 'Unknown error'}`);
+      }
+      
+      // Check if signing was cancelled or returned empty
+      if (!rawSignature) {
+        throw new Error('Signing was cancelled or returned empty. Please try again.');
+      }
       
       console.log('✅ Raw signature obtained:', {
         type: typeof rawSignature,
@@ -1212,7 +1226,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       // Ensure signature is a string
       if (typeof signature !== 'string') {
         console.error('❌ Invalid signature type:', typeof signature);
-        throw new Error('Wallet returned invalid signature format');
+        throw new Error('Wallet returned invalid signature format. Please try again.');
       }
       
       // Validate signature length (should be 132 chars for standard sig, or 130 without 0x)
@@ -1231,6 +1245,13 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       // Ensure 0x prefix
       if (!signature.startsWith('0x')) {
         signature = '0x' + signature;
+      }
+      
+      // Validate signature is not all zeros (invalid ECDSA signature)
+      const sigWithoutPrefix = signature.slice(2);
+      if (sigWithoutPrefix.replace(/0/g, '').length < 10) {
+        console.error('❌ Signature appears to be mostly zeros (invalid)');
+        throw new Error('Invalid signature received from wallet. Please try again.');
       }
       
       console.log('✅ Signature validated:', signature.substring(0, 20) + '...');
