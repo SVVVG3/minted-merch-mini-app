@@ -2480,6 +2480,9 @@ Transaction Hash: ${transactionHash}`;
                   {(() => {
                     const finalTotal = calculateFinalTotal();
                     
+                    // Don't show insufficient balance warning for free orders ($0)
+                    if (finalTotal === 0) return null;
+                    
                     return isConnected && !hasSufficientBalance(finalTotal) && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                         <div className="text-red-800 text-sm">
