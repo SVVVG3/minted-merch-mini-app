@@ -75,9 +75,39 @@ export async function verifyFreeOrderSignature({ signature: rawSignature, messag
     // Log raw signature for debugging
     console.log('🔍 Raw signature received:', {
       length: signature.length,
-      prefix: signature.substring(0, 20),
-      suffix: signature.substring(Math.max(0, signature.length - 20))
+      prefix: signature.substring(0, 40),
+      suffix: signature.substring(Math.max(0, signature.length - 20)),
+      looksLikeJson: signature.startsWith('{') || signature.startsWith('['),
+      looksLikeBase64: /^[A-Za-z0-9+/=]+$/.test(signature.replace(/^0x/, ''))
     });
+    
+    // Handle JSON-encoded signatures (some wallets return objects as strings)
+    if (signature.startsWith('{') || signature.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(signature);
+        console.log('📝 Parsed JSON signature:', Object.keys(parsed));
+        signature = parsed.signature || parsed.sig || parsed.result || parsed.data || parsed;
+        if (typeof signature !== 'string') {
+          signature = JSON.stringify(signature);
+        }
+      } catch (e) {
+        console.log('⚠️ Failed to parse JSON signature');
+      }
+    }
+    
+    // Handle base64-encoded signatures
+    if (signature.length > 132 && !signature.startsWith('0x')) {
+      try {
+        // Try to decode as base64
+        const decoded = Buffer.from(signature, 'base64').toString('hex');
+        if (decoded.length === 130) {
+          signature = '0x' + decoded;
+          console.log('📝 Decoded base64 signature');
+        }
+      } catch (e) {
+        // Not base64, continue
+      }
+    }
     
     // Ensure 0x prefix
     if (!signature.startsWith('0x')) {
@@ -89,16 +119,20 @@ export async function verifyFreeOrderSignature({ signature: rawSignature, messag
     if (signature.length !== 132) {
       console.log('⚠️ Signature length is not 132:', signature.length);
       
-      // Try to extract a 130-char hex signature if embedded
-      const hexMatch = signature.match(/0x([a-fA-F0-9]{130})/);
+      // Try to extract a 130-char hex signature if embedded anywhere
+      const hexMatch = signature.match(/0x[a-fA-F0-9]{130}/);
       if (hexMatch) {
         signature = hexMatch[0];
         console.log('📝 Extracted standard signature from data');
       } else {
-        // If signature is longer, try trimming to 132 chars
-        if (signature.length > 132 && signature.startsWith('0x')) {
+        // Try to find any 130-char hex string
+        const hexOnlyMatch = signature.match(/[a-fA-F0-9]{130}/);
+        if (hexOnlyMatch) {
+          signature = '0x' + hexOnlyMatch[0];
+          console.log('📝 Extracted hex signature without 0x prefix');
+        } else if (signature.length > 132 && signature.startsWith('0x')) {
+          // If signature is longer, try trimming to 132 chars
           const trimmed = signature.substring(0, 132);
-          // Verify it's valid hex
           if (/^0x[a-fA-F0-9]{130}$/.test(trimmed)) {
             signature = trimmed;
             console.log('📝 Trimmed signature to 132 chars');
@@ -112,7 +146,8 @@ export async function verifyFreeOrderSignature({ signature: rawSignature, messag
       length: signature.length,
       prefix: signature.substring(0, 10),
       suffix: signature.substring(signature.length - 10),
-      isValidHex: /^0x[a-fA-F0-9]+$/.test(signature)
+      isValidHex: /^0x[a-fA-F0-9]+$/.test(signature),
+      isCorrectLength: signature.length === 132
     });
 
     if (!expectedAddress) {
@@ -185,9 +220,11 @@ export async function verifyFreeOrderSignature({ signature: rawSignature, messag
           error: `Signature verification failed: ${verifyError.message}`,
           code: 'SIGNATURE_FORMAT_ERROR',
           details: {
-            receivedLength: signature.length,
+            receivedLength: rawSignature.length,
+            processedLength: signature.length,
             expectedLength: 132,
-            signaturePrefix: signature.substring(0, 20)
+            rawPrefix: rawSignature.substring(0, 30),
+            processedPrefix: signature.substring(0, 20)
           }
         };
       }
