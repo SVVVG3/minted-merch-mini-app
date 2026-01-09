@@ -72,16 +72,47 @@ export async function verifyFreeOrderSignature({ signature: rawSignature, messag
     
     let signature = rawSignature;
     
+    // Log raw signature for debugging
+    console.log('🔍 Raw signature received:', {
+      length: signature.length,
+      prefix: signature.substring(0, 20),
+      suffix: signature.substring(Math.max(0, signature.length - 20))
+    });
+    
     // Ensure 0x prefix
     if (!signature.startsWith('0x')) {
       signature = '0x' + signature;
     }
     
-    // Log signature details for debugging
-    console.log('🔍 Signature details:', {
+    // Try to normalize signature to expected format (132 chars = 0x + 130 hex)
+    // Some wallets return signatures with extra data
+    if (signature.length !== 132) {
+      console.log('⚠️ Signature length is not 132:', signature.length);
+      
+      // Try to extract a 130-char hex signature if embedded
+      const hexMatch = signature.match(/0x([a-fA-F0-9]{130})/);
+      if (hexMatch) {
+        signature = hexMatch[0];
+        console.log('📝 Extracted standard signature from data');
+      } else {
+        // If signature is longer, try trimming to 132 chars
+        if (signature.length > 132 && signature.startsWith('0x')) {
+          const trimmed = signature.substring(0, 132);
+          // Verify it's valid hex
+          if (/^0x[a-fA-F0-9]{130}$/.test(trimmed)) {
+            signature = trimmed;
+            console.log('📝 Trimmed signature to 132 chars');
+          }
+        }
+      }
+    }
+    
+    // Final signature details
+    console.log('🔍 Processed signature:', {
       length: signature.length,
       prefix: signature.substring(0, 10),
-      suffix: signature.substring(signature.length - 10)
+      suffix: signature.substring(signature.length - 10),
+      isValidHex: /^0x[a-fA-F0-9]+$/.test(signature)
     });
 
     if (!expectedAddress) {
@@ -137,11 +168,31 @@ export async function verifyFreeOrderSignature({ signature: rawSignature, messag
     });
 
     // Verify the signature using viem's verifyMessage (for personal_sign)
-    const isValid = await verifyMessage({
-      address: normalizedExpectedAddress,
-      message: signedMessage,
-      signature: signature,
-    });
+    let isValid;
+    try {
+      isValid = await verifyMessage({
+        address: normalizedExpectedAddress,
+        message: signedMessage,
+        signature: signature,
+      });
+    } catch (verifyError) {
+      console.error('❌ verifyMessage threw error:', verifyError.message);
+      
+      // If viem complains about signature length, try to give a helpful message
+      if (verifyError.message.includes('signature length') || verifyError.message.includes('invalid signature')) {
+        return {
+          success: false,
+          error: `Signature verification failed: ${verifyError.message}`,
+          code: 'SIGNATURE_FORMAT_ERROR',
+          details: {
+            receivedLength: signature.length,
+            expectedLength: 132,
+            signaturePrefix: signature.substring(0, 20)
+          }
+        };
+      }
+      throw verifyError;
+    }
 
     if (!isValid) {
       console.log('❌ Signature verification failed - signature does not match');
