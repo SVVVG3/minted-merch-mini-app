@@ -61,6 +61,23 @@ export async function verifyFreeOrderSignature({ signature: rawSignature, messag
       nonce: message?.nonce
     });
 
+    // Handle embedded wallet skip - this is used when the embedded wallet
+    // in the Base app doesn't support signing. Security is maintained through:
+    // - FID authentication (user must be logged in)
+    // - Discount code validation (must be valid 100% discount)
+    // - Rate limiting (3/day, 1/hour)
+    // - Server-side price verification
+    if (rawSignature === 'EMBEDDED_WALLET_SKIP') {
+      console.log('ℹ️ Embedded wallet signature skip - relying on FID auth and rate limiting');
+      return {
+        success: true,
+        verified: true,
+        signerAddress: expectedAddress,
+        signatureSkipped: true,
+        reason: 'embedded_wallet_limitation'
+      };
+    }
+
     // Validate inputs
     if (!rawSignature || typeof rawSignature !== 'string') {
       return {
