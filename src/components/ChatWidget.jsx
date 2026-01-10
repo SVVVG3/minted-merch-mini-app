@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { triggerHaptic } from '@/lib/haptics';
 
 export function ChatWidget({ buttonClassName = '', isInFarcaster = false }) {
   const widgetRef = useRef(null);
@@ -169,6 +170,7 @@ export function ChatWidget({ buttonClassName = '', isInFarcaster = false }) {
   };
 
   const handleToggle = () => {
+    triggerHaptic('light', isInFarcaster);
     if (!hasBeenOpened) {
       setHasBeenOpened(true);
     }
@@ -199,7 +201,10 @@ export function ChatWidget({ buttonClassName = '', isInFarcaster = false }) {
           {/* Backdrop - touch-action none to prevent pull gestures */}
           <div 
             className="absolute inset-0 bg-black/50"
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              triggerHaptic('light', isInFarcaster);
+              setIsOpen(false);
+            }}
             style={{ touchAction: 'none' }}
           />
           
@@ -290,7 +295,10 @@ export function ChatWidget({ buttonClassName = '', isInFarcaster = false }) {
           {/* Close button at bottom */}
           <div className="absolute left-4 right-4 bottom-4 max-w-md mx-auto">
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                triggerHaptic('light', isInFarcaster);
+                setIsOpen(false);
+              }}
               className="w-full py-3 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-xl shadow-lg transition-colors"
             >
               Close Chat
