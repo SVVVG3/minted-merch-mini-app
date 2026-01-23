@@ -376,6 +376,7 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     { code: 'ES', name: 'Spain' },
     { code: 'SE', name: 'Sweden' },
     { code: 'CH', name: 'Switzerland' },
+    { code: 'TW', name: 'Taiwan' },
     { code: 'AE', name: 'United Arab Emirates' },
     { code: 'GB', name: 'United Kingdom' },
     { code: 'US', name: 'United States' }
