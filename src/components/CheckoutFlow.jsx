@@ -16,15 +16,12 @@ import { ShippingForm } from './ShippingForm';
 import GiftCardSection, { GiftCardBalance } from './GiftCardSection';
 import { SignInWithBaseButton, BasePayButton } from './BaseAccountButtons';
 import { WalletConnectButton } from './WalletConnectButton';
-import { DaimoPayButton } from './DaimoPayButton';
-import { useDaimoPayUI } from '@daimo/pay';
 import { Portal } from './Portal';
 
 export function CheckoutFlow({ checkoutData, onBack }) {
   const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
   const { getFid, getSessionToken, isInFarcaster, user, context, getUsername, getDisplayName, getPfpUrl } = useFarcaster();
   const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod, getWalletProvider } = useWalletConnectContext();
-  const { resetPayment: resetDaimoPayment } = useDaimoPayUI();
   // Re-enable Base Account integration with safe defaults
   const baseAccountContext = useBaseAccount();
   const { 
@@ -50,12 +47,9 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   const [baseAccountDebugInfo, setBaseAccountDebugInfo] = useState('');
   const [isWalletConnectProcessing, setIsWalletConnectProcessing] = useState(false);
   const [walletConnectError, setWalletConnectError] = useState(null);
-  const [isDaimoProcessing, setIsDaimoProcessing] = useState(false);
-  const [daimoError, setDaimoError] = useState(null);
+  const [isUSDCProcessing, setIsUSDCProcessing] = useState(false);
+  const [usdcError, setUSDCError] = useState(null);
   const buyNowProcessed = useRef(false);
-  const processedDaimoTxHashes = useRef(new Set());
-  const daimoPaymentInitiated = useRef(false);
-  const [daimoOrderId, setDaimoOrderId] = useState(`order-${Date.now()}`);
   
   // Free order signature claim state
   const [isFreeOrderClaiming, setIsFreeOrderClaiming] = useState(false);
@@ -281,7 +275,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   };
 
   // Helper function to calculate final total safely (never negative)
-  // Updated: $0 orders now use signature claims (no Daimo minimum fee)
+  // $0 orders use signature claims; positive orders pay exact USDC amount
   const calculateFinalTotal = () => {
     if (!cart.checkout || !cart.checkout.subtotal || !cart.selectedShipping) {
       // If we don't have shipping info yet, use the pre-shipping calculation
@@ -297,26 +291,8 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       console.log('🎁 Gift card applied (estimated discount):', giftCardDiscount);
     }
     
-    // Calculate final total with gift card
-    let finalTotal = Math.max(0, totalBeforeGiftCard - giftCardDiscount);
-    
-    // NEW LOGIC: 
-    // - $0.00 exactly: Use signature claim (FREE - no processing fee!)
-    // - $0.01 - $0.24: Round up to $0.25 (Daimo Pay minimum)
-    // - $0.25+: Use exact amount
-    const DAIMO_MINIMUM = 0.25;
-    
-    if (finalTotal === 0) {
-      // Exactly $0 - will use signature claim, no fee needed
-      console.log('🆓 Order total is $0.00 - will use signature claim (no processing fee)');
-      return 0;
-    } else if (finalTotal > 0 && finalTotal < DAIMO_MINIMUM) {
-      // Between $0.01 and $0.24 - round up to Daimo minimum
-      console.log(`💰 Rounding up $${finalTotal.toFixed(2)} to Daimo minimum $${DAIMO_MINIMUM}`);
-      return DAIMO_MINIMUM;
-    }
-    
-    return finalTotal;
+    // Return exact total (never negative); $0 orders use signature claim path
+    return Math.max(0, totalBeforeGiftCard - giftCardDiscount);
   };
   
   // Check if this is a free order (for showing the right button)
@@ -335,9 +311,6 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     }
   }, [checkoutData, addItem]);
   
-  // Reset Daimo payment state when cart changes (items added/removed/cleared)
-  // This ensures Daimo always shows the correct amount
-  // 
   // OPTIMIZATION: Create a stable "cart fingerprint" to detect real changes
   // This prevents infinite loops from Context re-renders
   const cartFingerprint = useMemo(() => {
@@ -353,22 +326,12 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     return `${itemsKey}|${cartTotal.toFixed(2)}`;
   }, [cart.items, cartTotal]);
   
-  // Generate a fresh order ID when cart changes
+  // Reset USDC payment error when cart changes
   useEffect(() => {
     if (cart.items.length > 0) {
-      const newOrderId = `order-${Date.now()}`;
-      setDaimoOrderId(newOrderId);
-      
-      // Reset flags for fresh checkout
-      daimoPaymentInitiated.current = false;
-      processedDaimoTxHashes.current = new Set();
-      
-      console.log('🆕 New order ID for cart:', newOrderId);
+      setUSDCError(null);
     }
   }, [cart.items.length]);
-  
-  // NOTE: We no longer update Daimo here! Amount is updated when user clicks "Purchase Merch"
-  // This fixes the race condition where discounts/shipping/taxes weren't reflected in the payment
 
   // Helper function to check if JWT is expired and refresh if needed
   const ensureValidToken = async () => {
@@ -847,6 +810,9 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
   const handlePayment = async () => {
     try {
+      setIsUSDCProcessing(true);
+      setUSDCError(null);
+
       if (!isConnected) {
         throw new Error('Please connect your wallet to continue');
       }
@@ -863,13 +829,13 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       const finalTotal = calculateFinalTotal();
       const discountAmount = calculateProductAwareDiscountAmount();
 
-      console.log('💳 Executing payment:', {
+      console.log('💳 Executing USDC payment:', {
         total: finalTotal,
         isConnected,
         address
       });
 
-      // Execute the payment
+      // Execute the on-chain USDC transfer via wagmi
       await executePayment(finalTotal, {
         items: cart.items,
         notes: cart.notes,
@@ -880,17 +846,18 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         discountAmount: discountAmount,
         total: finalTotal
       });
-      
+      // Note: setIsUSDCProcessing(false) is handled after tx confirms
+      // via the useEffect watching paymentStatus
+
     } catch (error) {
       console.error('💥 Payment error:', error);
-      
-      // Provide specific error handling for connector issues
-      if (error.message.includes('connector.getChainId is not a function')) {
-        throw new Error('Wallet connection issue. Please try refreshing the page. If the problem persists, this may be a temporary issue with the Farcaster wallet integration.');
+      setIsUSDCProcessing(false);
+
+      let message = error.message || 'Payment failed';
+      if (message.includes('connector.getChainId is not a function')) {
+        message = 'Wallet connection issue. Please try refreshing the page.';
       }
-      
-      // Re-throw the original error if it's not the connector issue
-      throw error;
+      setUSDCError(message);
     }
   };
 
@@ -1308,183 +1275,6 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     }
   };
 
-  // Daimo Pay handlers
-  const handleDaimoPaymentStarted = (event) => {
-    console.log('💰 Daimo payment started:', event);
-    daimoPaymentInitiated.current = true; // Mark that user initiated a payment
-    setIsDaimoProcessing(true);
-    setDaimoError(null);
-  };
-
-  const handleDaimoPaymentCompleted = async (event) => {
-    console.log('✅ Daimo payment completed:', event);
-    
-    // CRITICAL: Only process if user actually initiated a payment
-    if (!daimoPaymentInitiated.current) {
-      console.log('⚠️ Ignoring cached Daimo payment - user did not initiate payment this session');
-      return; // Ignore cached/auto-fired payments
-    }
-    
-    // CRITICAL: Check if this transaction has already been processed
-    const txHash = event.txHash || event.transactionHash;
-    if (!txHash) {
-      console.error('❌ No transaction hash in Daimo payment event!');
-      setDaimoError('Invalid payment: no transaction hash');
-      return;
-    }
-    
-    if (processedDaimoTxHashes.current.has(txHash)) {
-      console.log('⚠️ Transaction already processed, skipping duplicate:', txHash);
-      return; // Skip duplicate processing
-    }
-    
-    // Mark this transaction as processed immediately
-    processedDaimoTxHashes.current.add(txHash);
-    console.log('✅ Processing new transaction:', txHash);
-    
-    try {
-      // Enhanced FID resolution (same as other payment methods)
-      let userFid = getFid();
-      
-      if (!userFid && user?.fid) {
-        userFid = user.fid;
-        console.log('🔄 FID recovered from user object:', userFid);
-      }
-      
-      if (!userFid && context?.user?.fid) {
-        userFid = context.user.fid;
-        console.log('🔄 FID recovered from context:', userFid);
-      }
-      
-      if (!userFid && typeof window !== 'undefined' && window.userFid) {
-        userFid = window.userFid;
-        console.log('🔄 FID recovered from window.userFid:', userFid);
-      }
-      
-      if (!userFid && typeof window !== 'undefined') {
-        const storedFid = localStorage.getItem('farcaster_fid');
-        if (storedFid && !isNaN(parseInt(storedFid))) {
-          userFid = parseInt(storedFid);
-          console.log('🔄 FID recovered from localStorage:', userFid);
-        }
-      }
-      
-      if (userFid && typeof window !== 'undefined') {
-        localStorage.setItem('farcaster_fid', userFid.toString());
-      }
-      
-      if (!userFid) {
-        console.log('ℹ️ Daimo order (no FID) - user not authenticated in Farcaster');
-        userFid = null;
-      }
-
-      const finalTotal = calculateFinalTotal();
-      const discountAmount = calculateProductAwareDiscountAmount();
-
-      // Create order data
-      const orderData = {
-        cartItems: cart.items,
-        shippingAddress: shippingData,
-        billingAddress: null,
-        customer: {
-          email: shippingData.email || '',
-          phone: shippingData.phone || ''
-        },
-        checkout: cart.checkout,
-        selectedShipping: cart.selectedShipping,
-        transactionHash: event.txHash || event.transactionHash, // Daimo provides transaction hash
-        notes: cart.notes || '',
-        fid: userFid,
-        appliedDiscount: appliedDiscount,
-        discountAmount: discountAmount,
-        appliedGiftCard: appliedGiftCard,
-        giftCards: appliedGiftCard ? [{
-          code: appliedGiftCard.code,
-          balance: appliedGiftCard.balance
-        }] : [],
-        total: finalTotal,
-        paymentMethod: 'daimo',
-        paymentMetadata: {
-          daimoPaymentId: event.paymentId || event.externalId,
-          sourceChain: event.sourceChain,
-          sourceToken: event.sourceToken
-        },
-        // 🔒 SAME FIX AS SPIN WHEEL: Send real Farcaster data from SDK
-        userData: userFid ? {
-          username: getUsername(),
-          displayName: getDisplayName(),
-          pfpUrl: getPfpUrl()
-        } : null
-      };
-
-      // Create order in Shopify (with authentication)
-      const sessionToken = getSessionToken();
-      
-      // Validate session token exists
-      if (!sessionToken) {
-        console.error('❌ No session token available for order creation');
-        throw new Error('Authentication required. Please refresh the page and try again.');
-      }
-      
-      console.log('📦 Creating order with authentication:', {
-        hasToken: !!sessionToken,
-        tokenLength: sessionToken?.length,
-        hasOrderData: !!orderData,
-        orderDataKeys: Object.keys(orderData)
-      });
-      
-      const response = await fetch('/api/shopify/orders', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`
-        },
-        body: JSON.stringify(orderData),
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        console.log('✅ Daimo order created successfully:', result);
-        
-        // Set order details FIRST
-        setOrderDetails(result.order);
-        
-        // Transition to success screen immediately (don't wait for modal)
-        setCheckoutStep('success');
-        
-        // DON'T clear cart here - it will be cleared when user navigates away
-        // or manually clears it. Clearing it here causes the success screen to disappear.
-        
-        // CRITICAL: Reset the payment initiation flag for next order in this session
-        daimoPaymentInitiated.current = false;
-        console.log('🔄 Reset payment initiation flag - ready for next order');
-        
-        // CRITICAL: Use Daimo's official resetPayment API to prepare for next payment
-        const nextOrderId = `order-${Date.now()}`;
-        setDaimoOrderId(nextOrderId);
-        if (resetDaimoPayment) {
-          resetDaimoPayment({
-            externalId: nextOrderId,
-          });
-          console.log('🆕 Reset Daimo payment state for next order:', nextOrderId);
-        }
-      } else {
-        throw new Error(result.message || 'Order creation failed');
-      }
-      
-    } catch (error) {
-      console.error('💥 Daimo payment error:', error);
-      setDaimoError(error.message);
-      // Reset flag on error too, so user can retry the payment
-      daimoPaymentInitiated.current = false;
-      // Generate new order ID for retry
-      setDaimoOrderId(`order-${Date.now()}`);
-    } finally {
-      setIsDaimoProcessing(false);
-    }
-  };
-
   const handlePaymentSuccess = async () => {
     // Prevent multiple order creation attempts
     if (orderDetails) {
@@ -1616,6 +1406,7 @@ Transaction Hash: ${transactionHash}`;
           balance: appliedGiftCard.balance
         }] : [],
         total: paidTotal, // CRITICAL: Total amount that was actually paid - used for payment reconciliation
+        paymentMethod: 'usdc',
         // 🔒 SAME FIX AS SPIN WHEEL: Send real Farcaster data from SDK
         userData: userFid ? {
           username: getUsername(),
@@ -1669,20 +1460,8 @@ Transaction Hash: ${transactionHash}`;
         // Ensure total doesn't go negative
         finalOrderTotal = Math.max(0, finalOrderTotal);
         
-        // MINIMUM CHARGE: If total would be $0.00 or gift card covers entire order, charge $0.10 for payment processing
-        // (Daimo Pay minimum is $0.10)
-        const isCartFree = cartTotal <= 0.10;
-        // Use cartSubtotal for consistency
-        const totalBeforeGiftCard = cartSubtotal - (appliedDiscount ? calculateProductAwareDiscountAmount() : 0) + calculateAdjustedTax() + shippingCost;
-        const giftCardBalance = appliedGiftCard ? (typeof appliedGiftCard.balance === 'number' ? appliedGiftCard.balance : parseFloat(appliedGiftCard.balance)) : 0;
-        
-        if (giftCardBalance >= totalBeforeGiftCard && (isCartFree || giftCardBalance > 0)) {
-          finalOrderTotal = 0.10;
-          console.log('💰 Applied minimum charge of $0.10 for gift card order covering entire amount (Daimo minimum)');
-        } else if (finalOrderTotal <= 0.10 && isCartFree) {
-          finalOrderTotal = 0.10;
-          console.log('💰 Applied minimum charge of $0.10 for free giveaway order processing (Daimo minimum)');
-        }
+        // Ensure total doesn't go below zero
+        finalOrderTotal = Math.max(0, finalOrderTotal);
         
         // Create order details object
         const orderDetailsData = {
@@ -1714,6 +1493,7 @@ Transaction Hash: ${transactionHash}`;
         // Show order confirmation
         setOrderDetails(orderDetailsData);
         setCheckoutStep('success');
+        setIsUSDCProcessing(false);
         
       } else {
         console.error('Order creation failed:', result.error);
@@ -1730,6 +1510,7 @@ Transaction Hash: ${transactionHash}`;
         }
         errorMessage += `\n\nPlease contact support with your transaction hash: ${transactionHash}`;
         
+        setIsUSDCProcessing(false);
         alert(errorMessage);
         clearCart();
         setIsCheckoutOpen(false);
@@ -1739,6 +1520,7 @@ Transaction Hash: ${transactionHash}`;
     } catch (error) {
       console.error('Error creating order:', error);
       // Still clear cart but show warning
+      setIsUSDCProcessing(false);
       alert(`Payment successful but order creation failed due to a network error.\n\nError: ${error.message}\n\nPlease contact support with your transaction hash: ${transactionHash}`);
       clearCart();
       setIsCheckoutOpen(false);
@@ -2467,12 +2249,10 @@ Transaction Hash: ${transactionHash}`;
               {/* Payment Actions - Only show in payment step */}
               {checkoutStep === 'payment' && paymentStatus === 'idle' && (isConnected || isWalletConnected) && (
                 <div className="space-y-2">
+                  {/* Insufficient balance warning */}
                   {(() => {
                     const finalTotal = calculateFinalTotal();
-                    
-                    // Don't show insufficient balance warning for free orders ($0)
                     if (finalTotal === 0) return null;
-                    
                     return isConnected && !hasSufficientBalance(finalTotal) && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                         <div className="text-red-800 text-sm">
@@ -2482,13 +2262,13 @@ Transaction Hash: ${transactionHash}`;
                     );
                   })()}
 
-                  {/* Daimo Pay - Pay from ANY chain/token */}
-                  {daimoError && (
+                  {/* USDC payment error */}
+                  {usdcError && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                       <div className="text-red-800 text-sm font-medium">Payment Failed</div>
-                      <div className="text-red-600 text-xs mt-1">{daimoError}</div>
+                      <div className="text-red-600 text-xs mt-1">{usdcError}</div>
                       <button
-                        onClick={() => setDaimoError(null)}
+                        onClick={() => setUSDCError(null)}
                         className="mt-2 bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
                       >
                         Try Again
@@ -2496,17 +2276,9 @@ Transaction Hash: ${transactionHash}`;
                     </div>
                   )}
 
-                  {isDaimoProcessing && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <div className="text-blue-800 text-sm">Processing payment...</div>
-                      <div className="text-blue-600 text-xs mt-1">Complete payment in the popup window</div>
-                    </div>
-                  )}
-
-                  {/* 🆓 FREE ORDER CLAIM - For $0 orders */}
+                  {/* Free order claim - For $0 orders */}
                   {isFreeOrder() ? (
                     <div className="space-y-2">
-                      {/* Free order claim error */}
                       {freeOrderClaimError && (
                         <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                           <div className="text-red-800 text-sm font-medium">Claim Failed</div>
@@ -2520,7 +2292,6 @@ Transaction Hash: ${transactionHash}`;
                         </div>
                       )}
                       
-                      {/* Processing state */}
                       {isFreeOrderClaiming && (
                         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                           <div className="text-green-800 text-sm">Claiming your free order...</div>
@@ -2528,7 +2299,6 @@ Transaction Hash: ${transactionHash}`;
                         </div>
                       )}
                       
-                      {/* Free order claim button */}
                       <button
                         onClick={handleFreeOrderClaim}
                         disabled={!cart.checkout || isFreeOrderClaiming}
@@ -2542,20 +2312,19 @@ Transaction Hash: ${transactionHash}`;
                       </p>
                     </div>
                   ) : (
-                    /* Regular Daimo Pay for non-free orders */
-                    <DaimoPayButton
-                      key={daimoOrderId} // Force remount when order ID changes (fixes amount update bug)
-                      amount={calculateFinalTotal()}
-                      orderId={daimoOrderId}
-                      onPaymentStarted={handleDaimoPaymentStarted}
-                      onPaymentCompleted={handleDaimoPaymentCompleted}
-                      metadata={{
-                        fid: String(getFid() || ''),
-                        items: cart.items.map(i => i.product?.title || i.title).join(', '),
-                        email: shippingData.email || ''
-                      }}
-                      disabled={!cart.checkout || isDaimoProcessing}
-                    />
+                    /* Direct USDC payment via connected wallet */
+                    <div className="space-y-2">
+                      <button
+                        onClick={handlePayment}
+                        disabled={!cart.checkout || isUSDCProcessing || (isConnected && !hasSufficientBalance(calculateFinalTotal()))}
+                        className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                      >
+                        <span>{isUSDCProcessing ? 'Sending...' : `Purchase Merch ($${calculateFinalTotal().toFixed(2)} USDC)`}</span>
+                      </button>
+                      <p className="text-xs text-gray-500 text-center">
+                        Pay with USDC from your connected wallet on Base
+                      </p>
+                    </div>
                   )}
                 </div>
               )}

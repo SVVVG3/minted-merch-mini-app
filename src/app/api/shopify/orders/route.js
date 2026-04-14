@@ -598,6 +598,65 @@ export async function POST(request) {
       }
     }
 
+    // 🔒 DIRECT USDC PAYMENT VERIFICATION
+    // When paymentMethod is 'usdc' (no daimoPaymentId), verify the transaction on-chain
+    if (paymentMethod === 'usdc' && transactionHash && !paymentMetadata?.daimoPaymentId) {
+      const { supabaseAdmin } = await import('@/lib/supabase');
+
+      console.log(`🔒 [${requestId}] Verifying direct USDC transaction on-chain:`, transactionHash);
+
+      // Replay protection: reject if this tx hash was already used for a prior order
+      const { data: existingTxOrder } = await supabaseAdmin
+        .from('orders')
+        .select('order_id')
+        .eq('transaction_hash', transactionHash)
+        .maybeSingle();
+
+      if (existingTxOrder) {
+        console.error(`🚨 [${requestId}] SECURITY: Transaction hash already used:`, {
+          transactionHash,
+          existingOrderId: existingTxOrder.order_id
+        });
+        try {
+          const { logSecurityEvent } = await import('@/lib/security');
+          await logSecurityEvent('usdc_tx_replay_attempt', {
+            transactionHash,
+            existingOrderId: existingTxOrder.order_id,
+            requestId
+          }, fidInt, request);
+        } catch (logError) {
+          console.error('Failed to log security event:', logError);
+        }
+        return NextResponse.json({
+          success: false,
+          error: 'Transaction already used',
+          message: 'This transaction has already been used to create an order.'
+        }, { status: 409 });
+      }
+
+      // On-chain verification via RPC: confirms tx exists, is successful,
+      // targets the USDC contract, uses the transfer method, sends to the
+      // correct merchant address, and the amount matches (±1 unit tolerance)
+      try {
+        const { verifyTransaction } = await import('@/lib/order');
+
+        // We'll verify against the server-calculated total after recalculation below,
+        // but for now do a preliminary format check and existence check first.
+        // Full amount verification happens after serverTotals are computed.
+        // Store the function for use after server total calculation.
+        body._verifyUSDCTransaction = verifyTransaction;
+
+        console.log(`✅ [${requestId}] USDC tx replay check passed - will verify amount after server total calculation`);
+      } catch (importError) {
+        console.error(`❌ [${requestId}] Failed to import verifyTransaction:`, importError.message);
+        return NextResponse.json({
+          success: false,
+          error: 'Payment verification unavailable',
+          message: 'Server configuration error. Please try again.'
+        }, { status: 500 });
+      }
+    }
+
     // Validate required fields
     if (!cartItems || cartItems.length === 0) {
       console.error(`❌ [${requestId}] Validation failed: No cart items`);
@@ -928,6 +987,38 @@ export async function POST(request) {
       }
       
       console.log(`✅ [${requestId}] Daimo payment amount verified: $${daimoPaidAmount} (expected: $${expectedPayment})`);
+    }
+
+    // 🔒 USDC ON-CHAIN AMOUNT VERIFICATION (direct wagmi transfer path)
+    // Now that we have the server-calculated finalTotalPrice, verify the on-chain tx amount
+    if (paymentMethod === 'usdc' && transactionHash && !paymentMetadata?.daimoPaymentId && body._verifyUSDCTransaction) {
+      console.log(`🔗 [${requestId}] Running on-chain USDC verification for amount $${finalTotalPrice}...`);
+      try {
+        const txDetails = await body._verifyUSDCTransaction(transactionHash, finalTotalPrice);
+        console.log(`✅ [${requestId}] On-chain USDC verification passed:`, {
+          from: txDetails.from,
+          recipient: txDetails.recipient,
+          amount: txDetails.amount,
+          blockNumber: txDetails.blockNumber
+        });
+      } catch (txError) {
+        console.error(`🚨 [${requestId}] SECURITY: On-chain USDC verification failed:`, txError.message);
+        try {
+          await logSecurityEvent('usdc_tx_verification_failed', {
+            transactionHash,
+            error: txError.message,
+            serverCalculatedTotal: finalTotalPrice,
+            requestId
+          }, fidInt, request);
+        } catch (logError) {
+          console.error('Failed to log security event:', logError);
+        }
+        return NextResponse.json({
+          success: false,
+          error: 'Payment verification failed',
+          message: txError.message || 'Unable to verify on-chain payment. Please try again or contact support.'
+        }, { status: 400 });
+      }
     }
 
     console.log(`💰 [${requestId}] Server-calculated totals (validated):`, {
