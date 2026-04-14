@@ -11,6 +11,7 @@ import { calculateCheckout } from '@/lib/shopify';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { shareOrder } from '@/lib/farcasterShare';
 import { useSignMessage, useAccount } from 'wagmi';
+import { triggerHaptic } from '@/lib/haptics';
 
 import { ShippingForm } from './ShippingForm';
 import GiftCardSection, { GiftCardBalance } from './GiftCardSection';
@@ -809,6 +810,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
   };
 
   const handlePayment = async () => {
+    triggerHaptic('medium', isInFarcaster);
     try {
       setIsUSDCProcessing(true);
       setUSDCError(null);
@@ -825,17 +827,11 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         throw new Error('Checkout calculation not available');
       }
 
-      // Calculate final total using the safe helper function
       const finalTotal = calculateFinalTotal();
       const discountAmount = calculateProductAwareDiscountAmount();
 
-      console.log('💳 Executing USDC payment:', {
-        total: finalTotal,
-        isConnected,
-        address
-      });
+      console.log('💳 Executing USDC payment:', { total: finalTotal, isConnected, address });
 
-      // Execute the on-chain USDC transfer via wagmi
       await executePayment(finalTotal, {
         items: cart.items,
         notes: cart.notes,
@@ -846,16 +842,23 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         discountAmount: discountAmount,
         total: finalTotal
       });
-      // Note: setIsUSDCProcessing(false) is handled after tx confirms
-      // via the useEffect watching paymentStatus
+      // setIsUSDCProcessing(false) handled by the useEffect watching paymentStatus
 
     } catch (error) {
       console.error('💥 Payment error:', error);
       setIsUSDCProcessing(false);
+      triggerHaptic('error', isInFarcaster);
 
-      let message = error.message || 'Payment failed';
-      if (message.includes('connector.getChainId is not a function')) {
+      const raw = error.message || '';
+      let message;
+      if (raw.includes('User rejected the request') || raw.includes('user rejected') || raw.includes('rejected')) {
+        message = 'Payment cancelled. You rejected the transaction in your wallet.';
+      } else if (raw.includes('connector.getChainId is not a function')) {
         message = 'Wallet connection issue. Please try refreshing the page.';
+      } else if (raw.includes('Insufficient')) {
+        message = raw; // keep our own balance error as-is
+      } else {
+        message = 'Payment failed. Please try again.';
       }
       setUSDCError(message);
     }
@@ -1491,6 +1494,7 @@ Transaction Hash: ${transactionHash}`;
         // Order is automatically saved to database via the order creation API
         
         // Show order confirmation
+        triggerHaptic('success', isInFarcaster);
         setOrderDetails(orderDetailsData);
         setCheckoutStep('success');
         setIsUSDCProcessing(false);
@@ -2264,12 +2268,12 @@ Transaction Hash: ${transactionHash}`;
 
                   {/* USDC payment error */}
                   {usdcError && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <div className="text-red-800 text-sm font-medium">Payment Failed</div>
-                      <div className="text-red-600 text-xs mt-1">{usdcError}</div>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                      <div className="text-red-800 text-sm font-semibold mb-1">Payment Failed</div>
+                      <div className="text-red-600 text-sm">{usdcError}</div>
                       <button
                         onClick={() => setUSDCError(null)}
-                        className="mt-2 bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+                        className="mt-3 bg-red-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
                       >
                         Try Again
                       </button>
