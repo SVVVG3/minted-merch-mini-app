@@ -1,5 +1,20 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  webpack: (config) => {
+    // Force the CJS build of @spandex/core to avoid ESM circular-reference
+    // TDZ errors ("Cannot access 'X' before initialization") when webpack
+    // bundles the package's ESM entry point.
+    config.resolve.alias['@spandex/core'] = path.resolve(
+      __dirname,
+      'node_modules/@spandex/core/dist/cjs/index.js'
+    );
+    return config;
+  },
   env: {
     NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS: process.env.SPIN_REGISTRY_CONTRACT_ADDRESS,
   },
@@ -67,7 +82,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: blob: https: http:",
               "font-src 'self' data: https://fonts.gstatic.com",
-              "connect-src 'self' https://*.shopify.com https://*.farcaster.xyz https://farcaster.xyz https://*.neynar.com https://api.neynar.com https://*.walletconnect.org https://*.walletconnect.com https://*.web3modal.com https://*.web3modal.org https://*.alchemy.com https://*.infura.io https://*.base.org https://mainnet.base.org https://*.coinbase.com https://cca-lite.coinbase.com https://*.optimism.io https://mainnet.optimism.io https://*.googleapis.com https://api.dexscreener.com https://api.zapper.xyz https://imagedelivery.net https://wrpcd.net https://*.wrpcd.net https://pay-api.daimo.xyz https://*.daimo.xyz https://eth.merkle.io https://*.thirdweb.com https://*.ipfscdn.io https://onchat.sebayaki.com https://*.publicnode.com https://fc.hunt.town https://*.hunt.town wss://*.alchemy.com wss://*.infura.io wss://*.walletconnect.com wss://*.walletconnect.org",
+              "connect-src 'self' https://*.shopify.com https://*.farcaster.xyz https://farcaster.xyz https://*.neynar.com https://api.neynar.com https://*.walletconnect.org https://*.walletconnect.com https://*.web3modal.com https://*.web3modal.org https://*.alchemy.com https://*.infura.io https://*.base.org https://mainnet.base.org https://*.coinbase.com https://cca-lite.coinbase.com https://*.optimism.io https://mainnet.optimism.io https://*.googleapis.com https://api.dexscreener.com https://api.zapper.xyz https://imagedelivery.net https://wrpcd.net https://*.wrpcd.net https://pay-api.daimo.xyz https://*.daimo.xyz https://eth.merkle.io https://*.thirdweb.com https://*.ipfscdn.io https://onchat.sebayaki.com https://*.publicnode.com https://fc.hunt.town https://*.hunt.town wss://*.alchemy.com wss://*.infura.io wss://*.walletconnect.com wss://*.walletconnect.org https://li.quest https://*.li.quest https://api.relay.link https://*.relay.link https://api.paraswap.io https://*.paraswap.io https://spandex.sh https://*.spandex.sh",
               "frame-src 'self' https://*.shopify.com https://*.farcaster.xyz https://farcaster.xyz https://onchat.sebayaki.com",
               "object-src 'none'",
               "base-uri 'self'",
