@@ -16,8 +16,8 @@ const BASE_CHAIN_ID = 8453;
  *
  * @param {object} params
  * @param {number} params.usdAmount  - Total USD to receive in USDC (e.g. 0.93)
- * @param {object|null} params.selectedToken - Token object with at minimum { address, decimals, symbol }
- * @param {boolean} [params.enabled] - Set to false to pause quote fetching
+ * @param {object|null} params.selectedToken - Token object with { address, decimals, symbol }
+ * @param {boolean} [params.enabled] - Set false to pause quote fetching
  */
 export function useTokenSwap({ usdAmount, selectedToken, enabled = true }) {
   const { address } = useAccount();
@@ -30,7 +30,6 @@ export function useTokenSwap({ usdAmount, selectedToken, enabled = true }) {
   const [isExecuting, setIsExecuting] = useState(false);
   const [executeError, setExecuteError] = useState(null);
 
-  // Track the current fetch to discard stale results
   const fetchIdRef = useRef(0);
 
   const fetchQuote = useCallback(async () => {
@@ -64,7 +63,7 @@ export function useTokenSwap({ usdAmount, selectedToken, enabled = true }) {
         strategy: 'bestPrice',
       });
 
-      if (fetchIdRef.current !== currentId) return; // Stale response
+      if (fetchIdRef.current !== currentId) return;
       if (!result) {
         throw new Error('No swap route found for this token. Try a different token.');
       }
@@ -75,18 +74,12 @@ export function useTokenSwap({ usdAmount, selectedToken, enabled = true }) {
       setQuoteError(err instanceof Error ? err : new Error('Failed to get swap quote'));
       setQuote(null);
     } finally {
-      if (fetchIdRef.current === currentId) {
-        setIsQuoteLoading(false);
-      }
+      if (fetchIdRef.current === currentId) setIsQuoteLoading(false);
     }
   }, [usdAmount, address, enabled, selectedToken]);
 
-  // Fetch on mount / dependency change
-  useEffect(() => {
-    fetchQuote();
-  }, [fetchQuote]);
+  useEffect(() => { fetchQuote(); }, [fetchQuote]);
 
-  // Auto-refresh every 30 s
   useEffect(() => {
     if (!enabled || !usdAmount || !address || !selectedToken) return;
     const timer = setInterval(fetchQuote, QUOTE_REFRESH_INTERVAL_MS);
@@ -99,7 +92,6 @@ export function useTokenSwap({ usdAmount, selectedToken, enabled = true }) {
     if (!address) throw new Error('No wallet address found');
     if (!publicClient) throw new Error('No public client available');
     if (!selectedToken) throw new Error('No token selected');
-
     if (walletClient.chain?.id !== BASE_CHAIN_ID) {
       throw new Error('Please switch your wallet to the Base network');
     }
@@ -108,7 +100,6 @@ export function useTokenSwap({ usdAmount, selectedToken, enabled = true }) {
     setExecuteError(null);
 
     try {
-      // Dynamic imports
       const [{ buildCalls }, { base }, config] = await Promise.all([
         import('@spandex/core'),
         import('viem/chains'),
@@ -127,12 +118,7 @@ export function useTokenSwap({ usdAmount, selectedToken, enabled = true }) {
         recipientAccount: MERCHANT_WALLET_ADDRESS,
       };
 
-      const calls = await buildCalls({
-        quote,
-        swap: swapParams,
-        config,
-        publicClient,
-      });
+      const calls = await buildCalls({ quote, swap: swapParams, config, publicClient });
 
       let lastHash = null;
       for (const call of calls) {
@@ -144,7 +130,6 @@ export function useTokenSwap({ usdAmount, selectedToken, enabled = true }) {
           gas: call.txn.gas,
           ...(call.txn.value !== undefined ? { value: call.txn.value } : {}),
         });
-
         await publicClient.waitForTransactionReceipt({ hash });
         lastHash = hash;
       }
@@ -160,7 +145,6 @@ export function useTokenSwap({ usdAmount, selectedToken, enabled = true }) {
     }
   };
 
-  // Human-readable estimated input amount
   const estimatedInputAmount =
     quote?.inputAmount != null && selectedToken
       ? (Number(quote.inputAmount) / 10 ** selectedToken.decimals).toFixed(
@@ -169,7 +153,6 @@ export function useTokenSwap({ usdAmount, selectedToken, enabled = true }) {
       : null;
 
   const requiresApproval = quote?.approval != null;
-  const walletPromptCount = requiresApproval ? 2 : 1;
 
   return {
     quote,
@@ -181,6 +164,6 @@ export function useTokenSwap({ usdAmount, selectedToken, enabled = true }) {
     executeSwap,
     estimatedInputAmount,
     requiresApproval,
-    walletPromptCount,
+    walletPromptCount: requiresApproval ? 2 : 1,
   };
 }

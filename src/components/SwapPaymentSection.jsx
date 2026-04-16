@@ -38,7 +38,6 @@ export function SwapPaymentSection({
       })
       .then((data) => {
         setTokens(data.tokens ?? []);
-        // Auto-select the first (highest USD value) token
         if (data.tokens?.length > 0 && !autoSelectedRef.current) {
           autoSelectedRef.current = true;
           setSelectedToken(data.tokens[0]);
@@ -48,9 +47,9 @@ export function SwapPaymentSection({
       .finally(() => setTokensLoading(false));
   }, [address]);
 
-  // Reset quote when token changes
-  const handleSelectToken = (token) => {
-    if (selectedToken?.address !== token.address) {
+  const handleSelectToken = (tokenAddress) => {
+    const token = tokens.find((t) => t.address === tokenAddress);
+    if (token && token.address !== selectedToken?.address) {
       setSelectedToken(token);
     }
   };
@@ -75,11 +74,7 @@ export function SwapPaymentSection({
     } catch (err) {
       const raw = err?.message || '';
       let message;
-      if (
-        raw.includes('User rejected') ||
-        raw.includes('user rejected') ||
-        raw.includes('rejected')
-      ) {
+      if (raw.includes('User rejected') || raw.includes('user rejected') || raw.includes('rejected')) {
         message = 'Payment cancelled. You rejected the transaction in your wallet.';
       } else if (raw.includes('switch your wallet')) {
         message = 'Please switch your wallet to the Base network and try again.';
@@ -118,42 +113,31 @@ export function SwapPaymentSection({
 
   return (
     <div className="space-y-3">
-      {/* Token selector — all tokens from wallet, sorted by USD value */}
-      <div className="flex flex-wrap gap-2">
-        {tokens.map((token) => {
-          const isSelected = selectedToken?.address === token.address;
-          const usdLabel =
-            token.balanceUsd >= 1
-              ? `$${token.balanceUsd.toFixed(2)}`
-              : `$${token.balanceUsd.toFixed(4)}`;
-
-          return (
-            <button
-              key={token.address}
-              onClick={() => handleSelectToken(token)}
-              title={`${token.name}: ${token.formatted} ${token.symbol} (${usdLabel})`}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
-                isSelected
-                  ? 'bg-[#3eb489] text-white border-[#3eb489]'
-                  : 'bg-white text-gray-700 border-gray-300 hover:border-[#3eb489] hover:text-[#3eb489]'
-              }`}
-            >
-              {token.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={token.imageUrl}
-                  alt={token.symbol}
-                  className="w-4 h-4 rounded-full"
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                />
-              )}
-              <span>{token.symbol}</span>
-              <span className={`text-[10px] ${isSelected ? 'text-green-100' : 'text-gray-400'}`}>
-                {usdLabel}
-              </span>
-            </button>
-          );
-        })}
+      {/* Token dropdown — all tokens from wallet, sorted by USD value */}
+      <div className="relative">
+        <select
+          value={selectedToken?.address ?? ''}
+          onChange={(e) => handleSelectToken(e.target.value)}
+          className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-3 py-2.5 pr-8 text-sm text-gray-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-[#3eb489] cursor-pointer"
+        >
+          {tokens.map((token) => {
+            const usdLabel =
+              token.balanceUsd >= 1
+                ? `$${token.balanceUsd.toFixed(2)}`
+                : `$${token.balanceUsd.toFixed(4)}`;
+            return (
+              <option key={token.address} value={token.address}>
+                {token.symbol} — {usdLabel}
+              </option>
+            );
+          })}
+        </select>
+        {/* Dropdown arrow */}
+        <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center">
+          <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
       </div>
 
       {/* Quote loading */}

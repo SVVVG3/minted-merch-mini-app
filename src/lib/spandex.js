@@ -48,7 +48,9 @@ export async function getSpandexConfig() {
       import('viem/chains'),
     ]);
 
-  const baseClient = createPublicClient({ chain: base, transport: http() });
+  // base.drpc.org is the free public RPC used in the spanDEX docs — it supports
+  // eth_simulateV1 which is required for spanDEX's quote simulation step.
+  const baseClient = createPublicClient({ chain: base, transport: http('https://base.drpc.org') });
 
   // Use providers that support both `recipientAccount` (output sent directly to
   // merchant wallet) and `targetOut` mode (exact USDC output guaranteed).
