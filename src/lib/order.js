@@ -2,6 +2,9 @@ import { kv } from '@/lib/kv';
 import { createOrder as createShopifyOrder } from './shopify';
 import { createOrder as createSupabaseOrder } from './orders';
 
+// ERC-20 Transfer(address indexed from, address indexed to, uint256 value) event topic
+const ERC20_TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+
 const BASE_RPC_URL = process.env.BASE_RPC_URL;
 const PAYMENT_RECIPIENT_ADDRESS = process.env.NEXT_PUBLIC_PAYMENT_RECIPIENT_ADDRESS;
 const USDC_CONTRACT_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
@@ -82,6 +85,74 @@ export async function verifyTransaction(transactionHash, expectedAmount) {
     recipient: recipient,
     amount: amount / 1e6,
     blockNumber: receiptData.result.blockNumber
+  };
+}
+
+/**
+ * Verify a swap transaction by scanning receipt logs for a USDC Transfer event
+ * sent directly to the merchant wallet. Used for spanDEX swap payments where
+ * the DEX router sends USDC to the merchant in one atomic transaction.
+ */
+export async function verifySwapTransaction(transactionHash, expectedAmount) {
+  const receiptResponse = await fetch(BASE_RPC_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'eth_getTransactionReceipt',
+      params: [transactionHash],
+      id: 1,
+    }),
+  });
+
+  const receiptData = await receiptResponse.json();
+
+  if (!receiptData.result) {
+    throw new Error('Transaction receipt not found');
+  }
+
+  const receipt = receiptData.result;
+
+  if (receipt.status !== '0x1') {
+    throw new Error('Transaction failed or was reverted');
+  }
+
+  const expectedAmountInDecimals = Math.floor(parseFloat(expectedAmount) * 1e6);
+
+  // Pad merchant address to 32-byte topic format (addresses are right-aligned in topics)
+  const merchantTopic =
+    '0x' + PAYMENT_RECIPIENT_ADDRESS.toLowerCase().slice(2).padStart(64, '0');
+
+  // Scan logs for a USDC Transfer event where `to` is the merchant wallet
+  const matchingLog = receipt.logs.find(
+    (log) =>
+      log.address.toLowerCase() === USDC_CONTRACT_ADDRESS.toLowerCase() &&
+      log.topics[0] === ERC20_TRANSFER_TOPIC &&
+      log.topics[2]?.toLowerCase() === merchantTopic.toLowerCase()
+  );
+
+  if (!matchingLog) {
+    throw new Error(
+      'No USDC transfer to merchant found in transaction logs. Ensure the swap was routed to the merchant wallet.'
+    );
+  }
+
+  // The Transfer event `value` is in the non-indexed `data` field (32-byte hex)
+  const transferAmount = parseInt(matchingLog.data, 16);
+
+  // Allow 1 unit (micro-USDC) of tolerance
+  if (transferAmount < expectedAmountInDecimals - 1) {
+    throw new Error(
+      `Insufficient swap output: received ${transferAmount / 1e6} USDC, expected ${expectedAmount} USDC`
+    );
+  }
+
+  return {
+    from: receipt.from,
+    recipient: PAYMENT_RECIPIENT_ADDRESS,
+    amount: transferAmount / 1e6,
+    blockNumber: receipt.blockNumber,
+    provider: 'swap',
   };
 }
 

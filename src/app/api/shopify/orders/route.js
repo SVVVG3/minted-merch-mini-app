@@ -598,6 +598,57 @@ export async function POST(request) {
       }
     }
 
+    // 🔒 SWAP PAYMENT VERIFICATION
+    // When paymentMethod is 'swap', verify the DEX swap transaction receipt on-chain
+    if (paymentMethod === 'swap' && transactionHash) {
+      const { supabaseAdmin } = await import('@/lib/supabase');
+
+      console.log(`🔒 [${requestId}] Verifying swap transaction on-chain:`, transactionHash);
+
+      // Replay protection
+      const { data: existingSwapOrder } = await supabaseAdmin
+        .from('orders')
+        .select('order_id')
+        .eq('transaction_hash', transactionHash)
+        .maybeSingle();
+
+      if (existingSwapOrder) {
+        console.error(`🚨 [${requestId}] SECURITY: Swap transaction hash already used:`, {
+          transactionHash,
+          existingOrderId: existingSwapOrder.order_id
+        });
+        try {
+          const { logSecurityEvent } = await import('@/lib/security');
+          await logSecurityEvent('swap_tx_replay_attempt', {
+            transactionHash,
+            existingOrderId: existingSwapOrder.order_id,
+            requestId
+          }, fidInt, request);
+        } catch (logError) {
+          console.error('Failed to log security event:', logError);
+        }
+        return NextResponse.json({
+          success: false,
+          error: 'Transaction already used',
+          message: 'This transaction has already been used to create an order.'
+        }, { status: 409 });
+      }
+
+      try {
+        const { verifySwapTransaction } = await import('@/lib/order');
+        // Store for verification after server totals are calculated
+        body._verifySwapTransaction = verifySwapTransaction;
+        console.log(`✅ [${requestId}] Swap tx replay check passed - will verify USDC receipt logs after server total calculation`);
+      } catch (importError) {
+        console.error(`❌ [${requestId}] Failed to import verifySwapTransaction:`, importError.message);
+        return NextResponse.json({
+          success: false,
+          error: 'Payment verification unavailable',
+          message: 'Server configuration error. Please try again.'
+        }, { status: 500 });
+      }
+    }
+
     // 🔒 DIRECT USDC PAYMENT VERIFICATION
     // When paymentMethod is 'usdc' (no daimoPaymentId), verify the transaction on-chain
     if (paymentMethod === 'usdc' && transactionHash && !paymentMetadata?.daimoPaymentId) {
@@ -987,6 +1038,39 @@ export async function POST(request) {
       }
       
       console.log(`✅ [${requestId}] Daimo payment amount verified: $${daimoPaidAmount} (expected: $${expectedPayment})`);
+    }
+
+    // 🔒 SWAP ON-CHAIN VERIFICATION (spanDEX token swap path)
+    // Verify the swap tx receipt logs show USDC delivered to the merchant wallet
+    if (paymentMethod === 'swap' && transactionHash && body._verifySwapTransaction) {
+      console.log(`🔗 [${requestId}] Running on-chain swap verification for amount $${finalTotalPrice}...`);
+      try {
+        const txDetails = await body._verifySwapTransaction(transactionHash, finalTotalPrice);
+        console.log(`✅ [${requestId}] On-chain swap verification passed:`, {
+          from: txDetails.from,
+          recipient: txDetails.recipient,
+          amount: txDetails.amount,
+          blockNumber: txDetails.blockNumber,
+          provider: txDetails.provider
+        });
+      } catch (txError) {
+        console.error(`🚨 [${requestId}] SECURITY: On-chain swap verification failed:`, txError.message);
+        try {
+          await logSecurityEvent('swap_tx_verification_failed', {
+            transactionHash,
+            error: txError.message,
+            serverCalculatedTotal: finalTotalPrice,
+            requestId
+          }, fidInt, request);
+        } catch (logError) {
+          console.error('Failed to log security event:', logError);
+        }
+        return NextResponse.json({
+          success: false,
+          error: 'Swap verification failed',
+          message: txError.message || 'Unable to verify on-chain swap payment. Please try again or contact support.'
+        }, { status: 400 });
+      }
     }
 
     // 🔒 USDC ON-CHAIN AMOUNT VERIFICATION (direct wagmi transfer path)
