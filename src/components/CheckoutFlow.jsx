@@ -2221,12 +2221,21 @@ Transaction Hash: ${txHashOverride || transactionHash}`;
               )}
 
               {checkoutStep === 'payment' && paymentStatus === 'error' && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <div className="text-red-800 text-sm font-medium">Payment Failed</div>
-                  <div className="text-red-600 text-xs mt-1">{error}</div>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                  <div className="text-red-800 text-sm font-semibold mb-1">Payment Failed</div>
+                  <div className="text-red-600 text-sm">
+                    {(() => {
+                      const raw = error || '';
+                      if (raw.includes('rejected') || raw.includes('User rejected') || raw.includes('user rejected')) {
+                        return 'Payment cancelled. You rejected the transaction in your wallet.';
+                      }
+                      if (raw.includes('Insufficient') || raw.includes('insufficient')) return raw;
+                      return 'Payment failed. Please try again.';
+                    })()}
+                  </div>
                   <button
                     onClick={resetPayment}
-                    className="mt-2 bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+                    className="mt-3 bg-red-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
                   >
                     Try Again
                   </button>
