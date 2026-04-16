@@ -12,7 +12,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 import { shareOrder } from '@/lib/farcasterShare';
 import { useSignMessage, useAccount } from 'wagmi';
 import { triggerHaptic } from '@/lib/haptics';
-import { useTokenSwap, SWAP_TOKENS } from '@/lib/useTokenSwap';
+import { SwapPaymentSection } from './SwapPaymentSection';
 
 import { ShippingForm } from './ShippingForm';
 import GiftCardSection, { GiftCardBalance } from './GiftCardSection';
@@ -466,22 +466,6 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     address
   } = useUSDCPayment();
 
-  const {
-    selectedToken,
-    setSelectedToken,
-    quote: swapQuote,
-    isQuoteLoading: isSwapQuoteLoading,
-    quoteError: swapQuoteError,
-    fetchQuote: refreshSwapQuote,
-    isExecuting: isSwapExecuting,
-    executeSwap,
-    estimatedInputAmount,
-    requiresApproval: swapRequiresApproval,
-    walletPromptCount,
-  } = useTokenSwap({
-    usdAmount: checkoutStep === 'payment' && !isFreeOrder() ? calculateFinalTotal() : 0,
-    enabled: checkoutStep === 'payment' && paymentTab === 'swap' && !isFreeOrder(),
-  });
 
   // WalletConnect balance state
   const [walletConnectBalance, setWalletConnectBalance] = useState(null);
@@ -878,52 +862,6 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         message = raw; // keep our own balance error as-is
       } else {
         message = 'Payment failed. Please try again.';
-      }
-      setUSDCError(message);
-    }
-  };
-
-  const handleSwapPayment = async () => {
-    triggerHaptic('medium', isInFarcaster);
-    try {
-      setIsUSDCProcessing(true);
-      setUSDCError(null);
-
-      if (!isConnected) {
-        throw new Error('Please connect your wallet to continue');
-      }
-
-      if (!shippingData) {
-        throw new Error('Please provide shipping information');
-      }
-
-      if (!cart.checkout) {
-        throw new Error('Checkout calculation not available');
-      }
-
-      if (!swapQuote) {
-        throw new Error('No swap quote available. Please wait for a quote to load.');
-      }
-
-      const swapTxHash = await executeSwap();
-      await handlePaymentSuccess(swapTxHash, 'swap');
-    } catch (error) {
-      console.error('💥 Swap payment error:', error);
-      setIsUSDCProcessing(false);
-      triggerHaptic('error', isInFarcaster);
-
-      const raw = error.message || '';
-      let message;
-      if (raw.includes('User rejected the request') || raw.includes('user rejected') || raw.includes('rejected')) {
-        message = 'Payment cancelled. You rejected the transaction in your wallet.';
-      } else if (raw.includes('switch your wallet')) {
-        message = 'Please switch your wallet to the Base network and try again.';
-      } else if (raw.includes('No quote available') || raw.includes('No swap quote')) {
-        message = 'Swap quote unavailable. Please try refreshing the quote and try again.';
-      } else if (raw.includes('connector.getChainId is not a function')) {
-        message = 'Wallet connection issue. Please try refreshing the page.';
-      } else {
-        message = 'Swap payment failed. Please try again.';
       }
       setUSDCError(message);
     }
@@ -2414,75 +2352,25 @@ Transaction Hash: ${txHashOverride || transactionHash}`;
                           </p>
                         </div>
                       ) : (
-                        /* Swap any token → USDC → merchant */
-                        <div className="space-y-2">
-                          {/* Token selector pills */}
-                          <div className="flex gap-1.5 flex-wrap">
-                            {SWAP_TOKENS.map((token) => (
-                              <button
-                                key={token.symbol}
-                                onClick={() => setSelectedToken(token)}
-                                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${selectedToken.symbol === token.symbol ? 'bg-[#3eb489] text-white border-[#3eb489]' : 'bg-white text-gray-600 border-gray-300 hover:border-[#3eb489] hover:text-[#3eb489]'}`}
-                              >
-                                {token.symbol}
-                              </button>
-                            ))}
-                          </div>
-
-                          {/* Quote loading / info */}
-                          {isSwapQuoteLoading && (
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
-                              <div className="text-blue-700 text-sm">Getting best swap rate…</div>
-                            </div>
-                          )}
-
-                          {swapQuoteError && !isSwapQuoteLoading && (
-                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                              <div className="text-amber-800 text-xs">Could not get a quote for {selectedToken.symbol}. Try another token or try again.</div>
-                              <button onClick={refreshSwapQuote} className="mt-1.5 text-xs text-amber-700 underline">Retry</button>
-                            </div>
-                          )}
-
-                          {swapQuote && !isSwapQuoteLoading && estimatedInputAmount && (
-                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1">
-                              <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">You pay (est.)</span>
-                                <span className="font-medium text-gray-900">{estimatedInputAmount} {selectedToken.symbol}</span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Merchant receives</span>
-                                <span className="font-medium text-gray-900">${calculateFinalTotal().toFixed(2)} USDC</span>
-                              </div>
-                              <div className="flex justify-between text-xs text-gray-500">
-                                <span>Route</span>
-                                <span className="capitalize">{swapQuote.provider}</span>
-                              </div>
-                              {swapRequiresApproval && (
-                                <p className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1 mt-1">
-                                  Requires 2 wallet approvals: token approval + swap
-                                </p>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Swap pay button */}
-                          <button
-                            onClick={handleSwapPayment}
-                            disabled={!cart.checkout || isUSDCProcessing || isSwapExecuting || !swapQuote || isSwapQuoteLoading}
-                            className="w-full bg-[#3eb489] hover:bg-[#359970] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
-                          >
-                            <span>
-                              {(isUSDCProcessing || isSwapExecuting)
-                                ? 'Swapping…'
-                                : isSwapQuoteLoading
-                                  ? 'Getting quote…'
-                                  : `Swap ${selectedToken.symbol} → $${calculateFinalTotal().toFixed(2)} USDC`}
-                            </span>
-                          </button>
-                          <p className="text-xs text-gray-500 text-center">
-                            Your {selectedToken.symbol} is swapped to USDC and sent directly to the merchant. Max 0.5% slippage.
-                          </p>
-                        </div>
+                        /* SwapPaymentSection is only mounted when this tab is active —
+                           @spandex/core never loads for USDC-only checkouts */
+                        <SwapPaymentSection
+                          usdAmount={calculateFinalTotal()}
+                          isProcessing={isUSDCProcessing}
+                          onSwapStart={() => {
+                            triggerHaptic('medium', isInFarcaster);
+                            setIsUSDCProcessing(true);
+                            setUSDCError(null);
+                          }}
+                          onSwapSuccess={async (txHash) => {
+                            await handlePaymentSuccess(txHash, 'swap');
+                          }}
+                          onSwapError={(message) => {
+                            setIsUSDCProcessing(false);
+                            triggerHaptic('error', isInFarcaster);
+                            setUSDCError(message);
+                          }}
+                        />
                       )}
                     </div>
                   )}
