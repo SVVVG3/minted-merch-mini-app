@@ -54,7 +54,7 @@ function TokenDropdown({ tokens, selectedToken, onSelect }) {
 
       {/* Options list */}
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto overflow-x-hidden">
           {tokens.map((token) => {
             const isSelected = selectedToken?.address === token.address;
             return (
@@ -79,8 +79,8 @@ function TokenDropdown({ tokens, selectedToken, onSelect }) {
                 ) : (
                   <span className="w-5 h-5 rounded-full bg-gray-200 flex-shrink-0" />
                 )}
-                <span className="font-medium flex-1">{token.symbol}</span>
-                <span className="text-gray-400 text-xs">{usdLabel(token)}</span>
+                <span className="font-medium flex-1 truncate">{token.symbol}</span>
+                <span className="text-gray-400 text-xs flex-shrink-0">{usdLabel(token)}</span>
               </button>
             );
           })}

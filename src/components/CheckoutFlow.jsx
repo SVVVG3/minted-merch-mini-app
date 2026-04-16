@@ -2265,8 +2265,8 @@ Transaction Hash: ${txHashOverride || transactionHash}`;
               {/* Payment Actions - Only show in payment step */}
               {checkoutStep === 'payment' && paymentStatus === 'idle' && (isConnected || isWalletConnected) && (
                 <div className="space-y-2">
-                  {/* Insufficient balance warning */}
-                  {(() => {
+                  {/* Insufficient balance warning — only relevant on the USDC tab */}
+                  {paymentTab === 'usdc' && (() => {
                     const finalTotal = calculateFinalTotal();
                     if (finalTotal === 0) return null;
                     return isConnected && !hasSufficientBalance(finalTotal) && (
@@ -2342,7 +2342,7 @@ Transaction Hash: ${txHashOverride || transactionHash}`;
                           onClick={() => setPaymentTab('swap')}
                           className={`flex-1 py-2 text-sm font-medium transition-colors ${paymentTab === 'swap' ? 'bg-[#3eb489] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                         >
-                          Other Token
+                          Other Tokens
                         </button>
                       </div>
 
