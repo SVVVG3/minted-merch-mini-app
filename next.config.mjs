@@ -1,20 +1,5 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack: (config) => {
-    // Force the CJS build of @spandex/core to avoid ESM circular-reference
-    // TDZ errors ("Cannot access 'X' before initialization") when webpack
-    // bundles the package's ESM entry point.
-    config.resolve.alias['@spandex/core'] = path.resolve(
-      __dirname,
-      'node_modules/@spandex/core/dist/cjs/index.js'
-    );
-    return config;
-  },
   env: {
     NEXT_PUBLIC_SPIN_REGISTRY_CONTRACT_ADDRESS: process.env.SPIN_REGISTRY_CONTRACT_ADDRESS,
   },

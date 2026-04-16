@@ -1,26 +1,3 @@
-import { createConfig, lifi, relay, velora } from '@spandex/core';
-import { createPublicClient, http } from 'viem';
-import { base } from 'viem/chains';
-
-// Providers that support `recipientAccount` (send swap output directly to merchant wallet)
-// and `targetOut` mode (guarantee exact USDC output amount, adjusting input for slippage).
-// No API keys required for these providers.
-const providers = [
-  lifi(),    // Li.Fi DEX aggregator
-  relay(),   // Relay Protocol
-  velora(),  // Velora DEX
-];
-
-const baseClient = createPublicClient({
-  chain: base,
-  transport: http(),
-});
-
-export const spandexConfig = createConfig({
-  providers,
-  clients: [baseClient],
-});
-
 // Native ETH address used by DeFi protocols on EVM chains
 export const NATIVE_ETH_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
 
@@ -55,3 +32,30 @@ export const SWAP_TOKENS = [
     isNative: false,
   },
 ];
+
+// Lazily-created spanDEX config — created on first use, not at module load time.
+// This avoids webpack bundling @spandex/core as a static import, which triggers
+// a circular-reference TDZ crash in both the ESM and CJS builds.
+let _spandexConfig = null;
+
+export async function getSpandexConfig() {
+  if (_spandexConfig) return _spandexConfig;
+
+  const [{ createConfig, lifi, relay, velora }, { createPublicClient, http }, { base }] =
+    await Promise.all([
+      import('@spandex/core'),
+      import('viem'),
+      import('viem/chains'),
+    ]);
+
+  const baseClient = createPublicClient({ chain: base, transport: http() });
+
+  // Use providers that support both `recipientAccount` (output sent directly to
+  // merchant wallet) and `targetOut` mode (exact USDC output guaranteed).
+  _spandexConfig = createConfig({
+    providers: [lifi(), relay(), velora()],
+    clients: [baseClient],
+  });
+
+  return _spandexConfig;
+}
