@@ -77,6 +77,12 @@ export async function GET(request) {
       .filter((t) => t.address.toLowerCase() !== USDC_ADDRESS_BASE)
       // Only show tokens with meaningful balance (≥ $0.01 USD value)
       .filter((t) => t.balanceUsd >= 0.01)
+      // Filter out scam/spam tokens: these typically have absurdly inflated
+      // prices (trillions of dollars per token) via price manipulation.
+      // No legitimate token costs more than $1 M per unit (WBTC ≈ $100 k).
+      // We also cap total displayed position value at $10 M — sufficient for
+      // any real holding in a Farcaster mini-app context.
+      .filter((t) => t.priceUsd <= 1_000_000 && t.balanceUsd <= 10_000_000)
       // Sort by USD value descending
       .sort((a, b) => b.balanceUsd - a.balanceUsd);
 

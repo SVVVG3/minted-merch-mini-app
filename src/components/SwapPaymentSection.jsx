@@ -4,6 +4,92 @@ import { useState, useEffect, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import { useTokenSwap } from '@/lib/useTokenSwap';
 
+/** Custom dropdown that shows token logo + symbol + USD value per row. */
+function TokenDropdown({ tokens, selectedToken, onSelect }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const usdLabel = (t) =>
+    t.balanceUsd >= 1 ? `$${t.balanceUsd.toFixed(2)}` : `$${t.balanceUsd.toFixed(4)}`;
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Trigger button */}
+      <button
+        type="button"
+        onClick={() => setIsOpen((o) => !o)}
+        className="w-full flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-800 hover:border-[#3eb489] focus:outline-none focus:ring-2 focus:ring-[#3eb489] transition-colors"
+      >
+        {selectedToken ? (
+          <>
+            {selectedToken.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={selectedToken.imageUrl}
+                alt={selectedToken.symbol}
+                className="w-5 h-5 rounded-full flex-shrink-0"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            ) : (
+              <span className="w-5 h-5 rounded-full bg-gray-200 flex-shrink-0" />
+            )}
+            <span className="flex-1 text-left">{selectedToken.symbol}</span>
+            <span className="text-gray-400 text-xs">{usdLabel(selectedToken)}</span>
+          </>
+        ) : (
+          <span className="flex-1 text-left text-gray-400">Select a token</span>
+        )}
+        <svg className="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Options list */}
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+          {tokens.map((token) => {
+            const isSelected = selectedToken?.address === token.address;
+            return (
+              <button
+                key={token.address}
+                type="button"
+                onClick={() => { onSelect(token); setIsOpen(false); }}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
+                  isSelected
+                    ? 'bg-[#3eb489]/10 text-[#3eb489]'
+                    : 'hover:bg-gray-50 text-gray-800'
+                }`}
+              >
+                {token.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={token.imageUrl}
+                    alt={token.symbol}
+                    className="w-5 h-5 rounded-full flex-shrink-0"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                ) : (
+                  <span className="w-5 h-5 rounded-full bg-gray-200 flex-shrink-0" />
+                )}
+                <span className="font-medium flex-1">{token.symbol}</span>
+                <span className="text-gray-400 text-xs">{usdLabel(token)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Rendered ONLY when the user selects "Other Token" in the payment tab.
  * Keeping useTokenSwap (and therefore @spandex/core) inside this component
@@ -46,13 +132,6 @@ export function SwapPaymentSection({
       .catch((err) => setTokensError(err.message))
       .finally(() => setTokensLoading(false));
   }, [address]);
-
-  const handleSelectToken = (tokenAddress) => {
-    const token = tokens.find((t) => t.address === tokenAddress);
-    if (token && token.address !== selectedToken?.address) {
-      setSelectedToken(token);
-    }
-  };
 
   // --- spanDEX quote + execution ---
   const {
@@ -113,32 +192,14 @@ export function SwapPaymentSection({
 
   return (
     <div className="space-y-3">
-      {/* Token dropdown — all tokens from wallet, sorted by USD value */}
-      <div className="relative">
-        <select
-          value={selectedToken?.address ?? ''}
-          onChange={(e) => handleSelectToken(e.target.value)}
-          className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-3 py-2.5 pr-8 text-sm text-gray-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#3eb489] focus:border-[#3eb489] cursor-pointer"
-        >
-          {tokens.map((token) => {
-            const usdLabel =
-              token.balanceUsd >= 1
-                ? `$${token.balanceUsd.toFixed(2)}`
-                : `$${token.balanceUsd.toFixed(4)}`;
-            return (
-              <option key={token.address} value={token.address}>
-                {token.symbol} — {usdLabel}
-              </option>
-            );
-          })}
-        </select>
-        {/* Dropdown arrow */}
-        <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center">
-          <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
-      </div>
+      {/* Token dropdown — all tokens from wallet, sorted by USD value, with logos */}
+      <TokenDropdown
+        tokens={tokens}
+        selectedToken={selectedToken}
+        onSelect={(token) => {
+          if (token.address !== selectedToken?.address) setSelectedToken(token);
+        }}
+      />
 
       {/* Quote loading */}
       {isQuoteLoading && (

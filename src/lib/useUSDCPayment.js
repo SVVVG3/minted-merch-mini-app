@@ -26,7 +26,8 @@ export function useUSDCPayment() {
     writeContract, 
     data: hash, 
     isPending,
-    error: writeError 
+    error: writeError,
+    reset: resetWrite,
   } = useWriteContract()
 
   // Wait for transaction confirmation
@@ -97,9 +98,11 @@ export function useUSDCPayment() {
     }
   }
 
-  // Reset payment state
+  // Reset payment state — must clear wagmi's writeError (via resetWrite) in
+  // addition to local error, otherwise paymentStatus stays 'error'.
   const resetPayment = () => {
     setError(null)
+    resetWrite()
   }
 
   // Determine payment status based on transaction state
