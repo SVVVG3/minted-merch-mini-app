@@ -39,46 +39,73 @@ export function useTokenSwap({ usdAmount, selectedToken, enabled = true }) {
     setIsQuoteLoading(true);
     setQuoteError(null);
 
-    try {
-      // Dynamic import — only loads @spandex/core when actually needed
-      const [{ getQuote }, config] = await Promise.all([
-        import('@spandex/core'),
-        getSpandexConfig(),
-      ]);
+    // drpc.org is a random-routing pool — some nodes support eth_simulateV1
+    // (required by spanDEX) and some don't. Retry up to 2 extra times with a
+    // short back-off so most failures self-resolve without user interaction.
+    const MAX_ATTEMPTS = 3;
+    let lastErr = null;
 
-      const outputAmount = BigInt(Math.round(usdAmount * 1e6));
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      if (fetchIdRef.current !== currentId) return; // Superseded by newer fetch
 
-      const result = await getQuote({
-        config,
-        swap: {
-          chainId: BASE_CHAIN_ID,
-          inputToken: selectedToken.address,
-          outputToken: USDC_CONTRACT_ADDRESS,
-          mode: 'targetOut',
-          outputAmount,
-          slippageBps: 50,
-          swapperAccount: address,
-          recipientAccount: MERCHANT_WALLET_ADDRESS,
-        },
-        strategy: 'bestPrice',
-      });
-
-      if (fetchIdRef.current !== currentId) return;
-      if (!result) {
-        throw new Error('No swap route found for this token. Try a different token.');
+      // Brief back-off between retries (not before the first attempt)
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, 1500 * attempt));
+        if (fetchIdRef.current !== currentId) return;
       }
-      setQuote(result);
-    } catch (err) {
-      if (fetchIdRef.current !== currentId) return;
-      console.error('❌ spanDEX quote error:', err);
-      setQuoteError(err instanceof Error ? err : new Error('Failed to get swap quote'));
-      setQuote(null);
-    } finally {
-      if (fetchIdRef.current === currentId) setIsQuoteLoading(false);
+
+      try {
+        // Dynamic import — only loads @spandex/core when actually needed
+        const [{ getQuote }, config] = await Promise.all([
+          import('@spandex/core'),
+          getSpandexConfig(),
+        ]);
+
+        const outputAmount = BigInt(Math.round(usdAmount * 1e6));
+
+        const result = await getQuote({
+          config,
+          swap: {
+            chainId: BASE_CHAIN_ID,
+            inputToken: selectedToken.address,
+            outputToken: USDC_CONTRACT_ADDRESS,
+            mode: 'targetOut',
+            outputAmount,
+            slippageBps: 50,
+            swapperAccount: address,
+            recipientAccount: MERCHANT_WALLET_ADDRESS,
+          },
+          strategy: 'bestPrice',
+        });
+
+        if (fetchIdRef.current !== currentId) return;
+        if (!result) throw new Error('NO_ROUTE');
+        setQuote(result);
+        setIsQuoteLoading(false);
+        return; // Success — exit retry loop
+      } catch (err) {
+        lastErr = err;
+        const msg = err?.message ?? '';
+        // Don't retry if the DEX explicitly has no route for this token
+        if (msg === 'NO_ROUTE' || msg.includes('No quotes provided')) break;
+        console.warn(`❌ spanDEX quote attempt ${attempt + 1} failed:`, msg);
+      }
     }
+
+    if (fetchIdRef.current !== currentId) return;
+    console.error('❌ spanDEX quote failed after retries:', lastErr);
+    const displayErr =
+      lastErr?.message === 'NO_ROUTE'
+        ? new Error('No swap route found for this token. Try a different token.')
+        : (lastErr instanceof Error ? lastErr : new Error('Failed to get swap quote'));
+    setQuoteError(displayErr);
+    setQuote(null);
+    setIsQuoteLoading(false);
   }, [usdAmount, address, enabled, selectedToken]);
 
-  useEffect(() => { fetchQuote(); }, [fetchQuote]);
+  useEffect(() => {
+    fetchQuote();
+  }, [fetchQuote]);
 
   useEffect(() => {
     if (!enabled || !usdAmount || !address || !selectedToken) return;
@@ -145,12 +172,18 @@ export function useTokenSwap({ usdAmount, selectedToken, enabled = true }) {
     }
   };
 
-  const estimatedInputAmount =
-    quote?.inputAmount != null && selectedToken
-      ? (Number(quote.inputAmount) / 10 ** selectedToken.decimals).toFixed(
-          selectedToken.decimals <= 6 ? 4 : 6
-        )
-      : null;
+  const estimatedInputAmount = (() => {
+    if (quote?.inputAmount == null || !selectedToken) return null;
+    const raw = Number(quote.inputAmount) / 10 ** selectedToken.decimals;
+    // For large numbers use commas + fewer decimals; for small use more precision
+    if (raw >= 1_000) {
+      return raw.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    }
+    if (raw >= 1) {
+      return raw.toLocaleString('en-US', { maximumFractionDigits: 4 });
+    }
+    return raw.toFixed(6);
+  })();
 
   const requiresApproval = quote?.approval != null;
 
