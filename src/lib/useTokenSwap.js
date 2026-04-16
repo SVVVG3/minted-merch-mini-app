@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWalletClient, usePublicClient, useAccount } from 'wagmi';
 import { USDC_CONTRACT_ADDRESS, MERCHANT_WALLET_ADDRESS } from './wagmi';
-import { getSpandexConfig, SWAP_TOKENS } from './spandex';
+import { getSpandexConfig } from './spandex';
 
 // @spandex/core is imported dynamically inside async functions to avoid the
 // circular-reference TDZ crash that occurs when webpack statically bundles it.
@@ -11,14 +11,19 @@ import { getSpandexConfig, SWAP_TOKENS } from './spandex';
 const QUOTE_REFRESH_INTERVAL_MS = 30_000;
 const BASE_CHAIN_ID = 8453;
 
-export { SWAP_TOKENS };
-
-export function useTokenSwap({ usdAmount, enabled = true }) {
+/**
+ * Fetches a spanDEX quote and executes a swap for the given token.
+ *
+ * @param {object} params
+ * @param {number} params.usdAmount  - Total USD to receive in USDC (e.g. 0.93)
+ * @param {object|null} params.selectedToken - Token object with at minimum { address, decimals, symbol }
+ * @param {boolean} [params.enabled] - Set to false to pause quote fetching
+ */
+export function useTokenSwap({ usdAmount, selectedToken, enabled = true }) {
   const { address } = useAccount();
   const { data: walletClient } = useWalletClient();
   const publicClient = usePublicClient();
 
-  const [selectedToken, setSelectedToken] = useState(SWAP_TOKENS[0]); // ETH by default
   const [quote, setQuote] = useState(null);
   const [isQuoteLoading, setIsQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState(null);
@@ -29,7 +34,7 @@ export function useTokenSwap({ usdAmount, enabled = true }) {
   const fetchIdRef = useRef(0);
 
   const fetchQuote = useCallback(async () => {
-    if (!usdAmount || usdAmount <= 0 || !address || !enabled) return;
+    if (!usdAmount || usdAmount <= 0 || !address || !enabled || !selectedToken) return;
 
     const currentId = ++fetchIdRef.current;
     setIsQuoteLoading(true);
@@ -60,6 +65,9 @@ export function useTokenSwap({ usdAmount, enabled = true }) {
       });
 
       if (fetchIdRef.current !== currentId) return; // Stale response
+      if (!result) {
+        throw new Error('No swap route found for this token. Try a different token.');
+      }
       setQuote(result);
     } catch (err) {
       if (fetchIdRef.current !== currentId) return;
@@ -71,7 +79,7 @@ export function useTokenSwap({ usdAmount, enabled = true }) {
         setIsQuoteLoading(false);
       }
     }
-  }, [usdAmount, address, enabled, selectedToken.address]);
+  }, [usdAmount, address, enabled, selectedToken]);
 
   // Fetch on mount / dependency change
   useEffect(() => {
@@ -80,23 +88,17 @@ export function useTokenSwap({ usdAmount, enabled = true }) {
 
   // Auto-refresh every 30 s
   useEffect(() => {
-    if (!enabled || !usdAmount || !address) return;
+    if (!enabled || !usdAmount || !address || !selectedToken) return;
     const timer = setInterval(fetchQuote, QUOTE_REFRESH_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [fetchQuote, enabled, usdAmount, address]);
-
-  // Reset quote when token changes
-  const handleSetSelectedToken = useCallback((token) => {
-    setSelectedToken(token);
-    setQuote(null);
-    setQuoteError(null);
-  }, []);
+  }, [fetchQuote, enabled, usdAmount, address, selectedToken]);
 
   const executeSwap = async () => {
     if (!quote) throw new Error('No quote available. Please wait for a quote to load.');
     if (!walletClient) throw new Error('Wallet not connected');
     if (!address) throw new Error('No wallet address found');
     if (!publicClient) throw new Error('No public client available');
+    if (!selectedToken) throw new Error('No token selected');
 
     if (walletClient.chain?.id !== BASE_CHAIN_ID) {
       throw new Error('Please switch your wallet to the Base network');
@@ -159,18 +161,17 @@ export function useTokenSwap({ usdAmount, enabled = true }) {
   };
 
   // Human-readable estimated input amount
-  const estimatedInputAmount = quote?.inputAmount != null
-    ? (Number(quote.inputAmount) / 10 ** selectedToken.decimals).toFixed(
-        selectedToken.decimals === 6 ? 2 : 6
-      )
-    : null;
+  const estimatedInputAmount =
+    quote?.inputAmount != null && selectedToken
+      ? (Number(quote.inputAmount) / 10 ** selectedToken.decimals).toFixed(
+          selectedToken.decimals <= 6 ? 4 : 6
+        )
+      : null;
 
   const requiresApproval = quote?.approval != null;
   const walletPromptCount = requiresApproval ? 2 : 1;
 
   return {
-    selectedToken,
-    setSelectedToken: handleSetSelectedToken,
     quote,
     isQuoteLoading,
     quoteError,
