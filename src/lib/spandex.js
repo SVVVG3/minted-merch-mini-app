@@ -48,9 +48,10 @@ export async function getSpandexConfig() {
       import('viem/chains'),
     ]);
 
-  // base.drpc.org is the free public RPC used in the spanDEX docs — it supports
-  // eth_simulateV1 which is required for spanDEX's quote simulation step.
-  const baseClient = createPublicClient({ chain: base, transport: http('https://base.drpc.org') });
+  // Route spanDEX's RPC calls through our own proxy (/api/rpc) which forwards
+  // to Alchemy. This keeps the Alchemy API key server-side and gives us a
+  // reliable RPC that supports eth_simulateV1 (required for quote simulation).
+  const baseClient = createPublicClient({ chain: base, transport: http('/api/rpc') });
 
   // Use providers that support both `recipientAccount` (output sent directly to
   // merchant wallet) and `targetOut` mode (exact USDC output guaranteed).
