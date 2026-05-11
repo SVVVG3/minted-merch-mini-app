@@ -6,6 +6,7 @@ import { calculateMojoScore } from '@/lib/mojoScore';
 import { getStakingTenureStart } from '@/lib/stakingBalanceAPI';
 import { checkChatEligibility } from '@/lib/chatEligibility';
 import { updateChatMemberBalance } from '@/lib/chatMemberDatabase';
+import { updateUserTokenBalance } from '@/lib/tokenBalanceCache';
 
 /**
  * POST /api/admin/full-refresh-user
@@ -155,7 +156,38 @@ export const POST = withAdminAuth(async (request) => {
       if (walletData.neynar_score != null) profileData.neynar_score = walletData.neynar_score;
     }
 
-    // ── 6. Mojo score ─────────────────────────────────────────────────────
+    // ── 6. Live token + staked balance fetch (synchronous for admin refresh) ─
+    // Unlike the user-facing app-open flow (where this runs in the background
+    // after Mojo is already calculated), here we fetch fresh on-chain balances
+    // first so the Mojo score uses current values, not last-session's cache.
+    console.log(`[${requestId}] 💰 Fetching live token + staked balances from chain...`);
+    let liveStakedBalance = parseFloat(existingProfile.staked_balance) || 0;
+    let liveTotalBalance = parseFloat(existingProfile.token_balance) || 0;
+    try {
+      const ethAddresses = allWalletAddresses.filter(
+        a => typeof a === 'string' && a.startsWith('0x') && a.length === 42
+      );
+      if (ethAddresses.length > 0) {
+        const balanceResult = await updateUserTokenBalance(fid, ethAddresses);
+        if (balanceResult.success) {
+          // updateUserTokenBalance writes wallet_balance + staked_balance + token_balance to DB
+          // and returns the combined total as `balance`
+          liveTotalBalance = balanceResult.balance;
+          // Re-read staked_balance from what was just written to DB
+          const { data: freshProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('staked_balance, wallet_balance')
+            .eq('fid', fid)
+            .single();
+          liveStakedBalance = parseFloat(freshProfile?.staked_balance) || 0;
+          console.log(`[${requestId}] 💰 Live balances — staked: ${liveStakedBalance}, total: ${liveTotalBalance}`);
+        }
+      }
+    } catch (balanceError) {
+      console.warn(`[${requestId}] ⚠️ Live balance fetch failed, using cached values:`, balanceError.message);
+    }
+
+    // ── 7. Mojo score (using live balances) ───────────────────────────────
     console.log(`[${requestId}] 🎯 Calculating Mojo score...`);
     try {
       const { data: ordersData } = await supabaseAdmin
@@ -197,8 +229,8 @@ export const POST = withAdminAuth(async (request) => {
 
       const mojoResult = calculateMojoScore({
         neynarScore: walletData?.neynar_score || 0,
-        stakedBalance: parseFloat(existingProfile.staked_balance) || 0,
-        totalBalance: parseFloat(existingProfile.token_balance) || 0,
+        stakedBalance: liveStakedBalance,   // ← fresh from chain
+        totalBalance: liveTotalBalance,      // ← fresh from chain
         tenureStartTimestamp,
         totalPurchaseAmount,
         checkInCount,
