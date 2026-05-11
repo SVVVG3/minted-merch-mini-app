@@ -44,29 +44,6 @@ export function CheckInButton() {
     }
   }, [searchParams, hasAutoOpened, user, isReady]);
 
-  // Auto-open modal after short delay if user has spins available
-  useEffect(() => {
-    if (!spinStatus || isLoading || hasAutoOpened) {
-      return;
-    }
-
-    const canSpin = spinStatus?.canSpin;
-    
-    if (canSpin) {
-      const timer = setTimeout(async () => {
-        console.log('🎯 Auto-opening daily spin modal');
-        
-        // Add haptic feedback for auto-open (works in mini app)
-        const isInMiniApp = user && !user.isAuthKit;
-        await haptics.light(isInMiniApp);
-        
-        setIsModalOpen(true);
-        setHasAutoOpened(true);
-      }, 500);
-
-      return () => clearTimeout(timer);
-    }
-  }, [spinStatus, isLoading, hasAutoOpened, user]);
 
   const loadSpinStatus = async (userFid) => {
     try {
