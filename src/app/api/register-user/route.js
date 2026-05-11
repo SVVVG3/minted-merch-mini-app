@@ -7,7 +7,6 @@ import { checkBankrClubMembership } from '@/lib/bankrAPI';
 import { createUserProfile } from '@/lib/supabase';
 import { fetchUserProfile } from '@/lib/neynar';
 import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
-import { getQuotientScoreForFid } from '@/lib/quotient';
 import { calculateMojoScore } from '@/lib/mojoScore';
 import { getStakingTenureStart } from '@/lib/stakingBalanceAPI';
 
@@ -310,19 +309,6 @@ export async function POST(request) {
       }
     }
 
-    // Fetch Quotient score (PageRank-based reputation metric)
-    let quotientScore = null;
-    try {
-      quotientScore = await getQuotientScoreForFid(fid);
-      if (quotientScore !== null) {
-        profileData.quotient_score = quotientScore;
-        console.log('📊 Storing Quotient score:', quotientScore);
-      }
-    } catch (quotientError) {
-      console.log('⚠️ Could not fetch Quotient score:', quotientError.message);
-      // Non-blocking - continue without Quotient score
-    }
-
     // Calculate Mojo Score (composite reputation metric)
     try {
       console.log('🎯 Calculating Mojo Score for FID:', fid);
@@ -385,7 +371,7 @@ export async function POST(request) {
       let tenureStartTimestamp = null;
       let tenureFetched = false;
       try {
-        tenureStartTimestamp = await getStakingTenureStart(allWalletAddresses);
+        tenureStartTimestamp = await getStakingTenureStart(profileData.all_wallet_addresses || []);
         tenureFetched = true;
       } catch (tenureError) {
         console.log('⚠️ Could not fetch staking tenure:', tenureError.message);
