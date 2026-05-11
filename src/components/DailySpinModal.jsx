@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { encodeFunctionData } from 'viem';
 import { getTimeUntilReset } from '@/lib/timezone';
 import { triggerHaptic } from '@/lib/haptics';
 import { AddMiniAppPrompt } from './AddMiniAppPrompt';
 import { Portal } from './Portal';
 
-// Airdrop contract ABI
+// Airdrop contract ABI (used only for calldata encoding, not called directly)
 const AIRDROP_ABI = [{
   name: 'airdropERC20WithSignature',
   type: 'function',
@@ -35,12 +36,31 @@ const AIRDROP_ABI = [{
   outputs: [],
 }];
 
+// Multicall3 — batches all airdrop calls into a single transaction
+const MULTICALL3_ADDRESS = '0xcA11bde05977b3631167028862bE2a173976CA11';
+const MULTICALL3_ABI = [{
+  name: 'aggregate3',
+  type: 'function',
+  inputs: [{ name: 'calls', type: 'tuple[]', components: [
+    { name: 'target', type: 'address' },
+    { name: 'allowFailure', type: 'bool' },
+    { name: 'callData', type: 'bytes' }
+  ]}],
+  outputs: [{ name: 'returnData', type: 'tuple[]', components: [
+    { name: 'success', type: 'bool' },
+    { name: 'returnData', type: 'bytes' }
+  ]}],
+}];
+
+// ERC-20 Transfer event topic — used to verify which claims landed on-chain
+const ERC20_TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+
 export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
   const modalRef = useRef(null);
   const { isInFarcaster, isReady, getFid, user, hasNotifications: checkSdkNotifications, context, getSessionToken } = useFarcaster();
   const { address, isConnected } = useAccount();
   const { writeContract, data: hash, isPending: isTxPending, error: writeError, reset: resetWrite } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
+  const { isLoading: isConfirming, isSuccess: isConfirmed, data: txReceipt } = useWaitForTransactionReceipt({ hash });
 
   // Core state
   const [tokens, setTokens] = useState([]);
@@ -56,7 +76,6 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
 
   // Claim state
   const [isClaiming, setIsClaiming] = useState(false);
-  const [currentClaimIndex, setCurrentClaimIndex] = useState(0);
   const [claimsData, setClaimsData] = useState([]);
   const [claimSuccess, setClaimSuccess] = useState(false);
   const [claimedWinnings, setClaimedWinnings] = useState([]);
@@ -341,8 +360,7 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
       }
 
       setClaimsData(data.claims);
-      setCurrentClaimIndex(0);
-      executeClaimTransaction(data.claims[0]);
+      executeMulticallClaim(data.claims);
 
     } catch (err) {
       console.error('Claim/Donate error:', err);
@@ -353,24 +371,36 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
     }
   };
 
-  const executeClaimTransaction = (claim) => {
+  // Encode all claims into a single Multicall3 aggregate3 transaction
+  const executeMulticallClaim = (claims) => {
     try {
-      const reqWithBigInt = {
-        uid: claim.claimData.req.uid,
-        tokenAddress: claim.claimData.req.tokenAddress,
-        expirationTimestamp: BigInt(claim.claimData.req.expirationTimestamp),
-        contents: claim.claimData.req.contents.map(content => ({
-          recipient: content.recipient,
-          amount: BigInt(content.amount)
-        }))
-      };
+      const calls = claims.map(claim => ({
+        target: claim.claimData.contractAddress,
+        allowFailure: true,
+        callData: encodeFunctionData({
+          abi: AIRDROP_ABI,
+          functionName: 'airdropERC20WithSignature',
+          args: [
+            {
+              uid: claim.claimData.req.uid,
+              tokenAddress: claim.claimData.req.tokenAddress,
+              expirationTimestamp: BigInt(claim.claimData.req.expirationTimestamp),
+              contents: claim.claimData.req.contents.map(c => ({
+                recipient: c.recipient,
+                amount: BigInt(c.amount)
+              }))
+            },
+            claim.claimData.signature
+          ]
+        })
+      }));
 
       writeContract({
-        address: claim.claimData.contractAddress,
-        abi: AIRDROP_ABI,
-        functionName: 'airdropERC20WithSignature',
-        args: [reqWithBigInt, claim.claimData.signature],
-        chainId: claim.claimData.chainId
+        address: MULTICALL3_ADDRESS,
+        abi: MULTICALL3_ABI,
+        functionName: 'aggregate3',
+        args: [calls],
+        chainId: claims[0].claimData.chainId
       });
     } catch (err) {
       console.error('Transaction error:', err);
@@ -381,48 +411,70 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
 
   // Watch for transaction confirmation
   useEffect(() => {
-    if (isConfirmed && hash && isClaiming) {
-      handleTransactionConfirmed(hash);
+    if (isConfirmed && hash && isClaiming && txReceipt) {
+      handleTransactionConfirmed(hash, txReceipt);
     }
-  }, [isConfirmed, hash, isClaiming]);
+  }, [isConfirmed, hash, isClaiming, txReceipt]);
 
-  const handleTransactionConfirmed = async (txHash) => {
+  const handleTransactionConfirmed = async (txHash, receipt) => {
     try {
-      const currentClaim = claimsData[currentClaimIndex];
       const token = getToken();
-      
-      await fetch('/api/dailyspin/mark-claimed', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          winningIds: currentClaim.winningIds,
-          txHash,
-          isDonation: isDonating
-        })
-      });
 
-      const nextIndex = currentClaimIndex + 1;
-      if (nextIndex < claimsData.length) {
-        setCurrentClaimIndex(nextIndex);
-        resetWrite();
-        setTimeout(() => executeClaimTransaction(claimsData[nextIndex]), 500);
+      if (isDonating) {
+        // Mojo boost — mark all misses/forfeited wins as donated (no real winningIds)
+        await fetch('/api/dailyspin/mark-claimed', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ winningIds: [], txHash, isDonation: true })
+        });
       } else {
-        setClaimedWinnings([...allSpins]);
-        setWasDonation(isDonating);
-        setClaimSuccess(true);
-        setIsClaiming(false);
-        setIsDonating(false);
-        setAllSpins([]);
-        triggerHaptic('success', isInFarcaster);
+        // Normal claim — verify each token transfer actually landed by checking receipt logs.
+        // allowFailure:true means the multicall tx succeeds even if an inner airdrop call
+        // reverts (e.g. contract underfunded), so we must not mark unfulfilled claims.
+        const successfulWinningIds = [];
 
-        // Show Add Mini App prompt after claim if needed
-        const isInMiniApp = user && !user.isAuthKit;
-        if (isInMiniApp && hasNotifications === false) {
-          setTimeout(() => setShowAddMiniAppPrompt(true), 2000);
+        for (const claim of claimsData) {
+          if (!claim.winningIds || claim.winningIds.length === 0) continue;
+
+          const tokenAddr = claim.claimData.req.tokenAddress.toLowerCase();
+          const recipient = claim.claimData.req.contents[0]?.recipient?.toLowerCase();
+          const expectedAmount = claim.claimData.req.contents.reduce(
+            (sum, c) => sum + BigInt(c.amount), BigInt(0)
+          );
+
+          // Look for an ERC-20 Transfer(from, to, amount) log emitted by the token contract
+          const transferred = receipt.logs.some(log =>
+            log.address.toLowerCase() === tokenAddr &&
+            log.topics[0] === ERC20_TRANSFER_TOPIC &&
+            log.topics.length >= 3 &&
+            ('0x' + log.topics[2].slice(26)).toLowerCase() === recipient &&
+            BigInt(log.data) === expectedAmount
+          );
+
+          if (transferred) successfulWinningIds.push(...claim.winningIds);
         }
+
+        if (successfulWinningIds.length > 0) {
+          await fetch('/api/dailyspin/mark-claimed', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ winningIds: successfulWinningIds, txHash, isDonation: false })
+          });
+        }
+      }
+
+      setClaimedWinnings([...allSpins]);
+      setWasDonation(isDonating);
+      setClaimSuccess(true);
+      setIsClaiming(false);
+      setIsDonating(false);
+      setAllSpins([]);
+      triggerHaptic('success', isInFarcaster);
+
+      // Show Add Mini App prompt after claim if needed
+      const isInMiniApp = user && !user.isAuthKit;
+      if (isInMiniApp && hasNotifications === false) {
+        setTimeout(() => setShowAddMiniAppPrompt(true), 2000);
       }
     } catch (err) {
       console.error('Error handling confirmation:', err);
@@ -704,7 +756,7 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                             {isClaiming && isDonating ? (
                               <span className="flex items-center justify-center gap-2">
                                 <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                                Processing {currentClaimIndex + 1}/{claimsData.length}...
+                                Processing...
                               </span>
                             ) : !isConnected ? (
                               'Connect Wallet'
@@ -754,7 +806,7 @@ export function DailySpinModal({ isOpen, onClose, onSpinComplete }) {
                           {isClaiming && !isDonating ? (
                             <span className="flex items-center justify-center gap-2">
                               <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                              Claiming {currentClaimIndex + 1}/{claimsData.length}...
+                              Claiming...
                             </span>
                           ) : !isConnected ? (
                             'Connect Wallet to Claim'
