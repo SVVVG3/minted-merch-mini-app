@@ -6,26 +6,10 @@
       "maxDuration": 30
     },
     "src/app/api/notifications/**": {
-      "maxDuration": 300
+      "maxDuration": 60
     }
   },
   "crons": [
-    {
-      "path": "/api/notifications/daily-checkin",
-      "schedule": "0 15 * * *"
-    },
-    {
-      "path": "/api/notifications/daily-checkin",
-      "schedule": "0 16 * * *"
-    },
-    {
-      "path": "/api/notifications/afternoon-checkin",
-      "schedule": "0 21 * * *"
-    },
-    {
-      "path": "/api/notifications/afternoon-checkin",
-      "schedule": "0 22 * * *"
-    },
     {
       "path": "/api/notifications/staking-reminder",
       "schedule": "0 20 * * *"
@@ -35,20 +19,8 @@
       "schedule": "0 21 * * *"
     },
     {
-      "path": "/api/notifications/evening-checkin",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/notifications/evening-checkin",
-      "schedule": "0 4 * * *"
-    },
-    {
       "path": "/api/cron/update-chat-balances",
       "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/auto-sync/notification-status",
-      "schedule": "0 7 * * *"
     }
   ]
 }
