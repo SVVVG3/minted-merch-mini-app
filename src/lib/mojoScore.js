@@ -1,31 +1,32 @@
 /**
  * Minted Merch Mojo Score Calculator
- * 
+ *
  * A composite score (0-1) combining:
- * - Neynar Score (10%)
- * - Quotient Score (15%)
+ * - Neynar Score (20%)
  * - Staking Amount (20%)
  * - Holdings (5%)
- * - Purchase $ Amount (25%)
- * - Check-in Engagement (12%)
- * - Missions (10%)
- * - Mints (3%)
+ * - Staking Tenure (10%) — resets on full unstake
+ * - Purchases (20%)
+ * - Check-in Engagement (15%)
+ * - Missions (8%)
+ * - Mints (2%)
  */
 
 // Weights for each factor
 const WEIGHTS = {
-  neynar: 0.10,
-  quotient: 0.15,
+  neynar: 0.20,
   staking: 0.20,
   holdings: 0.05,
-  purchases: 0.25,
-  checkIns: 0.12,
-  missions: 0.10,
-  mints: 0.03,
+  tenure: 0.10,
+  purchases: 0.20,
+  checkIns: 0.15,
+  missions: 0.08,
+  mints: 0.02,
 };
 
 // Thresholds
 const STAKING_MAX = 2_000_000_000; // 2B tokens for 1.0
+const TENURE_MAX_DAYS = 365; // 1 year of continuous staking for 1.0
 const HOLDINGS_MAX = 2_000_000_000; // 2B tokens for 1.0
 const PURCHASE_MAX = 500; // $500 for 1.0
 const CHECKIN_DAYS = 100; // 100 days for 1.0
@@ -177,12 +178,24 @@ function calculateMintsScore(mintPoints) {
 }
 
 /**
+ * Calculate staking tenure score based on how long the user has been
+ * continuously staking. Resets to 0 if they ever fully unstaked.
+ * @param {number|null} tenureStartTimestamp - Unix timestamp (seconds) when current staking period began
+ */
+function calculateTenureScore(tenureStartTimestamp) {
+  if (!tenureStartTimestamp) return 0;
+  const now = Math.floor(Date.now() / 1000);
+  const daysSinceStart = (now - tenureStartTimestamp) / 86400;
+  return Math.min(1, Math.max(0, daysSinceStart / TENURE_MAX_DAYS));
+}
+
+/**
  * Calculate the full Mojo Score with breakdown
  * @param {Object} data - User data
  * @param {number} data.neynarScore - Neynar score (0-1)
- * @param {number} data.quotientScore - Quotient score (0-1)
  * @param {number} data.stakedBalance - Staked token balance
  * @param {number} data.totalBalance - Total token holdings
+ * @param {number|null} data.tenureStartTimestamp - Unix timestamp of current staking period start
  * @param {number} data.totalPurchaseAmount - Total $ spent on purchases
  * @param {number} data.checkInCount - Number of check-ins in last 100 days
  * @param {number} data.approvedMissions - Number of approved mission submissions
@@ -192,9 +205,9 @@ function calculateMintsScore(mintPoints) {
 export function calculateMojoScore(data) {
   const {
     neynarScore = 0,
-    quotientScore = 0,
     stakedBalance = 0,
     totalBalance = 0,
+    tenureStartTimestamp = null,
     totalPurchaseAmount = 0,
     checkInCount = 0,
     approvedMissions = 0,
@@ -208,11 +221,6 @@ export function calculateMojoScore(data) {
       normalized: Math.min(1, Math.max(0, neynarScore || 0)),
       weight: WEIGHTS.neynar,
     },
-    quotient: {
-      raw: quotientScore || 0,
-      normalized: Math.min(1, Math.max(0, quotientScore || 0)),
-      weight: WEIGHTS.quotient,
-    },
     staking: {
       raw: stakedBalance || 0,
       normalized: calculateTieredTokenScore(stakedBalance),
@@ -222,6 +230,11 @@ export function calculateMojoScore(data) {
       raw: totalBalance || 0,
       normalized: calculateTieredTokenScore(totalBalance),
       weight: WEIGHTS.holdings,
+    },
+    tenure: {
+      raw: tenureStartTimestamp || 0,
+      normalized: calculateTenureScore(tenureStartTimestamp),
+      weight: WEIGHTS.tenure,
     },
     purchases: {
       raw: totalPurchaseAmount || 0,

@@ -416,12 +416,8 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                           <p className="text-xs font-medium text-gray-500 mb-2">Score Breakdown</p>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                             <div className="bg-white p-2 rounded">
-                              <span className="text-gray-500">Neynar (10%)</span>
+                              <span className="text-gray-500">Neynar (20%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.neynar?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.neynar?.weighted || 0).toFixed(2)}</p>
-                            </div>
-                            <div className="bg-white p-2 rounded">
-                              <span className="text-gray-500">Quotient (15%)</span>
-                              <p className="font-medium">{(userData.mojo_breakdown.breakdown?.quotient?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.quotient?.weighted || 0).toFixed(2)}</p>
                             </div>
                             <div className="bg-white p-2 rounded">
                               <span className="text-gray-500">Staking (20%)</span>
@@ -434,22 +430,31 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                               <p className="text-gray-400">{formatTokenAmount(userData.mojo_breakdown.breakdown?.holdings?.raw || 0)}</p>
                             </div>
                             <div className="bg-white p-2 rounded">
-                              <span className="text-gray-500">Purchases (25%)</span>
+                              <span className="text-gray-500">Tenure (10%)</span>
+                              <p className="font-medium">{(userData.mojo_breakdown.breakdown?.tenure?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.tenure?.weighted || 0).toFixed(2)}</p>
+                              <p className="text-gray-400">
+                                {userData.mojo_breakdown.breakdown?.tenure?.raw
+                                  ? `${Math.floor((Date.now() / 1000 - userData.mojo_breakdown.breakdown.tenure.raw) / 86400)}d`
+                                  : '0d'}
+                              </p>
+                            </div>
+                            <div className="bg-white p-2 rounded">
+                              <span className="text-gray-500">Purchases (20%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.purchases?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.purchases?.weighted || 0).toFixed(2)}</p>
                               <p className="text-gray-400">${(userData.mojo_breakdown.breakdown?.purchases?.raw || 0).toFixed(2)}</p>
                             </div>
                             <div className="bg-white p-2 rounded">
-                              <span className="text-gray-500">Check-ins (12%)</span>
+                              <span className="text-gray-500">Check-ins (15%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.checkIns?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.checkIns?.weighted || 0).toFixed(2)}</p>
                               <p className="text-gray-400">{userData.mojo_breakdown.breakdown?.checkIns?.raw || 0}/100 days</p>
                             </div>
                             <div className="bg-white p-2 rounded">
-                              <span className="text-gray-500">Missions (10%)</span>
+                              <span className="text-gray-500">Missions (8%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.missions?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.missions?.weighted || 0).toFixed(2)}</p>
                               <p className="text-gray-400">{userData.mojo_breakdown.breakdown?.missions?.raw || 0}/35</p>
                             </div>
                             <div className="bg-white p-2 rounded">
-                              <span className="text-gray-500">Mints (3%)</span>
+                              <span className="text-gray-500">Mints (2%)</span>
                               <p className="font-medium">{(userData.mojo_breakdown.breakdown?.mints?.normalized || 0).toFixed(2)} → {(userData.mojo_breakdown.breakdown?.mints?.weighted || 0).toFixed(2)}</p>
                               <p className="text-gray-400">{(userData.mojo_breakdown.breakdown?.mints?.raw || 0).toLocaleString()}/30K</p>
                             </div>
@@ -472,18 +477,17 @@ export default function UserModal({ isOpen, onClose, userFid }) {
                         </p>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-600">Quotient Score</label>
+                        <label className="text-sm font-medium text-gray-600">Staking Tenure</label>
                         <p className={`font-medium ${
-                          parseFloat(userData.quotient_score) >= 0.9 ? 'text-purple-600' :
-                          parseFloat(userData.quotient_score) >= 0.8 ? 'text-blue-600' : 
-                          parseFloat(userData.quotient_score) >= 0.75 ? 'text-green-600' : 
-                          parseFloat(userData.quotient_score) >= 0.6 ? 'text-yellow-600' : 
-                          parseFloat(userData.quotient_score) >= 0.5 ? 'text-orange-600' : 
-                          userData.quotient_score ? 'text-red-600' : 'text-gray-600'
+                          userData.staking_tenure_days >= 180 ? 'text-purple-600' :
+                          userData.staking_tenure_days >= 90 ? 'text-blue-600' :
+                          userData.staking_tenure_days >= 30 ? 'text-green-600' :
+                          userData.staking_tenure_days > 0 ? 'text-yellow-600' :
+                          'text-gray-600'
                         }`}>
-                          {userData.quotient_score !== null && userData.quotient_score !== undefined 
-                            ? parseFloat(userData.quotient_score).toFixed(2) 
-                            : 'N/A'}
+                          {userData.staking_tenure_days !== null && userData.staking_tenure_days !== undefined
+                            ? `${userData.staking_tenure_days} days`
+                            : 'Not staking'}
                         </p>
                       </div>
                       <div>

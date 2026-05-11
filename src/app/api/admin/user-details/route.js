@@ -360,18 +360,6 @@ export const GET = withAdminAuth(async (request, context) => {
     // Get mint points from leaderboard (already fetched above)
     const mintPoints = leaderboard?.points_from_mints || 0;
 
-    // Calculate Mojo Score breakdown for display
-    const mojoBreakdown = calculateMojoScore({
-      neynarScore: parseFloat(profile.neynar_score) || 0,
-      quotientScore: parseFloat(profile.quotient_score) || 0,
-      stakedBalance: parseFloat(profile.staked_balance) || 0,
-      totalBalance: parseFloat(profile.token_balance) || 0,
-      totalPurchaseAmount: totalSpent,
-      checkInCount: checkInCount || 0,
-      approvedMissions: approvedMissionsCount || 0,
-      mintPoints: mintPoints,
-    });
-
     // Group point transactions by type
     const pointStats = pointTransactions?.reduce((stats, transaction) => {
       const type = transaction.transaction_type;
@@ -403,6 +391,21 @@ export const GET = withAdminAuth(async (request, context) => {
       console.error('Error parsing wallet addresses:', error);
     }
 
+    // Read tenure from cached profile value (updated at each user login via register-user)
+    const tenureStartTimestamp = profile.staking_tenure_start || null;
+
+    // Calculate Mojo Score breakdown for display
+    const mojoBreakdown = calculateMojoScore({
+      neynarScore: parseFloat(profile.neynar_score) || 0,
+      stakedBalance: parseFloat(profile.staked_balance) || 0,
+      totalBalance: parseFloat(profile.token_balance) || 0,
+      tenureStartTimestamp,
+      totalPurchaseAmount: totalSpent,
+      checkInCount: checkInCount || 0,
+      approvedMissions: approvedMissionsCount || 0,
+      mintPoints: mintPoints,
+    });
+
     // Format response
     const userData = {
       // Basic profile info
@@ -426,6 +429,10 @@ export const GET = withAdminAuth(async (request, context) => {
       quotient_score: profile.quotient_score,
       mojo_score: profile.mojo_score,
       mojo_breakdown: mojoBreakdown,
+      staking_tenure_start: tenureStartTimestamp,
+      staking_tenure_days: tenureStartTimestamp
+        ? Math.floor((Date.now() / 1000 - tenureStartTimestamp) / 86400)
+        : null,
 
       // Notifications
       has_notifications: profile.has_notifications,

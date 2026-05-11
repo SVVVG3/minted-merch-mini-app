@@ -9,6 +9,7 @@ import { fetchUserProfile } from '@/lib/neynar';
 import { getAuthenticatedFid, requireOwnFid } from '@/lib/userAuth';
 import { getQuotientScoreForFid } from '@/lib/quotient';
 import { calculateMojoScore } from '@/lib/mojoScore';
+import { getStakingTenureStart } from '@/lib/stakingBalanceAPI';
 
 export async function POST(request) {
   try {
@@ -380,11 +381,21 @@ export async function POST(request) {
       
       const mintPoints = leaderboardData?.points_from_mints || 0;
       
+      // Fetch staking tenure start from on-chain history
+      let tenureStartTimestamp = null;
+      let tenureFetched = false;
+      try {
+        tenureStartTimestamp = await getStakingTenureStart(allWalletAddresses);
+        tenureFetched = true;
+      } catch (tenureError) {
+        console.log('⚠️ Could not fetch staking tenure:', tenureError.message);
+      }
+
       console.log('📊 Mojo Score inputs:', {
         neynarScore: walletData?.neynar_score || 0,
-        quotientScore: quotientScore || 0,
         stakedBalance: parseFloat(existingProfile?.staked_balance) || 0,
         totalBalance: parseFloat(existingProfile?.token_balance) || 0,
+        tenureStartTimestamp,
         totalPurchaseAmount,
         checkInCount: checkInCount || 0,
         approvedMissions: approvedMissions || 0,
@@ -394,9 +405,9 @@ export async function POST(request) {
       // Calculate Mojo Score
       const mojoResult = calculateMojoScore({
         neynarScore: walletData?.neynar_score || 0,
-        quotientScore: quotientScore || 0,
         stakedBalance: parseFloat(existingProfile?.staked_balance) || 0,
         totalBalance: parseFloat(existingProfile?.token_balance) || 0,
+        tenureStartTimestamp,
         totalPurchaseAmount,
         checkInCount: checkInCount || 0,
         approvedMissions: approvedMissions || 0,
@@ -404,7 +415,11 @@ export async function POST(request) {
       });
       
       profileData.mojo_score = mojoResult.score;
-      console.log('🎯 Mojo Score calculated:', mojoResult.score, 'Breakdown:', JSON.stringify(mojoResult.breakdown));
+      // Only update tenure in DB if the query actually succeeded (don't overwrite cached value on API failure)
+      if (tenureFetched) {
+        profileData.staking_tenure_start = tenureStartTimestamp;
+      }
+      console.log('🎯 Mojo Score calculated:', mojoResult.score, 'Tenure start:', tenureStartTimestamp, 'Breakdown:', JSON.stringify(mojoResult.breakdown));
       
     } catch (mojoError) {
       console.log('⚠️ Could not calculate Mojo score:', mojoError.message);

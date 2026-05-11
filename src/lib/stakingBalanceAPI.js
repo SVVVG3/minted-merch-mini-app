@@ -556,6 +556,91 @@ export async function getUnclaimedRewards() {
 }
 
 /**
+ * Get the start timestamp of the user's current staking period.
+ * Resets whenever the combined staked balance drops to zero (full unstake).
+ * @param {Array<string>} walletAddresses - User's wallet addresses
+ * @returns {Promise<number|null>} Unix timestamp (seconds) when current staking period began, or null
+ */
+export async function getStakingTenureStart(walletAddresses) {
+  if (!walletAddresses || walletAddresses.length === 0) return null;
+
+  const normalizedAddresses = walletAddresses
+    .filter(addr => typeof addr === 'string' && addr.startsWith('0x'))
+    .map(addr => addr.toLowerCase());
+
+  if (normalizedAddresses.length === 0) return null;
+
+  try {
+    const query = `
+      query GetStakingHistory($addresses: [String!]!) {
+        stakerBalances(
+          where: { staker_in: $addresses }
+          orderBy: timestamp_
+          orderDirection: asc
+          first: 1000
+        ) {
+          staker
+          balance
+          timestamp_
+        }
+      }
+    `;
+
+    const response = await fetch(GOLDSKY_GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, variables: { addresses: normalizedAddresses } })
+    });
+
+    const result = await response.json();
+    if (result.errors) throw new Error(JSON.stringify(result.errors));
+
+    const events = result.data?.stakerBalances || [];
+
+    // Group events by wallet (already sorted ascending by timestamp)
+    const walletEvents = new Map();
+    for (const event of events) {
+      const wallet = event.staker.toLowerCase();
+      if (!walletEvents.has(wallet)) walletEvents.set(wallet, []);
+      walletEvents.get(wallet).push({
+        balance: weiToTokens(event.balance),
+        timestamp: parseInt(event.timestamp_)
+      });
+    }
+
+    // For each wallet, find when the current staking period started.
+    // A new period starts when balance goes from 0 → > 0.
+    // A period ends when balance hits 0 (full unstake).
+    let earliestCurrentStart = null;
+
+    for (const [, walletHistory] of walletEvents) {
+      let currentPeriodStart = null;
+
+      for (const entry of walletHistory) {
+        if (entry.balance > 0 && currentPeriodStart === null) {
+          currentPeriodStart = entry.timestamp;
+        } else if (entry.balance === 0) {
+          currentPeriodStart = null;
+        }
+      }
+
+      if (currentPeriodStart !== null) {
+        if (earliestCurrentStart === null || currentPeriodStart < earliestCurrentStart) {
+          earliestCurrentStart = currentPeriodStart;
+        }
+      }
+    }
+
+    console.log(`📊 Staking tenure start: ${earliestCurrentStart ? new Date(earliestCurrentStart * 1000).toISOString() : 'not staking'}`);
+    return earliestCurrentStart;
+
+  } catch (error) {
+    console.error('📊 Error fetching staking tenure start:', error);
+    return null;
+  }
+}
+
+/**
  * Get detailed staking info for a user - uses RPC for balances
  * @param {Array<string>} walletAddresses - User's wallet addresses
  * @returns {Promise<Object>} Detailed staking info
