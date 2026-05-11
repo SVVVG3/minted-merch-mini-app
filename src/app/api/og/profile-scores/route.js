@@ -31,7 +31,6 @@ export async function GET(request) {
     const username = searchParams.get('username') || 'User';
     const pfpUrl = searchParams.get('pfpUrl');
     const neynarScore = searchParams.get('neynar') || '0.00';
-    const quotientScore = searchParams.get('quotient') || '0.00';
     const mojoScore = searchParams.get('mojo') || '0.00';
     const stakedBalance = parseFloat(searchParams.get('staked') || '0');
     
@@ -41,7 +40,6 @@ export async function GET(request) {
     
     // Format scores to 2 decimal places
     const formattedNeynar = parseFloat(neynarScore).toFixed(2);
-    const formattedQuotient = parseFloat(quotientScore).toFixed(2);
     const formattedMojo = parseFloat(mojoScore).toFixed(2);
     
     // Color coding for scores
@@ -49,15 +47,6 @@ export async function GET(request) {
       const s = parseFloat(score);
       if (s >= 0.9) return '#22c55e'; // green
       if (s >= 0.6) return '#eab308'; // yellow
-      return '#ef4444'; // red
-    };
-    
-    const getQuotientColor = (score) => {
-      const s = parseFloat(score);
-      if (s >= 0.9) return '#a855f7'; // purple
-      if (s >= 0.8) return '#3b82f6'; // blue
-      if (s >= 0.7) return '#22c55e'; // green
-      if (s >= 0.5) return '#eab308'; // yellow
       return '#ef4444'; // red
     };
     
@@ -284,32 +273,6 @@ export async function GET(request) {
                   </span>
                 </div>
 
-                {/* Quotient Score */}
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    background: 'rgba(255,255,255,0.08)',
-                    borderRadius: '16px',
-                    padding: '16px 28px',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                  }}
-                >
-                  <span style={{ color: '#9ca3af', fontSize: '18px', marginBottom: '6px', display: 'flex' }}>
-                    Quotient
-                  </span>
-                  <span
-                    style={{
-                      color: getQuotientColor(formattedQuotient),
-                      fontSize: '44px',
-                      fontWeight: 'bold',
-                      display: 'flex',
-                    }}
-                  >
-                    {formattedQuotient}
-                  </span>
-                </div>
               </div>
             </div>
           </div>

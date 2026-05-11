@@ -188,12 +188,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
       scoresText += scoresText ? ' | ' : '';
       scoresText += `Neynar: ${parseFloat(profileData.neynar_score).toFixed(2)}`;
     }
-    if (profileData?.quotient_score) {
-      scoresText += scoresText ? ' | ' : '';
-      scoresText += `Quotient: ${parseFloat(profileData.quotient_score).toFixed(2)}`;
-    }
-    
-    const shareText = `Just checked my Minted Merch Mojo, Neynar, & Quotient scores on /mintedmerch:\n\n${scoresText}\n\nSee yours on the $mintedmerch mini app 👇`;
+    const shareText = `Just checked my Minted Merch Mojo & Neynar scores on /mintedmerch:\n\n${scoresText}\n\nSee yours on the $mintedmerch mini app 👇`;
     
     if (method === 'copy') {
       try {
@@ -623,7 +618,7 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-white/80 text-xs">FID: {user?.fid}</span>
                   {/* Share Button */}
-                  {(profileData?.neynar_score || profileData?.quotient_score) && (
+                  {profileData?.neynar_score && (
                     <div className="relative" ref={shareDropdownRef}>
                       <button
                         onClick={() => setShowShareDropdown(!showShareDropdown)}
@@ -686,11 +681,6 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
               {profileData?.neynar_score !== null && profileData?.neynar_score !== undefined && (
                 <span className="px-1.5 py-0.5 bg-white/20 rounded-full text-xs text-white/80 whitespace-nowrap">
                   Neynar: {parseFloat(profileData.neynar_score).toFixed(2)}
-                </span>
-              )}
-              {profileData?.quotient_score !== null && profileData?.quotient_score !== undefined && (
-                <span className="px-1.5 py-0.5 bg-white/20 rounded-full text-xs text-white/80 whitespace-nowrap">
-                  Quotient: {parseFloat(profileData.quotient_score).toFixed(2)}
                 </span>
               )}
             </div>
