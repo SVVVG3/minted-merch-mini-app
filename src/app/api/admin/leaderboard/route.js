@@ -33,7 +33,7 @@ export const GET = withAdminAuth(async (request, context) => {
         
         const { data: pageData, error } = await supabaseAdmin
           .from('profiles')
-          .select('fid, username, display_name, pfp_url, token_balance, wallet_balance, staked_balance, token_balance_updated_at, neynar_score, quotient_score, mojo_score')
+          .select('fid, username, display_name, pfp_url, token_balance, wallet_balance, staked_balance, token_balance_updated_at, neynar_score, quotient_score, mojo_score, staking_tenure_start')
           .gt('token_balance', 0)
           .order('token_balance', { ascending: false })
           .range(startRange, endRange);
@@ -119,7 +119,8 @@ export const GET = withAdminAuth(async (request, context) => {
             staked_balance,
             neynar_score,
             quotient_score,
-            mojo_score
+            mojo_score,
+            staking_tenure_start
           )
         `);
 
@@ -207,6 +208,12 @@ export const GET = withAdminAuth(async (request, context) => {
       
       // Use cached staked_balance from profiles table (updated via RPC when user opens app)
       const stakedBalance = profile.staked_balance || 0;
+
+      // Compute tenure days from the cached start timestamp (Unix seconds)
+      const tenureStart = profile.staking_tenure_start || null;
+      const tenureDays = tenureStart
+        ? Math.max(0, Math.floor((Date.now() / 1000 - Number(tenureStart)) / 86400))
+        : 0;
       
       return {
         // Normalize the data structure
@@ -222,6 +229,7 @@ export const GET = withAdminAuth(async (request, context) => {
         neynar_score: profile.neynar_score || null,
         quotient_score: profile.quotient_score || null,
         mojo_score: profile.mojo_score || null,
+        tenure_days: tenureDays,
         // Leaderboard stats (may be 0 for users without leaderboard activity)
         total_points: multiplierResult.multipliedPoints,
         base_points: basePoints,
@@ -260,6 +268,8 @@ export const GET = withAdminAuth(async (request, context) => {
           return (parseFloat(b.token_balance || 0)) - (parseFloat(a.token_balance || 0));
         case 'staked_balance':
           return (parseFloat(b.staked_balance || 0)) - (parseFloat(a.staked_balance || 0));
+        case 'tenure_days':
+          return (b.tenure_days || 0) - (a.tenure_days || 0);
         default:
           if (isHoldingsQuery) {
             return (parseFloat(b.token_balance || 0)) - (parseFloat(a.token_balance || 0));

@@ -2627,6 +2627,12 @@ export default function AdminDashboard() {
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('tenure_days')}
+                    >
+                      Tenure {sortField === 'tenure_days' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('total_orders')}
                     >
                       Orders {sortField === 'total_orders' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -2724,6 +2730,17 @@ export default function AdminDashboard() {
                           user.neynar_score ? 'text-red-600' : 'text-gray-400'
                         }`}>
                           {user.neynar_score ? parseFloat(user.neynar_score).toFixed(2) : '-'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={`font-medium ${
+                          (user.tenure_days || 0) >= 180 ? 'text-purple-600' :
+                          (user.tenure_days || 0) >= 90  ? 'text-blue-600' :
+                          (user.tenure_days || 0) >= 30  ? 'text-green-600' :
+                          (user.tenure_days || 0) > 0    ? 'text-yellow-600' :
+                          'text-gray-400'
+                        }`}>
+                          {(user.tenure_days || 0) > 0 ? `${user.tenure_days}d` : '-'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.total_orders || 0}</td>

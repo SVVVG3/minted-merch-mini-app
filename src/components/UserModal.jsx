@@ -33,6 +33,7 @@ export default function UserModal({ isOpen, onClose, userFid }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [updatingOrder, setUpdatingOrder] = useState(null);
   
   // Vendor payout modal state
@@ -67,6 +68,26 @@ export default function UserModal({ isOpen, onClose, userFid }) {
       setError('Network error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFullRefresh = async () => {
+    if (!userFid || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const response = await adminFetch('/api/admin/full-refresh-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fid: userFid })
+      });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error || 'Refresh failed');
+      // Reload the modal data to reflect all updates
+      await fetchUserData();
+    } catch (err) {
+      setError(`Refresh failed: ${err.message}`);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -304,12 +325,24 @@ export default function UserModal({ isOpen, onClose, userFid }) {
               <p className="text-sm text-gray-600">FID: {userData?.fid}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
-          >
-            ×
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleFullRefresh}
+              disabled={isRefreshing || loading}
+              className="flex items-center gap-1.5 bg-[#3eb489] hover:bg-[#2d9970] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <svg className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         {loading && (
