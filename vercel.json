@@ -17,10 +17,6 @@
     {
       "path": "/api/notifications/staking-reminder",
       "schedule": "0 21 * * *"
-    },
-    {
-      "path": "/api/cron/update-chat-balances",
-      "schedule": "0 9 * * *"
     }
   ]
 }
