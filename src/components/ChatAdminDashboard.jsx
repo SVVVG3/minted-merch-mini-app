@@ -208,41 +208,44 @@ export function ChatAdminDashboard({ onOpenUserModal }) {
     setUpdatingUsers(prev => new Set(prev).add(fid));
     
     try {
-      console.log(`🔄 Updating balance for individual user FID: ${fid} (${username})`);
+      console.log(`🔄 Full refresh for FID: ${fid} (${username})`);
       
-      const response = await adminFetch('/api/admin/update-individual-balance', {
+      const response = await adminFetch('/api/admin/full-refresh-user', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fid })
       });
 
       const result = await response.json();
 
       if (result.success) {
-        console.log(`✅ Successfully updated balance for ${username}: ${result.tokenBalance} tokens`);
-        console.log(`🎫 Eligibility status: ${result.eligible ? 'ELIGIBLE' : 'INELIGIBLE'}`);
+        const u = result.updates;
+        console.log(`✅ Full refresh complete for ${username}`, u);
         
-        // Add a small delay to ensure database transaction is committed
-        console.log('⏳ Waiting 1 second for database transaction to commit...');
+        // Small delay to ensure DB transaction is committed before re-fetching
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Refresh the display to show updated balance
-        console.log('🔄 Refreshing chat members display...');
         await loadChatMembers();
         
-        // Show success message
-        alert(`✅ Updated balance for ${username}!\n\nNew Balance: ${result.tokenBalance.toLocaleString()} tokens\nEligible: ${result.eligible ? 'Yes' : 'No'}`);
+        const lines = [
+          `✅ Full refresh complete for ${username}!`,
+          '',
+          `💰 Token Balance: ${u.tokenBalance.toLocaleString()} $MINTEDMERCH`,
+          `🎫 Chat Eligible: ${u.eligible ? 'Yes' : 'No'}`,
+          `⭐ Neynar Score: ${u.neynarScore ?? 'n/a'}`,
+          `🎯 Mojo Score: ${u.mojoScore ?? 'n/a'}`,
+          `🏦 Bankr Club: ${u.bankrClubMember ? 'Yes' : 'No'}`,
+          `👛 Wallets: ${u.walletCount}`,
+          `⏱️ Duration: ${(result.duration / 1000).toFixed(1)}s`,
+        ];
+        alert(lines.join('\n'));
       } else {
-        throw new Error(result.error || 'Failed to update balance');
+        throw new Error(result.error || 'Failed to refresh user');
       }
 
     } catch (error) {
-      console.error(`❌ Error updating balance for ${username}:`, error);
-      alert(`Error updating balance for ${username}: ${error.message}`);
+      console.error(`❌ Error refreshing ${username}:`, error);
+      alert(`Error refreshing ${username}: ${error.message}`);
     } finally {
-      // Remove user from updating set
       setUpdatingUsers(prev => {
         const newSet = new Set(prev);
         newSet.delete(fid);
