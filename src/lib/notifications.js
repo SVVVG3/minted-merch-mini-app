@@ -96,7 +96,7 @@ export async function getUsersWithStakedBalances() {
         .from('profiles')
         .select('fid, staked_balance, last_staking_reminder_sent_date')
         .eq('has_notifications', true)
-        .gt('staked_balance', 0)
+        .gte('staked_balance', 1000000)
         .order('fid', { ascending: true })
         .range(from, from + batchSize - 1);
 
