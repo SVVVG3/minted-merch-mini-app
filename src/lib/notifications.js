@@ -247,12 +247,6 @@ export async function sendStakingReminders() {
       if (successfulFids.length > 0) {
         await logBatchNotificationsSent(successfulFids, 'staking_reminder');
       }
-
-      // Log Neynar's aggregate delivery stats for credit monitoring
-      if (batchResult.stats) {
-        const { successCount, failureCount, notAttemptedCount } = batchResult.stats;
-        console.log(`📊 Neynar delivery stats: ${successCount} delivered, ${failureCount} failed, ${notAttemptedCount} not attempted (no active token)`);
-      }
     } else {
       allResults.push(...allFids.map(fid => ({
         success: false,
@@ -266,10 +260,10 @@ export async function sendStakingReminders() {
     const actualFailures = allResults.filter(r => !r.success).length;
 
     console.log(`📊 Staking reminder results:`);
-    console.log(`   ✅ FIDs marked as sent: ${actuallySent}`);
-    console.log(`   ⏭️  Skipped: ${skippedCount}`);
+    console.log(`   ✅ Successfully sent: ${actuallySent}`);
+    console.log(`   ⏭️  Skipped (notifications disabled): ${skippedCount}`);
     console.log(`   ❌ Failed: ${actualFailures}`);
-    console.log(`   📱 Total FIDs in batch: ${allResults.length}`);
+    console.log(`   📱 Total: ${allResults.length}`);
 
     return {
       success: true,
