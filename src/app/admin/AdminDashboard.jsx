@@ -1721,7 +1721,7 @@ export default function AdminDashboard() {
     setTokenSyncLoading(true);
     setTokenSyncResult(null);
     try {
-      const res = await fetch('/api/admin/sync-notification-tokens', { method: 'POST' });
+      const res = await adminFetch('/api/admin/sync-notification-tokens', { method: 'POST' });
       const data = await res.json();
       setTokenSyncResult(data);
     } catch (err) {
