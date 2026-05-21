@@ -30,9 +30,27 @@ export async function POST(request) {
       pfpUrl: pfpUrl ? 'provided' : 'null/missing'
     });
 
-    // Check if user has notifications enabled (check this FIRST)
-    const hasNotifications = await hasNotificationTokenInNeynar(fid);
-    console.log('User has notifications enabled:', hasNotifications);
+    // Fetch existing profile FIRST so we can skip expensive Neynar checks for returning users
+    const { data: existingProfileEarly } = await supabaseAdmin
+      .from('profiles')
+      .select('has_notifications, welcome_notification_sent, notification_status_source')
+      .eq('fid', fid)
+      .single();
+
+    // Only call Neynar to check notification status if:
+    // 1. User is brand new (no existing profile), OR
+    // 2. User hasn't received a welcome notification yet (need live status to decide whether to send)
+    // For returning users who already got their welcome notification, use the cached DB value —
+    // the Neynar webhook event handler keeps has_notifications up to date when users toggle it.
+    let hasNotifications;
+    const needsLiveNotificationCheck = !existingProfileEarly || !existingProfileEarly.welcome_notification_sent;
+    if (needsLiveNotificationCheck) {
+      hasNotifications = await hasNotificationTokenInNeynar(fid);
+      console.log('User has notifications enabled (live Neynar check):', hasNotifications);
+    } else {
+      hasNotifications = existingProfileEarly.has_notifications || false;
+      console.log('User has notifications enabled (cached DB value):', hasNotifications);
+    }
 
     // Fetch wallet data from Neynar
     console.log('🔍 Fetching wallet data for user registration...');
@@ -194,9 +212,10 @@ export async function POST(request) {
 
     // Get existing profile to preserve certain fields if they exist
     // Also get staked_balance and token_balance for Mojo score calculation
+    // Re-fetch with full field set (existingProfileEarly only had notification fields)
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
-      .select('notification_status_source, pfp_url, username, display_name, bio, staked_balance, token_balance')
+      .select('notification_status_source, pfp_url, username, display_name, bio, staked_balance, token_balance, welcome_notification_sent')
       .eq('fid', fid)
       .single();
 
@@ -214,8 +233,15 @@ export async function POST(request) {
       // Use resolved pfp_url with fallback chain
       pfp_url: resolvedPfpUrl,
       has_notifications: hasNotifications, // ✅ Store notification status
-      notification_status_updated_at: new Date().toISOString(),
-      notification_status_source: existingProfile?.notification_status_source === 'farcaster_event' ? 'farcaster_event' : 'neynar_sync',
+      // Only update the status timestamp if we actually did a live Neynar check
+      ...(needsLiveNotificationCheck && {
+        notification_status_updated_at: new Date().toISOString(),
+        notification_status_source: 'neynar_sync',
+      }),
+      // Preserve 'farcaster_event' source if it was set by the webhook and we didn't re-check
+      ...(!needsLiveNotificationCheck && {
+        notification_status_source: existingProfile?.notification_status_source || 'cached',
+      }),
       updated_at: new Date().toISOString(),
       // Add Bankr Club membership data
       bankr_club_member: bankrMembershipData.bankr_club_member,

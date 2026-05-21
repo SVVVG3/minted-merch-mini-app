@@ -945,55 +945,39 @@ export async function sendBatchNotificationWithNeynar(userFids, message) {
       notification: notification
     });
 
-    console.log(`✅ Batch notification sent successfully to ${userFids.length} users`);
-    
-    // Parse response to get individual delivery statuses
-    const deliveries = response.notification_deliveries || [];
-    const results = userFids.map(fid => {
-      const delivery = deliveries.find(d => d.fid === fid);
-      
-      if (!delivery) {
-        return {
-          success: false,
-          userFid: fid,
-          error: 'No delivery status returned'
-        };
-      }
+    // Neynar returns aggregate counts, not per-FID delivery status:
+    // success_count, failure_count, not_attempted_count, retryable_fids, campaign_id
+    const successCount = response.success_count || 0;
+    const failureCount = response.failure_count || 0;
+    const notAttemptedCount = response.not_attempted_count || 0;
+    const retryableFids = response.retryable_fids || [];
 
-      // Check delivery status
-      if (delivery.status === 'success') {
-        return {
-          success: true,
-          userFid: fid,
-          notificationId: notification.uuid
-        };
-      } else if (delivery.status === 'token_disabled') {
-        return {
-          success: true,
-          skipped: true,
-          userFid: fid,
-          reason: 'Notifications disabled by user'
-        };
-      } else {
-        return {
-          success: false,
-          userFid: fid,
-          error: delivery.status || 'Unknown error'
-        };
-      }
-    });
+    console.log(`✅ Batch notification sent: ${successCount} delivered, ${failureCount} failed, ${notAttemptedCount} not attempted (no token)`);
+    if (retryableFids.length > 0) {
+      console.log(`🔄 Retryable FIDs: ${retryableFids.length}`);
+    }
+
+    // Treat all FIDs as successfully sent since the API call succeeded.
+    // Neynar handles token filtering internally — not_attempted means no active token.
+    // We mark all as sent so last_staking_reminder_sent_date is updated,
+    // preventing duplicate sends on the same day.
+    const results = userFids.map(fid => ({
+      success: true,
+      userFid: fid,
+      notificationId: notification.uuid
+    }));
 
     return {
       success: true,
       results: results,
-      notificationId: notification.uuid
+      notificationId: notification.uuid,
+      stats: { successCount, failureCount, notAttemptedCount, retryableFids }
     };
 
   } catch (error) {
     console.error('❌ Error sending batch notification via Neynar:', error);
     console.error('Full error details:', error.response?.data || error);
     
-    // Return error for all users
     return {
       success: false,
       error: error.message,
