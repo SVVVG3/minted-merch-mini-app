@@ -23,7 +23,7 @@ async function handler(request) {
     let pages = 0;
 
     do {
-      const params = new URLSearchParams({ limit: '150' });
+      const params = new URLSearchParams({ limit: '100' });
       if (cursor) params.set('cursor', cursor);
 
       const res = await fetch(
