@@ -73,6 +73,10 @@ export default function AdminDashboard() {
   const [checkinsLoading, setCheckinsLoading] = useState(false);
   const [checkinsError, setCheckinsError] = useState('');
 
+  // Notification token sync state
+  const [tokenSyncLoading, setTokenSyncLoading] = useState(false);
+  const [tokenSyncResult, setTokenSyncResult] = useState(null);
+
   // Daily Spins state
   const [dailySpinStats, setDailySpinStats] = useState(null);
   const [dailySpinTokenStats, setDailySpinTokenStats] = useState([]);
@@ -1712,6 +1716,21 @@ export default function AdminDashboard() {
     setShowNotificationConfirm(type);
   };
 
+  // Sync notification tokens: fetch active tokens from Neynar and update has_notifications in DB
+  const handleSyncNotificationTokens = async () => {
+    setTokenSyncLoading(true);
+    setTokenSyncResult(null);
+    try {
+      const res = await fetch('/api/admin/sync-notification-tokens', { method: 'POST' });
+      const data = await res.json();
+      setTokenSyncResult(data);
+    } catch (err) {
+      setTokenSyncResult({ success: false, error: err.message });
+    } finally {
+      setTokenSyncLoading(false);
+    }
+  };
+
   // Sync products from Shopify
   const syncProducts = async () => {
     setProductsSyncLoading(true);
@@ -2162,6 +2181,72 @@ export default function AdminDashboard() {
               ))}
             </div>
             
+            {/* Notification Token Sync */}
+            <div className="bg-white rounded-lg shadow p-6 mt-6">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">🔔 Notification Token Sync</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Syncs <code className="bg-gray-100 px-1 rounded text-xs">has_notifications</code> for all stakers against Neynar's live token list.
+                    Removes stale entries so the daily staking reminder only sends to users with active tokens (saves 100 credits per removed FID per run).
+                  </p>
+                </div>
+                <button
+                  onClick={handleSyncNotificationTokens}
+                  disabled={tokenSyncLoading}
+                  className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                >
+                  {tokenSyncLoading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                      </svg>
+                      Syncing...
+                    </>
+                  ) : '🔄 Sync Tokens'}
+                </button>
+              </div>
+
+              {tokenSyncResult && (
+                <div className={`mt-4 p-4 rounded-lg text-sm ${tokenSyncResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                  {tokenSyncResult.success ? (
+                    <div className="space-y-2">
+                      <div className="font-semibold text-green-800">✅ Sync complete</div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                        <div className="bg-white rounded p-2 text-center border border-green-100">
+                          <div className="text-lg font-bold text-gray-800">{tokenSyncResult.neynarActiveTokenFids?.toLocaleString()}</div>
+                          <div className="text-xs text-gray-500">Active tokens in Neynar</div>
+                        </div>
+                        <div className="bg-white rounded p-2 text-center border border-green-100">
+                          <div className="text-lg font-bold text-gray-800">{tokenSyncResult.activeStakersAfterSync?.toLocaleString()}</div>
+                          <div className="text-xs text-gray-500">Stakers to notify</div>
+                        </div>
+                        <div className="bg-white rounded p-2 text-center border border-green-100">
+                          <div className="text-lg font-bold text-red-600">{tokenSyncResult.disabled?.toLocaleString()}</div>
+                          <div className="text-xs text-gray-500">Stale entries removed</div>
+                        </div>
+                        <div className="bg-white rounded p-2 text-center border border-green-100">
+                          <div className="text-lg font-bold text-green-600">{tokenSyncResult.creditsSavedPerRun?.toLocaleString()}</div>
+                          <div className="text-xs text-gray-500">Credits saved per run</div>
+                        </div>
+                      </div>
+                      {tokenSyncResult.disabled > 0 && (
+                        <p className="text-green-700 text-xs mt-2">
+                          Saving ~{tokenSyncResult.creditsSavedPerMonth?.toLocaleString()} credits/month on daily staking reminders.
+                        </p>
+                      )}
+                      {tokenSyncResult.disabled === 0 && (
+                        <p className="text-green-700 text-xs mt-2">Your DB was already in sync — no stale entries found.</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-red-700">❌ Sync failed: {tokenSyncResult.error}</div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Last Raffle Info */}
             {dashboardStats?.lastRaffle && (
               <div className="bg-white rounded-lg shadow p-6 mt-6">
