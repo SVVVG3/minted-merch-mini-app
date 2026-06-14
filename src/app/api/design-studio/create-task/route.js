@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
-import { createMockupTask } from '@/lib/printfulMockup';
+import { createMockupTask, getPrintfiles } from '@/lib/printfulMockup';
 import { getProductConfig } from '@/lib/designStudioConfig';
 
 export async function POST(request) {
@@ -26,6 +26,38 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Color variant is required' }, { status: 400 });
     }
 
+    // Position is required by Printful. If the client didn't supply one (template
+    // failed to load in the browser), fetch the printfile dimensions server-side
+    // and build a default centered square position.
+    let resolvedPosition = position || null;
+    if (!resolvedPosition) {
+      try {
+        const printfilesData = await getPrintfiles(
+          productConfig.printfulProductId,
+          productConfig.technique || null
+        );
+        const printfiles = printfilesData?.printfiles || [];
+        if (printfiles.length > 0) {
+          const pf = printfiles[0];
+          const aw = pf.width;
+          const ah = pf.height;
+          // Center a design that fills 90% of the shorter dimension
+          const size = Math.round(Math.min(aw, ah) * 0.9);
+          resolvedPosition = {
+            area_width: aw,
+            area_height: ah,
+            width: size,
+            height: size,
+            top: Math.round((ah - size) / 2),
+            left: Math.round((aw - size) / 2),
+          };
+          console.log(`📐 Using default position from printfile (${aw}×${ah}) for ${productConfig.label}`);
+        }
+      } catch (pfError) {
+        console.warn('Could not fetch printfiles for default position:', pfError.message);
+      }
+    }
+
     const payload = {
       variant_ids: variantIds,
       format: 'png',
@@ -33,7 +65,7 @@ export async function POST(request) {
         {
           placement: productConfig.placement,
           image_url: imageUrl,
-          ...(position ? { position } : {}),
+          ...(resolvedPosition ? { position: resolvedPosition } : {}),
         },
       ],
     };
