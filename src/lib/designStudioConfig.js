@@ -40,7 +40,7 @@ export const DESIGN_STUDIO_PRODUCTS = [
     technique: 'EMBROIDERY',
     techniqueLabel: 'Embroidery',
     defaultScale: 0.45,        // Embroidery area is physically small — keep logos modest
-    note: 'Use a simple logo with NO background and 5 or fewer colors for best results.',
+    note: null,                // embroidery tip shown on the preview step instead
   },
 ];
 

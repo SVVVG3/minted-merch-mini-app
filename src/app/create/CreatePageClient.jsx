@@ -144,35 +144,34 @@ export function CreatePageClient() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Load flat ghost template images for every color after colors load ────
-  // One API call (no variantId) returns all templates + variantMapping so we
-  // can match each color's first variant to its colored flat product image.
+  // Fetches the mockup-generator template per color variant in parallel.
+  // Each individual call (with variantId) returns the color-specific flat image —
+  // the same mechanism that works reliably for the product picker thumbnail.
   useEffect(() => {
     if (!selectedProduct || colors.length === 0) return;
     setColorTemplates({});
 
     const effectiveTechnique = selectedTechnique || selectedProduct.technique;
-    const techParam = effectiveTechnique ? `?technique=${effectiveTechnique}` : '';
+    const techParam = effectiveTechnique ? `&technique=${effectiveTechnique}` : '';
 
-    fetch(`/api/design-studio/templates/${selectedProduct.printfulProductId}${techParam}`)
-      .then(r => r.json())
-      .then(data => {
-        const allTemplates = data.templates || [];
-        const variantMapping = data.variantMapping || [];
-        const map = {};
-        colors.forEach(color => {
+    Promise.all(
+      colors.map(async (color) => {
+        try {
           const vid = color.variantIds[0];
-          const mapping = variantMapping.find(m => m.variant_id === vid);
-          let tmplId = null;
-          if (mapping?.template_id) tmplId = mapping.template_id;
-          else if (Array.isArray(mapping?.templates) && mapping.templates.length > 0) tmplId = mapping.templates[0];
-          const tmpl = tmplId
-            ? allTemplates.find(t => t.template_id === tmplId)
-            : allTemplates[0];
-          if (tmpl?.image_url) map[color.name] = tmpl.image_url;
-        });
-        setColorTemplates(map);
+          const res = await fetch(
+            `/api/design-studio/templates/${selectedProduct.printfulProductId}?variantId=${vid}${techParam}`
+          );
+          const data = await res.json();
+          return { name: color.name, url: data.template?.image_url || null };
+        } catch {
+          return { name: color.name, url: null };
+        }
       })
-      .catch(() => {}); // non-critical — falls back to variant catalog images
+    ).then(results => {
+      const map = {};
+      results.forEach(r => { if (r.url) map[r.name] = r.url; });
+      setColorTemplates(map);
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colors, selectedProduct?.id, selectedTechnique]);
 
@@ -435,7 +434,7 @@ export function CreatePageClient() {
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-gray-900 text-lg">{product.label}</p>
                     {product.techniqueOptions ? (
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-600 flex-shrink-0">
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 flex-shrink-0">
                         DTG / Embroidery
                       </span>
                     ) : product.techniqueLabel ? (
