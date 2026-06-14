@@ -16,6 +16,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { useDgenWallet } from '@/lib/useDgenWallet';
 import { useWalletConnectContext } from './WalletConnectProvider';
 import { ShareDropdown } from './ShareDropdown';
+import Link from 'next/link';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
 import { sdk } from '@farcaster/miniapp-sdk';
 // Token-gating functions moved to API routes to avoid client-side Node.js imports
@@ -533,6 +534,17 @@ export function HomePage({ collection: initialCollection, products: initialProdu
               buttonText="Share"
             />
           )}
+
+          {/* Design Studio entry point */}
+          <Link
+            href="/create"
+            className="flex items-center justify-center w-12 h-12 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors flex-shrink-0"
+            title="Design Studio"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </Link>
         </div>
       </div>
       
