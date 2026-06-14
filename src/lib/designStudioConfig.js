@@ -15,6 +15,7 @@ export const DESIGN_STUDIO_PRODUCTS = [
     printfulProductId: 733,   // AS Colour 5001T
     placement: 'front',
     technique: null,           // DTG (default)
+    techniqueLabel: 'DTG Print',
     note: null,
   },
   {
@@ -24,6 +25,7 @@ export const DESIGN_STUDIO_PRODUCTS = [
     printfulProductId: 380,   // Cotton Heritage M2580
     placement: 'front',
     technique: null,           // DTG (default)
+    techniqueLabel: 'DTG Print',
     note: null,
   },
   {
@@ -33,7 +35,8 @@ export const DESIGN_STUDIO_PRODUCTS = [
     printfulProductId: 206,   // Yupoong 6245CM
     placement: 'front',
     technique: 'EMBROIDERY',
-    note: 'Hat designs use embroidery. Simple logos with few colors work best.',
+    techniqueLabel: 'Embroidery',
+    note: 'Simple logos with few colors work best.',
   },
 ];
 

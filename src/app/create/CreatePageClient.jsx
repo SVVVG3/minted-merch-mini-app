@@ -8,7 +8,7 @@ import { DESIGN_STUDIO_PRODUCTS } from '@/lib/designStudioConfig';
 
 export function CreatePageClient() {
   const router = useRouter();
-  const { user, getSessionToken, isInFarcaster } = useFarcaster();
+  const { user, getSessionToken, isInFarcaster, getPfpUrl } = useFarcaster();
 
   // ─── Step state ──────────────────────────────────────────────────────────
   const [step, setStep] = useState('product');
@@ -303,11 +303,18 @@ export function CreatePageClient() {
                 className="w-full flex items-center gap-4 bg-white border-2 border-gray-100 hover:border-[#3eb489] active:border-[#3eb489] rounded-2xl px-5 py-4 transition-all text-left shadow-sm"
               >
                 <span className="text-4xl">{product.emoji}</span>
-                <div>
-                  <p className="font-semibold text-gray-900 text-lg">{product.label}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-gray-900 text-lg">{product.label}</p>
+                    {product.techniqueLabel && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 flex-shrink-0">
+                        {product.techniqueLabel}
+                      </span>
+                    )}
+                  </div>
                   {product.note && <p className="text-xs text-gray-400 mt-0.5">{product.note}</p>}
                 </div>
-                <svg className="w-5 h-5 text-gray-300 ml-auto flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
@@ -415,6 +422,28 @@ export function CreatePageClient() {
           </button>
 
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileUpload(e.target.files?.[0])} />
+
+          {/* Profile picture shortcut */}
+          {getPfpUrl?.() && (
+            <button
+              onClick={() => {
+                setDesignUrl(getPfpUrl());
+                loadTemplate(selectedProduct, selectedColor);
+                setStep('preview');
+              }}
+              className="w-full max-w-sm flex items-center gap-3 bg-white border-2 border-gray-100 hover:border-[#3eb489] rounded-2xl px-4 py-3 transition-all mt-3"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={getPfpUrl()} alt="Your profile" className="w-10 h-10 rounded-full flex-shrink-0 object-cover" />
+              <div className="text-left">
+                <p className="font-medium text-gray-700 text-sm">Use My Profile Picture</p>
+                <p className="text-xs text-gray-400">@{user?.username || 'you'}</p>
+              </div>
+              <svg className="w-4 h-4 text-gray-300 ml-auto flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
 
           {/* Divider */}
           <div className="flex items-center w-full max-w-sm my-4">
