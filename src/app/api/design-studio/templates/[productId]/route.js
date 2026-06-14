@@ -11,36 +11,32 @@ export async function GET(request, { params }) {
     const { productId } = await params;
     const data = await getLayoutTemplates(productId, technique || null);
 
-    console.log(`🖼️ Templates raw response for product ${productId}:`, JSON.stringify(data)?.substring(0, 500));
-
-    // Printful may return templates in two possible shapes:
-    //   A) { templates: [...], variant_mapping: [{ variant_id, template_id }] }
-    //   B) { variant_mapping: [{ variant_id, templates: [...] }] }
-    // Handle both.
     const topLevelTemplates = data?.templates || [];
     const variantMapping = data?.variant_mapping || [];
+    console.log(`🖼️ Templates for product ${productId}: ${topLevelTemplates.length} templates, ${variantMapping.length} mappings. First mapping:`, JSON.stringify(variantMapping[0])?.substring(0, 200));
 
     // If a specific variantId is requested, find the matching template
     if (variantId) {
       const vid = parseInt(variantId);
 
-      // Shape A: variant_mapping entry has a template_id pointing to top-level templates array
-      const mappingA = variantMapping.find(m => m.variant_id === vid);
-      if (mappingA?.template_id) {
-        const template = topLevelTemplates.find(t => t.template_id === mappingA.template_id);
+      const mapping = variantMapping.find(m => m.variant_id === vid);
+
+      // Shape A: mapping has a template_id field
+      if (mapping?.template_id) {
+        const template = topLevelTemplates.find(t => t.template_id === mapping.template_id);
         if (template) return NextResponse.json({ success: true, template });
       }
 
-      // Shape B: variant_mapping entry has an inline templates array
-      if (mappingA?.templates?.length > 0) {
-        const tmplId = mappingA.templates[0];
-        const template = topLevelTemplates.find(t => t.template_id === tmplId) || null;
-        return NextResponse.json({ success: true, template });
+      // Shape B: mapping has a templates array of IDs
+      if (Array.isArray(mapping?.templates) && mapping.templates.length > 0) {
+        const tmplId = mapping.templates[0];
+        const template = topLevelTemplates.find(t => t.template_id === tmplId);
+        if (template) return NextResponse.json({ success: true, template });
       }
 
-      // Fallback: return first available template
+      // Fallback: return first available template regardless of variant
       const fallback = topLevelTemplates[0] || null;
-      console.log(`⚠️ No exact template match for variantId ${vid}, using fallback:`, fallback?.template_id);
+      console.log(`⚠️ No exact template match for variantId ${vid} (found mapping: ${!!mapping}), using fallback:`, fallback?.template_id);
       return NextResponse.json({ success: true, template: fallback });
     }
 

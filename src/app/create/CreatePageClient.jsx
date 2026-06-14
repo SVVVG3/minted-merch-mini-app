@@ -6,14 +6,11 @@ import { sdk } from '@farcaster/miniapp-sdk';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { DESIGN_STUDIO_PRODUCTS } from '@/lib/designStudioConfig';
 
-// ─── Step constants ────────────────────────────────────────────────────────
-const STEPS = ['product', 'color', 'upload', 'preview', 'generating', 'result'];
-
 export function CreatePageClient() {
   const router = useRouter();
   const { user, getSessionToken, isInFarcaster } = useFarcaster();
 
-  // ─── State ──────────────────────────────────────────────────────────────
+  // ─── Step state ──────────────────────────────────────────────────────────
   const [step, setStep] = useState('product');
 
   // Product
@@ -22,7 +19,7 @@ export function CreatePageClient() {
   // Color / variants
   const [colors, setColors] = useState([]);
   const [colorsLoading, setColorsLoading] = useState(false);
-  const [selectedColor, setSelectedColor] = useState(null); // { name, code, variantIds }
+  const [selectedColor, setSelectedColor] = useState(null);
 
   // Image upload
   const [designUrl, setDesignUrl] = useState('');
@@ -33,7 +30,10 @@ export function CreatePageClient() {
   // Template / live preview
   const [template, setTemplate] = useState(null);
   const [templateLoading, setTemplateLoading] = useState(false);
-  const [designScale, setDesignScale] = useState(1.0);
+
+  // Design placement + scale
+  const [designPlacement, setDesignPlacement] = useState('center'); // 'center' | 'leftchest'
+  const [designScale, setDesignScale] = useState(0.9);
 
   // Generation
   const [taskKey, setTaskKey] = useState('');
@@ -43,10 +43,54 @@ export function CreatePageClient() {
   // Result
   const [mockupUrl, setMockupUrl] = useState('');
 
+  // Mockup history
+  const [myMockups, setMyMockups] = useState([]);
+  const [mockupsLoading, setMockupsLoading] = useState(false);
+
   // Errors
   const [error, setError] = useState('');
 
-  // ─── Fetch colors when product selected ─────────────────────────────────
+  // ─── Load user's past mockups ─────────────────────────────────────────────
+  const loadMyMockups = useCallback(async () => {
+    const sessionToken = getSessionToken();
+    if (!sessionToken) return;
+    setMockupsLoading(true);
+    try {
+      const res = await fetch('/api/design-studio/my-mockups', {
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      const data = await res.json();
+      if (data.success) setMyMockups(data.mockups || []);
+    } catch {
+      // non-critical, ignore
+    } finally {
+      setMockupsLoading(false);
+    }
+  }, [getSessionToken]);
+
+  useEffect(() => {
+    if (user?.fid) loadMyMockups();
+  }, [user?.fid, loadMyMockups]);
+
+  // ─── Save mockup to DB when result arrives ────────────────────────────────
+  useEffect(() => {
+    if (!mockupUrl || step !== 'result') return;
+    const sessionToken = getSessionToken();
+    if (!sessionToken) return;
+    fetch('/api/design-studio/save-mockup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+      body: JSON.stringify({
+        mockupUrl,
+        productType: selectedProduct?.id,
+        colorName: selectedColor?.name,
+      }),
+    })
+      .then(() => loadMyMockups())
+      .catch(console.error);
+  }, [mockupUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Fetch colors when product selected ──────────────────────────────────
   const loadColors = useCallback(async (product) => {
     setColorsLoading(true);
     setColors([]);
@@ -64,36 +108,36 @@ export function CreatePageClient() {
     }
   }, []);
 
-  // ─── Fetch template when color selected ─────────────────────────────────
+  // ─── Fetch template for live preview ─────────────────────────────────────
   const loadTemplate = useCallback(async (product, color) => {
     setTemplateLoading(true);
     setTemplate(null);
-    setError('');
     try {
-      // Use the first variant ID for this color
       const variantId = color.variantIds[0];
       const technique = product.technique ? `&technique=${product.technique}` : '';
+      console.log(`🔍 Loading template for product ${product.printfulProductId}, variantId ${variantId}`);
       const res = await fetch(
         `/api/design-studio/templates/${product.printfulProductId}?variantId=${variantId}${technique}`
       );
       const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Failed to load template');
-      setTemplate(data.template);
+      if (data.template) {
+        console.log('✅ Template loaded:', data.template.template_id, `${data.template.template_width}×${data.template.template_height}`);
+        setTemplate(data.template);
+      } else {
+        console.warn('⚠️ No template returned:', data.error || 'unknown reason');
+      }
     } catch (err) {
-      setError(`Could not load product preview: ${err.message}`);
+      console.error('Template load error:', err.message);
     } finally {
       setTemplateLoading(false);
     }
   }, []);
 
-  // ─── File upload handler ─────────────────────────────────────────────────
+  // ─── File upload handler ──────────────────────────────────────────────────
   const handleFileUpload = async (file) => {
     if (!file) return;
     const sessionToken = getSessionToken();
-    if (!sessionToken) {
-      setError('Please sign in to upload a design.');
-      return;
-    }
+    if (!sessionToken) { setError('Please sign in to upload a design.'); return; }
     setIsUploading(true);
     setError('');
     try {
@@ -107,7 +151,7 @@ export function CreatePageClient() {
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Upload failed');
       setDesignUrl(data.url);
-      await loadTemplate(selectedProduct, selectedColor);
+      loadTemplate(selectedProduct, selectedColor); // async, don't await — go to preview immediately
       setStep('preview');
     } catch (err) {
       setError(`Upload failed: ${err.message}`);
@@ -116,68 +160,52 @@ export function CreatePageClient() {
     }
   };
 
-  // ─── URL paste handler ───────────────────────────────────────────────────
+  // ─── URL paste handler ────────────────────────────────────────────────────
   const handleUrlSubmit = async () => {
     if (!pasteUrl.trim()) return;
     setError('');
-    // Basic URL validation
-    try {
-      new URL(pasteUrl);
-    } catch {
-      setError('Please enter a valid image URL.');
-      return;
-    }
+    try { new URL(pasteUrl); } catch { setError('Please enter a valid image URL.'); return; }
     setDesignUrl(pasteUrl.trim());
-    await loadTemplate(selectedProduct, selectedColor);
+    loadTemplate(selectedProduct, selectedColor);
     setStep('preview');
   };
 
-  // ─── Generate mockup ─────────────────────────────────────────────────────
+  // ─── Build position from template or use server fallback ─────────────────
+  const buildPosition = () => {
+    if (!template) return null; // server will compute from printfiles
+    const aw = template.print_area_width;
+    const ah = template.print_area_height;
+
+    if (designPlacement === 'leftchest' && selectedProduct?.id !== 'hat') {
+      const size = Math.round(aw * 0.28);
+      return { area_width: aw, area_height: ah, width: size, height: size, top: Math.round(ah * 0.05), left: Math.round(aw * 0.05) };
+    }
+    const w = Math.round(aw * designScale);
+    const h = Math.round(ah * designScale);
+    return { area_width: aw, area_height: ah, width: w, height: h, top: Math.round((ah - h) / 2), left: Math.round((aw - w) / 2) };
+  };
+
+  // ─── Generate mockup ──────────────────────────────────────────────────────
   const handleGenerate = async () => {
     const sessionToken = getSessionToken();
-    if (!sessionToken) {
-      setError('Please sign in to generate a mockup.');
-      return;
-    }
-
+    if (!sessionToken) { setError('Please sign in to generate a mockup.'); return; }
     setError('');
     setStep('generating');
 
     try {
-      // Build position from template + user's scale
-      let position = null;
-      if (template) {
-        const aw = template.print_area_width;
-        const ah = template.print_area_height;
-        const w = Math.round(aw * designScale);
-        const h = Math.round(ah * designScale);
-        position = {
-          area_width: aw,
-          area_height: ah,
-          width: w,
-          height: h,
-          top: Math.round((ah - h) / 2),
-          left: Math.round((aw - w) / 2),
-        };
-      }
-
       const res = await fetch('/api/design-studio/create-task', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${sessionToken}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
         body: JSON.stringify({
           productId: selectedProduct.id,
-          variantIds: selectedColor.variantIds.slice(0, 3), // max 3 variants
+          variantIds: selectedColor.variantIds.slice(0, 3),
           imageUrl: designUrl,
-          position,
+          position: buildPosition(),
+          placementStyle: designPlacement,
         }),
       });
-
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Failed to start generation');
-
       setTaskKey(data.taskKey);
       setPollCount(0);
     } catch (err) {
@@ -186,14 +214,13 @@ export function CreatePageClient() {
     }
   };
 
-  // ─── Poll for task result ────────────────────────────────────────────────
+  // ─── Poll for task result ─────────────────────────────────────────────────
   useEffect(() => {
     if (!taskKey || step !== 'generating') return;
 
     const poll = async () => {
       const sessionToken = getSessionToken();
       if (!sessionToken) return;
-
       try {
         const res = await fetch(
           `/api/design-studio/task-status?task_key=${encodeURIComponent(taskKey)}`,
@@ -206,14 +233,11 @@ export function CreatePageClient() {
           setStep('result');
           return;
         }
-
         if (data.status === 'failed') {
           setError(data.error || 'Mockup generation failed. Please try again.');
           setStep('preview');
           return;
         }
-
-        // Still pending — poll again in 3s (max 20 polls ≈ 60s)
         setPollCount(c => c + 1);
         if (pollCount < 20) {
           pollTimerRef.current = setTimeout(poll, 3000);
@@ -221,28 +245,22 @@ export function CreatePageClient() {
           setError('Generation timed out. Please try again.');
           setStep('preview');
         }
-      } catch (err) {
-        console.error('Polling error:', err);
+      } catch {
         pollTimerRef.current = setTimeout(poll, 3000);
       }
     };
 
-    // First poll after 10s (as Printful recommends)
     pollTimerRef.current = setTimeout(poll, pollCount === 0 ? 10000 : 3000);
-
     return () => clearTimeout(pollTimerRef.current);
-  }, [taskKey, step, pollCount]);
+  }, [taskKey, step, pollCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Share on Farcaster ──────────────────────────────────────────────────
+  // ─── Share on Farcaster ───────────────────────────────────────────────────
   const handleShare = async () => {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop';
-    const text = `Check out my custom @mintedmerch design idea 👀\n\nCreate your own at ${appUrl}/create`;
+    const text = `Check out my custom @mintedmerch design idea 👀\n\nCreate your own in the mini app!\n${appUrl}/create`;
     try {
       if (isInFarcaster) {
-        await sdk.actions.composeCast({
-          text,
-          embeds: [mockupUrl],
-        });
+        await sdk.actions.composeCast({ text, embeds: [mockupUrl] });
       } else {
         const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(mockupUrl)}`;
         window.open(warpcastUrl, '_blank');
@@ -252,7 +270,7 @@ export function CreatePageClient() {
     }
   };
 
-  // ─── Reset ───────────────────────────────────────────────────────────────
+  // ─── Reset ────────────────────────────────────────────────────────────────
   const handleReset = () => {
     setStep('product');
     setSelectedProduct(null);
@@ -261,13 +279,15 @@ export function CreatePageClient() {
     setDesignUrl('');
     setPasteUrl('');
     setTemplate(null);
-    setDesignScale(1.0);
+    setDesignScale(0.9);
+    setDesignPlacement('center');
     setTaskKey('');
     setMockupUrl('');
     setError('');
   };
 
-  // ─── Step: Product Picker ────────────────────────────────────────────────
+  // =========================================================================
+  // ─── Step: Product Picker ─────────────────────────────────────────────────
   if (step === 'product') {
     return (
       <PageShell onBack={() => router.push('/')} title="Design Studio" step={1} totalSteps={4}>
@@ -279,19 +299,13 @@ export function CreatePageClient() {
             {DESIGN_STUDIO_PRODUCTS.map(product => (
               <button
                 key={product.id}
-                onClick={() => {
-                  setSelectedProduct(product);
-                  loadColors(product);
-                  setStep('color');
-                }}
+                onClick={() => { setSelectedProduct(product); loadColors(product); setStep('color'); }}
                 className="w-full flex items-center gap-4 bg-white border-2 border-gray-100 hover:border-[#3eb489] active:border-[#3eb489] rounded-2xl px-5 py-4 transition-all text-left shadow-sm"
               >
                 <span className="text-4xl">{product.emoji}</span>
                 <div>
                   <p className="font-semibold text-gray-900 text-lg">{product.label}</p>
-                  {product.note && (
-                    <p className="text-xs text-gray-400 mt-0.5">{product.note}</p>
-                  )}
+                  {product.note && <p className="text-xs text-gray-400 mt-0.5">{product.note}</p>}
                 </div>
                 <svg className="w-5 h-5 text-gray-300 ml-auto flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -299,13 +313,31 @@ export function CreatePageClient() {
               </button>
             ))}
           </div>
+
+          {/* Past mockups gallery */}
+          {myMockups.length > 0 && (
+            <div className="w-full max-w-sm mt-8">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Past Mockups</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {myMockups.slice(0, 6).map(m => (
+                  <div key={m.id} className="relative rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 aspect-square">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={m.mockup_url} alt="Past mockup" className="w-full h-full object-cover" />
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5">
+                      <p className="text-white text-[10px] font-medium capitalize truncate">{m.product_type} · {m.color_name}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {error && <ErrorBanner message={error} />}
         </div>
       </PageShell>
     );
   }
 
-  // ─── Step: Color Picker ──────────────────────────────────────────────────
+  // ─── Step: Color Picker ───────────────────────────────────────────────────
   if (step === 'color') {
     return (
       <PageShell onBack={() => setStep('product')} title={`${selectedProduct?.emoji} ${selectedProduct?.label}`} step={2} totalSteps={4}>
@@ -322,10 +354,7 @@ export function CreatePageClient() {
                 {colors.map(color => (
                   <button
                     key={color.name}
-                    onClick={() => {
-                      setSelectedColor(color);
-                      setStep('upload');
-                    }}
+                    onClick={() => { setSelectedColor(color); setStep('upload'); }}
                     title={color.name}
                     className="flex flex-col items-center gap-1.5 group"
                   >
@@ -348,17 +377,14 @@ export function CreatePageClient() {
     );
   }
 
-  // ─── Step: Upload Image ──────────────────────────────────────────────────
+  // ─── Step: Upload Image ───────────────────────────────────────────────────
   if (step === 'upload') {
     return (
       <PageShell onBack={() => setStep('color')} title="Upload Your Design" step={3} totalSteps={4}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
           {/* Color reminder */}
           <div className="flex items-center gap-2 mb-5">
-            <div
-              className="w-5 h-5 rounded-full border border-gray-200 flex-shrink-0"
-              style={{ backgroundColor: selectedColor?.code }}
-            />
+            <div className="w-5 h-5 rounded-full border border-gray-200 flex-shrink-0" style={{ backgroundColor: selectedColor?.code }} />
             <span className="text-sm text-gray-500">{selectedColor?.name} {selectedProduct?.label}</span>
           </div>
 
@@ -388,13 +414,7 @@ export function CreatePageClient() {
             )}
           </button>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={e => handleFileUpload(e.target.files?.[0])}
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileUpload(e.target.files?.[0])} />
 
           {/* Divider */}
           <div className="flex items-center w-full max-w-sm my-4">
@@ -420,21 +440,58 @@ export function CreatePageClient() {
               Use
             </button>
           </div>
-
           {error && <ErrorBanner message={error} />}
         </div>
       </PageShell>
     );
   }
 
-  // ─── Step: Live Preview + Generate ──────────────────────────────────────
+  // ─── Step: Live Preview + Generate ───────────────────────────────────────
   if (step === 'preview') {
     const PREVIEW_WIDTH = 280;
     const displayRatio = template ? PREVIEW_WIDTH / template.template_width : 1;
+    const showPlacementOptions = selectedProduct?.id !== 'hat';
+
+    // Compute design position in preview coords
+    let previewDesign = null;
+    if (template) {
+      const paTop = Math.round(template.print_area_top * displayRatio);
+      const paLeft = Math.round(template.print_area_left * displayRatio);
+      const paW = Math.round(template.print_area_width * displayRatio);
+      const paH = Math.round(template.print_area_height * displayRatio);
+
+      if (designPlacement === 'leftchest' && showPlacementOptions) {
+        const sz = Math.round(paW * 0.28);
+        previewDesign = { top: paTop + Math.round(paH * 0.05), left: paLeft + Math.round(paW * 0.05), width: sz, height: sz };
+      } else {
+        const dw = Math.round(paW * designScale);
+        const dh = Math.round(paH * designScale);
+        previewDesign = { top: paTop + Math.round((paH - dh) / 2), left: paLeft + Math.round((paW - dw) / 2), width: dw, height: dh };
+      }
+    }
 
     return (
       <PageShell onBack={() => setStep('upload')} title="Preview & Generate" step={4} totalSteps={4}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
+
+          {/* Placement picker — shirts & hoodies only */}
+          {showPlacementOptions && (
+            <div className="flex gap-2 mb-4 w-full max-w-sm">
+              <button
+                onClick={() => setDesignPlacement('center')}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-all ${designPlacement === 'center' ? 'border-[#3eb489] bg-[#3eb489]/10 text-[#3eb489]' : 'border-gray-200 text-gray-500 bg-white'}`}
+              >
+                ⬜ Full Front
+              </button>
+              <button
+                onClick={() => setDesignPlacement('leftchest')}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-all ${designPlacement === 'leftchest' ? 'border-[#3eb489] bg-[#3eb489]/10 text-[#3eb489]' : 'border-gray-200 text-gray-500 bg-white'}`}
+              >
+                ◻ Left Chest
+              </button>
+            </div>
+          )}
+
           {templateLoading ? (
             <div className="flex flex-col items-center gap-3 py-16">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489]" />
@@ -442,40 +499,42 @@ export function CreatePageClient() {
             </div>
           ) : template ? (
             <>
-              {/* Live preview */}
+              {/* Live preview canvas */}
               <div
-                className="relative bg-gray-100 rounded-xl overflow-hidden shadow-md mx-auto"
+                className="relative rounded-xl overflow-hidden shadow-md mx-auto"
                 style={{
                   width: PREVIEW_WIDTH,
                   height: Math.round(template.template_height * displayRatio),
+                  backgroundColor: selectedColor?.code || '#f3f4f6',
                 }}
               >
-                {/* User's design — positioned within print area */}
-                <div
-                  className="absolute overflow-hidden"
-                  style={{
-                    top: Math.round(template.print_area_top * displayRatio),
-                    left: Math.round(template.print_area_left * displayRatio),
-                    width: Math.round(template.print_area_width * displayRatio),
-                    height: Math.round(template.print_area_height * displayRatio),
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                {/* Product template — render BEHIND the design */}
+                {!template.is_template_on_front && (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={designUrl}
-                    alt="Your design"
+                    src={template.image_url}
+                    alt={selectedProduct?.label}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                )}
+
+                {/* User's design overlaid on the print area */}
+                {previewDesign && (
+                  <div
                     className="absolute"
                     style={{
-                      width: `${designScale * 100}%`,
-                      height: `${designScale * 100}%`,
-                      top: `${((1 - designScale) / 2) * 100}%`,
-                      left: `${((1 - designScale) / 2) * 100}%`,
-                      objectFit: 'contain',
+                      top: previewDesign.top,
+                      left: previewDesign.left,
+                      width: previewDesign.width,
+                      height: previewDesign.height,
                     }}
-                  />
-                </div>
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={designUrl} alt="Your design" className="w-full h-full object-contain" />
+                  </div>
+                )}
 
-                {/* Product template overlay — on top of user's design */}
+                {/* Product template — render ON TOP of the design (overlay effect) */}
                 {template.is_template_on_front && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -484,45 +543,44 @@ export function CreatePageClient() {
                     className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                   />
                 )}
-                {!template.is_template_on_front && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={template.image_url}
-                    alt={selectedProduct?.label}
-                    className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                    style={{ zIndex: -1 }}
-                  />
-                )}
               </div>
 
-              {/* Scale control */}
-              <div className="w-full max-w-sm mt-5">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-gray-500">Design size</span>
-                  <span className="text-xs font-medium text-gray-700">{Math.round(designScale * 100)}%</span>
+              {/* Scale slider — only for Full Front */}
+              {designPlacement === 'center' && showPlacementOptions && (
+                <div className="w-full max-w-sm mt-5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs text-gray-500">Design size</span>
+                    <span className="text-xs font-medium text-gray-700">{Math.round(designScale * 100)}%</span>
+                  </div>
+                  <input
+                    type="range" min="0.3" max="1.2" step="0.05"
+                    value={designScale}
+                    onChange={e => setDesignScale(parseFloat(e.target.value))}
+                    className="w-full accent-[#3eb489]"
+                  />
+                  <div className="flex justify-between text-[10px] text-gray-300 mt-0.5">
+                    <span>Smaller</span>
+                    <span>Larger</span>
+                  </div>
                 </div>
-                <input
-                  type="range"
-                  min="0.3"
-                  max="1.5"
-                  step="0.05"
-                  value={designScale}
-                  onChange={e => setDesignScale(parseFloat(e.target.value))}
-                  className="w-full accent-[#3eb489]"
-                />
-                <div className="flex justify-between text-[10px] text-gray-300 mt-0.5">
-                  <span>Smaller</span>
-                  <span>Larger</span>
-                </div>
-              </div>
+              )}
 
               <p className="text-xs text-gray-400 text-center mt-3 px-4">
-                This is a live preview. The final mockup will look more realistic.
+                Live preview — the final mockup will look more realistic.
               </p>
             </>
           ) : (
-            <div className="py-12 text-center">
-              <p className="text-gray-400 text-sm">Preview not available — your design will still generate correctly.</p>
+            <div className="py-8 text-center w-full max-w-sm">
+              {/* Color swatch placeholder when no template */}
+              <div
+                className="w-32 h-32 rounded-2xl mx-auto mb-4 flex items-center justify-center text-5xl shadow-md"
+                style={{ backgroundColor: selectedColor?.code || '#e5e7eb' }}
+              >
+                {selectedProduct?.emoji}
+              </div>
+              <p className="text-gray-400 text-sm">
+                Preview not available — your design will still generate correctly.
+              </p>
             </div>
           )}
 
@@ -540,9 +598,8 @@ export function CreatePageClient() {
     );
   }
 
-  // ─── Step: Generating ────────────────────────────────────────────────────
+  // ─── Step: Generating ─────────────────────────────────────────────────────
   if (step === 'generating') {
-    const dots = ['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'];
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
         <div className="w-20 h-20 bg-[#3eb489]/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
@@ -555,11 +612,7 @@ export function CreatePageClient() {
         </p>
         <div className="flex gap-1.5 mt-8">
           {[0, 1, 2, 3, 4].map(i => (
-            <div
-              key={i}
-              className="w-2 h-2 rounded-full bg-[#3eb489] animate-bounce"
-              style={{ animationDelay: `${i * 0.15}s` }}
-            />
+            <div key={i} className="w-2 h-2 rounded-full bg-[#3eb489] animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
           ))}
         </div>
         <p className="text-xs text-gray-300 mt-8">Poll {pollCount}/20</p>
@@ -567,12 +620,13 @@ export function CreatePageClient() {
     );
   }
 
-  // ─── Step: Result ────────────────────────────────────────────────────────
+  // ─── Step: Result ─────────────────────────────────────────────────────────
   if (step === 'result') {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white shadow-sm px-4 py-3 flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/MintedMerchHeaderLogo.png" alt="Minted Merch" className="h-8" />
           <h1 className="font-bold text-gray-900">Your Mockup</h1>
         </div>
@@ -581,11 +635,7 @@ export function CreatePageClient() {
           {/* Mockup image */}
           <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-lg bg-white mb-6">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={mockupUrl}
-              alt="Your custom mockup"
-              className="w-full h-auto"
-            />
+            <img src={mockupUrl} alt="Your custom mockup" className="w-full h-auto" />
           </div>
 
           <div className="w-full max-w-sm space-y-3">
@@ -609,13 +659,28 @@ export function CreatePageClient() {
             </button>
 
             {/* Back to shop */}
-            <button
-              onClick={() => router.push('/')}
-              className="w-full py-3 text-sm text-gray-400 hover:text-gray-600 transition-colors"
-            >
+            <button onClick={() => router.push('/')} className="w-full py-3 text-sm text-gray-400 hover:text-gray-600 transition-colors">
               ← Back to Shop
             </button>
           </div>
+
+          {/* Past mockups gallery */}
+          {myMockups.length > 1 && (
+            <div className="w-full max-w-sm mt-8">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Past Mockups</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {myMockups.slice(1, 7).map(m => (
+                  <div key={m.id} className="relative rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 aspect-square">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={m.mockup_url} alt="Past mockup" className="w-full h-full object-cover" />
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5">
+                      <p className="text-white text-[10px] font-medium capitalize truncate">{m.product_type} · {m.color_name}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -624,18 +689,14 @@ export function CreatePageClient() {
   return null;
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function PageShell({ children, onBack, title, step, totalSteps }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
       <div className="sticky top-0 z-10 bg-white shadow-sm px-4 py-3">
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
-          >
+          <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0">
             <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -645,16 +706,10 @@ function PageShell({ children, onBack, title, step, totalSteps }) {
           </div>
           <span className="text-xs text-gray-400 flex-shrink-0">{step}/{totalSteps}</span>
         </div>
-        {/* Progress bar */}
         <div className="mt-2 h-1 bg-gray-100 rounded-full">
-          <div
-            className="h-1 bg-[#3eb489] rounded-full transition-all duration-300"
-            style={{ width: `${(step / totalSteps) * 100}%` }}
-          />
+          <div className="h-1 bg-[#3eb489] rounded-full transition-all duration-300" style={{ width: `${(step / totalSteps) * 100}%` }} />
         </div>
       </div>
-
-      {/* Content */}
       <div className="flex-1">{children}</div>
     </div>
   );

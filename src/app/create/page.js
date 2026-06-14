@@ -10,12 +10,12 @@ export async function generateMetadata() {
     openGraph: {
       title: 'Design Studio — Minted Merch',
       description: 'Apply your design to a tee, hoodie, or hat and share it on Farcaster.',
-      images: [`${BASE_URL}/og-image.png`],
+      images: [`${BASE_URL}/MintedMerchCreateEmbed.png`],
     },
     other: {
       'fc:frame': JSON.stringify({
         version: 'next',
-        imageUrl: `${BASE_URL}/og-image.png`,
+        imageUrl: `${BASE_URL}/MintedMerchCreateEmbed.png`,
         button: {
           title: '🎨 Design Studio',
           action: {
