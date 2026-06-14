@@ -30,8 +30,10 @@ export async function POST(request) {
     }
 
     // ── Fetch printfiles — authoritative source for placement name & dimensions ──
-    // Use client-supplied technique if provided (e.g. hoodie can be DTG or EMBROIDERY)
-    const effectiveTechnique = technique || productConfig.technique || null;
+    // Printful's technique param only accepts 'EMBROIDERY' (DTG is the default).
+    // Passing 'DTG' explicitly can return wrong data, so normalize it to null.
+    const rawTechnique = technique || productConfig.technique || null;
+    const effectiveTechnique = (rawTechnique === 'DTG') ? null : rawTechnique;
     let resolvedPlacement = productConfig.placement;
     let resolvedPosition = null;
 

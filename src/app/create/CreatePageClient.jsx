@@ -82,8 +82,8 @@ export function CreatePageClient() {
   }, [user?.fid, loadMyMockups]);
 
   // ─── Product image cache helpers (localStorage, 24h TTL) ─────────────────
-  // v3: switched from template images (always white) to catalog variant images (black)
-  const PROD_IMG_CACHE = 'ds_product_imgs_v3';
+  // v4: back to template images, now with correct per-variant template_id extraction
+  const PROD_IMG_CACHE = 'ds_product_imgs_v4';
   const CACHE_TTL = 24 * 60 * 60 * 1000;
 
   function getCachedImages() {
@@ -109,8 +109,9 @@ export function CreatePageClient() {
     } catch {}
   }
 
-  // Pre-fetch the black-variant catalog image for each product.
-  // Using catalog variant image (not template) because template images are always white/neutral.
+  // Pre-fetch the black-variant ghost/flat template image for each product.
+  // Template images are flat product shots (no model). With the Shape B bug fixed in
+  // the templates route, each variantId now correctly resolves to its colored template.
   // Results are cached in localStorage for 24h to avoid repeat API calls.
   useEffect(() => {
     const cached = getCachedImages();
@@ -122,10 +123,24 @@ export function CreatePageClient() {
     Promise.all(
       needsFetch.map(async (product) => {
         try {
+          // Step 1: get the black variant ID from catalog
           const varRes = await fetch(`/api/design-studio/variants/${product.printfulProductId}`);
           const varData = await varRes.json();
-          // productImage is already the black variant's catalog image (set by variants route)
-          const imageUrl = varData.productImage || null;
+          const blackColor = (varData.colors || []).find(
+            c => c.name.toLowerCase() === 'black' || c.name.toLowerCase().includes('black')
+          ) || varData.colors?.[0];
+          const variantId = blackColor?.variantIds?.[0];
+          if (!variantId) return { id: product.id, image: varData.productImage || null };
+
+          // Step 2: get the flat ghost image from the mockup template for this variant
+          // (EMBROIDERY technique for hat only; DTG uses no technique param)
+          const rawTech = product.technique;
+          const tech = (rawTech && rawTech !== 'DTG') ? `&technique=${rawTech}` : '';
+          const tmplRes = await fetch(
+            `/api/design-studio/templates/${product.printfulProductId}?variantId=${variantId}${tech}`
+          );
+          const tmplData = await tmplRes.json();
+          const imageUrl = tmplData.template?.image_url || varData.productImage || null;
           return { id: product.id, image: imageUrl };
         } catch {
           return { id: product.id, image: null };
@@ -151,7 +166,9 @@ export function CreatePageClient() {
     if (!selectedProduct || colors.length === 0) return;
     setColorTemplates({});
 
-    const effectiveTechnique = selectedTechnique || selectedProduct.technique;
+    const rawTechnique = selectedTechnique || selectedProduct.technique;
+    // Printful only accepts 'EMBROIDERY' as a technique override; DTG is the default
+    const effectiveTechnique = (rawTechnique === 'DTG') ? null : rawTechnique;
     const techParam = effectiveTechnique ? `&technique=${effectiveTechnique}` : '';
 
     Promise.all(
@@ -213,12 +230,14 @@ export function CreatePageClient() {
   }, []);
 
   // ─── Fetch template for live preview ─────────────────────────────────────
-  const loadTemplate = useCallback(async (product, color, techniquOverride) => {
+  const loadTemplate = useCallback(async (product, color, techniqueOverride) => {
     setTemplateLoading(true);
     setTemplate(null);
     try {
       const variantId = color.variantIds[0];
-      const effectiveTechnique = techniquOverride || product.technique;
+      const rawTechnique = techniqueOverride || product.technique;
+      // Printful only accepts 'EMBROIDERY' as a technique override; DTG is the default
+      const effectiveTechnique = (rawTechnique === 'DTG') ? null : rawTechnique;
       const technique = effectiveTechnique ? `&technique=${effectiveTechnique}` : '';
       console.log(`🔍 Loading template for product ${product.printfulProductId}, variantId ${variantId}`);
       const res = await fetch(
@@ -397,8 +416,15 @@ export function CreatePageClient() {
 
   // ─── Step: Product Picker ─────────────────────────────────────────────────
   if (step === 'product') {
+    const designStudioTitle = (
+      <span className="flex items-center gap-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/MintedMerchSpinnerLogo.png" alt="" className="h-6 w-6 rounded-full flex-shrink-0 object-cover" />
+        Design Studio
+      </span>
+    );
     return (
-      <PageShell onBack={() => router.push('/')} title="Design Studio" step={1} totalSteps={4}>
+      <PageShell onBack={() => router.push('/')} title={designStudioTitle} step={1} totalSteps={4}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
           <p className="text-gray-500 text-sm text-center mb-6">
             Pick a product to put your design on
@@ -980,8 +1006,8 @@ function PageShell({ children, onBack, title, step, totalSteps }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="font-bold text-gray-900 truncate">{title}</h1>
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <h1 className="font-bold text-gray-900 flex items-center gap-2 truncate">{title}</h1>
           </div>
           <span className="text-xs text-gray-400 flex-shrink-0">{step}/{totalSteps}</span>
         </div>
