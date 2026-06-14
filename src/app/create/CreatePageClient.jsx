@@ -16,10 +16,16 @@ export function CreatePageClient() {
   // Product
   const [selectedProduct, setSelectedProduct] = useState(null);
 
+  // Technique (null | 'DTG' | 'EMBROIDERY') — for products that offer a choice (hoodies)
+  const [selectedTechnique, setSelectedTechnique] = useState(null);
+
   // Color / variants
   const [colors, setColors] = useState([]);
   const [colorsLoading, setColorsLoading] = useState(false);
   const [selectedColor, setSelectedColor] = useState(null);
+
+  // Ghost/flat template images per color (loaded in one batch after colors arrive)
+  const [colorTemplates, setColorTemplates] = useState({});
 
   // Image upload
   const [designUrl, setDesignUrl] = useState('');
@@ -76,7 +82,8 @@ export function CreatePageClient() {
   }, [user?.fid, loadMyMockups]);
 
   // ─── Product image cache helpers (localStorage, 24h TTL) ─────────────────
-  const PROD_IMG_CACHE = 'ds_product_imgs_v2';
+  // v3: switched from template images (always white) to catalog variant images (black)
+  const PROD_IMG_CACHE = 'ds_product_imgs_v3';
   const CACHE_TTL = 24 * 60 * 60 * 1000;
 
   function getCachedImages() {
@@ -102,12 +109,11 @@ export function CreatePageClient() {
     } catch {}
   }
 
-  // Pre-fetch flat/ghost product images using the template endpoint.
-  // Template images are flat product shots (no model) — better for the picker.
+  // Pre-fetch the black-variant catalog image for each product.
+  // Using catalog variant image (not template) because template images are always white/neutral.
   // Results are cached in localStorage for 24h to avoid repeat API calls.
   useEffect(() => {
     const cached = getCachedImages();
-    // Seed state immediately from cache
     if (Object.keys(cached).length > 0) setProductImages(cached);
 
     const needsFetch = DESIGN_STUDIO_PRODUCTS.filter(p => !cached[p.id]);
@@ -116,22 +122,10 @@ export function CreatePageClient() {
     Promise.all(
       needsFetch.map(async (product) => {
         try {
-          // Step 1: get the black variant ID
           const varRes = await fetch(`/api/design-studio/variants/${product.printfulProductId}`);
           const varData = await varRes.json();
-          const blackColor = (varData.colors || []).find(
-            c => c.name.toLowerCase() === 'black' || c.name.toLowerCase().includes('black')
-          ) || varData.colors?.[0];
-          const variantId = blackColor?.variantIds?.[0];
-          if (!variantId) return { id: product.id, image: varData.productImage || null };
-
-          // Step 2: get the flat ghost image from the mockup template
-          const tech = product.technique ? `&technique=${product.technique}` : '';
-          const tmplRes = await fetch(
-            `/api/design-studio/templates/${product.printfulProductId}?variantId=${variantId}${tech}`
-          );
-          const tmplData = await tmplRes.json();
-          const imageUrl = tmplData.template?.image_url || varData.productImage || null;
+          // productImage is already the black variant's catalog image (set by variants route)
+          const imageUrl = varData.productImage || null;
           return { id: product.id, image: imageUrl };
         } catch {
           return { id: product.id, image: null };
@@ -148,6 +142,39 @@ export function CreatePageClient() {
       setProductImages(map);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Load flat ghost template images for every color after colors load ────
+  // One API call (no variantId) returns all templates + variantMapping so we
+  // can match each color's first variant to its colored flat product image.
+  useEffect(() => {
+    if (!selectedProduct || colors.length === 0) return;
+    setColorTemplates({});
+
+    const effectiveTechnique = selectedTechnique || selectedProduct.technique;
+    const techParam = effectiveTechnique ? `?technique=${effectiveTechnique}` : '';
+
+    fetch(`/api/design-studio/templates/${selectedProduct.printfulProductId}${techParam}`)
+      .then(r => r.json())
+      .then(data => {
+        const allTemplates = data.templates || [];
+        const variantMapping = data.variantMapping || [];
+        const map = {};
+        colors.forEach(color => {
+          const vid = color.variantIds[0];
+          const mapping = variantMapping.find(m => m.variant_id === vid);
+          let tmplId = null;
+          if (mapping?.template_id) tmplId = mapping.template_id;
+          else if (Array.isArray(mapping?.templates) && mapping.templates.length > 0) tmplId = mapping.templates[0];
+          const tmpl = tmplId
+            ? allTemplates.find(t => t.template_id === tmplId)
+            : allTemplates[0];
+          if (tmpl?.image_url) map[color.name] = tmpl.image_url;
+        });
+        setColorTemplates(map);
+      })
+      .catch(() => {}); // non-critical — falls back to variant catalog images
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colors, selectedProduct?.id, selectedTechnique]);
 
   // ─── Save mockup to DB when result arrives ────────────────────────────────
   useEffect(() => {
@@ -171,6 +198,7 @@ export function CreatePageClient() {
   const loadColors = useCallback(async (product) => {
     setColorsLoading(true);
     setColors([]);
+    setColorTemplates({});
     setSelectedColor(null);
     setError('');
     try {
@@ -186,12 +214,13 @@ export function CreatePageClient() {
   }, []);
 
   // ─── Fetch template for live preview ─────────────────────────────────────
-  const loadTemplate = useCallback(async (product, color) => {
+  const loadTemplate = useCallback(async (product, color, techniquOverride) => {
     setTemplateLoading(true);
     setTemplate(null);
     try {
       const variantId = color.variantIds[0];
-      const technique = product.technique ? `&technique=${product.technique}` : '';
+      const effectiveTechnique = techniquOverride || product.technique;
+      const technique = effectiveTechnique ? `&technique=${effectiveTechnique}` : '';
       console.log(`🔍 Loading template for product ${product.printfulProductId}, variantId ${variantId}`);
       const res = await fetch(
         `/api/design-studio/templates/${product.printfulProductId}?variantId=${variantId}${technique}`
@@ -228,7 +257,7 @@ export function CreatePageClient() {
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Upload failed');
       setDesignUrl(data.url);
-      loadTemplate(selectedProduct, selectedColor); // async, don't await — go to preview immediately
+      loadTemplate(selectedProduct, selectedColor, selectedTechnique); // async, don't await
       setStep('preview');
     } catch (err) {
       setError(`Upload failed: ${err.message}`);
@@ -243,7 +272,7 @@ export function CreatePageClient() {
     setError('');
     try { new URL(pasteUrl); } catch { setError('Please enter a valid image URL.'); return; }
     setDesignUrl(pasteUrl.trim());
-    loadTemplate(selectedProduct, selectedColor);
+    loadTemplate(selectedProduct, selectedColor, selectedTechnique);
     setStep('preview');
   };
 
@@ -266,6 +295,7 @@ export function CreatePageClient() {
           imageUrl: designUrl,
           designScale,
           designPlacement,
+          technique: selectedTechnique || selectedProduct.technique || null,
         }),
       });
       const data = await res.json();
@@ -341,8 +371,10 @@ export function CreatePageClient() {
   const handleReset = () => {
     setStep('product');
     setSelectedProduct(null);
+    setSelectedTechnique(null);
     setSelectedColor(null);
     setColors([]);
+    setColorTemplates({});
     setDesignUrl('');
     setPasteUrl('');
     setTemplate(null);
@@ -354,6 +386,16 @@ export function CreatePageClient() {
   };
 
   // =========================================================================
+  // ─── Dynamic step numbering ───────────────────────────────────────────────
+  // Hoodies have an extra "technique" step → 5 steps total; others 4.
+  const totalSteps = selectedProduct?.techniqueOptions ? 5 : 4;
+  const stepNum = (s) => {
+    if (selectedProduct?.techniqueOptions) {
+      return { product: 1, technique: 2, color: 3, upload: 4, preview: 5 }[s] ?? 1;
+    }
+    return { product: 1, color: 2, upload: 3, preview: 4 }[s] ?? 1;
+  };
+
   // ─── Step: Product Picker ─────────────────────────────────────────────────
   if (step === 'product') {
     return (
@@ -366,7 +408,19 @@ export function CreatePageClient() {
             {DESIGN_STUDIO_PRODUCTS.map(product => (
               <button
                 key={product.id}
-                onClick={() => { setSelectedProduct(product); loadColors(product); setDesignScale(product.defaultScale ?? 0.85); setDesignPlacement('center'); setStep('color'); }}
+                onClick={() => {
+                  setSelectedProduct(product);
+                  setSelectedTechnique(null);
+                  setDesignScale(product.defaultScale ?? 0.85);
+                  setDesignPlacement('center');
+                  if (product.techniqueOptions) {
+                    // Hoodies ask for technique before loading colors
+                    setStep('technique');
+                  } else {
+                    loadColors(product);
+                    setStep('color');
+                  }
+                }}
                 className="w-full flex items-center gap-4 bg-white border-2 border-gray-100 hover:border-[#3eb489] active:border-[#3eb489] rounded-2xl px-5 py-4 transition-all text-left shadow-sm"
               >
                 <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center">
@@ -380,11 +434,15 @@ export function CreatePageClient() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-gray-900 text-lg">{product.label}</p>
-                    {product.techniqueLabel && (
+                    {product.techniqueOptions ? (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-600 flex-shrink-0">
+                        DTG / Embroidery
+                      </span>
+                    ) : product.techniqueLabel ? (
                       <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 flex-shrink-0">
                         {product.techniqueLabel}
                       </span>
-                    )}
+                    ) : null}
                   </div>
                   {product.note && <p className="text-xs text-gray-400 mt-0.5">{product.note}</p>}
                 </div>
@@ -412,10 +470,73 @@ export function CreatePageClient() {
     );
   }
 
+  // ─── Step: Technique Picker (hoodies only) ────────────────────────────────
+  if (step === 'technique') {
+    return (
+      <PageShell onBack={() => setStep('product')} title={`${selectedProduct?.emoji} ${selectedProduct?.label}`} step={2} totalSteps={5}>
+        <div className="flex flex-col items-center px-4 pt-4 pb-8">
+          <p className="text-gray-500 text-sm text-center mb-6">Choose your printing method</p>
+          <div className="w-full max-w-sm space-y-3">
+            {/* DTG */}
+            <button
+              onClick={() => {
+                setSelectedTechnique('DTG');
+                setDesignScale(0.85);
+                loadColors(selectedProduct);
+                setStep('color');
+              }}
+              className="w-full flex items-start gap-4 bg-white border-2 border-gray-100 hover:border-[#3eb489] active:border-[#3eb489] rounded-2xl px-5 py-4 transition-all text-left shadow-sm"
+            >
+              <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <span className="text-2xl">🖨️</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900">DTG Print</p>
+                <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+                  Full color, photo-quality print. Best for detailed artwork, gradients, and photos. Infinite colors.
+                </p>
+              </div>
+              <svg className="w-5 h-5 text-gray-300 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+
+            {/* Embroidery */}
+            <button
+              onClick={() => {
+                setSelectedTechnique('EMBROIDERY');
+                setDesignScale(0.45);
+                setDesignPlacement('center');
+                loadColors(selectedProduct);
+                setStep('color');
+              }}
+              className="w-full flex items-start gap-4 bg-white border-2 border-gray-100 hover:border-[#3eb489] active:border-[#3eb489] rounded-2xl px-5 py-4 transition-all text-left shadow-sm"
+            >
+              <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+                <span className="text-2xl">🧵</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900">Embroidery</p>
+                <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+                  Stitched thread design. Premium, textured look. Best for simple logos with 5 or fewer colors. No photo backgrounds.
+                </p>
+              </div>
+              <svg className="w-5 h-5 text-gray-300 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+          {error && <ErrorBanner message={error} />}
+        </div>
+      </PageShell>
+    );
+  }
+
   // ─── Step: Color Picker ───────────────────────────────────────────────────
   if (step === 'color') {
+    const colorStepBack = selectedProduct?.techniqueOptions ? 'technique' : 'product';
     return (
-      <PageShell onBack={() => setStep('product')} title={`${selectedProduct?.emoji} ${selectedProduct?.label}`} step={2} totalSteps={4}>
+      <PageShell onBack={() => setStep(colorStepBack)} title={`${selectedProduct?.emoji} ${selectedProduct?.label}`} step={stepNum('color')} totalSteps={totalSteps}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
           <p className="text-gray-500 text-sm text-center mb-6">Choose a color</p>
           {colorsLoading ? (
@@ -426,28 +547,32 @@ export function CreatePageClient() {
           ) : (
             <div className="w-full max-w-sm">
               <div className="grid grid-cols-3 gap-3">
-                {colors.map(color => (
-                  <button
-                    key={color.name}
-                    onClick={() => { setSelectedColor(color); setStep('upload'); }}
-                    title={color.name}
-                    className="flex flex-col items-center gap-1.5 group"
-                  >
-                    <div className="w-full aspect-square rounded-xl overflow-hidden border-2 border-gray-200 group-hover:border-[#3eb489] active:border-[#3eb489] transition-all shadow-sm">
-                      {color.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={color.image} alt={color.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full" style={{ backgroundColor: color.code }} />
-                      )}
-                    </div>
-                    {/* Color swatch dot + name */}
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded-full border border-gray-200 flex-shrink-0" style={{ backgroundColor: color.code }} />
-                      <span className="text-[10px] text-gray-500 leading-tight truncate">{color.name}</span>
-                    </div>
-                  </button>
-                ))}
+                {colors.map(color => {
+                  // Prefer the ghost/flat template image; fall back to catalog variant image
+                  const displayImg = colorTemplates[color.name] || color.image;
+                  return (
+                    <button
+                      key={color.name}
+                      onClick={() => { setSelectedColor(color); setStep('upload'); }}
+                      title={color.name}
+                      className="flex flex-col items-center gap-1.5 group"
+                    >
+                      <div className="w-full aspect-square rounded-xl overflow-hidden border-2 border-gray-200 group-hover:border-[#3eb489] active:border-[#3eb489] transition-all shadow-sm bg-gray-50">
+                        {displayImg ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={displayImg} alt={color.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full" style={{ backgroundColor: color.code }} />
+                        )}
+                      </div>
+                      {/* Color swatch dot + name */}
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 rounded-full border border-gray-200 flex-shrink-0" style={{ backgroundColor: color.code }} />
+                        <span className="text-[10px] text-gray-500 leading-tight truncate">{color.name}</span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
               {colors.length === 0 && !colorsLoading && (
                 <p className="text-center text-gray-400 text-sm py-8">No colors found for this product.</p>
@@ -463,7 +588,7 @@ export function CreatePageClient() {
   // ─── Step: Upload Image ───────────────────────────────────────────────────
   if (step === 'upload') {
     return (
-      <PageShell onBack={() => setStep('color')} title="Upload Your Design" step={3} totalSteps={4}>
+      <PageShell onBack={() => setStep('color')} title="Upload Your Design" step={stepNum('upload')} totalSteps={totalSteps}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
           {/* Color reminder */}
           <div className="flex items-center gap-2 mb-5">
@@ -516,7 +641,7 @@ export function CreatePageClient() {
                   const data = await res.json();
                   if (!data.success) throw new Error(data.error || 'Upload failed');
                   setDesignUrl(data.url);
-                  loadTemplate(selectedProduct, selectedColor);
+                  loadTemplate(selectedProduct, selectedColor, selectedTechnique);
                   setStep('preview');
                 } catch (err) {
                   setError(`Could not use profile picture: ${err.message}`);
@@ -577,7 +702,9 @@ export function CreatePageClient() {
   if (step === 'preview') {
     const PREVIEW_WIDTH = 280;
     const displayRatio = template ? PREVIEW_WIDTH / template.template_width : 1;
-    const showPlacementOptions = selectedProduct?.id !== 'hat';
+    // Embroidery (hats always, hoodies when embroidery technique chosen) → no placement toggle
+    const isEmbroidery = selectedProduct?.id === 'hat' || selectedTechnique === 'EMBROIDERY';
+    const showPlacementOptions = !isEmbroidery;
 
     // Compute design position in preview coords
     let previewDesign = null;
@@ -607,7 +734,7 @@ export function CreatePageClient() {
     }
 
     return (
-      <PageShell onBack={() => setStep('upload')} title="Preview & Generate" step={4} totalSteps={4}>
+      <PageShell onBack={() => setStep('upload')} title="Preview & Generate" step={stepNum('preview')} totalSteps={totalSteps}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
 
           {/* Placement picker — shirts & hoodies only */}
@@ -690,8 +817,8 @@ export function CreatePageClient() {
                   </div>
                   <input
                     type="range"
-                    min={selectedProduct?.id === 'hat' ? '0.2' : '0.3'}
-                    max={selectedProduct?.id === 'hat' ? '0.7' : '1.2'}
+                    min={isEmbroidery ? '0.2' : '0.3'}
+                    max={isEmbroidery ? '0.7' : '1.2'}
                     step="0.05"
                     value={designScale}
                     onChange={e => setDesignScale(parseFloat(e.target.value))}
@@ -704,12 +831,12 @@ export function CreatePageClient() {
                 </div>
               )}
 
-              {/* Embroidery warning for hats */}
-              {selectedProduct?.id === 'hat' && (
+              {/* Embroidery warning for hats and embroidery hoodies */}
+              {isEmbroidery && (
                 <div className="w-full max-w-sm mt-3 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl flex gap-2">
                   <span className="text-amber-500 flex-shrink-0 mt-0.5">⚠️</span>
                   <p className="text-xs text-amber-700">
-                    <strong>Embroidery tip:</strong> Use a simple logo with <strong>no background</strong> and 5 or fewer colors. Complex images with backgrounds look best on T-shirts.
+                    <strong>Embroidery tip:</strong> Use a simple logo with <strong>no background</strong> and 5 or fewer colors. Complex images with backgrounds look best with DTG printing.
                   </p>
                 </div>
               )}
@@ -731,7 +858,7 @@ export function CreatePageClient() {
                 Preview not available — your design will still generate correctly.
               </p>
               {/* Embroidery warning even without template */}
-              {selectedProduct?.id === 'hat' && (
+              {isEmbroidery && (
                 <div className="mt-4 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-left flex gap-2">
                   <span className="text-amber-500 flex-shrink-0 mt-0.5">⚠️</span>
                   <p className="text-xs text-amber-700">

@@ -15,7 +15,8 @@ export async function POST(request) {
     // position object. Position is always computed server-side from Printful's
     // printfiles endpoint — this guarantees we use the correct printfile coordinate
     // system and eliminates client/template-pixel vs printfile-pixel mismatches.
-    const { productId, variantIds, imageUrl, designScale, designPlacement } = await request.json();
+    // technique is optional — lets the client override the config (e.g. hoodie DTG vs EMBROIDERY)
+    const { productId, variantIds, imageUrl, designScale, designPlacement, technique } = await request.json();
 
     const productConfig = getProductConfig(productId);
     if (!productConfig) {
@@ -29,13 +30,15 @@ export async function POST(request) {
     }
 
     // ── Fetch printfiles — authoritative source for placement name & dimensions ──
+    // Use client-supplied technique if provided (e.g. hoodie can be DTG or EMBROIDERY)
+    const effectiveTechnique = technique || productConfig.technique || null;
     let resolvedPlacement = productConfig.placement;
     let resolvedPosition = null;
 
     try {
       const printfilesData = await getPrintfiles(
         productConfig.printfulProductId,
-        productConfig.technique || null
+        effectiveTechnique
       );
 
       // Override placement if the configured name isn't in available_placements
@@ -70,7 +73,7 @@ export async function POST(request) {
           // Centered full-front (or hat embroidery)
           const scale = typeof designScale === 'number' && designScale > 0
             ? designScale
-            : (productConfig.defaultScale ?? (productConfig.technique === 'EMBROIDERY' ? 0.45 : 0.85));
+            : (productConfig.defaultScale ?? (effectiveTechnique === 'EMBROIDERY' ? 0.45 : 0.85));
           const size = Math.round(Math.min(aw, ah) * scale);
           resolvedPosition = {
             area_width: aw,
@@ -113,7 +116,7 @@ export async function POST(request) {
 
     const result = await createMockupTask(productConfig.printfulProductId, payload);
 
-    console.log(`🎨 Mockup task created — FID: ${auth.fid}, product: ${productConfig.label}, placement: ${designPlacement || 'center'}, task: ${result.task_key}`);
+    console.log(`🎨 Mockup task created — FID: ${auth.fid}, product: ${productConfig.label}, technique: ${effectiveTechnique || 'DTG'}, placement: ${designPlacement || 'center'}, task: ${result.task_key}`);
 
     return NextResponse.json({ success: true, taskKey: result.task_key, status: result.status });
   } catch (error) {

@@ -25,9 +25,10 @@ export const DESIGN_STUDIO_PRODUCTS = [
     emoji: '🧥',
     printfulProductId: 380,   // Cotton Heritage M2580
     placement: 'front',
-    technique: null,           // DTG (default)
-    techniqueLabel: 'DTG Print',
-    defaultScale: 0.85,
+    technique: null,           // set dynamically by user choice (DTG | EMBROIDERY)
+    techniqueLabel: null,      // shown after user picks technique
+    techniqueOptions: ['DTG', 'EMBROIDERY'], // user can choose
+    defaultScale: 0.85,        // default for DTG; embroidery overrides to 0.45
     note: null,
   },
   {
