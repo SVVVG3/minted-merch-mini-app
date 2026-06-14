@@ -62,26 +62,7 @@ export function InfoModal({ isOpen, onClose }) {
     checkMerchMogulStatus();
   }, [user?.fid, isOpen]);
 
-  // Handle Farcaster profile link click
-  const handleFarcasterProfileClick = async (e) => {
-    e.preventDefault();
-    try {
-      // Use the proper viewProfile action to show the profile in Farcaster
-      await sdk.actions.viewProfile({ 
-        fid: 466111 // svvvg3.eth's FID
-      });
-    } catch (error) {
-      console.error('Error navigating to profile:', error);
-      // Fallback: use openUrl with the web URL
-      try {
-        await sdk.actions.openUrl('https://farcaster.xyz/svvvg3.eth');
-      } catch (urlError) {
-        console.error('Error opening URL:', urlError);
-      }
-    }
-  };
-
-  // Handle opening Google Form links
+  // Handle opening Google Form links or external links
   const handleOpenForm = async (url, formType) => {
     try {
       await sdk.actions.openUrl(url);
@@ -274,7 +255,13 @@ export function InfoModal({ isOpen, onClose }) {
           {/* Support */}
           <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700 text-center">
             <p className="text-sm text-gray-300">
-              <strong className="text-white">Need Help/Have Questions?</strong> Message <button onClick={handleFarcasterProfileClick} className="text-[#8B5CF6] hover:underline">@svvvg3.eth</button> on Farcaster!
+              <strong className="text-white">Need Help/Have Questions?</strong> Join us in our{' '}
+              <button
+                onClick={() => handleOpenForm('https://discord.gg/2T5meQVfu8', 'Discord')}
+                className="text-[#8B5CF6] hover:underline"
+              >
+                Discord
+              </button>!
             </p>
           </div>
         </div>

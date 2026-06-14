@@ -72,28 +72,5 @@ export function FarcasterHeader() {
     }
   };
 
-  return (
-    <div className="bg-[#3eb489] text-white px-4 py-2 text-xs">
-      <div className="flex items-center justify-center">
-        <div className="text-center">
-          <div className="space-y-0.5">
-            <div>
-              Shop using 1200+ coins across 20+ chains!{' '}
-              <button onClick={handleStakingClick} className="underline font-bold hover:text-yellow-200 transition-colors">Staking is LIVE</button>
-            </div>
-            <div>
-              Stake 50M+ {' '}
-              <button 
-                onClick={handleCoinClick}
-                className="underline hover:text-green-200 transition-colors font-medium"
-              >
-                $mintedmerch
-              </button>
-              {' '}to become a Merch Mogul 🤌
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return null;
 }

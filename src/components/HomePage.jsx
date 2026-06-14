@@ -16,7 +16,6 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { useDgenWallet } from '@/lib/useDgenWallet';
 import { useWalletConnectContext } from './WalletConnectProvider';
 import { ShareDropdown } from './ShareDropdown';
-import { ChatWidget } from './ChatWidget';
 import { extractNotificationParams, storeNotificationContext, getPendingDiscountCode } from '@/lib/urlParams';
 import { sdk } from '@farcaster/miniapp-sdk';
 // Token-gating functions moved to API routes to avoid client-side Node.js imports
@@ -87,22 +86,6 @@ export function HomePage({ collection: initialCollection, products: initialProdu
     setSelectedCollection(collection);
     fetchProductsForCollection(collection);
   };
-
-  // Share collection function
-  // Handle staking link click with haptics
-  const handleStakingClick = async (e) => {
-    e.preventDefault();
-    try {
-      const capabilities = await sdk.getCapabilities();
-      if (capabilities.includes('haptics.selectionChanged')) {
-        await sdk.haptics.selectionChanged();
-      }
-    } catch (error) {
-      console.log('Haptics not available:', error);
-    }
-    window.location.href = '/stake';
-  };
-
 
   // URL Parameter Detection - Detect notification clicks, discount codes, and collection sharing
   useEffect(() => {
@@ -429,48 +412,6 @@ export function HomePage({ collection: initialCollection, products: initialProdu
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Green Banner - Show different message based on auth status */}
-      {!isInFarcaster && (
-        <div className="bg-[#3eb489] text-white px-4 py-2 text-xs">
-          <div className="flex items-center justify-center">
-            <div className="text-center">
-              {!user && isReady ? (
-                <div>
-                  Sign in with Farcaster to access your profile, daily check-ins, leaderboard, notifications, order history, and token gated discounts! Stake 50M+{' '}
-                  <a 
-                    href="https://coin.mintedmerch.shop" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="underline hover:text-white/90 transition-colors"
-                  >
-                    $mintedmerch
-                  </a>
-                  {' '}to become a Merch Mogul 🤌
-                </div>
-              ) : (
-                <div className="space-y-0.5">
-                  <div>
-                    Shop using 1200+ coins across 20+ chains!{' '}
-                    <button onClick={handleStakingClick} className="underline font-bold hover:text-yellow-200 transition-colors">Staking is LIVE</button>
-                  </div>
-                  <div>
-                    Stake 50M+{' '}
-                    <a 
-                      href="https://coin.mintedmerch.shop" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="underline hover:text-white/90 transition-colors"
-                    >
-                      $mintedmerch
-                    </a>
-                    {' '}to become a Merch Mogul 🤌
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
       
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="px-2 py-1.5 flex items-center justify-between">
@@ -588,11 +529,10 @@ export function HomePage({ collection: initialCollection, products: initialProdu
               handle={selectedCollection.handle}
               title={selectedCollection.title}
               isInFarcaster={isInFarcaster}
+              buttonStyle="text"
+              buttonText="Share"
             />
           )}
-          
-          {/* Chat Widget Button */}
-          <ChatWidget isInFarcaster={isInFarcaster} />
         </div>
       </div>
       
