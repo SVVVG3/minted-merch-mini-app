@@ -66,7 +66,9 @@ export async function POST(request) {
             };
             console.log(`📐 Using left-chest position from printfile (${aw}×${ah}) for ${productConfig.label}`);
           } else {
-            const size = Math.round(Math.min(aw, ah) * 0.9);
+            // Use product-specific default scale (embroidery hats need much smaller designs)
+            const defaultScale = productConfig.defaultScale ?? (productConfig.technique === 'EMBROIDERY' ? 0.45 : 0.85);
+            const size = Math.round(Math.min(aw, ah) * defaultScale);
             resolvedPosition = {
               area_width: aw,
               area_height: ah,
@@ -75,7 +77,7 @@ export async function POST(request) {
               top: Math.round((ah - size) / 2),
               left: Math.round((aw - size) / 2),
             };
-            console.log(`📐 Using default centered position from printfile (${aw}×${ah}) for ${productConfig.label}`);
+            console.log(`📐 Using default centered position (scale=${defaultScale}) from printfile (${aw}×${ah}) for ${productConfig.label}`);
           }
         }
       }

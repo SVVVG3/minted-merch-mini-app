@@ -16,6 +16,7 @@ export const DESIGN_STUDIO_PRODUCTS = [
     placement: 'front',
     technique: null,           // DTG (default)
     techniqueLabel: 'DTG Print',
+    defaultScale: 0.85,        // % of printable area width
     note: null,
   },
   {
@@ -26,6 +27,7 @@ export const DESIGN_STUDIO_PRODUCTS = [
     placement: 'front',
     technique: null,           // DTG (default)
     techniqueLabel: 'DTG Print',
+    defaultScale: 0.85,
     note: null,
   },
   {
@@ -36,7 +38,8 @@ export const DESIGN_STUDIO_PRODUCTS = [
     placement: 'front',
     technique: 'EMBROIDERY',
     techniqueLabel: 'Embroidery',
-    note: 'Simple logos with few colors work best.',
+    defaultScale: 0.45,        // Embroidery area is physically small — keep logos modest
+    note: 'Use a simple logo with NO background and 5 or fewer colors for best results.',
   },
 ];
 

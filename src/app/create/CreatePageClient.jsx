@@ -33,7 +33,7 @@ export function CreatePageClient() {
 
   // Design placement + scale
   const [designPlacement, setDesignPlacement] = useState('center'); // 'center' | 'leftchest'
-  const [designScale, setDesignScale] = useState(0.9);
+  const [designScale, setDesignScale] = useState(0.85);
 
   // Generation
   const [taskKey, setTaskKey] = useState('');
@@ -180,9 +180,19 @@ export function CreatePageClient() {
       const size = Math.round(aw * 0.28);
       return { area_width: aw, area_height: ah, width: size, height: size, top: Math.round(ah * 0.05), left: Math.round(aw * 0.05) };
     }
-    const w = Math.round(aw * designScale);
-    const h = Math.round(ah * designScale);
-    return { area_width: aw, area_height: ah, width: w, height: h, top: Math.round((ah - h) / 2), left: Math.round((aw - w) / 2) };
+
+    // Keep design square by scaling off the shorter axis — prevents stretching on
+    // landscape print areas (e.g. hat fronts which are wider than tall).
+    const shorter = Math.min(aw, ah);
+    const size = Math.round(shorter * designScale);
+    return {
+      area_width: aw,
+      area_height: ah,
+      width: size,
+      height: size,
+      top: Math.round((ah - size) / 2),
+      left: Math.round((aw - size) / 2),
+    };
   };
 
   // ─── Generate mockup ──────────────────────────────────────────────────────
@@ -279,7 +289,7 @@ export function CreatePageClient() {
     setDesignUrl('');
     setPasteUrl('');
     setTemplate(null);
-    setDesignScale(0.9);
+    setDesignScale(0.85);
     setDesignPlacement('center');
     setTaskKey('');
     setMockupUrl('');
@@ -299,7 +309,7 @@ export function CreatePageClient() {
             {DESIGN_STUDIO_PRODUCTS.map(product => (
               <button
                 key={product.id}
-                onClick={() => { setSelectedProduct(product); loadColors(product); setStep('color'); }}
+                onClick={() => { setSelectedProduct(product); loadColors(product); setDesignScale(product.defaultScale ?? 0.85); setDesignPlacement('center'); setStep('color'); }}
                 className="w-full flex items-center gap-4 bg-white border-2 border-gray-100 hover:border-[#3eb489] active:border-[#3eb489] rounded-2xl px-5 py-4 transition-all text-left shadow-sm"
               >
                 <span className="text-4xl">{product.emoji}</span>
@@ -493,9 +503,10 @@ export function CreatePageClient() {
         const sz = Math.round(paW * 0.28);
         previewDesign = { top: paTop + Math.round(paH * 0.05), left: paLeft + Math.round(paW * 0.05), width: sz, height: sz };
       } else {
-        const dw = Math.round(paW * designScale);
-        const dh = Math.round(paH * designScale);
-        previewDesign = { top: paTop + Math.round((paH - dh) / 2), left: paLeft + Math.round((paW - dw) / 2), width: dw, height: dh };
+        // Keep square, scaled off the shorter axis — matches buildPosition logic
+        const shorter = Math.min(paW, paH);
+        const sz = Math.round(shorter * designScale);
+        previewDesign = { top: paTop + Math.round((paH - sz) / 2), left: paLeft + Math.round((paW - sz) / 2), width: sz, height: sz };
       }
     }
 
@@ -574,15 +585,18 @@ export function CreatePageClient() {
                 )}
               </div>
 
-              {/* Scale slider — only for Full Front */}
-              {designPlacement === 'center' && showPlacementOptions && (
+                  {/* Scale slider — shown for all products */}
+              {(designPlacement === 'center' || !showPlacementOptions) && (
                 <div className="w-full max-w-sm mt-5">
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-xs text-gray-500">Design size</span>
                     <span className="text-xs font-medium text-gray-700">{Math.round(designScale * 100)}%</span>
                   </div>
                   <input
-                    type="range" min="0.3" max="1.2" step="0.05"
+                    type="range"
+                    min={selectedProduct?.id === 'hat' ? '0.2' : '0.3'}
+                    max={selectedProduct?.id === 'hat' ? '0.7' : '1.2'}
+                    step="0.05"
                     value={designScale}
                     onChange={e => setDesignScale(parseFloat(e.target.value))}
                     className="w-full accent-[#3eb489]"
@@ -591,6 +605,16 @@ export function CreatePageClient() {
                     <span>Smaller</span>
                     <span>Larger</span>
                   </div>
+                </div>
+              )}
+
+              {/* Embroidery warning for hats */}
+              {selectedProduct?.id === 'hat' && (
+                <div className="w-full max-w-sm mt-3 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl flex gap-2">
+                  <span className="text-amber-500 flex-shrink-0 mt-0.5">⚠️</span>
+                  <p className="text-xs text-amber-700">
+                    <strong>Embroidery tip:</strong> Use a simple logo with <strong>no background</strong> and 5 or fewer colors. Complex images with backgrounds look best on T-shirts.
+                  </p>
                 </div>
               )}
 
@@ -610,6 +634,15 @@ export function CreatePageClient() {
               <p className="text-gray-400 text-sm">
                 Preview not available — your design will still generate correctly.
               </p>
+              {/* Embroidery warning even without template */}
+              {selectedProduct?.id === 'hat' && (
+                <div className="mt-4 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-left flex gap-2">
+                  <span className="text-amber-500 flex-shrink-0 mt-0.5">⚠️</span>
+                  <p className="text-xs text-amber-700">
+                    <strong>Embroidery tip:</strong> Use a simple logo with <strong>no background</strong> and 5 or fewer colors.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -636,7 +669,7 @@ export function CreatePageClient() {
         </div>
         <h2 className="text-xl font-bold text-gray-900 mb-2">Generating your mockup…</h2>
         <p className="text-sm text-gray-400 text-center">
-          Printful is rendering your design onto the {selectedProduct?.label.toLowerCase()}.
+          Minted Merch is rendering your design onto the {selectedProduct?.label.toLowerCase()}.
           <br />Usually takes 5–15 seconds.
         </p>
         <div className="flex gap-1.5 mt-8">
@@ -644,7 +677,6 @@ export function CreatePageClient() {
             <div key={i} className="w-2 h-2 rounded-full bg-[#3eb489] animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
           ))}
         </div>
-        <p className="text-xs text-gray-300 mt-8">Poll {pollCount}/20</p>
       </div>
     );
   }
