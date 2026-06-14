@@ -75,24 +75,79 @@ export function CreatePageClient() {
     if (user?.fid) loadMyMockups();
   }, [user?.fid, loadMyMockups]);
 
-  // Pre-fetch black variant thumbnails for all products so the picker shows real images
+  // ─── Product image cache helpers (localStorage, 24h TTL) ─────────────────
+  const PROD_IMG_CACHE = 'ds_product_imgs_v2';
+  const CACHE_TTL = 24 * 60 * 60 * 1000;
+
+  function getCachedImages() {
+    try {
+      const raw = localStorage.getItem(PROD_IMG_CACHE);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      const now = Date.now();
+      const valid = {};
+      Object.entries(parsed).forEach(([k, v]) => {
+        if (v.ts && now - v.ts < CACHE_TTL) valid[k] = v.url;
+      });
+      return valid;
+    } catch { return {}; }
+  }
+
+  function setCachedImage(productId, url) {
+    try {
+      const raw = localStorage.getItem(PROD_IMG_CACHE);
+      const parsed = raw ? JSON.parse(raw) : {};
+      parsed[productId] = { url, ts: Date.now() };
+      localStorage.setItem(PROD_IMG_CACHE, JSON.stringify(parsed));
+    } catch {}
+  }
+
+  // Pre-fetch flat/ghost product images using the template endpoint.
+  // Template images are flat product shots (no model) — better for the picker.
+  // Results are cached in localStorage for 24h to avoid repeat API calls.
   useEffect(() => {
+    const cached = getCachedImages();
+    // Seed state immediately from cache
+    if (Object.keys(cached).length > 0) setProductImages(cached);
+
+    const needsFetch = DESIGN_STUDIO_PRODUCTS.filter(p => !cached[p.id]);
+    if (needsFetch.length === 0) return;
+
     Promise.all(
-      DESIGN_STUDIO_PRODUCTS.map(async (product) => {
+      needsFetch.map(async (product) => {
         try {
-          const res = await fetch(`/api/design-studio/variants/${product.printfulProductId}`);
-          const data = await res.json();
-          return { id: product.id, image: data.productImage || null };
+          // Step 1: get the black variant ID
+          const varRes = await fetch(`/api/design-studio/variants/${product.printfulProductId}`);
+          const varData = await varRes.json();
+          const blackColor = (varData.colors || []).find(
+            c => c.name.toLowerCase() === 'black' || c.name.toLowerCase().includes('black')
+          ) || varData.colors?.[0];
+          const variantId = blackColor?.variantIds?.[0];
+          if (!variantId) return { id: product.id, image: varData.productImage || null };
+
+          // Step 2: get the flat ghost image from the mockup template
+          const tech = product.technique ? `&technique=${product.technique}` : '';
+          const tmplRes = await fetch(
+            `/api/design-studio/templates/${product.printfulProductId}?variantId=${variantId}${tech}`
+          );
+          const tmplData = await tmplRes.json();
+          const imageUrl = tmplData.template?.image_url || varData.productImage || null;
+          return { id: product.id, image: imageUrl };
         } catch {
           return { id: product.id, image: null };
         }
       })
     ).then(results => {
-      const map = {};
-      results.forEach(r => { if (r.image) map[r.id] = r.image; });
+      const map = { ...cached };
+      results.forEach(r => {
+        if (r.image) {
+          map[r.id] = r.image;
+          setCachedImage(r.id, r.image);
+        }
+      });
       setProductImages(map);
     });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Save mockup to DB when result arrives ────────────────────────────────
   useEffect(() => {
@@ -264,19 +319,22 @@ export function CreatePageClient() {
   }, [taskKey, step, pollCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Share on Farcaster ───────────────────────────────────────────────────
-  const handleShare = async () => {
+  const shareToFarcaster = async (url) => {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop';
     const text = `Check out my custom @mintedmerch design idea 👀\n\nCreate your own in the mini app!\n${appUrl}/create`;
-    try {
-      if (isInFarcaster) {
-        await sdk.actions.composeCast({ text, embeds: [mockupUrl] });
-      } else {
-        const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(mockupUrl)}`;
-        window.open(warpcastUrl, '_blank');
-      }
-    } catch (err) {
-      console.error('Share error:', err);
+    if (isInFarcaster) {
+      await sdk.actions.composeCast({ text, embeds: [url] });
+    } else {
+      window.open(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`, '_blank');
     }
+  };
+
+  const handleShare = async () => {
+    try { await shareToFarcaster(mockupUrl); } catch (err) { console.error('Share error:', err); }
+  };
+
+  const handleShareMockup = async (url) => {
+    try { await shareToFarcaster(url); } catch (err) { console.error('Share error:', err); }
   };
 
   // ─── Reset ────────────────────────────────────────────────────────────────
@@ -343,13 +401,7 @@ export function CreatePageClient() {
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Past Mockups</h2>
               <div className="grid grid-cols-2 gap-3">
                 {myMockups.slice(0, 6).map(m => (
-                  <div key={m.id} className="relative rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 aspect-square">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={m.mockup_url} alt="Past mockup" className="w-full h-full object-cover" />
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5">
-                      <p className="text-white text-[10px] font-medium capitalize truncate">{m.product_type} · {m.color_name}</p>
-                    </div>
-                  </div>
+                  <MockupCard key={m.id} mockup={m} onShare={handleShareMockup} />
                 ))}
               </div>
             </div>
@@ -373,7 +425,7 @@ export function CreatePageClient() {
             </div>
           ) : (
             <div className="w-full max-w-sm">
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 {colors.map(color => (
                   <button
                     key={color.name}
@@ -381,11 +433,19 @@ export function CreatePageClient() {
                     title={color.name}
                     className="flex flex-col items-center gap-1.5 group"
                   >
-                    <div
-                      className="w-11 h-11 rounded-full border-2 border-gray-200 group-hover:border-[#3eb489] transition-all shadow-sm"
-                      style={{ backgroundColor: color.code }}
-                    />
-                    <span className="text-[10px] text-gray-500 text-center leading-tight truncate w-full">{color.name}</span>
+                    <div className="w-full aspect-square rounded-xl overflow-hidden border-2 border-gray-200 group-hover:border-[#3eb489] active:border-[#3eb489] transition-all shadow-sm">
+                      {color.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={color.image} alt={color.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full" style={{ backgroundColor: color.code }} />
+                      )}
+                    </div>
+                    {/* Color swatch dot + name */}
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded-full border border-gray-200 flex-shrink-0" style={{ backgroundColor: color.code }} />
+                      <span className="text-[10px] text-gray-500 leading-tight truncate">{color.name}</span>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -439,25 +499,47 @@ export function CreatePageClient() {
 
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileUpload(e.target.files?.[0])} />
 
-          {/* Profile picture shortcut */}
+          {/* Profile picture shortcut — re-uploads to R2 so Printful can always fetch it */}
           {getPfpUrl?.() && (
             <button
-              onClick={() => {
-                setDesignUrl(getPfpUrl());
-                loadTemplate(selectedProduct, selectedColor);
-                setStep('preview');
+              onClick={async () => {
+                const sessionToken = getSessionToken();
+                if (!sessionToken) { setError('Please sign in first.'); return; }
+                setIsUploading(true);
+                setError('');
+                try {
+                  const res = await fetch('/api/design-studio/fetch-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+                    body: JSON.stringify({ url: getPfpUrl() }),
+                  });
+                  const data = await res.json();
+                  if (!data.success) throw new Error(data.error || 'Upload failed');
+                  setDesignUrl(data.url);
+                  loadTemplate(selectedProduct, selectedColor);
+                  setStep('preview');
+                } catch (err) {
+                  setError(`Could not use profile picture: ${err.message}`);
+                } finally {
+                  setIsUploading(false);
+                }
               }}
-              className="w-full max-w-sm flex items-center gap-3 bg-white border-2 border-gray-100 hover:border-[#3eb489] rounded-2xl px-4 py-3 transition-all mt-3"
+              disabled={isUploading}
+              className="w-full max-w-sm flex items-center gap-3 bg-white border-2 border-gray-100 hover:border-[#3eb489] rounded-2xl px-4 py-3 transition-all mt-3 disabled:opacity-50"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={getPfpUrl()} alt="Your profile" className="w-10 h-10 rounded-full flex-shrink-0 object-cover" />
               <div className="text-left">
-                <p className="font-medium text-gray-700 text-sm">Use My Profile Picture</p>
+                <p className="font-medium text-gray-700 text-sm">
+                  {isUploading ? 'Uploading…' : 'Use My Profile Picture'}
+                </p>
                 <p className="text-xs text-gray-400">@{user?.username || 'you'}</p>
               </div>
-              <svg className="w-4 h-4 text-gray-300 ml-auto flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              {!isUploading && (
+                <svg className="w-4 h-4 text-gray-300 ml-auto flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              )}
             </button>
           )}
 
@@ -747,13 +829,7 @@ export function CreatePageClient() {
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Past Mockups</h2>
               <div className="grid grid-cols-2 gap-3">
                 {myMockups.slice(1, 7).map(m => (
-                  <div key={m.id} className="relative rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 aspect-square">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={m.mockup_url} alt="Past mockup" className="w-full h-full object-cover" />
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5">
-                      <p className="text-white text-[10px] font-medium capitalize truncate">{m.product_type} · {m.color_name}</p>
-                    </div>
-                  </div>
+                  <MockupCard key={m.id} mockup={m} onShare={handleShareMockup} />
                 ))}
               </div>
             </div>
@@ -796,6 +872,31 @@ function ErrorBanner({ message }) {
   return (
     <div className="w-full max-w-sm mt-4 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
       {message}
+    </div>
+  );
+}
+
+function MockupCard({ mockup, onShare }) {
+  return (
+    <div className="relative rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 aspect-square group">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={mockup.mockup_url} alt="Past mockup" className="w-full h-full object-cover" />
+      {/* Bottom label */}
+      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5">
+        <p className="text-white text-[10px] font-medium capitalize truncate">
+          {mockup.product_type} · {mockup.color_name}
+        </p>
+      </div>
+      {/* Share button — top right */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onShare(mockup.mockup_url); }}
+        className="absolute top-1.5 right-1.5 w-7 h-7 bg-[#6A3CFF] rounded-full flex items-center justify-center shadow-md opacity-90 hover:opacity-100 transition-opacity"
+        title="Share on Farcaster"
+      >
+        <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 520 457" fill="currentColor">
+          <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
+        </svg>
+      </button>
     </div>
   );
 }
