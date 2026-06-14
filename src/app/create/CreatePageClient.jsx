@@ -170,32 +170,9 @@ export function CreatePageClient() {
     setStep('preview');
   };
 
-  // ─── Build position from template or use server fallback ─────────────────
-  const buildPosition = () => {
-    if (!template) return null; // server will compute from printfiles
-    const aw = template.print_area_width;
-    const ah = template.print_area_height;
-
-    if (designPlacement === 'leftchest' && selectedProduct?.id !== 'hat') {
-      const size = Math.round(aw * 0.28);
-      return { area_width: aw, area_height: ah, width: size, height: size, top: Math.round(ah * 0.05), left: Math.round(aw * 0.05) };
-    }
-
-    // Keep design square by scaling off the shorter axis — prevents stretching on
-    // landscape print areas (e.g. hat fronts which are wider than tall).
-    const shorter = Math.min(aw, ah);
-    const size = Math.round(shorter * designScale);
-    return {
-      area_width: aw,
-      area_height: ah,
-      width: size,
-      height: size,
-      top: Math.round((ah - size) / 2),
-      left: Math.round((aw - size) / 2),
-    };
-  };
-
   // ─── Generate mockup ──────────────────────────────────────────────────────
+  // Position is always computed server-side from Printful printfile coordinates.
+  // We only send designScale and designPlacement so the server can calculate it.
   const handleGenerate = async () => {
     const sessionToken = getSessionToken();
     if (!sessionToken) { setError('Please sign in to generate a mockup.'); return; }
@@ -210,8 +187,8 @@ export function CreatePageClient() {
           productId: selectedProduct.id,
           variantIds: selectedColor.variantIds.slice(0, 3),
           imageUrl: designUrl,
-          position: buildPosition(),
-          placementStyle: designPlacement,
+          designScale,
+          designPlacement,
         }),
       });
       const data = await res.json();
@@ -500,10 +477,18 @@ export function CreatePageClient() {
       const paH = Math.round(template.print_area_height * displayRatio);
 
       if (designPlacement === 'leftchest' && showPlacementOptions) {
-        const sz = Math.round(paW * 0.28);
-        previewDesign = { top: paTop + Math.round(paH * 0.05), left: paLeft + Math.round(paW * 0.05), width: sz, height: sz };
+        // Wearer's LEFT chest = viewer's RIGHT side of the template image.
+        // Mirror the server-side logic: left = 62% of print area width.
+        const shorter = Math.min(paW, paH);
+        const sz = Math.round(shorter * 0.28);
+        previewDesign = {
+          top: paTop + Math.round(paH * 0.08),    // 8% from top — matches server
+          left: paLeft + Math.round(paW * 0.62),  // 62% from left = viewer's right
+          width: sz,
+          height: sz,
+        };
       } else {
-        // Keep square, scaled off the shorter axis — matches buildPosition logic
+        // Centered — keep square, scaled off shorter axis
         const shorter = Math.min(paW, paH);
         const sz = Math.round(shorter * designScale);
         previewDesign = { top: paTop + Math.round((paH - sz) / 2), left: paLeft + Math.round((paW - sz) / 2), width: sz, height: sz };
