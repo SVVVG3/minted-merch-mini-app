@@ -17,15 +17,22 @@ export async function GET(request, { params }) {
         colorMap.set(v.color, {
           name: v.color,
           code: v.color_code,
-          // Store all variant IDs for this color (different sizes)
           variantIds: [],
+          image: v.image || null, // first variant image for this color
         });
       }
       colorMap.get(v.color).variantIds.push(v.id);
     });
 
     const colors = Array.from(colorMap.values());
-    return NextResponse.json({ success: true, colors });
+
+    // Return a representative product image — prefer black variant, fall back to first
+    const blackVariant = variants.find(v => v.color?.toLowerCase() === 'black')
+      || variants.find(v => v.color?.toLowerCase().includes('black'))
+      || variants[0];
+    const productImage = blackVariant?.image || data?.product?.image || null;
+
+    return NextResponse.json({ success: true, colors, productImage });
   } catch (error) {
     console.error('Variants fetch error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

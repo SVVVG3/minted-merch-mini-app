@@ -43,6 +43,9 @@ export function CreatePageClient() {
   // Result
   const [mockupUrl, setMockupUrl] = useState('');
 
+  // Product preview images (black variant thumbnails)
+  const [productImages, setProductImages] = useState({});
+
   // Mockup history
   const [myMockups, setMyMockups] = useState([]);
   const [mockupsLoading, setMockupsLoading] = useState(false);
@@ -71,6 +74,25 @@ export function CreatePageClient() {
   useEffect(() => {
     if (user?.fid) loadMyMockups();
   }, [user?.fid, loadMyMockups]);
+
+  // Pre-fetch black variant thumbnails for all products so the picker shows real images
+  useEffect(() => {
+    Promise.all(
+      DESIGN_STUDIO_PRODUCTS.map(async (product) => {
+        try {
+          const res = await fetch(`/api/design-studio/variants/${product.printfulProductId}`);
+          const data = await res.json();
+          return { id: product.id, image: data.productImage || null };
+        } catch {
+          return { id: product.id, image: null };
+        }
+      })
+    ).then(results => {
+      const map = {};
+      results.forEach(r => { if (r.image) map[r.id] = r.image; });
+      setProductImages(map);
+    });
+  }, []);
 
   // ─── Save mockup to DB when result arrives ────────────────────────────────
   useEffect(() => {
@@ -289,7 +311,14 @@ export function CreatePageClient() {
                 onClick={() => { setSelectedProduct(product); loadColors(product); setDesignScale(product.defaultScale ?? 0.85); setDesignPlacement('center'); setStep('color'); }}
                 className="w-full flex items-center gap-4 bg-white border-2 border-gray-100 hover:border-[#3eb489] active:border-[#3eb489] rounded-2xl px-5 py-4 transition-all text-left shadow-sm"
               >
-                <span className="text-4xl">{product.emoji}</span>
+                <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center">
+                  {productImages[product.id] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={productImages[product.id]} alt={product.label} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-3xl">{product.emoji}</span>
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-gray-900 text-lg">{product.label}</p>
@@ -649,9 +678,11 @@ export function CreatePageClient() {
   if (step === 'generating') {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
-        <div className="w-20 h-20 bg-[#3eb489]/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
+        <div className="w-20 h-20 bg-[#3eb489]/10 rounded-full flex items-center justify-center mb-5 animate-pulse">
           <span className="text-4xl">🎨</span>
         </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/MintedMerchSpinnerLogo.png" alt="Minted Merch" className="h-10 mb-6" />
         <h2 className="text-xl font-bold text-gray-900 mb-2">Generating your mockup…</h2>
         <p className="text-sm text-gray-400 text-center">
           Minted Merch is rendering your design onto the {selectedProduct?.label.toLowerCase()}.
