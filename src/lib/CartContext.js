@@ -622,13 +622,20 @@ export function CartProvider({ children }) {
         return null;
       }
       
+      // Custom design items (from Design Studio) have fake handles that don't exist
+      // in Shopify/Supabase — exclude them from the product lookup so the handle
+      // resolution doesn't fail. Their discounts are handled via the token-gated
+      // fallback below.
+      const regularItems = safeCart.items.filter(item => !item.customMeta);
+      const hasCustomItems = safeCart.items.some(item => item.customMeta);
+
       // Get unique product handles and their Supabase IDs
       const uniqueProducts = [];
-      const productHandles = [...new Set(safeCart.items.map(item => item.product?.handle).filter(Boolean))];
+      const productHandles = [...new Set(regularItems.map(item => item.product?.handle).filter(Boolean))];
       
-      console.log('🔍 Unique products in cart:', productHandles);
+      console.log('🔍 Unique products in cart:', productHandles, hasCustomItems ? '(+ custom design items)' : '');
       
-      // For each product, get its Supabase ID
+      // For each regular product, get its Supabase ID and discount data
       for (const handle of productHandles) {
         try {
           const response = await fetch(`/api/shopify/products?handle=${handle}&fid=${userFid}`);
@@ -661,6 +668,32 @@ export function CartProvider({ children }) {
         }
       });
       
+      // Fallback for carts that contain custom design items but no regular products:
+      // the product-handle lookup above returns nothing for custom items, so we call
+      // the token-gated eligibility endpoint directly to pick up the Merch Mogul
+      // discount (and any other site-wide token-gated discounts the user qualifies for).
+      if (hasCustomItems && allAvailableDiscounts.length === 0) {
+        console.log('🎨 Cart has custom design items with no regular products — checking token-gated eligibility directly');
+        try {
+          const tokenRes = await fetch('/api/check-token-gated-eligibility', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fid: userFid, scope: 'site_wide' }),
+          });
+          if (tokenRes.ok) {
+            const tokenData = await tokenRes.json();
+            if (tokenData.success && tokenData.eligibleDiscounts?.length > 0) {
+              console.log(`🎫 Found ${tokenData.eligibleDiscounts.length} token-gated site-wide discount(s) for custom design cart`);
+              tokenData.eligibleDiscounts.forEach(d => {
+                allAvailableDiscounts.push({ ...d, isTokenGated: true, sourceProduct: 'custom-design' });
+              });
+            }
+          }
+        } catch (tokenErr) {
+          console.error('Token eligibility fallback error:', tokenErr);
+        }
+      }
+
       console.log('🎁 All available discounts:', allAvailableDiscounts.map(d => `${d.code} (${d.discount_value || d.value}% off, ${d.discount_scope || d.scope}, tokenGated: ${d.isTokenGated || false}, priority: ${d.priority_level || 0})`));
       
       if (allAvailableDiscounts.length === 0) {
