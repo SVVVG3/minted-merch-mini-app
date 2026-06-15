@@ -24,9 +24,6 @@ export function CreatePageClient() {
   const [colorsLoading, setColorsLoading] = useState(false);
   const [selectedColor, setSelectedColor] = useState(null);
 
-  // Ghost/flat template images per color (loaded in one batch after colors arrive)
-  const [colorTemplates, setColorTemplates] = useState({});
-
   // Image upload
   const [designUrl, setDesignUrl] = useState('');
   const [pasteUrl, setPasteUrl] = useState('');
@@ -82,8 +79,8 @@ export function CreatePageClient() {
   }, [user?.fid, loadMyMockups]);
 
   // ─── Product image cache helpers (localStorage, 24h TTL) ─────────────────
-  // v4: back to template images, now with correct per-variant template_id extraction
-  const PROD_IMG_CACHE = 'ds_product_imgs_v4';
+  // v5: use catalog variant image (productImage) — reliable, colored, no extra API call
+  const PROD_IMG_CACHE = 'ds_product_imgs_v5';
   const CACHE_TTL = 24 * 60 * 60 * 1000;
 
   function getCachedImages() {
@@ -109,10 +106,10 @@ export function CreatePageClient() {
     } catch {}
   }
 
-  // Pre-fetch the black-variant ghost/flat template image for each product.
-  // Template images are flat product shots (no model). With the Shape B bug fixed in
-  // the templates route, each variantId now correctly resolves to its colored template.
-  // Results are cached in localStorage for 24h to avoid repeat API calls.
+  // Pre-fetch the catalog image for the black variant of each product.
+  // Using catalog variant images (productImage) because Printful's template images
+  // are white/neutral regardless of variant — they can't be used for color display.
+  // The catalog images reliably show the actual product color. Cached 24h in localStorage.
   useEffect(() => {
     const cached = getCachedImages();
     if (Object.keys(cached).length > 0) setProductImages(cached);
@@ -123,25 +120,10 @@ export function CreatePageClient() {
     Promise.all(
       needsFetch.map(async (product) => {
         try {
-          // Step 1: get the black variant ID from catalog
           const varRes = await fetch(`/api/design-studio/variants/${product.printfulProductId}`);
           const varData = await varRes.json();
-          const blackColor = (varData.colors || []).find(
-            c => c.name.toLowerCase() === 'black' || c.name.toLowerCase().includes('black')
-          ) || varData.colors?.[0];
-          const variantId = blackColor?.variantIds?.[0];
-          if (!variantId) return { id: product.id, image: varData.productImage || null };
-
-          // Step 2: get the flat ghost image from the mockup template for this variant
-          // (EMBROIDERY technique for hat only; DTG uses no technique param)
-          const rawTech = product.technique;
-          const tech = (rawTech && rawTech !== 'DTG') ? `&technique=${rawTech}` : '';
-          const tmplRes = await fetch(
-            `/api/design-studio/templates/${product.printfulProductId}?variantId=${variantId}${tech}`
-          );
-          const tmplData = await tmplRes.json();
-          const imageUrl = tmplData.template?.image_url || varData.productImage || null;
-          return { id: product.id, image: imageUrl };
+          // productImage is set by the variants route to the black variant's catalog image
+          return { id: product.id, image: varData.productImage || null };
         } catch {
           return { id: product.id, image: null };
         }
@@ -157,40 +139,6 @@ export function CreatePageClient() {
       setProductImages(map);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ─── Load flat ghost template images for every color after colors load ────
-  // Fetches the mockup-generator template per color variant in parallel.
-  // Each individual call (with variantId) returns the color-specific flat image —
-  // the same mechanism that works reliably for the product picker thumbnail.
-  useEffect(() => {
-    if (!selectedProduct || colors.length === 0) return;
-    setColorTemplates({});
-
-    const rawTechnique = selectedTechnique || selectedProduct.technique;
-    // Printful only accepts 'EMBROIDERY' as a technique override; DTG is the default
-    const effectiveTechnique = (rawTechnique === 'DTG') ? null : rawTechnique;
-    const techParam = effectiveTechnique ? `&technique=${effectiveTechnique}` : '';
-
-    Promise.all(
-      colors.map(async (color) => {
-        try {
-          const vid = color.variantIds[0];
-          const res = await fetch(
-            `/api/design-studio/templates/${selectedProduct.printfulProductId}?variantId=${vid}${techParam}`
-          );
-          const data = await res.json();
-          return { name: color.name, url: data.template?.image_url || null };
-        } catch {
-          return { name: color.name, url: null };
-        }
-      })
-    ).then(results => {
-      const map = {};
-      results.forEach(r => { if (r.url) map[r.name] = r.url; });
-      setColorTemplates(map);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [colors, selectedProduct?.id, selectedTechnique]);
 
   // ─── Save mockup to DB when result arrives ────────────────────────────────
   useEffect(() => {
@@ -214,7 +162,6 @@ export function CreatePageClient() {
   const loadColors = useCallback(async (product) => {
     setColorsLoading(true);
     setColors([]);
-    setColorTemplates({});
     setSelectedColor(null);
     setError('');
     try {
@@ -392,7 +339,6 @@ export function CreatePageClient() {
     setSelectedTechnique(null);
     setSelectedColor(null);
     setColors([]);
-    setColorTemplates({});
     setDesignUrl('');
     setPasteUrl('');
     setTemplate(null);
@@ -419,7 +365,7 @@ export function CreatePageClient() {
     const designStudioTitle = (
       <span className="flex items-center gap-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/MintedMerchSpinnerLogo.png" alt="" className="h-6 w-6 rounded-full flex-shrink-0 object-cover" />
+        <img src="/MintedMerchSpinnerLogo.png" alt="" className="h-5 w-auto flex-shrink-0" />
         Design Studio
       </span>
     );
@@ -572,32 +518,28 @@ export function CreatePageClient() {
           ) : (
             <div className="w-full max-w-sm">
               <div className="grid grid-cols-3 gap-3">
-                {colors.map(color => {
-                  // Prefer the ghost/flat template image; fall back to catalog variant image
-                  const displayImg = colorTemplates[color.name] || color.image;
-                  return (
-                    <button
-                      key={color.name}
-                      onClick={() => { setSelectedColor(color); setStep('upload'); }}
-                      title={color.name}
-                      className="flex flex-col items-center gap-1.5 group"
-                    >
-                      <div className="w-full aspect-square rounded-xl overflow-hidden border-2 border-gray-200 group-hover:border-[#3eb489] active:border-[#3eb489] transition-all shadow-sm bg-gray-50">
-                        {displayImg ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={displayImg} alt={color.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full" style={{ backgroundColor: color.code }} />
-                        )}
-                      </div>
-                      {/* Color swatch dot + name */}
-                      <div className="flex items-center gap-1">
-                        <div className="w-3 h-3 rounded-full border border-gray-200 flex-shrink-0" style={{ backgroundColor: color.code }} />
-                        <span className="text-[10px] text-gray-500 leading-tight truncate">{color.name}</span>
-                      </div>
-                    </button>
-                  );
-                })}
+                {colors.map(color => (
+                  <button
+                    key={color.name}
+                    onClick={() => { setSelectedColor(color); setStep('upload'); }}
+                    title={color.name}
+                    className="flex flex-col items-center gap-1.5 group"
+                  >
+                    <div className="w-full aspect-square rounded-xl overflow-hidden border-2 border-gray-200 group-hover:border-[#3eb489] active:border-[#3eb489] transition-all shadow-sm bg-gray-50">
+                      {color.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={color.image} alt={color.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full" style={{ backgroundColor: color.code }} />
+                      )}
+                    </div>
+                    {/* Color swatch dot + name */}
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded-full border border-gray-200 flex-shrink-0" style={{ backgroundColor: color.code }} />
+                      <span className="text-[10px] text-gray-500 leading-tight truncate">{color.name}</span>
+                    </div>
+                  </button>
+                ))}
               </div>
               {colors.length === 0 && !colorsLoading && (
                 <p className="text-center text-gray-400 text-sm py-8">No colors found for this product.</p>
