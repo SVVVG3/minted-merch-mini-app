@@ -237,9 +237,25 @@ export function CreatePageClient() {
         const data = await res.json();
         if (!res.ok || !data.url) throw new Error(data.error || 'Failed to load image');
 
-        setDesignUrl(data.url);
+        // Bake in EXIF orientation correction before Printful sees the image.
+        // Browsers auto-correct EXIF in <img> tags (so preview looks fine), but
+        // Printful renders raw pixels and ignores EXIF → mockup comes out sideways.
+        let finalUrl = data.url;
+        const castExifOrientation = data.exifOrientation || 1;
+        const castAutoRotation = exifToRotation(castExifOrientation);
+        if (castAutoRotation !== 0) {
+          console.log(`📐 Cast action image has EXIF orientation ${castExifOrientation} → correcting ${castAutoRotation}°`);
+          try {
+            finalUrl = await rotateAndReupload(data.url, castAutoRotation, sessionToken);
+            console.log(`✅ EXIF-corrected cast image: ${finalUrl}`);
+          } catch (rotErr) {
+            console.warn('EXIF correction failed, using original (user can rotate manually):', rotErr);
+          }
+        }
+
+        setDesignUrl(finalUrl);
         setCastImagePrefilled(true);
-        console.log(`🎨 Cast image loaded from action: ${data.url}`);
+        console.log(`🎨 Cast image loaded from action: ${finalUrl}`);
       } catch (err) {
         console.error('Cast image pre-fill error:', err);
         // Non-fatal — user can still upload manually
@@ -287,9 +303,25 @@ export function CreatePageClient() {
         const r2Data = await r2Res.json();
         if (!r2Res.ok || !r2Data.url) throw new Error(r2Data.error || 'R2 upload failed');
 
-        setDesignUrl(r2Data.url);
+        // Bake in EXIF orientation correction before Printful sees the image.
+        // Browsers auto-correct EXIF in <img> tags (so preview looks fine), but
+        // Printful renders raw pixels and ignores EXIF → mockup comes out sideways.
+        let contextFinalUrl = r2Data.url;
+        const contextExifOrientation = r2Data.exifOrientation || 1;
+        const contextAutoRotation = exifToRotation(contextExifOrientation);
+        if (contextAutoRotation !== 0) {
+          console.log(`📐 Cast context image has EXIF orientation ${contextExifOrientation} → correcting ${contextAutoRotation}°`);
+          try {
+            contextFinalUrl = await rotateAndReupload(r2Data.url, contextAutoRotation, sessionToken);
+            console.log(`✅ EXIF-corrected context image: ${contextFinalUrl}`);
+          } catch (rotErr) {
+            console.warn('EXIF correction failed, using original (user can rotate manually):', rotErr);
+          }
+        }
+
+        setDesignUrl(contextFinalUrl);
         setCastImagePrefilled(true);
-        console.log(`🎨 Cast image loaded from context: ${r2Data.url}`);
+        console.log(`🎨 Cast image loaded from context: ${contextFinalUrl}`);
       } catch (err) {
         console.error('Cast context image pre-fill error:', err);
       } finally {
