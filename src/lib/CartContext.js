@@ -27,13 +27,18 @@ const CART_ACTIONS = {
 function cartReducer(state, action) {
   switch (action.type) {
     case CART_ACTIONS.ADD_ITEM: {
-      const { product, variant, quantity = 1 } = action.payload;
+      const { product, variant, quantity = 1, options = {} } = action.payload;
       
-      // Create unique item key based on product ID and variant ID
-      const itemKey = `${product.id}-${variant?.id || 'default'}`;
+      // Custom design items always get a unique key so the same product can be
+      // ordered multiple times with different designs (no quantity merging).
+      const itemKey = options?.customMeta?.designRequestId
+        ? `${product.id}-custom-${options.customMeta.designRequestId}`
+        : `${product.id}-${variant?.id || 'default'}`;
       
-      // Check if item already exists in cart
-      const existingItemIndex = state.items.findIndex(item => item.key === itemKey);
+      // Check if item already exists in cart (only merge non-custom items)
+      const existingItemIndex = !options?.customMeta?.designRequestId
+        ? state.items.findIndex(item => item.key === itemKey)
+        : -1;
       
       if (existingItemIndex >= 0) {
         // Update quantity of existing item
@@ -56,7 +61,10 @@ function cartReducer(state, action) {
           },
           variant: variant || null,
           quantity: quantity,
-          price: parseFloat(variant?.price?.amount || product.priceRange?.minVariantPrice?.amount || '0')
+          price: parseFloat(variant?.price?.amount || product.priceRange?.minVariantPrice?.amount || '0'),
+          // Custom design studio fields — null for regular products
+          customImageUrl: options?.customImageUrl || null,
+          customMeta: options?.customMeta || null, // { designRequestId, productType, size }
         };
         
         return {
@@ -369,13 +377,13 @@ export function CartProvider({ children }) {
   // No more complex re-evaluation needed!
 
   // Cart actions
-  const addItem = (product, variant, quantity = 1) => {
+  const addItem = (product, variant, quantity = 1, options = {}) => {
     dispatch({
       type: CART_ACTIONS.ADD_ITEM,
-      payload: { product, variant, quantity }
+      payload: { product, variant, quantity, options }
     });
     
-    console.log('✅ Added item to cart:', product.title);
+    console.log('✅ Added item to cart:', product.title, options?.customMeta ? `(custom design ${options.customMeta.designRequestId})` : '');
     // Auto-evaluation will happen via useEffect
   };
 

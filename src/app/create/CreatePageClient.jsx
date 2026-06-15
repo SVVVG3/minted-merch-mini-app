@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { DESIGN_STUDIO_PRODUCTS } from '@/lib/designStudioConfig';
+import { useCart } from '@/lib/CartContext';
 
 export function CreatePageClient() {
   const router = useRouter();
   const { user, getSessionToken, isInFarcaster, getPfpUrl } = useFarcaster();
+  const { addItem } = useCart();
 
   // ─── Step state ──────────────────────────────────────────────────────────
   const [step, setStep] = useState('product');
@@ -55,6 +57,13 @@ export function CreatePageClient() {
 
   // Errors
   const [error, setError] = useState('');
+
+  // Buy / size picker
+  const [showBuySheet, setShowBuySheet] = useState(false);
+  const [selectedSize, setSelectedSize] = useState('');
+  const [buyLoading, setBuyLoading] = useState(false);
+  const [buyAdded, setBuyAdded] = useState(false);
+  const [buyError, setBuyError] = useState('');
 
   // ─── Load user's past mockups ─────────────────────────────────────────────
   const loadMyMockups = useCallback(async () => {
@@ -347,6 +356,78 @@ export function CreatePageClient() {
     setTaskKey('');
     setMockupUrl('');
     setError('');
+    setBuyAdded(false);
+    setBuyError('');
+    setSelectedSize('');
+  };
+
+  // ─── Buy (add to cart) ────────────────────────────────────────────────────
+  const handleBuyConfirm = async () => {
+    if (!selectedSize) { setBuyError('Please select a size.'); return; }
+    setBuyLoading(true);
+    setBuyError('');
+
+    try {
+      const sessionToken = getSessionToken();
+      if (!sessionToken) throw new Error('Please connect your Farcaster account first.');
+
+      // 1. Save design request to Supabase; returns a UUID for traceability
+      const saveRes = await fetch('/api/design-studio/save-order-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify({
+          productId: selectedProduct.id,
+          size: selectedSize,
+          colorName: selectedColor?.name || null,
+          technique: selectedTechnique || selectedProduct.technique || 'DTG',
+          designUrl,
+          mockupUrl,
+          placement: designPlacement,
+          designScale,
+          printfulVariantIds: selectedColor?.variantIds || null,
+          positionData: null, // position is computed server-side at generate time
+        }),
+      });
+      const saveData = await saveRes.json();
+      if (!saveRes.ok) throw new Error(saveData.error || 'Failed to save design request');
+      const designRequestId = saveData.id;
+
+      // 2. Build a Shopify-compatible product/variant object for the cart
+      const variantGid = `gid://shopify/ProductVariant/${selectedProduct.shopifyVariantId}`;
+      const productGid  = `gid://shopify/Product/custom-${selectedProduct.id}-${Date.now()}`;
+      const cartProduct = {
+        id: productGid,
+        title: `Custom ${selectedProduct.label}`,
+        handle: `custom-${selectedProduct.id}`,
+        images: { edges: [] },
+      };
+      const cartVariant = {
+        id: variantGid,
+        title: selectedSize,
+        price: { amount: String(selectedProduct.displayPrice || 0), currencyCode: 'USD' },
+        image: null,
+      };
+
+      // 3. Add to cart — custom items carry the mockup image and design UUID
+      addItem(cartProduct, cartVariant, 1, {
+        customImageUrl: mockupUrl,
+        customMeta: {
+          designRequestId,
+          productType: selectedProduct.id,
+          size: selectedSize,
+          colorName: selectedColor?.name || null,
+        },
+      });
+
+      setShowBuySheet(false);
+      setBuyAdded(true);
+
+    } catch (err) {
+      console.error('Buy error:', err);
+      setBuyError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setBuyLoading(false);
+    }
   };
 
   // =========================================================================
@@ -892,30 +973,116 @@ export function CreatePageClient() {
           </div>
 
           <div className="w-full max-w-sm space-y-3">
-            {/* Share button */}
-            <button
-              onClick={handleShare}
-              className="w-full flex items-center justify-center gap-2 py-4 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 520 457" fill="currentColor">
-                <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
-              </svg>
-              Share on Farcaster
-            </button>
+            {/* ── Added-to-cart success state ── */}
+            {buyAdded ? (
+              <div className="w-full rounded-2xl bg-[#3eb489]/10 border border-[#3eb489]/30 px-4 py-4 flex flex-col items-center gap-3">
+                <p className="text-[#2a7a5c] font-semibold text-base">Added to Cart! 🛒</p>
+                <p className="text-gray-500 text-sm text-center">
+                  Your custom {selectedProduct?.label.toLowerCase()} is in your cart. Go back to the shop to checkout.
+                </p>
+                <button
+                  onClick={() => router.push('/')}
+                  className="w-full py-3 bg-[#3eb489] hover:bg-[#34a078] text-white font-semibold rounded-xl transition-colors text-sm"
+                >
+                  Go to Shop & Checkout →
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Buy button */}
+                <button
+                  onClick={() => { setShowBuySheet(true); setBuyError(''); setSelectedSize(selectedProduct?.sizes?.[0] || ''); }}
+                  className="w-full flex items-center justify-center gap-2 py-4 bg-[#3eb489] hover:bg-[#34a078] text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  Buy This Design
+                </button>
 
-            {/* Create another */}
-            <button
-              onClick={handleReset}
-              className="w-full py-3.5 bg-white border-2 border-gray-200 hover:border-[#3eb489] text-gray-700 font-medium rounded-2xl transition-colors text-base"
-            >
-              🎨 Create Another
-            </button>
+                {/* Share button */}
+                <button
+                  onClick={handleShare}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 520 457" fill="currentColor">
+                    <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
+                  </svg>
+                  Share on Farcaster
+                </button>
 
-            {/* Back to shop */}
-            <button onClick={() => router.push('/')} className="w-full py-3 text-sm text-gray-400 hover:text-gray-600 transition-colors">
-              ← Back to Shop
-            </button>
+                {/* Create another */}
+                <button
+                  onClick={handleReset}
+                  className="w-full py-3.5 bg-white border-2 border-gray-200 hover:border-[#3eb489] text-gray-700 font-medium rounded-2xl transition-colors text-base"
+                >
+                  🎨 Create Another
+                </button>
+
+                {/* Back to shop */}
+                <button onClick={() => router.push('/')} className="w-full py-3 text-sm text-gray-400 hover:text-gray-600 transition-colors">
+                  ← Back to Shop
+                </button>
+              </>
+            )}
           </div>
+
+          {/* ── Size Picker Bottom Sheet ── */}
+          {showBuySheet && (
+            <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,0.5)' }}>
+              {/* Backdrop */}
+              <div className="absolute inset-0" onClick={() => !buyLoading && setShowBuySheet(false)} />
+
+              {/* Sheet */}
+              <div className="relative bg-white rounded-t-3xl px-5 pt-5 pb-10 z-10">
+                <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-5" />
+                <h2 className="font-bold text-gray-900 text-lg mb-1">Select a Size</h2>
+                <p className="text-sm text-gray-500 mb-5">
+                  Custom {selectedProduct?.label} · {selectedColor?.name || 'Custom Color'} · {selectedProduct?.techniqueLabel || (selectedTechnique === 'EMBROIDERY' ? 'Embroidery' : 'DTG Print')}
+                </p>
+
+                {/* Size grid */}
+                <div className="grid grid-cols-3 gap-2 mb-5">
+                  {(selectedProduct?.sizes || []).map(size => (
+                    <button
+                      key={size}
+                      onClick={() => setSelectedSize(size)}
+                      className={`py-3 rounded-xl border-2 font-semibold text-sm transition-colors ${
+                        selectedSize === size
+                          ? 'border-[#3eb489] bg-[#3eb489]/10 text-[#2a7a5c]'
+                          : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+
+                {buyError && (
+                  <p className="text-red-500 text-sm mb-3">{buyError}</p>
+                )}
+
+                {/* Confirm button */}
+                <button
+                  onClick={handleBuyConfirm}
+                  disabled={buyLoading || !selectedSize}
+                  className="w-full py-4 bg-[#3eb489] hover:bg-[#34a078] disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold rounded-2xl transition-colors text-base flex items-center justify-center gap-2"
+                >
+                  {buyLoading ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                      </svg>
+                      Adding to Cart...
+                    </>
+                  ) : (
+                    <>Add to Cart — ${selectedProduct?.displayPrice?.toFixed(2) || '—'}</>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Past mockups gallery */}
           {myMockups.length > 1 && (

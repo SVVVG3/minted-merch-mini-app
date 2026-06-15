@@ -2,6 +2,7 @@ import { createShopifyOrder, getOrderStatus } from '@/lib/shopifyAdmin';
 import { createOrder as createSupabaseOrder } from '@/lib/orders';
 import { sendOrderConfirmationNotificationAndMark } from '@/lib/orders';
 import { markDiscountCodeAsUsed } from '@/lib/discounts';
+import { createPrintfulTemplate } from '@/lib/printfulTemplates';
 import { NextResponse } from 'next/server';
 
 // Function to sanitize address fields by removing emojis and non-alphabetic characters
@@ -168,6 +169,23 @@ export async function POST(request) {
       claimSignatureMessage, // The typed data message that was signed
       walletAddress // User's wallet address (for signature verification)
     } = body;
+
+    // Extract custom design order items (Design Studio purchases)
+    const customDesignItems = (cartItems || []).filter(
+      item => item.customMeta?.designRequestId
+    );
+    const customDesignIds = customDesignItems.map(
+      item => item.customMeta.designRequestId
+    );
+
+    // Auto-append design request UUIDs to the order notes for traceability
+    let effectiveNotes = notes || '';
+    if (customDesignIds.length > 0) {
+      const designRef = `Custom Design Request${customDesignIds.length > 1 ? 's' : ''}: ${customDesignIds.join(', ')}`;
+      effectiveNotes = effectiveNotes
+        ? `${effectiveNotes}\n\n${designRef}`
+        : designRef;
+    }
 
     // Convert FID to integer to ensure proper database type matching
     const fidInt = fid ? parseInt(fid, 10) : null;
@@ -1193,7 +1211,7 @@ export async function POST(request) {
           totalTax: adjustedTax, // Use tax adjusted for discount
           shippingLines,
           transactionHash,
-          notes: notes || '',
+          notes: effectiveNotes,
           userFid: fidInt, // Add FID to include in order notes
           discountCodes: appliedDiscount ? [{
             code: appliedDiscount.code,
@@ -1469,8 +1487,25 @@ export async function POST(request) {
 
     if (shopifyOrder && (supabaseOrder || supabaseOrder?.manual_fix_needed)) {
       console.log(`✅ [${requestId}] Order created in Shopify${supabaseOrder?.manual_fix_needed ? ' (Supabase skipped - manual fix needed)' : ' and Supabase'}`);
-      
-      
+
+      // Fire-and-forget: create Printful product templates for any custom design items.
+      // We do NOT await these — the customer's success response must not be delayed.
+      if (customDesignIds.length > 0) {
+        for (const designRequestId of customDesignIds) {
+          createPrintfulTemplate(
+            designRequestId,
+            shopifyOrder.id || null,
+            shopifyOrder.name || null
+          ).then(result => {
+            if (result.success) {
+              console.log(`✅ Printful template created for design request ${designRequestId} — templateId: ${result.templateId}`);
+            } else {
+              console.error(`❌ Printful template failed for ${designRequestId}:`, result.error);
+            }
+          });
+        }
+      }
+
       // Send order confirmation notification (only if FID provided and Supabase order created)
       if (fidInt && supabaseOrder?.success !== false) {
         try {

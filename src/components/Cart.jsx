@@ -332,11 +332,11 @@ function CartItem({ item, onQuantityChange, onRemove }) {
 
   return (
     <div className="flex gap-3 p-3 bg-gray-50 rounded-lg">
-      {/* Product Image */}
+      {/* Product Image — custom design orders show the generated mockup */}
       <div className="w-16 h-16 bg-gray-200 rounded-md overflow-hidden flex-shrink-0">
-        {(item.variant?.image?.url || item.product.image?.url) ? (
+        {(item.customImageUrl || item.variant?.image?.url || item.product.image?.url) ? (
           <img
-            src={item.variant?.image?.url || item.product.image.url}
+            src={item.customImageUrl || item.variant?.image?.url || item.product.image.url}
             alt={item.product.title}
             className="w-full h-full object-cover"
           />
@@ -359,10 +359,18 @@ function CartItem({ item, onQuantityChange, onRemove }) {
             >
               {item.product.title}
             </Link>
-            {item.variant && item.variant.title && item.variant.title !== 'Default Title' && (
+            {/* Show size for custom design orders, otherwise show variant title */}
+            {item.customMeta?.size ? (
               <p className="text-xs text-gray-500 mt-1">
-                {item.variant.title}
+                Size: {item.customMeta.size}
+                {item.customMeta.colorName ? ` · ${item.customMeta.colorName}` : ''}
               </p>
+            ) : (
+              item.variant && item.variant.title && item.variant.title !== 'Default Title' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {item.variant.title}
+                </p>
+              )
             )}
           </div>
           <button
