@@ -444,7 +444,7 @@ export function CreatePageClient() {
   // ─── Step: Technique Picker (hoodies only) ────────────────────────────────
   if (step === 'technique') {
     return (
-      <PageShell onBack={() => setStep('product')} title={`${selectedProduct?.emoji} ${selectedProduct?.label}`} step={2} totalSteps={5}>
+      <PageShell onBack={() => setStep('product')} title={selectedProduct?.label} step={2} totalSteps={5}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
           <p className="text-gray-500 text-sm text-center mb-6">Choose your printing method</p>
           <div className="w-full max-w-sm space-y-3">
@@ -507,7 +507,7 @@ export function CreatePageClient() {
   if (step === 'color') {
     const colorStepBack = selectedProduct?.techniqueOptions ? 'technique' : 'product';
     return (
-      <PageShell onBack={() => setStep(colorStepBack)} title={`${selectedProduct?.emoji} ${selectedProduct?.label}`} step={stepNum('color')} totalSteps={totalSteps}>
+      <PageShell onBack={() => setStep(colorStepBack)} title={selectedProduct?.label} step={stepNum('color')} totalSteps={totalSteps}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
           <p className="text-gray-500 text-sm text-center mb-6">Choose a color</p>
           {colorsLoading ? (
