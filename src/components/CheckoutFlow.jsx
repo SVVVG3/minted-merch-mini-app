@@ -1488,6 +1488,7 @@ Transaction Hash: ${txHashOverride || transactionHash}`;
             quantity: item.quantity,
             price: item.price,
             customImageUrl: item.customImageUrl || null,
+            designRequestId: item.customMeta?.designRequestId || null,
           })),
           shippingAddress: shippingData,
           selectedShipping: cart.selectedShipping,

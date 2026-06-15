@@ -123,13 +123,27 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
-  // If any line item is a Design Studio custom product, look up the mockup URL.
-  // Sends both orderNumber (for strategy-1 lookup) and productType (strategy-2 fallback).
+  // If any line item is a Design Studio custom product, resolve the mockup URL.
+  // Priority:
+  //  1. customImageUrl stored directly in the line item (orders placed after the
+  //     fix that serialises it into Supabase — fastest, no extra round-trip)
+  //  2. API lookup via order-mockup endpoint which tries:
+  //       a. design_order_requests by shopify_order_number (Printful-linked)
+  //       b. design_order_requests by designRequestId UUID (new orders)
+  //       c. Timing-based fallback: closest design_order_requests created before
+  //          the order, scoped to this FID + product type
   const maybeFetchMockupUrl = async (order, num, headers) => {
     const customItem = order?.line_items?.find(item =>
       (item.title || '').toLowerCase().includes('design studio custom')
     );
     if (!customItem) return;
+
+    // Fast path: mockup URL already stored in the line item
+    if (customItem.customImageUrl) {
+      setCustomMockupUrl(customItem.customImageUrl);
+      console.log('🎨 Custom mockup URL from line item:', customItem.customImageUrl);
+      return;
+    }
 
     // Derive productType from the Shopify line item title
     const titleLower = customItem.title.toLowerCase();
@@ -141,6 +155,8 @@ export function OrderSuccessClient({ orderNumber }) {
     try {
       const params = new URLSearchParams({ orderNumber: num });
       if (productType) params.set('productType', productType);
+      if (customItem.designRequestId) params.set('designRequestId', customItem.designRequestId);
+      if (order.created_at) params.set('orderCreatedAt', order.created_at);
 
       const res = await fetch(
         `/api/design-studio/order-mockup?${params.toString()}`,
@@ -150,7 +166,7 @@ export function OrderSuccessClient({ orderNumber }) {
         const body = await res.json();
         if (body.mockupUrl) {
           setCustomMockupUrl(body.mockupUrl);
-          console.log('🎨 Custom mockup URL fetched:', body.mockupUrl);
+          console.log('🎨 Custom mockup URL fetched via API:', body.mockupUrl);
         }
       }
     } catch (err) {

@@ -55,6 +55,8 @@ function exifToRotation(exif) {
 
 // Fetch image via same-origin proxy, rotate using canvas, re-upload to R2.
 // Returns the new R2 URL for the rotated design.
+// Caps canvas size at 1 500 px to avoid mobile memory limits (portrait photos
+// from modern phones can exceed 12 MP which crashes canvas.toBlob on Safari).
 async function rotateAndReupload(imageUrl, degrees, sessionToken) {
   // Proxy fetch avoids cross-origin canvas tainting
   const proxyUrl = `/api/design-studio/proxy-image?url=${encodeURIComponent(imageUrl)}`;
@@ -66,23 +68,34 @@ async function rotateAndReupload(imageUrl, degrees, sessionToken) {
   const rotatedBlob = await new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const rad = (degrees * Math.PI) / 180;
-      if (degrees === 90 || degrees === 270) {
-        canvas.width = img.naturalHeight;
-        canvas.height = img.naturalWidth;
-      } else {
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+      try {
+        const MAX_DIM = 1500;
+        const scale = Math.min(1, MAX_DIM / Math.max(img.naturalWidth, img.naturalHeight));
+        const drawW = Math.round(img.naturalWidth * scale);
+        const drawH = Math.round(img.naturalHeight * scale);
+
+        const canvas = document.createElement('canvas');
+        // Swap dimensions for 90 / 270 rotations
+        if (degrees === 90 || degrees === 270) {
+          canvas.width = drawH;
+          canvas.height = drawW;
+        } else {
+          canvas.width = drawW;
+          canvas.height = drawH;
+        }
+
+        const ctx = canvas.getContext('2d');
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((degrees * Math.PI) / 180);
+        ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+
+        canvas.toBlob(b => {
+          if (b) resolve(b);
+          else reject(new Error('canvas.toBlob returned null — image may be too large'));
+        }, 'image/jpeg', 0.9);
+      } catch (err) {
+        reject(err);
       }
-      const ctx = canvas.getContext('2d');
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate(rad);
-      ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
-      canvas.toBlob(b => {
-        if (b) resolve(b);
-        else reject(new Error('canvas.toBlob returned null'));
-      }, 'image/png');
     };
     img.onerror = () => reject(new Error('Failed to load image for rotation'));
     img.src = objectUrl;
@@ -90,7 +103,7 @@ async function rotateAndReupload(imageUrl, degrees, sessionToken) {
   URL.revokeObjectURL(objectUrl);
 
   const formData = new FormData();
-  formData.append('file', rotatedBlob, 'design-rotated.png');
+  formData.append('file', rotatedBlob, 'design-rotated.jpg');
   const uploadRes = await fetch('/api/design-studio/upload', {
     method: 'POST',
     headers: { Authorization: `Bearer ${sessionToken}` },
@@ -474,22 +487,20 @@ export function CreatePageClient() {
     const sessionToken = getSessionToken();
     if (!sessionToken) { setError('Please sign in to generate a mockup.'); return; }
     setError('');
-    setStep('generating');
 
     try {
-      // If the user rotated the image, apply the rotation before sending to Printful
+      // Apply rotation BEFORE entering the generating step so that any failure
+      // is visible on the preview screen rather than silently ignored.
       let effectiveDesignUrl = designUrl;
       if (rotationDegrees !== 0) {
-        try {
-          effectiveDesignUrl = await rotateAndReupload(designUrl, rotationDegrees, sessionToken);
-          setDesignUrl(effectiveDesignUrl); // update state so future generates use the rotated version
-          setRotationDegrees(0);            // rotation is now baked in
-        } catch (rotErr) {
-          console.warn('Rotation failed, proceeding with original:', rotErr.message);
-          // Non-fatal — proceed with unrotated image
-          effectiveDesignUrl = designUrl;
-        }
+        setError('Applying rotation…');
+        effectiveDesignUrl = await rotateAndReupload(designUrl, rotationDegrees, sessionToken);
+        setDesignUrl(effectiveDesignUrl); // bake in — future re-generates use the corrected URL
+        setRotationDegrees(0);
+        setError('');
       }
+
+      setStep('generating'); // only switch to spinner once prep is done
 
       const res = await fetch('/api/design-studio/create-task', {
         method: 'POST',
@@ -1406,8 +1417,7 @@ export function CreatePageClient() {
         <img src="/MintedMerchSpinnerLogo.png" alt="Minted Merch" className="h-10 mb-6" />
         <h2 className="text-xl font-bold text-gray-900 mb-2">Generating your mockup…</h2>
         <p className="text-sm text-gray-400 text-center">
-          Minted Merch is rendering your design onto the {selectedProduct?.label.toLowerCase()}.
-          <br />Usually takes 5–15 seconds.
+          Minted Merch is rendering your design onto the {selectedProduct?.label.toLowerCase()}. Usually takes 5–15 seconds.
         </p>
         <div className="flex gap-1.5 mt-8">
           {[0, 1, 2, 3, 4].map(i => (
