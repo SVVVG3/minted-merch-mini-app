@@ -3,7 +3,14 @@ import { CreatePageClient } from './CreatePageClient';
 
 const BASE_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
 
-export async function generateMetadata() {
+// searchParams is passed so the fc:frame launch URL can carry castImageUrl through
+// the Farcaster client's frame-open step (otherwise the query param would be lost).
+export async function generateMetadata({ searchParams }) {
+  const castImageUrl = searchParams?.castImageUrl;
+  const launchUrl = castImageUrl
+    ? `${BASE_URL}/create?castImageUrl=${encodeURIComponent(castImageUrl)}`
+    : `${BASE_URL}/create`;
+
   return {
     title: 'Design Studio — Minted Merch',
     description: 'Apply your design to a tee, hoodie, or hat and share it on Farcaster.',
@@ -20,7 +27,7 @@ export async function generateMetadata() {
           title: '🎨 Design Studio',
           action: {
             type: 'launch_frame',
-            url: `${BASE_URL}/create`,
+            url: launchUrl,
             name: 'Minted Merch',
             splashImageUrl: `${BASE_URL}/MintedMerchHeaderLogo.png`,
             splashBackgroundColor: '#000000',

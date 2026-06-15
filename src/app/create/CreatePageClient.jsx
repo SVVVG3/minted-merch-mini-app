@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { DESIGN_STUDIO_PRODUCTS } from '@/lib/designStudioConfig';
@@ -9,6 +9,7 @@ import { useCart } from '@/lib/CartContext';
 
 export function CreatePageClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, getSessionToken, isInFarcaster, getPfpUrl } = useFarcaster();
   const { addItem } = useCart();
 
@@ -70,6 +71,14 @@ export function CreatePageClient() {
   // When buying from past-mockup history (not the current result)
   const [historyMockup, setHistoryMockup] = useState(null);
 
+  // ─── Cast-action pre-fill ─────────────────────────────────────────────────
+  // When opened via the Farcaster cast action, castImageUrl param carries the
+  // image from the cast. We re-upload it to R2 then skip straight to the
+  // product picker with the image already set.
+  const [castImageLoading, setCastImageLoading] = useState(false);
+  const [castImagePrefilled, setCastImagePrefilled] = useState(false);
+  const castImageProcessed = useRef(false); // prevent double-processing
+
   // ─── Load user's past mockups ─────────────────────────────────────────────
   const loadMyMockups = useCallback(async () => {
     const sessionToken = getSessionToken();
@@ -91,6 +100,47 @@ export function CreatePageClient() {
   useEffect(() => {
     if (user?.fid) loadMyMockups();
   }, [user?.fid, loadMyMockups]);
+
+  // ─── Process castImageUrl param (from Farcaster cast action) ─────────────
+  useEffect(() => {
+    const rawCastImageUrl = searchParams?.get('castImageUrl');
+    if (!rawCastImageUrl || castImageProcessed.current) return;
+
+    const sessionToken = getSessionToken();
+    if (!sessionToken) return; // wait for auth
+
+    castImageProcessed.current = true;
+    setCastImageLoading(true);
+
+    (async () => {
+      try {
+        // Re-upload to R2 so Printful can always access it regardless of CDN restrictions
+        const res = await fetch('/api/design-studio/fetch-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+          body: JSON.stringify({ url: rawCastImageUrl }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.url) throw new Error(data.error || 'Failed to load image');
+
+        setDesignUrl(data.url);
+        setCastImagePrefilled(true);
+        console.log(`🎨 Cast image loaded from action: ${data.url}`);
+      } catch (err) {
+        console.error('Cast image pre-fill error:', err);
+        // Non-fatal — user can still upload manually
+      } finally {
+        setCastImageLoading(false);
+      }
+    })();
+  }, [searchParams, getSessionToken]); // re-run when auth becomes available
+
+  // Auto-advance past the upload step when the cast image is already loaded
+  useEffect(() => {
+    if (step === 'upload' && castImagePrefilled && designUrl) {
+      setStep('preview');
+    }
+  }, [step, castImagePrefilled, designUrl]);
 
   // ─── Product image cache helpers (localStorage, 24h TTL) ─────────────────
   // v5: use catalog variant image (productImage) — reliable, colored, no extra API call
@@ -366,6 +416,8 @@ export function CreatePageClient() {
     setSelectedSize('');
     setShopifyVariants([]);
     setHistoryMockup(null);
+    setCastImagePrefilled(false);
+    castImageProcessed.current = false;
   };
 
   // ─── Buy (add to cart) ────────────────────────────────────────────────────
@@ -552,6 +604,24 @@ export function CreatePageClient() {
       <>
       <PageShell onBack={() => router.push('/')} title={designStudioTitle} step={1} totalSteps={4}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
+          {/* Cast image pre-fill banners */}
+          {castImageLoading && (
+            <div className="w-full max-w-sm mb-4 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-500 flex items-center gap-2">
+              <svg className="animate-spin w-4 h-4 text-[#3eb489] flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              Loading image from cast…
+            </div>
+          )}
+          {castImagePrefilled && !castImageLoading && (
+            <div className="w-full max-w-sm mb-4 px-4 py-2.5 bg-[#3eb489]/10 border border-[#3eb489]/30 rounded-xl text-sm text-[#2a7a5c] flex items-center gap-2">
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Image loaded from cast — choose a product to continue
+            </div>
+          )}
           <p className="text-gray-500 text-sm text-center mb-6">
             Choose a product to put your design on:
           </p>
