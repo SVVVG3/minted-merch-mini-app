@@ -7,6 +7,100 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { DESIGN_STUDIO_PRODUCTS } from '@/lib/designStudioConfig';
 import { useCart } from '@/lib/CartContext';
 
+// ─── EXIF orientation helpers ────────────────────────────────────────────────
+// Read the EXIF orientation tag from a JPEG File without a library.
+// Returns the raw orientation integer (1 = normal, 3 = 180°, 6 = 90° CW, 8 = 270° CW).
+async function readExifOrientation(file) {
+  if (!file || !file.type?.startsWith('image/jpeg')) return 1;
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const view = new DataView(e.target.result);
+        if (view.getUint16(0, false) !== 0xffd8) { resolve(1); return; }
+        let offset = 2;
+        while (offset < view.byteLength) {
+          const marker = view.getUint16(offset, false);
+          offset += 2;
+          if (marker === 0xffe1) { // APP1 – EXIF data
+            if (view.getUint32(offset + 2, false) !== 0x45786966) { resolve(1); return; }
+            const little = view.getUint16(offset + 8, false) === 0x4949;
+            const ifdOffset = view.getUint32(offset + 12, little) + offset + 8;
+            const entries = view.getUint16(ifdOffset, little);
+            for (let i = 0; i < entries; i++) {
+              if (view.getUint16(ifdOffset + 2 + 12 * i, little) === 0x0112) {
+                resolve(view.getUint16(ifdOffset + 2 + 12 * i + 8, little));
+                return;
+              }
+            }
+            resolve(1); return;
+          }
+          offset += view.getUint16(offset, false);
+        }
+      } catch { /* ignore parse errors */ }
+      resolve(1);
+    };
+    reader.onerror = () => resolve(1);
+    reader.readAsArrayBuffer(file.slice(0, 65536)); // only first 64 KB needed
+  });
+}
+
+// Map EXIF orientation to the CSS rotation degrees needed to display correctly
+function exifToRotation(exif) {
+  if (exif === 3) return 180;
+  if (exif === 6) return 90;
+  if (exif === 8) return 270;
+  return 0;
+}
+
+// Fetch image via same-origin proxy, rotate using canvas, re-upload to R2.
+// Returns the new R2 URL for the rotated design.
+async function rotateAndReupload(imageUrl, degrees, sessionToken) {
+  // Proxy fetch avoids cross-origin canvas tainting
+  const proxyUrl = `/api/design-studio/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+  const res = await fetch(proxyUrl);
+  if (!res.ok) throw new Error(`Proxy fetch failed: ${res.status}`);
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+
+  const rotatedBlob = await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const rad = (degrees * Math.PI) / 180;
+      if (degrees === 90 || degrees === 270) {
+        canvas.width = img.naturalHeight;
+        canvas.height = img.naturalWidth;
+      } else {
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+      canvas.toBlob(b => {
+        if (b) resolve(b);
+        else reject(new Error('canvas.toBlob returned null'));
+      }, 'image/png');
+    };
+    img.onerror = () => reject(new Error('Failed to load image for rotation'));
+    img.src = objectUrl;
+  });
+  URL.revokeObjectURL(objectUrl);
+
+  const formData = new FormData();
+  formData.append('file', rotatedBlob, 'design-rotated.png');
+  const uploadRes = await fetch('/api/design-studio/upload', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${sessionToken}` },
+    body: formData,
+  });
+  const uploadData = await uploadRes.json();
+  if (!uploadData.success) throw new Error(uploadData.error || 'Upload failed');
+  return uploadData.url;
+}
+
 export function CreatePageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -78,6 +172,13 @@ export function CreatePageClient() {
   const [castImageLoading, setCastImageLoading] = useState(false);
   const [castImagePrefilled, setCastImagePrefilled] = useState(false);
   const castImageProcessed = useRef(false); // prevent double-processing
+  // Ensures the auto-advance to 'preview' only fires once per cast prefill.
+  // Without this, pressing back would immediately re-advance.
+  const castAutoAdvanced = useRef(false);
+
+  // ─── Image rotation ───────────────────────────────────────────────────────
+  // 0 | 90 | 180 | 270 — CSS-rotated in preview, applied to design at generate time
+  const [rotationDegrees, setRotationDegrees] = useState(0);
 
   // ─── Load user's past mockups ─────────────────────────────────────────────
   const loadMyMockups = useCallback(async () => {
@@ -186,11 +287,16 @@ export function CreatePageClient() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.fid]);
 
-  // Auto-advance past the upload step when the cast image is already loaded
+  // Auto-advance past the upload step when the cast image is already loaded.
+  // castAutoAdvanced ensures we only do this ONCE — pressing back won't re-advance.
   useEffect(() => {
-    if (step === 'upload' && castImagePrefilled && designUrl) {
+    if (step === 'upload' && castImagePrefilled && designUrl && !castAutoAdvanced.current) {
+      castAutoAdvanced.current = true;
+      // Kick off template load now that we know the product + color
+      loadTemplate(selectedProduct, selectedColor, selectedTechnique);
       setStep('preview');
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, castImagePrefilled, designUrl]);
 
   // ─── Product image cache helpers (localStorage, 24h TTL) ─────────────────
@@ -327,6 +433,9 @@ export function CreatePageClient() {
     if (!sessionToken) { setError('Please sign in to upload a design.'); return; }
     setIsUploading(true);
     setError('');
+    // Detect EXIF orientation before uploading so we can auto-correct the preview
+    const exifOrientation = await readExifOrientation(file);
+    const autoRotation = exifToRotation(exifOrientation);
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -338,6 +447,7 @@ export function CreatePageClient() {
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Upload failed');
       setDesignUrl(data.url);
+      setRotationDegrees(autoRotation); // auto-correct for EXIF orientation
       loadTemplate(selectedProduct, selectedColor, selectedTechnique); // async, don't await
       setStep('preview');
     } catch (err) {
@@ -367,13 +477,27 @@ export function CreatePageClient() {
     setStep('generating');
 
     try {
+      // If the user rotated the image, apply the rotation before sending to Printful
+      let effectiveDesignUrl = designUrl;
+      if (rotationDegrees !== 0) {
+        try {
+          effectiveDesignUrl = await rotateAndReupload(designUrl, rotationDegrees, sessionToken);
+          setDesignUrl(effectiveDesignUrl); // update state so future generates use the rotated version
+          setRotationDegrees(0);            // rotation is now baked in
+        } catch (rotErr) {
+          console.warn('Rotation failed, proceeding with original:', rotErr.message);
+          // Non-fatal — proceed with unrotated image
+          effectiveDesignUrl = designUrl;
+        }
+      }
+
       const res = await fetch('/api/design-studio/create-task', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
         body: JSON.stringify({
           productId: selectedProduct.id,
           variantIds: selectedColor.variantIds.slice(0, 3),
-          imageUrl: designUrl,
+          imageUrl: effectiveDesignUrl,
           designScale,
           designPlacement,
           technique: selectedTechnique || selectedProduct.technique || null,
@@ -470,6 +594,8 @@ export function CreatePageClient() {
     setHistoryMockup(null);
     setCastImagePrefilled(false);
     castImageProcessed.current = false;
+    castAutoAdvanced.current = false;
+    setRotationDegrees(0);
   };
 
   // ─── Buy (add to cart) ────────────────────────────────────────────────────
@@ -1084,7 +1210,17 @@ export function CreatePageClient() {
     }
 
     return (
-      <PageShell onBack={() => setStep('upload')} title="Preview & Generate" step={stepNum('preview')} totalSteps={totalSteps}>
+      <PageShell
+        onBack={() => {
+          // Clearing castImagePrefilled ensures we don't auto-advance again
+          // if the user returns to the upload step
+          setCastImagePrefilled(false);
+          setStep('upload');
+        }}
+        title="Preview & Generate"
+        step={stepNum('preview')}
+        totalSteps={totalSteps}
+      >
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
 
           {/* Placement picker — shirts & hoodies only */}
@@ -1143,7 +1279,12 @@ export function CreatePageClient() {
                     }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={designUrl} alt="Your design" className="w-full h-full object-contain" />
+                    <img
+                      src={designUrl}
+                      alt="Your design"
+                      className="w-full h-full object-contain transition-transform duration-300"
+                      style={{ transform: `rotate(${rotationDegrees}deg)` }}
+                    />
                   </div>
                 )}
 
@@ -1191,7 +1332,18 @@ export function CreatePageClient() {
                 </div>
               )}
 
-              <p className="text-xs text-gray-400 text-center mt-3 px-4">
+              {/* Rotate button */}
+              <button
+                onClick={() => setRotationDegrees(d => (d + 90) % 360)}
+                className="mt-3 flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#3eb489] transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Rotate 90°{rotationDegrees !== 0 && ` (${rotationDegrees}° applied)`}
+              </button>
+
+              <p className="text-xs text-gray-400 text-center mt-2 px-4">
                 Live preview — the final mockup will look more realistic.
               </p>
             </>
@@ -1207,6 +1359,16 @@ export function CreatePageClient() {
               <p className="text-gray-400 text-sm">
                 Preview not available — your design will still generate correctly.
               </p>
+              {/* Rotate button even without template */}
+              <button
+                onClick={() => setRotationDegrees(d => (d + 90) % 360)}
+                className="mt-3 inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#3eb489] transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Rotate 90°{rotationDegrees !== 0 && ` (${rotationDegrees}°)`}
+              </button>
               {/* Embroidery warning even without template */}
               {isEmbroidery && (
                 <div className="mt-4 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-left flex gap-2">
