@@ -48,10 +48,10 @@ export async function DELETE(request) {
   try {
     const supabase = getSupabaseAdmin();
 
-    // Fetch the record first to verify ownership and get the R2 URL
+    // Fetch the record first to verify ownership and get both R2 URLs
     const { data: mockup, error: fetchErr } = await supabase
       .from('design_studio_mockups')
-      .select('id, fid, mockup_url')
+      .select('id, fid, mockup_url, design_url')
       .eq('id', id)
       .single();
 
@@ -72,25 +72,24 @@ export async function DELETE(request) {
 
     if (deleteErr) throw deleteErr;
 
-    // Delete the R2 object — await so it completes before the serverless fn exits.
-    // Don't fail the request if R2 deletion errors (DB row is already gone).
-    if (mockup.mockup_url) {
-      const key = r2KeyFromUrl(mockup.mockup_url);
-      console.log(`🪣 R2 delete attempt — mockup_url: "${mockup.mockup_url}", extracted key: "${key}"`);
-      console.log(`   R2_PUBLIC_URL env: "${process.env.R2_PUBLIC_URL?.slice(0, 40)}...", R2_BUCKET_NAME: "${process.env.R2_BUCKET_NAME}"`);
-      if (key) {
-        try {
-          await deleteFromR2(key);
-          console.log(`✅ R2 object deleted: ${key}`);
-        } catch (err) {
-          // Most common causes:
-          //   • R2 API token missing "Object:Delete" permission (add in Cloudflare dashboard)
-          //   • Wrong bucket name / account ID env vars
-          console.error(`❌ R2 delete FAILED for key "${key}": ${err.message}`);
-          console.error('   Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-        }
-      } else {
-        console.warn(`⚠️ Could not extract R2 key from URL: "${mockup.mockup_url}"`);
+    // Delete both R2 objects — the generated mockup AND the original user design.
+    // Both are stored in the same bucket; don't fail the request if R2 errors.
+    const r2Urls = [
+      mockup.mockup_url && { label: 'mockup', url: mockup.mockup_url },
+      mockup.design_url && { label: 'design', url: mockup.design_url },
+    ].filter(Boolean);
+
+    for (const { label, url } of r2Urls) {
+      const key = r2KeyFromUrl(url);
+      if (!key) {
+        console.warn(`⚠️ Could not extract R2 key for ${label}: "${url}"`);
+        continue;
+      }
+      try {
+        await deleteFromR2(key);
+        console.log(`✅ R2 ${label} deleted: ${key}`);
+      } catch (err) {
+        console.error(`❌ R2 ${label} delete FAILED for key "${key}": ${err.message}`);
       }
     }
 

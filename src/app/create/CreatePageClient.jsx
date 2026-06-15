@@ -267,6 +267,7 @@ export function CreatePageClient() {
         mockupUrl,
         productType: selectedProduct?.id,
         colorName: selectedColor?.name,
+        designUrl: designUrl || null,
       }),
     })
       .then(() => loadMyMockups())
@@ -626,8 +627,13 @@ export function CreatePageClient() {
       });
 
       setShowBuySheet(false);
-      setHistoryMockup(null);
-      if (!historyMockup) setBuyAdded(true); // Only switch result screen for current creation
+      if (historyMockup) {
+        // Buying from the gallery — go home so the user can see their cart and checkout
+        setHistoryMockup(null);
+        router.push('/');
+      } else {
+        setBuyAdded(true); // Show success state on the current result screen
+      }
 
     } catch (err) {
       console.error('Buy error:', err);

@@ -10,7 +10,7 @@ export async function POST(request) {
   }
 
   try {
-    const { mockupUrl, productType, colorName } = await request.json();
+    const { mockupUrl, productType, colorName, designUrl } = await request.json();
     if (!mockupUrl) {
       return NextResponse.json({ error: 'mockupUrl is required' }, { status: 400 });
     }
@@ -27,6 +27,7 @@ export async function POST(request) {
         product_type: productType || 'unknown',
         color_name: colorName || null,
         mockup_url: mockupUrl,
+        design_url: designUrl || null,
       })
       .select('id')
       .single();
