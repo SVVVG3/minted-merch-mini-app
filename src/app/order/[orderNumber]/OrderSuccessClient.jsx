@@ -60,7 +60,7 @@ export function OrderSuccessClient({ orderNumber }) {
       if (data.success && data.order) {
         setOrderData(data.order);
         console.log('Order data loaded:', data.order);
-        await maybeFetchMockupUrl(data.order, orderNumber, headers);
+        await maybeFetchMockupUrl(data.order, searchOrderNumber, headers);
       } else {
         // Try without # prefix (token already validated above)
         const responseWithoutHash = await fetch(`/api/orders?orderNumber=${encodeURIComponent(orderNumber)}`, { headers });
@@ -70,7 +70,7 @@ export function OrderSuccessClient({ orderNumber }) {
           if (dataWithoutHash.success && dataWithoutHash.order) {
             setOrderData(dataWithoutHash.order);
             console.log('Order data loaded (without #):', dataWithoutHash.order);
-            await maybeFetchMockupUrl(dataWithoutHash.order, orderNumber, headers);
+            await maybeFetchMockupUrl(dataWithoutHash.order, searchOrderNumber, headers);
           } else {
             throw new Error('Order not found');
           }
@@ -232,13 +232,16 @@ export function OrderSuccessClient({ orderNumber }) {
               <div className="bg-white p-4 rounded-lg shadow-sm">
                 <h3 className="font-medium text-gray-900 mb-3">Items Ordered</h3>
                 <div className="space-y-3">
-                  {orderData.line_items.map((item, index) => (
+                  {orderData.line_items.map((item, index) => {
+                    const isCustomDesign = (item.title || '').toLowerCase().includes('design studio custom');
+                    const thumbUrl = item.imageUrl || (isCustomDesign ? customMockupUrl : null);
+                    return (
                     <div key={index} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
                       {/* Product Image */}
                       <div className="w-16 h-16 bg-gray-200 rounded-md overflow-hidden flex-shrink-0">
-                        {item.imageUrl ? (
+                        {thumbUrl ? (
                           <img
-                            src={item.imageUrl}
+                            src={thumbUrl}
                             alt={item.title}
                             className="w-full h-full object-cover"
                           />
@@ -271,7 +274,8 @@ export function OrderSuccessClient({ orderNumber }) {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
             )}
