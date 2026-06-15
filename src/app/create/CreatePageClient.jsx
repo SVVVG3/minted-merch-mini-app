@@ -135,6 +135,57 @@ export function CreatePageClient() {
     })();
   }, [searchParams, getSessionToken]); // re-run when auth becomes available
 
+  // ─── Fallback: read cast hash from sdk.context when app opened via castShareUrl ─
+  // When opened via the "Mini apps" share sheet Farcaster provides the cast hash
+  // in sdk.context.cast (no image URL). We look up the image server-side.
+  useEffect(() => {
+    // Only run if there's no castImageUrl query param (that flow is handled above)
+    const hasCastImageParam = !!searchParams?.get('castImageUrl');
+    if (hasCastImageParam || castImageProcessed.current) return;
+
+    const sessionToken = getSessionToken();
+    if (!sessionToken) return; // wait for auth
+
+    // Read cast hash from the Farcaster SDK context (set by FrameInit)
+    const context = typeof window !== 'undefined' ? window.farcasterContext : null;
+    const castHash = context?.cast?.hash || context?.location?.cast?.hash;
+    if (!castHash) return;
+
+    castImageProcessed.current = true;
+    setCastImageLoading(true);
+
+    (async () => {
+      try {
+        // Look up the cast's first image embed via our API
+        const lookupRes = await fetch(
+          `/api/design-studio/cast-image?hash=${encodeURIComponent(castHash)}`,
+          { headers: { Authorization: `Bearer ${sessionToken}` } }
+        );
+        const lookupData = await lookupRes.json();
+        if (!lookupData.imageUrl) return; // cast has no image embed — proceed normally
+
+        // Re-upload to R2 so Printful can always access it
+        const r2Res = await fetch('/api/design-studio/fetch-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+          body: JSON.stringify({ url: lookupData.imageUrl }),
+        });
+        const r2Data = await r2Res.json();
+        if (!r2Res.ok || !r2Data.url) throw new Error(r2Data.error || 'R2 upload failed');
+
+        setDesignUrl(r2Data.url);
+        setCastImagePrefilled(true);
+        console.log(`🎨 Cast image loaded from context: ${r2Data.url}`);
+      } catch (err) {
+        console.error('Cast context image pre-fill error:', err);
+      } finally {
+        setCastImageLoading(false);
+      }
+    })();
+  // Re-run when auth token becomes available (user might not be authenticated yet on first render)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.fid]);
+
   // Auto-advance past the upload step when the cast image is already loaded
   useEffect(() => {
     if (step === 'upload' && castImagePrefilled && designUrl) {
@@ -436,15 +487,14 @@ export function CreatePageClient() {
         `/api/design-studio/shopify-variants?productId=${encodeURIComponent(selectedProduct.shopifyProductId)}`
       );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch sizes');
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
-      const available = data.variants.filter(v => v.availableForSale);
+      const available = (data.variants || []).filter(v => v.availableForSale);
       setShopifyVariants(available);
-      // Pre-select first available size
       if (available.length > 0) setSelectedSize(available[0].title);
     } catch (err) {
       console.error('Variant fetch error:', err);
-      setBuyError('Could not load sizes. Please try again.');
+      setBuyError(`Could not load sizes: ${err.message}`);
     } finally {
       setVariantsLoading(false);
     }
@@ -453,7 +503,10 @@ export function CreatePageClient() {
   // Open buy sheet for a past mockup (we don't have the original design, just the mockup)
   const openBuySheetForMockup = async (mockup) => {
     const productConfig = DESIGN_STUDIO_PRODUCTS.find(p => p.id === mockup.product_type);
-    if (!productConfig) return;
+    if (!productConfig) {
+      console.error('No product config found for type:', mockup.product_type);
+      return;
+    }
 
     setHistoryMockup(mockup);
     setShowBuySheet(true);
@@ -468,12 +521,13 @@ export function CreatePageClient() {
         `/api/design-studio/shopify-variants?productId=${encodeURIComponent(productConfig.shopifyProductId)}`
       );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch sizes');
-      const available = data.variants.filter(v => v.availableForSale);
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const available = (data.variants || []).filter(v => v.availableForSale);
       setShopifyVariants(available);
       if (available.length > 0) setSelectedSize(available[0].title);
     } catch (err) {
-      setBuyError('Could not load sizes. Please try again.');
+      console.error('shopify-variants fetch error:', err);
+      setBuyError(`Could not load sizes: ${err.message}`);
     } finally {
       setVariantsLoading(false);
     }

@@ -76,13 +76,21 @@ export async function DELETE(request) {
     // Don't fail the request if R2 deletion errors (DB row is already gone).
     if (mockup.mockup_url) {
       const key = r2KeyFromUrl(mockup.mockup_url);
+      console.log(`🪣 R2 delete attempt — mockup_url: "${mockup.mockup_url}", extracted key: "${key}"`);
+      console.log(`   R2_PUBLIC_URL env: "${process.env.R2_PUBLIC_URL?.slice(0, 40)}...", R2_BUCKET_NAME: "${process.env.R2_BUCKET_NAME}"`);
       if (key) {
         try {
           await deleteFromR2(key);
-          console.log(`🪣 R2 object deleted: ${key}`);
+          console.log(`✅ R2 object deleted: ${key}`);
         } catch (err) {
-          console.error(`⚠️ R2 delete failed for key "${key}":`, err.message);
+          // Most common causes:
+          //   • R2 API token missing "Object:Delete" permission (add in Cloudflare dashboard)
+          //   • Wrong bucket name / account ID env vars
+          console.error(`❌ R2 delete FAILED for key "${key}": ${err.message}`);
+          console.error('   Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
         }
+      } else {
+        console.warn(`⚠️ Could not extract R2 key from URL: "${mockup.mockup_url}"`);
       }
     }
 

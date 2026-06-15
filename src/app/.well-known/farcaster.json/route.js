@@ -56,7 +56,7 @@ export async function GET(request) {
           "https://mintedmerch.vercel.app/screenshot2.png",
           "https://mintedmerch.vercel.app/screenshot3.png"
         ],
-        "castShareUrl": "https://mintedmerch.vercel.app",
+        "castShareUrl": "https://mintedmerch.vercel.app/create",
         "ogTitle": "Minted Merch",
         "ogDescription": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
         "ogImageUrl": "https://mintedmerch.vercel.app/og-image.png"
@@ -93,7 +93,7 @@ export async function GET(request) {
           "https://app.mintedmerch.shop/screenshot2.png",
           "https://app.mintedmerch.shop/screenshot3.png"
         ],
-        "castShareUrl": "https://app.mintedmerch.shop",
+        "castShareUrl": "https://app.mintedmerch.shop/create",
         "ogTitle": "Minted Merch",
         "ogDescription": "Apparel, accessories, and more. Designed after your favorite coins, communities, and NFTs!",
         "ogImageUrl": "https://app.mintedmerch.shop/og-image.png"
