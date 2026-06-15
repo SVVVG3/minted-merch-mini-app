@@ -11,6 +11,7 @@ export function OrderSuccessClient({ orderNumber }) {
   const [orderData, setOrderData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [customMockupUrl, setCustomMockupUrl] = useState(null);
 
   // Fetch order details on component mount - wait for Farcaster SDK to be ready
   useEffect(() => {
@@ -59,6 +60,7 @@ export function OrderSuccessClient({ orderNumber }) {
       if (data.success && data.order) {
         setOrderData(data.order);
         console.log('Order data loaded:', data.order);
+        await maybeFetchMockupUrl(data.order, orderNumber, headers);
       } else {
         // Try without # prefix (token already validated above)
         const responseWithoutHash = await fetch(`/api/orders?orderNumber=${encodeURIComponent(orderNumber)}`, { headers });
@@ -68,6 +70,7 @@ export function OrderSuccessClient({ orderNumber }) {
           if (dataWithoutHash.success && dataWithoutHash.order) {
             setOrderData(dataWithoutHash.order);
             console.log('Order data loaded (without #):', dataWithoutHash.order);
+            await maybeFetchMockupUrl(dataWithoutHash.order, orderNumber, headers);
           } else {
             throw new Error('Order not found');
           }
@@ -120,6 +123,30 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
+  // If any line item is a Design Studio custom product, look up the mockup URL
+  const maybeFetchMockupUrl = async (order, num, headers) => {
+    const isCustom = order?.line_items?.some(item =>
+      (item.title || '').toLowerCase().includes('design studio custom')
+    );
+    if (!isCustom) return;
+
+    try {
+      const res = await fetch(
+        `/api/design-studio/order-mockup?orderNumber=${encodeURIComponent(num)}`,
+        { headers }
+      );
+      if (res.ok) {
+        const body = await res.json();
+        if (body.mockupUrl) {
+          setCustomMockupUrl(body.mockupUrl);
+          console.log('🎨 Custom mockup URL fetched:', body.mockupUrl);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch custom mockup URL:', err);
+    }
+  };
+
   // Share order - use exact same code path as product pages (shareOrder utility)
   const handleShareOrder = async () => {
     const mainProduct = orderData?.line_items?.[0]?.title || 'item';
@@ -129,6 +156,7 @@ export function OrderSuccessClient({ orderNumber }) {
       orderNumber,
       mainProduct,
       isInFarcaster,
+      customImageUrl: customMockupUrl || null,
     });
   };
 

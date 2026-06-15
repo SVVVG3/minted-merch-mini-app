@@ -1486,7 +1486,8 @@ Transaction Hash: ${txHashOverride || transactionHash}`;
             title: item.product?.title || item.title || 'Unknown Item',
             variantTitle: item.variant?.title || item.variantTitle,
             quantity: item.quantity,
-            price: item.price
+            price: item.price,
+            customImageUrl: item.customImageUrl || null,
           })),
           shippingAddress: shippingData,
           selectedShipping: cart.selectedShipping,
@@ -1579,12 +1580,16 @@ Transaction Hash: ${txHashOverride || transactionHash}`;
 
     const orderNumber = orderDetails.name.startsWith('#') ? orderDetails.name.substring(1) : orderDetails.name;
     const mainProduct = orderDetails.lineItems?.[0]?.title || orderDetails.lineItems?.[0]?.name || 'item';
+
+    // For Design Studio custom orders, embed the mockup image in the cast
+    const customImageUrl = orderDetails.lineItems?.find(item => item.customImageUrl)?.customImageUrl || null;
     
     // Use the shared utility function - IDENTICAL to how ProductDetail uses shareProduct
     await shareOrder({
       orderNumber,
       mainProduct,
       isInFarcaster,
+      customImageUrl,
     });
   };
 

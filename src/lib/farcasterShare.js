@@ -251,10 +251,15 @@ export async function shareCollection({ collectionHandle, collectionName, isInFa
  * @param {string} options.orderNumber - Order number
  * @param {string} options.mainProduct - Main product name from order
  * @param {boolean} [options.isInFarcaster] - Whether user is in mini app
+ * @param {string|null} [options.customImageUrl] - Custom mockup image URL for Design Studio orders
  * @returns {Promise<boolean>}
  */
-export async function shareOrder({ orderNumber, mainProduct, isInFarcaster = false }) {
-  const orderUrl = `${window.location.origin}/order/${orderNumber}`;
+export async function shareOrder({ orderNumber, mainProduct, isInFarcaster = false, customImageUrl = null }) {
+  // Add cache-bust + custom image so the order page metadata renders the right embed image
+  const params = new URLSearchParams({ t: Date.now().toString() });
+  if (customImageUrl) params.set('customImage', customImageUrl);
+
+  const orderUrl = `${window.location.origin}/order/${orderNumber}?${params.toString()}`;
   const shareText = `Just ordered my new ${mainProduct}!\n\nYou get 15% off your first order when you add the $mintedmerch mini app! 👀\n\nShop on @mintedmerch - pay onchain using 1200+ coins across 20+ chains ✨`;
 
   return shareToFarcaster({

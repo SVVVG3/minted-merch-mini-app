@@ -32,10 +32,13 @@ async function getProductImageFromOrderItems(orderData) {
 export async function generateMetadata({ params, searchParams }) {
   const { orderNumber } = params;
   const cacheBust = searchParams?.t; // Cache-busting parameter from share button
+  // For Design Studio custom orders, the share URL includes the mockup image
+  const customImage = searchParams?.customImage || null;
   
   console.log('=== Order Page Metadata Generation ===');
   console.log('Order number:', orderNumber);
   console.log('Cache bust param:', cacheBust);
+  if (customImage) console.log('🎨 Custom mockup image param present:', customImage);
   
   // Fetch order data from database to get rich product information
   let orderData = null;
@@ -77,8 +80,14 @@ export async function generateMetadata({ params, searchParams }) {
         
         console.log('First line item:', firstItem);
         
-        // Get product image using reliable method
-        firstProductImage = await getProductImageFromOrderItems(orderData);
+        // If a custom mockup URL was passed in the share URL, use it directly
+        if (customImage) {
+          firstProductImage = customImage;
+          console.log('✅ Using custom mockup image from share URL:', customImage);
+        } else {
+          // Get product image using reliable method
+          firstProductImage = await getProductImageFromOrderItems(orderData);
+        }
         
         // Create product description based on item count
         const itemCount = orderData.line_items.length;
