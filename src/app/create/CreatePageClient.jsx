@@ -67,6 +67,8 @@ export function CreatePageClient() {
   // Real Shopify variants fetched when buy sheet opens
   const [shopifyVariants, setShopifyVariants] = useState([]); // [{ id, title, price }]
   const [variantsLoading, setVariantsLoading] = useState(false);
+  // When buying from past-mockup history (not the current result)
+  const [historyMockup, setHistoryMockup] = useState(null);
 
   // ─── Load user's past mockups ─────────────────────────────────────────────
   const loadMyMockups = useCallback(async () => {
@@ -363,6 +365,7 @@ export function CreatePageClient() {
     setBuyError('');
     setSelectedSize('');
     setShopifyVariants([]);
+    setHistoryMockup(null);
   };
 
   // ─── Buy (add to cart) ────────────────────────────────────────────────────
@@ -395,6 +398,52 @@ export function CreatePageClient() {
     }
   };
 
+  // Open buy sheet for a past mockup (we don't have the original design, just the mockup)
+  const openBuySheetForMockup = async (mockup) => {
+    const productConfig = DESIGN_STUDIO_PRODUCTS.find(p => p.id === mockup.product_type);
+    if (!productConfig) return;
+
+    setHistoryMockup(mockup);
+    setShowBuySheet(true);
+    setBuyError('');
+    setShopifyVariants([]);
+    setSelectedSize('');
+
+    if (!productConfig.shopifyProductId) return;
+    setVariantsLoading(true);
+    try {
+      const res = await fetch(
+        `/api/design-studio/shopify-variants?productId=${encodeURIComponent(productConfig.shopifyProductId)}`
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch sizes');
+      const available = data.variants.filter(v => v.availableForSale);
+      setShopifyVariants(available);
+      if (available.length > 0) setSelectedSize(available[0].title);
+    } catch (err) {
+      setBuyError('Could not load sizes. Please try again.');
+    } finally {
+      setVariantsLoading(false);
+    }
+  };
+
+  // Delete a mockup (removes from DB + R2)
+  const handleDeleteMockup = async (mockup) => {
+    const sessionToken = getSessionToken();
+    if (!sessionToken) return;
+    try {
+      const res = await fetch(`/api/design-studio/my-mockups?id=${mockup.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      if (res.ok) {
+        setMyMockups(prev => prev.filter(m => m.id !== mockup.id));
+      }
+    } catch (err) {
+      console.error('Delete mockup error:', err);
+    }
+  };
+
   const handleBuyConfirm = async () => {
     if (!selectedSize) { setBuyError('Please select a size.'); return; }
     setBuyLoading(true);
@@ -409,20 +458,31 @@ export function CreatePageClient() {
         || shopifyVariants[0]; // fallback: first available
       if (!matchedVariant) throw new Error('No variant available for selected size.');
 
+      // Resolve the effective product config: buying from history vs. current creation
+      const effectiveProduct = historyMockup
+        ? (DESIGN_STUDIO_PRODUCTS.find(p => p.id === historyMockup.product_type) || selectedProduct)
+        : selectedProduct;
+      const effectiveMockupUrl = historyMockup?.mockup_url || mockupUrl;
+      const effectiveDesignUrl = historyMockup ? historyMockup.mockup_url : designUrl;
+      const effectiveColorName = historyMockup ? historyMockup.color_name : (selectedColor?.name || null);
+      const effectiveTechnique = historyMockup
+        ? (effectiveProduct.technique || 'DTG')
+        : (selectedTechnique || selectedProduct?.technique || 'DTG');
+
       // 1. Save design request to Supabase; returns a UUID for traceability
       const saveRes = await fetch('/api/design-studio/save-order-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
         body: JSON.stringify({
-          productId: selectedProduct.id,
+          productId: effectiveProduct.id,
           size: selectedSize,
-          colorName: selectedColor?.name || null,
-          technique: selectedTechnique || selectedProduct.technique || 'DTG',
-          designUrl,
-          mockupUrl,
-          placement: designPlacement,
-          designScale,
-          printfulVariantIds: selectedColor?.variantIds || null,
+          colorName: effectiveColorName,
+          technique: effectiveTechnique,
+          designUrl: effectiveDesignUrl,
+          mockupUrl: effectiveMockupUrl,
+          placement: historyMockup ? effectiveProduct.placement : designPlacement,
+          designScale: historyMockup ? null : designScale,
+          printfulVariantIds: historyMockup ? null : (selectedColor?.variantIds || null),
           positionData: null, // position is computed server-side at generate time
         }),
       });
@@ -433,9 +493,9 @@ export function CreatePageClient() {
       // 2. Build a Shopify-compatible product/variant object for the cart
       //    using the REAL variant GID fetched from Shopify
       const cartProduct = {
-        id: selectedProduct.shopifyProductId,
-        title: `Design Studio Custom ${selectedProduct.label}`,
-        handle: `design-studio-custom-${selectedProduct.id}`,
+        id: effectiveProduct.shopifyProductId,
+        title: `Design Studio Custom ${effectiveProduct.label}`,
+        handle: `design-studio-custom-${effectiveProduct.id}`,
         images: { edges: [] },
       };
       const cartVariant = {
@@ -447,17 +507,18 @@ export function CreatePageClient() {
 
       // 3. Add to cart — custom items carry the mockup image and design UUID
       addItem(cartProduct, cartVariant, 1, {
-        customImageUrl: mockupUrl,
+        customImageUrl: effectiveMockupUrl,
         customMeta: {
           designRequestId,
-          productType: selectedProduct.id,
+          productType: effectiveProduct.id,
           size: selectedSize,
-          colorName: selectedColor?.name || null,
+          colorName: effectiveColorName,
         },
       });
 
       setShowBuySheet(false);
-      setBuyAdded(true);
+      setHistoryMockup(null);
+      if (!historyMockup) setBuyAdded(true); // Only switch result screen for current creation
 
     } catch (err) {
       console.error('Buy error:', err);
@@ -483,7 +544,7 @@ export function CreatePageClient() {
     const designStudioTitle = (
       <span className="flex items-center gap-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/MintedMerchSpinnerLogo.png" alt="" className="h-5 w-auto flex-shrink-0" />
+        <img src="/MintedMerchSpinnerLogo.png" alt="" className="h-6 w-auto flex-shrink-0" />
         Design Studio
       </span>
     );
@@ -491,7 +552,7 @@ export function CreatePageClient() {
       <PageShell onBack={() => router.push('/')} title={designStudioTitle} step={1} totalSteps={4}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
           <p className="text-gray-500 text-sm text-center mb-6">
-            Pick a product to put your design on
+            Choose a product to put your design on:
           </p>
           <div className="w-full max-w-sm space-y-3">
             {DESIGN_STUDIO_PRODUCTS.map(product => (
@@ -1075,7 +1136,10 @@ export function CreatePageClient() {
                 <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-5" />
                 <h2 className="font-bold text-gray-900 text-lg mb-1">Select a Size</h2>
                 <p className="text-sm text-gray-500 mb-5">
-                  Custom {selectedProduct?.label} · {selectedColor?.name || 'Custom Color'} · {selectedProduct?.techniqueLabel || (selectedTechnique === 'EMBROIDERY' ? 'Embroidery' : 'DTG Print')}
+                  {historyMockup
+                    ? `Custom ${DESIGN_STUDIO_PRODUCTS.find(p => p.id === historyMockup.product_type)?.label || historyMockup.product_type} · ${historyMockup.color_name || 'Custom Color'}`
+                    : `Custom ${selectedProduct?.label} · ${selectedColor?.name || 'Custom Color'} · ${selectedProduct?.techniqueLabel || (selectedTechnique === 'EMBROIDERY' ? 'Embroidery' : 'DTG Print')}`
+                  }
                 </p>
 
                 {/* Size grid — populated from real Shopify variants */}
@@ -1139,7 +1203,13 @@ export function CreatePageClient() {
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Past Mockups</h2>
               <div className="grid grid-cols-2 gap-3">
                 {myMockups.slice(1, 7).map(m => (
-                  <MockupCard key={m.id} mockup={m} onShare={handleShareMockup} />
+                  <MockupCard
+                    key={m.id}
+                    mockup={m}
+                    onShare={handleShareMockup}
+                    onBuy={openBuySheetForMockup}
+                    onDelete={handleDeleteMockup}
+                  />
                 ))}
               </div>
             </div>
@@ -1186,27 +1256,116 @@ function ErrorBanner({ message }) {
   );
 }
 
-function MockupCard({ mockup, onShare }) {
+function MockupCard({ mockup, onShare, onBuy, onDelete }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const closeMenu = () => { setMenuOpen(false); setDeleteConfirm(false); };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    await onDelete(mockup);
+    setDeleting(false);
+    closeMenu();
+  };
+
   return (
-    <div className="relative rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 aspect-square group">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={mockup.mockup_url} alt="Past mockup" className="w-full h-full object-cover" />
-      {/* Bottom label */}
-      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5">
-        <p className="text-white text-[10px] font-medium capitalize truncate">
-          {mockup.product_type} · {mockup.color_name}
-        </p>
+    // Outer wrapper without overflow-hidden so the dropdown can escape the card bounds
+    <div className="relative">
+      {/* The card itself */}
+      <div className="rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 aspect-square">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={mockup.mockup_url} alt="Past mockup" className="w-full h-full object-cover" />
+        {/* Bottom label */}
+        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5 rounded-b-xl">
+          <p className="text-white text-[10px] font-medium capitalize truncate">
+            {mockup.product_type} · {mockup.color_name}
+          </p>
+        </div>
       </div>
-      {/* Share button — top right */}
+
+      {/* Three-dot menu button — positioned over card top-right */}
       <button
-        onClick={(e) => { e.stopPropagation(); onShare(mockup.mockup_url); }}
-        className="absolute top-1.5 right-1.5 w-7 h-7 bg-[#6A3CFF] rounded-full flex items-center justify-center shadow-md opacity-90 hover:opacity-100 transition-opacity"
-        title="Share on Farcaster"
+        onClick={(e) => { e.stopPropagation(); setMenuOpen(o => !o); setDeleteConfirm(false); }}
+        className="absolute top-1.5 right-1.5 w-7 h-7 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md text-white text-base leading-none hover:bg-black/70 transition-colors"
+        title="More options"
       >
-        <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 520 457" fill="currentColor">
-          <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
-        </svg>
+        ···
       </button>
+
+      {/* Dropdown menu */}
+      {menuOpen && (
+        <>
+          {/* Invisible full-screen backdrop to close on outside tap */}
+          <div className="fixed inset-0 z-20" onClick={closeMenu} />
+
+          <div className="absolute top-9 right-0 z-30 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden w-44">
+            {/* Share */}
+            <button
+              onClick={() => { closeMenu(); onShare(mockup.mockup_url); }}
+              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <svg className="w-4 h-4 text-[#6A3CFF] flex-shrink-0" viewBox="0 0 520 457" fill="currentColor">
+                <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
+              </svg>
+              Share on Farcaster
+            </button>
+
+            <div className="h-px bg-gray-100 mx-3" />
+
+            {/* Buy */}
+            <button
+              onClick={() => { closeMenu(); onBuy(mockup); }}
+              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <svg className="w-4 h-4 text-[#3eb489] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Buy This Design
+            </button>
+
+            <div className="h-px bg-gray-100 mx-3" />
+
+            {/* Delete — two-step confirmation */}
+            {!deleteConfirm ? (
+              <button
+                onClick={() => setDeleteConfirm(true)}
+                className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete
+              </button>
+            ) : (
+              <div className="px-4 py-3 bg-red-50">
+                <p className="text-xs text-red-600 font-medium mb-2">Delete this mockup? This cannot be undone.</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setDeleteConfirm(false)}
+                    className="flex-1 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="flex-1 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:opacity-60 transition-colors flex items-center justify-center"
+                  >
+                    {deleting ? (
+                      <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                      </svg>
+                    ) : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

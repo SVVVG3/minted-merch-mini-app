@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 function getR2Client() {
   return new S3Client({
@@ -24,6 +24,35 @@ export async function uploadBufferToR2(buffer, key, contentType) {
   }));
   const publicUrl = process.env.R2_PUBLIC_URL.replace(/\/$/, '');
   return `${publicUrl}/${key}`;
+}
+
+/**
+ * Delete an object from Cloudflare R2 by its key.
+ * Silently succeeds if the object doesn't exist.
+ */
+export async function deleteFromR2(key) {
+  const client = getR2Client();
+  await client.send(new DeleteObjectCommand({
+    Bucket: process.env.R2_BUCKET_NAME,
+    Key: key,
+  }));
+}
+
+/**
+ * Extract the R2 storage key from a public R2 URL.
+ * e.g. https://pub-xxx.r2.dev/mockups/abc.png → mockups/abc.png
+ */
+export function r2KeyFromUrl(url) {
+  const base = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
+  if (base && url.startsWith(base + '/')) {
+    return url.slice(base.length + 1);
+  }
+  // Fallback: take everything after the last domain segment
+  try {
+    return new URL(url).pathname.replace(/^\//, '');
+  } catch {
+    return null;
+  }
 }
 
 /**
