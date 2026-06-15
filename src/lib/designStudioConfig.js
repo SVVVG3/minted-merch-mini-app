@@ -7,10 +7,13 @@
  *   Cotton Heritage M2580    → 380
  *   Yupoong 6245CM dad hat   → 206
  *
- * Shopify variant IDs (Custom Product variants in Shopify store):
- *   Custom T-Shirt  → 10666474078489
- *   Custom Hoodie   → 10666480009497
- *   Custom Hat      → 10666471031065
+ * Shopify Product IDs (confirmed from Supabase products table):
+ *   Design Studio Custom T-Shirt  → 10666474078489  (gid://shopify/Product/10666474078489)
+ *   Design Studio Custom Hoodie   → 10666480009497
+ *   Design Studio Custom Hat      → 10666471031065
+ *
+ * Note: variant IDs are fetched dynamically at buy-time via /api/design-studio/shopify-variants
+ * so we never need to hardcode them — Shopify returns the right variant per size choice.
  */
 export const DESIGN_STUDIO_PRODUCTS = [
   {
@@ -18,9 +21,9 @@ export const DESIGN_STUDIO_PRODUCTS = [
     label: 'T-Shirt',
     emoji: '👕',
     printfulProductId: 733,          // AS Colour 5001T
-    shopifyVariantId: '10666474078489', // Shopify "Custom T-Shirt" variant
-    displayPrice: 29.99,               // For cart display — server validates real Shopify price
-    sizes: ['S', 'M', 'L', 'XL', '2XL'],
+    shopifyProductId: 'gid://shopify/Product/10666474078489',
+    displayPrice: 29.99,               // Fallback for cart display; overridden by real Shopify price
+    sizes: ['S', 'M', 'L', 'XL', '2XL'], // Fallback; real sizes fetched from Shopify at buy-time
     placement: 'front',
     technique: null,                 // DTG (default)
     techniqueLabel: 'DTG Print',
@@ -32,7 +35,7 @@ export const DESIGN_STUDIO_PRODUCTS = [
     label: 'Hoodie',
     emoji: '🧥',
     printfulProductId: 380,          // Cotton Heritage M2580
-    shopifyVariantId: '10666480009497', // Shopify "Custom Hoodie" variant
+    shopifyProductId: 'gid://shopify/Product/10666480009497',
     displayPrice: 59.99,
     sizes: ['S', 'M', 'L', 'XL', '2XL'],
     placement: 'front',
@@ -47,7 +50,7 @@ export const DESIGN_STUDIO_PRODUCTS = [
     label: 'Hat',
     emoji: '🧢',
     printfulProductId: 206,          // Yupoong 6245CM
-    shopifyVariantId: '10666471031065', // Shopify "Custom Hat" variant
+    shopifyProductId: 'gid://shopify/Product/10666471031065',
     displayPrice: 24.99,
     sizes: ['One Size'],
     placement: 'front',

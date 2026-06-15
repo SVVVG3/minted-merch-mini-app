@@ -64,6 +64,9 @@ export function CreatePageClient() {
   const [buyLoading, setBuyLoading] = useState(false);
   const [buyAdded, setBuyAdded] = useState(false);
   const [buyError, setBuyError] = useState('');
+  // Real Shopify variants fetched when buy sheet opens
+  const [shopifyVariants, setShopifyVariants] = useState([]); // [{ id, title, price }]
+  const [variantsLoading, setVariantsLoading] = useState(false);
 
   // ─── Load user's past mockups ─────────────────────────────────────────────
   const loadMyMockups = useCallback(async () => {
@@ -359,9 +362,39 @@ export function CreatePageClient() {
     setBuyAdded(false);
     setBuyError('');
     setSelectedSize('');
+    setShopifyVariants([]);
   };
 
   // ─── Buy (add to cart) ────────────────────────────────────────────────────
+
+  // Fetch real Shopify variants when the buy sheet opens
+  const openBuySheet = async () => {
+    setShowBuySheet(true);
+    setBuyError('');
+    setShopifyVariants([]);
+    setSelectedSize('');
+
+    if (!selectedProduct?.shopifyProductId) return;
+    setVariantsLoading(true);
+    try {
+      const res = await fetch(
+        `/api/design-studio/shopify-variants?productId=${encodeURIComponent(selectedProduct.shopifyProductId)}`
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch sizes');
+
+      const available = data.variants.filter(v => v.availableForSale);
+      setShopifyVariants(available);
+      // Pre-select first available size
+      if (available.length > 0) setSelectedSize(available[0].title);
+    } catch (err) {
+      console.error('Variant fetch error:', err);
+      setBuyError('Could not load sizes. Please try again.');
+    } finally {
+      setVariantsLoading(false);
+    }
+  };
+
   const handleBuyConfirm = async () => {
     if (!selectedSize) { setBuyError('Please select a size.'); return; }
     setBuyLoading(true);
@@ -370,6 +403,11 @@ export function CreatePageClient() {
     try {
       const sessionToken = getSessionToken();
       if (!sessionToken) throw new Error('Please connect your Farcaster account first.');
+
+      // Resolve the real Shopify variant for the selected size
+      const matchedVariant = shopifyVariants.find(v => v.title === selectedSize)
+        || shopifyVariants[0]; // fallback: first available
+      if (!matchedVariant) throw new Error('No variant available for selected size.');
 
       // 1. Save design request to Supabase; returns a UUID for traceability
       const saveRes = await fetch('/api/design-studio/save-order-request', {
@@ -393,18 +431,17 @@ export function CreatePageClient() {
       const designRequestId = saveData.id;
 
       // 2. Build a Shopify-compatible product/variant object for the cart
-      const variantGid = `gid://shopify/ProductVariant/${selectedProduct.shopifyVariantId}`;
-      const productGid  = `gid://shopify/Product/custom-${selectedProduct.id}-${Date.now()}`;
+      //    using the REAL variant GID fetched from Shopify
       const cartProduct = {
-        id: productGid,
-        title: `Custom ${selectedProduct.label}`,
-        handle: `custom-${selectedProduct.id}`,
+        id: selectedProduct.shopifyProductId,
+        title: `Design Studio Custom ${selectedProduct.label}`,
+        handle: `design-studio-custom-${selectedProduct.id}`,
         images: { edges: [] },
       };
       const cartVariant = {
-        id: variantGid,
-        title: selectedSize,
-        price: { amount: String(selectedProduct.displayPrice || 0), currencyCode: 'USD' },
+        id: matchedVariant.id,            // real gid://shopify/ProductVariant/XXXX
+        title: matchedVariant.title,      // actual size label from Shopify
+        price: { amount: String(matchedVariant.price), currencyCode: 'USD' },
         image: null,
       };
 
@@ -991,7 +1028,7 @@ export function CreatePageClient() {
               <>
                 {/* Buy button */}
                 <button
-                  onClick={() => { setShowBuySheet(true); setBuyError(''); setSelectedSize(selectedProduct?.sizes?.[0] || ''); }}
+                  onClick={openBuySheet}
                   className="w-full flex items-center justify-center gap-2 py-4 bg-[#3eb489] hover:bg-[#34a078] text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1041,22 +1078,32 @@ export function CreatePageClient() {
                   Custom {selectedProduct?.label} · {selectedColor?.name || 'Custom Color'} · {selectedProduct?.techniqueLabel || (selectedTechnique === 'EMBROIDERY' ? 'Embroidery' : 'DTG Print')}
                 </p>
 
-                {/* Size grid */}
-                <div className="grid grid-cols-3 gap-2 mb-5">
-                  {(selectedProduct?.sizes || []).map(size => (
-                    <button
-                      key={size}
-                      onClick={() => setSelectedSize(size)}
-                      className={`py-3 rounded-xl border-2 font-semibold text-sm transition-colors ${
-                        selectedSize === size
-                          ? 'border-[#3eb489] bg-[#3eb489]/10 text-[#2a7a5c]'
-                          : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
+                {/* Size grid — populated from real Shopify variants */}
+                {variantsLoading ? (
+                  <div className="flex items-center justify-center py-6 mb-5">
+                    <svg className="animate-spin w-6 h-6 text-[#3eb489]" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    <span className="ml-2 text-sm text-gray-500">Loading sizes…</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2 mb-5">
+                    {(shopifyVariants.length > 0 ? shopifyVariants : (selectedProduct?.sizes || []).map(s => ({ id: s, title: s }))).map(variant => (
+                      <button
+                        key={variant.id || variant.title}
+                        onClick={() => setSelectedSize(variant.title)}
+                        className={`py-3 rounded-xl border-2 font-semibold text-sm transition-colors ${
+                          selectedSize === variant.title
+                            ? 'border-[#3eb489] bg-[#3eb489]/10 text-[#2a7a5c]'
+                            : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        {variant.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {buyError && (
                   <p className="text-red-500 text-sm mb-3">{buyError}</p>
@@ -1076,9 +1123,11 @@ export function CreatePageClient() {
                       </svg>
                       Adding to Cart...
                     </>
-                  ) : (
-                    <>Add to Cart — ${selectedProduct?.displayPrice?.toFixed(2) || '—'}</>
-                  )}
+                  ) : (() => {
+                    const matched = shopifyVariants.find(v => v.title === selectedSize);
+                    const price = matched?.price ?? selectedProduct?.displayPrice;
+                    return <>Add to Cart{price ? ` — $${parseFloat(price).toFixed(2)}` : ''}</>;
+                  })()}
                 </button>
               </div>
             </div>

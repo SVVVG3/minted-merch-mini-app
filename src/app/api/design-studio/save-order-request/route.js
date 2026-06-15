@@ -53,7 +53,7 @@ export async function POST(request) {
       .insert({
         fid,
         product_type: productId,
-        shopify_variant_id: productConfig.shopifyVariantId,
+        shopify_variant_id: null, // populated at checkout time once user picks a size/variant
         size: size || null,
         color_name: colorName || null,
         technique: technique || productConfig.technique || 'DTG',
