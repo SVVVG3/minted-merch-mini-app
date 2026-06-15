@@ -72,13 +72,17 @@ export async function DELETE(request) {
 
     if (deleteErr) throw deleteErr;
 
-    // Best-effort: delete the R2 object (don't fail the request if this errors)
+    // Delete the R2 object — await so it completes before the serverless fn exits.
+    // Don't fail the request if R2 deletion errors (DB row is already gone).
     if (mockup.mockup_url) {
       const key = r2KeyFromUrl(mockup.mockup_url);
       if (key) {
-        deleteFromR2(key).catch(err =>
-          console.error(`⚠️ R2 delete failed for key "${key}":`, err.message)
-        );
+        try {
+          await deleteFromR2(key);
+          console.log(`🪣 R2 object deleted: ${key}`);
+        } catch (err) {
+          console.error(`⚠️ R2 delete failed for key "${key}":`, err.message);
+        }
       }
     }
 

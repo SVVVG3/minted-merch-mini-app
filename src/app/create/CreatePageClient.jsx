@@ -549,6 +549,7 @@ export function CreatePageClient() {
       </span>
     );
     return (
+      <>
       <PageShell onBack={() => router.push('/')} title={designStudioTitle} step={1} totalSteps={4}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
           <p className="text-gray-500 text-sm text-center mb-6">
@@ -623,7 +624,71 @@ export function CreatePageClient() {
           {error && <ErrorBanner message={error} />}
         </div>
       </PageShell>
-    );
+
+      {/* Buy sheet — must be available from the product picker page too */}
+      {showBuySheet && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="absolute inset-0" onClick={() => !buyLoading && (setShowBuySheet(false), setHistoryMockup(null))} />
+          <div className="relative bg-white rounded-t-3xl px-5 pt-5 pb-10 z-10">
+            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-5" />
+            <h2 className="font-bold text-gray-900 text-lg mb-1">Select a Size</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              {historyMockup
+                ? `Custom ${DESIGN_STUDIO_PRODUCTS.find(p => p.id === historyMockup.product_type)?.label || historyMockup.product_type} · ${historyMockup.color_name || 'Custom Color'}`
+                : `Custom ${selectedProduct?.label} · ${selectedColor?.name || 'Custom Color'}`}
+            </p>
+            {variantsLoading ? (
+              <div className="flex items-center justify-center py-6 mb-5">
+                <svg className="animate-spin w-6 h-6 text-[#3eb489]" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                <span className="ml-2 text-sm text-gray-500">Loading sizes…</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 mb-5">
+                {(shopifyVariants.length > 0 ? shopifyVariants : (selectedProduct?.sizes || []).map(s => ({ id: s, title: s }))).map(variant => (
+                  <button
+                    key={variant.id || variant.title}
+                    onClick={() => setSelectedSize(variant.title)}
+                    className={`py-3 rounded-xl border-2 font-semibold text-sm transition-colors ${
+                      selectedSize === variant.title
+                        ? 'border-[#3eb489] bg-[#3eb489]/10 text-[#2a7a5c]'
+                        : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    {variant.title}
+                  </button>
+                ))}
+              </div>
+            )}
+            {buyError && <p className="text-red-500 text-sm mb-3">{buyError}</p>}
+            <button
+              onClick={handleBuyConfirm}
+              disabled={buyLoading || !selectedSize}
+              className="w-full py-4 bg-[#3eb489] hover:bg-[#34a078] disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold rounded-2xl transition-colors text-base flex items-center justify-center gap-2"
+            >
+              {buyLoading ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                  Adding to Cart...
+                </>
+              ) : (() => {
+                const matched = shopifyVariants.find(v => v.title === selectedSize);
+                const price = matched?.price ?? (historyMockup
+                  ? DESIGN_STUDIO_PRODUCTS.find(p => p.id === historyMockup.product_type)?.displayPrice
+                  : selectedProduct?.displayPrice);
+                return <>Add to Cart{price ? ` — $${parseFloat(price).toFixed(2)}` : ''}</>;
+              })()}
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
   }
 
   // ─── Step: Technique Picker (hoodies only) ────────────────────────────────
