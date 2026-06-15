@@ -123,16 +123,27 @@ export function OrderSuccessClient({ orderNumber }) {
     }
   };
 
-  // If any line item is a Design Studio custom product, look up the mockup URL
+  // If any line item is a Design Studio custom product, look up the mockup URL.
+  // Sends both orderNumber (for strategy-1 lookup) and productType (strategy-2 fallback).
   const maybeFetchMockupUrl = async (order, num, headers) => {
-    const isCustom = order?.line_items?.some(item =>
+    const customItem = order?.line_items?.find(item =>
       (item.title || '').toLowerCase().includes('design studio custom')
     );
-    if (!isCustom) return;
+    if (!customItem) return;
+
+    // Derive productType from the Shopify line item title
+    const titleLower = customItem.title.toLowerCase();
+    let productType = null;
+    if (titleLower.includes('t-shirt') || titleLower.includes('tshirt')) productType = 'tshirt';
+    else if (titleLower.includes('hoodie')) productType = 'hoodie';
+    else if (titleLower.includes('hat')) productType = 'hat';
 
     try {
+      const params = new URLSearchParams({ orderNumber: num });
+      if (productType) params.set('productType', productType);
+
       const res = await fetch(
-        `/api/design-studio/order-mockup?orderNumber=${encodeURIComponent(num)}`,
+        `/api/design-studio/order-mockup?${params.toString()}`,
         { headers }
       );
       if (res.ok) {

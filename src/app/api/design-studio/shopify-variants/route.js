@@ -82,8 +82,16 @@ export async function GET(request) {
       allVariants = allVariants.map(v => ({ ...v, title: v.rawTitle }));
     }
 
-    // Remove rawTitle from response payload
-    const variants = allVariants.map(({ rawTitle: _r, ...rest }) => rest);
+    // Remove rawTitle; deduplicate by title so a failed colour-filter never
+    // shows the same size label multiple times (e.g. 5× "S" for 5 colours).
+    const seen = new Set();
+    const variants = allVariants
+      .map(({ rawTitle: _r, ...rest }) => rest)
+      .filter(v => {
+        if (seen.has(v.title)) return false;
+        seen.add(v.title);
+        return true;
+      });
 
     return NextResponse.json({
       productId: product.id,
