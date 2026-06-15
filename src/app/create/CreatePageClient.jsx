@@ -609,7 +609,13 @@ export function CreatePageClient() {
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Past Mockups</h2>
               <div className="grid grid-cols-2 gap-3">
                 {myMockups.slice(0, 6).map(m => (
-                  <MockupCard key={m.id} mockup={m} onShare={handleShareMockup} />
+                  <MockupCard
+                    key={m.id}
+                    mockup={m}
+                    onShare={handleShareMockup}
+                    onBuy={openBuySheetForMockup}
+                    onDelete={handleDeleteMockup}
+                  />
                 ))}
               </div>
             </div>
@@ -1265,9 +1271,14 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
 
   const handleDelete = async () => {
     setDeleting(true);
-    await onDelete(mockup);
-    setDeleting(false);
-    closeMenu();
+    try {
+      await onDelete(mockup);
+    } catch (err) {
+      console.error('Delete failed:', err);
+    } finally {
+      setDeleting(false);
+      closeMenu();
+    }
   };
 
   return (
