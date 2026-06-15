@@ -36,20 +36,54 @@ export async function GET(request) {
     return NextResponse.json({ error: 'productId is required' }, { status: 400 });
   }
 
+  // Optional color filter — if provided, only return variants for that color
+  const colorFilter = searchParams.get('color'); // e.g. "Black"
+
   try {
-    const data = await shopifyAdminFetch(QUERY, { id: productId });
-    const product = data?.product;
+    // shopifyAdminFetch returns the raw GraphQL envelope { data: { product: … } }
+    const raw = await shopifyAdminFetch(QUERY, { id: productId });
+    const product = raw?.data?.product;
 
     if (!product) {
+      console.error('shopify-variants: product not found in response', JSON.stringify(raw).slice(0, 200));
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    const variants = (product.variants?.edges || []).map(({ node }) => ({
+    let allVariants = (product.variants?.edges || []).map(({ node }) => ({
       id: node.id,                      // gid://shopify/ProductVariant/XXXX
-      title: node.title,                // "S", "M", "L" etc. (or "Default Title")
+      rawTitle: node.title,             // e.g. "Black / S" or "S"
       price: parseFloat(node.price),
       availableForSale: node.availableForSale,
     }));
+
+    // Variants are titled "Color / Size" (e.g. "Black / S").
+    // If a colorFilter is provided, keep only variants for that color and
+    // strip the "Color / " prefix so the picker shows clean size labels.
+    if (colorFilter) {
+      const prefix = colorFilter.toLowerCase();
+      const filtered = allVariants.filter(v =>
+        v.rawTitle.toLowerCase().startsWith(prefix + ' / ') ||
+        v.rawTitle.toLowerCase() === prefix
+      );
+      if (filtered.length > 0) {
+        allVariants = filtered.map(v => ({
+          ...v,
+          title: v.rawTitle.includes(' / ') ? v.rawTitle.split(' / ').slice(1).join(' / ') : v.rawTitle,
+        }));
+      } else {
+        // Color not found — fall back to stripping color prefix generically
+        allVariants = allVariants.map(v => ({
+          ...v,
+          title: v.rawTitle.includes(' / ') ? v.rawTitle.split(' / ').slice(1).join(' / ') : v.rawTitle,
+        }));
+      }
+    } else {
+      // No color filter: just pass the rawTitle as title
+      allVariants = allVariants.map(v => ({ ...v, title: v.rawTitle }));
+    }
+
+    // Remove rawTitle from response payload
+    const variants = allVariants.map(({ rawTitle: _r, ...rest }) => rest);
 
     return NextResponse.json({
       productId: product.id,

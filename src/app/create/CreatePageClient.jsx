@@ -483,8 +483,9 @@ export function CreatePageClient() {
     if (!selectedProduct?.shopifyProductId) return;
     setVariantsLoading(true);
     try {
+      const colorParam = selectedColor?.name ? `&color=${encodeURIComponent(selectedColor.name)}` : '';
       const res = await fetch(
-        `/api/design-studio/shopify-variants?productId=${encodeURIComponent(selectedProduct.shopifyProductId)}`
+        `/api/design-studio/shopify-variants?productId=${encodeURIComponent(selectedProduct.shopifyProductId)}${colorParam}`
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -517,8 +518,10 @@ export function CreatePageClient() {
     if (!productConfig.shopifyProductId) return;
     setVariantsLoading(true);
     try {
+      // Pass the mockup's color so the API returns only size variants for that color
+      const colorParam = mockup.color_name ? `&color=${encodeURIComponent(mockup.color_name)}` : '';
       const res = await fetch(
-        `/api/design-studio/shopify-variants?productId=${encodeURIComponent(productConfig.shopifyProductId)}`
+        `/api/design-studio/shopify-variants?productId=${encodeURIComponent(productConfig.shopifyProductId)}${colorParam}`
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
