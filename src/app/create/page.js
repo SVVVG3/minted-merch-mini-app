@@ -29,7 +29,7 @@ export async function generateMetadata({ searchParams }) {
             type: 'launch_frame',
             url: launchUrl,
             name: 'Minted Merch',
-            splashImageUrl: `${BASE_URL}/MintedMerchHeaderLogo.png`,
+            splashImageUrl: `${BASE_URL}/splash.png`,
             splashBackgroundColor: '#000000',
           },
         },
