@@ -71,12 +71,20 @@ export async function POST(request) {
       console.log(`📐 fetch-url: EXIF orientation ${exifOrientation} detected for FID ${auth.fid}`);
     }
 
-    // Upload the raw bytes (EXIF still present; client will apply rotation if needed)
-    const r2Key = `user-designs/${auth.fid}-cast-${Date.now()}.jpg`;
+    // Detect animated or static GIFs — Printful can't process them; client will flatten via canvas
+    const isGif = contentType.includes('image/gif') ||
+      (buf.length >= 6 && buf.slice(0, 6).toString('ascii').startsWith('GIF'));
+    if (isGif) {
+      console.log(`🎞️ fetch-url: GIF detected for FID ${auth.fid} — client will flatten to static image`);
+    }
+
+    // Upload the raw bytes (EXIF still present; client will apply rotation / GIF flatten if needed)
+    const ext = isGif ? 'gif' : 'jpg';
+    const r2Key = `user-designs/${auth.fid}-cast-${Date.now()}.${ext}`;
     const r2Url = await uploadBufferToR2(buf, r2Key, contentType);
 
     console.log(`📥 Cast image uploaded to R2 for FID ${auth.fid}: ${r2Key}`);
-    return NextResponse.json({ success: true, url: r2Url, exifOrientation });
+    return NextResponse.json({ success: true, url: r2Url, exifOrientation, isGif });
   } catch (error) {
     console.error('Fetch-URL error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

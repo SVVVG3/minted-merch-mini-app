@@ -55,6 +55,34 @@ function exifToRotation(exif) {
   return 0;
 }
 
+// Convert an animated or static GIF to a static PNG File using canvas.
+// Canvas drawImage() always captures the first frame, stripping animation.
+async function convertGifToStaticPng(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX_DIM = 1500;
+      const scale = Math.min(1, MAX_DIM / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round((img.naturalWidth  || 200) * scale);
+      canvas.height = Math.round((img.naturalHeight || 200) * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(objectUrl);
+      canvas.toBlob(blob => {
+        if (blob) {
+          resolve(new File([blob], file.name.replace(/\.gif$/i, '.png'), { type: 'image/png' }));
+        } else {
+          resolve(file); // fallback: use original if canvas fails
+        }
+      }, 'image/png');
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+    img.src = objectUrl;
+  });
+}
+
 // Fetch image via same-origin proxy, rotate using canvas, re-upload to R2.
 // Returns the new R2 URL for the rotated design.
 // Caps canvas size at 1 500 px to avoid mobile memory limits (portrait photos
@@ -249,16 +277,17 @@ export function CreatePageClient() {
         // Bake in EXIF orientation correction before Printful sees the image.
         // Browsers auto-correct EXIF in <img> tags (so preview looks fine), but
         // Printful renders raw pixels and ignores EXIF → mockup comes out sideways.
+        // GIFs also need flattening — Printful can't process them; canvas gives us the first frame.
         let finalUrl = data.url;
         const castExifOrientation = data.exifOrientation || 1;
         const castAutoRotation = exifToRotation(castExifOrientation);
-        if (castAutoRotation !== 0) {
-          console.log(`📐 Cast action image has EXIF orientation ${castExifOrientation} → correcting ${castAutoRotation}°`);
+        if (castAutoRotation !== 0 || data.isGif) {
+          console.log(`📐 Cast action image: EXIF orientation ${castExifOrientation} (${castAutoRotation}°)${data.isGif ? ' GIF→flatten' : ''}`);
           try {
             finalUrl = await rotateAndReupload(data.url, castAutoRotation, sessionToken);
-            console.log(`✅ EXIF-corrected cast image: ${finalUrl}`);
+            console.log(`✅ Processed cast image: ${finalUrl}`);
           } catch (rotErr) {
-            console.warn('EXIF correction failed, using original (user can rotate manually):', rotErr);
+            console.warn('Image processing failed, using original (user can rotate manually):', rotErr);
           }
         }
 
@@ -315,16 +344,17 @@ export function CreatePageClient() {
         // Bake in EXIF orientation correction before Printful sees the image.
         // Browsers auto-correct EXIF in <img> tags (so preview looks fine), but
         // Printful renders raw pixels and ignores EXIF → mockup comes out sideways.
+        // GIFs also need flattening — Printful can't process them; canvas gives us the first frame.
         let contextFinalUrl = r2Data.url;
         const contextExifOrientation = r2Data.exifOrientation || 1;
         const contextAutoRotation = exifToRotation(contextExifOrientation);
-        if (contextAutoRotation !== 0) {
-          console.log(`📐 Cast context image has EXIF orientation ${contextExifOrientation} → correcting ${contextAutoRotation}°`);
+        if (contextAutoRotation !== 0 || r2Data.isGif) {
+          console.log(`📐 Cast context image: EXIF orientation ${contextExifOrientation} (${contextAutoRotation}°)${r2Data.isGif ? ' GIF→flatten' : ''}`);
           try {
             contextFinalUrl = await rotateAndReupload(r2Data.url, contextAutoRotation, sessionToken);
-            console.log(`✅ EXIF-corrected context image: ${contextFinalUrl}`);
+            console.log(`✅ Processed context image: ${contextFinalUrl}`);
           } catch (rotErr) {
-            console.warn('EXIF correction failed, using original (user can rotate manually):', rotErr);
+            console.warn('Image processing failed, using original (user can rotate manually):', rotErr);
           }
         }
 
@@ -487,6 +517,12 @@ export function CreatePageClient() {
     if (!sessionToken) { setError('Please sign in to upload a design.'); return; }
     setIsUploading(true);
     setError('');
+
+    // GIFs don't work on Printful mockups — flatten to a static PNG frame first
+    if (file.type === 'image/gif') {
+      file = await convertGifToStaticPng(file);
+    }
+
     // Detect EXIF orientation before uploading so we can auto-correct the preview
     const exifOrientation = await readExifOrientation(file);
     const autoRotation = exifToRotation(exifOrientation);
@@ -1171,7 +1207,14 @@ export function CreatePageClient() {
                   });
                   const data = await res.json();
                   if (!data.success) throw new Error(data.error || 'Upload failed');
-                  setDesignUrl(data.url);
+                  // Flatten GIFs and correct EXIF orientation so Printful gets a clean static image
+                  let pfpUrl = data.url;
+                  const pfpRotation = exifToRotation(data.exifOrientation || 1);
+                  if (pfpRotation !== 0 || data.isGif) {
+                    try { pfpUrl = await rotateAndReupload(data.url, pfpRotation, sessionToken); }
+                    catch { /* non-fatal — fall back to original */ }
+                  }
+                  setDesignUrl(pfpUrl);
                   loadTemplate(selectedProduct, selectedColor, selectedTechnique);
                   setStep('crop');
                 } catch (err) {
@@ -1237,9 +1280,28 @@ export function CreatePageClient() {
       setIsCropping(true);
       setError('');
       try {
-        const img = cropImgRef.current;
-        const scaleX = img.naturalWidth / img.width;
-        const scaleY = img.naturalHeight / img.height;
+        // Use the displayed <img> dimensions for coordinate scaling, but fetch
+        // the actual pixels via same-origin proxy to avoid tainted-canvas errors
+        // (R2 images are cross-origin and block canvas.toBlob without CORS).
+        const displayW = cropImgRef.current.width;
+        const displayH = cropImgRef.current.height;
+
+        const proxyRes = await fetch(
+          `/api/design-studio/proxy-image?url=${encodeURIComponent(designUrl)}`
+        );
+        if (!proxyRes.ok) throw new Error(`Proxy fetch failed: ${proxyRes.status}`);
+        const proxyBlob = await proxyRes.blob();
+        const objectUrl = URL.createObjectURL(proxyBlob);
+
+        const img = await new Promise((resolve, reject) => {
+          const i = new Image();
+          i.onload = () => resolve(i);
+          i.onerror = () => reject(new Error('Failed to load image for crop'));
+          i.src = objectUrl;
+        });
+
+        const scaleX = img.naturalWidth  / displayW;
+        const scaleY = img.naturalHeight / displayH;
 
         const srcX  = completedCrop.x * scaleX;
         const srcY  = completedCrop.y * scaleY;
@@ -1265,6 +1327,7 @@ export function CreatePageClient() {
         }
 
         ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
+        URL.revokeObjectURL(objectUrl);
 
         const mimeType = cropMode === 'circle' ? 'image/png' : 'image/jpeg';
         const ext      = cropMode === 'circle' ? 'png' : 'jpg';
