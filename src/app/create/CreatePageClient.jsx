@@ -6,6 +6,8 @@ import { sdk } from '@farcaster/miniapp-sdk';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { DESIGN_STUDIO_PRODUCTS } from '@/lib/designStudioConfig';
 import { useCart } from '@/lib/CartContext';
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 // ─── EXIF orientation helpers ────────────────────────────────────────────────
 // Read the EXIF orientation tag from a JPEG File without a library.
@@ -193,6 +195,13 @@ export function CreatePageClient() {
   // 0 | 90 | 180 | 270 — CSS-rotated in preview, applied to design at generate time
   const [rotationDegrees, setRotationDegrees] = useState(0);
 
+  // ─── Crop step ────────────────────────────────────────────────────────────
+  const [cropMode, setCropMode] = useState('circle'); // 'circle' | 'rect'
+  const [crop, setCrop] = useState(null);             // current interactive crop
+  const [completedCrop, setCompletedCrop] = useState(null); // committed crop on drag end
+  const [isCropping, setIsCropping] = useState(false);
+  const cropImgRef = useRef(null);                    // ref on the <img> inside ReactCrop
+
   // ─── Load user's past mockups ─────────────────────────────────────────────
   const loadMyMockups = useCallback(async () => {
     const sessionToken = getSessionToken();
@@ -337,9 +346,9 @@ export function CreatePageClient() {
   useEffect(() => {
     if (step === 'upload' && castImagePrefilled && designUrl && !castAutoAdvanced.current) {
       castAutoAdvanced.current = true;
-      // Kick off template load now that we know the product + color
+      // Kick off template load now so it's ready by the time the user finishes cropping
       loadTemplate(selectedProduct, selectedColor, selectedTechnique);
-      setStep('preview');
+      setStep('crop');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, castImagePrefilled, designUrl]);
@@ -494,7 +503,7 @@ export function CreatePageClient() {
       setDesignUrl(data.url);
       setRotationDegrees(autoRotation); // auto-correct for EXIF orientation
       loadTemplate(selectedProduct, selectedColor, selectedTechnique); // async, don't await
-      setStep('preview');
+      setStep('crop');
     } catch (err) {
       setError(`Upload failed: ${err.message}`);
     } finally {
@@ -509,7 +518,7 @@ export function CreatePageClient() {
     try { new URL(pasteUrl); } catch { setError('Please enter a valid image URL.'); return; }
     setDesignUrl(pasteUrl.trim());
     loadTemplate(selectedProduct, selectedColor, selectedTechnique);
-    setStep('preview');
+    setStep('crop');
   };
 
   // ─── Generate mockup ──────────────────────────────────────────────────────
@@ -639,6 +648,9 @@ export function CreatePageClient() {
     castImageProcessed.current = false;
     castAutoAdvanced.current = false;
     setRotationDegrees(0);
+    setCrop(null);
+    setCompletedCrop(null);
+    setCropMode('circle');
   };
 
   // ─── Buy (add to cart) ────────────────────────────────────────────────────
@@ -815,12 +827,12 @@ export function CreatePageClient() {
   // =========================================================================
   // ─── Dynamic step numbering ───────────────────────────────────────────────
   // Hoodies have an extra "technique" step → 5 steps total; others 4.
-  const totalSteps = selectedProduct?.techniqueOptions ? 5 : 4;
+  const totalSteps = selectedProduct?.techniqueOptions ? 6 : 5;
   const stepNum = (s) => {
     if (selectedProduct?.techniqueOptions) {
-      return { product: 1, technique: 2, color: 3, upload: 4, preview: 5 }[s] ?? 1;
+      return { product: 1, technique: 2, color: 3, upload: 4, crop: 5, preview: 6 }[s] ?? 1;
     }
-    return { product: 1, color: 2, upload: 3, preview: 4 }[s] ?? 1;
+    return { product: 1, color: 2, upload: 3, crop: 4, preview: 5 }[s] ?? 1;
   };
 
   // ─── Step: Product Picker ─────────────────────────────────────────────────
@@ -1161,7 +1173,7 @@ export function CreatePageClient() {
                   if (!data.success) throw new Error(data.error || 'Upload failed');
                   setDesignUrl(data.url);
                   loadTemplate(selectedProduct, selectedColor, selectedTechnique);
-                  setStep('preview');
+                  setStep('crop');
                 } catch (err) {
                   setError(`Could not use profile picture: ${err.message}`);
                 } finally {
@@ -1217,6 +1229,175 @@ export function CreatePageClient() {
     );
   }
 
+  // ─── Step: Crop ───────────────────────────────────────────────────────────
+  if (step === 'crop') {
+    // Apply the interactive crop to the image using the canvas API, then re-upload to R2.
+    const applyCrop = async () => {
+      if (!completedCrop || !cropImgRef.current) return;
+      setIsCropping(true);
+      setError('');
+      try {
+        const img = cropImgRef.current;
+        const scaleX = img.naturalWidth / img.width;
+        const scaleY = img.naturalHeight / img.height;
+
+        const srcX  = completedCrop.x * scaleX;
+        const srcY  = completedCrop.y * scaleY;
+        const srcW  = completedCrop.width  * scaleX;
+        const srcH  = completedCrop.height * scaleY;
+
+        // Cap output at 1 500 px to stay within mobile canvas memory limits
+        const MAX_DIM = 1500;
+        const scale  = Math.min(1, MAX_DIM / Math.max(srcW, srcH));
+        const outW   = Math.round(srcW * scale);
+        const outH   = Math.round(srcH * scale);
+
+        const canvas = document.createElement('canvas');
+        canvas.width  = outW;
+        canvas.height = outH;
+        const ctx = canvas.getContext('2d');
+
+        if (cropMode === 'circle') {
+          // Clip to circle, transparent background → export as PNG
+          ctx.beginPath();
+          ctx.arc(outW / 2, outH / 2, Math.min(outW, outH) / 2, 0, Math.PI * 2);
+          ctx.clip();
+        }
+
+        ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
+
+        const mimeType = cropMode === 'circle' ? 'image/png' : 'image/jpeg';
+        const ext      = cropMode === 'circle' ? 'png' : 'jpg';
+        const quality  = cropMode === 'circle' ? 1 : 0.92;
+
+        const blob = await new Promise((resolve, reject) => {
+          canvas.toBlob(b => b ? resolve(b) : reject(new Error('canvas.toBlob returned null')), mimeType, quality);
+        });
+
+        const sessionToken = getSessionToken();
+        const formData = new FormData();
+        formData.append('file', blob, `design-cropped.${ext}`);
+        const uploadRes = await fetch('/api/design-studio/upload', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${sessionToken}` },
+          body: formData,
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadData.success) throw new Error(uploadData.error || 'Upload failed');
+
+        setDesignUrl(uploadData.url);
+        setRotationDegrees(0); // canvas already baked in orientation — reset CSS rotation
+        // Reload template with updated image (template data itself doesn't change, but
+        // this ensures preview is re-rendered cleanly)
+        loadTemplate(selectedProduct, selectedColor, selectedTechnique);
+        setStep('preview');
+      } catch (err) {
+        setError(`Crop failed: ${err.message}`);
+      } finally {
+        setIsCropping(false);
+      }
+    };
+
+    return (
+      <PageShell
+        onBack={() => {
+          setCastImagePrefilled(false); // prevent cast auto-advance re-triggering
+          setCrop(null);
+          setCompletedCrop(null);
+          setStep('upload');
+        }}
+        title="Edit Your Design"
+        step={stepNum('crop')}
+        totalSteps={totalSteps}
+      >
+        <div className="flex flex-col items-center px-4 pt-4 pb-8">
+
+          {/* Circle / Rectangle toggle */}
+          <div className="flex items-center gap-2 mb-4 bg-gray-100 rounded-xl p-1 w-full max-w-xs">
+            <button
+              onClick={() => { setCropMode('circle'); setCrop(null); setCompletedCrop(null); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${
+                cropMode === 'circle'
+                  ? 'bg-white shadow text-gray-800'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+              Circle
+            </button>
+            <button
+              onClick={() => { setCropMode('rect'); setCrop(null); setCompletedCrop(null); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${
+                cropMode === 'rect'
+                  ? 'bg-white shadow text-gray-800'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+              </svg>
+              Rectangle
+            </button>
+          </div>
+
+          {/* Crop canvas */}
+          <div className="w-full max-w-xs rounded-2xl overflow-hidden bg-gray-100">
+            <ReactCrop
+              crop={crop}
+              onChange={(c) => setCrop(c)}
+              onComplete={(c) => setCompletedCrop(c)}
+              circularCrop={cropMode === 'circle'}
+              aspect={cropMode === 'circle' ? 1 : undefined}
+              className="w-full"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                ref={cropImgRef}
+                src={designUrl}
+                alt="Crop preview"
+                className="w-full object-contain"
+                style={{ transform: rotationDegrees ? `rotate(${rotationDegrees}deg)` : undefined, maxHeight: '60vh' }}
+              />
+            </ReactCrop>
+          </div>
+
+          <p className="text-xs text-gray-400 mt-2 mb-5">
+            {cropMode === 'circle'
+              ? 'Drag to reposition · resize handles to scale'
+              : 'Drag to select area · resize handles to adjust'}
+          </p>
+
+          {error && <ErrorBanner message={error} />}
+
+          {/* Apply button */}
+          <button
+            onClick={applyCrop}
+            disabled={!completedCrop || isCropping}
+            className="w-full max-w-xs py-3.5 rounded-2xl font-semibold text-white transition-all
+              bg-[#3eb489] hover:bg-[#359970] active:scale-[0.98] disabled:opacity-40"
+          >
+            {isCropping
+              ? <span className="flex items-center justify-center gap-2"><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> Applying…</span>
+              : '✂️ Apply Crop'}
+          </button>
+
+          {/* Skip button */}
+          <button
+            onClick={() => {
+              loadTemplate(selectedProduct, selectedColor, selectedTechnique);
+              setStep('preview');
+            }}
+            className="mt-3 w-full max-w-xs py-3 rounded-2xl text-sm text-gray-500 hover:text-gray-700 transition-colors border border-gray-200 hover:border-gray-300"
+          >
+            Skip — use full image
+          </button>
+        </div>
+      </PageShell>
+    );
+  }
+
   // ─── Step: Live Preview + Generate ───────────────────────────────────────
   if (step === 'preview') {
     const PREVIEW_WIDTH = 280;
@@ -1254,12 +1435,7 @@ export function CreatePageClient() {
 
     return (
       <PageShell
-        onBack={() => {
-          // Clearing castImagePrefilled ensures we don't auto-advance again
-          // if the user returns to the upload step
-          setCastImagePrefilled(false);
-          setStep('upload');
-        }}
+        onBack={() => setStep('crop')}
         title="Preview & Generate"
         step={stepNum('preview')}
         totalSteps={totalSteps}

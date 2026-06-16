@@ -51,6 +51,7 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.0.2",
     "react-dom": "^19.0.2",
+    "react-image-crop": "^11.0.10",
     "thirdweb": "^5.112.0",
     "viem": "^2.31.4",
     "wagmi": "^2.15.6"
