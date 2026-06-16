@@ -1361,6 +1361,37 @@ export function CreatePageClient() {
       }
     };
 
+    // Compute a sensible initial crop centered on the image.
+    // Circle: large centered square (so the circle fills most of the image).
+    // Rect: near-full-image coverage leaving a small margin.
+    const getInitialCrop = (mode) => {
+      const img = cropImgRef.current;
+      if (!img || !img.width) {
+        // Fallback before image loads — percentage-based
+        return mode === 'circle'
+          ? { unit: '%', x: 10, y: 10, width: 80, height: 80 }
+          : { unit: '%', x: 5,  y: 5,  width: 90, height: 90 };
+      }
+      const { width, height } = img; // displayed dimensions
+      if (mode === 'circle') {
+        const size = Math.round(Math.min(width, height) * 0.82);
+        return { unit: 'px', x: Math.round((width - size) / 2), y: Math.round((height - size) / 2), width: size, height: size };
+      }
+      return {
+        unit: 'px',
+        x: Math.round(width  * 0.05),
+        y: Math.round(height * 0.05),
+        width:  Math.round(width  * 0.9),
+        height: Math.round(height * 0.9),
+      };
+    };
+
+    const handleCropImgLoad = () => {
+      const initCrop = getInitialCrop(cropMode);
+      setCrop(initCrop);
+      setCompletedCrop(initCrop);
+    };
+
     return (
       <PageShell
         onBack={() => {
@@ -1378,7 +1409,12 @@ export function CreatePageClient() {
           {/* Circle / Rectangle toggle */}
           <div className="flex items-center gap-2 mb-4 bg-gray-100 rounded-xl p-1 w-full max-w-xs">
             <button
-              onClick={() => { setCropMode('circle'); setCrop(null); setCompletedCrop(null); }}
+              onClick={() => {
+                setCropMode('circle');
+                const initCrop = getInitialCrop('circle');
+                setCrop(initCrop);
+                setCompletedCrop(initCrop);
+              }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${
                 cropMode === 'circle'
                   ? 'bg-white shadow text-gray-800'
@@ -1391,7 +1427,12 @@ export function CreatePageClient() {
               Circle
             </button>
             <button
-              onClick={() => { setCropMode('rect'); setCrop(null); setCompletedCrop(null); }}
+              onClick={() => {
+                setCropMode('rect');
+                const initCrop = getInitialCrop('rect');
+                setCrop(initCrop);
+                setCompletedCrop(initCrop);
+              }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${
                 cropMode === 'rect'
                   ? 'bg-white shadow text-gray-800'
@@ -1414,6 +1455,7 @@ export function CreatePageClient() {
               circularCrop={cropMode === 'circle'}
               aspect={cropMode === 'circle' ? 1 : undefined}
               className="w-full"
+              keepSelection
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -1422,14 +1464,13 @@ export function CreatePageClient() {
                 alt="Crop preview"
                 className="w-full object-contain"
                 style={{ transform: rotationDegrees ? `rotate(${rotationDegrees}deg)` : undefined, maxHeight: '60vh' }}
+                onLoad={handleCropImgLoad}
               />
             </ReactCrop>
           </div>
 
           <p className="text-xs text-gray-400 mt-2 mb-5">
-            {cropMode === 'circle'
-              ? 'Drag to reposition · resize handles to scale'
-              : 'Drag to select area · resize handles to adjust'}
+            Drag to reposition · handles to resize
           </p>
 
           {error && <ErrorBanner message={error} />}
@@ -1591,7 +1632,7 @@ export function CreatePageClient() {
                   <input
                     type="range"
                     min={isEmbroidery ? '0.2' : '0.3'}
-                    max={isEmbroidery ? '0.7' : '1.2'}
+                    max={isEmbroidery ? '0.7' : '1.0'}
                     step="0.05"
                     value={designScale}
                     onChange={e => setDesignScale(parseFloat(e.target.value))}
