@@ -1904,11 +1904,30 @@ function ErrorBanner({ message }) {
 }
 
 function MockupCard({ mockup, onShare, onBuy, onDelete }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen]         = useState(false);
+  const [showShareSub, setShowShareSub] = useState(false); // share sub-panel
+  const [copied, setCopied]             = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [deleting, setDeleting]         = useState(false);
 
-  const closeMenu = () => { setMenuOpen(false); setDeleteConfirm(false); };
+  const appUrl = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_APP_URL)
+    || 'https://app.mintedmerch.shop';
+  const shareText = `Check out my custom @mintedmerch design idea 👀\n\nCreate your own in the mini app!\n${appUrl}/create`;
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    setDeleteConfirm(false);
+    setShowShareSub(false);
+    setCopied(false);
+  };
+
+  const handleCopyCastText = async () => {
+    try {
+      await navigator.clipboard.writeText(`${shareText}\n\n${mockup.mockup_url}`);
+      setCopied(true);
+      setTimeout(() => { setCopied(false); closeMenu(); }, 1500);
+    } catch { /* ignore clipboard errors */ }
+  };
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -1939,7 +1958,7 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
 
       {/* Three-dot menu button — positioned over card top-right */}
       <button
-        onClick={(e) => { e.stopPropagation(); setMenuOpen(o => !o); setDeleteConfirm(false); }}
+        onClick={(e) => { e.stopPropagation(); setMenuOpen(o => !o); setDeleteConfirm(false); setShowShareSub(false); }}
         className="absolute top-1.5 right-1.5 w-7 h-7 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md text-white text-base leading-none hover:bg-black/70 transition-colors"
         title="More options"
       >
@@ -1952,56 +1971,111 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
           {/* Invisible full-screen backdrop to close on outside tap */}
           <div className="fixed inset-0 z-20" onClick={closeMenu} />
 
-          <div className="absolute top-9 right-0 z-30 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden w-44">
-            {/* Share */}
-            <button
-              onClick={() => { closeMenu(); onShare(mockup.mockup_url); }}
-              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <svg className="w-4 h-4 text-[#6A3CFF] flex-shrink-0" viewBox="0 0 520 457" fill="currentColor">
-                <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
-              </svg>
-              Share on Farcaster
-            </button>
+          <div className="absolute top-9 right-0 z-30 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden w-48">
 
-            <div className="h-px bg-gray-100 mx-3" />
+            {showShareSub ? (
+              /* ── Share sub-panel ─────────────────────────────── */
+              <>
+                {/* Back row */}
+                <button
+                  onClick={() => setShowShareSub(false)}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-gray-400 hover:bg-gray-50 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Back
+                </button>
 
-            {/* Buy */}
-            <button
-              onClick={() => { closeMenu(); onBuy(mockup); }}
-              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <svg className="w-4 h-4 text-[#3eb489] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              Buy This Design
-            </button>
+                <div className="h-px bg-gray-100 mx-3" />
 
-            <div className="h-px bg-gray-100 mx-3" />
+                {/* Copy cast text */}
+                <button
+                  onClick={handleCopyCastText}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm hover:bg-gray-50 transition-colors"
+                >
+                  {copied ? (
+                    <>
+                      <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-green-600 font-medium">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      <span className="text-gray-700">Copy cast text</span>
+                    </>
+                  )}
+                </button>
 
-            {/* Delete — two-step confirmation */}
-            {!deleteConfirm ? (
-              <button
-                onClick={() => setDeleteConfirm(true)}
-                className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors"
-              >
-                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Delete
-              </button>
+                <div className="h-px bg-gray-100 mx-3" />
+
+                {/* Cast on Farcaster */}
+                <button
+                  onClick={() => { closeMenu(); onShare(mockup.mockup_url); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <svg className="w-4 h-4 text-[#6A3CFF] flex-shrink-0" viewBox="0 0 520 457" fill="currentColor">
+                    <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
+                  </svg>
+                  Cast on Farcaster
+                </button>
+              </>
             ) : (
-              <div className="px-4 py-3 bg-red-50">
-                <p className="text-xs text-red-600 font-medium mb-2">Delete this mockup? This cannot be undone.</p>
-                <div className="flex gap-2">
+              /* ── Main menu ───────────────────────────────────── */
+              <>
+                {/* Share — opens sub-panel */}
+                <button
+                  onClick={() => setShowShareSub(true)}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <svg className="w-4 h-4 text-[#6A3CFF] flex-shrink-0" viewBox="0 0 520 457" fill="currentColor">
+                    <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z"/>
+                  </svg>
+                  Share on Farcaster
+                </button>
+
+                <div className="h-px bg-gray-100 mx-3" />
+
+                {/* Buy */}
+                <button
+                  onClick={() => { closeMenu(); onBuy(mockup); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <svg className="w-4 h-4 text-[#3eb489] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  Buy This Design
+                </button>
+
+                <div className="h-px bg-gray-100 mx-3" />
+
+                {/* Delete — two-step confirmation */}
+                {!deleteConfirm ? (
                   <button
-                    onClick={() => setDeleteConfirm(false)}
-                    className="flex-1 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    onClick={() => setDeleteConfirm(true)}
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors"
                   >
-                    Cancel
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete
                   </button>
-                  <button
-                    onClick={handleDelete}
+                ) : (
+                  <div className="px-4 py-3 bg-red-50">
+                    <p className="text-xs text-red-600 font-medium mb-2">Delete this mockup? This cannot be undone.</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setDeleteConfirm(false)}
+                        className="flex-1 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleDelete}
                     disabled={deleting}
                     className="flex-1 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:opacity-60 transition-colors flex items-center justify-center"
                   >
@@ -2011,9 +2085,11 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                       </svg>
                     ) : 'Delete'}
-                  </button>
-                </div>
-              </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </>
