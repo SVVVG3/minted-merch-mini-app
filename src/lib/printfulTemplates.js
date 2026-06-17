@@ -52,6 +52,19 @@ export async function createPrintfulTemplate(
     return { success: false, error: 'Design request not found' };
   }
 
+  // Immediately stamp the Shopify order info so the record is marked as paid
+  // even if Printful template creation fails below.
+  if (shopifyOrderId || shopifyOrderNumber) {
+    await supabase
+      .from('design_order_requests')
+      .update({
+        shopify_order_id: shopifyOrderId || null,
+        shopify_order_number: shopifyOrderNumber || null,
+      })
+      .eq('id', designRequestId);
+    console.log(`📝 Stamped Shopify order ${shopifyOrderNumber} on design request ${designRequestId}`);
+  }
+
   // Build a human-readable template name
   const productType = req.product_type
     ? req.product_type.charAt(0).toUpperCase() + req.product_type.slice(1)
@@ -70,11 +83,20 @@ export async function createPrintfulTemplate(
   // Build the files array — position_data holds the exact printfile coordinates
   const files = [];
   if (req.design_url && req.position_data) {
-    // Map our internal placement strings to Printful file type strings
-    const fileType =
-      req.placement === 'leftchest'
-        ? 'embroidery_front' // Printful uses this key for left-chest embroidery
-        : req.placement || 'front';
+    // Map our internal placement/product strings to Printful file type strings.
+    // Printful accepts: 'front', 'back', 'label_outside', 'embroidery_front', etc.
+    // Our placements: 'center' (full front), 'leftchest' (left chest)
+    // For hats the only printable area is 'front'.
+    let fileType = 'front'; // safe default
+    if (req.product_type === 'hat') {
+      fileType = 'front';
+    } else if (req.placement === 'leftchest' && req.technique === 'EMBROIDERY') {
+      fileType = 'embroidery_chest_left';
+    } else if (req.placement === 'leftchest') {
+      fileType = 'front'; // DTG left chest still uses 'front' printfile
+    } else {
+      fileType = 'front'; // center / full front
+    }
 
     files.push({
       type: fileType,
