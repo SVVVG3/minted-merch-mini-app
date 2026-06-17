@@ -16,7 +16,7 @@ export async function POST(request) {
     // printfiles endpoint — this guarantees we use the correct printfile coordinate
     // system and eliminates client/template-pixel vs printfile-pixel mismatches.
     // technique is optional — lets the client override the config (e.g. hoodie DTG vs EMBROIDERY)
-    const { productId, variantIds, imageUrl, designScale, designPlacement, technique } = await request.json();
+    const { productId, variantIds, imageUrl, designScale, designPlacement, technique, designOffsetX, designOffsetY } = await request.json();
 
     const productConfig = getProductConfig(productId);
     if (!productConfig) {
@@ -72,20 +72,30 @@ export async function POST(request) {
           };
           console.log(`📐 Left-chest position (${aw}×${ah}): size=${size}, top=${resolvedPosition.top}, left=${resolvedPosition.left}`);
         } else {
-          // Centered full-front (or hat embroidery)
+          // Centered full-front (or hat embroidery), with optional drag offset
           const scale = typeof designScale === 'number' && designScale > 0
             ? designScale
             : (productConfig.defaultScale ?? (effectiveTechnique === 'EMBROIDERY' ? 0.45 : 0.85));
           const size = Math.round(Math.min(aw, ah) * scale);
+          // designOffsetX/Y are normalized fractions of the print area (from client drag).
+          // Clamp so design always stays fully inside the print area.
+          const maxOffX = Math.max(0, (aw - size) / 2);
+          const maxOffY = Math.max(0, (ah - size) / 2);
+          const offX = typeof designOffsetX === 'number'
+            ? Math.max(-maxOffX, Math.min(maxOffX, Math.round(designOffsetX * aw)))
+            : 0;
+          const offY = typeof designOffsetY === 'number'
+            ? Math.max(-maxOffY, Math.min(maxOffY, Math.round(designOffsetY * ah)))
+            : 0;
           resolvedPosition = {
             area_width: aw,
             area_height: ah,
             width: size,
             height: size,
-            top: Math.round((ah - size) / 2),
-            left: Math.round((aw - size) / 2),
+            top:  Math.round((ah - size) / 2) + offY,
+            left: Math.round((aw - size) / 2) + offX,
           };
-          console.log(`📐 Centered position (scale=${scale}, ${aw}×${ah}): size=${size}`);
+          console.log(`📐 Centered position (scale=${scale}, ${aw}×${ah}): size=${size}, offX=${offX}, offY=${offY}`);
         }
       }
     } catch (pfError) {

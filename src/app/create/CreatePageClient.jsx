@@ -286,6 +286,14 @@ export function CreatePageClient() {
   const [isCropping, setIsCropping] = useState(false);
   const cropImgRef = useRef(null);                    // ref on the <img> inside ReactCrop
 
+  // ─── Design position offset (preview step drag-to-reposition) ────────────
+  // Offset in preview pixels from the centered default position.
+  const [designOffset, setDesignOffset] = useState({ x: 0, y: 0 });
+  const isDragging = useRef(false);
+  const dragStart  = useRef({ x: 0, y: 0, ox: 0, oy: 0 });
+  // Stores current print-area + design dims so pointer handlers can clamp without stale closure.
+  const printAreaDims = useRef({ paW: 0, paH: 0, sz: 0 });
+
   // ─── Load user's past mockups ─────────────────────────────────────────────
   const loadMyMockups = useCallback(async () => {
     const sessionToken = getSessionToken();
@@ -659,6 +667,10 @@ export function CreatePageClient() {
           designScale,
           designPlacement,
           technique: selectedTechnique || selectedProduct.technique || null,
+          // Normalized drag offset: fraction of print-area dims, 0 = centered.
+          // Only relevant for center placement; server ignores for leftchest.
+          designOffsetX: printAreaDims.current.paW > 0 ? designOffset.x / printAreaDims.current.paW : 0,
+          designOffsetY: printAreaDims.current.paH > 0 ? designOffset.y / printAreaDims.current.paH : 0,
         }),
       });
       const data = await res.json();
@@ -710,6 +722,10 @@ export function CreatePageClient() {
     pollTimerRef.current = setTimeout(poll, pollCount === 0 ? 10000 : 3000);
     return () => clearTimeout(pollTimerRef.current);
   }, [taskKey, step, pollCount]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset drag offset whenever the user switches placement (Full Front ↔ Left Chest)
+  // so the new placement always starts from its default centered/fixed position.
+  useEffect(() => { setDesignOffset({ x: 0, y: 0 }); }, [designPlacement]);
 
   // ─── Share on Farcaster ───────────────────────────────────────────────────
   const shareToFarcaster = async (url) => {
@@ -1620,11 +1636,13 @@ export function CreatePageClient() {
 
     // Compute design position in preview coords
     let previewDesign = null;
+    let printAreaBox = null; // for the visible outline
     if (template) {
       const paTop = Math.round(template.print_area_top * displayRatio);
       const paLeft = Math.round(template.print_area_left * displayRatio);
       const paW = Math.round(template.print_area_width * displayRatio);
       const paH = Math.round(template.print_area_height * displayRatio);
+      printAreaBox = { top: paTop, left: paLeft, width: paW, height: paH };
 
       if (designPlacement === 'leftchest' && showPlacementOptions) {
         // Wearer's LEFT chest = viewer's RIGHT side of the template image.
@@ -1638,10 +1656,22 @@ export function CreatePageClient() {
           height: sz,
         };
       } else {
-        // Centered — keep square, scaled off shorter axis
+        // Centered — keep square, scaled off shorter axis; apply drag offset
         const shorter = Math.min(paW, paH);
         const sz = Math.round(shorter * designScale);
-        previewDesign = { top: paTop + Math.round((paH - sz) / 2), left: paLeft + Math.round((paW - sz) / 2), width: sz, height: sz };
+        // Clamp offset so design stays fully within the print area
+        const maxX = Math.max(0, (paW - sz) / 2);
+        const maxY = Math.max(0, (paH - sz) / 2);
+        const ox = Math.max(-maxX, Math.min(maxX, designOffset.x));
+        const oy = Math.max(-maxY, Math.min(maxY, designOffset.y));
+        // Keep printAreaDims ref up-to-date for pointer handlers
+        printAreaDims.current = { paW, paH, sz };
+        previewDesign = {
+          top:  paTop  + Math.round((paH - sz) / 2) + oy,
+          left: paLeft + Math.round((paW - sz) / 2) + ox,
+          width: sz,
+          height: sz,
+        };
       }
     }
 
@@ -1698,22 +1728,56 @@ export function CreatePageClient() {
                   />
                 )}
 
-                {/* User's design overlaid on the print area */}
+                {/* Print area outline — visible guide for drag repositioning */}
+                {printAreaBox && designPlacement === 'center' && (
+                  <div
+                    className="absolute pointer-events-none rounded"
+                    style={{
+                      top: printAreaBox.top,
+                      left: printAreaBox.left,
+                      width: printAreaBox.width,
+                      height: printAreaBox.height,
+                      border: '1.5px dashed rgba(62,180,137,0.45)',
+                    }}
+                  />
+                )}
+
+                {/* User's design overlaid on the print area — draggable for Full Front */}
                 {previewDesign && (
                   <div
-                    className="absolute"
+                    className="absolute select-none"
                     style={{
                       top: previewDesign.top,
                       left: previewDesign.left,
                       width: previewDesign.width,
                       height: previewDesign.height,
+                      cursor: designPlacement === 'center' ? (isDragging.current ? 'grabbing' : 'grab') : 'default',
+                      touchAction: 'none',
                     }}
+                    onPointerDown={(e) => {
+                      if (designPlacement !== 'center') return;
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                      isDragging.current = true;
+                      dragStart.current = { x: e.clientX, y: e.clientY, ox: designOffset.x, oy: designOffset.y };
+                    }}
+                    onPointerMove={(e) => {
+                      if (!isDragging.current) return;
+                      const { paW, paH, sz } = printAreaDims.current;
+                      const maxX = Math.max(0, (paW - sz) / 2);
+                      const maxY = Math.max(0, (paH - sz) / 2);
+                      setDesignOffset({
+                        x: Math.max(-maxX, Math.min(maxX, dragStart.current.ox + (e.clientX - dragStart.current.x))),
+                        y: Math.max(-maxY, Math.min(maxY, dragStart.current.oy + (e.clientY - dragStart.current.y))),
+                      });
+                    }}
+                    onPointerUp={() => { isDragging.current = false; }}
+                    onPointerCancel={() => { isDragging.current = false; }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={designUrl}
                       alt="Your design"
-                      className="w-full h-full object-contain transition-transform duration-300"
+                      className="w-full h-full object-contain transition-transform duration-300 pointer-events-none"
                       style={{ transform: `rotate(${rotationDegrees}deg)` }}
                     />
                   </div>
@@ -1729,6 +1793,15 @@ export function CreatePageClient() {
                   />
                 )}
               </div>
+
+              {/* Drag hint — only for Full Front where dragging is enabled */}
+              {designPlacement === 'center' && (
+                <p className="text-xs text-gray-400 text-center mt-2">
+                  {(designOffset.x !== 0 || designOffset.y !== 0)
+                    ? '↕ Position adjusted — drag to fine-tune'
+                    : '✦ Drag the design to reposition it'}
+                </p>
+              )}
 
                   {/* Scale slider — shown for all products */}
               {(designPlacement === 'center' || !showPlacementOptions) && (
