@@ -235,6 +235,8 @@ export function CreatePageClient() {
   const [taskKey, setTaskKey] = useState('');
   const [pollCount, setPollCount] = useState(0);
   const pollTimerRef = useRef(null);
+  const [lastPositionData, setLastPositionData] = useState(null);
+  const [lastVariantIds, setLastVariantIds] = useState(null);
 
   // Result
   const [mockupUrl, setMockupUrl] = useState('');
@@ -677,6 +679,8 @@ export function CreatePageClient() {
       if (!data.success) throw new Error(data.error || 'Failed to start generation');
       setTaskKey(data.taskKey);
       setPollCount(0);
+      if (data.positionData) setLastPositionData(data.positionData);
+      if (data.variantIds) setLastVariantIds(data.variantIds);
     } catch (err) {
       setError(`Generation failed: ${err.message}`);
       setStep('preview');
@@ -895,8 +899,8 @@ export function CreatePageClient() {
           mockupUrl: effectiveMockupUrl,
           placement: historyMockup ? effectiveProduct.placement : designPlacement,
           designScale: historyMockup ? null : designScale,
-          printfulVariantIds: historyMockup ? null : (selectedColor?.variantIds || null),
-          positionData: null, // position is computed server-side at generate time
+          printfulVariantIds: historyMockup ? null : (lastVariantIds || selectedColor?.variantIds || null),
+          positionData: historyMockup ? null : (lastPositionData || null),
         }),
       });
       const saveData = await saveRes.json();

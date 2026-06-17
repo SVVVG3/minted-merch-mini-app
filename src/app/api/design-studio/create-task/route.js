@@ -130,7 +130,13 @@ export async function POST(request) {
 
     console.log(`🎨 Mockup task created — FID: ${auth.fid}, product: ${productConfig.label}, technique: ${effectiveTechnique || 'DTG'}, placement: ${designPlacement || 'center'}, task: ${result.task_key}`);
 
-    return NextResponse.json({ success: true, taskKey: result.task_key, status: result.status });
+    return NextResponse.json({
+      success: true,
+      taskKey: result.task_key,
+      status: result.status,
+      positionData: resolvedPosition,
+      variantIds,
+    });
   } catch (error) {
     console.error('Create mockup task error:', error);
     return NextResponse.json({ error: error.message || 'Failed to start mockup generation' }, { status: 500 });
