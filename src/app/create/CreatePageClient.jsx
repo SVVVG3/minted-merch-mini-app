@@ -887,7 +887,7 @@ export function CreatePageClient() {
     const profileButton = user?.pfpUrl ? (
       <button
         onClick={() => setIsProfileModalOpen(true)}
-        className="flex-shrink-0 w-9 h-9 rounded-full overflow-hidden border-2 border-[#3eb489] hover:opacity-90 transition-opacity"
+        className="flex-shrink-0 w-11 h-11 rounded-full overflow-hidden border-2 border-[#3eb489] hover:opacity-90 transition-opacity"
         title="Profile"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -897,7 +897,7 @@ export function CreatePageClient() {
 
     return (
       <>
-      <PageShell onBack={() => router.push('/')} title={designStudioTitle} step={1} totalSteps={4} rightExtra={profileButton}>
+      <PageShell onBack={() => router.push('/')} title={designStudioTitle} showProgress={false} rightExtra={profileButton}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
           {/* Cast image pre-fill banners */}
           {castImageLoading && (
@@ -1065,7 +1065,7 @@ export function CreatePageClient() {
   // ─── Step: Technique Picker (hoodies only) ────────────────────────────────
   if (step === 'technique') {
     return (
-      <PageShell onBack={() => setStep('product')} title={selectedProduct?.label} step={2} totalSteps={5}>
+      <PageShell onBack={() => setStep('product')} title={selectedProduct?.label} step={stepNum('technique')} totalSteps={totalSteps}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
           <p className="text-gray-500 text-sm text-center mb-6">Choose your printing method</p>
           <div className="w-full max-w-sm space-y-3">
@@ -1933,7 +1933,7 @@ export function CreatePageClient() {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function PageShell({ children, onBack, title, step, totalSteps, rightExtra }) {
+function PageShell({ children, onBack, title, step, totalSteps, rightExtra, showProgress = true }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="sticky top-0 z-10 bg-white shadow-sm px-4 py-3">
@@ -1946,12 +1946,16 @@ function PageShell({ children, onBack, title, step, totalSteps, rightExtra }) {
           <div className="flex-1 min-w-0 overflow-hidden">
             <h1 className="font-bold text-gray-900 flex items-center gap-2 truncate">{title}</h1>
           </div>
-          <span className="text-xs text-gray-400 flex-shrink-0">{step}/{totalSteps}</span>
+          {showProgress && (
+            <span className="text-xs text-gray-400 flex-shrink-0">{step}/{totalSteps}</span>
+          )}
           {rightExtra}
         </div>
-        <div className="mt-2 h-1 bg-gray-100 rounded-full">
-          <div className="h-1 bg-[#3eb489] rounded-full transition-all duration-300" style={{ width: `${(step / totalSteps) * 100}%` }} />
-        </div>
+        {showProgress && (
+          <div className="mt-2 h-1 bg-gray-100 rounded-full">
+            <div className="h-1 bg-[#3eb489] rounded-full transition-all duration-300" style={{ width: `${(step / totalSteps) * 100}%` }} />
+          </div>
+        )}
       </div>
       <div className="flex-1">{children}</div>
     </div>
