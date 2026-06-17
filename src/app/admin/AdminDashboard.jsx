@@ -3403,10 +3403,28 @@ export default function AdminDashboard() {
                                 </span>
                               )}
                             </td>
-                            {/* Printful template */}
+                            {/* Printful draft order */}
                             <td className="px-4 py-3">
-                              {order.printful_template_id ? (
-                                <span className="text-xs text-green-700 font-medium">✓ Created</span>
+                              {order.printful_order_id ? (
+                                <div className="flex flex-col gap-1">
+                                  <a
+                                    href={`https://www.printful.com/dashboard/orders`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 hover:underline font-medium"
+                                  >
+                                    #{order.printful_order_id}
+                                  </a>
+                                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                                    order.printful_order_status === 'confirmed'
+                                      ? 'bg-green-100 text-green-700'
+                                      : order.printful_order_status === 'failed'
+                                      ? 'bg-red-100 text-red-700'
+                                      : 'bg-yellow-100 text-yellow-700'
+                                  }`}>
+                                    {order.printful_order_status || 'draft'}
+                                  </span>
+                                </div>
                               ) : (
                                 <span className="text-xs text-gray-400">—</span>
                               )}

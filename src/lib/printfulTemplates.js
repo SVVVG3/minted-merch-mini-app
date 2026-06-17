@@ -1,10 +1,15 @@
 /**
- * Printful product-template creation utility.
+ * Printful draft-order creation utility.
  *
  * SECURITY:
  *  • Only imported by server-side routes.
  *  • Uses PRINTFUL_API_KEY (server env only — never NEXT_PUBLIC_*).
  *  • Uses SUPABASE_SERVICE_ROLE_KEY (server env only).
+ *
+ * After a custom design order is paid we create a DRAFT order in Printful
+ * (confirm: false) so the admin can review and confirm production.
+ * Printful's /product-templates endpoint does not support POST — templates
+ * can only be created via the dashboard UI.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -21,13 +26,11 @@ function getSupabaseAdmin() {
 }
 
 /**
- * Creates a Printful product template for a custom-merch design request and
- * updates the matching Supabase row with the resulting template ID.
+ * Creates a draft Printful order for a paid custom design request.
  *
  * @param {string} designRequestId  - UUID from design_order_requests
- * @param {string|null} shopifyOrderId      - Shopify order GID (optional)
- * @param {string|null} shopifyOrderNumber  - Shopify order name e.g. "#1001" (optional)
- * @returns {Promise<{ success: boolean, templateId?: string|null, error?: string }>}
+ * @param {string|null} shopifyOrderId      - Shopify order GID
+ * @param {string|null} shopifyOrderNumber  - Shopify order name e.g. "#1001"
  */
 export async function createPrintfulTemplate(
   designRequestId,
@@ -55,7 +58,7 @@ export async function createPrintfulTemplate(
   }
 
   // Immediately stamp the Shopify order info so the record is marked as paid
-  // even if Printful template creation fails below.
+  // even if Printful draft order creation fails below.
   if (shopifyOrderId || shopifyOrderNumber) {
     await supabase
       .from('design_order_requests')
@@ -67,35 +70,34 @@ export async function createPrintfulTemplate(
     console.log(`📝 Stamped Shopify order ${shopifyOrderNumber} on design request ${designRequestId}`);
   }
 
-  // ── Fallback: recompute variant IDs and/or position data if missing ──────
-  // This handles past mockup orders where these fields weren't stored at
-  // generation time.
+  // ── Resolve variant IDs (fallback: call Printful API if not stored) ───────
   let variantIds = Array.isArray(req.printful_variant_ids) ? req.printful_variant_ids : [];
-  let positionData = req.position_data || null;
 
-  if (variantIds.length === 0 && req.color_name) {
+  if (variantIds.length === 0) {
     try {
       const productConfig = getProductConfig(req.product_type);
-      if (productConfig) {
+      if (productConfig && req.color_name) {
         const variants = await getProductVariants(productConfig.printfulProductId);
-        const allVariants = variants?.result || variants || [];
+        const allVariants = (variants?.variants || variants?.result?.variants || []);
         const colorLower = req.color_name.toLowerCase();
         const matched = allVariants.filter(v =>
           v.color && v.color.toLowerCase() === colorLower
         );
-        if (matched.length > 0) {
-          variantIds = matched.slice(0, 3).map(v => v.id);
-          console.log(`🎨 Fallback: resolved ${variantIds.length} variant IDs for color "${req.color_name}"`);
-        } else {
-          // No exact match — use first 3 variants as a safe fallback
-          variantIds = allVariants.slice(0, 3).map(v => v.id);
-          console.warn(`⚠️ Fallback: no exact color match for "${req.color_name}", using first ${variantIds.length} variants`);
-        }
+        variantIds = (matched.length > 0 ? matched : allVariants).slice(0, 3).map(v => v.id);
+        console.log(`🎨 Fallback: resolved ${variantIds.length} variant IDs for color "${req.color_name}"`);
       }
     } catch (varErr) {
       console.error('⚠️ Fallback variant lookup failed:', varErr.message);
     }
   }
+
+  if (variantIds.length === 0) {
+    console.error('❌ No variant IDs available — cannot create Printful draft order');
+    return { success: false, error: 'No variant IDs available' };
+  }
+
+  // ── Resolve position data (fallback: recompute from printfiles) ───────────
+  let positionData = req.position_data || null;
 
   if (!positionData) {
     try {
@@ -113,10 +115,8 @@ export async function createPrintfulTemplate(
             : (productConfig.defaultScale ?? (req.technique === 'EMBROIDERY' ? 0.45 : 0.85));
           const size = Math.round(Math.min(aw, ah) * scale);
           positionData = {
-            area_width: aw,
-            area_height: ah,
-            width: size,
-            height: size,
+            area_width: aw, area_height: ah,
+            width: size, height: size,
             top: Math.round((ah - size) / 2),
             left: Math.round((aw - size) / 2),
           };
@@ -128,67 +128,96 @@ export async function createPrintfulTemplate(
     }
   }
 
-  // Build a human-readable template name
-  const productType = req.product_type
-    ? req.product_type.charAt(0).toUpperCase() + req.product_type.slice(1)
-    : 'Custom';
-
-  const templateName = [
-    `Custom ${productType}`,
-    req.size ? `(${req.size})` : null,
-    req.color_name ? `— ${req.color_name}` : null,
-    shopifyOrderNumber ? `| Order ${shopifyOrderNumber}` : null,
-    `| FID ${req.fid}`,
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  // Build the files array — use resolved positionData (from DB or fallback)
-  const files = [];
-  if (req.design_url && positionData) {
-    // Map our internal placement/product strings to Printful file type strings.
-    // Printful accepts: 'front', 'back', 'label_outside', 'embroidery_front', etc.
-    // Our placements: 'center' (full front), 'leftchest' (left chest)
-    // For hats the only printable area is 'front'.
-    let fileType = 'front'; // safe default
-    if (req.product_type === 'hat') {
-      fileType = 'front';
-    } else if (req.placement === 'leftchest' && req.technique === 'EMBROIDERY') {
-      fileType = 'embroidery_chest_left';
-    } else if (req.placement === 'leftchest') {
-      fileType = 'front'; // DTG left chest still uses 'front' printfile
-    } else {
-      fileType = 'front'; // center / full front
-    }
-
-    files.push({
-      type: fileType,
-      url: req.design_url,
-      position: positionData,
-    });
+  // ── Build Printful file type ───────────────────────────────────────────────
+  let fileType = 'front';
+  if (req.placement === 'leftchest' && req.technique === 'EMBROIDERY') {
+    fileType = 'embroidery_chest_left';
   }
 
-  const templatePayload = {
-    name: templateName,
-    variant_ids: variantIds,
-    files,
-    ...(req.technique === 'EMBROIDERY' && {
-      options: [{ id: 'technique', value: 'EMBROIDERY' }],
-    }),
+  // ── Fetch shipping address from Supabase orders table ────────────────────
+  let recipient = null;
+  if (shopifyOrderNumber) {
+    try {
+      const { data: orderRow } = await supabase
+        .from('orders')
+        .select('shipping_address, customer_name, customer_email')
+        .eq('order_id', shopifyOrderNumber)
+        .single();
+
+      if (orderRow?.shipping_address) {
+        const addr = orderRow.shipping_address;
+        const [firstName, ...restName] = (orderRow.customer_name || '').split(' ');
+        recipient = {
+          name: orderRow.customer_name || `${addr.firstName || ''} ${addr.lastName || ''}`.trim(),
+          email: orderRow.customer_email || addr.email || null,
+          address1: addr.address1 || '',
+          address2: addr.address2 || '',
+          city: addr.city || '',
+          state_code: addr.province || '',
+          country_code: addr.country || 'US',
+          zip: addr.zip || '',
+          phone: addr.phone || '',
+        };
+      }
+    } catch (addrErr) {
+      console.error('⚠️ Could not fetch shipping address:', addrErr.message);
+    }
+  }
+
+  if (!recipient) {
+    // Use a placeholder so Printful accepts the draft — admin fills in real address
+    recipient = {
+      name: `Custom Order — FID ${req.fid}`,
+      address1: 'TBD',
+      city: 'TBD',
+      state_code: 'CA',
+      country_code: 'US',
+      zip: '00000',
+    };
+    console.warn('⚠️ No shipping address found — using placeholder recipient in Printful draft');
+  }
+
+  // ── Build the Printful order payload ─────────────────────────────────────
+  const orderName = [
+    `Custom ${req.product_type || 'Item'}`,
+    shopifyOrderNumber ? `| Shopify ${shopifyOrderNumber}` : null,
+    `| FID ${req.fid}`,
+  ].filter(Boolean).join(' ');
+
+  const files = req.design_url
+    ? [{
+        type: fileType,
+        url: req.design_url,
+        ...(positionData ? { position: positionData } : {}),
+      }]
+    : [];
+
+  const orderPayload = {
+    confirm: false, // draft — admin confirms in Printful dashboard
+    recipient,
+    items: [
+      {
+        variant_id: variantIds[0], // Printful order items use a single variant ID
+        quantity: 1,
+        ...(req.technique === 'EMBROIDERY' && { options: [{ id: 'technique', value: 'EMBROIDERY' }] }),
+        files,
+      },
+    ],
+    // Metadata visible in Printful dashboard
+    external_id: designRequestId,
+    ...(shopifyOrderNumber && { retail_costs: { currency: 'USD' } }),
   };
 
-  console.log(
-    `🖨️ Creating Printful template: "${templateName}" (designRequestId: ${designRequestId})`
-  );
+  console.log(`🖨️ Creating Printful draft order: "${orderName}" (designRequestId: ${designRequestId})`);
 
   try {
-    const printfulRes = await fetch(`${PRINTFUL_BASE}/product-templates`, {
+    const printfulRes = await fetch(`${PRINTFUL_BASE}/orders`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(templatePayload),
+      body: JSON.stringify(orderPayload),
     });
 
     const printfulBody = await printfulRes.json();
@@ -198,30 +227,30 @@ export async function createPrintfulTemplate(
         printfulBody?.error?.message ||
         printfulBody?.result ||
         printfulRes.statusText;
-      console.error(
-        `❌ Printful template creation failed (${printfulRes.status}): ${errMsg}`
-      );
+      console.error(`❌ Printful draft order failed (${printfulRes.status}): ${errMsg}`);
+      console.error('Printful response body:', JSON.stringify(printfulBody));
       return { success: false, error: `Printful error: ${errMsg}` };
     }
 
-    const templateId =
+    const printfulOrderId =
       printfulBody?.result?.id ?? printfulBody?.id ?? null;
+    const printfulOrderStatus =
+      printfulBody?.result?.status ?? printfulBody?.status ?? 'draft';
 
-    console.log(
-      `✅ Printful template created — id: ${templateId}, name: "${templateName}"`
-    );
+    console.log(`✅ Printful draft order created — id: ${printfulOrderId}, status: ${printfulOrderStatus}`);
 
-    // Persist the template ID and order reference back to Supabase
+    // Persist the Printful order ID back to Supabase
     await supabase
       .from('design_order_requests')
       .update({
-        printful_template_id: templateId != null ? String(templateId) : null,
-        shopify_order_id: shopifyOrderId || null,
-        shopify_order_number: shopifyOrderNumber || null,
+        printful_order_id: printfulOrderId != null ? String(printfulOrderId) : null,
+        printful_order_status: printfulOrderStatus,
+        // Keep printful_template_id field populated for backward-compat display
+        printful_template_id: printfulOrderId != null ? String(printfulOrderId) : null,
       })
       .eq('id', designRequestId);
 
-    return { success: true, templateId };
+    return { success: true, printfulOrderId };
   } catch (err) {
     console.error(`❌ createPrintfulTemplate error for ${designRequestId}:`, err);
     return { success: false, error: err.message };

@@ -19,7 +19,8 @@ export const GET = withAdminAuth(async (request) => {
         mockup_url,
         placement,
         design_scale,
-        printful_template_id,
+        printful_order_id,
+        printful_order_status,
         shopify_order_id,
         shopify_order_number,
         created_at
