@@ -960,11 +960,8 @@ export function CreatePageClient() {
   // ─── Step: Product Picker ─────────────────────────────────────────────────
   if (step === 'product') {
     const designStudioTitle = (
-      <span className="flex items-center gap-2">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/MintedMerchSpinnerLogo.png" alt="" className="h-6 w-auto flex-shrink-0" />
-        Design Studio
-      </span>
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img src="/MintedMerchDesignStudio.png" alt="Minted Merch Design Studio" className="h-7 w-auto" />
     );
     const profileButton = user?.pfpUrl ? (
       <button
