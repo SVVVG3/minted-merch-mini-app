@@ -84,6 +84,50 @@ async function convertGifToStaticPng(file) {
   });
 }
 
+// Resize + optionally rotate an image File/Blob client-side before upload.
+// Caps the longest dimension at MAX_DIM and re-encodes as JPEG to keep
+// the payload well under Vercel's 4.5 MB serverless body-size limit.
+// Also bakes in EXIF rotation so the crop tool always gets upright pixels.
+async function prepareImageForUpload(file, rotationDegrees = 0) {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error('Failed to load image for processing'));
+      i.src = objectUrl;
+    });
+
+    const MAX_DIM = 1500;
+    const scale = Math.min(1, MAX_DIM / Math.max(img.naturalWidth, img.naturalHeight));
+    const drawW = Math.round(img.naturalWidth * scale);
+    const drawH = Math.round(img.naturalHeight * scale);
+
+    const canvas = document.createElement('canvas');
+    if (rotationDegrees === 90 || rotationDegrees === 270) {
+      canvas.width = drawH;
+      canvas.height = drawW;
+    } else {
+      canvas.width = drawW;
+      canvas.height = drawH;
+    }
+
+    const ctx = canvas.getContext('2d');
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate((rotationDegrees * Math.PI) / 180);
+    ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob(
+        b => b ? resolve(b) : reject(new Error('canvas.toBlob returned null')),
+        'image/jpeg', 0.9,
+      );
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 // Fetch image via same-origin proxy, rotate using canvas, re-upload to R2.
 // Returns the new R2 URL for the rotated design.
 // Caps canvas size at 1 500 px to avoid mobile memory limits (portrait photos
@@ -140,6 +184,9 @@ async function rotateAndReupload(imageUrl, degrees, sessionToken) {
     headers: { Authorization: `Bearer ${sessionToken}` },
     body: formData,
   });
+  if (!uploadRes.ok) {
+    throw new Error(`Upload failed (${uploadRes.status})`);
+  }
   const uploadData = await uploadRes.json();
   if (!uploadData.success) throw new Error(uploadData.error || 'Upload failed');
   return uploadData.url;
@@ -527,38 +574,34 @@ export function CreatePageClient() {
       file = await convertGifToStaticPng(file);
     }
 
-    // Detect EXIF orientation before uploading so we can bake in the correction.
-    // We rotate the image in R2 *before* the crop step so that the crop tool always
-    // works on upright pixels — otherwise the display-space crop coordinates don't
-    // map correctly to the raw (sideways) pixel space, producing a wrong crop.
+    // Detect EXIF orientation so we can bake in the correction during compression.
     const exifOrientation = await readExifOrientation(file);
     const autoRotation = exifToRotation(exifOrientation);
     try {
+      // Resize to ≤1500 px and bake in EXIF rotation in a single canvas pass.
+      // This keeps the upload well under Vercel's 4.5 MB body limit (phone photos
+      // can be 4–12 MB) and ensures the crop tool always gets upright pixels.
+      setError('Preparing image…');
+      const processedBlob = await prepareImageForUpload(file, autoRotation);
+      setError('');
+
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', processedBlob, 'design.jpg');
       const res = await fetch('/api/design-studio/upload', {
         method: 'POST',
         headers: { Authorization: `Bearer ${sessionToken}` },
         body: formData,
       });
+      if (!res.ok) {
+        throw new Error(res.status === 413
+          ? 'Image is too large — please try a smaller image.'
+          : `Server error (${res.status})`);
+      }
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Upload failed');
 
-      // Bake in EXIF rotation immediately so the crop tool (and Printful) always
-      // receive an upright image. Fall back to CSS rotation if canvas processing fails.
-      let finalUrl = data.url;
-      if (autoRotation !== 0) {
-        try {
-          setError('Correcting image orientation…');
-          finalUrl = await rotateAndReupload(data.url, autoRotation, sessionToken);
-          setError('');
-        } catch (rotErr) {
-          console.warn('Auto-rotation failed, falling back to CSS rotation:', rotErr);
-          setRotationDegrees(autoRotation);
-        }
-      }
-
-      setDesignUrl(finalUrl);
+      setDesignUrl(data.url);
+      setRotationDegrees(0); // rotation already baked in by prepareImageForUpload
       loadTemplate(selectedProduct, selectedColor, selectedTechnique); // async, don't await
       setStep('crop');
     } catch (err) {
@@ -1717,9 +1760,13 @@ export function CreatePageClient() {
               {/* Rotate button */}
               <button
                 onClick={() => setRotationDegrees(d => (d + 90) % 360)}
-                className="mt-3 flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#3eb489] transition-colors"
+                className={`mt-3 flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all shadow-sm ${
+                  rotationDegrees !== 0
+                    ? 'bg-[#3eb489]/10 border-[#3eb489] text-[#3eb489]'
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-[#3eb489] hover:text-[#3eb489]'
+                }`}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 Rotate 90°{rotationDegrees !== 0 && ` (${rotationDegrees}° applied)`}
@@ -1744,12 +1791,16 @@ export function CreatePageClient() {
               {/* Rotate button even without template */}
               <button
                 onClick={() => setRotationDegrees(d => (d + 90) % 360)}
-                className="mt-3 inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#3eb489] transition-colors"
+                className={`mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all shadow-sm ${
+                  rotationDegrees !== 0
+                    ? 'bg-[#3eb489]/10 border-[#3eb489] text-[#3eb489]'
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-[#3eb489] hover:text-[#3eb489]'
+                }`}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                Rotate 90°{rotationDegrees !== 0 && ` (${rotationDegrees}°)`}
+                Rotate 90°{rotationDegrees !== 0 && ` (${rotationDegrees}° applied)`}
               </button>
               {/* Embroidery warning even without template */}
               {isEmbroidery && (
