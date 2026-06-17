@@ -22,12 +22,7 @@ export const GET = withAdminAuth(async (request) => {
         printful_template_id,
         shopify_order_id,
         shopify_order_number,
-        created_at,
-        profiles (
-          username,
-          display_name,
-          pfp_url
-        )
+        created_at
       `)
       .order('created_at', { ascending: false });
 
@@ -36,7 +31,24 @@ export const GET = withAdminAuth(async (request) => {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ designOrders: designOrders || [] });
+    const orders = designOrders || [];
+
+    // Fetch profiles for all unique FIDs
+    const fids = [...new Set(orders.map((o) => o.fid).filter(Boolean))];
+    let profileMap = {};
+    if (fids.length > 0) {
+      const { data: profiles } = await supabaseAdmin
+        .from('profiles')
+        .select('fid, username, display_name, pfp_url')
+        .in('fid', fids);
+      if (profiles) {
+        profileMap = Object.fromEntries(profiles.map((p) => [p.fid, p]));
+      }
+    }
+
+    const enriched = orders.map((o) => ({ ...o, profiles: profileMap[o.fid] || null }));
+
+    return NextResponse.json({ designOrders: enriched });
   } catch (err) {
     console.error('Unexpected error fetching design orders:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
