@@ -70,30 +70,58 @@ export async function createPrintfulTemplate(
     console.log(`📝 Stamped Shopify order ${shopifyOrderNumber} on design request ${designRequestId}`);
   }
 
-  // ── Resolve variant IDs (fallback: call Printful API if not stored) ───────
-  let variantIds = Array.isArray(req.printful_variant_ids) ? req.printful_variant_ids : [];
+  // ── Resolve the exact Printful variant ID for this color + size ──────────
+  // We always call Printful to find the exact match — stored variantIds may be
+  // a list of all sizes for the color (not specific to the ordered size).
+  let exactVariantId = null;
 
-  if (variantIds.length === 0) {
-    try {
-      const productConfig = getProductConfig(req.product_type);
-      if (productConfig && req.color_name) {
-        const variants = await getProductVariants(productConfig.printfulProductId);
-        const allVariants = (variants?.variants || variants?.result?.variants || []);
-        const colorLower = req.color_name.toLowerCase();
-        const matched = allVariants.filter(v =>
+  try {
+    const productConfig = getProductConfig(req.product_type);
+    if (productConfig) {
+      const variants = await getProductVariants(productConfig.printfulProductId);
+      const allVariants = variants?.variants || variants?.result?.variants || [];
+      const colorLower = (req.color_name || '').toLowerCase();
+      const sizeNorm = (req.size || '').toUpperCase().trim();
+
+      // Match by both color AND size first
+      let matched = allVariants.filter(v =>
+        v.color && v.color.toLowerCase() === colorLower &&
+        v.size && v.size.toUpperCase().trim() === sizeNorm
+      );
+
+      // Fallback: color only (takes first size available)
+      if (matched.length === 0 && colorLower) {
+        console.warn(`⚠️ No exact color+size match for "${req.color_name}" / "${req.size}" — falling back to color-only`);
+        matched = allVariants.filter(v =>
           v.color && v.color.toLowerCase() === colorLower
         );
-        variantIds = (matched.length > 0 ? matched : allVariants).slice(0, 3).map(v => v.id);
-        console.log(`🎨 Fallback: resolved ${variantIds.length} variant IDs for color "${req.color_name}"`);
       }
-    } catch (varErr) {
-      console.error('⚠️ Fallback variant lookup failed:', varErr.message);
+
+      // Last resort: first variant
+      if (matched.length === 0) {
+        console.warn('⚠️ No color match — using first available variant');
+        matched = allVariants;
+      }
+
+      exactVariantId = matched[0]?.id ?? null;
+      console.log(`🎨 Resolved variant: color="${req.color_name}", size="${req.size}" → Printful variant ID ${exactVariantId}`);
+    }
+  } catch (varErr) {
+    console.error('⚠️ Variant lookup failed:', varErr.message);
+  }
+
+  // Last-ditch fallback: use first stored variant ID
+  if (!exactVariantId) {
+    const storedIds = Array.isArray(req.printful_variant_ids) ? req.printful_variant_ids : [];
+    exactVariantId = storedIds[0] ?? null;
+    if (exactVariantId) {
+      console.warn(`⚠️ Falling back to first stored variant ID: ${exactVariantId}`);
     }
   }
 
-  if (variantIds.length === 0) {
-    console.error('❌ No variant IDs available — cannot create Printful draft order');
-    return { success: false, error: 'No variant IDs available' };
+  if (!exactVariantId) {
+    console.error('❌ No variant ID available — cannot create Printful draft order');
+    return { success: false, error: 'No variant ID available' };
   }
 
   // ── Resolve position data (fallback: recompute from printfiles) ───────────
@@ -197,7 +225,7 @@ export async function createPrintfulTemplate(
     recipient,
     items: [
       {
-        variant_id: variantIds[0], // Printful order items use a single variant ID
+        variant_id: exactVariantId,
         quantity: 1,
         ...(req.technique === 'EMBROIDERY' && { options: [{ id: 'technique', value: 'EMBROIDERY' }] }),
         files,
