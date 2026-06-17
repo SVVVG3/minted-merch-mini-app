@@ -106,6 +106,16 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       newUrl.searchParams.delete('showProfile');
       window.history.replaceState({}, '', newUrl);
     }
+
+    // Auto-open cart (e.g. after adding a custom design from Design Studio)
+    const openCartParam = urlParams.get('openCart');
+    if (openCartParam === '1') {
+      console.log('🛒 Auto-opening cart from URL parameter');
+      setIsCartOpen(true);
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.delete('openCart');
+      window.history.replaceState({}, '', newUrl);
+    }
     
     if (sharedCollectionHandle && !selectedCollection) {
       console.log('🔗 Shared collection detected:', sharedCollectionHandle);

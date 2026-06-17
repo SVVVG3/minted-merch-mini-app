@@ -944,9 +944,9 @@ export function CreatePageClient() {
 
       setShowBuySheet(false);
       if (historyMockup) {
-        // Buying from the gallery — go home so the user can see their cart and checkout
+        // Buying from the gallery — go home and auto-open the cart
         setHistoryMockup(null);
-        router.push('/');
+        router.push('/?openCart=1');
       } else {
         setBuyAdded(true); // Show success state on the current result screen
       }
@@ -1966,7 +1966,7 @@ export function CreatePageClient() {
                   Your custom {selectedProduct?.label.toLowerCase()} is in your cart. Go back to the shop to checkout.
                 </p>
                 <button
-                  onClick={() => router.push('/')}
+                  onClick={() => router.push('/?openCart=1')}
                   className="w-full py-3 bg-[#3eb489] hover:bg-[#34a078] text-white font-semibold rounded-xl transition-colors text-sm"
                 >
                   Go to Shop & Checkout →
