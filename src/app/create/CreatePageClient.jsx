@@ -961,7 +961,7 @@ export function CreatePageClient() {
   if (step === 'product') {
     const designStudioTitle = (
       /* eslint-disable-next-line @next/next/no-img-element */
-      <img src="/MintedMerchDesignStudio.png" alt="Minted Merch Design Studio" className="h-7 w-auto" />
+      <img src="/MintedMerchDesignStudio.png" alt="Minted Merch Design Studio" className="h-9 w-auto" />
     );
     const profileButton = user?.pfpUrl ? (
       <button
@@ -2108,7 +2108,7 @@ function PageShell({ children, onBack, title, step, totalSteps, rightExtra, show
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <div className="flex-1 min-w-0 overflow-hidden">
+          <div className="flex-1 min-w-0 flex items-center justify-center overflow-hidden">
             <h1 className="font-bold text-gray-900 flex items-center gap-2 truncate">{title}</h1>
           </div>
           {showProgress && (
