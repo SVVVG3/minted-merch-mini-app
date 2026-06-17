@@ -158,6 +158,12 @@ export default function AdminDashboard() {
     pfp_url: ''
   });
   
+  // Orders sub-tab state
+  const [ordersSubTab, setOrdersSubTab] = useState('all'); // 'all' or 'custom'
+  const [designOrdersData, setDesignOrdersData] = useState([]);
+  const [designOrdersLoading, setDesignOrdersLoading] = useState(false);
+  const [designOrdersError, setDesignOrdersError] = useState('');
+
   // Partners sub-tab state
   const [partnersSubTab, setPartnersSubTab] = useState('partners'); // 'partners' or 'ambassadors'
   
@@ -926,6 +932,25 @@ export default function AdminDashboard() {
   };
 
   // Load partners from database
+  const loadDesignOrders = async () => {
+    setDesignOrdersLoading(true);
+    setDesignOrdersError('');
+    try {
+      const response = await adminFetch('/api/admin/design-orders');
+      const result = await response.json();
+      if (result.designOrders) {
+        setDesignOrdersData(result.designOrders);
+      } else {
+        setDesignOrdersError(result.error || 'Failed to load custom orders');
+      }
+    } catch (err) {
+      console.error('Error loading custom design orders:', err);
+      setDesignOrdersError('Failed to load custom orders');
+    } finally {
+      setDesignOrdersLoading(false);
+    }
+  };
+
   const loadPartners = async () => {
     setPartnersLoading(true);
     setPartnersError('');
@@ -1367,6 +1392,13 @@ export default function AdminDashboard() {
       loadDailySpinStats();
     }
   }, [activeTab]);
+
+  // Load custom design orders when Custom Orders sub-tab is selected
+  useEffect(() => {
+    if (activeTab === 'orders' && ordersSubTab === 'custom' && designOrdersData.length === 0) {
+      loadDesignOrders();
+    }
+  }, [activeTab, ordersSubTab]);
 
   // Load partners when Partners tab is selected
   useEffect(() => {
@@ -2840,37 +2872,81 @@ export default function AdminDashboard() {
         {/* Orders Tab */}
         {activeTab === 'orders' && (
           <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <div className="flex items-center space-x-6">
-                <h2 className="text-lg font-semibold text-gray-800">All Orders</h2>
-                {dashboardStats && (
-                  <div className="flex items-center bg-green-50 px-3 py-1 rounded-md">
-                    <span className="text-xl mr-2">💰</span>
-                    <div>
-                      <div className="text-lg font-bold text-green-700">
-                        ${dashboardStats.totalRevenue?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+            {/* Orders header + sub-tabs */}
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center space-x-6">
+                  <h2 className="text-lg font-semibold text-gray-800">🛍️ Orders</h2>
+                  {ordersSubTab === 'all' && dashboardStats && (
+                    <div className="flex items-center bg-green-50 px-3 py-1 rounded-md">
+                      <span className="text-xl mr-2">💰</span>
+                      <div>
+                        <div className="text-lg font-bold text-green-700">
+                          ${dashboardStats.totalRevenue?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </div>
+                        <div className="text-xs text-green-600">Total Revenue</div>
                       </div>
-                      <div className="text-xs text-green-600">Total Revenue</div>
                     </div>
-                  </div>
-                )}
+                  )}
+                  {ordersSubTab === 'custom' && (
+                    <span className="text-sm text-gray-500">{designOrdersData.length} custom order request{designOrdersData.length !== 1 ? 's' : ''}</span>
+                  )}
+                </div>
+                <div className="flex space-x-3">
+                  {ordersSubTab === 'all' && (
+                    <>
+                      <button
+                        onClick={() => exportData(ordersData, `orders_${new Date().toISOString().split('T')[0]}.csv`)}
+                        className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                      >
+                        📥 Export CSV
+                      </button>
+                      <button
+                        onClick={loadDashboardData}
+                        className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                      >
+                        🔄 Refresh
+                      </button>
+                    </>
+                  )}
+                  {ordersSubTab === 'custom' && (
+                    <button
+                      onClick={loadDesignOrders}
+                      className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                    >
+                      🔄 Refresh
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="flex space-x-3">
+
+              {/* Sub-tabs */}
+              <div className="flex space-x-4 border-b -mb-px">
                 <button
-                  onClick={() => exportData(ordersData, `orders_${new Date().toISOString().split('T')[0]}.csv`)}
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+                  onClick={() => setOrdersSubTab('all')}
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                    ordersSubTab === 'all'
+                      ? 'border-[#3eb489] text-[#3eb489]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
                 >
-                  📥 Export CSV
+                  🛍️ All Orders
                 </button>
                 <button
-                  onClick={loadDashboardData}
-                  className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                  onClick={() => setOrdersSubTab('custom')}
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                    ordersSubTab === 'custom'
+                      ? 'border-[#3eb489] text-[#3eb489]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
                 >
-                  🔄 Refresh
+                  🎨 Custom Orders
                 </button>
               </div>
             </div>
-            
+
+            {/* All Orders content */}
+            {ordersSubTab === 'all' && (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -3192,6 +3268,136 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+            )}
+
+            {/* Custom Orders content */}
+            {ordersSubTab === 'custom' && (
+              <div>
+                {designOrdersLoading && (
+                  <div className="px-6 py-12 text-center text-gray-500">Loading custom orders...</div>
+                )}
+                {designOrdersError && (
+                  <div className="px-6 py-4 text-red-600 text-sm">{designOrdersError}</div>
+                )}
+                {!designOrdersLoading && !designOrdersError && designOrdersData.length === 0 && (
+                  <div className="px-6 py-12 text-center text-gray-400">No custom design orders yet.</div>
+                )}
+                {!designOrdersLoading && designOrdersData.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preview</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Design</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FID / User</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Color</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Technique</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Placement</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shopify Order</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Printful</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {designOrdersData.map((order) => (
+                          <tr key={order.id} className="hover:bg-gray-50">
+                            {/* Mockup preview */}
+                            <td className="px-4 py-3">
+                              {order.mockup_url ? (
+                                <a href={order.mockup_url} target="_blank" rel="noopener noreferrer">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={order.mockup_url}
+                                    alt="mockup"
+                                    className="w-16 h-16 object-contain rounded border border-gray-200 hover:opacity-80 transition-opacity"
+                                  />
+                                </a>
+                              ) : (
+                                <div className="w-16 h-16 bg-gray-100 rounded border border-gray-200 flex items-center justify-center text-gray-300 text-xs">
+                                  No preview
+                                </div>
+                              )}
+                            </td>
+                            {/* Design file link */}
+                            <td className="px-4 py-3">
+                              {order.design_url ? (
+                                <a
+                                  href={order.design_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline text-xs"
+                                >
+                                  View Design
+                                </a>
+                              ) : (
+                                <span className="text-gray-300 text-xs">—</span>
+                              )}
+                            </td>
+                            {/* FID / User */}
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                {order.profiles?.pfp_url && (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={order.profiles.pfp_url} alt="" className="w-7 h-7 rounded-full flex-shrink-0" />
+                                )}
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{order.fid}</div>
+                                  {order.profiles?.username && (
+                                    <div className="text-xs text-gray-500">@{order.profiles.username}</div>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            {/* Product */}
+                            <td className="px-4 py-3 text-sm text-gray-900 capitalize">{order.product_type || '—'}</td>
+                            {/* Size */}
+                            <td className="px-4 py-3 text-sm text-gray-900">{order.size || '—'}</td>
+                            {/* Color */}
+                            <td className="px-4 py-3 text-sm text-gray-900">{order.color_name || '—'}</td>
+                            {/* Technique */}
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                order.technique === 'EMBROIDERY'
+                                  ? 'bg-purple-100 text-purple-800'
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {order.technique === 'EMBROIDERY' ? '🧵 Embroidery' : '🖨️ DTG'}
+                              </span>
+                            </td>
+                            {/* Placement */}
+                            <td className="px-4 py-3 text-sm text-gray-900 capitalize">{order.placement || '—'}</td>
+                            {/* Shopify Order */}
+                            <td className="px-4 py-3">
+                              {order.shopify_order_number ? (
+                                <span className="text-sm font-medium text-gray-900">{order.shopify_order_number}</span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                  Pending
+                                </span>
+                              )}
+                            </td>
+                            {/* Printful template */}
+                            <td className="px-4 py-3">
+                              {order.printful_template_id ? (
+                                <span className="text-xs text-green-700 font-medium">✓ Created</span>
+                              ) : (
+                                <span className="text-xs text-gray-400">—</span>
+                              )}
+                            </td>
+                            {/* Date */}
+                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                              {order.created_at ? formatDate(order.created_at) : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
