@@ -527,7 +527,10 @@ export function CreatePageClient() {
       file = await convertGifToStaticPng(file);
     }
 
-    // Detect EXIF orientation before uploading so we can auto-correct the preview
+    // Detect EXIF orientation before uploading so we can bake in the correction.
+    // We rotate the image in R2 *before* the crop step so that the crop tool always
+    // works on upright pixels — otherwise the display-space crop coordinates don't
+    // map correctly to the raw (sideways) pixel space, producing a wrong crop.
     const exifOrientation = await readExifOrientation(file);
     const autoRotation = exifToRotation(exifOrientation);
     try {
@@ -540,8 +543,22 @@ export function CreatePageClient() {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Upload failed');
-      setDesignUrl(data.url);
-      setRotationDegrees(autoRotation); // auto-correct for EXIF orientation
+
+      // Bake in EXIF rotation immediately so the crop tool (and Printful) always
+      // receive an upright image. Fall back to CSS rotation if canvas processing fails.
+      let finalUrl = data.url;
+      if (autoRotation !== 0) {
+        try {
+          setError('Correcting image orientation…');
+          finalUrl = await rotateAndReupload(data.url, autoRotation, sessionToken);
+          setError('');
+        } catch (rotErr) {
+          console.warn('Auto-rotation failed, falling back to CSS rotation:', rotErr);
+          setRotationDegrees(autoRotation);
+        }
+      }
+
+      setDesignUrl(finalUrl);
       loadTemplate(selectedProduct, selectedColor, selectedTechnique); // async, don't await
       setStep('crop');
     } catch (err) {
@@ -974,7 +991,7 @@ export function CreatePageClient() {
             <div className="w-full max-w-sm mt-8">
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Past Mockups</h2>
               <div className="grid grid-cols-2 gap-3">
-                {myMockups.slice(0, 6).map(m => (
+                {myMockups.map(m => (
                   <MockupCard
                     key={m.id}
                     mockup={m}
@@ -1085,7 +1102,7 @@ export function CreatePageClient() {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900">DTG Print</p>
                 <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
-                  Full color, photo-quality print. Best for detailed artwork, gradients, and photos. Infinite colors.
+                  Direct-To-Garment. Full color, photo-quality print. Best for detailed artwork, gradients, and photos. Infinite colors.
                 </p>
               </div>
               <svg className="w-5 h-5 text-gray-300 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1287,6 +1304,27 @@ export function CreatePageClient() {
               Use
             </button>
           </div>
+
+          {/* Design style reminder */}
+          {(() => {
+            const isEmb = selectedProduct?.techniqueOptions
+              ? selectedTechnique === 'EMBROIDERY'
+              : selectedProduct?.technique === 'EMBROIDERY';
+            return (
+              <div className="w-full max-w-sm mt-4 flex items-start gap-3 bg-white border border-gray-100 rounded-2xl px-4 py-3">
+                <span className="text-xl flex-shrink-0">{isEmb ? '🧵' : '🖨️'}</span>
+                <div>
+                  <p className="text-xs font-semibold text-gray-700">{isEmb ? 'Embroidery' : 'DTG Print'}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+                    {isEmb
+                      ? 'Best for simple logos with 5 or fewer colors. No photo backgrounds.'
+                      : 'Direct-To-Garment. Full color, photo-quality. Best for detailed artwork, gradients, and photos.'}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+
           {error && <ErrorBanner message={error} />}
         </div>
       </PageShell>
@@ -1911,7 +1949,7 @@ export function CreatePageClient() {
             <div className="w-full max-w-sm mt-8">
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Past Mockups</h2>
               <div className="grid grid-cols-2 gap-3">
-                {myMockups.slice(1, 7).map(m => (
+                {myMockups.slice(1).map(m => (
                   <MockupCard
                     key={m.id}
                     mockup={m}
