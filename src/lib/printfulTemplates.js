@@ -203,8 +203,8 @@ export async function createPrintfulTemplate(
         files,
       },
     ],
-    // Metadata visible in Printful dashboard
-    external_id: designRequestId,
+    // Metadata visible in Printful dashboard (Printful rejects hyphens in external_id)
+    external_id: designRequestId.replace(/-/g, ''),
     ...(shopifyOrderNumber && { retail_costs: { currency: 'USD' } }),
   };
 
