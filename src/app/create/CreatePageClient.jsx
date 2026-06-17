@@ -885,7 +885,7 @@ export function CreatePageClient() {
         ? (DESIGN_STUDIO_PRODUCTS.find(p => p.id === historyMockup.product_type) || selectedProduct)
         : selectedProduct;
       const effectiveMockupUrl = historyMockup?.mockup_url || mockupUrl;
-      const effectiveDesignUrl = historyMockup ? historyMockup.mockup_url : designUrl;
+      const effectiveDesignUrl = historyMockup ? (historyMockup.design_url || designUrl) : designUrl;
       const effectiveColorName = historyMockup ? historyMockup.color_name : (selectedColor?.name || null);
       const effectiveTechnique = historyMockup
         ? (effectiveProduct.technique || 'DTG')
