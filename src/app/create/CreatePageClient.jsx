@@ -117,10 +117,15 @@ async function prepareImageForUpload(file, rotationDegrees = 0) {
     ctx.rotate((rotationDegrees * Math.PI) / 180);
     ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
 
+    // Preserve transparency for PNG/WebP — JPEG fills alpha with black.
+    const supportsAlpha = file.type === 'image/png' || file.type === 'image/webp';
+    const mimeType = supportsAlpha ? 'image/png' : 'image/jpeg';
+    const quality  = supportsAlpha ? undefined : 0.9;
+
     return await new Promise((resolve, reject) => {
       canvas.toBlob(
         b => b ? resolve(b) : reject(new Error('canvas.toBlob returned null')),
-        'image/jpeg', 0.9,
+        mimeType, quality,
       );
     });
   } finally {
@@ -585,8 +590,9 @@ export function CreatePageClient() {
       const processedBlob = await prepareImageForUpload(file, autoRotation);
       setError('');
 
+      const supportsAlpha = file.type === 'image/png' || file.type === 'image/webp';
       const formData = new FormData();
-      formData.append('file', processedBlob, 'design.jpg');
+      formData.append('file', processedBlob, supportsAlpha ? 'design.png' : 'design.jpg');
       const res = await fetch('/api/design-studio/upload', {
         method: 'POST',
         headers: { Authorization: `Bearer ${sessionToken}` },
