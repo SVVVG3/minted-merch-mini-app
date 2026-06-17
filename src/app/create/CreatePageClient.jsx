@@ -8,6 +8,7 @@ import { DESIGN_STUDIO_PRODUCTS } from '@/lib/designStudioConfig';
 import { useCart } from '@/lib/CartContext';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import { ProfileModal } from '@/components/ProfileModal';
 
 // ─── EXIF orientation helpers ────────────────────────────────────────────────
 // Read the EXIF orientation tag from a JPEG File without a library.
@@ -222,6 +223,9 @@ export function CreatePageClient() {
   // ─── Image rotation ───────────────────────────────────────────────────────
   // 0 | 90 | 180 | 270 — CSS-rotated in preview, applied to design at generate time
   const [rotationDegrees, setRotationDegrees] = useState(0);
+
+  // ─── Profile modal ────────────────────────────────────────────────────────
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // ─── Crop step ────────────────────────────────────────────────────────────
   const [cropMode, setCropMode] = useState('circle'); // 'circle' | 'rect'
@@ -880,9 +884,20 @@ export function CreatePageClient() {
         Design Studio
       </span>
     );
+    const profileButton = user?.pfpUrl ? (
+      <button
+        onClick={() => setIsProfileModalOpen(true)}
+        className="flex-shrink-0 w-9 h-9 rounded-full overflow-hidden border-2 border-[#3eb489] hover:opacity-90 transition-opacity"
+        title="Profile"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={user.pfpUrl} alt="Profile" className="w-full h-full object-cover" />
+      </button>
+    ) : null;
+
     return (
       <>
-      <PageShell onBack={() => router.push('/')} title={designStudioTitle} step={1} totalSteps={4}>
+      <PageShell onBack={() => router.push('/')} title={designStudioTitle} step={1} totalSteps={4} rightExtra={profileButton}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
           {/* Cast image pre-fill banners */}
           {castImageLoading && (
@@ -974,6 +989,12 @@ export function CreatePageClient() {
           {error && <ErrorBanner message={error} />}
         </div>
       </PageShell>
+
+      {/* Profile modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
 
       {/* Buy sheet — must be available from the product picker page too */}
       {showBuySheet && (
@@ -1912,7 +1933,7 @@ export function CreatePageClient() {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function PageShell({ children, onBack, title, step, totalSteps }) {
+function PageShell({ children, onBack, title, step, totalSteps, rightExtra }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="sticky top-0 z-10 bg-white shadow-sm px-4 py-3">
@@ -1926,6 +1947,7 @@ function PageShell({ children, onBack, title, step, totalSteps }) {
             <h1 className="font-bold text-gray-900 flex items-center gap-2 truncate">{title}</h1>
           </div>
           <span className="text-xs text-gray-400 flex-shrink-0">{step}/{totalSteps}</span>
+          {rightExtra}
         </div>
         <div className="mt-2 h-1 bg-gray-100 rounded-full">
           <div className="h-1 bg-[#3eb489] rounded-full transition-all duration-300" style={{ width: `${(step / totalSteps) * 100}%` }} />
