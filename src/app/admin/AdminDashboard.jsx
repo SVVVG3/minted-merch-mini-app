@@ -163,6 +163,7 @@ export default function AdminDashboard() {
   const [designOrdersData, setDesignOrdersData] = useState([]);
   const [designOrdersLoading, setDesignOrdersLoading] = useState(false);
   const [designOrdersError, setDesignOrdersError] = useState('');
+  const [showAbandonedDesignOrders, setShowAbandonedDesignOrders] = useState(false);
 
   // Partners sub-tab state
   const [partnersSubTab, setPartnersSubTab] = useState('partners'); // 'partners' or 'ambassadors'
@@ -2888,9 +2889,18 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   )}
-                  {ordersSubTab === 'custom' && (
-                    <span className="text-sm text-gray-500">{designOrdersData.length} custom order request{designOrdersData.length !== 1 ? 's' : ''}</span>
-                  )}
+                  {ordersSubTab === 'custom' && (() => {
+                    const paid = designOrdersData.filter(o => o.shopify_order_number);
+                    const abandoned = designOrdersData.filter(o => !o.shopify_order_number);
+                    return (
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-gray-500">{paid.length} paid order{paid.length !== 1 ? 's' : ''}</span>
+                        {abandoned.length > 0 && (
+                          <span className="text-xs text-gray-400">({abandoned.length} abandoned cart{abandoned.length !== 1 ? 's' : ''})</span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex space-x-3">
                   {ordersSubTab === 'all' && (
@@ -3279,10 +3289,25 @@ export default function AdminDashboard() {
                 {designOrdersError && (
                   <div className="px-6 py-4 text-red-600 text-sm">{designOrdersError}</div>
                 )}
-                {!designOrdersLoading && !designOrdersError && designOrdersData.length === 0 && (
-                  <div className="px-6 py-12 text-center text-gray-400">No custom design orders yet.</div>
+                {!designOrdersLoading && !designOrdersError && designOrdersData.filter(o => showAbandonedDesignOrders || o.shopify_order_number).length === 0 && (
+                  <div className="px-6 py-12 text-center text-gray-400">No paid custom design orders yet.</div>
                 )}
-                {!designOrdersLoading && designOrdersData.length > 0 && (
+                {!designOrdersLoading && designOrdersData.length > 0 && (() => {
+                  const filtered = designOrdersData.filter(o => showAbandonedDesignOrders || o.shopify_order_number);
+                  return (
+                  <div>
+                    {/* Toggle for abandoned carts */}
+                    <div className="px-6 py-3 border-b border-gray-100 flex items-center gap-3">
+                      <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-600">
+                        <input
+                          type="checkbox"
+                          checked={showAbandonedDesignOrders}
+                          onChange={e => setShowAbandonedDesignOrders(e.target.checked)}
+                          className="rounded"
+                        />
+                        Show abandoned carts ({designOrdersData.filter(o => !o.shopify_order_number).length})
+                      </label>
+                    </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
@@ -3301,7 +3326,7 @@ export default function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {designOrdersData.map((order) => (
+                        {filtered.map((order) => (
                           <tr key={order.id} className="hover:bg-gray-50">
                             {/* Mockup preview */}
                             <td className="px-4 py-3">
@@ -3395,7 +3420,9 @@ export default function AdminDashboard() {
                       </tbody>
                     </table>
                   </div>
-                )}
+                </div>
+                );
+              })()}
               </div>
             )}
           </div>
