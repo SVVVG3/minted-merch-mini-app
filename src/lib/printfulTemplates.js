@@ -237,6 +237,8 @@ export async function createPrintfulTemplate(
   };
 
   console.log(`🖨️ Creating Printful draft order: "${orderName}" (designRequestId: ${designRequestId})`);
+  console.log(`📐 Position data being sent: ${positionData ? JSON.stringify(positionData) : 'NONE (no position — Printful will default to center)'}`);
+  console.log(`🎨 File type: ${fileType}, Design URL: ${req.design_url || 'MISSING'}`);
 
   try {
     const printfulRes = await fetch(`${PRINTFUL_BASE}/orders`, {

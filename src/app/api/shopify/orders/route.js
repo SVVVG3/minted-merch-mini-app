@@ -1498,9 +1498,9 @@ export async function POST(request) {
             shopifyOrder.name || null
           ).then(result => {
             if (result.success) {
-              console.log(`✅ Printful template created for design request ${designRequestId} — templateId: ${result.templateId}`);
+              console.log(`✅ Printful draft order created for design request ${designRequestId} — printfulOrderId: ${result.printfulOrderId}`);
             } else {
-              console.error(`❌ Printful template failed for ${designRequestId}:`, result.error);
+              console.error(`❌ Printful draft order failed for ${designRequestId}:`, result.error);
             }
           });
         }
