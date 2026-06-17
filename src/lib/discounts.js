@@ -23,12 +23,16 @@ export function isGiftCardCode(code) {
     /^PROMO-/,                // PROMO-XXXXX
     /^SAVE\d+/,               // SAVE20, SAVE15, etc.
     /^MERCH-MOGULS$/,         // MERCH-MOGULS (token-gated discount)
+    /^CM-/,                   // CM-MINI-MERCH-PACK and similar campaign codes
     /^[0-9A-Z]+-[A-Z]+-[A-Z]+$/,    // Pattern like 0XT0NY-RAFFLE-WIN (starts with number or letter)
     /^[A-Z]+\d+-[A-Z0-9]+$/,  // General pattern: CODE15-XXXXX
     /^[A-Z]+-[A-Z]+-\d+$/,    // Pattern like SAVAGE-TEST-345
     /^[A-Z]+TEST-\d+$/,       // Pattern like SAVAGETEST-345
     /^[A-Z]+-[A-Z0-9]+-[A-Z0-9]+$/, // General pattern: WORD-WORD-ALPHANUMERIC
     /^[A-Z]+-[A-Z]+$/,        // Pattern like TEST-MEXICO (WORD-WORD)
+    // Any code with 3+ dash-separated segments of letters/numbers is a discount code,
+    // not a gift card (e.g. CM-MINI-MERCH-PACK, SNAPSHOT-TINY-HYPER-FREE)
+    /^[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+/,
   ];
   
   // If it matches discount patterns, it's likely a discount code
@@ -41,12 +45,14 @@ export function isGiftCardCode(code) {
   
   // Gift card patterns:
   // - All numeric (e.g., "1234567890123456")
-  // - Mix of letters and numbers without dashes (e.g., "ABCD1234EFGH5678")
+  // - Mix of letters AND numbers without dashes (real Shopify gift cards always contain digits)
   // - Length typically 8-20 characters
+  // IMPORTANT: Pure-alpha codes are NOT gift cards — they are discount codes.
+  // The [A-Z0-9]{8,20} pattern was too broad and caught e.g. CM-MINI-MERCH-PACK.
   const giftCardPatterns = [
-    /^\d{8,20}$/,                    // All numeric, 8-20 digits
-    /^[A-Z0-9]{8,20}$/,              // Alphanumeric, 8-20 chars, no dashes
-    /^[A-Z]{4}\d{4}[A-Z]{4}\d{4}$/,  // Pattern like ABCD1234EFGH5678
+    /^\d{8,20}$/,                        // All numeric, 8-20 digits
+    /^(?=[A-Z0-9]*\d)[A-Z0-9]{8,20}$/,  // Alphanumeric with at least one digit, 8-20 chars
+    /^[A-Z]{4}\d{4}[A-Z]{4}\d{4}$/,      // Pattern like ABCD1234EFGH5678
   ];
   
   return giftCardPatterns.some(pattern => pattern.test(cleanCode));
