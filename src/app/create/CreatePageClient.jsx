@@ -524,6 +524,11 @@ export function CreatePageClient() {
         productType: selectedProduct?.id,
         colorName: selectedColor?.name,
         designUrl: designUrl || null,
+        printfulVariantIds: lastVariantIds || selectedColor?.variantIds || null,
+        positionData: lastPositionData || null,
+        placement: designPlacement || selectedProduct?.placement || null,
+        designScale: designScale || null,
+        technique: selectedTechnique || selectedProduct?.technique || null,
       }),
     })
       .then(() => loadMyMockups())
@@ -899,8 +904,12 @@ export function CreatePageClient() {
           mockupUrl: effectiveMockupUrl,
           placement: historyMockup ? effectiveProduct.placement : designPlacement,
           designScale: historyMockup ? null : designScale,
-          printfulVariantIds: historyMockup ? null : (lastVariantIds || selectedColor?.variantIds || null),
-          positionData: historyMockup ? null : (lastPositionData || null),
+          printfulVariantIds: historyMockup
+            ? (historyMockup.printful_variant_ids || null)
+            : (lastVariantIds || selectedColor?.variantIds || null),
+          positionData: historyMockup
+            ? (historyMockup.position_data || null)
+            : (lastPositionData || null),
         }),
       });
       const saveData = await saveRes.json();

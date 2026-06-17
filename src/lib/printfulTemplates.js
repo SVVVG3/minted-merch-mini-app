@@ -8,6 +8,8 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { getProductVariants, getPrintfiles } from '@/lib/printfulMockup';
+import { getProductConfig } from '@/lib/designStudioConfig';
 
 const PRINTFUL_BASE = 'https://api.printful.com';
 
@@ -65,6 +67,67 @@ export async function createPrintfulTemplate(
     console.log(`📝 Stamped Shopify order ${shopifyOrderNumber} on design request ${designRequestId}`);
   }
 
+  // ── Fallback: recompute variant IDs and/or position data if missing ──────
+  // This handles past mockup orders where these fields weren't stored at
+  // generation time.
+  let variantIds = Array.isArray(req.printful_variant_ids) ? req.printful_variant_ids : [];
+  let positionData = req.position_data || null;
+
+  if (variantIds.length === 0 && req.color_name) {
+    try {
+      const productConfig = getProductConfig(req.product_type);
+      if (productConfig) {
+        const variants = await getProductVariants(productConfig.printfulProductId);
+        const allVariants = variants?.result || variants || [];
+        const colorLower = req.color_name.toLowerCase();
+        const matched = allVariants.filter(v =>
+          v.color && v.color.toLowerCase() === colorLower
+        );
+        if (matched.length > 0) {
+          variantIds = matched.slice(0, 3).map(v => v.id);
+          console.log(`🎨 Fallback: resolved ${variantIds.length} variant IDs for color "${req.color_name}"`);
+        } else {
+          // No exact match — use first 3 variants as a safe fallback
+          variantIds = allVariants.slice(0, 3).map(v => v.id);
+          console.warn(`⚠️ Fallback: no exact color match for "${req.color_name}", using first ${variantIds.length} variants`);
+        }
+      }
+    } catch (varErr) {
+      console.error('⚠️ Fallback variant lookup failed:', varErr.message);
+    }
+  }
+
+  if (!positionData) {
+    try {
+      const productConfig = getProductConfig(req.product_type);
+      if (productConfig) {
+        const effectiveTechnique = req.technique === 'DTG' ? null : (req.technique || null);
+        const printfilesData = await getPrintfiles(productConfig.printfulProductId, effectiveTechnique);
+        const printfiles = printfilesData?.printfiles || [];
+        if (printfiles.length > 0) {
+          const pf = printfiles[0];
+          const aw = pf.width;
+          const ah = pf.height;
+          const scale = typeof req.design_scale === 'number' && req.design_scale > 0
+            ? req.design_scale
+            : (productConfig.defaultScale ?? (req.technique === 'EMBROIDERY' ? 0.45 : 0.85));
+          const size = Math.round(Math.min(aw, ah) * scale);
+          positionData = {
+            area_width: aw,
+            area_height: ah,
+            width: size,
+            height: size,
+            top: Math.round((ah - size) / 2),
+            left: Math.round((aw - size) / 2),
+          };
+          console.log(`📐 Fallback: computed position for ${req.product_type} (scale=${scale})`);
+        }
+      }
+    } catch (posErr) {
+      console.error('⚠️ Fallback position computation failed:', posErr.message);
+    }
+  }
+
   // Build a human-readable template name
   const productType = req.product_type
     ? req.product_type.charAt(0).toUpperCase() + req.product_type.slice(1)
@@ -80,9 +143,9 @@ export async function createPrintfulTemplate(
     .filter(Boolean)
     .join(' ');
 
-  // Build the files array — position_data holds the exact printfile coordinates
+  // Build the files array — use resolved positionData (from DB or fallback)
   const files = [];
-  if (req.design_url && req.position_data) {
+  if (req.design_url && positionData) {
     // Map our internal placement/product strings to Printful file type strings.
     // Printful accepts: 'front', 'back', 'label_outside', 'embroidery_front', etc.
     // Our placements: 'center' (full front), 'leftchest' (left chest)
@@ -101,15 +164,13 @@ export async function createPrintfulTemplate(
     files.push({
       type: fileType,
       url: req.design_url,
-      position: req.position_data,
+      position: positionData,
     });
   }
 
   const templatePayload = {
     name: templateName,
-    variant_ids: Array.isArray(req.printful_variant_ids)
-      ? req.printful_variant_ids
-      : [],
+    variant_ids: variantIds,
     files,
     ...(req.technique === 'EMBROIDERY' && {
       options: [{ id: 'technique', value: 'EMBROIDERY' }],

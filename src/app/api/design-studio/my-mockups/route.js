@@ -18,7 +18,7 @@ export async function GET(request) {
 
     const { data, error } = await supabase
       .from('design_studio_mockups')
-      .select('id, product_type, color_name, mockup_url, created_at')
+      .select('id, product_type, color_name, mockup_url, design_url, printful_variant_ids, position_data, placement, design_scale, technique, created_at')
       .eq('fid', auth.fid)
       .order('created_at', { ascending: false })
       .limit(20);
