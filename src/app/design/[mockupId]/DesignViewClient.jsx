@@ -203,7 +203,13 @@ export function DesignViewClient({ mockupId }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <p className="text-sm font-semibold text-gray-700">Your Mockup</p>
+        <p className="text-sm font-semibold text-gray-700">
+          {user?.fid && creator?.fid && user.fid === creator.fid
+            ? 'Your Mockup'
+            : creator?.username
+            ? `Design by @${creator.username}`
+            : 'Custom Design'}
+        </p>
         <div className="w-9" />
       </div>
 
@@ -248,14 +254,19 @@ export function DesignViewClient({ mockupId }) {
             )}
             <div className="flex-1 min-w-0">
               <p className="text-xs text-gray-500">Designed by</p>
-              <p className="text-sm font-semibold text-gray-800 truncate">
-                {creator.username ? `@${creator.username}` : creator.displayName || `FID ${creator.fid}`}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="text-sm font-semibold text-gray-800 truncate">
+                  {creator.username ? `@${creator.username}` : creator.displayName || `FID ${creator.fid}`}
+                </p>
                 {creator.isMerchMogul && (
-                  <span className="ml-1.5 text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full font-medium">
-                    Merch Mogul
-                  </span>
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={creator.isGoldMogul ? '/GoldVerifiedMerchMogulBadge.png' : '/VerifiedMerchMogulBadge.png'}
+                    alt="Merch Mogul"
+                    className="h-5 flex-shrink-0"
+                  />
                 )}
-              </p>
+              </div>
             </div>
           </div>
         )}
@@ -274,20 +285,21 @@ export function DesignViewClient({ mockupId }) {
         </button>
 
         <button
-          onClick={handleShare}
-          className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
-        >
-          <svg className="w-5 h-5" viewBox="0 0 520 457" fill="currentColor">
-            <path d="M261.86 69.36 L340.92 0 L340.92 138.72 C399.26 143.02 445.08 164.58 478.3 199.4 C511.52 234.22 519.6 276.12 519.08 323.72 C494.88 296.04 469.06 275.56 441.62 262.28 C414.18 248.98 383.62 242.34 349.94 242.34 L340.92 242.34 L340.92 384.54 Z" />
-          </svg>
-          Share on Farcaster
-        </button>
-
-        <button
           onClick={() => router.push('/create')}
           className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-2xl transition-colors text-base"
         >
           🎨 Create Your Own
+        </button>
+
+        <button
+          onClick={handleShare}
+          className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
+        >
+          {/* Official Farcaster Logo (2024 rebrand) */}
+          <svg className="w-5 h-5" viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
+          </svg>
+          Share on Farcaster
         </button>
       </div>
 
