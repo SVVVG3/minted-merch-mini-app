@@ -207,6 +207,9 @@ export function CreatePageClient() {
   // ─── Step state ──────────────────────────────────────────────────────────
   const [step, setStep] = useState('product');
 
+  // ─── Merch Mogul status (50M+ staked) ─────────────────────────────────────
+  const [isMerchMogul, setIsMerchMogul] = useState(false);
+
   // Product
   const [selectedProduct, setSelectedProduct] = useState(null);
 
@@ -319,6 +322,17 @@ export function CreatePageClient() {
   useEffect(() => {
     if (user?.fid) loadMyMockups();
   }, [user?.fid, loadMyMockups]);
+
+  // ─── Check Merch Mogul status ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!user?.fid) return;
+    const token = getSessionToken();
+    if (!token) return;
+    // Reuse the royalties endpoint — returns 403 if not a Merch Mogul
+    fetch('/api/creator/royalties', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => { if (r.ok) setIsMerchMogul(true); })
+      .catch(() => { /* ignore — defaults to false */ });
+  }, [user?.fid, getSessionToken]);
 
   // ─── Process castImageUrl param (from Farcaster cast action) ─────────────
   useEffect(() => {
@@ -627,7 +641,7 @@ export function CreatePageClient() {
       setDesignUrl(data.url);
       setRotationDegrees(0); // rotation already baked in by prepareImageForUpload
       loadTemplate(selectedProduct, selectedColor, selectedTechnique); // async, don't await
-      setStep('crop');
+      setStep(isMerchMogul ? 'remove-bg' : 'crop');
     } catch (err) {
       setError(`Upload failed: ${err.message}`);
     } finally {
@@ -642,7 +656,7 @@ export function CreatePageClient() {
     try { new URL(pasteUrl); } catch { setError('Please enter a valid image URL.'); return; }
     setDesignUrl(pasteUrl.trim());
     loadTemplate(selectedProduct, selectedColor, selectedTechnique);
-    setStep('crop');
+    setStep(isMerchMogul ? 'remove-bg' : 'crop');
   };
 
   // ─── Generate mockup ──────────────────────────────────────────────────────
@@ -969,12 +983,17 @@ export function CreatePageClient() {
 
   // =========================================================================
   // ─── Dynamic step numbering ───────────────────────────────────────────────
-  // Hoodies have an extra "technique" step → 5 steps total; others 4.
-  const totalSteps = selectedProduct?.techniqueOptions ? 6 : 5;
+  // Hoodies have an extra "technique" step; Merch Moguls get an extra "remove-bg" step.
+  const totalSteps = (selectedProduct?.techniqueOptions ? 6 : 5) + (isMerchMogul ? 1 : 0);
   const stepNum = (s) => {
     if (selectedProduct?.techniqueOptions) {
+      // hoodie: product, technique, color, upload, [remove-bg], crop, preview
+      if (isMerchMogul)
+        return { product: 1, technique: 2, color: 3, upload: 4, 'remove-bg': 5, crop: 6, preview: 7 }[s] ?? 1;
       return { product: 1, technique: 2, color: 3, upload: 4, crop: 5, preview: 6 }[s] ?? 1;
     }
+    if (isMerchMogul)
+      return { product: 1, color: 2, upload: 3, 'remove-bg': 4, crop: 5, preview: 6 }[s] ?? 1;
     return { product: 1, color: 2, upload: 3, crop: 4, preview: 5 }[s] ?? 1;
   };
 
@@ -1422,6 +1441,19 @@ export function CreatePageClient() {
   }
 
   // ─── Step: Crop ───────────────────────────────────────────────────────────
+  // ─── Step: Remove Background (Merch Mogul exclusive) ─────────────────────
+  if (step === 'remove-bg') {
+    return <RemoveBgStep
+      designUrl={designUrl}
+      setDesignUrl={setDesignUrl}
+      getSessionToken={getSessionToken}
+      onDone={() => setStep('crop')}
+      onBack={() => setStep('upload')}
+      stepNum={stepNum('remove-bg')}
+      totalSteps={totalSteps}
+    />;
+  }
+
   if (step === 'crop') {
     // Apply the interactive crop to the image using the canvas API, then re-upload to R2.
     const applyCrop = async () => {
@@ -2160,6 +2192,98 @@ function ErrorBanner({ message }) {
     <div className="w-full max-w-sm mt-4 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
       {message}
     </div>
+  );
+}
+
+// ─── Remove Background Step (Merch Mogul exclusive) ──────────────────────────
+function RemoveBgStep({ designUrl, setDesignUrl, getSessionToken, onDone, onBack, stepNum, totalSteps }) {
+  const [removing, setRemoving] = useState(false);
+  const [error,    setError]    = useState('');
+  const [done,     setDone]     = useState(false); // background already removed
+
+  const handleRemove = async () => {
+    setError('');
+    setRemoving(true);
+    try {
+      const token = getSessionToken();
+      if (!token) throw new Error('Please sign in first.');
+      const res  = await fetch('/api/design-studio/remove-background', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ designUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Background removal failed.');
+      setDesignUrl(data.url);
+      setDone(true);
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setRemoving(false);
+    }
+  };
+
+  return (
+    <PageShell onBack={onBack} title="Remove Background" step={stepNum} totalSteps={totalSteps}>
+      <div className="flex flex-col items-center px-4 pb-10 gap-4">
+        {/* Merch Mogul badge */}
+        <div className="flex items-center gap-2 mt-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/VerifiedMerchMogulBadge.png" alt="Merch Mogul" className="h-5" />
+          <span className="text-xs font-semibold text-[#3eb489]">Merch Mogul Exclusive</span>
+        </div>
+
+        {/* Preview of uploaded design */}
+        <div className="w-full max-w-sm rounded-2xl overflow-hidden bg-[url('/checkerboard.png')] bg-repeat border border-gray-200 shadow-sm"
+             style={{ backgroundSize: '20px 20px', backgroundColor: '#f3f4f6' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={designUrl}
+            alt="Your design"
+            className="w-full max-h-72 object-contain"
+          />
+        </div>
+
+        <p className="text-sm text-gray-500 text-center max-w-xs">
+          {done
+            ? '✅ Background removed! Proceed to crop and position your design.'
+            : 'Automatically remove the background from your design using AI — best for artwork on a solid or simple background.'}
+        </p>
+
+        {error && (
+          <p className="text-red-500 text-sm text-center">{error}</p>
+        )}
+
+        {/* Actions */}
+        {!done && (
+          <button
+            onClick={handleRemove}
+            disabled={removing}
+            className="w-full max-w-sm flex items-center justify-center gap-2 py-3.5 bg-[#3eb489] hover:bg-[#35a07a] disabled:opacity-60 text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
+          >
+            {removing ? (
+              <>
+                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                Removing background…
+              </>
+            ) : (
+              '✨ Remove Background'
+            )}
+          </button>
+        )}
+
+        <button
+          onClick={onDone}
+          className={`w-full max-w-sm py-3.5 font-semibold rounded-2xl transition-colors text-base ${
+            done
+              ? 'bg-[#3eb489] text-white hover:bg-[#35a07a] shadow-md'
+              : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          {done ? 'Continue to Crop →' : 'Skip — keep background'}
+        </button>
+      </div>
+    </PageShell>
   );
 }
 
