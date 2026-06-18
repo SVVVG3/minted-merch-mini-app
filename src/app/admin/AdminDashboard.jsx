@@ -1413,7 +1413,7 @@ export default function AdminDashboard() {
     setRoyaltiesLoading(true);
     setRoyaltiesError('');
     try {
-      const res = await fetch('/api/admin/royalties', { headers: { Authorization: `Bearer ${adminToken}` } });
+      const res = await adminFetch('/api/admin/royalties');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load royalties');
       setRoyaltiesData(data.royalties || []);
@@ -1428,9 +1428,9 @@ export default function AdminDashboard() {
     if (selectedRoyaltyIds.length === 0) return;
     setSettlingRoyalties(true);
     try {
-      const res = await fetch('/api/admin/royalties', {
+      const res = await adminFetch('/api/admin/royalties', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: selectedRoyaltyIds }),
       });
       if (res.ok) {
