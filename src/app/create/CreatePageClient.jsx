@@ -462,7 +462,7 @@ export function CreatePageClient() {
       castAutoAdvanced.current = true;
       // Kick off template load now so it's ready by the time the user finishes cropping
       loadTemplate(selectedProduct, selectedColor, selectedTechnique);
-      setStep('crop');
+      setStep('remove-bg');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, castImagePrefilled, designUrl]);
@@ -985,14 +985,18 @@ export function CreatePageClient() {
 
   // =========================================================================
   // ─── Dynamic step numbering ───────────────────────────────────────────────
-  // Hoodies have an extra "technique" step; everyone gets a "remove-bg" step now.
-  const totalSteps = selectedProduct?.techniqueOptions ? 7 : 6;
+  // Hoodies: product, technique, color, upload, remove-bg, crop, preview (7)
+  // All-over print (SUBLIMATION): product, upload, remove-bg, crop, preview (5) — no color step
+  // Others: product, color, upload, remove-bg, crop, preview (6)
+  const isSublimation = selectedProduct?.technique === 'SUBLIMATION';
+  const totalSteps = selectedProduct?.techniqueOptions ? 7 : (isSublimation ? 5 : 6);
   const stepNum = (s) => {
     if (selectedProduct?.techniqueOptions) {
-      // hoodie: product, technique, color, upload, remove-bg, crop, preview
       return { product: 1, technique: 2, color: 3, upload: 4, 'remove-bg': 5, crop: 6, preview: 7 }[s] ?? 1;
     }
-    // others: product, color, upload, remove-bg, crop, preview
+    if (isSublimation) {
+      return { product: 1, upload: 2, 'remove-bg': 3, crop: 4, preview: 5 }[s] ?? 1;
+    }
     return { product: 1, color: 2, upload: 3, 'remove-bg': 4, crop: 5, preview: 6 }[s] ?? 1;
   };
 
@@ -1035,6 +1039,13 @@ export function CreatePageClient() {
               Image loaded from cast — choose a product to continue
             </div>
           )}
+          {/* Claim Creator Earnings — shown to Merch Moguls with pending royalties */}
+          {user?.fid && (
+            <div className="w-full max-w-sm mb-4">
+              <ClaimCreatorEarnings getSessionToken={getSessionToken} />
+            </div>
+          )}
+
           <p className="text-gray-500 text-sm text-center mb-6">
             Choose a product to put your design on:
           </p>
@@ -1050,6 +1061,10 @@ export function CreatePageClient() {
                   if (product.techniqueOptions) {
                     // Hoodies ask for technique before loading colors
                     setStep('technique');
+                  } else if (product.technique === 'SUBLIMATION') {
+                    // All-over print — no color selection, go straight to upload
+                    setSelectedColor(null);
+                    setStep('upload');
                   } else {
                     loadColors(product);
                     setStep('color');
@@ -1086,13 +1101,6 @@ export function CreatePageClient() {
               </button>
             ))}
           </div>
-
-          {/* Claim Creator Earnings — shown to Merch Moguls with pending royalties */}
-          {user?.fid && (
-            <div className="w-full max-w-sm mt-6">
-              <ClaimCreatorEarnings getSessionToken={getSessionToken} />
-            </div>
-          )}
 
           {/* Past mockups gallery */}
           {myMockups.length > 0 && (
@@ -1311,7 +1319,7 @@ export function CreatePageClient() {
   // ─── Step: Upload Image ───────────────────────────────────────────────────
   if (step === 'upload') {
     return (
-      <PageShell onBack={() => setStep('color')} title="Upload Your Design" step={stepNum('upload')} totalSteps={totalSteps}>
+      <PageShell onBack={() => setStep(isSublimation ? 'product' : 'color')} title="Upload Your Design" step={stepNum('upload')} totalSteps={totalSteps}>
         <div className="flex flex-col items-center px-4 pt-4 pb-8">
           {/* Color reminder */}
           <div className="flex items-center gap-2 mb-5">
@@ -1372,7 +1380,7 @@ export function CreatePageClient() {
                   }
                   setDesignUrl(pfpUrl);
                   loadTemplate(selectedProduct, selectedColor, selectedTechnique);
-                  setStep('crop');
+                  setStep('remove-bg');
                 } catch (err) {
                   setError(`Could not use profile picture: ${err.message}`);
                 } finally {
@@ -1428,16 +1436,30 @@ export function CreatePageClient() {
             const isEmb = selectedProduct?.techniqueOptions
               ? selectedTechnique === 'EMBROIDERY'
               : selectedProduct?.technique === 'EMBROIDERY';
+            const isSub = selectedProduct?.technique === 'SUBLIMATION';
+            // All-over synthetic (bandana) vs sublimation (pet collar) share the same technique value
+            // but bandana uses all-over cut-and-sew while pet collar uses heat transfer sublimation.
+            const isAllOverSynthetic = selectedProduct?.id === 'bandana';
+            let icon, title, desc;
+            if (isEmb) {
+              icon = '🧵'; title = 'Embroidery';
+              desc = 'Best for simple logos with 5 or fewer colors. No photo backgrounds.';
+            } else if (isSub && isAllOverSynthetic) {
+              icon = '✂️'; title = 'All-Over Synthetic';
+              desc = 'The fabric is printed with your custom design, then cut and sewn to create a unique, hand-made product.';
+            } else if (isSub) {
+              icon = '🌡️'; title = 'Sublimation';
+              desc = 'Design is printed with dye ink on paper and then transferred directly onto the product with heat.';
+            } else {
+              icon = '🖨️'; title = 'DTG Print';
+              desc = 'Direct-To-Garment. Full color, photo-quality. Best for detailed artwork, gradients, and photos.';
+            }
             return (
               <div className="w-full max-w-sm mt-4 flex items-start gap-3 bg-white border border-gray-100 rounded-2xl px-4 py-3">
-                <span className="text-xl flex-shrink-0">{isEmb ? '🧵' : '🖨️'}</span>
+                <span className="text-xl flex-shrink-0">{icon}</span>
                 <div>
-                  <p className="text-xs font-semibold text-gray-700">{isEmb ? 'Embroidery' : 'DTG Print'}</p>
-                  <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
-                    {isEmb
-                      ? 'Best for simple logos with 5 or fewer colors. No photo backgrounds.'
-                      : 'Direct-To-Garment. Full color, photo-quality. Best for detailed artwork, gradients, and photos.'}
-                  </p>
+                  <p className="text-xs font-semibold text-gray-700">{title}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{desc}</p>
                 </div>
               </div>
             );
