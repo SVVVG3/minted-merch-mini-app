@@ -170,19 +170,19 @@ export function ClaimCreatorEarnings({ getSessionToken }) {
           <button
             onClick={handleClaim}
             disabled={isBusy}
-            className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#3eb489] hover:bg-[#35a07a] disabled:opacity-60 text-white font-bold rounded-2xl transition-colors shadow-md text-base"
+            className="w-full flex flex-col items-center justify-center py-3.5 bg-[#3eb489] hover:bg-[#35a07a] disabled:opacity-60 text-white rounded-2xl transition-colors shadow-md"
           >
             {isBusy ? (
-              <>
+              <span className="flex items-center gap-2 font-bold text-base">
                 <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                 {isConfirming ? 'Confirming…' : 'Claiming…'}
-              </>
+              </span>
             ) : (
               <>
-                💎 Claim Creator Earnings
+                <span className="font-bold text-base">💎 Claim Creator Earnings</span>
                 {stats?.totalPending > 0 && (
-                  <span className="ml-1 text-sm font-normal opacity-90">
-                    ({(stats.totalPending).toLocaleString()} $mintedmerch)
+                  <span className="text-sm font-normal opacity-90 mt-0.5">
+                    {(stats.totalPending).toLocaleString()} $mintedmerch
                   </span>
                 )}
               </>

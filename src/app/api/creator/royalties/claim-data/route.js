@@ -91,16 +91,27 @@ export async function GET(request) {
 
     console.log(`✅ Claim data generated for FID ${fid}, UID: ${claimUid.slice(0, 10)}...`);
 
+    // Serialize BigInt fields as strings — same pattern used by Missions claim-data route
+    const serializedReq = {
+      uid:                 req.uid,
+      tokenAddress:        req.tokenAddress,
+      expirationTimestamp: req.expirationTimestamp.toString(),
+      contents:            req.contents.map(c => ({
+        recipient: c.recipient,
+        amount:    c.amount.toString(),
+      })),
+    };
+
     return NextResponse.json({
       success: true,
       data: {
         royaltyIds,
         totalAmount: totalHuman,
         walletAddress,
-        req,
+        req:             serializedReq,
         signature,
         contractAddress: process.env.AIRDROP_CONTRACT_ADDRESS,
-        deadline: deadline.toISOString(),
+        deadline:        deadline.toISOString(),
       },
     });
   } catch (err) {
