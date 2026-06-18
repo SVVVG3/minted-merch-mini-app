@@ -37,7 +37,7 @@ export async function generateMetadata({ params }) {
             version: 'next',
             imageUrl,
             button: {
-              title: '🛍️ Buy This Design',
+              title: 'Order or Create a Design 🎨',
               action: {
                 type: 'launch_frame',
                 url: launchUrl,
