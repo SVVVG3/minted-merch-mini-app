@@ -1443,10 +1443,10 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (activeTab === 'royalties' && royaltiesData.length === 0) {
+    if (activeTab === 'orders' && ordersSubTab === 'royalties' && royaltiesData.length === 0) {
       loadRoyalties();
     }
-  }, [activeTab]);
+  }, [activeTab, ordersSubTab]);
 
   // Load partners when Partners tab is selected
   useEffect(() => {
@@ -2151,8 +2151,7 @@ export default function AdminDashboard() {
                 { key: 'nft-campaigns', label: '🎨 NFT Campaigns' },
                 { key: 'raffle', label: '🎲 Raffle Tool' },
                 { key: 'past-raffles', label: '📚 Past Raffles' },
-                { key: 'checkins', label: '📅 Check-ins' },
-                { key: 'royalties', label: '💎 Royalties' }
+                { key: 'checkins', label: '📅 Check-ins' }
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -3000,6 +2999,16 @@ export default function AdminDashboard() {
                 >
                   🎨 Custom Orders
                 </button>
+                <button
+                  onClick={() => { setOrdersSubTab('royalties'); if (royaltiesData.length === 0) loadRoyalties(); }}
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                    ordersSubTab === 'royalties'
+                      ? 'border-[#3eb489] text-[#3eb489]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  💎 Royalties
+                </button>
               </div>
             </div>
 
@@ -3326,6 +3335,116 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+            )}
+
+            {/* Royalties sub-tab content */}
+            {ordersSubTab === 'royalties' && (
+              <div className="bg-white">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">1M $mintedmerch per sale · Merch Moguls = 50M+ staked</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {selectedRoyaltyIds.length > 0 && (
+                      <button
+                        onClick={settleRoyalties}
+                        disabled={settlingRoyalties}
+                        className="px-4 py-2 bg-[#3eb489] text-white text-sm font-semibold rounded-lg disabled:opacity-50"
+                      >
+                        {settlingRoyalties ? 'Settling…' : `Mark ${selectedRoyaltyIds.length} Settled`}
+                      </button>
+                    )}
+                    <button onClick={loadRoyalties} className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200">
+                      🔄 Refresh
+                    </button>
+                  </div>
+                </div>
+                {royaltiesData.length > 0 && (() => {
+                  const pending = royaltiesData.filter(r => r.status === 'pending');
+                  const settled = royaltiesData.filter(r => r.status === 'settled');
+                  const pendingTotal = pending.reduce((s, r) => s + Number(r.mintedmerch_amount), 0);
+                  const creatorSet = new Set(pending.map(r => r.creator_fid));
+                  return (
+                    <div className="px-6 py-4 grid grid-cols-3 gap-4 border-b border-gray-100">
+                      <div className="bg-yellow-50 rounded-xl p-4">
+                        <p className="text-xs text-yellow-700 font-medium">Pending</p>
+                        <p className="text-2xl font-bold text-yellow-800 mt-1">{pending.length}</p>
+                        <p className="text-xs text-yellow-600 mt-0.5">{(pendingTotal / 1_000_000).toFixed(1)}M $MM owed</p>
+                      </div>
+                      <div className="bg-green-50 rounded-xl p-4">
+                        <p className="text-xs text-green-700 font-medium">Settled</p>
+                        <p className="text-2xl font-bold text-green-800 mt-1">{settled.length}</p>
+                      </div>
+                      <div className="bg-purple-50 rounded-xl p-4">
+                        <p className="text-xs text-purple-700 font-medium">Creators Owed</p>
+                        <p className="text-2xl font-bold text-purple-800 mt-1">{creatorSet.size}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+                {royaltiesLoading && <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489]" /></div>}
+                {royaltiesError && <div className="px-6 py-4 text-red-600 text-sm">{royaltiesError}</div>}
+                {!royaltiesLoading && royaltiesData.length === 0 && (
+                  <div className="px-6 py-12 text-center text-gray-400 text-sm">No royalties yet.</div>
+                )}
+                {royaltiesData.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left">
+                            <input type="checkbox"
+                              onChange={e => {
+                                const ids = royaltiesData.filter(r => r.status === 'pending').map(r => r.id);
+                                setSelectedRoyaltyIds(e.target.checked ? ids : []);
+                              }}
+                              checked={selectedRoyaltyIds.length > 0 && selectedRoyaltyIds.length === royaltiesData.filter(r => r.status === 'pending').length}
+                            />
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Creator</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Buyer</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {royaltiesData.map(r => (
+                          <tr key={r.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              {r.status === 'pending' && (
+                                <input type="checkbox" checked={selectedRoyaltyIds.includes(r.id)}
+                                  onChange={e => setSelectedRoyaltyIds(prev => e.target.checked ? [...prev, r.id] : prev.filter(id => id !== r.id))}
+                                />
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                {r.creator?.pfp_url && <img src={r.creator.pfp_url} alt="" className="w-7 h-7 rounded-full object-cover" />}
+                                <div>
+                                  <p className="text-xs font-semibold text-gray-800">{r.creator?.username ? `@${r.creator.username}` : `FID ${r.creator_fid}`}</p>
+                                  <p className="text-xs text-yellow-600 font-medium">⚡ Merch Mogul</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600">{r.buyer?.username ? `@${r.buyer.username}` : `FID ${r.buyer_fid || '—'}`}</td>
+                            <td className="px-4 py-3"><span className="text-xs font-bold text-purple-700">{Number(r.mintedmerch_amount).toLocaleString()} $MM</span></td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs px-2 py-1 rounded-full font-medium ${r.status === 'settled' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                {r.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-500">
+                              {r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}
+                              {r.settled_at && <span className="block text-gray-400">settled {new Date(r.settled_at).toLocaleDateString()}</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Custom Orders content */}
@@ -6079,8 +6198,8 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Royalties Tab */}
-        {activeTab === 'royalties' && (
+        {/* Royalties Tab — moved to Orders sub-tab */}
+        {false && (
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>

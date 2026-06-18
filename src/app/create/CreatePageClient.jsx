@@ -2164,7 +2164,10 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
 
   const appUrl = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_APP_URL)
     || 'https://app.mintedmerch.shop';
-  const shareText = `Check out my custom @mintedmerch design idea 👀\n\nCreate your own in the mini app!\n${appUrl}/create`;
+
+  // Build the deep-link URL for this mockup so viewers can tap straight to the buy page
+  const designDeepLink = mockup.id ? `${appUrl}/design/${mockup.id}` : mockup.mockup_url;
+  const shareText = `Check out my custom @mintedmerch design 👀\n\nBuy it or create your own 👇\n${designDeepLink}`;
 
   const closeMenu = () => {
     setMenuOpen(false);
@@ -2175,7 +2178,7 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
 
   const handleCopyCastText = async () => {
     try {
-      await navigator.clipboard.writeText(`${shareText}\n\n${mockup.mockup_url}`);
+      await navigator.clipboard.writeText(shareText);
       setCopied(true);
       setTimeout(() => { setCopied(false); closeMenu(); }, 1500);
     } catch { /* ignore clipboard errors */ }

@@ -16,8 +16,17 @@ export async function generateMetadata({ params }) {
       const creatorName = creator?.username ? `@${creator.username}` : 'a Minted Merch creator';
       const title = `Custom ${productLabel} by ${creatorName} — Minted Merch`;
       const description = `Check out this custom design and buy it on Minted Merch!`;
-      const imageUrl = mockup?.mockup_url || `${BASE_URL}/og-image.png`;
       const launchUrl = `${BASE_URL}/design/${mockupId}`;
+
+      // Build branded OG image URL
+      const ogParams = new URLSearchParams({
+        ...(mockup?.mockup_url && { mockupUrl: mockup.mockup_url }),
+        ...(mockup?.product_type && { productType: mockup.product_type }),
+        ...(mockup?.color_name && { colorName: mockup.color_name }),
+        ...(creator?.username && { creatorHandle: `@${creator.username}` }),
+        ...(creator?.isMerchMogul && { isMerchMogul: '1' }),
+      });
+      const imageUrl = `${BASE_URL}/api/og/design?${ogParams.toString()}`;
 
       return {
         title,
