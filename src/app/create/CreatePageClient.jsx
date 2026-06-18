@@ -455,6 +455,15 @@ export function CreatePageClient() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.fid]);
 
+  // For SUBLIMATION products (bandana, pet collar) colors load silently in the background.
+  // Auto-select the first color as soon as it arrives so variantIds are available for
+  // template preview and mockup generation.
+  useEffect(() => {
+    if (selectedProduct?.technique === 'SUBLIMATION' && colors.length > 0 && !selectedColor) {
+      setSelectedColor(colors[0]);
+    }
+  }, [selectedProduct, colors, selectedColor]);
+
   // Auto-advance past the upload step when the cast image is already loaded.
   // castAutoAdvanced ensures we only do this ONCE — pressing back won't re-advance.
   useEffect(() => {
@@ -577,19 +586,24 @@ export function CreatePageClient() {
     setTemplateLoading(true);
     setTemplate(null);
     try {
-      const variantId = color.variantIds[0];
+      const variantId = color?.variantIds?.[0]; // may be undefined for SUBLIMATION products before auto-select
       const rawTechnique = techniqueOverride || product.technique;
       // Printful only accepts 'EMBROIDERY' as a technique override; DTG is the default
-      const effectiveTechnique = (rawTechnique === 'DTG') ? null : rawTechnique;
-      const technique = effectiveTechnique ? `&technique=${effectiveTechnique}` : '';
-      console.log(`🔍 Loading template for product ${product.printfulProductId}, variantId ${variantId}`);
+      const effectiveTechnique = (rawTechnique === 'DTG' || rawTechnique === 'SUBLIMATION') ? null : rawTechnique;
+      const techniqueParam = effectiveTechnique ? `&technique=${effectiveTechnique}` : '';
+      const variantParam   = variantId ? `?variantId=${variantId}${techniqueParam}` : `?${techniqueParam.replace(/^&/, '')}`;
+      console.log(`🔍 Loading template for product ${product.printfulProductId}, variantId ${variantId ?? '(none)'}`);
       const res = await fetch(
-        `/api/design-studio/templates/${product.printfulProductId}?variantId=${variantId}${technique}`
+        `/api/design-studio/templates/${product.printfulProductId}${variantParam}`
       );
       const data = await res.json();
       if (data.template) {
         console.log('✅ Template loaded:', data.template.template_id, `${data.template.template_width}×${data.template.template_height}`);
         setTemplate(data.template);
+      } else if (Array.isArray(data.templates) && data.templates.length > 0) {
+        // No variantId provided — use first available template (SUBLIMATION fallback)
+        console.log('✅ Template loaded (fallback):', data.templates[0].template_id);
+        setTemplate(data.templates[0]);
       } else {
         console.warn('⚠️ No template returned:', data.error || 'unknown reason');
       }
@@ -688,7 +702,7 @@ export function CreatePageClient() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
         body: JSON.stringify({
           productId: selectedProduct.id,
-          variantIds: selectedColor.variantIds.slice(0, 3),
+          variantIds: (selectedColor?.variantIds || []).slice(0, 3),
           imageUrl: effectiveDesignUrl,
           designScale,
           designPlacement,
@@ -1062,8 +1076,10 @@ export function CreatePageClient() {
                     // Hoodies ask for technique before loading colors
                     setStep('technique');
                   } else if (product.technique === 'SUBLIMATION') {
-                    // All-over print — no color selection, go straight to upload
-                    setSelectedColor(null);
+                    // All-over print — no color selection UI, go straight to upload.
+                    // Load colors silently in the background so we get a variantId for
+                    // template preview and mockup generation.
+                    loadColors(product);
                     setStep('upload');
                   } else {
                     loadColors(product);
