@@ -9,6 +9,7 @@ import { useCart } from '@/lib/CartContext';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { ProfileModal } from '@/components/ProfileModal';
+import { ClaimCreatorEarnings } from '@/components/ClaimCreatorEarnings';
 
 // ─── EXIF orientation helpers ────────────────────────────────────────────────
 // Read the EXIF orientation tag from a JPEG File without a library.
@@ -1067,6 +1068,13 @@ export function CreatePageClient() {
               </button>
             ))}
           </div>
+
+          {/* Claim Creator Earnings — shown to Merch Moguls with pending royalties */}
+          {user?.fid && (
+            <div className="w-full max-w-sm mt-6">
+              <ClaimCreatorEarnings getSessionToken={getSessionToken} />
+            </div>
+          )}
 
           {/* Past mockups gallery */}
           {myMockups.length > 0 && (
