@@ -3,6 +3,8 @@ import { DesignViewClient } from './DesignViewClient';
 
 const BASE_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
 
+const PRODUCT_LABELS = { tshirt: 'T-Shirt', hoodie: 'Hoodie', hat: 'Hat' };
+
 export async function generateMetadata({ params }) {
   const { mockupId } = await params;
 
@@ -11,7 +13,7 @@ export async function generateMetadata({ params }) {
     if (res.ok) {
       const { mockup, creator } = await res.json();
       const productLabel = mockup?.product_type
-        ? mockup.product_type.charAt(0).toUpperCase() + mockup.product_type.slice(1)
+        ? (PRODUCT_LABELS[mockup.product_type] || mockup.product_type.charAt(0).toUpperCase() + mockup.product_type.slice(1))
         : 'Design';
       const creatorName = creator?.username ? `@${creator.username}` : 'a Minted Merch creator';
       const title = `Custom ${productLabel} by ${creatorName} — Minted Merch`;
@@ -32,7 +34,7 @@ export async function generateMetadata({ params }) {
       return {
         title,
         description,
-        openGraph: { title, description, images: [imageUrl] },
+        openGraph: { title, description, images: [{ url: imageUrl, width: 1200, height: 800 }] },
         other: {
           'fc:frame': JSON.stringify({
             version: 'next',
