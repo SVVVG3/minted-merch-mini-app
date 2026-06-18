@@ -22,16 +22,17 @@ export async function POST(request) {
 
   try {
     const {
-      productId,       // e.g. 'tshirt' | 'hoodie' | 'hat'
-      size,            // e.g. 'M' | 'One Size'
-      colorName,       // e.g. 'Black'
-      technique,       // 'DTG' | 'EMBROIDERY' | null
-      designUrl,       // R2 URL for the uploaded design
-      mockupUrl,       // R2 URL for the generated mockup
-      placement,       // 'center' | 'leftchest'
-      designScale,     // float 0–1
+      productId,           // e.g. 'tshirt' | 'hoodie' | 'hat'
+      size,                // e.g. 'M' | 'One Size'
+      colorName,           // e.g. 'Black'
+      technique,           // 'DTG' | 'EMBROIDERY' | null
+      designUrl,           // R2 URL for the uploaded design
+      mockupUrl,           // R2 URL for the generated mockup
+      placement,           // 'center' | 'leftchest'
+      designScale,         // float 0–1
       printfulVariantIds,  // array of Printful variant IDs (for color)
-      positionData,    // { area_width, area_height, width, height, top, left }
+      positionData,        // { area_width, area_height, width, height, top, left }
+      creatorFid,          // FID of original design creator (null when buying own design)
     } = await request.json();
 
     // Validate required fields
@@ -64,6 +65,7 @@ export async function POST(request) {
         printful_product_id: productConfig.printfulProductId,
         printful_variant_ids: printfulVariantIds || null,
         position_data: positionData || null,
+        creator_fid: (creatorFid && creatorFid !== fid) ? creatorFid : null,
       })
       .select('id')
       .single();
@@ -73,8 +75,48 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Failed to save order request' }, { status: 500 });
     }
 
-    console.log(`✅ Design order request saved — FID: ${fid}, product: ${productId}, id: ${data.id}`);
-    return NextResponse.json({ id: data.id });
+    const designRequestId = data.id;
+    console.log(`✅ Design order request saved — FID: ${fid}, product: ${productId}, id: ${designRequestId}${creatorFid && creatorFid !== fid ? `, creatorFid: ${creatorFid}` : ''}`);
+
+    // ── Merch Mogul royalty credit ─────────────────────────────────────────
+    // If this is a cross-creator purchase and the creator has 50M+ staked,
+    // create a pending royalty credit of 1M $mintedmerch.
+    const MERCH_MOGUL_THRESHOLD = 50_000_000;
+    const ROYALTY_AMOUNT = 1_000_000;
+
+    if (creatorFid && creatorFid !== fid) {
+      try {
+        const { data: creatorProfile } = await supabase
+          .from('profiles')
+          .select('staked_balance')
+          .eq('fid', creatorFid)
+          .single();
+
+        if (creatorProfile?.staked_balance != null &&
+            Number(creatorProfile.staked_balance) >= MERCH_MOGUL_THRESHOLD) {
+          const { error: royaltyError } = await supabase
+            .from('creator_royalties')
+            .insert({
+              creator_fid: creatorFid,
+              buyer_fid: fid,
+              design_order_request_id: designRequestId,
+              mintedmerch_amount: ROYALTY_AMOUNT,
+              status: 'pending',
+            });
+          if (royaltyError) {
+            console.error('⚠️ Royalty insert error (non-fatal):', royaltyError);
+          } else {
+            console.log(`💎 Merch Mogul royalty queued: ${ROYALTY_AMOUNT.toLocaleString()} $mintedmerch for FID ${creatorFid}`);
+          }
+        } else {
+          console.log(`ℹ️ Creator FID ${creatorFid} is not a Merch Mogul (staked: ${creatorProfile?.staked_balance ?? 0}) — no royalty`);
+        }
+      } catch (royaltyErr) {
+        console.error('⚠️ Royalty check failed (non-fatal):', royaltyErr.message);
+      }
+    }
+
+    return NextResponse.json({ id: designRequestId });
 
   } catch (err) {
     console.error('❌ save-order-request error:', err);

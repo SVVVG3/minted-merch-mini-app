@@ -240,6 +240,7 @@ export function CreatePageClient() {
 
   // Result
   const [mockupUrl, setMockupUrl] = useState('');
+  const [savedMockupId, setSavedMockupId] = useState(null);
 
   // Product preview images (black variant thumbnails)
   const [productImages, setProductImages] = useState({});
@@ -531,7 +532,8 @@ export function CreatePageClient() {
         technique: selectedTechnique || selectedProduct?.technique || null,
       }),
     })
-      .then(() => loadMyMockups())
+      .then(r => r.json())
+      .then(data => { if (data.id) setSavedMockupId(data.id); loadMyMockups(); })
       .catch(console.error);
   }, [mockupUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -737,22 +739,26 @@ export function CreatePageClient() {
   useEffect(() => { setDesignOffset({ x: 0, y: 0 }); }, [designPlacement]);
 
   // ─── Share on Farcaster ───────────────────────────────────────────────────
-  const shareToFarcaster = async (url) => {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop';
-    const text = `Check out my custom @mintedmerch design idea 👀\n\nCreate your own in the mini app!\n${appUrl}/create`;
+  // When sharing the current result screen, use the /design/[id] deep link so
+  // other users can tap the embed and buy that exact design.
+  // When sharing a past mockup from the gallery we also have its ID via m.id.
+  const shareToFarcaster = async (mockupImageUrl, mockupDbId) => {
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
+    const deepLink = mockupDbId ? `${appUrl}/design/${mockupDbId}` : mockupImageUrl;
+    const text = `Check out my custom @mintedmerch design 👀\n\nBuy it or create your own 👇`;
     if (isInFarcaster) {
-      await sdk.actions.composeCast({ text, embeds: [url] });
+      await sdk.actions.composeCast({ text, embeds: [deepLink] });
     } else {
-      window.open(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`, '_blank');
+      window.open(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(deepLink)}`, '_blank');
     }
   };
 
   const handleShare = async () => {
-    try { await shareToFarcaster(mockupUrl); } catch (err) { console.error('Share error:', err); }
+    try { await shareToFarcaster(mockupUrl, savedMockupId); } catch (err) { console.error('Share error:', err); }
   };
 
-  const handleShareMockup = async (url) => {
-    try { await shareToFarcaster(url); } catch (err) { console.error('Share error:', err); }
+  const handleShareMockup = async (url, mockupDbId) => {
+    try { await shareToFarcaster(url, mockupDbId); } catch (err) { console.error('Share error:', err); }
   };
 
   // ─── Reset ────────────────────────────────────────────────────────────────
@@ -769,6 +775,7 @@ export function CreatePageClient() {
     setDesignPlacement('center');
     setTaskKey('');
     setMockupUrl('');
+    setSavedMockupId(null);
     setError('');
     setBuyAdded(false);
     setBuyError('');
@@ -2260,7 +2267,7 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
 
                 {/* Cast on Farcaster */}
                 <button
-                  onClick={() => { closeMenu(); onShare(mockup.mockup_url); }}
+                  onClick={() => { closeMenu(); onShare(mockup.mockup_url, mockup.id); }}
                   className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   <svg className="w-4 h-4 text-[#6A3CFF] flex-shrink-0" viewBox="0 0 520 457" fill="currentColor">
