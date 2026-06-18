@@ -16,6 +16,7 @@ export async function GET(request) {
       return NextResponse.json({ success: true, mockups: [] });
     }
 
+    // Fetch mockups
     const { data, error } = await supabase
       .from('design_studio_mockups')
       .select('id, product_type, color_name, mockup_url, design_url, printful_variant_ids, position_data, placement, design_scale, technique, created_at')
@@ -24,8 +25,32 @@ export async function GET(request) {
       .limit(20);
 
     if (error) throw error;
+    if (!data?.length) return NextResponse.json({ success: true, mockups: [] });
 
-    return NextResponse.json({ success: true, mockups: data || [] });
+    // Count paid orders per mockup_url (only orders that were actually paid)
+    const mockupUrls = data.map(m => m.mockup_url).filter(Boolean);
+    const { data: orderCounts, error: countErr } = await supabase
+      .from('design_order_requests')
+      .select('mockup_url')
+      .in('mockup_url', mockupUrls)
+      .not('shopify_order_number', 'is', null);
+
+    if (countErr) {
+      console.warn('⚠️ Could not fetch order counts:', countErr.message);
+    }
+
+    // Build a map of mockup_url → count
+    const countMap = {};
+    for (const row of (orderCounts || [])) {
+      countMap[row.mockup_url] = (countMap[row.mockup_url] || 0) + 1;
+    }
+
+    const mockups = data.map(m => ({
+      ...m,
+      order_count: countMap[m.mockup_url] || 0,
+    }));
+
+    return NextResponse.json({ success: true, mockups });
   } catch (error) {
     console.error('Get mockups error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

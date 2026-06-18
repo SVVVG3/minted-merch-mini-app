@@ -11,6 +11,14 @@
 import { useState, useEffect } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 
+/** Abbreviate token amounts: 1,000,000 → "1M", 1,500,000 → "1.5M", 1,000 → "1K" */
+function formatTokenAmount(n) {
+  if (n >= 1_000_000_000) return `${+(n / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
+  if (n >= 1_000_000)     return `${+(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n >= 1_000)         return `${+(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  return n.toString();
+}
+
 const AIRDROP_ABI = [
   {
     name: 'airdropERC20WithSignature',
@@ -182,7 +190,7 @@ export function ClaimCreatorEarnings({ getSessionToken }) {
                 <span className="font-bold text-base">💎 Claim Creator Earnings</span>
                 {stats?.totalPending > 0 && (
                   <span className="text-sm font-normal opacity-90 mt-0.5">
-                    {(stats.totalPending).toLocaleString()} $mintedmerch
+                    {formatTokenAmount(stats.totalPending)} $mintedmerch
                   </span>
                 )}
               </>

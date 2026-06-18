@@ -2212,10 +2212,15 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={mockup.mockup_url} alt="Past mockup" className="w-full h-full object-cover" />
         {/* Bottom label */}
-        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5 rounded-b-xl">
+        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5 rounded-b-xl flex items-end justify-between gap-1">
           <p className="text-white text-[10px] font-medium capitalize truncate">
             {mockup.product_type} · {mockup.color_name}
           </p>
+          {mockup.order_count > 0 && (
+            <span className="flex-shrink-0 text-[9px] font-semibold bg-[#3eb489] text-white px-1.5 py-0.5 rounded-full whitespace-nowrap">
+              {mockup.order_count} {mockup.order_count === 1 ? 'Order' : 'Orders'}
+            </span>
+          )}
         </div>
       </div>
 
