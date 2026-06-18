@@ -59,7 +59,7 @@ export function DesignViewClient({ mockupId }) {
     setShopifyVariants([]);
     try {
       const colorParam = mockup?.color_name
-        ? `&colorName=${encodeURIComponent(mockup.color_name)}`
+        ? `&color=${encodeURIComponent(mockup.color_name)}`
         : '';
       const res = await fetch(
         `/api/design-studio/shopify-variants?productId=${encodeURIComponent(productConfig.shopifyProductId)}${colorParam}`
