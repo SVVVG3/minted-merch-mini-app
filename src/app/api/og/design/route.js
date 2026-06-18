@@ -118,7 +118,21 @@ export async function GET(request) {
               maxWidth: '500px',
             }}
           >
-            {/* "Designed by" row — above the title */}
+            {/* Product headline — 56px matching order OG (shown first) */}
+            <div
+              style={{
+                fontSize: '56px',
+                fontWeight: 'bold',
+                marginBottom: '20px',
+                lineHeight: '1.1',
+                color: 'white',
+                display: 'flex',
+              }}
+            >
+              Custom {productLabel}
+            </div>
+
+            {/* "Designed by" row — below the title */}
             {creatorHandle && (
               <div
                 style={{
@@ -141,20 +155,6 @@ export async function GET(request) {
                 )}
               </div>
             )}
-
-            {/* Product headline — 56px matching order OG */}
-            <div
-              style={{
-                fontSize: '56px',
-                fontWeight: 'bold',
-                marginBottom: '20px',
-                lineHeight: '1.1',
-                color: 'white',
-                display: 'flex',
-              }}
-            >
-              Custom {productLabel}
-            </div>
 
             {/* Color */}
             {colorName && (
