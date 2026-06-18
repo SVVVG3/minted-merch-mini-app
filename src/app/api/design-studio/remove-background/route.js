@@ -3,9 +3,12 @@
  * Removes the background from an already-uploaded design image using the
  * Photoroom v2 API, then stores the result back to R2 and returns the URL.
  *
- * EXCLUSIVE TO MERCH MOGULS (50M+ $mintedmerch staked).
+ * FREE for Merch Moguls (50M+ $mintedmerch staked).
+ * PAID ($0.25 USDC) for everyone else — requires a verified on-chain transaction.
  *
- * Body JSON: { designUrl: string }
+ * Body JSON:
+ *   { designUrl: string, transactionHash?: string }
+ *   transactionHash is required for non-Moguls.
  */
 
 import { NextResponse } from 'next/server';
@@ -14,6 +17,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { uploadBufferToR2 } from '@/lib/r2Storage';
 
 const MERCH_MOGUL_THRESHOLD = 50_000_000;
+const BG_REMOVAL_PRICE_USD  = 0.25;
 const PHOTOROOM_API_KEY     = process.env.PHOTOROOM_API_KEY;
 const PHOTOROOM_URL         = 'https://image-api.photoroom.com/v2/edit';
 
@@ -25,7 +29,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // 2. Verify Merch Mogul status
+  // 2. Check Merch Mogul status
   const supabase = getSupabaseAdmin();
   const { data: profile } = await supabase
     .from('profiles')
@@ -34,40 +38,77 @@ export async function POST(request) {
     .single();
 
   const stakedBalance = Number(profile?.staked_balance || 0);
-  if (stakedBalance < MERCH_MOGUL_THRESHOLD) {
-    return NextResponse.json({
-      error: 'Background removal is exclusive to Merch Moguls (50M+ $mintedmerch staked).',
-      required: MERCH_MOGUL_THRESHOLD,
-      current: stakedBalance,
-    }, { status: 403 });
-  }
+  const isMerchMogul  = stakedBalance >= MERCH_MOGUL_THRESHOLD;
 
   // 3. Validate input
   const body = await request.json();
-  const { designUrl } = body;
+  const { designUrl, transactionHash } = body;
   if (!designUrl) {
     return NextResponse.json({ error: 'designUrl is required' }, { status: 400 });
   }
 
+  // 4. Payment gate for non-Moguls
+  if (!isMerchMogul) {
+    if (!transactionHash) {
+      return NextResponse.json({
+        error: 'A $0.25 USDC payment is required for non-Merch Moguls.',
+        requiresPayment: true,
+        amount: BG_REMOVAL_PRICE_USD,
+      }, { status: 402 });
+    }
+
+    // Replay protection: check if this tx hash was already used
+    const { data: existing } = await supabase
+      .from('bg_removal_payments')
+      .select('id')
+      .eq('transaction_hash', transactionHash)
+      .maybeSingle();
+
+    if (existing) {
+      return NextResponse.json({
+        error: 'This transaction has already been used for a background removal.',
+      }, { status: 409 });
+    }
+
+    // Verify the on-chain USDC transfer to the merchant wallet
+    try {
+      const { verifyTransaction } = await import('@/lib/order');
+      await verifyTransaction(transactionHash, BG_REMOVAL_PRICE_USD);
+    } catch (verifyErr) {
+      console.error(`❌ BG removal payment verification failed for FID ${auth.fid}:`, verifyErr.message);
+      return NextResponse.json({
+        error: `Payment verification failed: ${verifyErr.message}`,
+      }, { status: 402 });
+    }
+
+    // Record the payment to prevent replay
+    await supabase.from('bg_removal_payments').insert({
+      fid:              auth.fid,
+      transaction_hash: transactionHash,
+    });
+
+    console.log(`💳 BG removal paid ($0.25 USDC) by FID ${auth.fid}, tx: ${transactionHash}`);
+  }
+
+  // 5. Check Photoroom API key
   if (!PHOTOROOM_API_KEY) {
     console.error('❌ PHOTOROOM_API_KEY not configured');
     return NextResponse.json({ error: 'Background removal is not configured.' }, { status: 503 });
   }
 
-  // 4. Call Photoroom API
-  // Use GET endpoint with imageUrl — keeps background transparent, preserves original dimensions
+  // 6. Call Photoroom API
   const photoroomParams = new URLSearchParams({
     imageUrl:         designUrl,
     removeBackground: 'true',
     outputSize:       'originalImage',
   });
 
-  console.log(`🖼️ Photoroom bg-remove for FID ${auth.fid}: ${designUrl.slice(0, 60)}...`);
+  console.log(`🖼️ Photoroom bg-remove for FID ${auth.fid} (${isMerchMogul ? 'free/Mogul' : 'paid'}): ${designUrl.slice(0, 60)}...`);
 
   let photoroomRes;
   try {
     const controller = new AbortController();
-    const timeout    = setTimeout(() => controller.abort(), 30_000); // 30s timeout
+    const timeout    = setTimeout(() => controller.abort(), 30_000);
     photoroomRes     = await fetch(`${PHOTOROOM_URL}?${photoroomParams}`, {
       method: 'GET',
       headers: { 'x-api-key': PHOTOROOM_API_KEY },
@@ -89,7 +130,7 @@ export async function POST(request) {
     return NextResponse.json({ error: `Background removal failed: ${detail}` }, { status: 502 });
   }
 
-  // 5. Upload result PNG to R2
+  // 7. Upload result PNG to R2
   const imageBuffer = Buffer.from(await photoroomRes.arrayBuffer());
   const key         = `user-designs/${auth.fid}-bg-removed-${Date.now()}.png`;
 

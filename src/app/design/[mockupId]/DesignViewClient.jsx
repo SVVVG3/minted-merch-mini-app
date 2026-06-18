@@ -341,6 +341,12 @@ export function DesignViewClient({ mockupId }) {
               </div>
             )}
 
+            {productConfig?.sizeNote && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+                {productConfig.sizeNote}
+              </p>
+            )}
+
             {buyError && (
               <p className="text-red-500 text-sm mb-3">{buyError}</p>
             )}

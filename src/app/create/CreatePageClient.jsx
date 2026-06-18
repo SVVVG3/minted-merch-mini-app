@@ -10,6 +10,8 @@ import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { ProfileModal } from '@/components/ProfileModal';
 import { ClaimCreatorEarnings } from '@/components/ClaimCreatorEarnings';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { USDC_CONTRACT, PAYMENT_CONFIG } from '@/lib/usdc';
 
 // ─── EXIF orientation helpers ────────────────────────────────────────────────
 // Read the EXIF orientation tag from a JPEG File without a library.
@@ -641,7 +643,7 @@ export function CreatePageClient() {
       setDesignUrl(data.url);
       setRotationDegrees(0); // rotation already baked in by prepareImageForUpload
       loadTemplate(selectedProduct, selectedColor, selectedTechnique); // async, don't await
-      setStep(isMerchMogul ? 'remove-bg' : 'crop');
+      setStep('remove-bg');
     } catch (err) {
       setError(`Upload failed: ${err.message}`);
     } finally {
@@ -656,7 +658,7 @@ export function CreatePageClient() {
     try { new URL(pasteUrl); } catch { setError('Please enter a valid image URL.'); return; }
     setDesignUrl(pasteUrl.trim());
     loadTemplate(selectedProduct, selectedColor, selectedTechnique);
-    setStep(isMerchMogul ? 'remove-bg' : 'crop');
+    setStep('remove-bg');
   };
 
   // ─── Generate mockup ──────────────────────────────────────────────────────
@@ -983,18 +985,15 @@ export function CreatePageClient() {
 
   // =========================================================================
   // ─── Dynamic step numbering ───────────────────────────────────────────────
-  // Hoodies have an extra "technique" step; Merch Moguls get an extra "remove-bg" step.
-  const totalSteps = (selectedProduct?.techniqueOptions ? 6 : 5) + (isMerchMogul ? 1 : 0);
+  // Hoodies have an extra "technique" step; everyone gets a "remove-bg" step now.
+  const totalSteps = selectedProduct?.techniqueOptions ? 7 : 6;
   const stepNum = (s) => {
     if (selectedProduct?.techniqueOptions) {
-      // hoodie: product, technique, color, upload, [remove-bg], crop, preview
-      if (isMerchMogul)
-        return { product: 1, technique: 2, color: 3, upload: 4, 'remove-bg': 5, crop: 6, preview: 7 }[s] ?? 1;
-      return { product: 1, technique: 2, color: 3, upload: 4, crop: 5, preview: 6 }[s] ?? 1;
+      // hoodie: product, technique, color, upload, remove-bg, crop, preview
+      return { product: 1, technique: 2, color: 3, upload: 4, 'remove-bg': 5, crop: 6, preview: 7 }[s] ?? 1;
     }
-    if (isMerchMogul)
-      return { product: 1, color: 2, upload: 3, 'remove-bg': 4, crop: 5, preview: 6 }[s] ?? 1;
-    return { product: 1, color: 2, upload: 3, crop: 4, preview: 5 }[s] ?? 1;
+    // others: product, color, upload, remove-bg, crop, preview
+    return { product: 1, color: 2, upload: 3, 'remove-bg': 4, crop: 5, preview: 6 }[s] ?? 1;
   };
 
   // ─── Step: Product Picker ─────────────────────────────────────────────────
@@ -1159,6 +1158,16 @@ export function CreatePageClient() {
                 ))}
               </div>
             )}
+            {(() => {
+              const currentProduct = historyMockup
+                ? DESIGN_STUDIO_PRODUCTS.find(p => p.id === historyMockup.product_type)
+                : selectedProduct;
+              return currentProduct?.sizeNote ? (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+                  {currentProduct.sizeNote}
+                </p>
+              ) : null;
+            })()}
             {buyError && <p className="text-red-500 text-sm mb-3">{buyError}</p>}
             <button
               onClick={handleBuyConfirm}
@@ -1451,6 +1460,7 @@ export function CreatePageClient() {
       onBack={() => setStep('upload')}
       stepNum={stepNum('remove-bg')}
       totalSteps={totalSteps}
+      isMerchMogul={isMerchMogul}
     />;
   }
 
@@ -2196,12 +2206,17 @@ function ErrorBanner({ message }) {
 }
 
 // ─── Remove Background Step (Merch Mogul exclusive) ──────────────────────────
-function RemoveBgStep({ designUrl, setDesignUrl, getSessionToken, onDone, onBack, stepNum, totalSteps }) {
-  const [removing, setRemoving] = useState(false);
-  const [error,    setError]    = useState('');
-  const [done,     setDone]     = useState(false); // background already removed
+function RemoveBgStep({ designUrl, setDesignUrl, getSessionToken, onDone, onBack, stepNum, totalSteps, isMerchMogul }) {
+  const [removing,     setRemoving]     = useState(false);
+  const [error,        setError]        = useState('');
+  const [done,         setDone]         = useState(false);
+  const [paymentDone,  setPaymentDone]  = useState(false); // track if tx already submitted
 
-  const handleRemove = async () => {
+  // Wagmi hooks for paid USDC payment (non-Moguls)
+  const { writeContract, data: txHash, isPending: isTxPending, error: writeError } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash });
+
+  const callRemoveApi = async (transactionHash) => {
     setError('');
     setRemoving(true);
     try {
@@ -2210,7 +2225,7 @@ function RemoveBgStep({ designUrl, setDesignUrl, getSessionToken, onDone, onBack
       const res  = await fetch('/api/design-studio/remove-background', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ designUrl }),
+        body:    JSON.stringify({ designUrl, ...(transactionHash && { transactionHash }) }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Background removal failed.');
@@ -2223,25 +2238,66 @@ function RemoveBgStep({ designUrl, setDesignUrl, getSessionToken, onDone, onBack
     }
   };
 
+  // For Moguls: direct API call (free)
+  const handleRemoveFree = () => callRemoveApi(null);
+
+  // For non-Moguls: initiate $0.25 USDC payment first
+  const handlePayAndRemove = () => {
+    setError('');
+    writeContract({
+      address:      USDC_CONTRACT.address,
+      abi:          USDC_CONTRACT.abi,
+      functionName: 'transfer',
+      args:         [PAYMENT_CONFIG.merchantWallet, BigInt(250000)], // $0.25 USDC (6 decimals)
+    });
+  };
+
+  // When payment confirms on-chain, trigger background removal
+  useEffect(() => {
+    if (isConfirmed && txHash && !paymentDone) {
+      setPaymentDone(true);
+      callRemoveApi(txHash);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConfirmed, txHash]);
+
+  // Surface wagmi write errors
+  useEffect(() => {
+    if (writeError) setError(writeError.shortMessage || writeError.message || 'Transaction failed.');
+  }, [writeError]);
+
+  const isBusy = removing || isTxPending || isConfirming;
+
+  const statusText = () => {
+    if (isTxPending)   return 'Waiting for wallet confirmation…';
+    if (isConfirming)  return 'Confirming payment on-chain…';
+    if (removing)      return 'Removing background…';
+    return null;
+  };
+
   return (
     <PageShell onBack={onBack} title="Remove Background" step={stepNum} totalSteps={totalSteps}>
       <div className="flex flex-col items-center px-4 pb-10 gap-4">
-        {/* Merch Mogul badge */}
+        {/* Badge row */}
         <div className="flex items-center gap-2 mt-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/VerifiedMerchMogulBadge.png" alt="Merch Mogul" className="h-5" />
-          <span className="text-xs font-semibold text-[#3eb489]">Exclusive</span>
+          {isMerchMogul ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/VerifiedMerchMogulBadge.png" alt="Merch Mogul" className="h-5" />
+              <span className="text-xs font-semibold text-[#3eb489]">Free for Merch Moguls</span>
+            </>
+          ) : (
+            <span className="text-xs font-semibold text-gray-500">
+              ✨ AI-powered background removal — <span className="text-[#3eb489]">free for Merch Moguls</span>
+            </span>
+          )}
         </div>
 
-        {/* Preview of uploaded design */}
-        <div className="w-full max-w-sm rounded-2xl overflow-hidden bg-[url('/checkerboard.png')] bg-repeat border border-gray-200 shadow-sm"
-             style={{ backgroundSize: '20px 20px', backgroundColor: '#f3f4f6' }}>
+        {/* Preview */}
+        <div className="w-full max-w-sm rounded-2xl overflow-hidden border border-gray-200 shadow-sm"
+             style={{ backgroundImage: 'repeating-conic-gradient(#e5e7eb 0% 25%, #f9fafb 0% 50%)', backgroundSize: '20px 20px' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={designUrl}
-            alt="Your design"
-            className="w-full max-h-72 object-contain"
-          />
+          <img src={designUrl} alt="Your design" className="w-full max-h-72 object-contain" />
         </div>
 
         <p className="text-sm text-gray-500 text-center max-w-xs">
@@ -2250,34 +2306,39 @@ function RemoveBgStep({ designUrl, setDesignUrl, getSessionToken, onDone, onBack
             : 'Automatically remove the background from your design using AI — best for artwork on a solid or simple background.'}
         </p>
 
-        {error && (
-          <p className="text-red-500 text-sm text-center">{error}</p>
+        {statusText() && (
+          <div className="flex items-center gap-2 text-sm text-[#3eb489]">
+            <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#3eb489]" />
+            {statusText()}
+          </div>
         )}
 
-        {/* Actions */}
+        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+
+        {/* Primary action */}
         {!done && (
           <button
-            onClick={handleRemove}
-            disabled={removing}
+            onClick={isMerchMogul ? handleRemoveFree : handlePayAndRemove}
+            disabled={isBusy}
             className="w-full max-w-sm flex items-center justify-center gap-2 py-3.5 bg-[#3eb489] hover:bg-[#35a07a] disabled:opacity-60 text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
           >
-            {removing ? (
-              <>
-                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                Removing background…
-              </>
-            ) : (
+            {isBusy ? (
+              <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+            ) : isMerchMogul ? (
               '✨ Remove Background'
+            ) : (
+              '✨ Remove Background — $0.25 USDC'
             )}
           </button>
         )}
 
         <button
           onClick={onDone}
+          disabled={isBusy}
           className={`w-full max-w-sm py-3.5 font-semibold rounded-2xl transition-colors text-base ${
             done
               ? 'bg-[#3eb489] text-white hover:bg-[#35a07a] shadow-md'
-              : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+              : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50'
           }`}
         >
           {done ? 'Continue to Crop →' : 'Skip — keep background'}
