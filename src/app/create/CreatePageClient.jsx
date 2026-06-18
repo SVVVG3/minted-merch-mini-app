@@ -2230,7 +2230,7 @@ function RemoveBgStep({ designUrl, setDesignUrl, getSessionToken, onDone, onBack
         <div className="flex items-center gap-2 mt-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/VerifiedMerchMogulBadge.png" alt="Merch Mogul" className="h-5" />
-          <span className="text-xs font-semibold text-[#3eb489]">Merch Mogul Exclusive</span>
+          <span className="text-xs font-semibold text-[#3eb489]">Exclusive</span>
         </div>
 
         {/* Preview of uploaded design */}
