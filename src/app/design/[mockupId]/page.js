@@ -19,12 +19,13 @@ export async function generateMetadata({ params }) {
       const launchUrl = `${BASE_URL}/design/${mockupId}`;
 
       // Build branded OG image URL
+      const mogulTier = creator?.isGoldMogul ? 'gold' : creator?.isMerchMogul ? 'green' : '';
       const ogParams = new URLSearchParams({
         ...(mockup?.mockup_url && { mockupUrl: mockup.mockup_url }),
         ...(mockup?.product_type && { productType: mockup.product_type }),
         ...(mockup?.color_name && { colorName: mockup.color_name }),
         ...(creator?.username && { creatorHandle: `@${creator.username}` }),
-        ...(creator?.isMerchMogul && { isMerchMogul: '1' }),
+        ...(mogulTier && { mogulTier }),
       });
       const imageUrl = `${BASE_URL}/api/og/design?${ogParams.toString()}`;
 

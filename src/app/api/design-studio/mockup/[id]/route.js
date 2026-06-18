@@ -31,7 +31,9 @@ export async function GET(request, { params }) {
     .eq('fid', mockup.fid)
     .single();
 
-  const isMerchMogul = profile?.staked_balance != null && Number(profile.staked_balance) >= 50_000_000;
+  const stakedBalance = Number(profile?.staked_balance || 0);
+  const isMerchMogul = stakedBalance >= 50_000_000;
+  const isGoldMogul  = stakedBalance >= 200_000_000;
 
   return NextResponse.json({
     mockup,
@@ -41,7 +43,9 @@ export async function GET(request, { params }) {
           username: profile.username,
           displayName: profile.display_name,
           pfpUrl: profile.pfp_url,
+          stakedBalance,
           isMerchMogul,
+          isGoldMogul,
         }
       : null,
   });

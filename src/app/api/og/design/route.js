@@ -4,6 +4,13 @@ export const runtime = 'nodejs';
 
 const BASE_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
 
+// Product type ID → display label (matching designStudioConfig.js)
+const PRODUCT_LABELS = {
+  tshirt: 'T-Shirt',
+  hoodie: 'Hoodie',
+  hat:    'Hat',
+};
+
 async function fetchAsDataUrl(url) {
   try {
     const controller = new AbortController();
@@ -25,16 +32,26 @@ async function fetchAsDataUrl(url) {
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const mockupUrl     = searchParams.get('mockupUrl') || '';
-  const productType   = searchParams.get('productType') || 'Design';
+  const productType   = searchParams.get('productType') || 'tshirt';
   const colorName     = searchParams.get('colorName') || '';
   const creatorHandle = searchParams.get('creatorHandle') || '';
-  const isMerchMogul  = searchParams.get('isMerchMogul') === '1';
+  // mogulTier: '' | 'green' | 'gold'
+  const mogulTier     = searchParams.get('mogulTier') || '';
 
-  const productLabel = productType.charAt(0).toUpperCase() + productType.slice(1);
+  const productLabel = PRODUCT_LABELS[productType] || (productType.charAt(0).toUpperCase() + productType.slice(1));
 
-  const [mockupSrc, logoSrc] = await Promise.all([
-    mockupUrl ? fetchAsDataUrl(mockupUrl) : Promise.resolve(null),
+  // Badge image path
+  const badgePath = mogulTier === 'gold'
+    ? `${BASE_URL}/GoldVerifiedMerchMogulBadge.png`
+    : mogulTier === 'green'
+    ? `${BASE_URL}/VerifiedMerchMogulBadge.png`
+    : null;
+
+  // Fetch all images in parallel (same pattern as working order route)
+  const [mockupSrc, logoSrc, badgeSrc] = await Promise.all([
+    mockupUrl  ? fetchAsDataUrl(mockupUrl)  : Promise.resolve(null),
     fetchAsDataUrl(`${BASE_URL}/logo.png`),
+    badgePath  ? fetchAsDataUrl(badgePath)  : Promise.resolve(null),
   ]);
 
   return new ImageResponse(
@@ -46,7 +63,7 @@ export async function GET(request) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#0a0a0a',
+          backgroundColor: '#000000',
           backgroundImage: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%)',
           color: 'white',
           fontFamily: 'Arial, sans-serif',
@@ -54,22 +71,22 @@ export async function GET(request) {
           position: 'relative',
         }}
       >
-        {/* Main row */}
+        {/* Main row — identical proportions to order OG */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '72px',
+            gap: '80px',
             width: '100%',
             height: '100%',
           }}
         >
-          {/* Mockup thumbnail */}
+          {/* Mockup thumbnail — 450×450 matching order OG */}
           <div
             style={{
-              width: '420px',
-              height: '420px',
+              width: '450px',
+              height: '450px',
               borderRadius: '24px',
               backgroundColor: '#2a2a2a',
               display: 'flex',
@@ -87,110 +104,96 @@ export async function GET(request) {
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             ) : (
-              <div style={{ fontSize: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>👕</div>
+              <div style={{ display: 'flex', fontSize: '100px' }}>👕</div>
             )}
           </div>
 
-          {/* Text section */}
+          {/* Text section — max 500px matching order OG */}
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
               alignItems: 'flex-start',
-              width: '480px',
+              maxWidth: '500px',
             }}
           >
-            {/* Creator */}
+            {/* "Designed by" row — above the title */}
             {creatorHandle && (
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  marginBottom: '20px',
+                  marginBottom: '24px',
                   fontSize: '22px',
                   color: '#888888',
+                  gap: '10px',
                 }}
               >
-                <span>Designed by&nbsp;</span>
+                <span>Designed by</span>
                 <span style={{ color: '#3eb489', fontWeight: 'bold' }}>{creatorHandle}</span>
-                {isMerchMogul && (
-                  <span
-                    style={{
-                      fontSize: '16px',
-                      backgroundColor: '#854d0e',
-                      color: '#fef08a',
-                      padding: '3px 10px',
-                      borderRadius: '999px',
-                      fontWeight: 'bold',
-                      marginLeft: '10px',
-                    }}
-                  >
-                    Merch Mogul
-                  </span>
+                {badgeSrc && (
+                  <img
+                    src={badgeSrc}
+                    alt="Merch Mogul"
+                    style={{ height: '28px', objectFit: 'contain' }}
+                  />
                 )}
               </div>
             )}
 
-            {/* Headline */}
+            {/* Product headline — 56px matching order OG */}
             <div
               style={{
-                fontSize: '52px',
+                fontSize: '56px',
                 fontWeight: 'bold',
+                marginBottom: '20px',
                 lineHeight: '1.1',
                 color: 'white',
-                marginBottom: '16px',
                 display: 'flex',
               }}
             >
               Custom {productLabel}
             </div>
 
+            {/* Color */}
             {colorName && (
-              <div style={{ fontSize: '26px', color: '#aaaaaa', marginBottom: '32px', display: 'flex' }}>
-                {colorName}
+              <div
+                style={{
+                  fontSize: '28px',
+                  color: '#aaaaaa',
+                  display: 'flex',
+                  marginBottom: '0px',
+                }}
+              >
+                <span style={{ color: '#888888' }}>Color:&nbsp;</span>
+                <span>{colorName}</span>
               </div>
             )}
-
-            {/* CTA */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                backgroundColor: '#3eb489',
-                color: 'white',
-                fontSize: '28px',
-                fontWeight: 'bold',
-                padding: '16px 32px',
-                borderRadius: '16px',
-              }}
-            >
-              Order or Create a Design 🎨
-            </div>
           </div>
         </div>
 
-        {/* Logo bottom-right */}
+        {/* Logo bottom-right — same as order OG */}
         {logoSrc && (
           <div
             style={{
               position: 'absolute',
-              bottom: '28px',
-              right: '28px',
-              width: '120px',
-              height: '120px',
+              bottom: '30px',
+              right: '30px',
+              width: '160px',
+              height: '160px',
               borderRadius: '12px',
-              backgroundColor: 'rgba(255,255,255,0.08)',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: '2px solid rgba(255,255,255,0.15)',
+              border: '2px solid rgba(255, 255, 255, 0.2)',
             }}
           >
             <img
               src={logoSrc}
               alt="Minted Merch"
-              style={{ width: '96px', height: '96px', objectFit: 'contain' }}
+              style={{ width: '120px', height: '120px', objectFit: 'contain' }}
             />
           </div>
         )}
