@@ -551,13 +551,13 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       <div className="px-4 pt-4 pb-2 flex justify-center">
         <Link
           href="/create"
-          className="w-full max-w-sm block rounded-2xl overflow-hidden shadow-lg active:scale-[0.98] transition-transform bg-gradient-to-r from-purple-700 to-[#3eb489] p-[2px]"
+          className="w-full max-w-xs block rounded-xl overflow-hidden shadow-lg active:scale-[0.98] transition-transform bg-gradient-to-r from-purple-700 to-[#3eb489] p-[2px]"
         >
-          <div className="bg-gray-900 rounded-2xl px-5 py-4 flex items-center justify-center">
+          <div className="bg-gray-900 rounded-xl px-4 py-3 flex items-center justify-center">
             <img
               src="/EnterTheMintedMerchDesignStudio.png"
               alt="Enter the Minted Merch Design Studio"
-              className="w-full h-auto object-contain max-h-12"
+              className="w-full h-auto object-contain max-h-9"
             />
           </div>
         </Link>
