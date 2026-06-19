@@ -523,8 +523,9 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       </header>
       
       {/* Collection Selector Section - Sticky below header */}
-      <div className="bg-[#3eb489] px-4 py-1.5 sticky top-[60px] z-10">
-        <div className="flex justify-center items-center gap-2">
+      <div className="bg-[#3eb489] sticky top-[60px] z-10">
+        {/* Row 1: collection selector + share */}
+        <div className="flex justify-center items-center gap-2 px-4 py-1.5">
           <div className="w-full max-w-[250px]">
             <CollectionSelector
               selectedCollection={selectedCollection}
@@ -544,16 +545,16 @@ export function HomePage({ collection: initialCollection, products: initialProdu
               buttonText="Share"
             />
           )}
+        </div>
 
-          {/* Design Studio entry point */}
-          <Link
-            href="/create"
-            className="flex items-center justify-center w-12 h-12 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors flex-shrink-0"
-            title="Design Studio"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" />
-            </svg>
+        {/* Row 2: Design Studio full-width button */}
+        <div className="px-4 pb-2">
+          <Link href="/create" className="block w-full bg-white rounded-xl overflow-hidden active:opacity-80 transition-opacity">
+            <img
+              src="/EnterTheMintedMerchDesignStudio.png"
+              alt="Enter the Minted Merch Design Studio"
+              className="w-full h-auto object-contain"
+            />
           </Link>
         </div>
       </div>
