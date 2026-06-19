@@ -148,7 +148,7 @@ async function rotateAndReupload(imageUrl, degrees, sessionToken) {
   const blob = await res.blob();
   const objectUrl = URL.createObjectURL(blob);
 
-  const rotatedBlob = await new Promise((resolve, reject) => {
+  const rotateResult = await new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       try {
@@ -172,10 +172,19 @@ async function rotateAndReupload(imageUrl, degrees, sessionToken) {
         ctx.rotate((degrees * Math.PI) / 180);
         ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
 
+        // Preserve transparency if the source image has an alpha channel
+        const sampleData = ctx.getImageData(0, 0, Math.min(canvas.width, 300), Math.min(canvas.height, 300)).data;
+        let hasAlpha = false;
+        for (let i = 3; i < sampleData.length; i += 4) {
+          if (sampleData[i] < 255) { hasAlpha = true; break; }
+        }
+        const mime = hasAlpha ? 'image/png' : 'image/jpeg';
+        const q    = hasAlpha ? undefined : 0.9;
+
         canvas.toBlob(b => {
-          if (b) resolve(b);
+          if (b) resolve({ blob: b, hasAlpha });
           else reject(new Error('canvas.toBlob returned null — image may be too large'));
-        }, 'image/jpeg', 0.9);
+        }, mime, q);
       } catch (err) {
         reject(err);
       }
@@ -185,8 +194,10 @@ async function rotateAndReupload(imageUrl, degrees, sessionToken) {
   });
   URL.revokeObjectURL(objectUrl);
 
+  const { blob: rotatedBlob, hasAlpha } = rotateResult;
+
   const formData = new FormData();
-  formData.append('file', rotatedBlob, 'design-rotated.jpg');
+  formData.append('file', rotatedBlob, hasAlpha ? 'design-rotated.png' : 'design-rotated.jpg');
   const uploadRes = await fetch('/api/design-studio/upload', {
     method: 'POST',
     headers: { Authorization: `Bearer ${sessionToken}` },
@@ -1689,9 +1700,20 @@ export function CreatePageClient() {
         ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
         URL.revokeObjectURL(objectUrl);
 
-        const mimeType = cropMode === 'circle' ? 'image/png' : 'image/jpeg';
-        const ext      = cropMode === 'circle' ? 'png' : 'jpg';
-        const quality  = cropMode === 'circle' ? 1 : 0.92;
+        // Circle crops always need PNG (transparency for the clipped circle).
+        // Rectangle crops: detect whether the source image has any transparent
+        // pixels (e.g. after background removal) — if so, preserve alpha with PNG.
+        // Otherwise use JPEG to keep file sizes small.
+        let needsPng = cropMode === 'circle';
+        if (!needsPng) {
+          const sampleData = ctx.getImageData(0, 0, Math.min(outW, 300), Math.min(outH, 300)).data;
+          for (let i = 3; i < sampleData.length; i += 4) {
+            if (sampleData[i] < 255) { needsPng = true; break; }
+          }
+        }
+        const mimeType = needsPng ? 'image/png' : 'image/jpeg';
+        const ext      = needsPng ? 'png' : 'jpg';
+        const quality  = needsPng ? 1 : 0.92;
 
         const blob = await new Promise((resolve, reject) => {
           canvas.toBlob(b => b ? resolve(b) : reject(new Error('canvas.toBlob returned null')), mimeType, quality);
