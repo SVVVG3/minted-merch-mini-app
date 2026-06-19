@@ -2304,10 +2304,21 @@ export function CreatePageClient() {
                 <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-5" />
                 <h2 className="font-bold text-gray-900 text-lg mb-1">Select a Size</h2>
                 <p className="text-sm text-gray-500 mb-5">
-                  {historyMockup
-                    ? `Custom ${DESIGN_STUDIO_PRODUCTS.find(p => p.id === historyMockup.product_type)?.label || historyMockup.product_type} · ${historyMockup.color_name || 'Custom Color'}`
-                    : `Custom ${selectedProduct?.label} · ${selectedColor?.name || 'Custom Color'} · ${selectedProduct?.techniqueLabel || (selectedTechnique === 'EMBROIDERY' ? 'Embroidery' : 'DTG Print')}`
-                  }
+                  {(() => {
+                    if (historyMockup) {
+                      const hp = DESIGN_STUDIO_PRODUCTS.find(p => p.id === historyMockup.product_type);
+                      // All-over print products: just show the technique label (no colour)
+                      if (hp?.technique === 'SUBLIMATION') {
+                        return `Custom ${hp.label} · ${hp.techniqueLabel || 'All-Over Print'}`;
+                      }
+                      return `Custom ${hp?.label || historyMockup.product_type} · ${historyMockup.color_name || 'Custom Color'}`;
+                    }
+                    // Live buy flow: all-over print products don't have a meaningful colour choice
+                    if (selectedProduct?.technique === 'SUBLIMATION') {
+                      return `${selectedProduct.techniqueLabel || 'All-Over Print'}`;
+                    }
+                    return `${selectedColor?.name || 'Custom Color'} · ${selectedProduct?.techniqueLabel || (selectedTechnique === 'EMBROIDERY' ? 'Embroidery' : 'DTG Print')}`;
+                  })()}
                 </p>
 
                 {/* Size grid — populated from real Shopify variants */}

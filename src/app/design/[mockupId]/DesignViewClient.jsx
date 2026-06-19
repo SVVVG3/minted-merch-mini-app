@@ -189,7 +189,11 @@ export function DesignViewClient({ mockupId }) {
     );
   }
 
-  const techniqueLabel = mockup.technique === 'EMBROIDERY' ? 'Embroidery' : 'DTG Print';
+  // Prefer the config's own techniqueLabel (e.g. "All-Over Print", "Embroidery") so
+  // all-over print products don't fall through to the generic "DTG Print" default.
+  const techniqueLabel =
+    productConfig?.techniqueLabel ||
+    (mockup.technique === 'EMBROIDERY' ? 'Embroidery' : 'DTG Print');
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center pb-10">
@@ -315,7 +319,11 @@ export function DesignViewClient({ mockupId }) {
               Custom {productConfig?.label || mockup.product_type}
             </h2>
             <p className="text-sm text-gray-500 mb-4">
-              {mockup.color_name || ''}{mockup.color_name && ' · '}{techniqueLabel}
+              {/* For all-over print products the colour is not customer-facing */}
+              {productConfig?.technique === 'SUBLIMATION'
+                ? techniqueLabel
+                : <>{mockup.color_name || ''}{mockup.color_name && ' · '}{techniqueLabel}</>
+              }
             </p>
 
             {/* Size selector */}

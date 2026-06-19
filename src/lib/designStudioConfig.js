@@ -80,7 +80,7 @@ export const DESIGN_STUDIO_PRODUCTS = [
     techniqueLabel: 'All-Over Print',
     defaultScale: 1.0,               // All-over print — design fills the full area
     note: null,
-    sizeNote: 'Important sizing info: the S size is made for small pets and won\'t fit a grown-up. Please choose M or L if ordering for yourself.',
+    sizeNote: 'Important sizing info: the S size is made for small pets and won\'t fit a grown-up. Please choose M or L if ordering for yourself. Sizes — S: 17⅜″ × 17⅜″ · M: 21¼″ × 21¼″ · L: 25¼″ × 25¼″',
   },
   {
     id: 'pet-collar',
