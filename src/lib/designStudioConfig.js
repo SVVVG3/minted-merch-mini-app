@@ -26,7 +26,7 @@ export const DESIGN_STUDIO_PRODUCTS = [
     emoji: '👕',
     printfulProductId: 733,          // AS Colour 5001T
     shopifyProductId: 'gid://shopify/Product/10666474078489',
-    displayPrice: 29.99,               // Fallback for cart display; overridden by real Shopify price
+    displayPrice: 34.99,               // Fallback for cart display; overridden by real Shopify price
     sizes: ['S', 'M', 'L', 'XL', '2XL'], // Fallback; real sizes fetched from Shopify at buy-time
     placement: 'front',
     technique: null,                 // DTG (default)
@@ -41,7 +41,7 @@ export const DESIGN_STUDIO_PRODUCTS = [
     emoji: '🧥',
     printfulProductId: 380,          // Cotton Heritage M2580
     shopifyProductId: 'gid://shopify/Product/10666480009497',
-    displayPrice: 59.99,
+    displayPrice: 64.99,
     sizes: ['S', 'M', 'L', 'XL', '2XL'],
     placement: 'front',
     technique: null,                 // set dynamically by user choice (DTG | EMBROIDERY)
@@ -57,7 +57,7 @@ export const DESIGN_STUDIO_PRODUCTS = [
     emoji: '🧢',
     printfulProductId: 206,          // Yupoong 6245CM
     shopifyProductId: 'gid://shopify/Product/10666471031065',
-    displayPrice: 24.99,
+    displayPrice: 39.99,
     sizes: ['One Size'],
     placement: 'front',
     technique: 'EMBROIDERY',
