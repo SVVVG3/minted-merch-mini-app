@@ -524,7 +524,6 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       
       {/* Collection Selector Section - Sticky below header */}
       <div className="bg-[#3eb489] sticky top-[60px] z-10">
-        {/* Row 1: collection selector + share */}
         <div className="flex justify-center items-center gap-2 px-4 py-1.5">
           <div className="w-full max-w-[250px]">
             <CollectionSelector
@@ -546,17 +545,20 @@ export function HomePage({ collection: initialCollection, products: initialProdu
             />
           )}
         </div>
+      </div>
 
-        {/* Row 2: Design Studio full-width button */}
-        <div className="px-4 pb-2">
-          <Link href="/create" className="block w-full bg-white rounded-xl overflow-hidden active:opacity-80 transition-opacity">
-            <img
-              src="/EnterTheMintedMerchDesignStudio.png"
-              alt="Enter the Minted Merch Design Studio"
-              className="w-full h-auto object-contain"
-            />
-          </Link>
-        </div>
+      {/* Design Studio banner — below the sticky green bar */}
+      <div className="px-4 pt-4 pb-2">
+        <Link
+          href="/create"
+          className="block w-full rounded-2xl overflow-hidden shadow-md active:opacity-80 transition-opacity"
+        >
+          <img
+            src="/EnterTheMintedMerchDesignStudio.png"
+            alt="Enter the Minted Merch Design Studio"
+            className="w-full h-auto object-contain"
+          />
+        </Link>
       </div>
       
       <main>
