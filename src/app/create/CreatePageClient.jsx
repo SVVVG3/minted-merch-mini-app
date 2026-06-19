@@ -200,6 +200,70 @@ async function rotateAndReupload(imageUrl, degrees, sessionToken) {
   return uploadData.url;
 }
 
+/**
+ * Tiles the design image across a canvas at the print-area aspect ratio and
+ * uploads the result to R2.  Returns the new R2 URL.
+ *
+ * @param {string}  designUrl        - R2/CDN URL of the design (proxied to avoid CORS)
+ * @param {number}  printAreaAspect  - width / height of the product's print area
+ * @param {number}  tileScale        - fraction of print-area width for each tile (0.1–0.5)
+ * @param {string}  sessionToken     - JWT for the upload endpoint
+ */
+async function buildTiledImageUrl(designUrl, printAreaAspect, tileScale, sessionToken) {
+  const proxyUrl = `/api/design-studio/proxy-image?url=${encodeURIComponent(designUrl)}`;
+  const res = await fetch(proxyUrl);
+  if (!res.ok) throw new Error(`Proxy fetch failed: ${res.status}`);
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+
+  const img = await new Promise((resolve, reject) => {
+    const i = new Image();
+    i.onload  = () => resolve(i);
+    i.onerror = () => reject(new Error('Failed to load design image for tiling'));
+    i.src = objectUrl;
+  });
+
+  // Canvas sized to a reasonable printfile resolution, preserving the print area ratio
+  const canvasW = 2800;
+  const canvasH = Math.max(1, Math.round(canvasW / (printAreaAspect || 1)));
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext('2d');
+
+  // Each tile is `tileScale` × print area width; maintain design image aspect ratio
+  const tileW = Math.max(1, Math.round(canvasW * tileScale));
+  const tileH = Math.max(1, Math.round(tileW * (img.naturalHeight / (img.naturalWidth || 1))));
+
+  for (let y = 0; y < canvasH; y += tileH) {
+    for (let x = 0; x < canvasW; x += tileW) {
+      ctx.drawImage(img, x, y, tileW, tileH);
+    }
+  }
+
+  URL.revokeObjectURL(objectUrl);
+
+  const tiledBlob = await new Promise((resolve, reject) => {
+    canvas.toBlob(b => {
+      if (b) resolve(b);
+      else reject(new Error('canvas.toBlob returned null for tiled image'));
+    }, 'image/jpeg', 0.9);
+  });
+
+  const formData = new FormData();
+  formData.append('file', tiledBlob, 'design-tiled.jpg');
+  const uploadRes = await fetch('/api/design-studio/upload', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${sessionToken}` },
+    body: formData,
+  });
+  if (!uploadRes.ok) throw new Error(`Tiled-image upload failed (${uploadRes.status})`);
+  const uploadData = await uploadRes.json();
+  if (!uploadData.success) throw new Error(uploadData.error || 'Tiled-image upload failed');
+  return uploadData.url;
+}
+
 export function CreatePageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -236,6 +300,7 @@ export function CreatePageClient() {
   // Design placement + scale
   const [designPlacement, setDesignPlacement] = useState('center'); // 'center' | 'leftchest'
   const [designScale, setDesignScale] = useState(0.85);
+  const [patternMode, setPatternMode] = useState('single'); // 'single' | 'tile' — only used for SUBLIMATION
 
   // Generation
   const [taskKey, setTaskKey] = useState('');
@@ -697,6 +762,16 @@ export function CreatePageClient() {
         setError('');
       }
 
+      // For all-over print tile pattern, build the tiled composite image first
+      if (isSublimation && patternMode === 'tile') {
+        setError('Building tile pattern…');
+        const printAreaAspect = template
+          ? (template.print_area_width / (template.print_area_height || 1))
+          : 1;
+        effectiveDesignUrl = await buildTiledImageUrl(effectiveDesignUrl, printAreaAspect, designScale, sessionToken);
+        setError('');
+      }
+
       setStep('generating'); // only switch to spinner once prep is done
 
       const res = await fetch('/api/design-studio/create-task', {
@@ -706,7 +781,8 @@ export function CreatePageClient() {
           productId: selectedProduct.id,
           variantIds: (selectedColor?.variantIds || []).slice(0, 3),
           imageUrl: effectiveDesignUrl,
-          designScale,
+          // For all-over print, the design (or pre-generated tile) always fills the full area
+          designScale: isSublimation ? 1.0 : designScale,
           designPlacement,
           technique: selectedTechnique || selectedProduct.technique || null,
           // Normalized drag offset: fraction of print-area dims, 0 = centered.
@@ -806,6 +882,7 @@ export function CreatePageClient() {
     setTemplate(null);
     setDesignScale(0.85);
     setDesignPlacement('center');
+    setPatternMode('single');
     setTaskKey('');
     setMockupUrl('');
     setSavedMockupId(null);
@@ -1074,6 +1151,7 @@ export function CreatePageClient() {
                   setSelectedTechnique(null);
                   setDesignScale(product.defaultScale ?? 0.85);
                   setDesignPlacement('center');
+                  setPatternMode('single');
                   if (product.techniqueOptions) {
                     // Hoodies ask for technique before loading colors
                     setStep('technique');
@@ -1752,9 +1830,22 @@ export function CreatePageClient() {
       printAreaBox = { top: paTop, left: paLeft, width: paW, height: paH };
 
       if (isSublimation) {
-        // All-over print — design fills the entire print area edge-to-edge
-        printAreaDims.current = { paW, paH, sz: Math.min(paW, paH) };
-        previewDesign = { top: paTop, left: paLeft, width: paW, height: paH };
+        if (patternMode === 'tile') {
+          // Tile pattern preview fills the full print area; CSS background handles the repeat
+          printAreaDims.current = { paW, paH, sz: Math.round(paW * designScale) };
+          previewDesign = { top: paTop, left: paLeft, width: paW, height: paH };
+        } else {
+          // Single image — scale relative to the full print area dimensions, centered
+          const scaledW = Math.round(paW * designScale);
+          const scaledH = Math.round(paH * designScale);
+          printAreaDims.current = { paW, paH, sz: scaledW };
+          previewDesign = {
+            top: paTop + Math.round((paH - scaledH) / 2),
+            left: paLeft + Math.round((paW - scaledW) / 2),
+            width: scaledW,
+            height: scaledH,
+          };
+        }
       } else if (designPlacement === 'leftchest' && showPlacementOptions) {
         // Wearer's LEFT chest = viewer's RIGHT side of the template image.
         // Mirror the server-side logic: left = 62% of print area width.
@@ -1862,11 +1953,12 @@ export function CreatePageClient() {
                       left: previewDesign.left,
                       width: previewDesign.width,
                       height: previewDesign.height,
-                      cursor: designPlacement === 'center' ? (isDragging.current ? 'grabbing' : 'grab') : 'default',
-                      touchAction: 'none',
+                      overflow: 'hidden',
+                      cursor: (isSublimation || designPlacement !== 'center') ? 'default' : (isDragging.current ? 'grabbing' : 'grab'),
+                      touchAction: isSublimation ? 'auto' : 'none',
                     }}
                     onPointerDown={(e) => {
-                      if (designPlacement !== 'center') return;
+                      if (isSublimation || designPlacement !== 'center') return;
                       e.currentTarget.setPointerCapture(e.pointerId);
                       isDragging.current = true;
                       dragStart.current = { x: e.clientX, y: e.clientY, ox: designOffset.x, oy: designOffset.y };
@@ -1884,13 +1976,25 @@ export function CreatePageClient() {
                     onPointerUp={() => { isDragging.current = false; }}
                     onPointerCancel={() => { isDragging.current = false; }}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={designUrl}
-                      alt="Your design"
-                      className="w-full h-full object-contain transition-transform duration-300 pointer-events-none"
-                      style={{ transform: `rotate(${rotationDegrees}deg)` }}
-                    />
+                    {isSublimation && patternMode === 'tile' ? (
+                      // CSS repeat tile preview — background-size controls tile count
+                      <div
+                        className="w-full h-full pointer-events-none"
+                        style={{
+                          backgroundImage: `url(${designUrl})`,
+                          backgroundSize: `${Math.round(previewDesign.width * designScale)}px auto`,
+                          backgroundRepeat: 'repeat',
+                        }}
+                      />
+                    ) : (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={designUrl}
+                        alt="Your design"
+                        className="w-full h-full object-contain transition-transform duration-300 pointer-events-none"
+                        style={{ transform: `rotate(${rotationDegrees}deg)` }}
+                      />
+                    )}
                   </div>
                 )}
 
@@ -1905,8 +2009,8 @@ export function CreatePageClient() {
                 )}
               </div>
 
-              {/* Drag hint — only for Full Front where dragging is enabled */}
-              {designPlacement === 'center' && (
+              {/* Drag hint — only for non-sublimation Full Front */}
+              {designPlacement === 'center' && !isSublimation && (
                 <p className="text-xs text-gray-400 text-center mt-2">
                   {(designOffset.x !== 0 || designOffset.y !== 0)
                     ? '↕ Position adjusted — drag to fine-tune'
@@ -1914,25 +2018,51 @@ export function CreatePageClient() {
                 </p>
               )}
 
-                  {/* Scale slider — shown for all products */}
+              {/* Pattern mode toggle — SUBLIMATION products only */}
+              {isSublimation && (
+                <div className="flex gap-2 w-full max-w-sm mt-4">
+                  <button
+                    onClick={() => {
+                      setPatternMode('single');
+                      setDesignScale(1.0);
+                    }}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-all ${patternMode === 'single' ? 'border-[#3eb489] bg-[#3eb489]/10 text-[#3eb489]' : 'border-gray-200 text-gray-500 bg-white'}`}
+                  >
+                    Single Image
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPatternMode('tile');
+                      setDesignScale(0.25);
+                    }}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-all ${patternMode === 'tile' ? 'border-[#3eb489] bg-[#3eb489]/10 text-[#3eb489]' : 'border-gray-200 text-gray-500 bg-white'}`}
+                  >
+                    Tile Pattern
+                  </button>
+                </div>
+              )}
+
+              {/* Scale slider — shown for all products */}
               {(designPlacement === 'center' || !showPlacementOptions) && (
-                <div className="w-full max-w-sm mt-5">
+                <div className="w-full max-w-sm mt-4">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-gray-500">Design size</span>
+                    <span className="text-xs text-gray-500">
+                      {isSublimation && patternMode === 'tile' ? 'Tile size' : 'Design size'}
+                    </span>
                     <span className="text-xs font-medium text-gray-700">{Math.round(designScale * 100)}%</span>
                   </div>
                   <input
                     type="range"
-                    min={isEmbroidery ? '0.2' : '0.3'}
-                    max={isEmbroidery ? '0.7' : '1.0'}
+                    min={isEmbroidery ? '0.2' : (isSublimation && patternMode === 'tile' ? '0.05' : '0.3')}
+                    max={isEmbroidery ? '0.7' : (isSublimation && patternMode === 'tile' ? '0.5' : '1.0')}
                     step="0.05"
                     value={designScale}
                     onChange={e => setDesignScale(parseFloat(e.target.value))}
                     className="w-full accent-[#3eb489]"
                   />
                   <div className="flex justify-between text-[10px] text-gray-300 mt-0.5">
-                    <span>Smaller</span>
-                    <span>Larger</span>
+                    <span>{isSublimation && patternMode === 'tile' ? 'Smaller tiles' : 'Smaller'}</span>
+                    <span>{isSublimation && patternMode === 'tile' ? 'Larger tiles' : 'Larger'}</span>
                   </div>
                 </div>
               )}
