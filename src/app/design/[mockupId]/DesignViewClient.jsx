@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { useCart } from '@/lib/CartContext';
@@ -11,8 +11,13 @@ const MERCH_MOGUL_THRESHOLD = 50_000_000;
 
 export function DesignViewClient({ mockupId }) {
   const router = useRouter();
-  const { user, getSessionToken, isInFarcaster, sdk } = useFarcaster();
+  const { user, getSessionToken, isInFarcaster, sdk, sessionToken } = useFarcaster();
   const { addItem } = useCart();
+
+  // Keep a ref that always holds the latest sessionToken so async handlers
+  // don't get stale closures when the Quick Auth flow finishes after render.
+  const sessionTokenRef = useRef(sessionToken);
+  useEffect(() => { sessionTokenRef.current = sessionToken; }, [sessionToken]);
 
   const [mockup, setMockup] = useState(null);
   const [creator, setCreator] = useState(null);
@@ -79,8 +84,21 @@ export function DesignViewClient({ mockupId }) {
   // ── Confirm purchase ───────────────────────────────────────────────────────
   const handleBuyConfirm = async () => {
     if (!selectedSize) { setBuyError('Please select a size.'); return; }
-    const sessionToken = getSessionToken();
-    if (!sessionToken) { setBuyError('Please connect your Farcaster account to buy.'); return; }
+
+    // Quick Auth is asynchronous — the token may not be ready the instant the
+    // user taps the button (especially on first page load via a shared link).
+    // Wait up to 5 s for it to arrive before surfacing an error.
+    let token = sessionTokenRef.current || getSessionToken();
+    if (!token && isInFarcaster) {
+      setBuyLoading(true);
+      setBuyError('');
+      for (let i = 0; i < 50 && !token; i++) {
+        await new Promise(r => setTimeout(r, 100));
+        token = sessionTokenRef.current;
+      }
+      if (!token) setBuyLoading(false);
+    }
+    if (!token) { setBuyError('Please connect your Farcaster account to buy.'); return; }
 
     setBuyLoading(true);
     setBuyError('');
@@ -93,7 +111,7 @@ export function DesignViewClient({ mockupId }) {
       const isOwnDesign = creator?.fid != null && user?.fid != null && creator.fid === user.fid;
       const saveRes = await fetch('/api/design-studio/save-order-request', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           productId: mockup.product_type,
           size: selectedSize,
