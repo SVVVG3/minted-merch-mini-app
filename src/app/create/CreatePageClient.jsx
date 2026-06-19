@@ -1149,7 +1149,7 @@ export function CreatePageClient() {
     );
     const profileButton = user?.pfpUrl ? (
       <button
-        onClick={() => setIsProfileModalOpen(true)}
+        onClick={() => { hapticImpact('light'); setIsProfileModalOpen(true); }}
         className="flex-shrink-0 w-11 h-11 rounded-full overflow-hidden border-2 border-[#3eb489] hover:opacity-90 transition-opacity"
         title="Profile"
       >
@@ -2656,7 +2656,7 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
 
       {/* Three-dot menu button — positioned over card top-right */}
       <button
-        onClick={(e) => { e.stopPropagation(); hapticSelection(); setMenuOpen(o => !o); setDeleteConfirm(false); setShowShareSub(false); }}
+        onClick={(e) => { e.stopPropagation(); try { sdk.haptics.selectionChanged(); } catch {} setMenuOpen(o => !o); setDeleteConfirm(false); setShowShareSub(false); }}
         className="absolute top-1.5 right-1.5 w-7 h-7 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md text-white text-base leading-none hover:bg-black/70 transition-colors"
         title="More options"
       >
