@@ -241,7 +241,11 @@ export function DesignViewClient({ mockupId }) {
             <p className="text-xs text-gray-400 mt-0.5">{techniqueLabel}</p>
           </div>
           <p className="text-sm font-bold text-[#3eb489]">
-            ${productConfig?.displayPrice?.toFixed(2) || '—'}
+            {shopifyVariants.length > 0
+              ? `$${parseFloat(shopifyVariants[0].price).toFixed(2)}`
+              : productConfig?.displayPrice
+                ? `$${productConfig.displayPrice.toFixed(2)}`
+                : '—'}
           </p>
         </div>
 
@@ -364,7 +368,11 @@ export function DesignViewClient({ mockupId }) {
               disabled={buyLoading || !selectedSize}
               className="w-full py-3.5 bg-[#3eb489] disabled:opacity-50 text-white font-semibold rounded-2xl transition-colors text-base"
             >
-              {buyLoading ? 'Adding to cart…' : `Add to Cart · $${productConfig?.displayPrice?.toFixed(2) || '—'}`}
+              {buyLoading ? 'Adding to cart…' : (() => {
+                const matched = shopifyVariants.find(v => v.title === selectedSize) || shopifyVariants[0];
+                const price = matched?.price ?? productConfig?.displayPrice;
+                return `Add to Cart · ${price ? `$${parseFloat(price).toFixed(2)}` : '—'}`;
+              })()}
             </button>
           </div>
         </div>
