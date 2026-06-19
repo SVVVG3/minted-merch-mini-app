@@ -821,10 +821,13 @@ export function CreatePageClient() {
           productId: selectedProduct.id,
           variantIds: (selectedColor?.variantIds || []).slice(0, 3),
           imageUrl: effectiveDesignUrl,
-          // For all-over print, the design (or pre-generated tile) always fills the full area
           designScale: isSublimation ? 1.0 : designScale,
           designPlacement,
           technique: selectedTechnique || selectedProduct.technique || null,
+          // Tell create-task the imageUrl is a pre-built tile composite sized to the print area.
+          // Only true for SUBLIMATION tile mode — the composite already has the correct aspect ratio
+          // so create-task can safely use aw×ah placement without stretching.
+          fillPrintArea: isSublimation && patternMode === 'tile',
           // Normalized drag offset: fraction of print-area dims, 0 = centered.
           // Only relevant for center placement; server ignores for leftchest.
           designOffsetX: printAreaDims.current.paW > 0 ? designOffset.x / printAreaDims.current.paW : 0,

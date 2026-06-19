@@ -16,7 +16,9 @@ export async function POST(request) {
     // printfiles endpoint — this guarantees we use the correct printfile coordinate
     // system and eliminates client/template-pixel vs printfile-pixel mismatches.
     // technique is optional — lets the client override the config (e.g. hoodie DTG vs EMBROIDERY)
-    const { productId, variantIds, imageUrl, designScale, designPlacement, technique, designOffsetX, designOffsetY } = await request.json();
+    // fillPrintArea: true when the imageUrl is a pre-built tile composite that matches the
+    // print-area aspect ratio (from buildTiledImageUrl). False for single-image uploads.
+    const { productId, variantIds, imageUrl, designScale, designPlacement, technique, designOffsetX, designOffsetY, fillPrintArea } = await request.json();
 
     const productConfig = getProductConfig(productId);
     if (!productConfig) {
@@ -58,15 +60,34 @@ export async function POST(request) {
         const aw = pf.width;
         const ah = pf.height;
 
-        // All-over print (CUT-SEW / SUBLIMATION) — fill the full print area in both dimensions.
-        // Using Math.min(aw, ah) would create a square and leave blank strips on non-square products
-        // like the pet collar bandana (landscape orientation).
-        const isAllOverPrint = effectiveTechnique === 'CUT-SEW' || effectiveTechnique === 'SUBLIMATION';
+        // All-over print handling:
+        //
+        // CUT-SEW (bandana): printfile canvas is wider than the square product due to seam
+        //   allowances, so always use Math.min(aw, ah) to keep the design proportional.
+        //
+        // SUBLIMATION single image (pet collar): design is a square upload on a landscape product.
+        //   Using aw×ah stretches it. Use Math.min(aw, ah) centered to avoid distortion.
+        //
+        // SUBLIMATION tile composite (pet collar): buildTiledImageUrl already created the canvas
+        //   at the correct landscape aspect ratio, so aw×ah fills it perfectly — no stretching.
+        //   Client sets fillPrintArea=true when it sends a tile composite.
+        const isCutSew        = effectiveTechnique === 'CUT-SEW';
+        const isSublimationOp = effectiveTechnique === 'SUBLIMATION';
+        const isAllOverPrint  = isCutSew || isSublimationOp;
 
         if (isAllOverPrint) {
           const scale = typeof designScale === 'number' && designScale > 0 ? designScale : 1.0;
-          const w = Math.round(aw * scale);
-          const h = Math.round(ah * scale);
+          let w, h;
+          if (fillPrintArea && isSublimationOp) {
+            // Tile composite already matches the print area shape — fill both axes
+            w = Math.round(aw * scale);
+            h = Math.round(ah * scale);
+          } else {
+            // Single image (or CUT-SEW): square placement on shorter axis avoids stretching
+            const shorter = Math.min(aw, ah);
+            w = Math.round(shorter * scale);
+            h = Math.round(shorter * scale);
+          }
           resolvedPosition = {
             area_width: aw,
             area_height: ah,
@@ -75,7 +96,7 @@ export async function POST(request) {
             top:  Math.round((ah - h) / 2),
             left: Math.round((aw - w) / 2),
           };
-          console.log(`📐 All-over print position (scale=${scale}, ${aw}×${ah}): w=${w}, h=${h}`);
+          console.log(`📐 All-over print position (${effectiveTechnique}, scale=${scale}, fillPrintArea=${!!fillPrintArea}, ${aw}×${ah}): w=${w}, h=${h}`);
         } else if (designPlacement === 'leftchest' && productConfig.id !== 'hat') {
           // "Left chest" = wearer's LEFT chest = viewer's RIGHT side of the template image.
           // Position: upper-right quadrant, roughly 60% from left edge.
