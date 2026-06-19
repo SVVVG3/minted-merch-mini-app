@@ -58,7 +58,25 @@ export async function POST(request) {
         const aw = pf.width;
         const ah = pf.height;
 
-        if (designPlacement === 'leftchest' && productConfig.id !== 'hat') {
+        // All-over print (CUT-SEW / SUBLIMATION) — fill the full print area in both dimensions.
+        // Using Math.min(aw, ah) would create a square and leave blank strips on non-square products
+        // like the pet collar bandana (landscape orientation).
+        const isAllOverPrint = effectiveTechnique === 'CUT-SEW' || effectiveTechnique === 'SUBLIMATION';
+
+        if (isAllOverPrint) {
+          const scale = typeof designScale === 'number' && designScale > 0 ? designScale : 1.0;
+          const w = Math.round(aw * scale);
+          const h = Math.round(ah * scale);
+          resolvedPosition = {
+            area_width: aw,
+            area_height: ah,
+            width: w,
+            height: h,
+            top:  Math.round((ah - h) / 2),
+            left: Math.round((aw - w) / 2),
+          };
+          console.log(`📐 All-over print position (scale=${scale}, ${aw}×${ah}): w=${w}, h=${h}`);
+        } else if (designPlacement === 'leftchest' && productConfig.id !== 'hat') {
           // "Left chest" = wearer's LEFT chest = viewer's RIGHT side of the template image.
           // Position: upper-right quadrant, roughly 60% from left edge.
           const size = Math.round(Math.min(aw, ah) * 0.28);

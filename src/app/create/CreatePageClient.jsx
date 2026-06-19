@@ -244,15 +244,29 @@ async function buildTiledImageUrl(designUrl, printAreaAspect, tileScale, session
 
   URL.revokeObjectURL(objectUrl);
 
+  // Detect transparency: sample a region of the canvas after drawing.
+  // If any pixel has alpha < 255 we must output PNG — JPEG has no alpha channel
+  // and would fill transparent areas with black.
+  const sampleW = Math.min(canvas.width, 300);
+  const sampleH = Math.min(canvas.height, 300);
+  const sampleData = ctx.getImageData(0, 0, sampleW, sampleH).data;
+  let hasAlpha = false;
+  for (let i = 3; i < sampleData.length; i += 4) {
+    if (sampleData[i] < 255) { hasAlpha = true; break; }
+  }
+  const tileMimeType = hasAlpha ? 'image/png' : 'image/jpeg';
+  const tileQuality  = hasAlpha ? undefined : 0.9;
+
   const tiledBlob = await new Promise((resolve, reject) => {
     canvas.toBlob(b => {
       if (b) resolve(b);
       else reject(new Error('canvas.toBlob returned null for tiled image'));
-    }, 'image/jpeg', 0.9);
+    }, tileMimeType, tileQuality);
   });
 
   const formData = new FormData();
-  formData.append('file', tiledBlob, 'design-tiled.jpg');
+  const tiledFilename = hasAlpha ? 'design-tiled.png' : 'design-tiled.jpg';
+  formData.append('file', tiledBlob, tiledFilename);
   const uploadRes = await fetch('/api/design-studio/upload', {
     method: 'POST',
     headers: { Authorization: `Bearer ${sessionToken}` },
