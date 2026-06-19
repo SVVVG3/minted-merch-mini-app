@@ -309,6 +309,10 @@ export function CreatePageClient() {
   const { user, getSessionToken, isInFarcaster, getPfpUrl } = useFarcaster();
   const { addItem } = useCart();
 
+  // Haptic helpers — fire-and-forget, silently no-op outside Farcaster
+  const hapticImpact = (style = 'light') => { try { sdk.haptics.impactOccurred(style); } catch {} };
+  const hapticSelection = () => { try { sdk.haptics.selectionChanged(); } catch {} };
+
   // ─── Step state ──────────────────────────────────────────────────────────
   const [step, setStep] = useState('product');
 
@@ -785,6 +789,7 @@ export function CreatePageClient() {
   // Position is always computed server-side from Printful printfile coordinates.
   // We only send designScale and designPlacement so the server can calculate it.
   const handleGenerate = async () => {
+    hapticImpact('medium');
     const sessionToken = getSessionToken();
     if (!sessionToken) { setError('Please sign in to generate a mockup.'); return; }
     setError('');
@@ -1190,6 +1195,7 @@ export function CreatePageClient() {
               <button
                 key={product.id}
                 onClick={() => {
+                  hapticImpact('medium');
                   setSelectedProduct(product);
                   setSelectedTechnique(null);
                   setDesignScale(product.defaultScale ?? 0.85);
@@ -1293,7 +1299,7 @@ export function CreatePageClient() {
                 {(shopifyVariants.length > 0 ? shopifyVariants : (selectedProduct?.sizes || []).map(s => ({ id: s, title: s }))).map(variant => (
                   <button
                     key={variant.id || variant.title}
-                    onClick={() => setSelectedSize(variant.title)}
+                    onClick={() => { hapticSelection(); setSelectedSize(variant.title); }}
                     className={`py-3 rounded-xl border-2 font-semibold text-sm transition-colors ${
                       selectedSize === variant.title
                         ? 'border-[#3eb489] bg-[#3eb489]/10 text-[#2a7a5c]'
@@ -1354,6 +1360,7 @@ export function CreatePageClient() {
             {/* DTG */}
             <button
               onClick={() => {
+                hapticImpact('medium');
                 setSelectedTechnique('DTG');
                 setDesignScale(0.85);
                 loadColors(selectedProduct);
@@ -1378,6 +1385,7 @@ export function CreatePageClient() {
             {/* Embroidery */}
             <button
               onClick={() => {
+                hapticImpact('medium');
                 setSelectedTechnique('EMBROIDERY');
                 setDesignScale(0.45);
                 setDesignPlacement('center');
@@ -1424,7 +1432,7 @@ export function CreatePageClient() {
                 {colors.map(color => (
                   <button
                     key={color.name}
-                    onClick={() => { setSelectedColor(color); setStep('upload'); }}
+                    onClick={() => { hapticSelection(); setSelectedColor(color); setStep('upload'); }}
                     title={color.name}
                     className="flex flex-col items-center gap-1.5 group"
                   >
@@ -1933,13 +1941,13 @@ export function CreatePageClient() {
           {showPlacementOptions && (
             <div className="flex gap-2 mb-4 w-full max-w-sm">
               <button
-                onClick={() => setDesignPlacement('center')}
+                onClick={() => { hapticSelection(); setDesignPlacement('center'); }}
                 className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-all ${designPlacement === 'center' ? 'border-[#3eb489] bg-[#3eb489]/10 text-[#3eb489]' : 'border-gray-200 text-gray-500 bg-white'}`}
               >
                 ⬜ Full Front
               </button>
               <button
-                onClick={() => setDesignPlacement('leftchest')}
+                onClick={() => { hapticSelection(); setDesignPlacement('leftchest'); }}
                 className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-all ${designPlacement === 'leftchest' ? 'border-[#3eb489] bg-[#3eb489]/10 text-[#3eb489]' : 'border-gray-200 text-gray-500 bg-white'}`}
               >
                 ◻ Left Chest
@@ -2073,6 +2081,7 @@ export function CreatePageClient() {
                 <div className="flex gap-2 w-full max-w-sm mt-4">
                   <button
                     onClick={() => {
+                      hapticSelection();
                       setPatternMode('single');
                       setDesignScale(1.0);
                     }}
@@ -2082,6 +2091,7 @@ export function CreatePageClient() {
                   </button>
                   <button
                     onClick={() => {
+                      hapticSelection();
                       setPatternMode('tile');
                       setDesignScale(0.25);
                     }}
@@ -2129,7 +2139,7 @@ export function CreatePageClient() {
 
               {/* Rotate button */}
               <button
-                onClick={() => setRotationDegrees(d => (d + (isSublimation ? 45 : 90)) % 360)}
+                onClick={() => { hapticImpact('light'); setRotationDegrees(d => (d + (isSublimation ? 45 : 90)) % 360); }}
                 className={`mt-3 flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all shadow-sm ${
                   rotationDegrees !== 0
                     ? 'bg-[#3eb489]/10 border-[#3eb489] text-[#3eb489]'
@@ -2160,7 +2170,7 @@ export function CreatePageClient() {
               </p>
               {/* Rotate button even without template */}
               <button
-                onClick={() => setRotationDegrees(d => (d + (isSublimation ? 45 : 90)) % 360)}
+                onClick={() => { hapticImpact('light'); setRotationDegrees(d => (d + (isSublimation ? 45 : 90)) % 360); }}
                 className={`mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all shadow-sm ${
                   rotationDegrees !== 0
                     ? 'bg-[#3eb489]/10 border-[#3eb489] text-[#3eb489]'
@@ -2257,7 +2267,7 @@ export function CreatePageClient() {
               <>
                 {/* Buy button */}
                 <button
-                  onClick={openBuySheet}
+                  onClick={() => { hapticImpact('medium'); openBuySheet(); }}
                   className="w-full flex items-center justify-center gap-2 py-4 bg-[#3eb489] hover:bg-[#34a078] text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2268,7 +2278,7 @@ export function CreatePageClient() {
 
                 {/* Share button */}
                 <button
-                  onClick={handleShare}
+                  onClick={() => { hapticImpact('light'); handleShare(); }}
                   className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 520 457" fill="currentColor">
@@ -2279,7 +2289,7 @@ export function CreatePageClient() {
 
                 {/* Create another */}
                 <button
-                  onClick={handleReset}
+                  onClick={() => { hapticImpact('light'); handleReset(); }}
                   className="w-full py-3.5 bg-white border-2 border-gray-200 hover:border-[#3eb489] text-gray-700 font-medium rounded-2xl transition-colors text-base"
                 >
                   🎨 Create Another
@@ -2646,7 +2656,7 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
 
       {/* Three-dot menu button — positioned over card top-right */}
       <button
-        onClick={(e) => { e.stopPropagation(); setMenuOpen(o => !o); setDeleteConfirm(false); setShowShareSub(false); }}
+        onClick={(e) => { e.stopPropagation(); hapticSelection(); setMenuOpen(o => !o); setDeleteConfirm(false); setShowShareSub(false); }}
         className="absolute top-1.5 right-1.5 w-7 h-7 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md text-white text-base leading-none hover:bg-black/70 transition-colors"
         title="More options"
       >
