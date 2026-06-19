@@ -586,10 +586,12 @@ export function CreatePageClient() {
     setTemplateLoading(true);
     setTemplate(null);
     try {
-      const variantId = color?.variantIds?.[0]; // may be undefined for SUBLIMATION products before auto-select
-      const rawTechnique = techniqueOverride || product.technique;
-      // Printful only accepts 'EMBROIDERY' as a technique override; DTG is the default
-      const effectiveTechnique = (rawTechnique === 'DTG' || rawTechnique === 'SUBLIMATION') ? null : rawTechnique;
+      const variantId = color?.variantIds?.[0]; // may be undefined before auto-select completes
+      // Use printfulTechnique when set (e.g. CUT-SEW for bandana) so the templates API
+      // calls Printful with the correct technique value.
+      const rawTechnique = techniqueOverride || product.printfulTechnique || product.technique;
+      // DTG is Printful's default — don't pass it explicitly
+      const effectiveTechnique = (rawTechnique === 'DTG') ? null : rawTechnique;
       const techniqueParam = effectiveTechnique ? `&technique=${effectiveTechnique}` : '';
       const variantParam   = variantId ? `?variantId=${variantId}${techniqueParam}` : `?${techniqueParam.replace(/^&/, '')}`;
       console.log(`🔍 Loading template for product ${product.printfulProductId}, variantId ${variantId ?? '(none)'}`);
@@ -1735,9 +1737,9 @@ export function CreatePageClient() {
   if (step === 'preview') {
     const PREVIEW_WIDTH = 280;
     const displayRatio = template ? PREVIEW_WIDTH / template.template_width : 1;
-    // Embroidery (hats always, hoodies when embroidery technique chosen) → no placement toggle
+    // Embroidery and all-over print (SUBLIMATION) have no placement choice — always full front
     const isEmbroidery = selectedProduct?.id === 'hat' || selectedTechnique === 'EMBROIDERY';
-    const showPlacementOptions = !isEmbroidery;
+    const showPlacementOptions = !isEmbroidery && !isSublimation;
 
     // Compute design position in preview coords
     let previewDesign = null;
@@ -1749,7 +1751,11 @@ export function CreatePageClient() {
       const paH = Math.round(template.print_area_height * displayRatio);
       printAreaBox = { top: paTop, left: paLeft, width: paW, height: paH };
 
-      if (designPlacement === 'leftchest' && showPlacementOptions) {
+      if (isSublimation) {
+        // All-over print — design fills the entire print area edge-to-edge
+        printAreaDims.current = { paW, paH, sz: Math.min(paW, paH) };
+        previewDesign = { top: paTop, left: paLeft, width: paW, height: paH };
+      } else if (designPlacement === 'leftchest' && showPlacementOptions) {
         // Wearer's LEFT chest = viewer's RIGHT side of the template image.
         // Mirror the server-side logic: left = 62% of print area width.
         const shorter = Math.min(paW, paH);

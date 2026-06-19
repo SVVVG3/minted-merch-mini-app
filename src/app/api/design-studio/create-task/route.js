@@ -30,9 +30,9 @@ export async function POST(request) {
     }
 
     // ── Fetch printfiles — authoritative source for placement name & dimensions ──
-    // Printful's technique param only accepts 'EMBROIDERY' (DTG is the default).
-    // Passing 'DTG' explicitly can return wrong data, so normalize it to null.
-    const rawTechnique = technique || productConfig.technique || null;
+    // Use product-specific Printful technique when available (e.g. CUT-SEW for bandana,
+    // SUBLIMATION for pet collar). DTG is Printful's default so we pass null for it.
+    const rawTechnique = productConfig.printfulTechnique || technique || productConfig.technique || null;
     const effectiveTechnique = (rawTechnique === 'DTG') ? null : rawTechnique;
     let resolvedPlacement = productConfig.placement;
     let resolvedPosition = null;

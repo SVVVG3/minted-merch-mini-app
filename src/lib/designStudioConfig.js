@@ -75,7 +75,8 @@ export const DESIGN_STUDIO_PRODUCTS = [
     displayPrice: 24.99,
     sizes: ['S', 'M', 'L'],
     placement: 'front',
-    technique: 'SUBLIMATION',
+    technique: 'SUBLIMATION',        // internal identifier (used for isSublimation check)
+    printfulTechnique: 'CUT-SEW',    // Printful API only accepts CUT-SEW for this product
     techniqueLabel: 'All-Over Print',
     defaultScale: 1.0,               // All-over print — design fills the full area
     note: null,
@@ -90,7 +91,8 @@ export const DESIGN_STUDIO_PRODUCTS = [
     displayPrice: 24.99,
     sizes: ['S', 'M', 'L', 'XL'],
     placement: 'front',
-    technique: 'SUBLIMATION',
+    technique: 'SUBLIMATION',        // internal identifier
+    printfulTechnique: 'SUBLIMATION', // Printful API technique for this product
     techniqueLabel: 'Sublimation',
     defaultScale: 1.0,               // All-over sublimation
     note: null,

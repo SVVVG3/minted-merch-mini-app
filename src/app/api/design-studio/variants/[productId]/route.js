@@ -24,7 +24,19 @@ export async function GET(request, { params }) {
       colorMap.get(v.color).variantIds.push(v.id);
     });
 
-    const colors = Array.from(colorMap.values());
+    let colors = Array.from(colorMap.values());
+
+    // All-over print products (e.g. bandana, pet collar) have size-only variants with no
+    // color/color_code. Collect all variant IDs under a single synthetic entry so the
+    // rest of the flow (loadTemplate, handleGenerate) still gets valid variantIds.
+    if (colors.length === 0 && variants.length > 0) {
+      colors = [{
+        name: 'All-Over Print',
+        code: '#ffffff',
+        variantIds: variants.map(v => v.id),
+        image: variants[0]?.image || null,
+      }];
+    }
 
     // Return a representative product image — prefer black variant, fall back to first
     const blackVariant = variants.find(v => v.color?.toLowerCase() === 'black')
