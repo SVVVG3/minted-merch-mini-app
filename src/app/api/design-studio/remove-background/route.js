@@ -3,7 +3,7 @@
  * Removes the background from an already-uploaded design image using the
  * Photoroom v2 API, then stores the result back to R2 and returns the URL.
  *
- * FREE for Merch Moguls (50M+ $mintedmerch staked).
+ * FREE for Merch Moguls (50M+ $mintedmerch staked), up to MOGUL_DAILY_LIMIT per UTC day.
  * PAID ($0.25 USDC) for everyone else — requires a verified on-chain transaction.
  *
  * Body JSON:
@@ -17,6 +17,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { uploadBufferToR2 } from '@/lib/r2Storage';
 
 const MERCH_MOGUL_THRESHOLD = 50_000_000;
+const MOGUL_DAILY_LIMIT     = 3;           // free bg removals per UTC calendar day
 const BG_REMOVAL_PRICE_USD  = 0.25;
 const PHOTOROOM_API_KEY     = process.env.PHOTOROOM_API_KEY;
 const PHOTOROOM_URL         = 'https://image-api.photoroom.com/v2/edit';
@@ -47,7 +48,36 @@ export async function POST(request) {
     return NextResponse.json({ error: 'designUrl is required' }, { status: 400 });
   }
 
-  // 4. Payment gate for non-Moguls
+  // 4a. Daily-use cap for Merch Moguls (free but rate-limited)
+  if (isMerchMogul) {
+    // Count free uses today (UTC calendar day). Free uses are stored with
+    // transaction_hash = NULL; PostgreSQL allows multiple NULLs in a UNIQUE column.
+    const todayUtc = new Date();
+    todayUtc.setUTCHours(0, 0, 0, 0);
+
+    const { count: usedToday, error: countErr } = await supabase
+      .from('bg_removal_payments')
+      .select('id', { count: 'exact', head: true })
+      .eq('fid', auth.fid)
+      .is('transaction_hash', null)
+      .gte('created_at', todayUtc.toISOString());
+
+    if (countErr) {
+      console.error(`❌ Daily-limit check failed for FID ${auth.fid}:`, countErr.message);
+      // Fail open — don't block the user if the DB query errors
+    } else if (usedToday >= MOGUL_DAILY_LIMIT) {
+      const remaining = `resets at midnight UTC`;
+      console.warn(`🚫 Mogul FID ${auth.fid} hit daily bg-removal limit (${usedToday}/${MOGUL_DAILY_LIMIT})`);
+      return NextResponse.json({
+        error: `You've used all ${MOGUL_DAILY_LIMIT} free background removals for today. Your limit ${remaining}.`,
+        dailyLimitReached: true,
+        limit: MOGUL_DAILY_LIMIT,
+        usedToday,
+      }, { status: 429 });
+    }
+  }
+
+  // 4b. Payment gate for non-Moguls
   if (!isMerchMogul) {
     if (!transactionHash) {
       return NextResponse.json({
@@ -140,6 +170,17 @@ export async function POST(request) {
   } catch (err) {
     console.error('❌ R2 upload error after bg removal:', err.message);
     return NextResponse.json({ error: 'Failed to save processed image. Please try again.' }, { status: 500 });
+  }
+
+  // Record free Mogul use (transaction_hash = NULL) so the daily counter is accurate
+  if (isMerchMogul) {
+    const { error: insertErr } = await supabase
+      .from('bg_removal_payments')
+      .insert({ fid: auth.fid, transaction_hash: null });
+    if (insertErr) {
+      // Non-fatal — log but don't fail the request
+      console.error(`⚠️ Failed to record Mogul free bg-removal for FID ${auth.fid}:`, insertErr.message);
+    }
   }
 
   console.log(`✅ Background removed + uploaded for FID ${auth.fid}: ${key}`);
