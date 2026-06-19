@@ -548,16 +548,18 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       </div>
 
       {/* Design Studio banner — below the sticky green bar */}
-      <div className="px-4 pt-4 pb-2">
+      <div className="px-4 pt-4 pb-2 flex justify-center">
         <Link
           href="/create"
-          className="block w-full rounded-2xl overflow-hidden shadow-md active:opacity-80 transition-opacity"
+          className="w-full max-w-sm block rounded-2xl overflow-hidden shadow-lg active:scale-[0.98] transition-transform bg-gradient-to-r from-purple-700 to-[#3eb489] p-[2px]"
         >
-          <img
-            src="/EnterTheMintedMerchDesignStudio.png"
-            alt="Enter the Minted Merch Design Studio"
-            className="w-full h-auto object-contain"
-          />
+          <div className="bg-gray-900 rounded-2xl px-5 py-4 flex items-center justify-center">
+            <img
+              src="/EnterTheMintedMerchDesignStudio.png"
+              alt="Enter the Minted Merch Design Studio"
+              className="w-full h-auto object-contain max-h-12"
+            />
+          </div>
         </Link>
       </div>
       
