@@ -206,10 +206,11 @@ async function rotateAndReupload(imageUrl, degrees, sessionToken) {
  *
  * @param {string}  designUrl        - R2/CDN URL of the design (proxied to avoid CORS)
  * @param {number}  printAreaAspect  - width / height of the product's print area
- * @param {number}  tileScale        - fraction of print-area width for each tile (0.1–0.5)
+ * @param {number}  tileScale        - fraction of print-area width for each tile (0.05–0.5)
  * @param {string}  sessionToken     - JWT for the upload endpoint
+ * @param {number}  [rotationDegrees=0] - clockwise rotation applied to each tile
  */
-async function buildTiledImageUrl(designUrl, printAreaAspect, tileScale, sessionToken) {
+async function buildTiledImageUrl(designUrl, printAreaAspect, tileScale, sessionToken, rotationDegrees = 0) {
   const proxyUrl = `/api/design-studio/proxy-image?url=${encodeURIComponent(designUrl)}`;
   const res = await fetch(proxyUrl);
   if (!res.ok) throw new Error(`Proxy fetch failed: ${res.status}`);
@@ -227,19 +228,43 @@ async function buildTiledImageUrl(designUrl, printAreaAspect, tileScale, session
   const canvasW = 2800;
   const canvasH = Math.max(1, Math.round(canvasW / (printAreaAspect || 1)));
 
+  // Each tile is `tileScale` × print area width; maintain design image aspect ratio
+  const tileW = Math.max(1, Math.round(canvasW * tileScale));
+  const tileH = Math.max(1, Math.round(tileW * (img.naturalHeight / (img.naturalWidth || 1))));
+
   const canvas = document.createElement('canvas');
   canvas.width  = canvasW;
   canvas.height = canvasH;
   const ctx = canvas.getContext('2d');
 
-  // Each tile is `tileScale` × print area width; maintain design image aspect ratio
-  const tileW = Math.max(1, Math.round(canvasW * tileScale));
-  const tileH = Math.max(1, Math.round(tileW * (img.naturalHeight / (img.naturalWidth || 1))));
-
-  for (let y = 0; y < canvasH; y += tileH) {
-    for (let x = 0; x < canvasW; x += tileW) {
-      ctx.drawImage(img, x, y, tileW, tileH);
+  if (rotationDegrees === 0) {
+    // No rotation — tile directly
+    for (let y = 0; y < canvasH; y += tileH) {
+      for (let x = 0; x < canvasW; x += tileW) {
+        ctx.drawImage(img, x, y, tileW, tileH);
+      }
     }
+  } else {
+    // Build oversized canvas (2×), fill with tiles, then rotate into the final canvas.
+    // The 2× size guarantees no blank corners even at 45°.
+    const overW = canvasW * 2;
+    const overH = canvasH * 2;
+    const overCanvas = document.createElement('canvas');
+    overCanvas.width  = overW;
+    overCanvas.height = overH;
+    const overCtx = overCanvas.getContext('2d');
+    for (let y = 0; y < overH; y += tileH) {
+      for (let x = 0; x < overW; x += tileW) {
+        overCtx.drawImage(img, x, y, tileW, tileH);
+      }
+    }
+    // Rotate the oversized canvas into the final canvas
+    const rotRad = (rotationDegrees * Math.PI) / 180;
+    ctx.save();
+    ctx.translate(canvasW / 2, canvasH / 2);
+    ctx.rotate(rotRad);
+    ctx.drawImage(overCanvas, -overW / 2, -overH / 2, overW, overH);
+    ctx.restore();
   }
 
   URL.revokeObjectURL(objectUrl);
@@ -768,21 +793,22 @@ export function CreatePageClient() {
       // Apply rotation BEFORE entering the generating step so that any failure
       // is visible on the preview screen rather than silently ignored.
       let effectiveDesignUrl = designUrl;
-      if (rotationDegrees !== 0) {
-        setError('Applying rotation…');
-        effectiveDesignUrl = await rotateAndReupload(designUrl, rotationDegrees, sessionToken);
-        setDesignUrl(effectiveDesignUrl); // bake in — future re-generates use the corrected URL
-        setRotationDegrees(0);
-        setError('');
-      }
-
-      // For all-over print tile pattern, build the tiled composite image first
       if (isSublimation && patternMode === 'tile') {
+        // Tile mode: rotation is baked into the composite canvas — skip rotateAndReupload
         setError('Building tile pattern…');
         const printAreaAspect = template
           ? (template.print_area_width / (template.print_area_height || 1))
           : 1;
-        effectiveDesignUrl = await buildTiledImageUrl(effectiveDesignUrl, printAreaAspect, designScale, sessionToken);
+        effectiveDesignUrl = await buildTiledImageUrl(
+          designUrl, printAreaAspect, designScale, sessionToken, rotationDegrees
+        );
+        setRotationDegrees(0); // baked into the tiled image
+        setError('');
+      } else if (rotationDegrees !== 0) {
+        setError('Applying rotation…');
+        effectiveDesignUrl = await rotateAndReupload(designUrl, rotationDegrees, sessionToken);
+        setDesignUrl(effectiveDesignUrl); // bake in — future re-generates use the corrected URL
+        setRotationDegrees(0);
         setError('');
       }
 
@@ -1991,13 +2017,20 @@ export function CreatePageClient() {
                     onPointerCancel={() => { isDragging.current = false; }}
                   >
                     {isSublimation && patternMode === 'tile' ? (
-                      // CSS repeat tile preview — background-size controls tile count
+                      // Oversized inner div (2×) fills beyond the container edges so that
+                      // rotation at any angle (including 45°) never reveals blank corners.
+                      // The parent div has overflow:hidden to clip back to the print area.
                       <div
-                        className="w-full h-full pointer-events-none"
+                        className="absolute pointer-events-none"
                         style={{
+                          top: '-50%',
+                          left: '-50%',
+                          width: '200%',
+                          height: '200%',
                           backgroundImage: `url(${designUrl})`,
                           backgroundSize: `${Math.round(previewDesign.width * designScale)}px auto`,
                           backgroundRepeat: 'repeat',
+                          transform: rotationDegrees ? `rotate(${rotationDegrees}deg)` : undefined,
                         }}
                       />
                     ) : (
@@ -2093,7 +2126,7 @@ export function CreatePageClient() {
 
               {/* Rotate button */}
               <button
-                onClick={() => setRotationDegrees(d => (d + 90) % 360)}
+                onClick={() => setRotationDegrees(d => (d + (isSublimation ? 45 : 90)) % 360)}
                 className={`mt-3 flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all shadow-sm ${
                   rotationDegrees !== 0
                     ? 'bg-[#3eb489]/10 border-[#3eb489] text-[#3eb489]'
@@ -2103,7 +2136,7 @@ export function CreatePageClient() {
                 <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                Rotate 90°{rotationDegrees !== 0 && ` (${rotationDegrees}° applied)`}
+                Rotate {isSublimation ? '45°' : '90°'}{rotationDegrees !== 0 && ` (${rotationDegrees}° applied)`}
               </button>
 
               <p className="text-xs text-gray-400 text-center mt-2 px-4">
@@ -2124,7 +2157,7 @@ export function CreatePageClient() {
               </p>
               {/* Rotate button even without template */}
               <button
-                onClick={() => setRotationDegrees(d => (d + 90) % 360)}
+                onClick={() => setRotationDegrees(d => (d + (isSublimation ? 45 : 90)) % 360)}
                 className={`mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all shadow-sm ${
                   rotationDegrees !== 0
                     ? 'bg-[#3eb489]/10 border-[#3eb489] text-[#3eb489]'
@@ -2134,7 +2167,7 @@ export function CreatePageClient() {
                 <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                Rotate 90°{rotationDegrees !== 0 && ` (${rotationDegrees}° applied)`}
+                Rotate {isSublimation ? '45°' : '90°'}{rotationDegrees !== 0 && ` (${rotationDegrees}° applied)`}
               </button>
               {/* Embroidery warning even without template */}
               {isEmbroidery && (
