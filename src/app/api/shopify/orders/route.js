@@ -1503,6 +1503,52 @@ export async function POST(request) {
               console.error(`❌ Printful draft order failed for ${designRequestId}:`, result.error);
             }
           });
+
+          // Fire-and-forget: grant Merch Mogul royalty ONLY after confirmed payment.
+          // We look up the design request to find the creator, then check their
+          // Mogul status before inserting a royalty credit.
+          (async () => {
+            const MERCH_MOGUL_THRESHOLD = 50_000_000;
+            const ROYALTY_AMOUNT = 1_000_000;
+            try {
+              const { supabaseAdmin } = await import('@/lib/supabase');
+              // Fetch the design request to find creator_fid and buyer_fid
+              const { data: dr } = await supabaseAdmin
+                .from('design_order_requests')
+                .select('creator_fid, fid')
+                .eq('id', designRequestId)
+                .single();
+              const creatorFid = dr?.creator_fid;
+              const buyerFid   = dr?.fid;
+              if (!creatorFid || creatorFid === buyerFid) return; // no cross-creator purchase
+              // Check Mogul status
+              const { data: creatorProfile } = await supabaseAdmin
+                .from('profiles')
+                .select('staked_balance')
+                .eq('fid', creatorFid)
+                .single();
+              if (!creatorProfile || Number(creatorProfile.staked_balance) < MERCH_MOGUL_THRESHOLD) {
+                console.log(`ℹ️ Creator FID ${creatorFid} not a Merch Mogul — no royalty`);
+                return;
+              }
+              const { error: royaltyError } = await supabaseAdmin
+                .from('creator_royalties')
+                .insert({
+                  creator_fid: creatorFid,
+                  buyer_fid: buyerFid,
+                  design_order_request_id: designRequestId,
+                  mintedmerch_amount: ROYALTY_AMOUNT,
+                  status: 'pending',
+                });
+              if (royaltyError) {
+                console.error(`⚠️ Royalty insert error for design ${designRequestId}:`, royaltyError);
+              } else {
+                console.log(`💎 Royalty granted: ${ROYALTY_AMOUNT.toLocaleString()} $MM for FID ${creatorFid} (order ${shopifyOrder.name})`);
+              }
+            } catch (royaltyErr) {
+              console.error(`⚠️ Royalty post-payment check failed for ${designRequestId}:`, royaltyErr.message);
+            }
+          })();
         }
       }
 

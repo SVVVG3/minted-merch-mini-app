@@ -78,43 +78,9 @@ export async function POST(request) {
     const designRequestId = data.id;
     console.log(`✅ Design order request saved — FID: ${fid}, product: ${productId}, id: ${designRequestId}${creatorFid && creatorFid !== fid ? `, creatorFid: ${creatorFid}` : ''}`);
 
-    // ── Merch Mogul royalty credit ─────────────────────────────────────────
-    // If this is a cross-creator purchase and the creator has 50M+ staked,
-    // create a pending royalty credit of 1M $mintedmerch.
-    const MERCH_MOGUL_THRESHOLD = 50_000_000;
-    const ROYALTY_AMOUNT = 1_000_000;
-
-    if (creatorFid && creatorFid !== fid) {
-      try {
-        const { data: creatorProfile } = await supabase
-          .from('profiles')
-          .select('staked_balance')
-          .eq('fid', creatorFid)
-          .single();
-
-        if (creatorProfile?.staked_balance != null &&
-            Number(creatorProfile.staked_balance) >= MERCH_MOGUL_THRESHOLD) {
-          const { error: royaltyError } = await supabase
-            .from('creator_royalties')
-            .insert({
-              creator_fid: creatorFid,
-              buyer_fid: fid,
-              design_order_request_id: designRequestId,
-              mintedmerch_amount: ROYALTY_AMOUNT,
-              status: 'pending',
-            });
-          if (royaltyError) {
-            console.error('⚠️ Royalty insert error (non-fatal):', royaltyError);
-          } else {
-            console.log(`💎 Merch Mogul royalty queued: ${ROYALTY_AMOUNT.toLocaleString()} $mintedmerch for FID ${creatorFid}`);
-          }
-        } else {
-          console.log(`ℹ️ Creator FID ${creatorFid} is not a Merch Mogul (staked: ${creatorProfile?.staked_balance ?? 0}) — no royalty`);
-        }
-      } catch (royaltyErr) {
-        console.error('⚠️ Royalty check failed (non-fatal):', royaltyErr.message);
-      }
-    }
+    // NOTE: Merch Mogul royalty is created in /api/shopify/orders AFTER payment is
+    // confirmed — NOT here at cart-add time, to avoid phantom royalties for
+    // abandoned carts.
 
     return NextResponse.json({ id: designRequestId });
 
