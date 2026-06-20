@@ -349,11 +349,21 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       // Decode JWT to check expiration (JWT format: header.payload.signature)
       const parts = token.split('.');
       if (parts.length !== 3) {
-        console.error('❌ Invalid JWT format');
+        console.error('❌ Invalid JWT format — clearing stale token');
+        if (typeof localStorage !== 'undefined') localStorage.removeItem('fc_session_token');
         return null;
       }
       
-      const payload = JSON.parse(atob(parts[1]));
+      let payload;
+      try {
+        payload = JSON.parse(atob(parts[1]));
+      } catch {
+        // Token is structurally invalid (bad base64 etc.) — don't use it
+        console.error('❌ JWT payload could not be decoded — clearing stale token');
+        if (typeof localStorage !== 'undefined') localStorage.removeItem('fc_session_token');
+        return null;
+      }
+
       const expiresAt = payload.exp * 1000; // Convert to milliseconds
       const now = Date.now();
       
@@ -392,8 +402,10 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       
       return token; // Token is still valid
     } catch (error) {
-      console.error('❌ Error checking JWT expiration:', error);
-      return token; // Return original token as fallback
+      // Unknown error — do NOT return the original token; it may be invalid
+      console.error('❌ Error validating JWT — clearing token to be safe:', error);
+      if (typeof localStorage !== 'undefined') localStorage.removeItem('fc_session_token');
+      return null;
     }
   };
 
@@ -818,6 +830,12 @@ export function CheckoutFlow({ checkoutData, onBack }) {
       setIsUSDCProcessing(true);
       setUSDCError(null);
 
+      // Validate / refresh token BEFORE initiating any on-chain transaction
+      const preflightToken = await ensureValidToken();
+      if (!preflightToken) {
+        throw new Error('Your session has expired. Please refresh the page and try again.');
+      }
+
       if (!isConnected) {
         throw new Error('Please connect your wallet to continue');
       }
@@ -869,6 +887,13 @@ export function CheckoutFlow({ checkoutData, onBack }) {
 
   const handleWalletConnectPayment = async () => {
     try {
+      // Validate / refresh token BEFORE initiating any on-chain transaction
+      const preflightToken = await ensureValidToken();
+      if (!preflightToken) {
+        setWalletConnectError('Your session has expired. Please refresh the page and try again.');
+        return;
+      }
+
       console.log('🔍 WalletConnect payment check:', {
         isWalletConnected,
         walletConnectAddress,
@@ -1098,6 +1123,12 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     try {
       setIsFreeOrderClaiming(true);
       setFreeOrderClaimError(null);
+
+      // Validate / refresh token BEFORE initiating any signing
+      const preflightToken = await ensureValidToken();
+      if (!preflightToken) {
+        throw new Error('Your session has expired. Please refresh the page and try again.');
+      }
       
       console.log('🆓 Starting free order claim process...');
       
@@ -1421,7 +1452,7 @@ Transaction Hash: ${txHashOverride || transactionHash}`;
         } : null
       };
 
-      const sessionToken = getSessionToken();
+      const sessionToken = (await ensureValidToken()) || getSessionToken();
       const response = await fetch('/api/shopify/orders', {
         method: 'POST',
         headers: {
