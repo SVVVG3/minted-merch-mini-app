@@ -1943,22 +1943,22 @@ export function CreatePageClient() {
           height: sz,
         };
       } else {
-        // Centered — scale off shorter axis, then apply image aspect ratio so the
-        // preview box matches exactly what Printful will render (no more squashing).
-        const shorter = Math.min(paW, paH);
-        const maxSz = Math.round(shorter * designScale);
-        // Effective aspect: swap if 90°/270° rotation is live (not yet baked in)
+        // Centered — scale = 1.0 means "fit to print area" preserving aspect ratio.
+        // Effective aspect: swap if 90°/270° rotation is live (not yet baked in).
         const effectiveAspect = (rotationDegrees === 90 || rotationDegrees === 270)
           ? (designAspect !== 0 ? 1 / designAspect : 1)
           : designAspect;
-        let dw, dh;
-        if (effectiveAspect >= 1) {
-          dw = maxSz;
-          dh = Math.round(maxSz / effectiveAspect);
+        // Max fit within paW × paH
+        let maxFitW, maxFitH;
+        if (effectiveAspect >= paW / paH) {
+          maxFitW = paW;
+          maxFitH = paW / effectiveAspect;
         } else {
-          dh = maxSz;
-          dw = Math.round(maxSz * effectiveAspect);
+          maxFitH = paH;
+          maxFitW = paH * effectiveAspect;
         }
+        let dw = Math.round(maxFitW * designScale);
+        let dh = Math.round(maxFitH * designScale);
         // Clamp drag offset so design stays fully within the print area
         const maxX = Math.max(0, (paW - dw) / 2);
         const maxY = Math.max(0, (paH - dh) / 2);

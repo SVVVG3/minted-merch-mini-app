@@ -113,24 +113,28 @@ export async function POST(request) {
         } else {
           // Centered full-front (or hat embroidery), with optional drag offset.
           // Use imageAspect (naturalWidth / naturalHeight, already accounting for rotation)
-          // to compute proportional width × height instead of always using a square.
-          // This prevents portrait images from being squashed to fit a square box.
+          // to compute proportional width × height.
+          //
+          // Scale = 1.0 (100%) means "fit to print area" — the image fills as much of
+          // aw × ah as possible while preserving aspect ratio. Smaller scale values
+          // shrink proportionally from that maximum.
           const scale = typeof designScale === 'number' && designScale > 0
             ? designScale
             : (productConfig.defaultScale ?? (effectiveTechnique === 'EMBROIDERY' ? 0.45 : 0.85));
-          const shorter = Math.min(aw, ah);
-          const maxSz = Math.round(shorter * scale);
           const aspect = typeof imageAspect === 'number' && imageAspect > 0 ? imageAspect : 1;
-          let dw, dh;
-          if (aspect >= 1) {
-            // Landscape or square image: constrain by width
-            dw = maxSz;
-            dh = Math.round(maxSz / aspect);
+          // Maximum size that fits within aw × ah preserving aspect ratio
+          let maxFitW, maxFitH;
+          if (aspect >= aw / ah) {
+            // Image is wider than the print area's own aspect → constrain by width
+            maxFitW = aw;
+            maxFitH = aw / aspect;
           } else {
-            // Portrait image: constrain by height
-            dh = maxSz;
-            dw = Math.round(maxSz * aspect);
+            // Image is taller → constrain by height
+            maxFitH = ah;
+            maxFitW = ah * aspect;
           }
+          let dw = Math.round(maxFitW * scale);
+          let dh = Math.round(maxFitH * scale);
           // designOffsetX/Y are normalized fractions of the print area (from client drag).
           // Clamp so design always stays fully inside the print area.
           const maxOffX = Math.max(0, (aw - dw) / 2);
