@@ -18,7 +18,7 @@ export async function POST(request) {
     // technique is optional — lets the client override the config (e.g. hoodie DTG vs EMBROIDERY)
     // fillPrintArea: true when the imageUrl is a pre-built tile composite that matches the
     // print-area aspect ratio (from buildTiledImageUrl). False for single-image uploads.
-    const { productId, variantIds, imageUrl, designScale, designPlacement, technique, designOffsetX, designOffsetY, fillPrintArea } = await request.json();
+    const { productId, variantIds, imageUrl, designScale, designPlacement, technique, designOffsetX, designOffsetY, fillPrintArea, imageAspect } = await request.json();
 
     const productConfig = getProductConfig(productId);
     if (!productConfig) {
@@ -111,15 +111,30 @@ export async function POST(request) {
           };
           console.log(`📐 Left-chest position (${aw}×${ah}): size=${size}, top=${resolvedPosition.top}, left=${resolvedPosition.left}`);
         } else {
-          // Centered full-front (or hat embroidery), with optional drag offset
+          // Centered full-front (or hat embroidery), with optional drag offset.
+          // Use imageAspect (naturalWidth / naturalHeight, already accounting for rotation)
+          // to compute proportional width × height instead of always using a square.
+          // This prevents portrait images from being squashed to fit a square box.
           const scale = typeof designScale === 'number' && designScale > 0
             ? designScale
             : (productConfig.defaultScale ?? (effectiveTechnique === 'EMBROIDERY' ? 0.45 : 0.85));
-          const size = Math.round(Math.min(aw, ah) * scale);
+          const shorter = Math.min(aw, ah);
+          const maxSz = Math.round(shorter * scale);
+          const aspect = typeof imageAspect === 'number' && imageAspect > 0 ? imageAspect : 1;
+          let dw, dh;
+          if (aspect >= 1) {
+            // Landscape or square image: constrain by width
+            dw = maxSz;
+            dh = Math.round(maxSz / aspect);
+          } else {
+            // Portrait image: constrain by height
+            dh = maxSz;
+            dw = Math.round(maxSz * aspect);
+          }
           // designOffsetX/Y are normalized fractions of the print area (from client drag).
           // Clamp so design always stays fully inside the print area.
-          const maxOffX = Math.max(0, (aw - size) / 2);
-          const maxOffY = Math.max(0, (ah - size) / 2);
+          const maxOffX = Math.max(0, (aw - dw) / 2);
+          const maxOffY = Math.max(0, (ah - dh) / 2);
           const offX = typeof designOffsetX === 'number'
             ? Math.max(-maxOffX, Math.min(maxOffX, Math.round(designOffsetX * aw)))
             : 0;
@@ -129,12 +144,12 @@ export async function POST(request) {
           resolvedPosition = {
             area_width: aw,
             area_height: ah,
-            width: size,
-            height: size,
-            top:  Math.round((ah - size) / 2) + offY,
-            left: Math.round((aw - size) / 2) + offX,
+            width: dw,
+            height: dh,
+            top:  Math.round((ah - dh) / 2) + offY,
+            left: Math.round((aw - dw) / 2) + offX,
           };
-          console.log(`📐 Centered position (scale=${scale}, ${aw}×${ah}): size=${size}, offX=${offX}, offY=${offY}`);
+          console.log(`📐 Centered position (scale=${scale}, aspect=${aspect.toFixed(3)}, ${aw}×${ah}): dw=${dw}, dh=${dh}, offX=${offX}, offY=${offY}`);
         }
       }
     } catch (pfError) {

@@ -347,6 +347,11 @@ export function CreatePageClient() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Natural dimensions of the loaded design image — used to preserve aspect ratio
+  // when computing both the live preview box and the Printful position payload.
+  const [designAspect, setDesignAspect] = useState(1); // naturalWidth / naturalHeight
+  const designImgRef = useRef(null);
+
   // Template / live preview
   const [template, setTemplate] = useState(null);
   const [templateLoading, setTemplateLoading] = useState(false);
@@ -848,6 +853,12 @@ export function CreatePageClient() {
           // Only relevant for center placement; server ignores for leftchest.
           designOffsetX: printAreaDims.current.paW > 0 ? designOffset.x / printAreaDims.current.paW : 0,
           designOffsetY: printAreaDims.current.paH > 0 ? designOffset.y / printAreaDims.current.paH : 0,
+          // Image aspect ratio (naturalWidth / naturalHeight) AFTER any rotation has been baked in.
+          // 90°/270° swaps the axes; 0°/180° keep the original ratio.
+          // create-task uses this to compute a proportional width×height (not a square).
+          imageAspect: (rotationDegrees === 90 || rotationDegrees === 270)
+            ? (designAspect !== 0 ? 1 / designAspect : 1)
+            : designAspect,
         }),
       });
       const data = await res.json();
@@ -955,6 +966,7 @@ export function CreatePageClient() {
     castImageProcessed.current = false;
     castAutoAdvanced.current = false;
     setRotationDegrees(0);
+    setDesignAspect(1);
     setCrop(null);
     setCompletedCrop(null);
     setCropMode('circle');
@@ -1931,21 +1943,34 @@ export function CreatePageClient() {
           height: sz,
         };
       } else {
-        // Centered — keep square, scaled off shorter axis; apply drag offset
+        // Centered — scale off shorter axis, then apply image aspect ratio so the
+        // preview box matches exactly what Printful will render (no more squashing).
         const shorter = Math.min(paW, paH);
-        const sz = Math.round(shorter * designScale);
-        // Clamp offset so design stays fully within the print area
-        const maxX = Math.max(0, (paW - sz) / 2);
-        const maxY = Math.max(0, (paH - sz) / 2);
+        const maxSz = Math.round(shorter * designScale);
+        // Effective aspect: swap if 90°/270° rotation is live (not yet baked in)
+        const effectiveAspect = (rotationDegrees === 90 || rotationDegrees === 270)
+          ? (designAspect !== 0 ? 1 / designAspect : 1)
+          : designAspect;
+        let dw, dh;
+        if (effectiveAspect >= 1) {
+          dw = maxSz;
+          dh = Math.round(maxSz / effectiveAspect);
+        } else {
+          dh = maxSz;
+          dw = Math.round(maxSz * effectiveAspect);
+        }
+        // Clamp drag offset so design stays fully within the print area
+        const maxX = Math.max(0, (paW - dw) / 2);
+        const maxY = Math.max(0, (paH - dh) / 2);
         const ox = Math.max(-maxX, Math.min(maxX, designOffset.x));
         const oy = Math.max(-maxY, Math.min(maxY, designOffset.y));
         // Keep printAreaDims ref up-to-date for pointer handlers
-        printAreaDims.current = { paW, paH, sz };
+        printAreaDims.current = { paW, paH, dw, dh, sz: Math.max(dw, dh) };
         previewDesign = {
-          top:  paTop  + Math.round((paH - sz) / 2) + oy,
-          left: paLeft + Math.round((paW - sz) / 2) + ox,
-          width: sz,
-          height: sz,
+          top:  paTop  + Math.round((paH - dh) / 2) + oy,
+          left: paLeft + Math.round((paW - dw) / 2) + ox,
+          width: dw,
+          height: dh,
         };
       }
     }
@@ -2038,9 +2063,9 @@ export function CreatePageClient() {
                     }}
                     onPointerMove={(e) => {
                       if (!isDragging.current) return;
-                      const { paW, paH, sz } = printAreaDims.current;
-                      const maxX = Math.max(0, (paW - sz) / 2);
-                      const maxY = Math.max(0, (paH - sz) / 2);
+                      const { paW, paH, dw, dh } = printAreaDims.current;
+                      const maxX = Math.max(0, (paW - (dw || 0)) / 2);
+                      const maxY = Math.max(0, (paH - (dh || 0)) / 2);
                       setDesignOffset({
                         x: Math.max(-maxX, Math.min(maxX, dragStart.current.ox + (e.clientX - dragStart.current.x))),
                         y: Math.max(-maxY, Math.min(maxY, dragStart.current.oy + (e.clientY - dragStart.current.y))),
@@ -2069,10 +2094,17 @@ export function CreatePageClient() {
                     ) : (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img
+                        ref={designImgRef}
                         src={designUrl}
                         alt="Your design"
                         className="w-full h-full object-contain transition-transform duration-300 pointer-events-none"
                         style={{ transform: `rotate(${rotationDegrees}deg)` }}
+                        onLoad={() => {
+                          const img = designImgRef.current;
+                          if (img && img.naturalWidth && img.naturalHeight) {
+                            setDesignAspect(img.naturalWidth / img.naturalHeight);
+                          }
+                        }}
                       />
                     )}
                   </div>
