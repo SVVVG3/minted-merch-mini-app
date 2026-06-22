@@ -188,7 +188,7 @@ export function DesignViewClient({ mockupId }) {
     const designUrl = `${APP_URL}/design/${mockupId}`;
     const creatorHandle = creator?.username ? `@${creator.username}` : 'a creator';
     const productLabel = productConfig?.label || mockup?.product_type || 'design';
-    const text = `Check out this custom ${productLabel} by ${creatorHandle} on @mintedmerch! 🎨\n\nBuy it or create your own 👇`;
+    const text = `Check out my custom merch design 👀\n\nCreate & order your own on @mintedmerch 👇`;
 
     if (isInFarcaster && sdk) {
       try {

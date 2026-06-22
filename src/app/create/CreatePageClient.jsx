@@ -924,7 +924,7 @@ export function CreatePageClient() {
   const shareToFarcaster = async (mockupImageUrl, mockupDbId) => {
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
     const deepLink = mockupDbId ? `${appUrl}/design/${mockupDbId}` : mockupImageUrl;
-    const text = `Check out my custom @mintedmerch design 👀\n\nBuy it or create your own 👇`;
+    const text = `Check out my custom merch design 👀\n\nCreate & order your own on @mintedmerch 👇`;
     if (isInFarcaster) {
       await sdk.actions.composeCast({ text, embeds: [deepLink] });
     } else {
@@ -2659,7 +2659,7 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
 
   // Build the deep-link URL for this mockup so viewers can tap straight to the buy page
   const designDeepLink = mockup.id ? `${appUrl}/design/${mockup.id}` : mockup.mockup_url;
-  const shareText = `Check out my custom @mintedmerch design 👀\n\nBuy it or create your own 👇\n${designDeepLink}`;
+  const shareText = `Check out my custom merch design 👀\n\nCreate & order your own on @mintedmerch 👇\n${designDeepLink}`;
 
   const closeMenu = () => {
     setMenuOpen(false);
