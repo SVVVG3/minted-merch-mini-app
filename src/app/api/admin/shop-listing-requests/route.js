@@ -11,7 +11,22 @@ export const GET = withAdminAuth(async () => {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    return NextResponse.json({ requests: requests || [] });
+    const rows = requests || [];
+
+    // Enrich with profile data
+    const fids = [...new Set(rows.map(r => r.fid).filter(Boolean))];
+    let profileMap = {};
+    if (fids.length > 0) {
+      const { data: profiles } = await supabaseAdmin
+        .from('profiles')
+        .select('fid, username, display_name, pfp_url, staked_balance')
+        .in('fid', fids);
+      if (profiles) profileMap = Object.fromEntries(profiles.map(p => [p.fid, p]));
+    }
+
+    const enriched = rows.map(r => ({ ...r, profile: profileMap[r.fid] || null }));
+
+    return NextResponse.json({ requests: enriched });
   } catch (err) {
     console.error('[admin/shop-listing-requests] GET error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

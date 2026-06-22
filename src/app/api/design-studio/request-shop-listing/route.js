@@ -9,6 +9,31 @@ const supabase = createClient(
 
 const MERCH_MOGUL_THRESHOLD = 50_000_000;
 
+// GET /api/design-studio/request-shop-listing?mockupId=xxx
+// Returns the current user's listing request status for this mockup (if any)
+export async function GET(request) {
+  const token = request.headers.get('authorization')?.replace('Bearer ', '');
+  const auth = await verifyFarcasterUser(token);
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const mockupId = searchParams.get('mockupId');
+  if (!mockupId) return NextResponse.json({ request: null });
+
+  const { data } = await supabase
+    .from('shop_listing_requests')
+    .select('id, status, created_at')
+    .eq('mockup_id', mockupId)
+    .eq('fid', auth.fid)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return NextResponse.json({ request: data || null });
+}
+
 export async function POST(request) {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
   const auth = await verifyFarcasterUser(token);

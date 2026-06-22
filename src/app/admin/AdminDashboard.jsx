@@ -3536,50 +3536,117 @@ export default function AdminDashboard() {
                     return <div className="px-6 py-12 text-center text-gray-400 text-sm">No {shopRequestsFilter === 'pending' ? 'pending ' : ''}shop listing requests.</div>;
                   }
                   return (
-                    <div className="divide-y divide-gray-100">
-                      {filtered.map(req => (
-                        <div key={req.id} className="px-6 py-4 flex items-start gap-4">
-                          {req.mockup_url && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={req.mockup_url} alt="mockup" className="w-16 h-16 rounded-xl object-cover flex-shrink-0 border border-gray-200" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-sm text-gray-900">@{req.username || `FID ${req.fid}`}</span>
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                                req.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                req.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                'bg-red-100 text-red-700'
-                              }`}>{req.status}</span>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {req.product_type}{req.color_name ? ` · ${req.color_name}` : ''}{req.technique ? ` · ${req.technique}` : ''}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-0.5">
-                              {new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                              {req.mockup_id && (
-                                <a href={`/design/${req.mockup_id}`} target="_blank" rel="noopener noreferrer" className="ml-2 text-[#3eb489] underline">View Design</a>
-                              )}
-                            </p>
-                          </div>
-                          {req.status === 'pending' && (
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <button
-                                onClick={() => updateShopRequestStatus(req.id, 'approved')}
-                                className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-lg"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => updateShopRequestStatus(req.id, 'rejected')}
-                                className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-lg"
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mockup</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Design File</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FID / User</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Color</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Technique</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {filtered.map(req => (
+                            <tr key={req.id} className="hover:bg-gray-50">
+                              {/* Mockup */}
+                              <td className="px-4 py-3">
+                                <div className="flex flex-col gap-1">
+                                  {req.mockup_url ? (
+                                    <a href={req.mockup_url} target="_blank" rel="noopener noreferrer">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={req.mockup_url} alt="mockup" className="w-16 h-16 object-contain rounded border border-gray-200 hover:opacity-80 transition-opacity" />
+                                    </a>
+                                  ) : (
+                                    <div className="w-16 h-16 bg-gray-100 rounded border border-gray-200 flex items-center justify-center text-gray-300 text-xs">No preview</div>
+                                  )}
+                                  {req.mockup_id && (
+                                    <a href={`/design/${req.mockup_id}`} target="_blank" rel="noopener noreferrer" className="text-[#3eb489] hover:underline text-xs">View Page</a>
+                                  )}
+                                </div>
+                              </td>
+                              {/* Design file */}
+                              <td className="px-4 py-3">
+                                {req.design_url ? (
+                                  <a href={req.design_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">View Design</a>
+                                ) : (
+                                  <span className="text-gray-300 text-xs">—</span>
+                                )}
+                              </td>
+                              {/* FID / User */}
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  {req.profile?.pfp_url && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={req.profile.pfp_url} alt="" className="w-7 h-7 rounded-full flex-shrink-0" />
+                                  )}
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900">{req.fid}</div>
+                                    <div className="text-xs text-gray-500">@{req.profile?.username || req.username || '—'}</div>
+                                    {req.profile?.staked_balance && (
+                                      <div className="text-xs text-purple-600">{(req.profile.staked_balance / 1_000_000).toFixed(1)}M staked</div>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              {/* Product */}
+                              <td className="px-4 py-3 text-sm text-gray-900 capitalize">{req.product_type || '—'}</td>
+                              {/* Color */}
+                              <td className="px-4 py-3 text-sm text-gray-900">{req.color_name || '—'}</td>
+                              {/* Technique */}
+                              <td className="px-4 py-3">
+                                {req.technique ? (
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                    req.technique === 'EMBROIDERY' ? 'bg-purple-100 text-purple-800' :
+                                    req.technique === 'SUBLIMATION' || req.technique === 'CUT-SEW' ? 'bg-orange-100 text-orange-800' :
+                                    'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {req.technique === 'EMBROIDERY' ? '🧵 Embroidery' : req.technique === 'SUBLIMATION' || req.technique === 'CUT-SEW' ? '🌈 All-Over' : '🖨️ DTG'}
+                                  </span>
+                                ) : <span className="text-gray-300 text-xs">—</span>}
+                              </td>
+                              {/* Status */}
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  req.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                  req.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>{req.status}</span>
+                              </td>
+                              {/* Date */}
+                              <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                                {new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </td>
+                              {/* Actions */}
+                              <td className="px-4 py-3">
+                                {req.status === 'pending' ? (
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => updateShopRequestStatus(req.id, 'approved')}
+                                      className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-lg"
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={() => updateShopRequestStatus(req.id, 'rejected')}
+                                      className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-lg"
+                                    >
+                                      Reject
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 text-xs">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   );
                 })()}

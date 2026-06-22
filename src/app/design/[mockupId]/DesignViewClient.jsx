@@ -41,6 +41,7 @@ export function DesignViewClient({ mockupId }) {
   const [listSubmitting, setListSubmitting] = useState(false);
   const [listError, setListError] = useState('');
   const [listSuccess, setListSuccess] = useState(false);
+  const [existingListRequest, setExistingListRequest] = useState(null); // { id, status } if already submitted
 
   // ── Load mockup data ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -69,6 +70,19 @@ export function DesignViewClient({ mockupId }) {
       .then(r => { if (r.ok) setViewerIsMogul(true); })
       .catch(() => {});
   }, [user?.fid, getSessionToken]);
+
+  // ── Check for existing listing request (moguls viewing their own design) ──
+  useEffect(() => {
+    if (!viewerIsMogul || !mockup || !isOwnDesign) return;
+    const token = getSessionToken();
+    if (!token) return;
+    fetch(`/api/design-studio/request-shop-listing?mockupId=${mockupId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => { if (data.request) setExistingListRequest(data.request); })
+      .catch(() => {});
+  }, [viewerIsMogul, mockup, isOwnDesign, mockupId, getSessionToken]);
 
   // ── Derive product config ──────────────────────────────────────────────────
   const productConfig = mockup
@@ -224,6 +238,7 @@ export function DesignViewClient({ mockupId }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to submit request.');
       setListSuccess(true);
+      setExistingListRequest({ status: 'pending' });
     } catch (err) {
       setListError(err.message || 'Something went wrong. Please try again.');
     } finally {
@@ -373,12 +388,34 @@ export function DesignViewClient({ mockupId }) {
             </button>
 
             {viewerIsMogul && (
-              <button
-                onClick={() => { setListModalOpen(true); setListConfirmed(false); setListError(''); setListSuccess(false); }}
-                className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-2xl transition-colors text-base"
-              >
-                🏪 Request to List in Shop
-              </button>
+              existingListRequest ? (
+                <div className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 text-sm font-semibold ${
+                  existingListRequest.status === 'approved'
+                    ? 'bg-green-50 border-green-300 text-green-700'
+                    : existingListRequest.status === 'rejected'
+                    ? 'bg-red-50 border-red-300 text-red-700'
+                    : 'bg-amber-50 border-amber-300 text-amber-700'
+                }`}>
+                  {existingListRequest.status === 'approved' && '✅ Shop Listing Approved'}
+                  {existingListRequest.status === 'rejected' && '❌ Listing Request Declined'}
+                  {existingListRequest.status === 'pending' && (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                      </svg>
+                      Listing Request Pending Approval
+                    </>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setListModalOpen(true); setListConfirmed(false); setListError(''); setListSuccess(false); }}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-2xl transition-colors text-base"
+                >
+                  🏪 Request to List in Shop
+                </button>
+              )
             )}
 
             <button
