@@ -265,7 +265,7 @@ export function DesignViewClient({ mockupId }) {
       {/* Header */}
       <div className="w-full max-w-sm px-4 pt-5 pb-3 flex items-center justify-between">
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push('/create')}
           className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -380,10 +380,24 @@ export function DesignViewClient({ mockupId }) {
                 🏪 Request to List in Shop
               </button>
             )}
+
+            <button
+              onClick={() => router.push('/create')}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-2xl transition-colors text-base"
+            >
+              🎨 Create Another Design
+            </button>
+
+            <button
+              onClick={() => router.push('/')}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-2xl transition-colors text-base"
+            >
+              🛍️ Back to Shop
+            </button>
           </>
         ) : (
           <>
-            {/* Non-creator view: Share → Create Your Own */}
+            {/* Non-creator view: Share → Create Your Own → Back to Shop */}
             <button
               onClick={handleShare}
               className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
@@ -399,6 +413,13 @@ export function DesignViewClient({ mockupId }) {
               className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-2xl transition-colors text-base"
             >
               🎨 Create Your Own
+            </button>
+
+            <button
+              onClick={() => router.push('/')}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-2xl transition-colors text-base"
+            >
+              🛍️ Back to Shop
             </button>
           </>
         )}
