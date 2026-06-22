@@ -172,6 +172,12 @@ export default function AdminDashboard() {
   const [selectedRoyaltyIds, setSelectedRoyaltyIds] = useState([]);
   const [settlingRoyalties, setSettlingRoyalties] = useState(false);
 
+  // Shop listing requests state
+  const [shopRequestsData, setShopRequestsData] = useState([]);
+  const [shopRequestsLoading, setShopRequestsLoading] = useState(false);
+  const [shopRequestsError, setShopRequestsError] = useState('');
+  const [shopRequestsFilter, setShopRequestsFilter] = useState('pending'); // 'pending' | 'all'
+
   // Partners sub-tab state
   const [partnersSubTab, setPartnersSubTab] = useState('partners'); // 'partners' or 'ambassadors'
   
@@ -1445,6 +1451,43 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (activeTab === 'orders' && ordersSubTab === 'royalties' && royaltiesData.length === 0) {
       loadRoyalties();
+    }
+  }, [activeTab, ordersSubTab]);
+
+  // Shop listing requests
+  const loadShopRequests = async () => {
+    setShopRequestsLoading(true);
+    setShopRequestsError('');
+    try {
+      const res = await adminFetch('/api/admin/shop-listing-requests');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load shop listing requests');
+      setShopRequestsData(data.requests || []);
+    } catch (err) {
+      setShopRequestsError(err.message);
+    } finally {
+      setShopRequestsLoading(false);
+    }
+  };
+
+  const updateShopRequestStatus = async (id, status) => {
+    try {
+      const res = await adminFetch('/api/admin/shop-listing-requests', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+      if (res.ok) {
+        setShopRequestsData(prev => prev.map(r => r.id === id ? { ...r, status, reviewed_at: new Date().toISOString() } : r));
+      }
+    } catch (err) {
+      console.error('Failed to update shop request:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'orders' && ordersSubTab === 'shop-requests' && shopRequestsData.length === 0) {
+      loadShopRequests();
     }
   }, [activeTab, ordersSubTab]);
 
@@ -2974,6 +3017,14 @@ export default function AdminDashboard() {
                       🔄 Refresh
                     </button>
                   )}
+                  {ordersSubTab === 'shop-requests' && (
+                    <button
+                      onClick={loadShopRequests}
+                      className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                    >
+                      🔄 Refresh
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -3008,6 +3059,16 @@ export default function AdminDashboard() {
                   }`}
                 >
                   💎 Royalties
+                </button>
+                <button
+                  onClick={() => { setOrdersSubTab('shop-requests'); if (shopRequestsData.length === 0) loadShopRequests(); }}
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                    ordersSubTab === 'shop-requests'
+                      ? 'border-[#3eb489] text-[#3eb489]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  🏪 Shop Requests
                 </button>
               </div>
             </div>
@@ -3444,6 +3505,84 @@ export default function AdminDashboard() {
                     </table>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Shop Requests content */}
+            {ordersSubTab === 'shop-requests' && (
+              <div className="bg-white">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <p className="text-sm text-gray-500">Merch Mogul requests to list their custom designs in the shop</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShopRequestsFilter('pending')}
+                      className={`px-3 py-1.5 text-sm rounded-lg font-medium ${shopRequestsFilter === 'pending' ? 'bg-[#3eb489] text-white' : 'bg-gray-100 text-gray-600'}`}
+                    >
+                      Pending
+                    </button>
+                    <button
+                      onClick={() => setShopRequestsFilter('all')}
+                      className={`px-3 py-1.5 text-sm rounded-lg font-medium ${shopRequestsFilter === 'all' ? 'bg-[#3eb489] text-white' : 'bg-gray-100 text-gray-600'}`}
+                    >
+                      All
+                    </button>
+                  </div>
+                </div>
+                {shopRequestsLoading && <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489]" /></div>}
+                {shopRequestsError && <div className="px-6 py-4 text-red-600 text-sm">{shopRequestsError}</div>}
+                {!shopRequestsLoading && (() => {
+                  const filtered = shopRequestsData.filter(r => shopRequestsFilter === 'all' || r.status === 'pending');
+                  if (filtered.length === 0) {
+                    return <div className="px-6 py-12 text-center text-gray-400 text-sm">No {shopRequestsFilter === 'pending' ? 'pending ' : ''}shop listing requests.</div>;
+                  }
+                  return (
+                    <div className="divide-y divide-gray-100">
+                      {filtered.map(req => (
+                        <div key={req.id} className="px-6 py-4 flex items-start gap-4">
+                          {req.mockup_url && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={req.mockup_url} alt="mockup" className="w-16 h-16 rounded-xl object-cover flex-shrink-0 border border-gray-200" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-sm text-gray-900">@{req.username || `FID ${req.fid}`}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                req.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                req.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                'bg-red-100 text-red-700'
+                              }`}>{req.status}</span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {req.product_type}{req.color_name ? ` · ${req.color_name}` : ''}{req.technique ? ` · ${req.technique}` : ''}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              {req.mockup_id && (
+                                <a href={`/design/${req.mockup_id}`} target="_blank" rel="noopener noreferrer" className="ml-2 text-[#3eb489] underline">View Design</a>
+                              )}
+                            </p>
+                          </div>
+                          {req.status === 'pending' && (
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <button
+                                onClick={() => updateShopRequestStatus(req.id, 'approved')}
+                                className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-lg"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => updateShopRequestStatus(req.id, 'rejected')}
+                                className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-lg"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

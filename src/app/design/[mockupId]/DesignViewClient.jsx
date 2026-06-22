@@ -24,6 +24,9 @@ export function DesignViewClient({ mockupId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Whether the current viewer is a Merch Mogul
+  const [viewerIsMogul, setViewerIsMogul] = useState(false);
+
   // Buy sheet state
   const [buyOpen, setBuyOpen] = useState(false);
   const [shopifyVariants, setShopifyVariants] = useState([]);
@@ -31,6 +34,13 @@ export function DesignViewClient({ mockupId }) {
   const [buyLoading, setBuyLoading] = useState(false);
   const [buyError, setBuyError] = useState('');
   const [buyAdded, setBuyAdded] = useState(false);
+
+  // List in Shop state
+  const [listModalOpen, setListModalOpen] = useState(false);
+  const [listConfirmed, setListConfirmed] = useState(false);
+  const [listSubmitting, setListSubmitting] = useState(false);
+  const [listError, setListError] = useState('');
+  const [listSuccess, setListSuccess] = useState(false);
 
   // ── Load mockup data ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -50,10 +60,23 @@ export function DesignViewClient({ mockupId }) {
     load();
   }, [mockupId]);
 
+  // ── Check if viewer is a Merch Mogul ──────────────────────────────────────
+  useEffect(() => {
+    const token = getSessionToken();
+    if (!token) return;
+    // Reuse the royalties endpoint — returns 403 if not a Merch Mogul
+    fetch('/api/creator/royalties', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => { if (r.ok) setViewerIsMogul(true); })
+      .catch(() => {});
+  }, [user?.fid, getSessionToken]);
+
   // ── Derive product config ──────────────────────────────────────────────────
   const productConfig = mockup
     ? DESIGN_STUDIO_PRODUCTS.find(p => p.id === mockup.product_type)
     : null;
+
+  // ── Is the current viewer the creator? ────────────────────────────────────
+  const isOwnDesign = !!(user?.fid && creator?.fid && String(user.fid) === String(creator.fid));
 
   // ── Open buy sheet — fetch Shopify variants for this product + color ───────
   const openBuySheet = useCallback(async () => {
@@ -106,9 +129,6 @@ export function DesignViewClient({ mockupId }) {
       const matchedVariant = shopifyVariants.find(v => v.title === selectedSize) || shopifyVariants[0];
       if (!matchedVariant) throw new Error('No variant available for selected size.');
 
-      // Save design order request, passing creator FID for attribution
-      // Only set creatorFid when buying someone else's design (not your own)
-      const isOwnDesign = creator?.fid != null && user?.fid != null && creator.fid === user.fid;
       const saveRes = await fetch('/api/design-studio/save-order-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -123,14 +143,13 @@ export function DesignViewClient({ mockupId }) {
           designScale: mockup.design_scale,
           printfulVariantIds: mockup.printful_variant_ids || null,
           positionData: mockup.position_data || null,
-          creatorFid: isOwnDesign ? null : (creator?.fid || null),
+          creatorFid: null, // creator buying their own design — no royalty split
         }),
       });
       const saveData = await saveRes.json();
       if (!saveRes.ok) throw new Error(saveData.error || 'Failed to save design request');
       const designRequestId = saveData.id;
 
-      // Add to cart
       const cartProduct = {
         id: productConfig.shopifyProductId,
         title: `Design Studio Custom ${productConfig.label}`,
@@ -156,7 +175,6 @@ export function DesignViewClient({ mockupId }) {
 
       setBuyAdded(true);
       setBuyOpen(false);
-      // Navigate home with cart open
       router.push('/?openCart=1');
     } catch (err) {
       setBuyError(err.message || 'Something went wrong. Please try again.');
@@ -184,6 +202,35 @@ export function DesignViewClient({ mockupId }) {
     );
   };
 
+  // ── Request shop listing ───────────────────────────────────────────────────
+  const handleListInShop = async () => {
+    let token = sessionTokenRef.current || getSessionToken();
+    if (!token && isInFarcaster) {
+      for (let i = 0; i < 50 && !token; i++) {
+        await new Promise(r => setTimeout(r, 100));
+        token = sessionTokenRef.current;
+      }
+    }
+    if (!token) { setListError('Please connect your Farcaster account.'); return; }
+
+    setListSubmitting(true);
+    setListError('');
+    try {
+      const res = await fetch('/api/design-studio/request-shop-listing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ mockupId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit request.');
+      setListSuccess(true);
+    } catch (err) {
+      setListError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setListSubmitting(false);
+    }
+  };
+
   // ── Render ─────────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -207,11 +254,11 @@ export function DesignViewClient({ mockupId }) {
     );
   }
 
-  // Prefer the config's own techniqueLabel (e.g. "All-Over Print", "Embroidery") so
-  // all-over print products don't fall through to the generic "DTG Print" default.
   const techniqueLabel =
     productConfig?.techniqueLabel ||
     (mockup.technique === 'EMBROIDERY' ? 'Embroidery' : 'DTG Print');
+
+  const isSublimation = productConfig?.technique === 'SUBLIMATION' || mockup.technique === 'CUT-SEW' || mockup.technique === 'SUBLIMATION';
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center pb-10">
@@ -226,7 +273,7 @@ export function DesignViewClient({ mockupId }) {
           </svg>
         </button>
         <p className="text-sm font-semibold text-gray-700">
-          {user?.fid && creator?.fid && user.fid === creator.fid
+          {isOwnDesign
             ? 'Your Mockup'
             : creator?.username
             ? `Design by @${creator.username}`
@@ -249,22 +296,24 @@ export function DesignViewClient({ mockupId }) {
 
       {/* Product + creator info */}
       <div className="w-full max-w-sm px-4 mt-4 space-y-3">
-        {/* Product details */}
+        {/* Product details — price only shown to the creator */}
         <div className="bg-white rounded-2xl px-4 py-3 border border-gray-100 flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-gray-800">
               {productConfig?.label || mockup.product_type}
-              {mockup.color_name ? ` · ${mockup.color_name}` : ''}
+              {!isSublimation && mockup.color_name ? ` · ${mockup.color_name}` : ''}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">{techniqueLabel}</p>
           </div>
-          <p className="text-sm font-bold text-[#3eb489]">
-            {shopifyVariants.length > 0
-              ? `$${parseFloat(shopifyVariants[0].price).toFixed(2)}`
-              : productConfig?.displayPrice
-                ? `$${productConfig.displayPrice.toFixed(2)}`
-                : '—'}
-          </p>
+          {isOwnDesign && (
+            <p className="text-sm font-bold text-[#3eb489]">
+              {shopifyVariants.length > 0
+                ? `$${parseFloat(shopifyVariants[0].price).toFixed(2)}`
+                : productConfig?.displayPrice
+                  ? `$${productConfig.displayPrice.toFixed(2)}`
+                  : '—'}
+            </p>
+          )}
         </div>
 
         {/* Creator attribution */}
@@ -300,33 +349,59 @@ export function DesignViewClient({ mockupId }) {
 
       {/* Action buttons */}
       <div className="w-full max-w-sm px-4 mt-5 space-y-3">
-        <button
-          onClick={openBuySheet}
-          className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#3eb489] hover:bg-[#35a07a] text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          Buy This Design
-        </button>
+        {isOwnDesign ? (
+          <>
+            {/* Creator view: Buy → Share → (List in Shop for moguls) */}
+            <button
+              onClick={openBuySheet}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#3eb489] hover:bg-[#35a07a] text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Buy This Design
+            </button>
 
-        <button
-          onClick={() => router.push('/create')}
-          className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-2xl transition-colors text-base"
-        >
-          🎨 Create Your Own
-        </button>
+            <button
+              onClick={handleShare}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
+              </svg>
+              Share on Farcaster
+            </button>
 
-        <button
-          onClick={handleShare}
-          className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
-        >
-          {/* Official Farcaster Logo (2024 rebrand) */}
-          <svg className="w-5 h-5" viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
-          </svg>
-          Share on Farcaster
-        </button>
+            {viewerIsMogul && (
+              <button
+                onClick={() => { setListModalOpen(true); setListConfirmed(false); setListError(''); setListSuccess(false); }}
+                className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-2xl transition-colors text-base"
+              >
+                🏪 Request to List in Shop
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Non-creator view: Share → Create Your Own */}
+            <button
+              onClick={handleShare}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-semibold rounded-2xl transition-colors shadow-md text-base"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 520 457" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M519.801 0V61.6809H458.172V123.31H477.054V123.331H519.801V456.795H416.57L416.507 456.49L363.832 207.03C358.81 183.251 345.667 161.736 326.827 146.434C307.988 131.133 284.255 122.71 260.006 122.71H259.8C235.551 122.71 211.818 131.133 192.979 146.434C174.139 161.736 160.996 183.259 155.974 207.03L103.239 456.795H0V123.323H42.7471V123.31H61.6262V61.6809H0V0H519.801Z" fill="currentColor"/>
+              </svg>
+              Share on Farcaster
+            </button>
+
+            <button
+              onClick={() => router.push('/create')}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-2xl transition-colors text-base"
+            >
+              🎨 Create Your Own
+            </button>
+          </>
+        )}
       </div>
 
       {/* Buy sheet bottom drawer */}
@@ -334,21 +409,18 @@ export function DesignViewClient({ mockupId }) {
         <div className="fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/40" onClick={() => setBuyOpen(false)} />
           <div className="relative bg-white rounded-t-3xl px-5 pt-5 pb-10 shadow-xl">
-            {/* Handle */}
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
 
             <h2 className="text-base font-bold text-gray-900 mb-1">
               Custom {productConfig?.label || mockup.product_type}
             </h2>
             <p className="text-sm text-gray-500 mb-4">
-              {/* For all-over print products the colour is not customer-facing */}
-              {productConfig?.technique === 'SUBLIMATION'
+              {isSublimation
                 ? techniqueLabel
                 : <>{mockup.color_name || ''}{mockup.color_name && ' · '}{techniqueLabel}</>
               }
             </p>
 
-            {/* Size selector */}
             {shopifyVariants.length === 0 ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3eb489]" />
@@ -392,6 +464,76 @@ export function DesignViewClient({ mockupId }) {
                 return `Add to Cart · ${price ? `$${parseFloat(price).toFixed(2)}` : '—'}`;
               })()}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* List in Shop confirmation modal */}
+      {listModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
+          <div className="absolute inset-0 bg-black/50" onClick={() => !listSubmitting && setListModalOpen(false)} />
+          <div className="relative bg-white rounded-3xl px-6 pt-6 pb-7 shadow-2xl w-full max-w-sm">
+            {listSuccess ? (
+              <div className="flex flex-col items-center gap-4 py-4 text-center">
+                <div className="text-5xl">🎉</div>
+                <h2 className="text-lg font-bold text-gray-900">Request Submitted!</h2>
+                <p className="text-sm text-gray-500">
+                  Your listing request has been sent to the Minted Merch team. We&apos;ll review it and reach out if approved.
+                </p>
+                <button
+                  onClick={() => setListModalOpen(false)}
+                  className="mt-2 w-full py-3 bg-[#3eb489] text-white font-semibold rounded-2xl text-base"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <>
+                <h2 className="text-base font-bold text-gray-900 mb-2">Request to List in Shop</h2>
+                <p className="text-sm text-gray-500 mb-5">
+                  Before submitting, please confirm the following:
+                </p>
+
+                <label className="flex items-start gap-3 cursor-pointer mb-5">
+                  <div
+                    onClick={() => setListConfirmed(v => !v)}
+                    className={`mt-0.5 w-5 h-5 rounded flex-shrink-0 border-2 flex items-center justify-center transition-colors ${
+                      listConfirmed ? 'bg-[#3eb489] border-[#3eb489]' : 'bg-white border-gray-300'
+                    }`}
+                  >
+                    {listConfirmed && (
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="text-sm text-gray-700 leading-relaxed">
+                    I confirm this is my original design, or I have explicit permission to use it on merchandise.
+                  </span>
+                </label>
+
+                {listError && (
+                  <p className="text-red-500 text-sm mb-3">{listError}</p>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setListModalOpen(false)}
+                    disabled={listSubmitting}
+                    className="flex-1 py-3 bg-gray-100 text-gray-700 font-semibold rounded-2xl text-base"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleListInShop}
+                    disabled={!listConfirmed || listSubmitting}
+                    className="flex-1 py-3 bg-[#3eb489] disabled:opacity-40 text-white font-semibold rounded-2xl text-base"
+                  >
+                    {listSubmitting ? 'Submitting…' : 'Submit'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
