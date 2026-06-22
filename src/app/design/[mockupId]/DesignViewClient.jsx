@@ -71,6 +71,15 @@ export function DesignViewClient({ mockupId }) {
       .catch(() => {});
   }, [user?.fid, getSessionToken]);
 
+  // ── Derive product config ──────────────────────────────────────────────────
+  const productConfig = mockup
+    ? DESIGN_STUDIO_PRODUCTS.find(p => p.id === mockup.product_type)
+    : null;
+
+  // ── Is the current viewer the creator? ────────────────────────────────────
+  // Must be declared before any useEffect that uses it in a dependency array.
+  const isOwnDesign = !!(user?.fid && creator?.fid && String(user.fid) === String(creator.fid));
+
   // ── Check for existing listing request (moguls viewing their own design) ──
   useEffect(() => {
     if (!viewerIsMogul || !mockup || !isOwnDesign) return;
@@ -83,14 +92,6 @@ export function DesignViewClient({ mockupId }) {
       .then(data => { if (data.request) setExistingListRequest(data.request); })
       .catch(() => {});
   }, [viewerIsMogul, mockup, isOwnDesign, mockupId, getSessionToken]);
-
-  // ── Derive product config ──────────────────────────────────────────────────
-  const productConfig = mockup
-    ? DESIGN_STUDIO_PRODUCTS.find(p => p.id === mockup.product_type)
-    : null;
-
-  // ── Is the current viewer the creator? ────────────────────────────────────
-  const isOwnDesign = !!(user?.fid && creator?.fid && String(user.fid) === String(creator.fid));
 
   // ── Open buy sheet — fetch Shopify variants for this product + color ───────
   const openBuySheet = useCallback(async () => {
