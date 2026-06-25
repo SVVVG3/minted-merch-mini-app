@@ -167,6 +167,7 @@ export async function GET(request, { params }) {
         req: claimData.req,
         signature: claimData.signature,
         contractAddress,
+        chainId: 8453, // Base mainnet
         walletAddress: payout.wallet_address,
         amountTokens: payout.amount_tokens.toString(),
         tokenAddress: claimData.req.tokenAddress,

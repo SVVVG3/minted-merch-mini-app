@@ -694,7 +694,8 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
         address: claimData.contractAddress,
         abi: airdropABI,
         functionName: 'airdropERC20WithSignature',
-        args: [reqWithBigInt, claimData.signature]
+        args: [reqWithBigInt, claimData.signature],
+        chainId: claimData.chainId || 8453, // Always Base mainnet
       });
 
     } catch (error) {
