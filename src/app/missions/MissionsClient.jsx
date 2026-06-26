@@ -579,7 +579,16 @@ function PayoutsTab({ payouts, onRefresh, isInFarcaster }) {
   useEffect(() => {
     if (writeError && claiming) {
       console.error('❌ Transaction error:', writeError);
-      const errorMessage = writeError.message?.includes('User rejected') 
+
+      // AirdropRequestAlreadyProcessed means the UID was already consumed on-chain
+      // (tokens already sent). Sync the DB to completed so the user isn't stuck.
+      if (writeError.message?.includes('AirdropRequestAlreadyProcessed')) {
+        console.warn('⚠️ UID already on-chain — auto-completing DB record for payout', claiming);
+        markPayoutComplete(claiming, 'on-chain-uid-consumed-db-sync');
+        return;
+      }
+
+      const errorMessage = writeError.message?.includes('User rejected')
         ? 'Transaction rejected by user'
         : writeError.message || 'Transaction failed';
       setClaimError(errorMessage);

@@ -86,6 +86,8 @@ export async function POST(request, { params }) {
     }
     
     // 5. Update payout status to completed
+    // Also allow syncing payouts whose UID was already consumed on-chain but
+    // whose DB record was never updated (AirdropRequestAlreadyProcessed path).
     const { error: updateError } = await supabaseAdmin
       .from('ambassador_payouts')
       .update({
@@ -94,7 +96,8 @@ export async function POST(request, { params }) {
         claimed_at: new Date().toISOString(),
         completed_at: new Date().toISOString()
       })
-      .eq('id', id);
+      .eq('id', id)
+      .in('status', ['claimable', 'completed']); // allow re-syncing already-completed records
     
     if (updateError) {
       console.error(`❌ Error updating mogul payout:`, updateError);
