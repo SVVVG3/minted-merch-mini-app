@@ -1,0 +1,60 @@
+import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
+
+const VALID_SUBMISSION_STATUSES = ['submitted', 'finalist', 'winner', 'rejected'];
+
+export const PATCH = withAdminAuth(async (request) => {
+  try {
+    const { id, status, dropId } = await request.json();
+
+    if (!id || !VALID_SUBMISSION_STATUSES.includes(status)) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
+
+    // Enforce max 3 finalists per drop
+    if (status === 'finalist' && dropId) {
+      const { count } = await supabaseAdmin
+        .from('drop_submissions')
+        .select('id', { count: 'exact', head: true })
+        .eq('drop_id', dropId)
+        .eq('status', 'finalist')
+        .neq('id', id);
+
+      if (count >= 3) {
+        return NextResponse.json({ error: 'Maximum 3 finalists allowed per drop' }, { status: 400 });
+      }
+    }
+
+    if (status === 'winner' && dropId) {
+      await supabaseAdmin
+        .from('drop_submissions')
+        .update({ status: 'finalist' })
+        .eq('drop_id', dropId)
+        .eq('status', 'winner')
+        .neq('id', id);
+
+      await supabaseAdmin
+        .from('weekly_drops')
+        .update({
+          winning_submission_id: id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', dropId);
+    }
+
+    const { data: submission, error } = await supabaseAdmin
+      .from('drop_submissions')
+      .update({ status })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ success: true, submission });
+  } catch (err) {
+    console.error('[admin/drop-submissions] PATCH error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+});

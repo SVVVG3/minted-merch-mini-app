@@ -172,11 +172,19 @@ export default function AdminDashboard() {
   const [selectedRoyaltyIds, setSelectedRoyaltyIds] = useState([]);
   const [settlingRoyalties, setSettlingRoyalties] = useState(false);
 
-  // Shop listing requests state
+  // Shop listing requests state (legacy — replaced by weekly drops)
   const [shopRequestsData, setShopRequestsData] = useState([]);
   const [shopRequestsLoading, setShopRequestsLoading] = useState(false);
   const [shopRequestsError, setShopRequestsError] = useState('');
   const [shopRequestsFilter, setShopRequestsFilter] = useState('pending'); // 'pending' | 'all'
+
+  // Weekly drops state
+  const [weeklyDropsData, setWeeklyDropsData] = useState([]);
+  const [weeklyDropsLoading, setWeeklyDropsLoading] = useState(false);
+  const [weeklyDropsError, setWeeklyDropsError] = useState('');
+  const [newDropLabel, setNewDropLabel] = useState('');
+  const [creatingDrop, setCreatingDrop] = useState(false);
+  const [expandedDropId, setExpandedDropId] = useState(null);
 
   // Partners sub-tab state
   const [partnersSubTab, setPartnersSubTab] = useState('partners'); // 'partners' or 'ambassadors'
@@ -1488,6 +1496,76 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (activeTab === 'orders' && ordersSubTab === 'shop-requests' && shopRequestsData.length === 0) {
       loadShopRequests();
+    }
+  }, [activeTab, ordersSubTab]);
+
+  // Weekly drops
+  const loadWeeklyDrops = async () => {
+    setWeeklyDropsLoading(true);
+    setWeeklyDropsError('');
+    try {
+      const res = await adminFetch('/api/admin/weekly-drops');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load weekly drops');
+      setWeeklyDropsData(data.drops || []);
+    } catch (err) {
+      setWeeklyDropsError(err.message);
+    } finally {
+      setWeeklyDropsLoading(false);
+    }
+  };
+
+  const createWeeklyDrop = async () => {
+    if (!newDropLabel.trim()) return;
+    setCreatingDrop(true);
+    try {
+      const res = await adminFetch('/api/admin/weekly-drops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weekLabel: newDropLabel.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create drop');
+      setNewDropLabel('');
+      await loadWeeklyDrops();
+    } catch (err) {
+      setWeeklyDropsError(err.message);
+    } finally {
+      setCreatingDrop(false);
+    }
+  };
+
+  const updateDropStatus = async (dropId, status) => {
+    try {
+      const res = await adminFetch(`/api/admin/weekly-drops/${dropId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) loadWeeklyDrops();
+    } catch (err) {
+      console.error('Failed to update drop status:', err);
+    }
+  };
+
+  const updateDropSubmissionStatus = async (submissionId, status, dropId) => {
+    try {
+      const res = await adminFetch('/api/admin/drop-submissions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: submissionId, status, dropId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update submission');
+      loadWeeklyDrops();
+    } catch (err) {
+      setWeeklyDropsError(err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'orders' && ordersSubTab === 'weekly-drops' && weeklyDropsData.length === 0) {
+      loadWeeklyDrops();
     }
   }, [activeTab, ordersSubTab]);
 
@@ -3017,9 +3095,9 @@ export default function AdminDashboard() {
                       🔄 Refresh
                     </button>
                   )}
-                  {ordersSubTab === 'shop-requests' && (
+                  {ordersSubTab === 'weekly-drops' && (
                     <button
-                      onClick={loadShopRequests}
+                      onClick={loadWeeklyDrops}
                       className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
                     >
                       🔄 Refresh
@@ -3061,14 +3139,14 @@ export default function AdminDashboard() {
                   💎 Royalties
                 </button>
                 <button
-                  onClick={() => { setOrdersSubTab('shop-requests'); if (shopRequestsData.length === 0) loadShopRequests(); }}
+                  onClick={() => { setOrdersSubTab('weekly-drops'); if (weeklyDropsData.length === 0) loadWeeklyDrops(); }}
                   className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                    ordersSubTab === 'shop-requests'
+                    ordersSubTab === 'weekly-drops'
                       ? 'border-[#3eb489] text-[#3eb489]'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  🏪 Shop Requests
+                  🎯 Weekly Drops
                 </button>
               </div>
             </div>
@@ -3508,148 +3586,155 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* Shop Requests content */}
-            {ordersSubTab === 'shop-requests' && (
+            {/* Weekly Drops content */}
+            {ordersSubTab === 'weekly-drops' && (
               <div className="bg-white">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <p className="text-sm text-gray-500">Merch Mogul requests to list their custom designs in the shop</p>
-                  <div className="flex items-center gap-2">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <p className="text-sm text-gray-500 mb-4">Manage weekly limited drops — submissions, voting, and go-live</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="text"
+                      value={newDropLabel}
+                      onChange={e => setNewDropLabel(e.target.value)}
+                      placeholder="Week label, e.g. Week of Jul 7, 2026"
+                      className="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
                     <button
-                      onClick={() => setShopRequestsFilter('pending')}
-                      className={`px-3 py-1.5 text-sm rounded-lg font-medium ${shopRequestsFilter === 'pending' ? 'bg-[#3eb489] text-white' : 'bg-gray-100 text-gray-600'}`}
+                      onClick={createWeeklyDrop}
+                      disabled={creatingDrop || !newDropLabel.trim()}
+                      className="px-4 py-2 bg-[#3eb489] hover:bg-[#359970] disabled:opacity-50 text-white text-sm font-semibold rounded-lg"
                     >
-                      Pending
-                    </button>
-                    <button
-                      onClick={() => setShopRequestsFilter('all')}
-                      className={`px-3 py-1.5 text-sm rounded-lg font-medium ${shopRequestsFilter === 'all' ? 'bg-[#3eb489] text-white' : 'bg-gray-100 text-gray-600'}`}
-                    >
-                      All
+                      {creatingDrop ? 'Creating…' : '+ New Drop Week'}
                     </button>
                   </div>
                 </div>
-                {shopRequestsLoading && <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489]" /></div>}
-                {shopRequestsError && <div className="px-6 py-4 text-red-600 text-sm">{shopRequestsError}</div>}
-                {!shopRequestsLoading && (() => {
-                  const filtered = shopRequestsData.filter(r => shopRequestsFilter === 'all' || r.status === 'pending');
-                  if (filtered.length === 0) {
-                    return <div className="px-6 py-12 text-center text-gray-400 text-sm">No {shopRequestsFilter === 'pending' ? 'pending ' : ''}shop listing requests.</div>;
-                  }
+                {weeklyDropsLoading && <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489]" /></div>}
+                {weeklyDropsError && <div className="px-6 py-4 text-red-600 text-sm">{weeklyDropsError}</div>}
+                {!weeklyDropsLoading && weeklyDropsData.length === 0 && (
+                  <div className="px-6 py-12 text-center text-gray-400 text-sm">No drop weeks yet. Create one above.</div>
+                )}
+                {!weeklyDropsLoading && weeklyDropsData.map(drop => {
+                  const submissions = drop.drop_submissions || [];
+                  const finalistCount = submissions.filter(s => s.status === 'finalist').length;
+                  const isExpanded = expandedDropId === drop.id;
                   return (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mockup</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Design File</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FID / User</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Color</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Technique</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {filtered.map(req => (
-                            <tr key={req.id} className="hover:bg-gray-50">
-                              {/* Mockup */}
-                              <td className="px-4 py-3">
-                                <div className="flex flex-col gap-1">
-                                  {req.mockup_url ? (
-                                    <a href={req.mockup_url} target="_blank" rel="noopener noreferrer">
-                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img src={req.mockup_url} alt="mockup" className="w-16 h-16 object-contain rounded border border-gray-200 hover:opacity-80 transition-opacity" />
-                                    </a>
-                                  ) : (
-                                    <div className="w-16 h-16 bg-gray-100 rounded border border-gray-200 flex items-center justify-center text-gray-300 text-xs">No preview</div>
-                                  )}
-                                  {req.mockup_id && (
-                                    <a href={`/design/${req.mockup_id}`} target="_blank" rel="noopener noreferrer" className="text-[#3eb489] hover:underline text-xs">View Page</a>
-                                  )}
-                                </div>
-                              </td>
-                              {/* Design file */}
-                              <td className="px-4 py-3">
-                                {req.design_url ? (
-                                  <a href={req.design_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">View Design</a>
-                                ) : (
-                                  <span className="text-gray-300 text-xs">—</span>
-                                )}
-                              </td>
-                              {/* FID / User */}
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-2">
-                                  {req.profile?.pfp_url && (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={req.profile.pfp_url} alt="" className="w-7 h-7 rounded-full flex-shrink-0" />
-                                  )}
-                                  <div>
-                                    <div className="text-sm font-medium text-gray-900">{req.fid}</div>
-                                    <div className="text-xs text-gray-500">@{req.profile?.username || req.username || '—'}</div>
-                                    {req.profile?.staked_balance && (
-                                      <div className="text-xs text-purple-600">{(req.profile.staked_balance / 1_000_000).toFixed(1)}M staked</div>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-                              {/* Product */}
-                              <td className="px-4 py-3 text-sm text-gray-900 capitalize">{req.product_type || '—'}</td>
-                              {/* Color */}
-                              <td className="px-4 py-3 text-sm text-gray-900">{req.color_name || '—'}</td>
-                              {/* Technique */}
-                              <td className="px-4 py-3">
-                                {req.technique ? (
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                    req.technique === 'EMBROIDERY' ? 'bg-purple-100 text-purple-800' :
-                                    req.technique === 'SUBLIMATION' || req.technique === 'CUT-SEW' ? 'bg-orange-100 text-orange-800' :
-                                    'bg-blue-100 text-blue-800'
-                                  }`}>
-                                    {req.technique === 'EMBROIDERY' ? '🧵 Embroidery' : req.technique === 'SUBLIMATION' || req.technique === 'CUT-SEW' ? '🌈 All-Over' : '🖨️ DTG'}
-                                  </span>
-                                ) : <span className="text-gray-300 text-xs">—</span>}
-                              </td>
-                              {/* Status */}
-                              <td className="px-4 py-3">
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  req.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                  req.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                  'bg-red-100 text-red-700'
-                                }`}>{req.status}</span>
-                              </td>
-                              {/* Date */}
-                              <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                                {new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                              </td>
-                              {/* Actions */}
-                              <td className="px-4 py-3">
-                                {req.status === 'pending' ? (
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => updateShopRequestStatus(req.id, 'approved')}
-                                      className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-lg"
-                                    >
-                                      Approve
-                                    </button>
-                                    <button
-                                      onClick={() => updateShopRequestStatus(req.id, 'rejected')}
-                                      className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-lg"
-                                    >
-                                      Reject
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-400 text-xs">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div key={drop.id} className="border-b border-gray-100">
+                      <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <button
+                            onClick={() => setExpandedDropId(isExpanded ? null : drop.id)}
+                            className="text-left"
+                          >
+                            <p className="font-semibold text-gray-900">{drop.week_label}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {submissions.length} submission{submissions.length !== 1 ? 's' : ''}
+                              {finalistCount > 0 && ` · ${finalistCount}/3 finalists`}
+                              {drop.units_sold > 0 && ` · ${drop.units_sold}/${drop.max_units} sold`}
+                            </p>
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            drop.status === 'draft' ? 'bg-gray-100 text-gray-700' :
+                            drop.status === 'voting' ? 'bg-purple-100 text-purple-700' :
+                            drop.status === 'live' ? 'bg-green-100 text-green-700' :
+                            drop.status === 'sold_out' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>{drop.status}</span>
+                          {drop.status === 'draft' && (
+                            <button onClick={() => updateDropStatus(drop.id, 'voting')} className="px-3 py-1.5 bg-purple-500 text-white text-xs font-semibold rounded-lg">Open Voting</button>
+                          )}
+                          {drop.status === 'voting' && (
+                            <button onClick={() => updateDropStatus(drop.id, 'live')} className="px-3 py-1.5 bg-green-500 text-white text-xs font-semibold rounded-lg">Go Live</button>
+                          )}
+                          {drop.status === 'live' && (
+                            <button onClick={() => updateDropStatus(drop.id, 'sold_out')} className="px-3 py-1.5 bg-yellow-500 text-white text-xs font-semibold rounded-lg">Mark Sold Out</button>
+                          )}
+                          {drop.status === 'sold_out' && (
+                            <button onClick={() => updateDropStatus(drop.id, 'closed')} className="px-3 py-1.5 bg-gray-500 text-white text-xs font-semibold rounded-lg">Close Drop</button>
+                          )}
+                        </div>
+                      </div>
+                      {isExpanded && (
+                        <div className="px-6 pb-4">
+                          {submissions.length === 0 ? (
+                            <p className="text-sm text-gray-400 py-4">No submissions yet.</p>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead className="bg-gray-50">
+                                  <tr>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mockup</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Design</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Votes</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                  {submissions.map(sub => (
+                                    <tr key={sub.id}>
+                                      <td className="px-3 py-2">
+                                        {sub.mockup_url ? (
+                                          <a href={sub.mockup_url} target="_blank" rel="noopener noreferrer">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={sub.mockup_url} alt="" className="w-14 h-14 object-contain rounded border" />
+                                          </a>
+                                        ) : '—'}
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        {sub.design_url ? (
+                                          <a href={sub.design_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">View</a>
+                                        ) : '—'}
+                                        {sub.mockup_id && (
+                                          <a href={`/design/${sub.mockup_id}`} target="_blank" rel="noopener noreferrer" className="block text-[#3eb489] hover:underline text-xs mt-1">Page</a>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        <div className="text-xs">{sub.fid}</div>
+                                        <div className="text-xs text-gray-500">@{sub.username || '—'}</div>
+                                      </td>
+                                      <td className="px-3 py-2 capitalize text-xs">
+                                        {sub.product_type}{sub.color_name ? ` · ${sub.color_name}` : ''}
+                                      </td>
+                                      <td className="px-3 py-2 text-xs font-medium">{sub.vote_count || 0}</td>
+                                      <td className="px-3 py-2">
+                                        <span className={`px-2 py-0.5 rounded-full text-xs ${
+                                          sub.status === 'winner' ? 'bg-green-100 text-green-700' :
+                                          sub.status === 'finalist' ? 'bg-purple-100 text-purple-700' :
+                                          sub.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                          'bg-gray-100 text-gray-600'
+                                        }`}>{sub.status}</span>
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        <div className="flex gap-1 flex-wrap">
+                                          {sub.status !== 'finalist' && sub.status !== 'winner' && (
+                                            <button onClick={() => updateDropSubmissionStatus(sub.id, 'finalist', drop.id)} className="px-2 py-1 bg-purple-500 text-white text-xs rounded">Finalist</button>
+                                          )}
+                                          {sub.status === 'finalist' && (
+                                            <button onClick={() => updateDropSubmissionStatus(sub.id, 'winner', drop.id)} className="px-2 py-1 bg-green-500 text-white text-xs rounded">Winner</button>
+                                          )}
+                                          {sub.status !== 'rejected' && sub.status !== 'winner' && (
+                                            <button onClick={() => updateDropSubmissionStatus(sub.id, 'rejected', drop.id)} className="px-2 py-1 bg-red-500 text-white text-xs rounded">Reject</button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                          {drop.shopify_product_id && (
+                            <p className="text-xs text-gray-500 mt-3">Shopify product: {drop.shopify_product_id}</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
-                })()}
+                })}
               </div>
             )}
 

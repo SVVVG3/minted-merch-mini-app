@@ -7,7 +7,6 @@ import { useCart } from '@/lib/CartContext';
 import { DESIGN_STUDIO_PRODUCTS } from '@/lib/designStudioConfig';
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
-const MERCH_MOGUL_THRESHOLD = 50_000_000;
 
 export function DesignViewClient({ mockupId }) {
   const router = useRouter();
@@ -24,24 +23,20 @@ export function DesignViewClient({ mockupId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Whether the current viewer is a Merch Mogul
-  const [viewerIsMogul, setViewerIsMogul] = useState(false);
-
-  // Buy sheet state
+  // Drop submission state
+  const [dropModalOpen, setDropModalOpen] = useState(false);
+  const [dropConfirmed, setDropConfirmed] = useState(false);
+  const [dropSubmitting, setDropSubmitting] = useState(false);
+  const [dropError, setDropError] = useState('');
+  const [dropSuccess, setDropSuccess] = useState(false);
+  const [currentDrop, setCurrentDrop] = useState(null); // { weekLabel, ... } if submissions open
+  const [existingDropSubmission, setExistingDropSubmission] = useState(null); // { id, status, mockupId, isThisMockup }
   const [buyOpen, setBuyOpen] = useState(false);
   const [shopifyVariants, setShopifyVariants] = useState([]);
   const [selectedSize, setSelectedSize] = useState('');
   const [buyLoading, setBuyLoading] = useState(false);
   const [buyError, setBuyError] = useState('');
   const [buyAdded, setBuyAdded] = useState(false);
-
-  // List in Shop state
-  const [listModalOpen, setListModalOpen] = useState(false);
-  const [listConfirmed, setListConfirmed] = useState(false);
-  const [listSubmitting, setListSubmitting] = useState(false);
-  const [listError, setListError] = useState('');
-  const [listSuccess, setListSuccess] = useState(false);
-  const [existingListRequest, setExistingListRequest] = useState(null); // { id, status } if already submitted
 
   // ── Load mockup data ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -61,16 +56,6 @@ export function DesignViewClient({ mockupId }) {
     load();
   }, [mockupId]);
 
-  // ── Check if viewer is a Merch Mogul ──────────────────────────────────────
-  useEffect(() => {
-    const token = getSessionToken();
-    if (!token) return;
-    // Reuse the royalties endpoint — returns 403 if not a Merch Mogul
-    fetch('/api/creator/royalties', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => { if (r.ok) setViewerIsMogul(true); })
-      .catch(() => {});
-  }, [user?.fid, getSessionToken]);
-
   // ── Derive product config ──────────────────────────────────────────────────
   const productConfig = mockup
     ? DESIGN_STUDIO_PRODUCTS.find(p => p.id === mockup.product_type)
@@ -80,18 +65,19 @@ export function DesignViewClient({ mockupId }) {
   // Must be declared before any useEffect that uses it in a dependency array.
   const isOwnDesign = !!(user?.fid && creator?.fid && String(user.fid) === String(creator.fid));
 
-  // ── Check for existing listing request (moguls viewing their own design) ──
+  // ── Check current drop + user's submission (creator viewing own design) ─────
   useEffect(() => {
-    if (!viewerIsMogul || !mockup || !isOwnDesign) return;
+    if (!mockup || !isOwnDesign) return;
     const token = getSessionToken();
-    if (!token) return;
-    fetch(`/api/design-studio/request-shop-listing?mockupId=${mockupId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    fetch(`/api/drops/current?mockupId=${mockupId}`, { headers })
       .then(r => r.json())
-      .then(data => { if (data.request) setExistingListRequest(data.request); })
+      .then(data => {
+        setCurrentDrop(data.drop || null);
+        setExistingDropSubmission(data.submission || null);
+      })
       .catch(() => {});
-  }, [viewerIsMogul, mockup, isOwnDesign, mockupId, getSessionToken]);
+  }, [mockup, isOwnDesign, mockupId, getSessionToken, user?.fid]);
 
   // ── Open buy sheet — fetch Shopify variants for this product + color ───────
   const openBuySheet = useCallback(async () => {
@@ -217,8 +203,8 @@ export function DesignViewClient({ mockupId }) {
     );
   };
 
-  // ── Request shop listing ───────────────────────────────────────────────────
-  const handleListInShop = async () => {
+  // ── Submit for weekly drop ─────────────────────────────────────────────────
+  const handleSubmitForDrop = async () => {
     let token = sessionTokenRef.current || getSessionToken();
     if (!token && isInFarcaster) {
       for (let i = 0; i < 50 && !token; i++) {
@@ -226,24 +212,24 @@ export function DesignViewClient({ mockupId }) {
         token = sessionTokenRef.current;
       }
     }
-    if (!token) { setListError('Please connect your Farcaster account.'); return; }
+    if (!token) { setDropError('Please connect your Farcaster account.'); return; }
 
-    setListSubmitting(true);
-    setListError('');
+    setDropSubmitting(true);
+    setDropError('');
     try {
-      const res = await fetch('/api/design-studio/request-shop-listing', {
+      const res = await fetch('/api/drops/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ mockupId }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to submit request.');
-      setListSuccess(true);
-      setExistingListRequest({ status: 'pending' });
+      if (!res.ok) throw new Error(data.error || 'Failed to submit.');
+      setDropSuccess(true);
+      setExistingDropSubmission({ status: 'submitted', mockupId, isThisMockup: true });
     } catch (err) {
-      setListError(err.message || 'Something went wrong. Please try again.');
+      setDropError(err.message || 'Something went wrong. Please try again.');
     } finally {
-      setListSubmitting(false);
+      setDropSubmitting(false);
     }
   };
 
@@ -388,33 +374,32 @@ export function DesignViewClient({ mockupId }) {
               Share on Farcaster
             </button>
 
-            {viewerIsMogul && (
-              existingListRequest ? (
+            {currentDrop && (
+              existingDropSubmission ? (
                 <div className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 text-sm font-semibold ${
-                  existingListRequest.status === 'approved'
+                  existingDropSubmission.status === 'winner'
                     ? 'bg-green-50 border-green-300 text-green-700'
-                    : existingListRequest.status === 'rejected'
+                    : existingDropSubmission.status === 'finalist'
+                    ? 'bg-purple-50 border-purple-300 text-purple-700'
+                    : existingDropSubmission.status === 'rejected'
                     ? 'bg-red-50 border-red-300 text-red-700'
                     : 'bg-amber-50 border-amber-300 text-amber-700'
                 }`}>
-                  {existingListRequest.status === 'approved' && '✅ Shop Listing Approved'}
-                  {existingListRequest.status === 'rejected' && '❌ Listing Request Declined'}
-                  {existingListRequest.status === 'pending' && (
-                    <>
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                      </svg>
-                      Listing Request Pending Approval
-                    </>
+                  {existingDropSubmission.status === 'winner' && '🏆 Winner — This Week\'s Drop!'}
+                  {existingDropSubmission.status === 'finalist' && '⭐ Finalist — Voting in Progress'}
+                  {existingDropSubmission.status === 'rejected' && '❌ Not Selected This Week'}
+                  {existingDropSubmission.status === 'submitted' && (
+                    existingDropSubmission.isThisMockup === false
+                      ? `✅ Submitted another design for ${currentDrop.weekLabel}`
+                      : `✅ Submitted for ${currentDrop.weekLabel}`
                   )}
                 </div>
               ) : (
                 <button
-                  onClick={() => { setListModalOpen(true); setListConfirmed(false); setListError(''); setListSuccess(false); }}
+                  onClick={() => { setDropModalOpen(true); setDropConfirmed(false); setDropError(''); setDropSuccess(false); }}
                   className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-2xl transition-colors text-base"
                 >
-                  🏪 Request to List in Shop
+                  🎯 Submit for {currentDrop.weekLabel}
                 </button>
               )
             )}
@@ -527,20 +512,20 @@ export function DesignViewClient({ mockupId }) {
         </div>
       )}
 
-      {/* List in Shop confirmation modal */}
-      {listModalOpen && (
+      {/* Drop submission confirmation modal */}
+      {dropModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
-          <div className="absolute inset-0 bg-black/50" onClick={() => !listSubmitting && setListModalOpen(false)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => !dropSubmitting && setDropModalOpen(false)} />
           <div className="relative bg-white rounded-3xl px-6 pt-6 pb-7 shadow-2xl w-full max-w-sm">
-            {listSuccess ? (
+            {dropSuccess ? (
               <div className="flex flex-col items-center gap-4 py-4 text-center">
                 <div className="text-5xl">🎉</div>
-                <h2 className="text-lg font-bold text-gray-900">Request Submitted!</h2>
+                <h2 className="text-lg font-bold text-gray-900">Submitted!</h2>
                 <p className="text-sm text-gray-500">
-                  Your listing request has been sent to the Minted Merch team. We&apos;ll review it and reach out if approved.
+                  Your design is in for {currentDrop?.weekLabel}. Merch Moguls will vote on finalists — good luck!
                 </p>
                 <button
-                  onClick={() => setListModalOpen(false)}
+                  onClick={() => setDropModalOpen(false)}
                   className="mt-2 w-full py-3 bg-[#3eb489] text-white font-semibold rounded-2xl text-base"
                 >
                   Done
@@ -548,19 +533,19 @@ export function DesignViewClient({ mockupId }) {
               </div>
             ) : (
               <>
-                <h2 className="text-base font-bold text-gray-900 mb-2">Request to List in Shop</h2>
+                <h2 className="text-base font-bold text-gray-900 mb-2">Submit for {currentDrop?.weekLabel}</h2>
                 <p className="text-sm text-gray-500 mb-5">
-                  Before submitting, please confirm the following:
+                  One submission per week. If selected, your design could become a limited drop (37 units) with a creator payout.
                 </p>
 
                 <label className="flex items-start gap-3 cursor-pointer mb-5">
                   <div
-                    onClick={() => setListConfirmed(v => !v)}
+                    onClick={() => setDropConfirmed(v => !v)}
                     className={`mt-0.5 w-5 h-5 rounded flex-shrink-0 border-2 flex items-center justify-center transition-colors ${
-                      listConfirmed ? 'bg-[#3eb489] border-[#3eb489]' : 'bg-white border-gray-300'
+                      dropConfirmed ? 'bg-[#3eb489] border-[#3eb489]' : 'bg-white border-gray-300'
                     }`}
                   >
-                    {listConfirmed && (
+                    {dropConfirmed && (
                       <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
@@ -571,24 +556,24 @@ export function DesignViewClient({ mockupId }) {
                   </span>
                 </label>
 
-                {listError && (
-                  <p className="text-red-500 text-sm mb-3">{listError}</p>
+                {dropError && (
+                  <p className="text-red-500 text-sm mb-3">{dropError}</p>
                 )}
 
                 <div className="flex gap-3">
                   <button
-                    onClick={() => setListModalOpen(false)}
-                    disabled={listSubmitting}
+                    onClick={() => setDropModalOpen(false)}
+                    disabled={dropSubmitting}
                     className="flex-1 py-3 bg-gray-100 text-gray-700 font-semibold rounded-2xl text-base"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleListInShop}
-                    disabled={!listConfirmed || listSubmitting}
+                    onClick={handleSubmitForDrop}
+                    disabled={!dropConfirmed || dropSubmitting}
                     className="flex-1 py-3 bg-[#3eb489] disabled:opacity-40 text-white font-semibold rounded-2xl text-base"
                   >
-                    {listSubmitting ? 'Submitting…' : 'Submit'}
+                    {dropSubmitting ? 'Submitting…' : 'Submit'}
                   </button>
                 </div>
               </>
