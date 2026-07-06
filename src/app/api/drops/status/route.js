@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import {
   getFeaturedDropForCollection,
   getDropVoteWeight,
+  enrichSubmissionsWithProfiles,
   MERCH_MOGUL_STAKED_THRESHOLD,
 } from '@/lib/dropHelpers';
 
@@ -52,7 +53,6 @@ export async function GET(request) {
       phase,
       drop: {
         id: drop.id,
-        weekLabel: drop.week_label,
         status: drop.status,
         maxUnits: drop.max_units,
         unitsSold: drop.units_sold,
@@ -70,10 +70,13 @@ export async function GET(request) {
         .eq('status', 'finalist')
         .order('vote_count', { ascending: false });
 
-      payload.finalists = (finalists || []).map(f => ({
+      const enriched = await enrichSubmissionsWithProfiles(supabaseAdmin, finalists || []);
+      payload.finalists = enriched.map(f => ({
         id: f.id,
         mockupId: f.mockup_id,
+        fid: f.fid,
         username: f.username,
+        pfpUrl: f.pfp_url,
         mockupUrl: f.mockup_url,
         productType: f.product_type,
         colorName: f.color_name,
@@ -90,13 +93,16 @@ export async function GET(request) {
           .eq('id', drop.winning_submission_id)
           .maybeSingle();
         if (winSub) {
+          const [enriched] = await enrichSubmissionsWithProfiles(supabaseAdmin, [winSub]);
           winner = {
-            id: winSub.id,
-            mockupId: winSub.mockup_id,
-            username: winSub.username,
-            mockupUrl: winSub.mockup_url,
-            productType: winSub.product_type,
-            colorName: winSub.color_name,
+            id: enriched.id,
+            mockupId: enriched.mockup_id,
+            fid: enriched.fid,
+            username: enriched.username,
+            pfpUrl: enriched.pfp_url,
+            mockupUrl: enriched.mockup_url,
+            productType: enriched.product_type,
+            colorName: enriched.color_name,
           };
         }
       }

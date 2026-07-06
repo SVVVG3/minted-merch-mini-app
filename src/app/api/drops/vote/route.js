@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import {
   getActiveVotingDrop,
   getDropVoteWeight,
+  enrichSubmissionsWithProfiles,
   MERCH_MOGUL_STAKED_THRESHOLD,
   WHALE_STAKED_THRESHOLD,
 } from '@/lib/dropHelpers';
@@ -29,6 +30,8 @@ async function loadVotingPayload(drop, fid = null) {
 
   if (error) throw error;
 
+  const enriched = await enrichSubmissionsWithProfiles(supabaseAdmin, finalists || []);
+
   let userVote = null;
   if (fid) {
     const { data: vote } = await supabaseAdmin
@@ -43,16 +46,16 @@ async function loadVotingPayload(drop, fid = null) {
   return {
     drop: {
       id: drop.id,
-      weekLabel: drop.week_label,
       status: drop.status,
       votingEndsAt: drop.voting_ends_at,
       maxUnits: drop.max_units,
     },
-    finalists: (finalists || []).map(f => ({
+    finalists: enriched.map(f => ({
       id: f.id,
       mockupId: f.mockup_id,
       fid: f.fid,
       username: f.username,
+      pfpUrl: f.pfp_url,
       mockupUrl: f.mockup_url,
       productType: f.product_type,
       colorName: f.color_name,

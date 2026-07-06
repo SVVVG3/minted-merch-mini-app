@@ -4,7 +4,23 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { ProductGrid } from './ProductGrid';
-import { MERCH_MOGUL_STAKED_THRESHOLD } from '@/lib/dropHelpers';
+import { MERCH_MOGUL_STAKED_THRESHOLD, getSoleLeaderSubmissionId } from '@/lib/dropHelpers';
+
+function CreatorAvatar({ username, fid, pfpUrl, size = 'sm' }) {
+  const dim = size === 'sm' ? 'w-6 h-6' : 'w-8 h-8';
+  const label = username || (fid ? String(fid) : 'creator');
+  if (pfpUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={pfpUrl} alt="" className={`${dim} rounded-full object-cover flex-shrink-0`} />
+    );
+  }
+  return (
+    <div className={`${dim} rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-gray-500`}>
+      {label.charAt(0).toUpperCase()}
+    </div>
+  );
+}
 
 function formatCountdown(endsAt) {
   if (!endsAt) return null;
@@ -87,7 +103,7 @@ export function DropCollectionView({ products }) {
       <div className="px-4 py-8 max-w-md mx-auto">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Now Open</p>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">{drop.weekLabel}</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Limited Drop</h2>
           <p className="text-sm text-gray-500 mb-6">
             Submit your design for a chance to be this week&apos;s limited drop (37 units).
           </p>
@@ -101,12 +117,13 @@ export function DropCollectionView({ products }) {
   }
 
   if (phase === 'voting') {
+    const leaderId = getSoleLeaderSubmissionId(finalists);
     return (
       <div className="px-4 py-6 max-w-lg mx-auto">
         <div className="text-center mb-6">
           <p className="text-xs font-semibold uppercase tracking-wide text-purple-600 mb-1">Voting Open</p>
-          <h2 className="text-xl font-bold text-gray-900">{drop.weekLabel}</h2>
-          <p className="text-sm text-gray-500 mt-1">Merch Moguls pick this week&apos;s Limited Drop winner</p>
+          <h2 className="text-xl font-bold text-gray-900">Limited Drop</h2>
+          <p className="text-sm text-gray-500 mt-1">Merch Moguls pick this week&apos;s winner</p>
           {countdown && (
             <span className="inline-block mt-2 px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
               ⏱ {countdown}
@@ -143,7 +160,7 @@ export function DropCollectionView({ products }) {
           {finalists.length === 0 ? (
             <p className="text-center text-gray-400 text-sm py-4">Finalists coming soon…</p>
           ) : (
-            finalists.map((f, idx) => (
+            finalists.map((f) => (
               <div key={f.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex gap-3 p-3">
                 <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -153,10 +170,13 @@ export function DropCollectionView({ products }) {
                   <p className="text-sm font-semibold text-gray-900 capitalize truncate">
                     {f.productType}{f.colorName ? ` · ${f.colorName}` : ''}
                   </p>
-                  <p className="text-xs text-gray-500">@{f.username || 'creator'}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <CreatorAvatar username={f.username} fid={f.fid} pfpUrl={f.pfpUrl} />
+                    <p className="text-xs text-gray-500 truncate">@{f.username || f.fid || 'creator'}</p>
+                  </div>
                   <p className="text-lg font-bold text-[#3eb489] mt-1">
                     {f.voteCount} <span className="text-xs font-normal text-gray-400">votes</span>
-                    {idx === 0 && finalists.length > 1 && (
+                    {leaderId === f.id && (
                       <span className="ml-2 text-xs text-yellow-600 font-semibold">👑</span>
                     )}
                   </p>
@@ -189,10 +209,13 @@ export function DropCollectionView({ products }) {
               <img src={winner.mockupUrl} alt="Winning drop design" className="w-full aspect-square object-contain bg-gray-50" />
               <div className="p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-green-600 mb-1">Live Now</p>
-                <h2 className="text-lg font-bold text-gray-900">{drop.weekLabel}</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Designed by @{winner.username || 'creator'} · Only {unitsLeft} left of {drop.maxUnits}
-                </p>
+                <h2 className="text-lg font-bold text-gray-900">Limited Drop</h2>
+                <div className="flex items-center gap-2 mt-2">
+                  <CreatorAvatar username={winner.username} fid={winner.fid} pfpUrl={winner.pfpUrl} size="md" />
+                  <p className="text-sm text-gray-500">
+                    Designed by @{winner.username || 'creator'} · Only {unitsLeft} left of {drop.maxUnits}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -212,7 +235,7 @@ export function DropCollectionView({ products }) {
     return (
       <div className="px-4 py-12 text-center max-w-md mx-auto">
         <div className="text-4xl mb-3">🔥</div>
-        <h2 className="text-lg font-bold text-gray-900 mb-2">{drop.weekLabel} — Sold Out</h2>
+        <h2 className="text-lg font-bold text-gray-900 mb-2">Limited Drop — Sold Out</h2>
         {winner?.mockupUrl && (
           <div className="w-48 h-48 mx-auto mb-4 rounded-xl overflow-hidden bg-gray-100">
             {/* eslint-disable-next-line @next/next/no-img-element */}

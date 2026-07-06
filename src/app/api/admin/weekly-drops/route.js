@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withAdminAuth } from '@/lib/adminAuth';
+import { enrichSubmissionsWithProfiles } from '@/lib/dropHelpers';
 
 export const GET = withAdminAuth(async () => {
   try {
@@ -20,7 +21,17 @@ export const GET = withAdminAuth(async () => {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    return NextResponse.json({ drops: drops || [] });
+    const enrichedDrops = await Promise.all(
+      (drops || []).map(async (drop) => ({
+        ...drop,
+        drop_submissions: await enrichSubmissionsWithProfiles(
+          supabaseAdmin,
+          drop.drop_submissions || []
+        ),
+      }))
+    );
+
+    return NextResponse.json({ drops: enrichedDrops });
   } catch (err) {
     console.error('[admin/weekly-drops] GET error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

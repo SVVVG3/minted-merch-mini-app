@@ -77,3 +77,33 @@ export async function getFeaturedDropForCollection(supabaseAdmin) {
 
   return null;
 }
+
+/** Returns the submission id only when one finalist has a strictly higher vote count (> 0). */
+export function getSoleLeaderSubmissionId(finalists) {
+  if (!finalists?.length) return null;
+  const counts = finalists.map(f => f.voteCount ?? f.vote_count ?? 0);
+  const max = Math.max(...counts);
+  if (max <= 0) return null;
+  const leaders = finalists.filter(f => (f.voteCount ?? f.vote_count ?? 0) === max);
+  return leaders.length === 1 ? leaders[0].id : null;
+}
+
+/** Attach profile pfp_url (and username fallback) to submission-like rows. */
+export async function enrichSubmissionsWithProfiles(supabaseAdmin, rows) {
+  if (!rows?.length) return rows || [];
+  const fids = [...new Set(rows.map(r => r.fid).filter(Boolean))];
+  if (!fids.length) return rows;
+
+  const { data: profiles } = await supabaseAdmin
+    .from('profiles')
+    .select('fid, username, pfp_url')
+    .in('fid', fids);
+
+  const byFid = Object.fromEntries((profiles || []).map(p => [p.fid, p]));
+
+  return rows.map(row => ({
+    ...row,
+    username: row.username || byFid[row.fid]?.username || null,
+    pfp_url: byFid[row.fid]?.pfp_url || null,
+  }));
+}

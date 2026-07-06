@@ -3,7 +3,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useFarcaster } from '@/lib/useFarcaster';
-import { MERCH_MOGUL_STAKED_THRESHOLD } from '@/lib/dropHelpers';
+import { MERCH_MOGUL_STAKED_THRESHOLD, getSoleLeaderSubmissionId } from '@/lib/dropHelpers';
+
+function CreatorAvatar({ username, fid, pfpUrl }) {
+  const label = username || (fid ? String(fid) : '?');
+  if (pfpUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={pfpUrl} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+    );
+  }
+  return (
+    <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 text-xs font-bold text-gray-500">
+      {label.charAt(0).toUpperCase()}
+    </div>
+  );
+}
 
 function formatCountdown(endsAt) {
   if (!endsAt) return null;
@@ -163,7 +178,7 @@ export default function DropsVoteClient() {
         ) : (
           <>
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-gray-900">{drop.weekLabel}</h2>
+              <h2 className="text-xl font-bold text-gray-900">Limited Drop</h2>
               <p className="text-sm text-gray-500 mt-1">
                 Pick your favorite finalist — votes are live.
               </p>
@@ -195,9 +210,10 @@ export default function DropsVoteClient() {
               {finalists.length === 0 ? (
                 <p className="text-center text-gray-400 text-sm py-8">No finalists selected yet.</p>
               ) : (
-                finalists.map((f, idx) => {
+                finalists.map((f) => {
                   const isVoted = userVote?.submissionId === f.id;
-                  const isLeading = idx === 0 && finalists.length > 1;
+                  const leaderId = getSoleLeaderSubmissionId(finalists);
+                  const isLeading = leaderId === f.id;
                   return (
                     <div
                       key={f.id}
@@ -220,7 +236,10 @@ export default function DropsVoteClient() {
                             <p className="text-sm font-semibold text-gray-900 capitalize">
                               {f.productType}{f.colorName ? ` · ${f.colorName}` : ''}
                             </p>
-                            <p className="text-xs text-gray-500">@{f.username || f.fid}</p>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <CreatorAvatar username={f.username} fid={f.fid} pfpUrl={f.pfpUrl} />
+                              <p className="text-xs text-gray-500">@{f.username || f.fid}</p>
+                            </div>
                           </div>
                           <div className="text-right">
                             <p className="text-2xl font-bold text-[#3eb489]">{f.voteCount}</p>
