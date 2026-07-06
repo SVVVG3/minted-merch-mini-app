@@ -99,6 +99,68 @@ export function DropCollectionView({ products }) {
   }
 
   if (phase === 'submissions') {
+    const userSubmission = viewer.userSubmission;
+
+    if (userSubmission) {
+      const statusLabel =
+        userSubmission.status === 'finalist' ? '⭐ Finalist'
+        : userSubmission.status === 'winner' ? '🏆 Winner'
+        : userSubmission.status === 'rejected' ? 'Not selected'
+        : '✅ Submitted';
+
+      return (
+        <div className="px-4 py-8 max-w-md mx-auto">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            {userSubmission.mockupUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={userSubmission.mockupUrl}
+                alt="Your submitted design"
+                className="w-full aspect-square object-contain bg-gray-50"
+              />
+            )}
+            <div className="p-6 text-center">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Your Entry</p>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">Limited Drop</h2>
+              <p className="text-sm text-gray-500 capitalize mb-4">
+                {userSubmission.productType}
+                {userSubmission.colorName ? ` · ${userSubmission.colorName}` : ''}
+              </p>
+              <div className={`inline-block px-4 py-2 rounded-xl text-sm font-semibold mb-4 ${
+                userSubmission.status === 'rejected'
+                  ? 'bg-red-50 text-red-700'
+                  : userSubmission.status === 'finalist'
+                  ? 'bg-purple-50 text-purple-700'
+                  : userSubmission.status === 'winner'
+                  ? 'bg-green-50 text-green-700'
+                  : 'bg-amber-50 text-amber-700'
+              }`}>
+                {statusLabel}
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                {userSubmission.status === 'submitted'
+                  ? "You're in! Admins will pick up to 3 finalists, then Merch Moguls vote."
+                  : userSubmission.status === 'finalist'
+                  ? 'You made the finals — Moguls are voting on the winner.'
+                  : userSubmission.status === 'winner'
+                  ? 'Congratulations — your design won this week!'
+                  : 'Thanks for submitting — watch for the next drop.'}
+              </p>
+              {userSubmission.mockupId && (
+                <Link
+                  href={`/design/${userSubmission.mockupId}`}
+                  className="inline-block text-sm font-semibold text-[#3eb489] hover:underline"
+                >
+                  View your design →
+                </Link>
+              )}
+              <p className="text-xs text-gray-400 mt-4">One submission per person per week</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="px-4 py-8 max-w-md mx-auto">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-center">

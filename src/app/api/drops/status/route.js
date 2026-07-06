@@ -47,6 +47,31 @@ export async function GET(request) {
           viewer.userVoteSubmissionId = vote.submission_id;
         }
       }
+
+      if (phase === 'submissions') {
+        const { data: userSub } = await supabaseAdmin
+          .from('drop_submissions')
+          .select('id, mockup_id, fid, username, mockup_url, product_type, color_name, status, created_at')
+          .eq('drop_id', drop.id)
+          .eq('fid', auth.fid)
+          .maybeSingle();
+
+        if (userSub) {
+          const [enriched] = await enrichSubmissionsWithProfiles(supabaseAdmin, [userSub]);
+          viewer.userSubmission = {
+            id: enriched.id,
+            mockupId: enriched.mockup_id,
+            fid: enriched.fid,
+            username: enriched.username,
+            pfpUrl: enriched.pfp_url,
+            mockupUrl: enriched.mockup_url,
+            productType: enriched.product_type,
+            colorName: enriched.color_name,
+            status: enriched.status,
+            createdAt: enriched.created_at,
+          };
+        }
+      }
     }
 
     const payload = {
