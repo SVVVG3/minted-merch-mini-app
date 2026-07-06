@@ -11,6 +11,9 @@ export const GET = withAdminAuth(async () => {
         drop_submissions!drop_submissions_drop_id_fkey (
           id, mockup_id, fid, username, mockup_url, design_url,
           product_type, color_name, technique, status, vote_count, created_at
+        ),
+        design_request:design_order_requests!weekly_drops_design_request_id_fkey (
+          id, printful_order_id, printful_order_status
         )
       `)
       .order('created_at', { ascending: false });

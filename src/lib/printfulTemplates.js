@@ -164,7 +164,28 @@ export async function createPrintfulTemplate(
 
   // ── Fetch shipping address from Supabase orders table ────────────────────
   let recipient = null;
-  if (shopifyOrderNumber) {
+
+  // Limited Drop winner listing draft (no customer order yet)
+  if (req.drop_id) {
+    let weekLabel = 'Limited Drop';
+    try {
+      const { data: dropRow } = await supabase
+        .from('weekly_drops')
+        .select('week_label')
+        .eq('id', req.drop_id)
+        .maybeSingle();
+      if (dropRow?.week_label) weekLabel = dropRow.week_label;
+    } catch { /* use default label */ }
+
+    recipient = {
+      name: `Limited Drop Listing — ${weekLabel}`,
+      address1: 'TBD — listing template',
+      city: 'TBD',
+      state_code: 'CA',
+      country_code: 'US',
+      zip: '00000',
+    };
+  } else if (shopifyOrderNumber) {
     try {
       const { data: orderRow } = await supabase
         .from('orders')
@@ -206,11 +227,24 @@ export async function createPrintfulTemplate(
   }
 
   // ── Build the Printful order payload ─────────────────────────────────────
-  const orderName = [
+  let orderName = [
     `Custom ${req.product_type || 'Item'}`,
     shopifyOrderNumber ? `| Shopify ${shopifyOrderNumber}` : null,
     `| FID ${req.fid}`,
   ].filter(Boolean).join(' ');
+
+  if (req.drop_id) {
+    let weekLabel = 'Limited Drop';
+    try {
+      const { data: dropRow } = await supabase
+        .from('weekly_drops')
+        .select('week_label')
+        .eq('id', req.drop_id)
+        .maybeSingle();
+      if (dropRow?.week_label) weekLabel = dropRow.week_label;
+    } catch { /* ignore */ }
+    orderName = `Limited Drop ${weekLabel} | ${req.product_type || 'Item'} | FID ${req.fid}`;
+  }
 
   const files = req.design_url
     ? [{

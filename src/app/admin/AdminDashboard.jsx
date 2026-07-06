@@ -182,6 +182,7 @@ export default function AdminDashboard() {
   const [weeklyDropsData, setWeeklyDropsData] = useState([]);
   const [weeklyDropsLoading, setWeeklyDropsLoading] = useState(false);
   const [weeklyDropsError, setWeeklyDropsError] = useState('');
+  const [weeklyDropsNotice, setWeeklyDropsNotice] = useState('');
   const [newDropLabel, setNewDropLabel] = useState('');
   const [creatingDrop, setCreatingDrop] = useState(false);
   const [expandedDropId, setExpandedDropId] = useState(null);
@@ -1550,6 +1551,7 @@ export default function AdminDashboard() {
 
   const updateDropSubmissionStatus = async (submissionId, status, dropId) => {
     try {
+      setWeeklyDropsNotice('');
       const res = await adminFetch('/api/admin/drop-submissions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -1557,6 +1559,19 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update submission');
+      if (status === 'winner') {
+        if (data.printful?.printfulOrderId) {
+          setWeeklyDropsNotice(
+            data.printful.alreadyExists
+              ? `Printful draft order #${data.printful.printfulOrderId} already exists for this winner.`
+              : `Printful draft order #${data.printful.printfulOrderId} created — open Printful to build the Shopify listing.`
+          );
+        } else if (data.printful?.error) {
+          setWeeklyDropsError(`Winner saved, but Printful draft failed: ${data.printful.error}`);
+        } else {
+          setWeeklyDropsNotice('Winner saved.');
+        }
+      }
       loadWeeklyDrops();
     } catch (err) {
       setWeeklyDropsError(err.message);
@@ -3610,6 +3625,7 @@ export default function AdminDashboard() {
                 </div>
                 {weeklyDropsLoading && <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489]" /></div>}
                 {weeklyDropsError && <div className="px-6 py-4 text-red-600 text-sm">{weeklyDropsError}</div>}
+                {weeklyDropsNotice && <div className="px-6 py-4 text-green-700 text-sm bg-green-50 border-b border-green-100">{weeklyDropsNotice}</div>}
                 {!weeklyDropsLoading && weeklyDropsData.length === 0 && (
                   <div className="px-6 py-12 text-center text-gray-400 text-sm">No drop weeks yet. Create one above.</div>
                 )}
@@ -3729,6 +3745,20 @@ export default function AdminDashboard() {
                           )}
                           {drop.shopify_product_id && (
                             <p className="text-xs text-gray-500 mt-3">Shopify product: {drop.shopify_product_id}</p>
+                          )}
+                          {drop.design_request_id && (
+                            <p className="text-xs text-gray-500 mt-2">
+                              Printful listing draft:{' '}
+                              <a
+                                href="https://www.printful.com/dashboard/orders"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[#3eb489] hover:underline"
+                              >
+                                Open in Printful
+                              </a>
+                              {' '}(also in Custom Orders tab)
+                            </p>
                           )}
                         </div>
                       )}

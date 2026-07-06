@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withAdminAuth } from '@/lib/adminAuth';
+import { createPrintfulDraftForDropWinner } from '@/lib/dropPrintful';
 
 const VALID_SUBMISSION_STATUSES = ['submitted', 'finalist', 'winner', 'rejected'];
 
@@ -52,7 +53,15 @@ export const PATCH = withAdminAuth(async (request) => {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    return NextResponse.json({ success: true, submission });
+    let printful = null;
+    if (status === 'winner' && dropId) {
+      printful = await createPrintfulDraftForDropWinner(id, dropId);
+      if (!printful.success) {
+        console.error('[admin/drop-submissions] Printful draft failed:', printful.error);
+      }
+    }
+
+    return NextResponse.json({ success: true, submission, printful });
   } catch (err) {
     console.error('[admin/drop-submissions] PATCH error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
