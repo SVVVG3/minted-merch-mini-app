@@ -83,6 +83,7 @@ export async function GET(request) {
         unitsSold: drop.units_sold,
         votingEndsAt: drop.voting_ends_at,
         submissionsCloseAt: drop.submissions_close_at,
+        shopifyProductId: drop.shopify_product_id || null,
       },
       viewer,
     };
