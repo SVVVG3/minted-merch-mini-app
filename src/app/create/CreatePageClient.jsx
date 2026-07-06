@@ -9,6 +9,7 @@ import { useCart } from '@/lib/CartContext';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { ProfileModal } from '@/components/ProfileModal';
+import { DropSubmitSection } from '@/components/DropSubmitSection';
 import { ClaimCreatorEarnings } from '@/components/ClaimCreatorEarnings';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { USDC_CONTRACT, PAYMENT_CONFIG } from '@/lib/usdc';
@@ -2341,6 +2342,8 @@ export function CreatePageClient() {
                   Share on Farcaster
                 </button>
 
+                {savedMockupId && <DropSubmitSection mockupId={savedMockupId} />}
+
                 {/* Create another */}
                 <button
                   onClick={() => { hapticImpact('light'); handleReset(); }}
@@ -2648,6 +2651,7 @@ function RemoveBgStep({ designUrl, setDesignUrl, getSessionToken, onDone, onBack
 }
 
 function MockupCard({ mockup, onShare, onBuy, onDelete }) {
+  const router = useRouter();
   const [menuOpen, setMenuOpen]         = useState(false);
   const [showShareSub, setShowShareSub] = useState(false); // share sub-panel
   const [copied, setCopied]             = useState(false);
@@ -2691,8 +2695,14 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
   return (
     // Outer wrapper without overflow-hidden so the dropdown can escape the card bounds
     <div className="relative">
-      {/* The card itself */}
-      <div className="rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 aspect-square">
+      {/* The card itself — tap to open design page */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => mockup.id && router.push(`/design/${mockup.id}`)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && mockup.id) router.push(`/design/${mockup.id}`); }}
+        className="rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 aspect-square cursor-pointer active:opacity-90 transition-opacity"
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={mockup.mockup_url} alt="Past mockup" className="w-full h-full object-cover" />
         {/* Bottom label */}
@@ -2711,7 +2721,7 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
       {/* Three-dot menu button — positioned over card top-right */}
       <button
         onClick={(e) => { e.stopPropagation(); try { sdk.haptics.selectionChanged(); } catch {} setMenuOpen(o => !o); setDeleteConfirm(false); setShowShareSub(false); }}
-        className="absolute top-1.5 right-1.5 w-7 h-7 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md text-white text-base leading-none hover:bg-black/70 transition-colors"
+        className="absolute top-1.5 right-1.5 z-10 w-7 h-7 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md text-white text-base leading-none hover:bg-black/70 transition-colors"
         title="More options"
       >
         ···
@@ -2789,6 +2799,15 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
                   </svg>
                   Share on Farcaster
                 </button>
+
+                <div className="h-px bg-gray-100 mx-3" />
+
+                {/* Submit for Limited Drop */}
+                <DropSubmitSection
+                  mockupId={mockup.id}
+                  variant="menu-item"
+                  onMenuClose={closeMenu}
+                />
 
                 <div className="h-px bg-gray-100 mx-3" />
 

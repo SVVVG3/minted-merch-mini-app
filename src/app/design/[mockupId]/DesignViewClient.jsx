@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { useCart } from '@/lib/CartContext';
 import { DESIGN_STUDIO_PRODUCTS } from '@/lib/designStudioConfig';
+import { DropSubmitSection } from '@/components/DropSubmitSection';
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
 
@@ -23,14 +24,6 @@ export function DesignViewClient({ mockupId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Drop submission state
-  const [dropModalOpen, setDropModalOpen] = useState(false);
-  const [dropConfirmed, setDropConfirmed] = useState(false);
-  const [dropSubmitting, setDropSubmitting] = useState(false);
-  const [dropError, setDropError] = useState('');
-  const [dropSuccess, setDropSuccess] = useState(false);
-  const [currentDrop, setCurrentDrop] = useState(null); // { weekLabel, ... } if submissions open
-  const [existingDropSubmission, setExistingDropSubmission] = useState(null); // { id, status, mockupId, isThisMockup }
   const [buyOpen, setBuyOpen] = useState(false);
   const [shopifyVariants, setShopifyVariants] = useState([]);
   const [selectedSize, setSelectedSize] = useState('');
@@ -64,20 +57,6 @@ export function DesignViewClient({ mockupId }) {
   // ── Is the current viewer the creator? ────────────────────────────────────
   // Must be declared before any useEffect that uses it in a dependency array.
   const isOwnDesign = !!(user?.fid && creator?.fid && String(user.fid) === String(creator.fid));
-
-  // ── Check current drop + user's submission (creator viewing own design) ─────
-  useEffect(() => {
-    if (!mockup || !isOwnDesign) return;
-    const token = getSessionToken();
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    fetch(`/api/drops/current?mockupId=${mockupId}`, { headers })
-      .then(r => r.json())
-      .then(data => {
-        setCurrentDrop(data.drop || null);
-        setExistingDropSubmission(data.submission || null);
-      })
-      .catch(() => {});
-  }, [mockup, isOwnDesign, mockupId, getSessionToken, user?.fid]);
 
   // ── Open buy sheet — fetch Shopify variants for this product + color ───────
   const openBuySheet = useCallback(async () => {
@@ -201,36 +180,6 @@ export function DesignViewClient({ mockupId }) {
       `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(designUrl)}`,
       '_blank'
     );
-  };
-
-  // ── Submit for weekly drop ─────────────────────────────────────────────────
-  const handleSubmitForDrop = async () => {
-    let token = sessionTokenRef.current || getSessionToken();
-    if (!token && isInFarcaster) {
-      for (let i = 0; i < 50 && !token; i++) {
-        await new Promise(r => setTimeout(r, 100));
-        token = sessionTokenRef.current;
-      }
-    }
-    if (!token) { setDropError('Please connect your Farcaster account.'); return; }
-
-    setDropSubmitting(true);
-    setDropError('');
-    try {
-      const res = await fetch('/api/drops/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ mockupId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to submit.');
-      setDropSuccess(true);
-      setExistingDropSubmission({ status: 'submitted', mockupId, isThisMockup: true });
-    } catch (err) {
-      setDropError(err.message || 'Something went wrong. Please try again.');
-    } finally {
-      setDropSubmitting(false);
-    }
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -374,35 +323,7 @@ export function DesignViewClient({ mockupId }) {
               Share on Farcaster
             </button>
 
-            {currentDrop && (
-              existingDropSubmission ? (
-                <div className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 text-sm font-semibold ${
-                  existingDropSubmission.status === 'winner'
-                    ? 'bg-green-50 border-green-300 text-green-700'
-                    : existingDropSubmission.status === 'finalist'
-                    ? 'bg-purple-50 border-purple-300 text-purple-700'
-                    : existingDropSubmission.status === 'rejected'
-                    ? 'bg-red-50 border-red-300 text-red-700'
-                    : 'bg-amber-50 border-amber-300 text-amber-700'
-                }`}>
-                  {existingDropSubmission.status === 'winner' && '🏆 Winner — This Week\'s Drop!'}
-                  {existingDropSubmission.status === 'finalist' && '⭐ Finalist — Voting in Progress'}
-                  {existingDropSubmission.status === 'rejected' && '❌ Not Selected This Week'}
-                  {existingDropSubmission.status === 'submitted' && (
-                    existingDropSubmission.isThisMockup === false
-                      ? `✅ Submitted another design for ${currentDrop.weekLabel}`
-                      : `✅ Submitted for ${currentDrop.weekLabel}`
-                  )}
-                </div>
-              ) : (
-                <button
-                  onClick={() => { setDropModalOpen(true); setDropConfirmed(false); setDropError(''); setDropSuccess(false); }}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-2xl transition-colors text-base"
-                >
-                  🎯 Submit for {currentDrop.weekLabel}
-                </button>
-              )
-            )}
+            {isOwnDesign && <DropSubmitSection mockupId={mockupId} />}
 
             <button
               onClick={() => router.push('/create')}
@@ -508,76 +429,6 @@ export function DesignViewClient({ mockupId }) {
                 return `Add to Cart · ${price ? `$${parseFloat(price).toFixed(2)}` : '—'}`;
               })()}
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Drop submission confirmation modal */}
-      {dropModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
-          <div className="absolute inset-0 bg-black/50" onClick={() => !dropSubmitting && setDropModalOpen(false)} />
-          <div className="relative bg-white rounded-3xl px-6 pt-6 pb-7 shadow-2xl w-full max-w-sm">
-            {dropSuccess ? (
-              <div className="flex flex-col items-center gap-4 py-4 text-center">
-                <div className="text-5xl">🎉</div>
-                <h2 className="text-lg font-bold text-gray-900">Submitted!</h2>
-                <p className="text-sm text-gray-500">
-                  Your design is in for {currentDrop?.weekLabel}. Merch Moguls will vote on finalists — good luck!
-                </p>
-                <button
-                  onClick={() => setDropModalOpen(false)}
-                  className="mt-2 w-full py-3 bg-[#3eb489] text-white font-semibold rounded-2xl text-base"
-                >
-                  Done
-                </button>
-              </div>
-            ) : (
-              <>
-                <h2 className="text-base font-bold text-gray-900 mb-2">Submit for {currentDrop?.weekLabel}</h2>
-                <p className="text-sm text-gray-500 mb-5">
-                  One submission per week. If selected, your design could become a limited drop (37 units) with a creator payout.
-                </p>
-
-                <label className="flex items-start gap-3 cursor-pointer mb-5">
-                  <div
-                    onClick={() => setDropConfirmed(v => !v)}
-                    className={`mt-0.5 w-5 h-5 rounded flex-shrink-0 border-2 flex items-center justify-center transition-colors ${
-                      dropConfirmed ? 'bg-[#3eb489] border-[#3eb489]' : 'bg-white border-gray-300'
-                    }`}
-                  >
-                    {dropConfirmed && (
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className="text-sm text-gray-700 leading-relaxed">
-                    I confirm this is my original design, or I have explicit permission to use it on merchandise.
-                  </span>
-                </label>
-
-                {dropError && (
-                  <p className="text-red-500 text-sm mb-3">{dropError}</p>
-                )}
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setDropModalOpen(false)}
-                    disabled={dropSubmitting}
-                    className="flex-1 py-3 bg-gray-100 text-gray-700 font-semibold rounded-2xl text-base"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSubmitForDrop}
-                    disabled={!dropConfirmed || dropSubmitting}
-                    className="flex-1 py-3 bg-[#3eb489] disabled:opacity-40 text-white font-semibold rounded-2xl text-base"
-                  >
-                    {dropSubmitting ? 'Submitting…' : 'Submit'}
-                  </button>
-                </div>
-              </>
-            )}
           </div>
         </div>
       )}
