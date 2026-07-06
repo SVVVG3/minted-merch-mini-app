@@ -6,10 +6,9 @@ import { useFarcaster } from '@/lib/useFarcaster';
 export const DROP_SUBMIT_LABEL = 'Submit for Limited Drop';
 
 /**
- * Drop submission UI: status badge, submit button/menu item, and confirmation modal.
- * variant: "button" (full-width stack) | "menu-item" (Design Studio mockup menu)
+ * Drop submission UI: status badge, submit button, and confirmation modal.
  */
-export function DropSubmitSection({ mockupId, variant = 'button', onMenuClose }) {
+export function DropSubmitSection({ mockupId }) {
   const { getSessionToken, isInFarcaster, sessionToken } = useFarcaster();
   const sessionTokenRef = useRef(sessionToken);
   useEffect(() => { sessionTokenRef.current = sessionToken; }, [sessionToken]);
@@ -36,7 +35,6 @@ export function DropSubmitSection({ mockupId, variant = 'button', onMenuClose })
   }, [mockupId, getSessionToken, sessionToken]);
 
   const openModal = () => {
-    onMenuClose?.();
     setModalOpen(true);
     setConfirmed(false);
     setError('');
@@ -95,17 +93,7 @@ export function DropSubmitSection({ mockupId, variant = 'button', onMenuClose })
     </div>
   ) : null;
 
-  const trigger = existingSubmission ? (
-    variant === 'menu-item' ? null : statusBadge
-  ) : variant === 'menu-item' ? (
-    <button
-      onClick={openModal}
-      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-    >
-      <span className="text-base flex-shrink-0">🎯</span>
-      {DROP_SUBMIT_LABEL}
-    </button>
-  ) : (
+  const trigger = existingSubmission ? statusBadge : (
     <button
       onClick={openModal}
       className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-2xl transition-colors text-base"

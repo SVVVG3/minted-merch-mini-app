@@ -2802,15 +2802,6 @@ function MockupCard({ mockup, onShare, onBuy, onDelete }) {
 
                 <div className="h-px bg-gray-100 mx-3" />
 
-                {/* Submit for Limited Drop */}
-                <DropSubmitSection
-                  mockupId={mockup.id}
-                  variant="menu-item"
-                  onMenuClose={closeMenu}
-                />
-
-                <div className="h-px bg-gray-100 mx-3" />
-
                 {/* Buy */}
                 <button
                   onClick={() => { closeMenu(); onBuy(mockup); }}
