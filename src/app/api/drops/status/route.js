@@ -84,7 +84,7 @@ export async function GET(request) {
       }));
     }
 
-    if (phase === 'live' || phase === 'sold_out') {
+    if (phase === 'live' || phase === 'sold_out' || phase === 'winner_pending') {
       let winner = null;
       if (drop.winning_submission_id) {
         const { data: winSub } = await supabaseAdmin

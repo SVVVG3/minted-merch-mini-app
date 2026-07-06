@@ -18,6 +18,15 @@ import { getProductConfig } from '@/lib/designStudioConfig';
 
 const PRINTFUL_BASE = 'https://api.printful.com';
 
+/** Valid US address for listing/template drafts (Printful validates state + ZIP). */
+const PRINTFUL_LISTING_DUMMY_RECIPIENT = {
+  address1: '262 W Santa Clara St',
+  city: 'Ventura',
+  state_code: 'CA',
+  country_code: 'US',
+  zip: '93001',
+};
+
 function getSupabaseAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -178,12 +187,8 @@ export async function createPrintfulTemplate(
     } catch { /* use default label */ }
 
     recipient = {
+      ...PRINTFUL_LISTING_DUMMY_RECIPIENT,
       name: `Limited Drop Listing — ${weekLabel}`,
-      address1: 'TBD — listing template',
-      city: 'TBD',
-      state_code: 'CA',
-      country_code: 'US',
-      zip: '00000',
     };
   } else if (shopifyOrderNumber) {
     try {
@@ -216,12 +221,8 @@ export async function createPrintfulTemplate(
   if (!recipient) {
     // Use a placeholder so Printful accepts the draft — admin fills in real address
     recipient = {
+      ...PRINTFUL_LISTING_DUMMY_RECIPIENT,
       name: `Custom Order — FID ${req.fid}`,
-      address1: 'TBD',
-      city: 'TBD',
-      state_code: 'CA',
-      country_code: 'US',
-      zip: '00000',
     };
     console.warn('⚠️ No shipping address found — using placeholder recipient in Printful draft');
   }

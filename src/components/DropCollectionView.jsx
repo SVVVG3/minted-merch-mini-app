@@ -198,6 +198,28 @@ export function DropCollectionView({ products }) {
     );
   }
 
+  if (phase === 'winner_pending') {
+    return (
+      <div className="px-4 py-6 max-w-lg mx-auto">
+        {winner?.mockupUrl && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={winner.mockupUrl} alt="Winning drop design" className="w-full aspect-square object-contain bg-gray-50" />
+            <div className="p-4 text-center">
+              <p className="text-xs font-semibold uppercase tracking-wide text-green-600 mb-1">🏆 Winner Selected</p>
+              <h2 className="text-lg font-bold text-gray-900 mb-2">Limited Drop</h2>
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <CreatorAvatar username={winner.username} fid={winner.fid} pfpUrl={winner.pfpUrl} size="md" />
+                <p className="text-sm text-gray-500">Designed by @{winner.username || 'creator'}</p>
+              </div>
+              <p className="text-sm text-gray-400">Launching in the shop soon — 37 units only.</p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (phase === 'live') {
     const unitsLeft = Math.max(0, (drop.maxUnits || 37) - (drop.unitsSold || 0));
     return (

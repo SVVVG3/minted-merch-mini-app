@@ -1563,13 +1563,13 @@ export default function AdminDashboard() {
         if (data.printful?.printfulOrderId) {
           setWeeklyDropsNotice(
             data.printful.alreadyExists
-              ? `Printful draft order #${data.printful.printfulOrderId} already exists for this winner.`
-              : `Printful draft order #${data.printful.printfulOrderId} created — open Printful to build the Shopify listing.`
+              ? `Winner confirmed. Voting closed — other entries rejected. Printful draft #${data.printful.printfulOrderId} already exists.`
+              : `Winner confirmed. Voting closed — other entries rejected. Printful draft #${data.printful.printfulOrderId} created.`
           );
         } else if (data.printful?.error) {
-          setWeeklyDropsError(`Winner saved, but Printful draft failed: ${data.printful.error}`);
+          setWeeklyDropsError(`Winner saved and voting closed, but Printful draft failed: ${data.printful.error}`);
         } else {
-          setWeeklyDropsNotice('Winner saved.');
+          setWeeklyDropsNotice('Winner confirmed. Voting closed — other entries rejected.');
         }
       }
       loadWeeklyDrops();

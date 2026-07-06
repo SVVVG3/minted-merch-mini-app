@@ -28,18 +28,23 @@ export const PATCH = withAdminAuth(async (request) => {
     }
 
     if (status === 'winner' && dropId) {
+      const now = new Date().toISOString();
+
+      // Reject every other submission (including prior winners and finalists)
       await supabaseAdmin
         .from('drop_submissions')
-        .update({ status: 'finalist' })
+        .update({ status: 'rejected' })
         .eq('drop_id', dropId)
-        .eq('status', 'winner')
-        .neq('id', id);
+        .neq('id', id)
+        .in('status', ['submitted', 'finalist', 'winner']);
 
+      // Close voting — winner picked; admin still clicks Go Live for Shopify
       await supabaseAdmin
         .from('weekly_drops')
         .update({
           winning_submission_id: id,
-          updated_at: new Date().toISOString(),
+          voting_ends_at: now,
+          updated_at: now,
         })
         .eq('id', dropId);
     }

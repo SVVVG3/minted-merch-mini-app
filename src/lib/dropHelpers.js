@@ -32,6 +32,7 @@ export async function getActiveVotingDrop(supabaseAdmin) {
   if (error) throw error;
 
   for (const drop of drops || []) {
+    if (drop.winning_submission_id) continue;
     if (drop.voting_starts_at && drop.voting_starts_at > now) continue;
     if (drop.voting_ends_at && drop.voting_ends_at < now) continue;
     return drop;
@@ -51,10 +52,27 @@ export function getDropVoteWeight(stakedBalance) {
   return 0;
 }
 
-/** Featured drop for the Limited Drops collection (priority: voting → live → submissions → sold_out). */
+/** Drop with winner chosen but not yet live in shop (status still voting until admin Go Live). */
+export async function getWinnerPendingDrop(supabaseAdmin) {
+  const { data, error } = await supabaseAdmin
+    .from('weekly_drops')
+    .select('*')
+    .eq('status', 'voting')
+    .not('winning_submission_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
+/** Featured drop for the Limited Drops collection (priority: voting → winner pending → live → submissions → sold_out). */
 export async function getFeaturedDropForCollection(supabaseAdmin) {
   const votingDrop = await getActiveVotingDrop(supabaseAdmin);
   if (votingDrop) return { drop: votingDrop, phase: 'voting' };
+
+  const winnerPendingDrop = await getWinnerPendingDrop(supabaseAdmin);
+  if (winnerPendingDrop) return { drop: winnerPendingDrop, phase: 'winner_pending' };
 
   const { data: liveDrops } = await supabaseAdmin
     .from('weekly_drops')
