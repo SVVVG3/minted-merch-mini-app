@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ProductGrid } from './ProductGrid';
+import { DropCollectionView } from './DropCollectionView';
 import { Cart } from './Cart';
 import { CheckInButton } from './CheckInButton';
 import { LeaderboardButton } from './LeaderboardButton';
@@ -567,40 +568,42 @@ export function HomePage({ collection: initialCollection, products: initialProdu
       </div>
       
       <main>
-        {/* Loading State */}
-        {isLoadingProducts && (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489] mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading products...</p>
-            </div>
-          </div>
-        )}
-        
-        {/* Error State */}
-        {productsError && !isLoadingProducts && (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="text-red-500 mb-2">
-                <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+        {/* Limited Drops collection — drop state UI; other collections — product grid */}
+        {selectedCollection?.handle === 'limited-drops' ? (
+          <DropCollectionView products={products} />
+        ) : (
+          <>
+            {isLoadingProducts && (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489] mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading products...</p>
+                </div>
               </div>
-              <p className="text-red-600 font-medium">Error loading products</p>
-              <p className="text-gray-600 text-sm mt-1">{productsError}</p>
-              <button
-                onClick={() => selectedCollection && fetchProductsForCollection(selectedCollection)}
-                className="mt-3 px-4 py-2 bg-[#3eb489] text-white rounded-lg hover:bg-[#359970] transition-colors"
-              >
-                Try Again
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {/* Products Grid */}
-        {!isLoadingProducts && !productsError && (
-          <ProductGrid products={products} />
+            )}
+            {productsError && !isLoadingProducts && (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="text-red-500 mb-2">
+                    <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-red-600 font-medium">Error loading products</p>
+                  <p className="text-gray-600 text-sm mt-1">{productsError}</p>
+                  <button
+                    onClick={() => selectedCollection && fetchProductsForCollection(selectedCollection)}
+                    className="mt-3 px-4 py-2 bg-[#3eb489] text-white rounded-lg hover:bg-[#359970] transition-colors"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </div>
+            )}
+            {!isLoadingProducts && !productsError && (
+              <ProductGrid products={products} />
+            )}
+          </>
         )}
       </main>
       
