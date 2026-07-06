@@ -285,6 +285,13 @@ export default function MissionsClient() {
               <p className="text-xs text-white/80 text-center">Completed</p>
             </div>
           </div>
+
+          <Link
+            href="/drops/vote"
+            className="mt-4 block w-full py-3 bg-white/20 hover:bg-white/30 text-white text-center font-semibold rounded-xl text-sm transition-colors"
+          >
+            🗳 Vote on Limited Drop →
+          </Link>
         </div>
       </div>
 

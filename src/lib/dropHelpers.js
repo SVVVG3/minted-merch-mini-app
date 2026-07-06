@@ -18,3 +18,35 @@ export async function getOpenSubmissionDrop(supabaseAdmin) {
 
   return null;
 }
+
+/** Returns the weekly drop currently in the voting phase, or null. */
+export async function getActiveVotingDrop(supabaseAdmin) {
+  const now = new Date().toISOString();
+
+  const { data: drops, error } = await supabaseAdmin
+    .from('weekly_drops')
+    .select('*')
+    .eq('status', 'voting')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  for (const drop of drops || []) {
+    if (drop.voting_starts_at && drop.voting_starts_at > now) continue;
+    if (drop.voting_ends_at && drop.voting_ends_at < now) continue;
+    return drop;
+  }
+
+  return null;
+}
+
+export const MERCH_MOGUL_STAKED_THRESHOLD = 50_000_000;
+export const WHALE_STAKED_THRESHOLD = 200_000_000;
+
+/** Vote weight from staked balance: 200M+ → 4, 50M+ → 1, else 0 */
+export function getDropVoteWeight(stakedBalance) {
+  const staked = Number(stakedBalance) || 0;
+  if (staked >= WHALE_STAKED_THRESHOLD) return 4;
+  if (staked >= MERCH_MOGUL_STAKED_THRESHOLD) return 1;
+  return 0;
+}
