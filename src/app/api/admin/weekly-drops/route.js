@@ -8,7 +8,7 @@ export const GET = withAdminAuth(async () => {
       .from('weekly_drops')
       .select(`
         *,
-        drop_submissions (
+        drop_submissions!drop_submissions_drop_id_fkey (
           id, mockup_id, fid, username, mockup_url, design_url,
           product_type, color_name, technique, status, vote_count, created_at
         )
