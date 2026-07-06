@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+import { supabaseAdmin } from '@/lib/supabase';
 
 const MERCH_MOGUL_THRESHOLD = 50_000_000;
 
@@ -22,7 +17,7 @@ export async function GET(request) {
   const mockupId = searchParams.get('mockupId');
   if (!mockupId) return NextResponse.json({ request: null });
 
-  const { data } = await supabase
+  const { data } = await supabaseAdmin
     .from('shop_listing_requests')
     .select('id, status, created_at')
     .eq('mockup_id', mockupId)
@@ -45,7 +40,7 @@ export async function POST(request) {
 
   try {
     // Verify requester is a Merch Mogul
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('staked_balance, username')
       .eq('fid', fid)
@@ -62,7 +57,7 @@ export async function POST(request) {
     }
 
     // Load the mockup and verify ownership
-    const { data: mockup, error: mockupErr } = await supabase
+    const { data: mockup, error: mockupErr } = await supabaseAdmin
       .from('design_studio_mockups')
       .select('*')
       .eq('id', mockupId)
@@ -77,7 +72,7 @@ export async function POST(request) {
     }
 
     // Check for an existing pending request for this mockup
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from('shop_listing_requests')
       .select('id, status')
       .eq('mockup_id', mockupId)
@@ -90,7 +85,7 @@ export async function POST(request) {
     }
 
     // Insert the listing request
-    const { data: inserted, error: insertErr } = await supabase
+    const { data: inserted, error: insertErr } = await supabaseAdmin
       .from('shop_listing_requests')
       .insert({
         mockup_id: mockupId,

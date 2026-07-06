@@ -76,6 +76,7 @@ CREATE POLICY "deny_all_direct_access"
   USING (false);
 
 -- FK from weekly_drops to winning submission (added after drop_submissions exists)
+-- Note: two FKs link these tables; PostgREST embeds must use drop_submissions!drop_submissions_drop_id_fkey
 ALTER TABLE weekly_drops
   ADD CONSTRAINT weekly_drops_winning_submission_fkey
   FOREIGN KEY (winning_submission_id) REFERENCES drop_submissions(id) ON DELETE SET NULL;
