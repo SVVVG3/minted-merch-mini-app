@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useFarcaster } from '@/lib/useFarcaster';
-import { MERCH_MOGUL_STAKED_THRESHOLD, getSoleLeaderSubmissionId } from '@/lib/dropHelpers';
+import { getSoleLeaderSubmissionId } from '@/lib/dropHelpers';
 
 function CreatorAvatar({ username, fid, pfpUrl }) {
   const label = username || (fid ? String(fid) : '?');
@@ -23,7 +23,7 @@ function CreatorAvatar({ username, fid, pfpUrl }) {
 function formatCountdown(endsAt) {
   if (!endsAt) return null;
   const ms = new Date(endsAt).getTime() - Date.now();
-  if (ms <= 0) return 'Voting ended';
+  if (ms <= 0) return 'Ended';
   const hours = Math.floor(ms / 3600000);
   const mins = Math.floor((ms % 3600000) / 60000);
   if (hours >= 24) {
@@ -33,19 +33,26 @@ function formatCountdown(endsAt) {
   return `${hours}h ${mins}m left`;
 }
 
+function voteTierLabel(tier, weight) {
+  if (tier === 'whale') return `🐋 ${weight} votes (Whale)`;
+  if (tier === 'mogul') return `⭐ ${weight} votes (Mogul)`;
+  return `${weight} vote`;
+}
+
 export default function DropsVoteClient() {
   const { user, getSessionToken } = useFarcaster();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [forbidden, setForbidden] = useState(false);
   const [stakedBalance, setStakedBalance] = useState(0);
   const [voteWeight, setVoteWeight] = useState(1);
-  const [isWhale, setIsWhale] = useState(false);
+  const [voteTier, setVoteTier] = useState('standard');
   const [drop, setDrop] = useState(null);
-  const [finalists, setFinalists] = useState([]);
+  const [entries, setEntries] = useState([]);
   const [userVote, setUserVote] = useState(null);
   const [votingId, setVotingId] = useState(null);
   const [countdown, setCountdown] = useState(null);
+
+  const viewerFid = user?.fid ? String(user.fid) : null;
 
   const loadVoteData = useCallback(async () => {
     const token = getSessionToken();
@@ -62,20 +69,13 @@ export default function DropsVoteClient() {
       });
       const data = await res.json();
 
-      if (res.status === 403) {
-        setForbidden(true);
-        setStakedBalance(data.stakedBalance || 0);
-        setLoading(false);
-        return;
-      }
-
       if (!res.ok) throw new Error(data.error || 'Failed to load voting data');
 
       setDrop(data.drop);
-      setFinalists(data.finalists || []);
+      setEntries(data.entries || data.finalists || []);
       setUserVote(data.userVote);
       setVoteWeight(data.voteWeight || 1);
-      setIsWhale(!!data.isWhale);
+      setVoteTier(data.voteTier || 'standard');
       setStakedBalance(data.stakedBalance || 0);
       setCountdown(data.drop?.votingEndsAt ? formatCountdown(data.drop.votingEndsAt) : null);
     } catch (err) {
@@ -117,7 +117,7 @@ export default function DropsVoteClient() {
       if (!res.ok) throw new Error(data.error || 'Failed to vote');
 
       setDrop(data.drop);
-      setFinalists(data.finalists || []);
+      setEntries(data.entries || data.finalists || []);
       setUserVote(data.userVote);
     } catch (err) {
       setError(err.message || 'Failed to vote');
@@ -134,26 +134,7 @@ export default function DropsVoteClient() {
     );
   }
 
-  if (forbidden) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
-        <div className="max-w-sm w-full bg-white rounded-3xl shadow-lg p-8 text-center">
-          <div className="text-5xl mb-4">🎯</div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Merch Moguls Only</h1>
-          <p className="text-sm text-gray-500 mb-4">
-            Stake {(MERCH_MOGUL_STAKED_THRESHOLD / 1_000_000).toFixed(0)}M+ $mintedmerch to vote on Limited Drop finalists.
-          </p>
-          <p className="text-lg font-semibold text-gray-800 mb-6">
-            Your staked: {(stakedBalance / 1_000_000).toFixed(1)}M
-          </p>
-          <Link href="/stake" className="block w-full py-3 bg-[#3eb489] text-white font-semibold rounded-2xl mb-3">
-            Stake to Unlock →
-          </Link>
-          <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← Back to Shop</Link>
-        </div>
-      </div>
-    );
-  }
+  const leaderId = getSoleLeaderSubmissionId(entries);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
@@ -170,9 +151,9 @@ export default function DropsVoteClient() {
         {!drop ? (
           <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
             <div className="text-4xl mb-3">⏳</div>
-            <h2 className="text-lg font-bold text-gray-900 mb-2">No Active Vote</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">No Active Drop</h2>
             <p className="text-sm text-gray-500">
-              Voting isn&apos;t open yet. Check back after the admin opens voting for this week&apos;s drop.
+              There isn&apos;t an open Limited Drop right now. Check back soon!
             </p>
           </div>
         ) : (
@@ -180,11 +161,11 @@ export default function DropsVoteClient() {
             <div className="mb-6">
               <h2 className="text-xl font-bold text-gray-900">Limited Drop</h2>
               <p className="text-sm text-gray-500 mt-1">
-                Pick your favorite finalist — votes are live.
+                Vote for your favorite — you can&apos;t vote on your own design.
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
                 <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
-                  {isWhale ? `🐋 ${voteWeight} votes (Whale)` : `1 vote`}
+                  {voteTierLabel(voteTier, voteWeight)}
                 </span>
                 {countdown && (
                   <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
@@ -192,6 +173,11 @@ export default function DropsVoteClient() {
                   </span>
                 )}
               </div>
+              {stakedBalance > 0 && voteTier === 'standard' && (
+                <p className="text-xs text-gray-400 mt-2">
+                  Stake 50M+ for 5× votes · 200M+ for 10×
+                </p>
+              )}
             </div>
 
             {error && (
@@ -207,23 +193,24 @@ export default function DropsVoteClient() {
             )}
 
             <div className="space-y-4">
-              {finalists.length === 0 ? (
-                <p className="text-center text-gray-400 text-sm py-8">No finalists selected yet.</p>
+              {entries.length === 0 ? (
+                <p className="text-center text-gray-400 text-sm py-8">No submissions yet.</p>
               ) : (
-                finalists.map((f) => {
-                  const isVoted = userVote?.submissionId === f.id;
-                  const leaderId = getSoleLeaderSubmissionId(finalists);
-                  const isLeading = leaderId === f.id;
+                entries.map((entry) => {
+                  const isVoted = userVote?.submissionId === entry.id;
+                  const isOwn = viewerFid && String(entry.fid) === viewerFid;
+                  const isLeading = leaderId === entry.id;
+                  const canVote = !userVote && !isOwn;
                   return (
                     <div
-                      key={f.id}
+                      key={entry.id}
                       className={`bg-white rounded-2xl overflow-hidden shadow-sm border-2 ${
                         isVoted ? 'border-[#3eb489]' : 'border-gray-100'
                       }`}
                     >
                       <div className="relative aspect-square bg-gray-100">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={f.mockupUrl} alt="Finalist design" className="w-full h-full object-contain" />
+                        <img src={entry.mockupUrl} alt="Submission" className="w-full h-full object-contain" />
                         {isLeading && (
                           <span className="absolute top-2 left-2 px-2 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full">
                             👑 Leading
@@ -234,25 +221,27 @@ export default function DropsVoteClient() {
                         <div className="flex items-center justify-between mb-3">
                           <div>
                             <p className="text-sm font-semibold text-gray-900 capitalize">
-                              {f.productType}{f.colorName ? ` · ${f.colorName}` : ''}
+                              {entry.productType}{entry.colorName ? ` · ${entry.colorName}` : ''}
                             </p>
                             <div className="flex items-center gap-1.5 mt-1">
-                              <CreatorAvatar username={f.username} fid={f.fid} pfpUrl={f.pfpUrl} />
-                              <p className="text-xs text-gray-500">@{f.username || f.fid}</p>
+                              <CreatorAvatar username={entry.username} fid={entry.fid} pfpUrl={entry.pfpUrl} />
+                              <p className="text-xs text-gray-500">@{entry.username || entry.fid}</p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-2xl font-bold text-[#3eb489]">{f.voteCount}</p>
+                            <p className="text-2xl font-bold text-[#3eb489]">{entry.voteCount}</p>
                             <p className="text-[10px] text-gray-400 uppercase tracking-wide">votes</p>
                           </div>
                         </div>
-                        {!userVote ? (
+                        {isOwn ? (
+                          <p className="w-full py-3 text-center text-sm text-gray-400 bg-gray-50 rounded-xl">Your design</p>
+                        ) : canVote ? (
                           <button
-                            onClick={() => handleVote(f.id)}
+                            onClick={() => handleVote(entry.id)}
                             disabled={!!votingId}
                             className="w-full py-3 bg-[#6A3CFF] hover:bg-[#5A2FE6] disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-sm"
                           >
-                            {votingId === f.id ? 'Submitting…' : `Vote (${voteWeight} pt${voteWeight !== 1 ? 's' : ''})`}
+                            {votingId === entry.id ? 'Submitting…' : `Vote (${voteWeight} pt${voteWeight !== 1 ? 's' : ''})`}
                           </button>
                         ) : isVoted ? (
                           <div className="w-full py-3 text-center text-sm font-semibold text-[#3eb489] bg-[#3eb489]/10 rounded-xl">

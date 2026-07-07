@@ -1,58 +1,70 @@
-/** Returns the weekly drop currently accepting submissions, or null. */
-export async function getOpenSubmissionDrop(supabaseAdmin) {
-  const now = new Date().toISOString();
-
-  const { data: drops, error } = await supabaseAdmin
-    .from('weekly_drops')
-    .select('*')
-    .eq('status', 'draft')
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-
-  for (const drop of drops || []) {
-    if (drop.submissions_open_at && drop.submissions_open_at > now) continue;
-    if (drop.submissions_close_at && drop.submissions_close_at < now) continue;
-    return drop;
-  }
-
-  return null;
-}
-
-/** Returns the weekly drop currently in the voting phase, or null. */
-export async function getActiveVotingDrop(supabaseAdmin) {
-  const now = new Date().toISOString();
-
-  const { data: drops, error } = await supabaseAdmin
-    .from('weekly_drops')
-    .select('*')
-    .eq('status', 'voting')
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-
-  for (const drop of drops || []) {
-    if (drop.winning_submission_id) continue;
-    if (drop.voting_starts_at && drop.voting_starts_at > now) continue;
-    if (drop.voting_ends_at && drop.voting_ends_at < now) continue;
-    return drop;
-  }
-
-  return null;
-}
-
 export const MERCH_MOGUL_STAKED_THRESHOLD = 50_000_000;
 export const WHALE_STAKED_THRESHOLD = 200_000_000;
 
-/** Vote weight from staked balance: 200M+ → 4, 50M+ → 1, else 0 */
-export function getDropVoteWeight(stakedBalance) {
-  const staked = Number(stakedBalance) || 0;
-  if (staked >= WHALE_STAKED_THRESHOLD) return 4;
-  if (staked >= MERCH_MOGUL_STAKED_THRESHOLD) return 1;
-  return 0;
+/** Deadline for submit + vote window (voting_ends_at preferred; submissions_close_at fallback). */
+export function getDropEndsAt(drop) {
+  if (!drop) return null;
+  return drop.voting_ends_at || drop.submissions_close_at || null;
 }
 
-/** Drop with winner chosen but not yet live in shop (status still voting until admin Go Live). */
+/** Vote weight: everyone 1×, Mogul 5×, Whale 10× (replacement tiers, not additive). */
+export function getDropVoteWeight(stakedBalance) {
+  const staked = Number(stakedBalance) || 0;
+  if (staked >= WHALE_STAKED_THRESHOLD) return 10;
+  if (staked >= MERCH_MOGUL_STAKED_THRESHOLD) return 5;
+  return 1;
+}
+
+export function getDropVoteTier(stakedBalance) {
+  const staked = Number(stakedBalance) || 0;
+  if (staked >= WHALE_STAKED_THRESHOLD) return 'whale';
+  if (staked >= MERCH_MOGUL_STAKED_THRESHOLD) return 'mogul';
+  return 'standard';
+}
+
+export function formatDropVoteTierLabel(tier, voteWeight) {
+  if (tier === 'whale') return `🐋 ${voteWeight} votes (Whale)`;
+  if (tier === 'mogul') return `⭐ ${voteWeight} votes (Mogul)`;
+  return `${voteWeight} vote`;
+}
+
+/**
+ * Active drop: submit + vote open until ends_at, no winner yet.
+ * Status draft or voting (legacy admin flows may still use voting).
+ */
+export async function getActiveDrop(supabaseAdmin) {
+  const now = new Date().toISOString();
+
+  const { data: drops, error } = await supabaseAdmin
+    .from('weekly_drops')
+    .select('*')
+    .in('status', ['draft', 'voting'])
+    .is('winning_submission_id', null)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  for (const drop of drops || []) {
+    const endsAt = getDropEndsAt(drop);
+    if (endsAt && endsAt <= now) continue;
+    if (drop.submissions_open_at && drop.submissions_open_at > now) continue;
+    return drop;
+  }
+
+  return null;
+}
+
+/** @deprecated Use getActiveDrop */
+export async function getOpenSubmissionDrop(supabaseAdmin) {
+  return getActiveDrop(supabaseAdmin);
+}
+
+/** @deprecated Use getActiveDrop */
+export async function getActiveVotingDrop(supabaseAdmin) {
+  return getActiveDrop(supabaseAdmin);
+}
+
+/** Drop with winner chosen but not yet live in shop (legacy: status still voting). */
 export async function getWinnerPendingDrop(supabaseAdmin) {
   const { data, error } = await supabaseAdmin
     .from('weekly_drops')
@@ -66,10 +78,10 @@ export async function getWinnerPendingDrop(supabaseAdmin) {
   return data?.[0] || null;
 }
 
-/** Featured drop for the Limited Drops collection (priority: voting → winner pending → live → submissions → sold_out). */
+/** Featured drop for the Limited Drops collection. */
 export async function getFeaturedDropForCollection(supabaseAdmin) {
-  const votingDrop = await getActiveVotingDrop(supabaseAdmin);
-  if (votingDrop) return { drop: votingDrop, phase: 'voting' };
+  const activeDrop = await getActiveDrop(supabaseAdmin);
+  if (activeDrop) return { drop: activeDrop, phase: 'active' };
 
   const winnerPendingDrop = await getWinnerPendingDrop(supabaseAdmin);
   if (winnerPendingDrop) return { drop: winnerPendingDrop, phase: 'winner_pending' };
@@ -82,9 +94,6 @@ export async function getFeaturedDropForCollection(supabaseAdmin) {
     .limit(1);
   if (liveDrops?.[0]) return { drop: liveDrops[0], phase: 'live' };
 
-  const submissionDrop = await getOpenSubmissionDrop(supabaseAdmin);
-  if (submissionDrop) return { drop: submissionDrop, phase: 'submissions' };
-
   const { data: soldOutDrops } = await supabaseAdmin
     .from('weekly_drops')
     .select('*')
@@ -96,13 +105,43 @@ export async function getFeaturedDropForCollection(supabaseAdmin) {
   return null;
 }
 
-/** Returns the submission id only when one finalist has a strictly higher vote count (> 0). */
-export function getSoleLeaderSubmissionId(finalists) {
-  if (!finalists?.length) return null;
-  const counts = finalists.map(f => f.voteCount ?? f.vote_count ?? 0);
+/** All votable submissions for a drop, sorted by votes then earliest submit. */
+export async function loadVotableSubmissions(supabaseAdmin, dropId) {
+  const { data, error } = await supabaseAdmin
+    .from('drop_submissions')
+    .select('id, mockup_id, fid, username, mockup_url, product_type, color_name, vote_count, status, created_at')
+    .eq('drop_id', dropId)
+    .in('status', ['submitted', 'finalist'])
+    .order('vote_count', { ascending: false })
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return enrichSubmissionsWithProfiles(supabaseAdmin, data || []);
+}
+
+export function mapSubmissionForClient(row) {
+  return {
+    id: row.id,
+    mockupId: row.mockup_id,
+    fid: row.fid,
+    username: row.username,
+    pfpUrl: row.pfp_url,
+    mockupUrl: row.mockup_url,
+    productType: row.product_type,
+    colorName: row.color_name,
+    voteCount: row.vote_count || 0,
+    status: row.status,
+    createdAt: row.created_at,
+  };
+}
+
+/** Returns the submission id only when one entry has a strictly higher vote count (> 0). */
+export function getSoleLeaderSubmissionId(entries) {
+  if (!entries?.length) return null;
+  const counts = entries.map(f => f.voteCount ?? f.vote_count ?? 0);
   const max = Math.max(...counts);
   if (max <= 0) return null;
-  const leaders = finalists.filter(f => (f.voteCount ?? f.vote_count ?? 0) === max);
+  const leaders = entries.filter(f => (f.voteCount ?? f.vote_count ?? 0) === max);
   return leaders.length === 1 ? leaders[0].id : null;
 }
 

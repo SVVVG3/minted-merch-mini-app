@@ -186,6 +186,7 @@ export default function AdminDashboard() {
   const [newDropLabel, setNewDropLabel] = useState('');
   const [newDropMaxUnits, setNewDropMaxUnits] = useState('37');
   const [newDropShopifyId, setNewDropShopifyId] = useState('');
+  const [newDropEndsAt, setNewDropEndsAt] = useState('');
   const [creatingDrop, setCreatingDrop] = useState(false);
   const [expandedDropId, setExpandedDropId] = useState(null);
   const [editingDropId, setEditingDropId] = useState(null);
@@ -1525,9 +1526,15 @@ export default function AdminDashboard() {
 
   const createWeeklyDrop = async () => {
     if (!newDropLabel.trim()) return;
+    if (!newDropEndsAt) {
+      setWeeklyDropsError('End date/time is required (on the hour).');
+      return;
+    }
     setCreatingDrop(true);
     setWeeklyDropsError('');
     try {
+      const endsDate = new Date(newDropEndsAt);
+      endsDate.setMinutes(0, 0, 0);
       const res = await adminFetch('/api/admin/weekly-drops', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1535,6 +1542,7 @@ export default function AdminDashboard() {
           weekLabel: newDropLabel.trim(),
           maxUnits: parseInt(newDropMaxUnits, 10) || 37,
           shopifyProductId: newDropShopifyId.trim() || null,
+          votingEndsAt: endsDate.toISOString(),
         }),
       });
       const data = await res.json();
@@ -1542,7 +1550,8 @@ export default function AdminDashboard() {
       setNewDropLabel('');
       setNewDropMaxUnits('37');
       setNewDropShopifyId('');
-      setWeeklyDropsNotice(`Created drop week "${data.drop?.week_label || newDropLabel.trim()}".`);
+      setNewDropEndsAt('');
+      setWeeklyDropsNotice(`Created drop week "${data.drop?.week_label || newDropLabel.trim()}". Submit & vote open until ${endsDate.toLocaleString()}.`);
       await loadWeeklyDrops();
     } catch (err) {
       setWeeklyDropsError(err.message);
@@ -3756,7 +3765,17 @@ export default function AdminDashboard() {
                         />
                       </div>
                       <div className="flex-1 min-w-[220px]">
-                        <label className="block text-xs text-gray-500 mb-1">Shopify product GID (optional — add before Go Live)</label>
+                        <label className="block text-xs text-gray-500 mb-1">Ends on the hour (required)</label>
+                        <input
+                          type="datetime-local"
+                          step="3600"
+                          value={newDropEndsAt}
+                          onChange={e => setNewDropEndsAt(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-[220px]">
+                        <label className="block text-xs text-gray-500 mb-1">Shopify product GID (optional legacy)</label>
                         <input
                           type="text"
                           value={newDropShopifyId}
@@ -3768,7 +3787,7 @@ export default function AdminDashboard() {
                     </div>
                     <button
                       onClick={createWeeklyDrop}
-                      disabled={creatingDrop || !newDropLabel.trim()}
+                      disabled={creatingDrop || !newDropLabel.trim() || !newDropEndsAt}
                       className="px-4 py-2 bg-[#3eb489] hover:bg-[#359970] disabled:opacity-50 text-white text-sm font-semibold rounded-lg"
                     >
                       {creatingDrop ? 'Creating…' : '+ New Drop Week'}

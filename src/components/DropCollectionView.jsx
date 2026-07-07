@@ -6,7 +6,13 @@ import { useRouter } from 'next/navigation';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { useCart } from '@/lib/CartContext';
 import { getProductConfig } from '@/lib/designStudioConfig';
-import { MERCH_MOGUL_STAKED_THRESHOLD, getSoleLeaderSubmissionId } from '@/lib/dropHelpers';
+import { getSoleLeaderSubmissionId } from '@/lib/dropHelpers';
+
+function voteTierLabel(tier, weight) {
+  if (tier === 'whale') return `🐋 ${weight} votes`;
+  if (tier === 'mogul') return `⭐ ${weight} votes`;
+  return `${weight} vote`;
+}
 
 function CreatorAvatar({ username, fid, pfpUrl, size = 'sm' }) {
   const dim = size === 'sm' ? 'w-6 h-6' : 'w-8 h-8';
@@ -46,6 +52,8 @@ export function DropCollectionView({ products }) {
   const [selectedSize, setSelectedSize] = useState('');
   const [orderLoading, setOrderLoading] = useState(false);
   const [orderError, setOrderError] = useState('');
+  const [votingId, setVotingId] = useState(null);
+  const [voteError, setVoteError] = useState('');
 
   const loadStatus = useCallback(async () => {
     const token = getSessionToken();
@@ -84,8 +92,11 @@ export function DropCollectionView({ products }) {
   }, [products]);
 
   const openOrderSheet = useCallback(async (dropData, winnerData) => {
+    const productConfig = winnerData?.productType ? getProductConfig(winnerData.productType) : null;
     const dropProduct = resolveDropProduct(dropData);
-    const shopifyProductId = dropData?.shopifyProductId || dropProduct?.id;
+    const shopifyProductId = productConfig?.shopifyProductId
+      || dropData?.shopifyProductId
+      || dropProduct?.id;
     if (!shopifyProductId) {
       setOrderError('Product not available yet.');
       return;
@@ -136,6 +147,7 @@ export function DropCollectionView({ products }) {
     setOrderLoading(true);
     setOrderError('');
     try {
+      const productConfig = winnerData?.productType ? getProductConfig(winnerData.productType) : null;
       const cartVariant = {
         id: matchedVariant.id,
         title: matchedVariant.title,
@@ -144,8 +156,29 @@ export function DropCollectionView({ products }) {
         image: null,
       };
 
-      addItem(dropProduct, cartVariant, 1, {
+      const cartProduct = productConfig
+        ? {
+            id: productConfig.shopifyProductId,
+            title: `Limited Drop — ${productConfig.label}`,
+            handle: `design-studio-custom-${productConfig.id}`,
+            images: { edges: [] },
+          }
+        : dropProduct;
+
+      if (!cartProduct) {
+        setOrderError('Product not available yet.');
+        return;
+      }
+
+      addItem(cartProduct, cartVariant, 1, {
         customImageUrl: winnerData?.mockupUrl || null,
+        customMeta: dropData?.designRequestId
+          ? {
+              designRequestId: dropData.designRequestId,
+              productType: winnerData?.productType,
+              colorName: winnerData?.colorName,
+            }
+          : null,
       });
 
       setOrderOpen(false);
@@ -156,6 +189,39 @@ export function DropCollectionView({ products }) {
       setOrderLoading(false);
     }
   }, [addItem, resolveDropProduct, router, selectedSize, shopifyVariants]);
+
+  const handleVote = async (submissionId) => {
+    const token = getSessionToken();
+    if (!token) {
+      setVoteError('Please sign in with Farcaster to vote.');
+      return;
+    }
+    setVotingId(submissionId);
+    setVoteError('');
+    try {
+      const res = await fetch('/api/drops/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ submissionId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to vote');
+      setStatus(prev => ({
+        ...prev,
+        entries: data.entries || data.finalists,
+        finalists: data.finalists || data.entries,
+        viewer: {
+          ...prev?.viewer,
+          hasVoted: true,
+          userVoteSubmissionId: data.userVote?.submissionId,
+        },
+      }));
+    } catch (err) {
+      setVoteError(err.message || 'Failed to vote');
+    } finally {
+      setVotingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -168,8 +234,142 @@ export function DropCollectionView({ products }) {
   const phase = status?.phase || 'none';
   const drop = status?.drop;
   const viewer = status?.viewer || {};
-  const finalists = status?.finalists || [];
+  const entries = status?.entries || status?.finalists || [];
   const winner = status?.winner;
+
+  if (phase === 'active' || phase === 'submissions' || phase === 'voting') {
+    const userSubmission = viewer.userSubmission;
+    const leaderId = getSoleLeaderSubmissionId(entries);
+    const viewerFid = viewer.fid ? String(viewer.fid) : null;
+
+    return (
+      <div className="px-4 py-6 max-w-lg mx-auto">
+        <div className="text-center mb-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Limited Drop — Live</p>
+          <h2 className="text-xl font-bold text-gray-900">Submit & Vote</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Top design wins · {drop?.maxUnits || 37} units produced
+          </p>
+          <div className="flex flex-wrap justify-center gap-2 mt-3">
+            {countdown && (
+              <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                ⏱ {countdown}
+              </span>
+            )}
+            {viewer.fid && (
+              <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
+                {voteTierLabel(viewer.voteTier, viewer.voteWeight)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {!userSubmission && user?.fid && (
+          <div className="mb-5 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+            <p className="text-sm text-gray-500 mb-4">Submit your design, then vote for your favorite (not your own).</p>
+            <Link href="/create" className="block w-full py-3.5 bg-[#3eb489] text-white font-semibold rounded-2xl text-sm">
+              🎨 Create & Submit a Design
+            </Link>
+            <p className="text-xs text-gray-400 mt-3">One submission per person per drop</p>
+          </div>
+        )}
+
+        {userSubmission && (
+          <div className="mb-5 bg-white rounded-xl border border-amber-200 bg-amber-50/50 p-4 flex gap-3 items-center">
+            {userSubmission.mockupUrl && (
+              <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={userSubmission.mockupUrl} alt="" className="w-full h-full object-contain" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-amber-800">Your entry · {userSubmission.voteCount || 0} votes</p>
+              <p className="text-sm text-gray-700 capitalize truncate">
+                {userSubmission.productType}{userSubmission.colorName ? ` · ${userSubmission.colorName}` : ''}
+              </p>
+              {userSubmission.mockupId && (
+                <Link href={`/design/${userSubmission.mockupId}`} className="text-xs text-[#3eb489] font-semibold hover:underline">
+                  View design →
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
+        {voteError && (
+          <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">{voteError}</div>
+        )}
+
+        {viewer.hasVoted && (
+          <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm font-semibold rounded-xl text-center">
+            ✅ Your vote is in ({viewer.voteWeight} pt{viewer.voteWeight !== 1 ? 's' : ''} counted)
+          </div>
+        )}
+
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 text-center">Leaderboard</p>
+          {entries.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm py-6">No submissions yet — be the first!</p>
+          ) : (
+            entries.map((entry) => {
+              const isOwn = viewerFid && String(entry.fid) === viewerFid;
+              const isVoted = viewer.userVoteSubmissionId === entry.id;
+              const canVote = viewer.fid && !viewer.hasVoted && !isOwn;
+              return (
+                <div key={entry.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${
+                  isVoted ? 'border-[#3eb489] border-2' : 'border-gray-100'
+                }`}>
+                  <div className="flex gap-3 p-3">
+                    <div className="w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={entry.mockupUrl} alt="" className="w-full h-full object-contain" />
+                      {leaderId === entry.id && (
+                        <span className="absolute top-1 left-1 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-[10px] font-bold rounded-full">👑</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <p className="text-sm font-semibold text-gray-900 capitalize truncate">
+                        {entry.productType}{entry.colorName ? ` · ${entry.colorName}` : ''}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <CreatorAvatar username={entry.username} fid={entry.fid} pfpUrl={entry.pfpUrl} />
+                        <p className="text-xs text-gray-500 truncate">@{entry.username || entry.fid || 'creator'}</p>
+                      </div>
+                      <p className="text-lg font-bold text-[#3eb489] mt-1">
+                        {entry.voteCount} <span className="text-xs font-normal text-gray-400">votes</span>
+                      </p>
+                    </div>
+                  </div>
+                  {isOwn ? (
+                    <div className="px-3 pb-3">
+                      <p className="text-xs text-center text-gray-400 py-2 bg-gray-50 rounded-lg">Your design — others vote for you</p>
+                    </div>
+                  ) : canVote ? (
+                    <div className="px-3 pb-3">
+                      <button
+                        type="button"
+                        onClick={() => handleVote(entry.id)}
+                        disabled={!!votingId}
+                        className="w-full py-2.5 bg-[#6A3CFF] hover:bg-[#5A2FE6] disabled:opacity-50 text-white font-semibold rounded-xl text-sm"
+                      >
+                        {votingId === entry.id ? 'Submitting…' : `Vote (${viewer.voteWeight} pt${viewer.voteWeight !== 1 ? 's' : ''})`}
+                      </button>
+                    </div>
+                  ) : isVoted ? (
+                    <div className="px-3 pb-3 text-center text-xs font-semibold text-[#3eb489]">Your pick ✓</div>
+                  ) : null}
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {!viewer.fid && (
+          <p className="text-center text-xs text-gray-400 mt-6">Sign in with Farcaster to submit and vote</p>
+        )}
+      </div>
+    );
+  }
 
   if (phase === 'none') {
     return (
@@ -177,7 +377,7 @@ export function DropCollectionView({ products }) {
         <div className="text-4xl mb-3">🎯</div>
         <h2 className="text-lg font-bold text-gray-900 mb-2">Limited Drops</h2>
         <p className="text-sm text-gray-500 mb-6">
-          Community-curated weekly drops — 37 units each. Check back soon for the next drop.
+          Community-curated weekly drops. Check back soon for the next drop.
         </p>
         <Link
           href="/create"
@@ -185,168 +385,6 @@ export function DropCollectionView({ products }) {
         >
           Create a Design →
         </Link>
-      </div>
-    );
-  }
-
-  if (phase === 'submissions') {
-    const userSubmission = viewer.userSubmission;
-
-    if (userSubmission) {
-      const statusLabel =
-        userSubmission.status === 'finalist' ? '⭐ Finalist'
-        : userSubmission.status === 'winner' ? '🏆 Winner'
-        : userSubmission.status === 'rejected' ? 'Not selected'
-        : '✅ Submitted';
-
-      return (
-        <div className="px-4 py-8 max-w-md mx-auto">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            {userSubmission.mockupUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={userSubmission.mockupUrl}
-                alt="Your submitted design"
-                className="w-full aspect-square object-contain bg-gray-50"
-              />
-            )}
-            <div className="p-6 text-center">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Your Entry</p>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">Limited Drop</h2>
-              <p className="text-sm text-gray-500 capitalize mb-4">
-                {userSubmission.productType}
-                {userSubmission.colorName ? ` · ${userSubmission.colorName}` : ''}
-              </p>
-              <div className={`inline-block px-4 py-2 rounded-xl text-sm font-semibold mb-4 ${
-                userSubmission.status === 'rejected'
-                  ? 'bg-red-50 text-red-700'
-                  : userSubmission.status === 'finalist'
-                  ? 'bg-purple-50 text-purple-700'
-                  : userSubmission.status === 'winner'
-                  ? 'bg-green-50 text-green-700'
-                  : 'bg-amber-50 text-amber-700'
-              }`}>
-                {statusLabel}
-              </div>
-              <p className="text-sm text-gray-500 mb-4">
-                {userSubmission.status === 'submitted'
-                  ? "You're in! Admins will pick up to 3 finalists, then Merch Moguls vote."
-                  : userSubmission.status === 'finalist'
-                  ? 'You made the finals — Moguls are voting on the winner.'
-                  : userSubmission.status === 'winner'
-                  ? 'Congratulations — your design won this week!'
-                  : 'Thanks for submitting — watch for the next drop.'}
-              </p>
-              {userSubmission.mockupId && (
-                <Link
-                  href={`/design/${userSubmission.mockupId}`}
-                  className="inline-block text-sm font-semibold text-[#3eb489] hover:underline"
-                >
-                  View your design →
-                </Link>
-              )}
-              <p className="text-xs text-gray-400 mt-4">One submission per person per week</p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="px-4 py-8 max-w-md mx-auto">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-center">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Now Open</p>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Limited Drop</h2>
-          <p className="text-sm text-gray-500 mb-6">
-            Submit your design for a chance to be this week&apos;s limited drop ({drop?.maxUnits || 37} units).
-          </p>
-          <Link href="/create" className="block w-full py-3.5 bg-[#3eb489] text-white font-semibold rounded-2xl text-sm mb-3">
-            🎨 Create & Submit a Design
-          </Link>
-          <p className="text-xs text-gray-400">One submission per person per week</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (phase === 'voting') {
-    const leaderId = getSoleLeaderSubmissionId(finalists);
-    return (
-      <div className="px-4 py-6 max-w-lg mx-auto">
-        <div className="text-center mb-6">
-          <p className="text-xs font-semibold uppercase tracking-wide text-purple-600 mb-1">Voting Open</p>
-          <h2 className="text-xl font-bold text-gray-900">Limited Drop</h2>
-          <p className="text-sm text-gray-500 mt-1">Merch Moguls pick this week&apos;s winner</p>
-          {countdown && (
-            <span className="inline-block mt-2 px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
-              ⏱ {countdown}
-            </span>
-          )}
-        </div>
-
-        {viewer.isMogul ? (
-          viewer.hasVoted ? (
-            <div className="mb-6 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm font-semibold rounded-xl text-center">
-              ✅ Your vote is in — thanks for voting!
-            </div>
-          ) : (
-            <Link
-              href="/drops/vote"
-              className="mb-6 flex items-center justify-center gap-2 w-full py-4 bg-[#6A3CFF] hover:bg-[#5A2FE6] text-white font-bold rounded-2xl text-base shadow-md transition-colors"
-            >
-              🗳 Cast Your Vote{viewer.voteWeight > 1 ? ` (${viewer.voteWeight} pts)` : ''}
-            </Link>
-          )
-        ) : (
-          <div className="mb-6 px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl text-center">
-            <p className="text-sm text-gray-600 mb-3">
-              Only Merch Moguls ({MERCH_MOGUL_STAKED_THRESHOLD / 1_000_000}M+ $mintedmerch staked) can vote.
-            </p>
-            <Link href="/stake" className="inline-block px-5 py-2.5 bg-[#3eb489] text-white font-semibold rounded-xl text-sm">
-              Stake to Become a Mogul →
-            </Link>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 text-center">Finalists</p>
-          {finalists.length === 0 ? (
-            <p className="text-center text-gray-400 text-sm py-4">Finalists coming soon…</p>
-          ) : (
-            finalists.map((f) => (
-              <div key={f.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex gap-3 p-3">
-                <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={f.mockupUrl} alt="" className="w-full h-full object-contain" />
-                </div>
-                <div className="flex-1 min-w-0 flex flex-col justify-center">
-                  <p className="text-sm font-semibold text-gray-900 capitalize truncate">
-                    {f.productType}{f.colorName ? ` · ${f.colorName}` : ''}
-                  </p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <CreatorAvatar username={f.username} fid={f.fid} pfpUrl={f.pfpUrl} />
-                    <p className="text-xs text-gray-500 truncate">@{f.username || f.fid || 'creator'}</p>
-                  </div>
-                  <p className="text-lg font-bold text-[#3eb489] mt-1">
-                    {f.voteCount} <span className="text-xs font-normal text-gray-400">votes</span>
-                    {leaderId === f.id && (
-                      <span className="ml-2 text-xs text-yellow-600 font-semibold">👑</span>
-                    )}
-                  </p>
-                </div>
-                {viewer.userVoteSubmissionId === f.id && (
-                  <span className="self-center text-xs font-semibold text-[#3eb489] px-2">Your pick</span>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-
-        {viewer.isMogul && !viewer.hasVoted && (
-          <p className="text-center text-xs text-gray-400 mt-4">
-            Tap <strong>Cast Your Vote</strong> above to choose your favorite
-          </p>
-        )}
       </div>
     );
   }
@@ -378,7 +416,7 @@ export function DropCollectionView({ products }) {
     const dropProduct = resolveDropProduct(drop);
     const productConfig = winner?.productType ? getProductConfig(winner.productType) : null;
     const displayPrice = dropProduct?.priceRange?.minVariantPrice?.amount;
-    const canOrder = unitsLeft > 0 && (drop.shopifyProductId || dropProduct);
+    const canOrder = unitsLeft > 0 && (productConfig?.shopifyProductId || drop.shopifyProductId || dropProduct);
 
     return (
       <div className="px-4 py-6 max-w-lg mx-auto">

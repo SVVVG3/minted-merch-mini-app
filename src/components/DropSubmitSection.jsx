@@ -115,7 +115,7 @@ export function DropSubmitSection({ mockupId }) {
                 <div className="text-5xl">🎉</div>
                 <h2 className="text-lg font-bold text-gray-900">Submitted!</h2>
                 <p className="text-sm text-gray-500">
-                  Your design is in for the Limited Drop. Merch Moguls will vote on finalists — good luck!
+                  Your design is in for the Limited Drop. Vote for your favorite — community picks the winner at the deadline.
                 </p>
                 <button
                   onClick={() => setModalOpen(false)}
@@ -128,7 +128,7 @@ export function DropSubmitSection({ mockupId }) {
               <>
                 <h2 className="text-base font-bold text-gray-900 mb-2">{DROP_SUBMIT_LABEL}</h2>
                 <p className="text-sm text-gray-500 mb-5">
-                  One submission per week. If selected, your design could become a limited drop ({currentDrop.maxUnits || 37} units) with a creator payout.
+                  One submission per week. If selected, your design could become a limited drop ({currentDrop.maxUnits || 37} units). Community votes pick the winner at the deadline.
                 </p>
 
                 <label className="flex items-start gap-3 cursor-pointer mb-5">

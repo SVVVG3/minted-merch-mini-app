@@ -59,6 +59,18 @@ export const POST = withAdminAuth(async (request) => {
       return NextResponse.json({ error: 'weekLabel is required' }, { status: 400 });
     }
 
+    if (!votingEndsAt) {
+      return NextResponse.json({ error: 'votingEndsAt (drop end time) is required' }, { status: 400 });
+    }
+
+    const endsDate = new Date(votingEndsAt);
+    if (Number.isNaN(endsDate.getTime())) {
+      return NextResponse.json({ error: 'Invalid votingEndsAt' }, { status: 400 });
+    }
+    if (endsDate.getMinutes() !== 0 || endsDate.getSeconds() !== 0 || endsDate.getMilliseconds() !== 0) {
+      return NextResponse.json({ error: 'Drop must end on the hour (:00)' }, { status: 400 });
+    }
+
     const { data: drop, error } = await supabaseAdmin
       .from('weekly_drops')
       .insert({
@@ -66,8 +78,8 @@ export const POST = withAdminAuth(async (request) => {
         status: 'draft',
         submissions_open_at: submissionsOpenAt || null,
         submissions_close_at: submissionsCloseAt || null,
-        voting_starts_at: votingStartsAt || null,
-        voting_ends_at: votingEndsAt || null,
+        voting_starts_at: votingStartsAt || new Date().toISOString(),
+        voting_ends_at: votingEndsAt,
         drop_starts_at: dropStartsAt || null,
         drop_ends_at: dropEndsAt || null,
         max_units: maxUnits,

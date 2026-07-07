@@ -11,6 +11,10 @@
   },
   "crons": [
     {
+      "path": "/api/cron/resolve-drops",
+      "schedule": "1 * * * *"
+    },
+    {
       "path": "/api/notifications/staking-reminder",
       "schedule": "0 20 * * *"
     },

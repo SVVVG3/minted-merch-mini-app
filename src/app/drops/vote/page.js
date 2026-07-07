@@ -5,7 +5,7 @@ export async function generateMetadata() {
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
   return {
     title: 'Vote — Limited Drop | Minted Merch',
-    description: 'Merch Moguls vote on this week\'s Limited Drop finalists.',
+  description: 'Vote on Limited Drop submissions — everyone can vote once.',
     metadataBase: new URL(baseUrl),
   };
 }
