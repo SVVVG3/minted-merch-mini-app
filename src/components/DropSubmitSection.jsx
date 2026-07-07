@@ -128,7 +128,7 @@ export function DropSubmitSection({ mockupId }) {
               <>
                 <h2 className="text-base font-bold text-gray-900 mb-2">{DROP_SUBMIT_LABEL}</h2>
                 <p className="text-sm text-gray-500 mb-5">
-                  One submission per week. If selected, your design could become a limited drop (37 units) with a creator payout.
+                  One submission per week. If selected, your design could become a limited drop ({currentDrop.maxUnits || 37} units) with a creator payout.
                 </p>
 
                 <label className="flex items-start gap-3 cursor-pointer mb-5">

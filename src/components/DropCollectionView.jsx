@@ -258,7 +258,7 @@ export function DropCollectionView({ products }) {
           <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Now Open</p>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Limited Drop</h2>
           <p className="text-sm text-gray-500 mb-6">
-            Submit your design for a chance to be this week&apos;s limited drop (37 units).
+            Submit your design for a chance to be this week&apos;s limited drop ({drop?.maxUnits || 37} units).
           </p>
           <Link href="/create" className="block w-full py-3.5 bg-[#3eb489] text-white font-semibold rounded-2xl text-sm mb-3">
             🎨 Create & Submit a Design
@@ -365,7 +365,7 @@ export function DropCollectionView({ products }) {
                 <CreatorAvatar username={winner.username} fid={winner.fid} pfpUrl={winner.pfpUrl} size="md" />
                 <p className="text-sm text-gray-500">Designed by @{winner.username || 'creator'}</p>
               </div>
-              <p className="text-sm text-gray-400">Launching in the shop soon — 37 units only.</p>
+              <p className="text-sm text-gray-400">Launching in the shop soon — {drop?.maxUnits || 37} units only.</p>
             </div>
           </div>
         )}

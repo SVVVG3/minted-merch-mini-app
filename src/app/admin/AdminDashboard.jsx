@@ -184,8 +184,15 @@ export default function AdminDashboard() {
   const [weeklyDropsError, setWeeklyDropsError] = useState('');
   const [weeklyDropsNotice, setWeeklyDropsNotice] = useState('');
   const [newDropLabel, setNewDropLabel] = useState('');
+  const [newDropMaxUnits, setNewDropMaxUnits] = useState('37');
+  const [newDropShopifyId, setNewDropShopifyId] = useState('');
   const [creatingDrop, setCreatingDrop] = useState(false);
   const [expandedDropId, setExpandedDropId] = useState(null);
+  const [editingDropId, setEditingDropId] = useState(null);
+  const [editDropLabel, setEditDropLabel] = useState('');
+  const [editDropShopifyId, setEditDropShopifyId] = useState('');
+  const [editDropMaxUnits, setEditDropMaxUnits] = useState('37');
+  const [savingDropEdits, setSavingDropEdits] = useState(false);
 
   // Partners sub-tab state
   const [partnersSubTab, setPartnersSubTab] = useState('partners'); // 'partners' or 'ambassadors'
@@ -1519,15 +1526,23 @@ export default function AdminDashboard() {
   const createWeeklyDrop = async () => {
     if (!newDropLabel.trim()) return;
     setCreatingDrop(true);
+    setWeeklyDropsError('');
     try {
       const res = await adminFetch('/api/admin/weekly-drops', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weekLabel: newDropLabel.trim() }),
+        body: JSON.stringify({
+          weekLabel: newDropLabel.trim(),
+          maxUnits: parseInt(newDropMaxUnits, 10) || 37,
+          shopifyProductId: newDropShopifyId.trim() || null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create drop');
       setNewDropLabel('');
+      setNewDropMaxUnits('37');
+      setNewDropShopifyId('');
+      setWeeklyDropsNotice(`Created drop week "${data.drop?.week_label || newDropLabel.trim()}".`);
       await loadWeeklyDrops();
     } catch (err) {
       setWeeklyDropsError(err.message);
@@ -1538,14 +1553,129 @@ export default function AdminDashboard() {
 
   const updateDropStatus = async (dropId, status) => {
     try {
+      setWeeklyDropsError('');
       const res = await adminFetch(`/api/admin/weekly-drops/${dropId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
-      if (res.ok) loadWeeklyDrops();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update drop status');
+      setWeeklyDropsNotice(`Drop status updated to ${status}.`);
+      loadWeeklyDrops();
     } catch (err) {
-      console.error('Failed to update drop status:', err);
+      setWeeklyDropsError(err.message);
+    }
+  };
+
+  const revertDropStep = async (dropId, currentStatus) => {
+    const labels = {
+      voting: 'draft (submissions)',
+      live: 'voting',
+      sold_out: 'live',
+      closed: 'sold out',
+    };
+    const target = labels[currentStatus];
+    if (!target) return;
+    if (!window.confirm(`Revert this drop back to ${target}?`)) return;
+
+    try {
+      setWeeklyDropsError('');
+      setWeeklyDropsNotice('');
+      const res = await adminFetch(`/api/admin/weekly-drops/${dropId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ revertStep: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to revert drop');
+      setWeeklyDropsNotice(`Drop reverted to ${target}.`);
+      loadWeeklyDrops();
+    } catch (err) {
+      setWeeklyDropsError(err.message);
+    }
+  };
+
+  const startEditingDrop = (drop) => {
+    setEditingDropId(drop.id);
+    setEditDropLabel(drop.week_label || '');
+    setEditDropShopifyId(drop.shopify_product_id || '');
+    setEditDropMaxUnits(String(drop.max_units ?? 37));
+    setExpandedDropId(drop.id);
+  };
+
+  const cancelEditingDrop = () => {
+    setEditingDropId(null);
+    setEditDropLabel('');
+    setEditDropShopifyId('');
+    setEditDropMaxUnits('37');
+  };
+
+  const saveDropEdits = async (dropId) => {
+    if (!editDropLabel.trim()) {
+      setWeeklyDropsError('Week label is required.');
+      return;
+    }
+    setSavingDropEdits(true);
+    setWeeklyDropsError('');
+    try {
+      const res = await adminFetch(`/api/admin/weekly-drops/${dropId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          weekLabel: editDropLabel.trim(),
+          shopifyProductId: editDropShopifyId.trim() || null,
+          maxUnits: parseInt(editDropMaxUnits, 10) || 37,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save drop');
+      setWeeklyDropsNotice('Drop week updated.');
+      cancelEditingDrop();
+      loadWeeklyDrops();
+    } catch (err) {
+      setWeeklyDropsError(err.message);
+    } finally {
+      setSavingDropEdits(false);
+    }
+  };
+
+  const deleteWeeklyDrop = async (drop) => {
+    const warning = drop.units_sold > 0
+      ? `"${drop.week_label}" has ${drop.units_sold} units sold. Delete anyway? This cannot be undone.`
+      : `Delete drop "${drop.week_label}" and all submissions? This cannot be undone.`;
+    if (!window.confirm(warning)) return;
+
+    try {
+      setWeeklyDropsError('');
+      const res = await adminFetch(`/api/admin/weekly-drops/${drop.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete drop');
+      if (expandedDropId === drop.id) setExpandedDropId(null);
+      if (editingDropId === drop.id) cancelEditingDrop();
+      setWeeklyDropsNotice(`Deleted drop "${drop.week_label}".`);
+      loadWeeklyDrops();
+    } catch (err) {
+      setWeeklyDropsError(err.message);
+    }
+  };
+
+  const deleteDropSubmission = async (submissionId, dropId, fid) => {
+    if (!window.confirm(`Delete submission from FID ${fid}? They will be able to submit again for this drop.`)) return;
+
+    try {
+      setWeeklyDropsError('');
+      const res = await adminFetch('/api/admin/drop-submissions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: submissionId, dropId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete submission');
+      setWeeklyDropsNotice(`Submission removed — FID ${fid} can resubmit.`);
+      loadWeeklyDrops();
+    } catch (err) {
+      setWeeklyDropsError(err.message);
     }
   };
 
@@ -3606,14 +3736,36 @@ export default function AdminDashboard() {
               <div className="bg-white">
                 <div className="px-6 py-4 border-b border-gray-100">
                   <p className="text-sm text-gray-500 mb-4">Manage weekly limited drops — submissions, voting, and go-live</p>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="max-w-xl space-y-3">
                     <input
                       type="text"
                       value={newDropLabel}
                       onChange={e => setNewDropLabel(e.target.value)}
-                      placeholder="Week label, e.g. Week of Jul 7, 2026"
-                      className="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      placeholder="Week label (admin only), e.g. CEF Activation (Ends 7/9/26)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                     />
+                    <div className="flex flex-wrap gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Max units</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={newDropMaxUnits}
+                          onChange={e => setNewDropMaxUnits(e.target.value)}
+                          className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-[220px]">
+                        <label className="block text-xs text-gray-500 mb-1">Shopify product GID (optional — add before Go Live)</label>
+                        <input
+                          type="text"
+                          value={newDropShopifyId}
+                          onChange={e => setNewDropShopifyId(e.target.value)}
+                          placeholder="gid://shopify/Product/…"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </div>
+                    </div>
                     <button
                       onClick={createWeeklyDrop}
                       disabled={creatingDrop || !newDropLabel.trim()}
@@ -3633,21 +3785,70 @@ export default function AdminDashboard() {
                   const submissions = drop.drop_submissions || [];
                   const finalistCount = submissions.filter(s => s.status === 'finalist').length;
                   const isExpanded = expandedDropId === drop.id;
+                  const isEditing = editingDropId === drop.id;
+                  const revertLabels = {
+                    voting: '← Back to Draft',
+                    live: '← Back to Voting',
+                    sold_out: '← Back to Live',
+                    closed: '← Back to Sold Out',
+                  };
                   return (
                     <div key={drop.id} className="border-b border-gray-100">
                       <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <button
-                            onClick={() => setExpandedDropId(isExpanded ? null : drop.id)}
-                            className="text-left"
-                          >
-                            <p className="font-semibold text-gray-900">{drop.week_label}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {submissions.length} submission{submissions.length !== 1 ? 's' : ''}
-                              {finalistCount > 0 && ` · ${finalistCount}/3 finalists`}
-                              {drop.units_sold > 0 && ` · ${drop.units_sold}/${drop.max_units} sold`}
-                            </p>
-                          </button>
+                        <div className="flex-1 min-w-0">
+                          {isEditing ? (
+                            <div className="space-y-2 max-w-lg">
+                              <input
+                                type="text"
+                                value={editDropLabel}
+                                onChange={e => setEditDropLabel(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold"
+                                placeholder="Week label"
+                              />
+                              <input
+                                type="text"
+                                value={editDropShopifyId}
+                                onChange={e => setEditDropShopifyId(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs"
+                                placeholder="Shopify product GID (optional)"
+                              />
+                              <input
+                                type="number"
+                                min="1"
+                                value={editDropMaxUnits}
+                                onChange={e => setEditDropMaxUnits(e.target.value)}
+                                className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-xs"
+                                placeholder="Max units"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => saveDropEdits(drop.id)}
+                                  disabled={savingDropEdits}
+                                  className="px-3 py-1.5 bg-[#3eb489] text-white text-xs font-semibold rounded-lg disabled:opacity-50"
+                                >
+                                  {savingDropEdits ? 'Saving…' : 'Save'}
+                                </button>
+                                <button
+                                  onClick={cancelEditingDrop}
+                                  className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setExpandedDropId(isExpanded ? null : drop.id)}
+                              className="text-left"
+                            >
+                              <p className="font-semibold text-gray-900">{drop.week_label}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {submissions.length} submission{submissions.length !== 1 ? 's' : ''}
+                                {finalistCount > 0 && ` · ${finalistCount}/3 finalists`}
+                                {drop.units_sold > 0 && ` · ${drop.units_sold}/${drop.max_units} sold`}
+                              </p>
+                            </button>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -3657,6 +3858,30 @@ export default function AdminDashboard() {
                             drop.status === 'sold_out' ? 'bg-yellow-100 text-yellow-700' :
                             'bg-red-100 text-red-700'
                           }`}>{drop.status}</span>
+                          {!isEditing && (
+                            <>
+                              <button
+                                onClick={() => startEditingDrop(drop)}
+                                className="px-2 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => deleteWeeklyDrop(drop)}
+                                className="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-lg"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                          {revertLabels[drop.status] && (
+                            <button
+                              onClick={() => revertDropStep(drop.id, drop.status)}
+                              className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-semibold rounded-lg"
+                            >
+                              {revertLabels[drop.status]}
+                            </button>
+                          )}
                           {drop.status === 'draft' && (
                             <button onClick={() => updateDropStatus(drop.id, 'voting')} className="px-3 py-1.5 bg-purple-500 text-white text-xs font-semibold rounded-lg">Open Voting</button>
                           )}
@@ -3710,17 +3935,32 @@ export default function AdminDashboard() {
                                       </td>
                                       <td className="px-3 py-2">
                                         <div className="flex items-center gap-2">
-                                          {sub.pfp_url ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={sub.pfp_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-                                          ) : (
-                                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 text-xs font-bold text-gray-500">
-                                              {(sub.username || String(sub.fid))?.charAt(0)?.toUpperCase() || '?'}
-                                            </div>
-                                          )}
+                                          <div
+                                            className="flex-shrink-0 cursor-pointer"
+                                            onClick={() => openUserModal(sub.fid)}
+                                          >
+                                            {sub.pfp_url ? (
+                                              // eslint-disable-next-line @next/next/no-img-element
+                                              <img src={sub.pfp_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 hover:ring-2 hover:ring-[#3eb489] transition-all" />
+                                            ) : (
+                                              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 text-xs font-bold text-gray-500 hover:bg-gray-300 transition-colors">
+                                                {(sub.username || String(sub.fid))?.charAt(0)?.toUpperCase() || '?'}
+                                              </div>
+                                            )}
+                                          </div>
                                           <div>
-                                            <div className="text-xs">{sub.fid}</div>
-                                            <div className="text-xs text-gray-500">@{sub.username || '—'}</div>
+                                            <div
+                                              className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
+                                              onClick={() => openUserModal(sub.fid)}
+                                            >
+                                              {sub.fid}
+                                            </div>
+                                            <div
+                                              className="text-xs text-gray-500 hover:text-blue-600 cursor-pointer"
+                                              onClick={() => openUserModal(sub.fid)}
+                                            >
+                                              @{sub.username || '—'}
+                                            </div>
                                           </div>
                                         </div>
                                       </td>
@@ -3747,6 +3987,13 @@ export default function AdminDashboard() {
                                           {sub.status !== 'rejected' && sub.status !== 'winner' && (
                                             <button onClick={() => updateDropSubmissionStatus(sub.id, 'rejected', drop.id)} className="px-2 py-1 bg-red-500 text-white text-xs rounded">Reject</button>
                                           )}
+                                          <button
+                                            onClick={() => deleteDropSubmission(sub.id, drop.id, sub.fid)}
+                                            className="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs rounded"
+                                            title="Remove submission so user can resubmit"
+                                          >
+                                            Delete
+                                          </button>
                                         </div>
                                       </td>
                                     </tr>

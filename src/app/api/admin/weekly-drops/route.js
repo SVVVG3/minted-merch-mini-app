@@ -51,6 +51,7 @@ export const POST = withAdminAuth(async (request) => {
       dropEndsAt,
       maxUnits = 37,
       creatorPayoutPerUnit = 5_000_000,
+      shopifyProductId,
       adminNotes,
     } = body;
 
@@ -71,6 +72,7 @@ export const POST = withAdminAuth(async (request) => {
         drop_ends_at: dropEndsAt || null,
         max_units: maxUnits,
         creator_payout_per_unit: creatorPayoutPerUnit,
+        shopify_product_id: shopifyProductId || null,
         admin_notes: adminNotes || null,
       })
       .select()

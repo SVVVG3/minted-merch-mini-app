@@ -72,3 +72,48 @@ export const PATCH = withAdminAuth(async (request) => {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 });
+
+export const DELETE = withAdminAuth(async (request) => {
+  try {
+    const { id, dropId } = await request.json();
+
+    if (!id) {
+      return NextResponse.json({ error: 'Submission id is required' }, { status: 400 });
+    }
+
+    const { data: submission, error: fetchErr } = await supabaseAdmin
+      .from('drop_submissions')
+      .select('id, drop_id, fid, status')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !submission) {
+      return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
+    }
+
+    if (dropId && submission.drop_id !== dropId) {
+      return NextResponse.json({ error: 'Submission does not belong to this drop' }, { status: 400 });
+    }
+
+    // Remove votes for this submission (also cascades on delete)
+    await supabaseAdmin
+      .from('drop_votes')
+      .delete()
+      .eq('submission_id', id);
+
+    const { error } = await supabaseAdmin
+      .from('drop_submissions')
+      .delete()
+      .eq('id', id);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({
+      success: true,
+      deleted: { id: submission.id, fid: submission.fid },
+    });
+  } catch (err) {
+    console.error('[admin/drop-submissions] DELETE error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+});
