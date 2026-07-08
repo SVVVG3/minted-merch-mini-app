@@ -7,6 +7,7 @@ import { useFarcaster } from '@/lib/useFarcaster';
 import { useCart } from '@/lib/CartContext';
 import { getProductConfig } from '@/lib/designStudioConfig';
 import { getSoleLeaderSubmissionId } from '@/lib/dropHelpers';
+import { openUrl } from '@/lib/clientAwareUrls';
 
 function voteTierLabel(tier, weight) {
   if (tier === 'whale') return `🐋 ${weight} votes`;
@@ -15,7 +16,7 @@ function voteTierLabel(tier, weight) {
 }
 
 function CreatorAvatar({ username, fid, pfpUrl, size = 'sm' }) {
-  const dim = size === 'sm' ? 'w-6 h-6' : 'w-8 h-8';
+  const dim = size === 'sm' ? 'w-6 h-6' : size === 'xs' ? 'w-5 h-5' : 'w-8 h-8';
   const label = username || (fid ? String(fid) : 'creator');
   if (pfpUrl) {
     return (
@@ -37,6 +38,46 @@ function formatCountdown(endsAt) {
   const totalHours = Math.floor(ms / 3600000);
   const mins = Math.floor((ms % 3600000) / 60000);
   return `${totalHours}h ${mins}m left`;
+}
+
+async function openCreatorProfile({ username, fid }) {
+  const profileUrl = username
+    ? `https://farcaster.xyz/${username}`
+    : fid
+      ? `https://warpcast.com/~/profiles/${fid}`
+      : null;
+  if (!profileUrl) return;
+  await openUrl(profileUrl);
+}
+
+function DesignerCredit({ winner, compact = false }) {
+  if (!winner) return null;
+  const label = winner.username || (winner.fid ? String(winner.fid) : 'creator');
+  const canOpen = !!(winner.username || winner.fid);
+
+  return (
+    <button
+      type="button"
+      onClick={() => canOpen && openCreatorProfile(winner)}
+      disabled={!canOpen}
+      className={`flex items-center justify-center gap-1.5 mx-auto transition-opacity ${
+        canOpen ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'
+      } ${compact ? 'mb-2' : 'mb-3'}`}
+    >
+      <CreatorAvatar
+        username={winner.username}
+        fid={winner.fid}
+        pfpUrl={winner.pfpUrl}
+        size={compact ? 'xs' : 'sm'}
+      />
+      <p className={`text-gray-500 ${compact ? 'text-xs' : 'text-sm'}`}>
+        Designed by{' '}
+        <span className="text-[#3eb489] font-medium">
+          @{label}
+        </span>
+      </p>
+    </button>
+  );
 }
 
 /** Voting countdown during active phase; 48h sale window countdown when live. */
@@ -411,10 +452,7 @@ export function DropCollectionView({ products }) {
             <div className="p-4 text-center">
               <p className="text-xs font-semibold uppercase tracking-wide text-green-600 mb-1">🏆 Winner Selected</p>
               <h2 className="text-lg font-bold text-gray-900 mb-2">Limited Drop</h2>
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <CreatorAvatar username={winner.username} fid={winner.fid} pfpUrl={winner.pfpUrl} size="md" />
-                <p className="text-sm text-gray-500">Designed by @{winner.username || 'creator'}</p>
-              </div>
+              <DesignerCredit winner={winner} />
               <p className="text-sm text-gray-400">Launching in the shop soon — {drop?.maxUnits || 37} units only.</p>
             </div>
           </div>
@@ -433,24 +471,27 @@ export function DropCollectionView({ products }) {
     const canOrder = unitsLeft > 0 && saleWindowOpen && (productConfig?.shopifyProductId || drop.shopifyProductId || dropProduct);
 
     return (
-      <div className="px-4 py-6 max-w-lg mx-auto">
+      <div className="px-3 py-2 max-w-lg mx-auto">
         {winner?.mockupUrl && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={winner.mockupUrl} alt="Winning drop design" className="w-full aspect-square object-contain bg-gray-50" />
-            <div className="p-5 text-center">
-              <p className="text-xs font-semibold uppercase tracking-wide text-green-600 mb-1">Live Now</p>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">Limited Drop</h2>
-              {displayPrice && (
-                <p className="text-lg font-bold text-gray-900 mb-2">${parseFloat(displayPrice).toFixed(2)}</p>
-              )}
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <CreatorAvatar username={winner.username} fid={winner.fid} pfpUrl={winner.pfpUrl} size="md" />
-                <p className="text-sm text-gray-500">
-                  Designed by @{winner.username || 'creator'}
-                </p>
+            <img
+              src={winner.mockupUrl}
+              alt="Winning drop design"
+              className="w-full max-h-[min(52vw,240px)] object-contain bg-gray-50 mx-auto"
+            />
+            <div className="px-3 py-3 text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-green-600">Live Now</p>
+              <div className="flex items-center justify-center gap-2 mt-0.5 mb-1">
+                <h2 className="text-base font-bold text-gray-900">Limited Drop</h2>
+                {displayPrice && (
+                  <span className="text-base font-bold text-gray-900">
+                    ${parseFloat(displayPrice).toFixed(2)}
+                  </span>
+                )}
               </div>
-              <p className="text-sm text-gray-400 mb-5">
+              <DesignerCredit winner={winner} compact />
+              <p className="text-xs text-gray-400 mb-3 leading-snug">
                 {unitsLeft} of {drop.maxUnits || 37} left
                 {saleEndsAt && saleWindowOpen && countdown && countdown !== 'Ended' && (
                   <span> · Sale ends in {countdown.replace(' left', '')}</span>
@@ -463,12 +504,12 @@ export function DropCollectionView({ products }) {
                 <button
                   type="button"
                   onClick={() => openOrderSheet(drop, winner)}
-                  className="w-full py-3.5 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-2xl text-base transition-colors"
+                  className="w-full py-2.5 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-xl text-sm transition-colors"
                 >
                   Order Now
                 </button>
               ) : (
-                <p className="text-sm text-gray-500">
+                <p className="text-xs text-gray-500">
                   {!saleWindowOpen ? 'Sale window ended (48-hour limit).' : unitsLeft <= 0 ? 'Sold out for this drop.' : 'Product listing coming to shop shortly.'}
                 </p>
               )}
