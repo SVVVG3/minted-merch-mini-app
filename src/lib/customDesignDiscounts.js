@@ -17,6 +17,23 @@ export function getDesignStudioShopifyGraphqlId(productType) {
   return getProductConfig(productType)?.shopifyProductId || null;
 }
 
+export function getCachedSupabaseIdForShopifyGraphqlId(shopifyGraphqlId) {
+  if (!shopifyGraphqlId) return null;
+  return supabaseIdCache.get(shopifyGraphqlId) ?? null;
+}
+
+function normalizeProductId(id) {
+  if (id == null) return null;
+  const n = Number(id);
+  return Number.isFinite(n) ? n : null;
+}
+
+function targetIdListIncludes(targetIds, productId) {
+  const normalized = normalizeProductId(productId);
+  if (normalized == null) return false;
+  return targetIds.some((targetId) => normalizeProductId(targetId) === normalized);
+}
+
 export function getCustomItemShopifyGraphqlId(item) {
   if (item?.customMeta?.productType) {
     return getDesignStudioShopifyGraphqlId(item.customMeta.productType);
@@ -87,13 +104,23 @@ export function cartItemQualifiesForDiscount(item, discount, supabaseIdByItemKey
     return discount.discount_scope !== 'product';
   }
 
+  const shopifyGqlId = getCustomItemShopifyGraphqlId(item);
   const supabaseId =
     item.product?.supabaseId ||
     supabaseIdByItemKey?.get?.(item.key) ||
+    getCachedSupabaseIdForShopifyGraphqlId(shopifyGqlId) ||
     null;
 
-  if (supabaseId != null && targetIds.length > 0 && targetIds.includes(supabaseId)) {
+  if (supabaseId != null && targetIds.length > 0 && targetIdListIncludes(targetIds, supabaseId)) {
     return true;
+  }
+
+  // Discount was matched to this custom product at apply time (before async ID cache fills)
+  if (item.customMeta && discount.sourceProduct?.startsWith('custom-design-')) {
+    const sourceId = normalizeProductId(discount.sourceProduct.replace('custom-design-', ''));
+    if (sourceId != null && targetIds.length > 0 && targetIdListIncludes(targetIds, sourceId)) {
+      return true;
+    }
   }
 
   const productHandle = item.product?.handle || '';
@@ -134,6 +161,6 @@ export function formatDiscountForCart(bestDiscount, sourceProduct = 'custom-desi
     isTokenGated: bestDiscount.isTokenGated || false,
     gating_type: bestDiscount.gating_type,
     priority_level: bestDiscount.priority_level || 0,
-    sourceProduct,
+    sourceProduct: bestDiscount.sourceProduct || sourceProduct,
   };
 }

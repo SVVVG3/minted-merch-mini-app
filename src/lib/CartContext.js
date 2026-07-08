@@ -551,7 +551,7 @@ export function CartProvider({ children }) {
       let qualifyingSubtotal = 0;
 
       safeCart.items.forEach((item) => {
-        if (cartItemQualifiesForDiscount(item, safeCart.appliedDiscount, customSupabaseIdsRef.current)) {
+        if (cartItemQualifiesForDiscount(item, safeCart.appliedDiscount, customSupabaseIds)) {
           qualifyingSubtotal += item.price * item.quantity;
         }
       });
@@ -570,7 +570,7 @@ export function CartProvider({ children }) {
     }
 
     return Math.round(discountAmount * 100) / 100;
-  }, [safeCart.appliedDiscount, safeCart.items, cartSubtotal]);
+  }, [safeCart.appliedDiscount, safeCart.items, cartSubtotal, customSupabaseIds]);
 
   const cartTotal = useMemo(() => {
     return Math.max(0, cartSubtotal - calculateProductAwareDiscount);
@@ -720,7 +720,15 @@ export function CartProvider({ children }) {
             if (tokenData.success && tokenData.eligibleDiscounts?.length > 0) {
               console.log(`🎫 Found ${tokenData.eligibleDiscounts.length} token-gated discount(s) for custom design cart`);
               tokenData.eligibleDiscounts.forEach((d) => {
-                allAvailableDiscounts.push({ ...d, isTokenGated: true, sourceProduct: 'custom-design' });
+                const targetIds = Array.isArray(d.target_product_ids) ? d.target_product_ids : [];
+                const matchedId = customSupabaseIds.find((id) =>
+                  targetIds.some((targetId) => Number(targetId) === Number(id))
+                );
+                allAvailableDiscounts.push({
+                  ...d,
+                  isTokenGated: true,
+                  sourceProduct: matchedId != null ? `custom-design-${matchedId}` : 'custom-design',
+                });
               });
             }
           }

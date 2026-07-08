@@ -540,7 +540,7 @@ export function calculateDiscountAmount(subtotal, discountCode, shippingAmount =
         const matchesById =
           resolvedSupabaseId != null &&
           targetIds.length > 0 &&
-          targetIds.includes(resolvedSupabaseId);
+          targetIds.some((targetId) => Number(targetId) === Number(resolvedSupabaseId));
 
         const matchesByHandle =
           targetHandles.length > 0 &&
