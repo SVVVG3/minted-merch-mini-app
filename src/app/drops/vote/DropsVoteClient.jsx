@@ -24,13 +24,9 @@ function formatCountdown(endsAt) {
   if (!endsAt) return null;
   const ms = new Date(endsAt).getTime() - Date.now();
   if (ms <= 0) return 'Ended';
-  const hours = Math.floor(ms / 3600000);
+  const totalHours = Math.floor(ms / 3600000);
   const mins = Math.floor((ms % 3600000) / 60000);
-  if (hours >= 24) {
-    const days = Math.floor(hours / 24);
-    return `${days}d ${hours % 24}h left`;
-  }
-  return `${hours}h ${mins}m left`;
+  return `${totalHours}h ${mins}m left`;
 }
 
 function voteTierLabel(tier, weight) {

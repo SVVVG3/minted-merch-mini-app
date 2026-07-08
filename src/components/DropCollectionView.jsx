@@ -34,10 +34,21 @@ function formatCountdown(endsAt) {
   if (!endsAt) return null;
   const ms = new Date(endsAt).getTime() - Date.now();
   if (ms <= 0) return 'Ended';
-  const hours = Math.floor(ms / 3600000);
+  const totalHours = Math.floor(ms / 3600000);
   const mins = Math.floor((ms % 3600000) / 60000);
-  if (hours >= 24) return `${Math.floor(hours / 24)}d ${hours % 24}h left`;
-  return `${hours}h ${mins}m left`;
+  return `${totalHours}h ${mins}m left`;
+}
+
+/** Voting countdown during active phase; 48h sale window countdown when live. */
+function getCountdownEndsAt(phase, drop) {
+  if (!drop) return null;
+  if (phase === 'live' || phase === 'sold_out') {
+    return drop.dropEndsAt || null;
+  }
+  if (phase === 'active') {
+    return drop.votingEndsAt || null;
+  }
+  return null;
 }
 
 export function DropCollectionView({ products }) {
@@ -62,13 +73,8 @@ export function DropCollectionView({ products }) {
       const res = await fetch('/api/drops/status', { headers });
       const data = await res.json();
       setStatus(data);
-      if (data.drop?.votingEndsAt) {
-        setCountdown(formatCountdown(data.drop.votingEndsAt));
-      } else if (data.drop?.dropEndsAt) {
-        setCountdown(formatCountdown(data.drop.dropEndsAt));
-      } else {
-        setCountdown(null);
-      }
+      const endsAt = getCountdownEndsAt(data.phase, data.drop);
+      setCountdown(endsAt ? formatCountdown(endsAt) : null);
     } catch {
       setStatus({ phase: 'none' });
     } finally {
@@ -81,13 +87,13 @@ export function DropCollectionView({ products }) {
   }, [loadStatus, user?.fid]);
 
   useEffect(() => {
-    const endsAt = status?.drop?.votingEndsAt || status?.drop?.dropEndsAt;
+    const endsAt = getCountdownEndsAt(status?.phase, status?.drop);
     if (!endsAt) return;
     const tick = () => setCountdown(formatCountdown(endsAt));
     tick();
     const id = setInterval(tick, 60000);
     return () => clearInterval(id);
-  }, [status?.drop?.votingEndsAt, status?.drop?.dropEndsAt]);
+  }, [status?.phase, status?.drop?.votingEndsAt, status?.drop?.dropEndsAt]);
 
   const resolveDropProduct = useCallback((dropData) => {
     if (!products?.length) return null;
@@ -446,7 +452,7 @@ export function DropCollectionView({ products }) {
               </div>
               <p className="text-sm text-gray-400 mb-5">
                 {unitsLeft} of {drop.maxUnits || 37} left
-                {saleEndsAt && saleWindowOpen && countdown && (
+                {saleEndsAt && saleWindowOpen && countdown && countdown !== 'Ended' && (
                   <span> · Sale ends in {countdown.replace(' left', '')}</span>
                 )}
                 {winner.productType && (

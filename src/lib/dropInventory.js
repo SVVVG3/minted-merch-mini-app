@@ -142,6 +142,14 @@ export async function incrementDropUnitsSold(dropId, quantity) {
     }
 
     if (updated) {
+      if (updated.status === 'sold_out') {
+        try {
+          const { finalizeDropCreatorPayout } = await import('@/lib/dropCreatorPayouts');
+          await finalizeDropCreatorPayout(dropId);
+        } catch (payoutErr) {
+          console.error(`⚠️ Drop creator payout finalize failed for ${dropId}:`, payoutErr);
+        }
+      }
       return { success: true, drop: updated, soldOut: updated.status === 'sold_out' };
     }
   }
@@ -177,6 +185,16 @@ export async function closeExpiredLiveDrops() {
     .select('id, week_label');
 
   if (error) throw error;
+
+  for (const drop of data || []) {
+    try {
+      const { finalizeDropCreatorPayout } = await import('@/lib/dropCreatorPayouts');
+      await finalizeDropCreatorPayout(drop.id);
+    } catch (payoutErr) {
+      console.error(`⚠️ Drop creator payout finalize failed for ${drop.id}:`, payoutErr);
+    }
+  }
+
   return data || [];
 }
 

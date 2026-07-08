@@ -185,6 +185,9 @@ export default function AdminDashboard() {
   const [royaltiesData, setRoyaltiesData] = useState([]);
   const [royaltiesLoading, setRoyaltiesLoading] = useState(false);
   const [royaltiesError, setRoyaltiesError] = useState('');
+  const [dropPayoutsData, setDropPayoutsData] = useState([]);
+  const [dropPayoutsLoading, setDropPayoutsLoading] = useState(false);
+  const [dropPayoutsError, setDropPayoutsError] = useState('');
   const [selectedRoyaltyIds, setSelectedRoyaltyIds] = useState([]);
   const [settlingRoyalties, setSettlingRoyalties] = useState(false);
 
@@ -1479,6 +1482,21 @@ export default function AdminDashboard() {
       }
     } finally {
       setSettlingRoyalties(false);
+    }
+  };
+
+  const loadDropPayouts = async () => {
+    setDropPayoutsLoading(true);
+    setDropPayoutsError('');
+    try {
+      const res = await adminFetch('/api/admin/drop-creator-payouts');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load drop payouts');
+      setDropPayoutsData(data.payouts || []);
+    } catch (err) {
+      setDropPayoutsError(err.message);
+    } finally {
+      setDropPayoutsLoading(false);
     }
   };
 
@@ -3270,6 +3288,14 @@ export default function AdminDashboard() {
                       🔄 Refresh
                     </button>
                   )}
+                  {ordersSubTab === 'drop-payouts' && (
+                    <button
+                      onClick={loadDropPayouts}
+                      className="bg-[#3eb489] hover:bg-[#359970] text-white px-4 py-2 rounded-md text-sm"
+                    >
+                      🔄 Refresh
+                    </button>
+                  )}
                   {ordersSubTab === 'weekly-drops' && (
                     <button
                       onClick={loadWeeklyDrops}
@@ -3312,6 +3338,16 @@ export default function AdminDashboard() {
                   }`}
                 >
                   💎 Royalties
+                </button>
+                <button
+                  onClick={() => { setOrdersSubTab('drop-payouts'); if (dropPayoutsData.length === 0) loadDropPayouts(); }}
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                    ordersSubTab === 'drop-payouts'
+                      ? 'border-[#3eb489] text-[#3eb489]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  🏆 Drop Payouts
                 </button>
                 <button
                   onClick={() => { setOrdersSubTab('weekly-drops'); if (weeklyDropsData.length === 0) loadWeeklyDrops(); }}
@@ -3766,6 +3802,75 @@ export default function AdminDashboard() {
                             <td className="px-4 py-3 text-xs text-gray-500">
                               {r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}
                               {r.settled_at && <span className="block text-gray-400">settled {new Date(r.settled_at).toLocaleDateString()}</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Drop creator payouts */}
+            {ordersSubTab === 'drop-payouts' && (
+              <div className="bg-white">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <p className="text-sm text-gray-500">
+                    Winners earn <strong>5M $mintedmerch per unit sold</strong>. Payouts are created when a drop ends (sold out or 48h window closes).
+                  </p>
+                </div>
+                {dropPayoutsLoading && <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489]" /></div>}
+                {dropPayoutsError && <div className="px-6 py-4 text-red-600 text-sm">{dropPayoutsError}</div>}
+                {!dropPayoutsLoading && dropPayoutsData.length === 0 && (
+                  <div className="px-6 py-12 text-center text-gray-400 text-sm">No drop creator payouts yet.</div>
+                )}
+                {!dropPayoutsLoading && dropPayoutsData.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Drop Week</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Creator</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Units Sold</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {dropPayoutsData.map((p) => (
+                          <tr key={p.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm text-gray-900">{p.weekLabel || '—'}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                {p.profiles?.pfp_url && (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={p.profiles.pfp_url} alt="" className="w-7 h-7 rounded-full object-cover" />
+                                )}
+                                <span className="text-sm text-gray-900">
+                                  {p.profiles?.username ? `@${p.profiles.username}` : `FID ${p.creator_fid}`}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900">{p.units_sold}</td>
+                            <td className="px-4 py-3 text-sm font-bold text-emerald-700">
+                              {Number(p.amount_tokens).toLocaleString()} $MM
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                p.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                p.status === 'claimable' ? 'bg-purple-100 text-purple-700' :
+                                'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {p.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-500">
+                              {p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}
+                              {p.claimed_at && (
+                                <span className="block text-gray-400">claimed {new Date(p.claimed_at).toLocaleDateString()}</span>
+                              )}
                             </td>
                           </tr>
                         ))}

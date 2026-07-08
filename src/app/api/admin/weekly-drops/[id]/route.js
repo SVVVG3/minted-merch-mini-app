@@ -97,6 +97,15 @@ export const PATCH = withAdminAuth(async (request, { params }) => {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    if (['sold_out', 'closed'].includes(drop.status)) {
+      try {
+        const { finalizeDropCreatorPayout } = await import('@/lib/dropCreatorPayouts');
+        await finalizeDropCreatorPayout(id);
+      } catch (payoutErr) {
+        console.error('[admin/weekly-drops] payout finalize failed:', payoutErr);
+      }
+    }
+
     return NextResponse.json({ success: true, drop });
   } catch (err) {
     console.error('[admin/weekly-drops/[id]] PATCH error:', err);

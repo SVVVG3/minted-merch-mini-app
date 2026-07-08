@@ -7,6 +7,7 @@ import { useWalletConnectContext } from './WalletConnectProvider';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useSignIn } from '@farcaster/auth-kit';
 import { Portal } from './Portal';
+import { DropEarningsSection } from './DropEarningsSection';
 
 // Separate component for wallet connection section to properly use context
 function WalletConnectSection({ setConnectedWallet, isInFarcaster }) {
@@ -1050,6 +1051,11 @@ export function ProfileModal({ isOpen, onClose, onSignOut }) {
                   />
                 )}
               </div>
+
+              <DropEarningsSection
+                getSessionToken={getSessionToken}
+                isInFarcaster={isInFarcaster}
+              />
               
               {/* Order History Section */}
               <div className="bg-gradient-to-r from-orange-900/30 to-amber-900/30 border border-orange-700/50 rounded-xl p-5 shadow-sm">
