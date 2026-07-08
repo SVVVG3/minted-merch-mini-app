@@ -11,12 +11,14 @@ import {
   enrichSubmissionsWithProfiles,
 } from '@/lib/dropHelpers';
 import { resolveDueDrops } from '@/lib/dropResolve';
+import { closeExpiredLiveDrops, getDropLiveEndsAt } from '@/lib/dropInventory';
 
 // GET /api/drops/status — public drop state for Limited Drops collection page
 export async function GET(request) {
   try {
     // Lazy resolve: if any drop is past ends_at, resolve before returning state
     await resolveDueDrops();
+    await closeExpiredLiveDrops();
 
     const featured = await getFeaturedDropForCollection(supabaseAdmin);
     if (!featured) {
@@ -84,6 +86,8 @@ export async function GET(request) {
         status: drop.status,
         maxUnits: drop.max_units,
         unitsSold: drop.units_sold,
+        dropStartsAt: drop.drop_starts_at || null,
+        dropEndsAt: getDropLiveEndsAt(drop),
         votingEndsAt: getDropEndsAt(drop),
         submissionsCloseAt: drop.submissions_close_at,
         shopifyProductId: drop.shopify_product_id || null,

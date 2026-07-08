@@ -1,8 +1,61 @@
 import { Suspense } from 'react';
 import { OrderSuccessClient } from './OrderSuccessClient';
 import { getOrder } from '@/lib/orders';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import {
+  getLineItemCustomImageUrl,
+  getLineItemDesignRequestId,
+  isCustomMerchLineItem,
+} from '@/lib/customMerchLineItems';
 
-// Function to fetch product image from Shopify by variant ID
+async function resolveMockupUrlForOrder(orderData) {
+  if (!orderData?.line_items?.length) return null;
+
+  const customItem = orderData.line_items.find(isCustomMerchLineItem);
+  if (!customItem) return null;
+
+  const stored = getLineItemCustomImageUrl(customItem);
+  if (stored) return stored;
+
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return null;
+
+  const orderNums = [
+    orderData.order_id,
+    orderData.order_id?.replace(/^#/, ''),
+    `#${orderData.order_id?.replace(/^#/, '')}`,
+  ].filter(Boolean);
+
+  const designRequestId = getLineItemDesignRequestId(customItem);
+  if (designRequestId) {
+    const { data } = await supabase
+      .from('design_order_requests')
+      .select('mockup_url, shopify_order_number')
+      .eq('id', designRequestId)
+      .maybeSingle();
+    if (data?.mockup_url) {
+      if (data.shopify_order_number && orderNums.includes(data.shopify_order_number)) {
+        return data.mockup_url;
+      }
+      if (!data.shopify_order_number) {
+        return data.mockup_url;
+      }
+    }
+  }
+
+  const { data: stamped } = await supabase
+    .from('design_order_requests')
+    .select('mockup_url')
+    .in('shopify_order_number', orderNums)
+    .not('mockup_url', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return stamped?.mockup_url || null;
+}
+
+// Function to fetch product image from order line items
 async function getProductImageFromOrderItems(orderData) {
   try {
     if (!orderData?.line_items || orderData.line_items.length === 0) {
@@ -12,6 +65,18 @@ async function getProductImageFromOrderItems(orderData) {
 
     const firstItem = orderData.line_items[0];
     console.log('Getting image for product:', firstItem.title);
+
+    const customImage = getLineItemCustomImageUrl(firstItem);
+    if (customImage) {
+      console.log('Using stored custom mockup URL:', customImage);
+      return customImage;
+    }
+
+    const mockupFromDb = await resolveMockupUrlForOrder(orderData);
+    if (mockupFromDb) {
+      console.log('Using mockup URL from design_order_requests:', mockupFromDb);
+      return mockupFromDb;
+    }
 
     // Check if we have a stored product image URL
     if (firstItem.imageUrl) {

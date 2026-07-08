@@ -81,10 +81,14 @@ export const GET = withAdminAuth(async (request) => {
       const products = order.order_items?.map(item => {
         // Try to extract image from product_data JSONB if available
         let image = null;
+        let orderSource = null;
+        let dropWeekLabel = null;
         if (item.product_data) {
           try {
             const productData = typeof item.product_data === 'string' ? JSON.parse(item.product_data) : item.product_data;
-            image = productData.image || productData.featured_image || null;
+            image = productData.image || productData.featured_image || productData.imageUrl || null;
+            orderSource = productData.customMeta?.orderSource || productData.orderSource || null;
+            dropWeekLabel = productData.customMeta?.dropWeekLabel || productData.dropWeekLabel || null;
           } catch (e) {
             console.warn('Error parsing product_data:', e);
           }
@@ -95,9 +99,20 @@ export const GET = withAdminAuth(async (request) => {
           variant: item.variant_title || 'Default',
           quantity: item.quantity,
           price: item.price,
-          image: image
+          image: image,
+          orderSource,
+          dropWeekLabel,
         };
       }) || [];
+
+      const orderSources = [...new Set(products.map((p) => p.orderSource).filter(Boolean))];
+      let order_source = 'catalog';
+      if (orderSources.includes('limited_drop')) {
+        order_source = 'limited_drop';
+      } else if (orderSources.includes('design_studio')) {
+        order_source = 'design_studio';
+      }
+      const drop_week_label = products.find((p) => p.dropWeekLabel)?.dropWeekLabel || null;
       
       return {
         order_id: order.order_id,
@@ -106,6 +121,8 @@ export const GET = withAdminAuth(async (request) => {
         customer_name: order.customer_name,
         status: order.status,
         item_count: itemCount,
+        order_source,
+        drop_week_label,
         
         // Use correct database columns for amounts
         amount_total: order.amount_total,

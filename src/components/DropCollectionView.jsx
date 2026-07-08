@@ -64,6 +64,10 @@ export function DropCollectionView({ products }) {
       setStatus(data);
       if (data.drop?.votingEndsAt) {
         setCountdown(formatCountdown(data.drop.votingEndsAt));
+      } else if (data.drop?.dropEndsAt) {
+        setCountdown(formatCountdown(data.drop.dropEndsAt));
+      } else {
+        setCountdown(null);
       }
     } catch {
       setStatus({ phase: 'none' });
@@ -77,11 +81,13 @@ export function DropCollectionView({ products }) {
   }, [loadStatus, user?.fid]);
 
   useEffect(() => {
-    if (!status?.drop?.votingEndsAt) return;
-    const tick = () => setCountdown(formatCountdown(status.drop.votingEndsAt));
+    const endsAt = status?.drop?.votingEndsAt || status?.drop?.dropEndsAt;
+    if (!endsAt) return;
+    const tick = () => setCountdown(formatCountdown(endsAt));
+    tick();
     const id = setInterval(tick, 60000);
     return () => clearInterval(id);
-  }, [status?.drop?.votingEndsAt]);
+  }, [status?.drop?.votingEndsAt, status?.drop?.dropEndsAt]);
 
   const resolveDropProduct = useCallback((dropData) => {
     if (!products?.length) return null;
@@ -173,9 +179,11 @@ export function DropCollectionView({ products }) {
       addItem(cartProduct, cartVariant, 1, {
         customImageUrl: winnerData?.mockupUrl || null,
         customMeta: {
+          dropId: dropData?.id || null,
           designRequestId: dropData?.designRequestId || null,
           productType: winnerData?.productType || null,
           colorName: winnerData?.colorName || null,
+          size: selectedSize,
         },
       });
 
@@ -411,10 +419,12 @@ export function DropCollectionView({ products }) {
 
   if (phase === 'live') {
     const unitsLeft = Math.max(0, (drop.maxUnits || 37) - (drop.unitsSold || 0));
+    const saleEndsAt = drop.dropEndsAt;
+    const saleWindowOpen = !saleEndsAt || new Date(saleEndsAt).getTime() > Date.now();
     const dropProduct = resolveDropProduct(drop);
     const productConfig = winner?.productType ? getProductConfig(winner.productType) : null;
     const displayPrice = dropProduct?.priceRange?.minVariantPrice?.amount;
-    const canOrder = unitsLeft > 0 && (productConfig?.shopifyProductId || drop.shopifyProductId || dropProduct);
+    const canOrder = unitsLeft > 0 && saleWindowOpen && (productConfig?.shopifyProductId || drop.shopifyProductId || dropProduct);
 
     return (
       <div className="px-4 py-6 max-w-lg mx-auto">
@@ -435,7 +445,10 @@ export function DropCollectionView({ products }) {
                 </p>
               </div>
               <p className="text-sm text-gray-400 mb-5">
-                Only {unitsLeft} left of {drop.maxUnits}
+                {unitsLeft} of {drop.maxUnits || 37} left
+                {saleEndsAt && saleWindowOpen && countdown && (
+                  <span> · Sale ends in {countdown.replace(' left', '')}</span>
+                )}
                 {winner.productType && (
                   <span className="capitalize"> · {winner.productType}{winner.colorName ? ` · ${winner.colorName}` : ''}</span>
                 )}
@@ -450,7 +463,7 @@ export function DropCollectionView({ products }) {
                 </button>
               ) : (
                 <p className="text-sm text-gray-500">
-                  {unitsLeft <= 0 ? 'Sold out for this drop.' : 'Product listing coming to shop shortly.'}
+                  {!saleWindowOpen ? 'Sale window ended (48-hour limit).' : unitsLeft <= 0 ? 'Sold out for this drop.' : 'Product listing coming to shop shortly.'}
                 </p>
               )}
             </div>

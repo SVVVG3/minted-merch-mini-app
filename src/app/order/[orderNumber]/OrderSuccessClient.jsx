@@ -5,6 +5,13 @@ import Link from 'next/link';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { shareOrder } from '@/lib/farcasterShare';
+import {
+  isCustomMerchLineItem,
+  getProductTypeFromLineItemTitle,
+  getLineItemDesignRequestId,
+  getLineItemCustomImageUrl,
+  getLineItemThumbUrl,
+} from '@/lib/customMerchLineItems';
 
 export function OrderSuccessClient({ orderNumber }) {
   const { isInFarcaster, getSessionToken, isReady } = useFarcaster();
@@ -133,29 +140,24 @@ export function OrderSuccessClient({ orderNumber }) {
   //       c. Timing-based fallback: closest design_order_requests created before
   //          the order, scoped to this FID + product type
   const maybeFetchMockupUrl = async (order, num, headers) => {
-    const customItem = order?.line_items?.find(item =>
-      (item.title || '').toLowerCase().includes('design studio custom')
-    );
+    const customItem = order?.line_items?.find(isCustomMerchLineItem);
     if (!customItem) return;
 
     // Fast path: mockup URL already stored in the line item
-    if (customItem.customImageUrl) {
-      setCustomMockupUrl(customItem.customImageUrl);
-      console.log('🎨 Custom mockup URL from line item:', customItem.customImageUrl);
+    const storedUrl = getLineItemCustomImageUrl(customItem);
+    if (storedUrl) {
+      setCustomMockupUrl(storedUrl);
+      console.log('🎨 Custom mockup URL from line item:', storedUrl);
       return;
     }
 
-    // Derive productType from the Shopify line item title
-    const titleLower = customItem.title.toLowerCase();
-    let productType = null;
-    if (titleLower.includes('t-shirt') || titleLower.includes('tshirt')) productType = 'tshirt';
-    else if (titleLower.includes('hoodie')) productType = 'hoodie';
-    else if (titleLower.includes('hat')) productType = 'hat';
+    const productType = getProductTypeFromLineItemTitle(customItem.title);
 
     try {
       const params = new URLSearchParams({ orderNumber: num });
       if (productType) params.set('productType', productType);
-      if (customItem.designRequestId) params.set('designRequestId', customItem.designRequestId);
+      const designRequestId = getLineItemDesignRequestId(customItem);
+      if (designRequestId) params.set('designRequestId', designRequestId);
       if (order.created_at) params.set('orderCreatedAt', order.created_at);
 
       const res = await fetch(
@@ -260,8 +262,10 @@ export function OrderSuccessClient({ orderNumber }) {
                 <h3 className="font-medium text-gray-900 mb-3">Items Ordered</h3>
                 <div className="space-y-3">
                   {orderData.line_items.map((item, index) => {
-                    const isCustomDesign = (item.title || '').toLowerCase().includes('design studio custom');
-                    const thumbUrl = item.imageUrl || (isCustomDesign ? customMockupUrl : null);
+                    const thumbUrl = getLineItemThumbUrl(
+                      item,
+                      isCustomMerchLineItem(item) ? customMockupUrl : null
+                    );
                     return (
                     <div key={index} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
                       {/* Product Image */}

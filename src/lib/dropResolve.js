@@ -1,6 +1,10 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { getDropEndsAt } from '@/lib/dropHelpers';
 import { createPrintfulDraftForDropWinner } from '@/lib/dropPrintful';
+import {
+  DROP_DEFAULT_MAX_UNITS,
+  computeDropLiveEndsAt,
+} from '@/lib/dropInventory';
 
 /**
  * Resolve a single drop: pick highest vote_count (tie → earliest created_at),
@@ -62,12 +66,17 @@ export async function resolveDrop(dropId) {
     .update({ status: 'winner' })
     .eq('id', winner.id);
 
+  const liveEndsAt = computeDropLiveEndsAt(new Date(now));
+
   await supabaseAdmin
     .from('weekly_drops')
     .update({
       winning_submission_id: winner.id,
       status: 'live',
       drop_starts_at: now,
+      drop_ends_at: liveEndsAt,
+      max_units: DROP_DEFAULT_MAX_UNITS,
+      units_sold: 0,
       updated_at: now,
     })
     .eq('id', dropId);

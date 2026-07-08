@@ -178,13 +178,47 @@ export async function POST(request) {
       item => item.customMeta.designRequestId
     );
 
-    // Auto-append design request UUIDs to the order notes for traceability
+    // Auto-append design request UUIDs + order source (limited drop vs own design) to notes
     let effectiveNotes = notes || '';
+    let orderTags = ['farcaster-mini-app', 'usdc-payment'];
+    let dropWeekLabels = new Map();
+
     if (customDesignIds.length > 0) {
       const designRef = `Custom Design Request${customDesignIds.length > 1 ? 's' : ''}: ${customDesignIds.join(', ')}`;
       effectiveNotes = effectiveNotes
         ? `${effectiveNotes}\n\n${designRef}`
         : designRef;
+    }
+
+    try {
+      const { fetchDropWeekLabels, buildOrderSourceMetadata } = await import('@/lib/dropOrderTraceability');
+      dropWeekLabels = await fetchDropWeekLabels(cartItems);
+      const sourceMeta = buildOrderSourceMetadata(cartItems, dropWeekLabels, effectiveNotes);
+      effectiveNotes = sourceMeta.notes;
+      orderTags = sourceMeta.tags;
+    } catch (sourceMetaErr) {
+      console.error(`⚠️ [${requestId}] Order source metadata build failed (continuing):`, sourceMetaErr);
+    }
+
+    // Limited Drop inventory + 48h live window guard
+    let pendingDropSales = [];
+    try {
+      const { validateLimitedDropCheckout, incrementDropUnitsSold } = await import('@/lib/dropInventory');
+      const dropValidation = await validateLimitedDropCheckout(cartItems);
+      if (!dropValidation.ok) {
+        return NextResponse.json({
+          success: false,
+          error: dropValidation.error,
+          message: dropValidation.error,
+        }, { status: 409 });
+      }
+      pendingDropSales = dropValidation.sales || [];
+    } catch (dropValErr) {
+      console.error(`❌ [${requestId}] Limited drop validation error:`, dropValErr);
+      return NextResponse.json({
+        success: false,
+        error: 'Could not validate limited drop availability',
+      }, { status: 500 });
     }
 
     // Convert FID to integer to ensure proper database type matching
@@ -1213,6 +1247,7 @@ export async function POST(request) {
           transactionHash,
           notes: effectiveNotes,
           userFid: fidInt, // Add FID to include in order notes
+          tags: orderTags,
           discountCodes: appliedDiscount ? [{
             code: appliedDiscount.code,
             amount: discountAmountValue,
@@ -1251,6 +1286,19 @@ export async function POST(request) {
         if (result.success) {
           shopifyOrder = result.order;
           console.log(`✅ [${requestId}] Shopify order created successfully on attempt ${shopifyAttempts}:`, shopifyOrder.name);
+
+          if (pendingDropSales.length > 0) {
+            const { incrementDropUnitsSold } = await import('@/lib/dropInventory');
+            for (const sale of pendingDropSales) {
+              const saleResult = await incrementDropUnitsSold(sale.dropId, sale.quantity);
+              if (!saleResult.success) {
+                console.error(`⚠️ [${requestId}] Drop inventory update failed after Shopify order ${shopifyOrder.name}:`, saleResult.error);
+              } else {
+                console.log(`✅ [${requestId}] Drop ${sale.dropId} units_sold → ${saleResult.drop.units_sold}${saleResult.soldOut ? ' (sold out)' : ''}`);
+              }
+            }
+          }
+
           break;
         } else {
           throw new Error(result.error || 'Unknown Shopify error');
@@ -1350,13 +1398,27 @@ export async function POST(request) {
               throw new Error(`Security Error: Real price not found for variant ${variantId}`);
             }
 
+            // Prefer cart mockup for custom / limited-drop lines (no Shopify catalog image).
+            const mockupImageUrl = item.customImageUrl || productImageUrl;
+
             return {
               id: variantId,
               title: item.product.title, // FIXED: Use item.product.title not item.productTitle
               quantity: item.quantity,
               price: realPrice, // 🔒 SECURITY: Use server-fetched real price, not client price
               variant: item.variant?.title !== 'Default Title' ? item.variant?.title : null, // FIXED: Use variant title
-              imageUrl: productImageUrl // Store the product image URL!
+              imageUrl: mockupImageUrl,
+              customImageUrl: item.customImageUrl || null,
+              designRequestId: item.customMeta?.designRequestId || null,
+              customMeta: item.customMeta
+                ? {
+                    ...item.customMeta,
+                    orderSource: item.customMeta.dropId ? 'limited_drop' : 'design_studio',
+                    dropWeekLabel: item.customMeta.dropId
+                      ? (dropWeekLabels.get(item.customMeta.dropId) || null)
+                      : null,
+                  }
+                : null,
             };
           }),
           // Payment method: signature_claim for $0 free orders, otherwise use provided method
@@ -1490,8 +1552,21 @@ export async function POST(request) {
 
       // Fire-and-forget: create Printful product templates for any custom design items.
       // We do NOT await these — the customer's success response must not be delayed.
-      if (customDesignIds.length > 0) {
-        for (const designRequestId of customDesignIds) {
+      if (customDesignItems.length > 0) {
+        let resolvedDesignRequestIds = customDesignIds;
+        try {
+          const { resolveDesignRequestIdsForOrder } = await import('@/lib/dropOrderTraceability');
+          resolvedDesignRequestIds = await resolveDesignRequestIdsForOrder({
+            customDesignItems,
+            buyerFid: fidInt,
+            shopifyOrderId: shopifyOrder.id || null,
+            shopifyOrderNumber: shopifyOrder.name || null,
+          });
+        } catch (resolveErr) {
+          console.error(`⚠️ [${requestId}] Buyer design request resolution failed — using listing IDs:`, resolveErr);
+        }
+
+        for (const designRequestId of resolvedDesignRequestIds) {
           createPrintfulTemplate(
             designRequestId,
             shopifyOrder.id || null,

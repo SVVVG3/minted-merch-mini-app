@@ -177,7 +177,8 @@ export async function createShopifyOrder(orderData) {
     shippingLines,
     transactionHash,
     notes = '',
-    userFid
+    userFid,
+    tags = []
   } = orderData;
 
   const mutation = `
@@ -346,6 +347,7 @@ export async function createShopifyOrder(orderData) {
       },
       email: customer.email || '',
       phone: customer.phone || shippingAddress.phone || '',
+      tags: Array.isArray(tags) && tags.length > 0 ? tags : undefined,
       note: (() => {
         let orderNotes = notes ? `${notes}\n\n` : '';
         

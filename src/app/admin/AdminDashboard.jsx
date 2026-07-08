@@ -34,6 +34,22 @@ const adminFetch = async (url, options = {}) => {
   return response;
 };
 
+const ORDER_SOURCE_STYLES = {
+  limited_drop: { label: 'Limited Drop', className: 'bg-emerald-100 text-emerald-800' },
+  design_studio: { label: 'Own Design', className: 'bg-blue-100 text-blue-800' },
+  drop_listing: { label: 'Drop Listing', className: 'bg-gray-100 text-gray-700' },
+  catalog: { label: 'Catalog', className: 'bg-gray-100 text-gray-600' },
+};
+
+const renderOrderSourceBadge = (source) => {
+  const style = ORDER_SOURCE_STYLES[source] || ORDER_SOURCE_STYLES.catalog;
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${style.className}`}>
+      {style.label}
+    </span>
+  );
+};
+
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
@@ -3354,6 +3370,11 @@ export default function AdminDashboard() {
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                     >
+                      Source
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
                       Assigned Partner
                     </th>
                     <th 
@@ -3483,6 +3504,16 @@ export default function AdminDashboard() {
                         }`}>
                           {order.status === 'vendor_paid' ? 'Vendor Paid' : order.status}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="space-y-1">
+                          {renderOrderSourceBadge(order.order_source || 'catalog')}
+                          {order.drop_week_label && (
+                            <div className="text-xs text-gray-500 max-w-[160px] truncate" title={order.drop_week_label}>
+                              {order.drop_week_label}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {order.partner_assignments && order.partner_assignments.length > 0 ? (
@@ -3750,7 +3781,7 @@ export default function AdminDashboard() {
               <div className="bg-white">
                 <div className="px-6 py-4 border-b border-gray-100">
                   <p className="text-sm text-gray-500 mb-4">
-                    Create a drop with an end time on the hour. Users submit and vote until the deadline; the winner goes live automatically via cron.
+                    Create a drop with a vote deadline on the hour. When voting ends, the winner goes live for <strong>48 hours</strong> or until <strong>37 units</strong> sell out — whichever comes first.
                   </p>
                   <div className="max-w-xl space-y-3">
                     <input
@@ -3762,7 +3793,7 @@ export default function AdminDashboard() {
                     />
                     <div className="flex flex-wrap gap-3">
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Max units</label>
+                        <label className="block text-xs text-gray-500 mb-1">Max units (live sale cap: 37)</label>
                         <input
                           type="number"
                           min="1"
@@ -4111,6 +4142,8 @@ export default function AdminDashboard() {
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preview</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Design</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FID / User</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drop Week</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Color</th>
@@ -4170,6 +4203,14 @@ export default function AdminDashboard() {
                                   )}
                                 </div>
                               </div>
+                            </td>
+                            {/* Source */}
+                            <td className="px-4 py-3">
+                              {renderOrderSourceBadge(order.order_source || 'design_studio')}
+                            </td>
+                            {/* Drop week */}
+                            <td className="px-4 py-3 text-sm text-gray-900 max-w-[180px] truncate" title={order.drop_week_label || ''}>
+                              {order.drop_week_label || '—'}
                             </td>
                             {/* Product */}
                             <td className="px-4 py-3 text-sm text-gray-900 capitalize">{order.product_type || '—'}</td>

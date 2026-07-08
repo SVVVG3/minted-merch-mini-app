@@ -23,7 +23,12 @@ export const GET = withAdminAuth(async (request) => {
         printful_order_status,
         shopify_order_id,
         shopify_order_number,
-        created_at
+        drop_id,
+        drop_submission_id,
+        created_at,
+        weekly_drops (
+          week_label
+        )
       `)
       .order('created_at', { ascending: false });
 
@@ -47,7 +52,22 @@ export const GET = withAdminAuth(async (request) => {
       }
     }
 
-    const enriched = orders.map((o) => ({ ...o, profiles: profileMap[o.fid] || null }));
+    const enriched = orders.map((o) => {
+      const weekLabel = o.weekly_drops?.week_label || null;
+      let orderSource = 'design_studio';
+      if (o.drop_id && o.drop_submission_id) {
+        orderSource = 'drop_listing';
+      } else if (o.drop_id) {
+        orderSource = 'limited_drop';
+      }
+      const { weekly_drops, ...rest } = o;
+      return {
+        ...rest,
+        drop_week_label: weekLabel,
+        order_source: orderSource,
+        profiles: profileMap[o.fid] || null,
+      };
+    });
 
     return NextResponse.json({ designOrders: enriched });
   } catch (err) {

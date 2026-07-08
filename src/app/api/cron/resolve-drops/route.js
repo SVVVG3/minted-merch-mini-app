@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { resolveDueDrops } from '@/lib/dropResolve';
+import { closeExpiredLiveDrops } from '@/lib/dropInventory';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,8 +26,9 @@ export async function GET(request) {
 
   try {
     const results = await resolveDueDrops();
-    console.log(`[cron/resolve-drops] processed ${results.length} drop(s)`, results);
-    return NextResponse.json({ success: true, resolved: results.length, results });
+    const closed = await closeExpiredLiveDrops();
+    console.log(`[cron/resolve-drops] processed ${results.length} drop(s), closed ${closed.length} expired live drop(s)`, { results, closed });
+    return NextResponse.json({ success: true, resolved: results.length, closed: closed.length, results, closedLive: closed });
   } catch (err) {
     console.error('[cron/resolve-drops] error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
