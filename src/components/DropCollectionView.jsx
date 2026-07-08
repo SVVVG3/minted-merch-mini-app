@@ -172,13 +172,11 @@ export function DropCollectionView({ products }) {
 
       addItem(cartProduct, cartVariant, 1, {
         customImageUrl: winnerData?.mockupUrl || null,
-        customMeta: dropData?.designRequestId
-          ? {
-              designRequestId: dropData.designRequestId,
-              productType: winnerData?.productType,
-              colorName: winnerData?.colorName,
-            }
-          : null,
+        customMeta: {
+          designRequestId: dropData?.designRequestId || null,
+          productType: winnerData?.productType || null,
+          colorName: winnerData?.colorName || null,
+        },
       });
 
       setOrderOpen(false);

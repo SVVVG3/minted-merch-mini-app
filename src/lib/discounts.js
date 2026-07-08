@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabase';
+import { cartItemQualifiesForDiscount } from './customDesignDiscounts';
 
 /**
  * Check if a code looks like a gift card code (vs discount code)
@@ -534,22 +535,7 @@ export function calculateDiscountAmount(subtotal, discountCode, shippingAmount =
       });
 
       discountableAmount = cartItems.reduce((total, item) => {
-        const productHandle = item.product?.handle || item.handle || '';
-        const resolvedSupabaseId = item.resolvedSupabaseId || item.product?.supabaseId || null;
-
-        const matchesById =
-          resolvedSupabaseId != null &&
-          targetIds.length > 0 &&
-          targetIds.some((targetId) => Number(targetId) === Number(resolvedSupabaseId));
-
-        const matchesByHandle =
-          targetHandles.length > 0 &&
-          targetHandles.some(
-            (targetHandle) =>
-              productHandle.includes(targetHandle) || targetHandle.includes(productHandle)
-          );
-
-        if (matchesById || matchesByHandle) {
+        if (cartItemQualifiesForDiscount(item, discountCode)) {
           const itemPrice = parseFloat(item.price || item.variant?.price || 0);
           const quantity = parseInt(item.quantity || 1);
           const itemTotal = itemPrice * quantity;

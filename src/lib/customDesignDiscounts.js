@@ -1,7 +1,11 @@
-import { getProductConfig } from './designStudioConfig';
+import { DESIGN_STUDIO_PRODUCTS, getProductConfig } from './designStudioConfig';
 
-/** In-memory cache: shopifyGraphqlId → supabase product id */
-const supabaseIdCache = new Map();
+/** shopifyGraphqlId → { id, handle } */
+const productCache = new Map();
+
+const DESIGN_STUDIO_SHOPIFY_IDS = new Set(
+  DESIGN_STUDIO_PRODUCTS.map((p) => p.shopifyProductId).filter(Boolean)
+);
 
 export function extractNumericShopifyId(shopifyId) {
   if (!shopifyId) return null;
@@ -17,9 +21,36 @@ export function getDesignStudioShopifyGraphqlId(productType) {
   return getProductConfig(productType)?.shopifyProductId || null;
 }
 
-export function getCachedSupabaseIdForShopifyGraphqlId(shopifyGraphqlId) {
+export function getDesignStudioProductTypeFromItem(item) {
+  if (item?.customMeta?.productType) {
+    return item.customMeta.productType;
+  }
+  const handle = item?.product?.handle || '';
+  const match = handle.match(/^design-studio-custom-(.+)$/);
+  if (match) return match[1];
+  const productId = item?.product?.id;
+  if (productId && DESIGN_STUDIO_SHOPIFY_IDS.has(productId)) {
+    const config = DESIGN_STUDIO_PRODUCTS.find((p) => p.shopifyProductId === productId);
+    return config?.id || null;
+  }
+  return null;
+}
+
+export function isDesignStudioCartItem(item) {
+  if (!item) return false;
+  if (item.customMeta) return true;
+  const handle = item.product?.handle || '';
+  if (handle.startsWith('design-studio-custom-')) return true;
+  return !!(item.product?.id && DESIGN_STUDIO_SHOPIFY_IDS.has(item.product.id));
+}
+
+export function getCachedProductForShopifyGraphqlId(shopifyGraphqlId) {
   if (!shopifyGraphqlId) return null;
-  return supabaseIdCache.get(shopifyGraphqlId) ?? null;
+  return productCache.get(shopifyGraphqlId) ?? null;
+}
+
+export function getCachedSupabaseIdForShopifyGraphqlId(shopifyGraphqlId) {
+  return getCachedProductForShopifyGraphqlId(shopifyGraphqlId)?.id ?? null;
 }
 
 function normalizeProductId(id) {
@@ -34,9 +65,26 @@ function targetIdListIncludes(targetIds, productId) {
   return targetIds.some((targetId) => normalizeProductId(targetId) === normalized);
 }
 
+function targetHandleMatches(target, productHandle, productTitle, catalogHandle) {
+  if (typeof target !== 'string') {
+    return typeof target === 'object' && target?.handle
+      ? target.handle === productHandle || target.handle === catalogHandle
+      : false;
+  }
+
+  const candidates = [productHandle, productTitle, catalogHandle].filter(Boolean);
+  return candidates.some(
+    (candidate) =>
+      target === candidate ||
+      candidate.includes(target) ||
+      target.includes(candidate)
+  );
+}
+
 export function getCustomItemShopifyGraphqlId(item) {
-  if (item?.customMeta?.productType) {
-    return getDesignStudioShopifyGraphqlId(item.customMeta.productType);
+  const productType = getDesignStudioProductTypeFromItem(item);
+  if (productType) {
+    return getDesignStudioShopifyGraphqlId(productType);
   }
   return item?.product?.id || null;
 }
@@ -51,15 +99,14 @@ export function isProductScopedDiscount(discount) {
 }
 
 /**
- * Resolve Supabase products.id for a Design Studio / Limited Drop cart line.
- * Uses productType from customMeta when available, otherwise the cart product id.
+ * Resolve Supabase products.id (and catalog handle) for Design Studio / Limited Drop lines.
  */
 export async function resolveSupabaseIdForCustomItem(item) {
   const shopifyGraphqlId = getCustomItemShopifyGraphqlId(item);
   if (!shopifyGraphqlId) return null;
 
-  if (supabaseIdCache.has(shopifyGraphqlId)) {
-    return supabaseIdCache.get(shopifyGraphqlId);
+  if (productCache.has(shopifyGraphqlId)) {
+    return productCache.get(shopifyGraphqlId)?.id ?? null;
   }
 
   try {
@@ -71,11 +118,15 @@ export async function resolveSupabaseIdForCustomItem(item) {
     if (!res.ok) return null;
 
     const data = await res.json();
-    const supabaseId = data?.product?.id ?? null;
-    if (supabaseId != null) {
-      supabaseIdCache.set(shopifyGraphqlId, supabaseId);
+    const product = data?.product;
+    if (product?.id != null) {
+      productCache.set(shopifyGraphqlId, {
+        id: product.id,
+        handle: product.handle || null,
+      });
+      return product.id;
     }
-    return supabaseId;
+    return null;
   } catch (err) {
     console.error('Failed to resolve Supabase product id for custom item:', err);
     return null;
@@ -83,16 +134,16 @@ export async function resolveSupabaseIdForCustomItem(item) {
 }
 
 export async function resolveSupabaseIdsForCustomItems(items) {
-  const customItems = (items || []).filter(item => item.customMeta);
+  const designItems = (items || []).filter(isDesignStudioCartItem);
   const entries = await Promise.all(
-    customItems.map(async (item) => [item.key, await resolveSupabaseIdForCustomItem(item)])
+    designItems.map(async (item) => [item.key, await resolveSupabaseIdForCustomItem(item)])
   );
   return new Map(entries.filter(([, id]) => id != null));
 }
 
 /**
  * Whether a cart line qualifies for a product-scoped discount.
- * Supports target_product_ids (Supabase) and legacy target_products (handles).
+ * Supports target_product_ids (Supabase) and legacy target_products (catalog handles).
  */
 export function cartItemQualifiesForDiscount(item, discount, supabaseIdByItemKey = null) {
   if (!item || !discount) return false;
@@ -105,42 +156,47 @@ export function cartItemQualifiesForDiscount(item, discount, supabaseIdByItemKey
   }
 
   const shopifyGqlId = getCustomItemShopifyGraphqlId(item);
+  const cachedProduct = getCachedProductForShopifyGraphqlId(shopifyGqlId);
   const supabaseId =
     item.product?.supabaseId ||
     supabaseIdByItemKey?.get?.(item.key) ||
-    getCachedSupabaseIdForShopifyGraphqlId(shopifyGqlId) ||
+    cachedProduct?.id ||
     null;
 
   if (supabaseId != null && targetIds.length > 0 && targetIdListIncludes(targetIds, supabaseId)) {
     return true;
   }
 
-  // Discount was matched to this custom product at apply time (before async ID cache fills)
-  if (item.customMeta && discount.sourceProduct?.startsWith('custom-design-')) {
+  // Discount was matched to this design studio product at apply time
+  if (discount.sourceProduct?.startsWith('custom-design-')) {
     const sourceId = normalizeProductId(discount.sourceProduct.replace('custom-design-', ''));
-    if (sourceId != null && targetIds.length > 0 && targetIdListIncludes(targetIds, sourceId)) {
-      return true;
+    if (sourceId != null && isDesignStudioCartItem(item)) {
+      if (targetIds.length === 0 || targetIdListIncludes(targetIds, sourceId)) {
+        if (supabaseId == null || supabaseId === sourceId) {
+          return true;
+        }
+      }
     }
   }
 
   const productHandle = item.product?.handle || '';
   const productTitle = item.product?.title || '';
+  const catalogHandle =
+    cachedProduct?.handle ||
+    item.catalogHandle ||
+    item.product?.catalogHandle ||
+    null;
 
   if (targetHandles.length > 0) {
-    return targetHandles.some((target) => {
-      if (typeof target === 'string') {
-        return (
-          target === productHandle ||
-          target === productTitle ||
-          productHandle.includes(target) ||
-          target.includes(productHandle)
-        );
-      }
-      if (typeof target === 'object' && target?.handle) {
-        return target.handle === productHandle;
-      }
-      return false;
-    });
+    const handleMatch = targetHandles.some((target) =>
+      targetHandleMatches(target, productHandle, productTitle, catalogHandle)
+    );
+    if (handleMatch) return true;
+
+    // Admin targets catalog handle; cart uses synthetic design-studio-custom-* handle
+    if (isDesignStudioCartItem(item) && catalogHandle) {
+      return targetHandles.some((target) => targetHandleMatches(target, catalogHandle, productTitle, catalogHandle));
+    }
   }
 
   return false;

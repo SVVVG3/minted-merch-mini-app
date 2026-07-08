@@ -7,6 +7,7 @@ import {
   cartItemQualifiesForDiscount,
   formatDiscountForCart,
   isProductScopedDiscount,
+  isDesignStudioCartItem,
 } from './customDesignDiscounts';
 import { useFarcaster } from './useFarcaster';
 
@@ -234,8 +235,8 @@ export function CartProvider({ children }) {
 
   // Resolve Supabase product IDs for custom design lines as soon as they enter the cart
   useEffect(() => {
-    const customItems = (cart.items || []).filter((item) => item.customMeta);
-    if (customItems.length === 0) {
+    const designItems = (cart.items || []).filter((item) => isDesignStudioCartItem(item));
+    if (designItems.length === 0) {
       customSupabaseIdsRef.current = new Map();
       setCustomSupabaseIds(new Map());
       return;
@@ -556,6 +557,17 @@ export function CartProvider({ children }) {
         }
       });
 
+      // Fallback: token-gated / auto-matched product discount on a design-studio-only cart
+      if (qualifyingSubtotal === 0) {
+        const designItems = safeCart.items.filter(isDesignStudioCartItem);
+        const autoMatched =
+          safeCart.appliedDiscount.isTokenGated ||
+          safeCart.appliedDiscount.sourceProduct?.startsWith('custom-design');
+        if (autoMatched && designItems.length > 0 && designItems.length === safeCart.items.length) {
+          qualifyingSubtotal = designItems.reduce((total, item) => total + item.price * item.quantity, 0);
+        }
+      }
+
       if (discountType === 'fixed') {
         discountAmount = Math.min(discountValue, qualifyingSubtotal);
       } else {
@@ -623,7 +635,7 @@ export function CartProvider({ children }) {
       
       // Custom design items use fake handles — resolve their real Supabase product IDs
       // so product-scoped discounts (e.g. Design Studio Custom T-Shirt) can match.
-      const customItems = safeCart.items.filter(item => item.customMeta);
+      const customItems = safeCart.items.filter((item) => isDesignStudioCartItem(item));
       const hasCustomItems = customItems.length > 0;
 
       if (hasCustomItems) {
@@ -633,7 +645,7 @@ export function CartProvider({ children }) {
         console.log('🎨 Resolved custom design Supabase IDs:', Object.fromEntries(resolvedIds));
       }
 
-      const regularItems = safeCart.items.filter(item => !item.customMeta);
+      const regularItems = safeCart.items.filter((item) => !isDesignStudioCartItem(item));
       
       // Get unique product handles and their Supabase IDs
       const uniqueProducts = [];

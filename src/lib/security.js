@@ -225,26 +225,38 @@ export async function fetchProductPricesFromDatabase(cartItems) {
  * Attach Supabase product IDs to custom design cart lines for discount matching.
  */
 async function enrichCartItemsWithSupabaseIds(cartItems) {
-  const { getProductConfig } = await import('./designStudioConfig');
+  const { getDesignStudioProductTypeFromItem, getDesignStudioShopifyGraphqlId } = await import('./customDesignDiscounts');
   const { supabaseAdmin } = await import('./supabase');
 
   const enriched = [];
   for (const item of cartItems) {
     let resolvedSupabaseId = item.product?.supabaseId || item.resolvedSupabaseId || null;
+    let catalogHandle = item.catalogHandle || item.product?.catalogHandle || null;
 
-    if (!resolvedSupabaseId && item.customMeta?.productType) {
-      const config = getProductConfig(item.customMeta.productType);
-      if (config?.shopifyProductId) {
+    if (!resolvedSupabaseId) {
+      const productType = getDesignStudioProductTypeFromItem(item);
+      const shopifyGraphqlId = productType ? getDesignStudioShopifyGraphqlId(productType) : null;
+      if (shopifyGraphqlId) {
         const { data } = await supabaseAdmin
           .from('products')
-          .select('id')
-          .eq('shopify_graphql_id', config.shopifyProductId)
+          .select('id, handle')
+          .eq('shopify_graphql_id', shopifyGraphqlId)
           .maybeSingle();
         resolvedSupabaseId = data?.id || null;
+        catalogHandle = data?.handle || catalogHandle;
       }
     }
 
-    enriched.push({ ...item, resolvedSupabaseId });
+    enriched.push({
+      ...item,
+      resolvedSupabaseId,
+      catalogHandle,
+      product: {
+        ...item.product,
+        supabaseId: resolvedSupabaseId || item.product?.supabaseId || null,
+        catalogHandle,
+      },
+    });
   }
   return enriched;
 }
