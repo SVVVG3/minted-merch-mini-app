@@ -1,7 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { getBestAvailableDiscount } from './discounts';
+import {
+  resolveSupabaseIdsForCustomItems,
+  cartItemQualifiesForDiscount,
+  formatDiscountForCart,
+  isProductScopedDiscount,
+} from './customDesignDiscounts';
 import { useFarcaster } from './useFarcaster';
 
 // Cart Context
@@ -196,6 +202,8 @@ const initialCartState = {
 export function CartProvider({ children }) {
   const [cart, dispatch] = useReducer(cartReducer, initialCartState);
   const [isEvaluatingDiscount, setIsEvaluatingDiscount] = useState(false);
+  const customSupabaseIdsRef = useRef(new Map());
+  const [customSupabaseIds, setCustomSupabaseIds] = useState(() => new Map());
   
   // Get Farcaster context for FID access
   const { getFid, user, context, isReady } = useFarcaster();
@@ -223,6 +231,27 @@ export function CartProvider({ children }) {
       // We'll continue without persistence rather than breaking the app
     }
   }, [cart]);
+
+  // Resolve Supabase product IDs for custom design lines as soon as they enter the cart
+  useEffect(() => {
+    const customItems = (cart.items || []).filter((item) => item.customMeta);
+    if (customItems.length === 0) {
+      customSupabaseIdsRef.current = new Map();
+      setCustomSupabaseIds(new Map());
+      return;
+    }
+
+    let cancelled = false;
+    resolveSupabaseIdsForCustomItems(cart.items).then((resolved) => {
+      if (cancelled) return;
+      customSupabaseIdsRef.current = resolved;
+      setCustomSupabaseIds(new Map(resolved));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cart.items]);
 
   // AUTO-EVALUATE DISCOUNT - OPTIMIZED WITH BETTER DEBOUNCING
   useEffect(() => {
@@ -512,64 +541,34 @@ export function CartProvider({ children }) {
   // Helper function to calculate product-aware discount amount
   const calculateProductAwareDiscount = useMemo(() => {
     if (!safeCart.appliedDiscount) return 0;
-    
-    const { code, discountType, discountValue, source } = safeCart.appliedDiscount;
-    
-    // Check if this is a product-specific discount using proper database fields
-    const isProductSpecific = safeCart.appliedDiscount.discount_scope === 'product' || 
-                              (safeCart.appliedDiscount.target_products && 
-                               Array.isArray(safeCart.appliedDiscount.target_products) && 
-                               safeCart.appliedDiscount.target_products.length > 0);
-    
+
+    const { discountType, discountValue } = safeCart.appliedDiscount;
+    const isProductSpecific = isProductScopedDiscount(safeCart.appliedDiscount);
+
     let discountAmount = 0;
-    
+
     if (isProductSpecific) {
-      // Apply discount only to qualifying products
-      const targetProducts = Array.isArray(safeCart.appliedDiscount.target_products) ? 
-                             safeCart.appliedDiscount.target_products : [];
-      
       let qualifyingSubtotal = 0;
-      
-      safeCart.items.forEach(item => {
-        const productHandle = item.product?.handle;
-        const productTitle = item.product?.title;
-        
-        // Check if this item qualifies for the discount
-        const qualifies = targetProducts.some(target => {
-          // Handle different target formats
-          if (typeof target === 'string') {
-            return target === productHandle || target === productTitle;
-          } else if (typeof target === 'object' && target.handle) {
-            return target.handle === productHandle;
-          }
-          return false;
-        });
-        
-        if (qualifies) {
-          qualifyingSubtotal += (item.price * item.quantity);
+
+      safeCart.items.forEach((item) => {
+        if (cartItemQualifiesForDiscount(item, safeCart.appliedDiscount, customSupabaseIdsRef.current)) {
+          qualifyingSubtotal += item.price * item.quantity;
         }
       });
-      
-      // Calculate discount based on type
+
       if (discountType === 'fixed') {
-        // Fixed amount: use the discount value directly, capped at qualifying subtotal
         discountAmount = Math.min(discountValue, qualifyingSubtotal);
       } else {
-        // Percentage: calculate percentage of qualifying subtotal
         discountAmount = qualifyingSubtotal * (discountValue / 100);
       }
     } else {
-      // Site-wide discount applies to entire cart
       if (discountType === 'fixed') {
-        // Fixed amount: use the discount value directly, capped at cart subtotal
         discountAmount = Math.min(discountValue, cartSubtotal);
       } else {
-        // Percentage: calculate percentage of cart subtotal
         discountAmount = cartSubtotal * (discountValue / 100);
       }
     }
-    
-    // Round to 2 decimal places to match server calculation
+
     return Math.round(discountAmount * 100) / 100;
   }, [safeCart.appliedDiscount, safeCart.items, cartSubtotal]);
 
@@ -622,13 +621,20 @@ export function CartProvider({ children }) {
         return null;
       }
       
-      // Custom design items (from Design Studio) have fake handles that don't exist
-      // in Shopify/Supabase — exclude them from the product lookup so the handle
-      // resolution doesn't fail. Their discounts are handled via the token-gated
-      // fallback below.
-      const regularItems = safeCart.items.filter(item => !item.customMeta);
-      const hasCustomItems = safeCart.items.some(item => item.customMeta);
+      // Custom design items use fake handles — resolve their real Supabase product IDs
+      // so product-scoped discounts (e.g. Design Studio Custom T-Shirt) can match.
+      const customItems = safeCart.items.filter(item => item.customMeta);
+      const hasCustomItems = customItems.length > 0;
 
+      if (hasCustomItems) {
+        const resolvedIds = await resolveSupabaseIdsForCustomItems(safeCart.items);
+        customSupabaseIdsRef.current = resolvedIds;
+        setCustomSupabaseIds(new Map(resolvedIds));
+        console.log('🎨 Resolved custom design Supabase IDs:', Object.fromEntries(resolvedIds));
+      }
+
+      const regularItems = safeCart.items.filter(item => !item.customMeta);
+      
       // Get unique product handles and their Supabase IDs
       const uniqueProducts = [];
       const productHandles = [...new Set(regularItems.map(item => item.product?.handle).filter(Boolean))];
@@ -667,24 +673,53 @@ export function CartProvider({ children }) {
           });
         }
       });
-      
-      // Fallback for carts that contain custom design items but no regular products:
-      // the product-handle lookup above returns nothing for custom items, so we call
-      // the token-gated eligibility endpoint directly to pick up the Merch Mogul
-      // discount (and any other site-wide token-gated discounts the user qualifies for).
-      if (hasCustomItems && allAvailableDiscounts.length === 0) {
-        console.log('🎨 Cart has custom design items with no regular products — checking token-gated eligibility directly');
+
+      // Product-specific discounts for custom design / Limited Drop lines
+      if (hasCustomItems) {
+        const customSupabaseIds = [...new Set(customSupabaseIdsRef.current.values())];
+        for (const supabaseId of customSupabaseIds) {
+          try {
+            const discountRes = await fetch(
+              `/api/user-discounts?fid=${userFid}&mode=best&scope=product&productIds=${encodeURIComponent(JSON.stringify([supabaseId]))}`
+            );
+            if (discountRes.ok) {
+              const discountData = await discountRes.json();
+              if (discountData.success && discountData.discountCode) {
+                allAvailableDiscounts.push({
+                  ...discountData.discountCode,
+                  sourceProduct: `custom-design-${supabaseId}`,
+                });
+              }
+            }
+          } catch (discountErr) {
+            console.error(`Error fetching custom design discount for product ${supabaseId}:`, discountErr);
+          }
+        }
+      }
+
+      // Token-gated discounts (site-wide + product-specific for custom lines)
+      const customSupabaseIds = hasCustomItems ? [...new Set(customSupabaseIdsRef.current.values())] : [];
+      const needsTokenGatedFallback =
+        hasCustomItems &&
+        (customSupabaseIds.length > 0 || allAvailableDiscounts.length === 0);
+
+      if (needsTokenGatedFallback) {
+        console.log('🎫 Checking token-gated discounts for custom design cart', customSupabaseIds);
         try {
           const tokenRes = await fetch('/api/check-token-gated-eligibility', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fid: userFid, scope: 'site_wide' }),
+            body: JSON.stringify({
+              fid: userFid,
+              scope: customSupabaseIds.length > 0 ? 'all' : 'site_wide',
+              productIds: customSupabaseIds,
+            }),
           });
           if (tokenRes.ok) {
             const tokenData = await tokenRes.json();
             if (tokenData.success && tokenData.eligibleDiscounts?.length > 0) {
-              console.log(`🎫 Found ${tokenData.eligibleDiscounts.length} token-gated site-wide discount(s) for custom design cart`);
-              tokenData.eligibleDiscounts.forEach(d => {
+              console.log(`🎫 Found ${tokenData.eligibleDiscounts.length} token-gated discount(s) for custom design cart`);
+              tokenData.eligibleDiscounts.forEach((d) => {
                 allAvailableDiscounts.push({ ...d, isTokenGated: true, sourceProduct: 'custom-design' });
               });
             }
@@ -756,23 +791,7 @@ export function CartProvider({ children }) {
       console.log('🏆 Best discount selected:', bestDiscount.code, `(${bestDiscount.discount_value || bestDiscount.value}% off, ${bestDiscount.discount_scope || bestDiscount.scope})`);
       
       // Format discount for cart context
-      const formattedDiscount = {
-        code: bestDiscount.code,
-        discountType: bestDiscount.discount_type || bestDiscount.type || 'percentage',
-        discountValue: bestDiscount.discount_value || bestDiscount.value,
-        discountAmount: 0, // Will be calculated by cart
-        displayText: bestDiscount.displayText || `${bestDiscount.discount_value || bestDiscount.value}% off`,
-        description: bestDiscount.description || bestDiscount.discount_description,
-        freeShipping: bestDiscount.free_shipping || false,
-        discount_scope: bestDiscount.discount_scope || bestDiscount.scope,
-        target_products: bestDiscount.target_products || [],
-        isTokenGated: bestDiscount.isTokenGated || false,
-        gating_type: bestDiscount.gating_type,
-        priority_level: bestDiscount.priority_level || 0,
-        sourceProduct: bestDiscount.sourceProduct
-      };
-      
-      return formattedDiscount;
+      return formatDiscountForCart(bestDiscount, bestDiscount.sourceProduct);
       
     } catch (error) {
       console.error('❌ Error evaluating optimal discount:', error);
@@ -800,7 +819,8 @@ export function CartProvider({ children }) {
     isInCart,
     getItemQuantity,
     evaluateOptimalDiscount,
-    isEvaluatingDiscount
+    isEvaluatingDiscount,
+    customSupabaseIds,
   }), [
     safeCart,
     addItem,
@@ -820,7 +840,8 @@ export function CartProvider({ children }) {
     isInCart,
     getItemQuantity,
     evaluateOptimalDiscount,
-    isEvaluatingDiscount
+    isEvaluatingDiscount,
+    customSupabaseIds,
   ]);
 
   return (

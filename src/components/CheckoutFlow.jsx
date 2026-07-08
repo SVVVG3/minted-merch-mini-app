@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useCart } from '@/lib/CartContext';
+import { cartItemQualifiesForDiscount, isProductScopedDiscount } from '@/lib/customDesignDiscounts';
 import { useUSDCPayment } from '@/lib/useUSDCPayment';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { useBaseAccount } from '@/components/BaseAccountProvider';
@@ -21,7 +22,7 @@ import { WalletConnectButton } from './WalletConnectButton';
 import { Portal } from './Portal';
 
 export function CheckoutFlow({ checkoutData, onBack }) {
-  const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal } = useCart();
+  const { cart, clearCart, updateShipping, updateCheckout, updateSelectedShipping, clearCheckout, addItem, cartSubtotal, cartTotal, customSupabaseIds } = useCart();
   const { getFid, getSessionToken, isInFarcaster, user, context, getUsername, getDisplayName, getPfpUrl } = useFarcaster();
   const { isConnected: isWalletConnected, userAddress: walletConnectAddress, connectionMethod, getWalletProvider } = useWalletConnectContext();
   // Re-enable Base Account integration with safe defaults
@@ -107,10 +108,7 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     const discountType = appliedDiscount.discountType || appliedDiscount.discount_type;
     
     // Check if this is a product-specific discount
-    const isProductSpecific = appliedDiscount.discount_scope === 'product' || 
-                              (appliedDiscount.target_products && 
-                               Array.isArray(appliedDiscount.target_products) && 
-                               appliedDiscount.target_products.length > 0);
+    const isProductSpecific = isProductScopedDiscount(appliedDiscount);
     
     let discountAmount = 0;
     
@@ -222,29 +220,11 @@ export function CheckoutFlow({ checkoutData, onBack }) {
     const originalPrice = item.price;
     let discountedPrice = originalPrice;
     
-    // Check if this is a product-specific discount
-    const isProductSpecific = appliedDiscount.discount_scope === 'product' || 
-                              (appliedDiscount.target_products && 
-                               Array.isArray(appliedDiscount.target_products) && 
-                               appliedDiscount.target_products.length > 0);
+    const isProductSpecific = isProductScopedDiscount(appliedDiscount);
     
     if (isProductSpecific) {
-      // Check if this item qualifies for the discount
-      const targetProducts = Array.isArray(appliedDiscount.target_products) ? 
-                             appliedDiscount.target_products : [];
-      
-      const qualifies = targetProducts.some(target => {
-        // Handle different target formats
-        if (typeof target === 'string') {
-          return target === item.product?.handle || target === item.product?.title;
-        } else if (typeof target === 'object' && target.handle) {
-          return target.handle === item.product?.handle;
-        }
-        return false;
-      });
-      
-      if (!qualifies) {
-        return originalPrice; // No discount for this item
+      if (!cartItemQualifiesForDiscount(item, appliedDiscount, customSupabaseIds)) {
+        return originalPrice;
       }
     }
     
@@ -707,17 +687,11 @@ export function CheckoutFlow({ checkoutData, onBack }) {
         let shouldApplyFreeShipping = true;
         
         // For product-scoped discounts, check if discount covers all items
-        if (appliedDiscount.discount_scope === 'product' && appliedDiscount.target_products && appliedDiscount.target_products.length > 0) {
+        if (isProductScopedDiscount(appliedDiscount)) {
           const subtotal = checkoutData.subtotal.amount;
           
-          // Calculate total of targeted products only
           const discountableAmount = cart.items.reduce((total, item) => {
-            const productHandle = item.product?.handle || item.handle || '';
-            const isTargeted = appliedDiscount.target_products.some(targetHandle => 
-              productHandle.includes(targetHandle) || targetHandle.includes(productHandle)
-            );
-            
-            if (isTargeted) {
+            if (cartItemQualifiesForDiscount(item, appliedDiscount, customSupabaseIds)) {
               const itemPrice = parseFloat(item.price || item.variant?.price || 0);
               const quantity = parseInt(item.quantity || 1);
               return total + (itemPrice * quantity);

@@ -222,6 +222,34 @@ export async function fetchProductPricesFromDatabase(cartItems) {
 }
 
 /**
+ * Attach Supabase product IDs to custom design cart lines for discount matching.
+ */
+async function enrichCartItemsWithSupabaseIds(cartItems) {
+  const { getProductConfig } = await import('./designStudioConfig');
+  const { supabaseAdmin } = await import('./supabase');
+
+  const enriched = [];
+  for (const item of cartItems) {
+    let resolvedSupabaseId = item.product?.supabaseId || item.resolvedSupabaseId || null;
+
+    if (!resolvedSupabaseId && item.customMeta?.productType) {
+      const config = getProductConfig(item.customMeta.productType);
+      if (config?.shopifyProductId) {
+        const { data } = await supabaseAdmin
+          .from('products')
+          .select('id')
+          .eq('shopify_graphql_id', config.shopifyProductId)
+          .maybeSingle();
+        resolvedSupabaseId = data?.id || null;
+      }
+    }
+
+    enriched.push({ ...item, resolvedSupabaseId });
+  }
+  return enriched;
+}
+
+/**
  * Recalculate order totals server-side to prevent manipulation
  * @param {Object} orderData - Order data from client
  * @returns {Promise<Object>} - Recalculated totals
@@ -288,12 +316,13 @@ export async function recalculateOrderTotals(orderData) {
     if (appliedDiscount && appliedDiscount.code) {
       const { validateDiscountForOrder } = await import('./orders');
       const { calculateDiscountAmount } = await import('./discounts');
+      const enrichedCartItems = await enrichCartItemsWithSupabaseIds(cartItems);
       
       const validationResult = await validateDiscountForOrder(
         appliedDiscount.code, 
         orderData.fid, 
         subtotal, 
-        cartItems
+        enrichedCartItems
       );
       
       if (validationResult.success && validationResult.isValid) {
@@ -305,10 +334,11 @@ export async function recalculateOrderTotals(orderData) {
           minimumOrderAmount: validationResult.discountCode.minimum_order_amount,
           freeShipping: validationResult.discountCode.free_shipping || false,
           discount_scope: validationResult.discountCode.discount_scope,
-          target_products: validationResult.discountCode.target_products
+          target_products: validationResult.discountCode.target_products,
+          target_product_ids: validationResult.discountCode.target_product_ids,
         };
         
-        const discountCalc = calculateDiscountAmount(subtotal, formattedDiscountCode, 0, cartItems);
+        const discountCalc = calculateDiscountAmount(subtotal, formattedDiscountCode, 0, enrichedCartItems);
         discountAmount = discountCalc.discountAmount;
       }
     }

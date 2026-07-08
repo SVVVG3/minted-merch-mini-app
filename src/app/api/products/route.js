@@ -7,6 +7,8 @@ export async function GET(request) {
     const action = searchParams.get('action') || 'list';
     const handle = searchParams.get('handle');
     const id = searchParams.get('id');
+    const shopifyGraphqlId = searchParams.get('shopifyGraphqlId');
+    const shopifyId = searchParams.get('shopifyId');
     const status = searchParams.get('status') || 'active';
     const search = searchParams.get('search');
     const limit = parseInt(searchParams.get('limit')) || 50;
@@ -21,10 +23,14 @@ export async function GET(request) {
           return await getProductByHandle(handle);
         } else if (id) {
           return await getProductById(parseInt(id));
+        } else if (shopifyGraphqlId) {
+          return await getProductByShopifyGraphqlId(shopifyGraphqlId);
+        } else if (shopifyId) {
+          return await getProductByShopifyId(shopifyId);
         } else {
           return NextResponse.json({
             success: false,
-            error: 'Either handle or id parameter is required'
+            error: 'handle, id, shopifyGraphqlId, or shopifyId parameter is required'
           }, { status: 400 });
         }
         
@@ -164,6 +170,58 @@ async function getProductByHandle(handle) {
       success: false,
       error: error.message
     }, { status: 500 });
+  }
+}
+
+/**
+ * Get product by Shopify GraphQL GID (gid://shopify/Product/...)
+ */
+async function getProductByShopifyGraphqlId(shopifyGraphqlId) {
+  try {
+    const { data: product, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('shopify_graphql_id', shopifyGraphqlId)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!product) {
+      return NextResponse.json({
+        success: false,
+        error: `Product with Shopify GraphQL ID "${shopifyGraphqlId}" not found`
+      }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, product });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+/**
+ * Get product by numeric Shopify product ID
+ */
+async function getProductByShopifyId(shopifyId) {
+  try {
+    const { data: product, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('shopify_id', shopifyId)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!product) {
+      return NextResponse.json({
+        success: false,
+        error: `Product with Shopify ID "${shopifyId}" not found`
+      }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, product });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
