@@ -194,6 +194,7 @@ export default function AdminDashboard() {
   const [editDropShopifyId, setEditDropShopifyId] = useState('');
   const [editDropMaxUnits, setEditDropMaxUnits] = useState('37');
   const [savingDropEdits, setSavingDropEdits] = useState(false);
+  const [dropEmergencyOpen, setDropEmergencyOpen] = useState({});
 
   // Partners sub-tab state
   const [partnersSubTab, setPartnersSubTab] = useState('partners'); // 'partners' or 'ambassadors'
@@ -1575,6 +1576,10 @@ export default function AdminDashboard() {
     } catch (err) {
       setWeeklyDropsError(err.message);
     }
+  };
+
+  const toggleDropEmergency = (dropId) => {
+    setDropEmergencyOpen((prev) => ({ ...prev, [dropId]: !prev[dropId] }));
   };
 
   const revertDropStep = async (dropId, currentStatus) => {
@@ -3744,7 +3749,9 @@ export default function AdminDashboard() {
             {ordersSubTab === 'weekly-drops' && (
               <div className="bg-white">
                 <div className="px-6 py-4 border-b border-gray-100">
-                  <p className="text-sm text-gray-500 mb-4">Manage weekly limited drops — submissions, voting, and go-live</p>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Create a drop with an end time on the hour. Users submit and vote until the deadline; the winner goes live automatically via cron.
+                  </p>
                   <div className="max-w-xl space-y-3">
                     <input
                       type="text"
@@ -3801,16 +3808,22 @@ export default function AdminDashboard() {
                   <div className="px-6 py-12 text-center text-gray-400 text-sm">No drop weeks yet. Create one above.</div>
                 )}
                 {!weeklyDropsLoading && weeklyDropsData.map(drop => {
-                  const submissions = drop.drop_submissions || [];
-                  const finalistCount = submissions.filter(s => s.status === 'finalist').length;
+                  const submissions = [...(drop.drop_submissions || [])].sort(
+                    (a, b) => (b.vote_count || 0) - (a.vote_count || 0)
+                  );
                   const isExpanded = expandedDropId === drop.id;
                   const isEditing = editingDropId === drop.id;
+                  const showEmergency = !!dropEmergencyOpen[drop.id];
                   const revertLabels = {
                     voting: '← Back to Draft',
                     live: '← Back to Voting',
                     sold_out: '← Back to Live',
                     closed: '← Back to Sold Out',
                   };
+                  const endsLabel = drop.voting_ends_at
+                    ? new Date(drop.voting_ends_at).toLocaleString()
+                    : null;
+                  const topVotes = submissions[0]?.vote_count || 0;
                   return (
                     <div key={drop.id} className="border-b border-gray-100">
                       <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-3">
@@ -3863,7 +3876,8 @@ export default function AdminDashboard() {
                               <p className="font-semibold text-gray-900">{drop.week_label}</p>
                               <p className="text-xs text-gray-500 mt-0.5">
                                 {submissions.length} submission{submissions.length !== 1 ? 's' : ''}
-                                {finalistCount > 0 && ` · ${finalistCount}/3 finalists`}
+                                {submissions.length > 0 && ` · top ${topVotes} vote${topVotes !== 1 ? 's' : ''}`}
+                                {endsLabel && ` · ends ${endsLabel}`}
                                 {drop.units_sold > 0 && ` · ${drop.units_sold}/${drop.max_units} sold`}
                               </p>
                             </button>
@@ -3886,6 +3900,17 @@ export default function AdminDashboard() {
                                 Edit
                               </button>
                               <button
+                                onClick={() => toggleDropEmergency(drop.id)}
+                                className={`px-2 py-1.5 text-xs font-semibold rounded-lg ${
+                                  showEmergency
+                                    ? 'bg-amber-100 text-amber-900 ring-1 ring-amber-300'
+                                    : 'bg-amber-50 hover:bg-amber-100 text-amber-800'
+                                }`}
+                                title="Manual status and winner controls (normally automated)"
+                              >
+                                {showEmergency ? 'Emergency ▲' : 'Emergency ▼'}
+                              </button>
+                              <button
                                 onClick={() => deleteWeeklyDrop(drop)}
                                 className="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-lg"
                               >
@@ -3893,7 +3918,7 @@ export default function AdminDashboard() {
                               </button>
                             </>
                           )}
-                          {revertLabels[drop.status] && (
+                          {showEmergency && revertLabels[drop.status] && (
                             <button
                               onClick={() => revertDropStep(drop.id, drop.status)}
                               className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-semibold rounded-lg"
@@ -3901,22 +3926,27 @@ export default function AdminDashboard() {
                               {revertLabels[drop.status]}
                             </button>
                           )}
-                          {drop.status === 'draft' && (
+                          {showEmergency && drop.status === 'draft' && (
                             <button onClick={() => updateDropStatus(drop.id, 'voting')} className="px-3 py-1.5 bg-purple-500 text-white text-xs font-semibold rounded-lg">Open Voting</button>
                           )}
-                          {drop.status === 'voting' && (
+                          {showEmergency && drop.status === 'voting' && (
                             <button onClick={() => updateDropStatus(drop.id, 'live')} className="px-3 py-1.5 bg-green-500 text-white text-xs font-semibold rounded-lg">Go Live</button>
                           )}
-                          {drop.status === 'live' && (
+                          {showEmergency && drop.status === 'live' && (
                             <button onClick={() => updateDropStatus(drop.id, 'sold_out')} className="px-3 py-1.5 bg-yellow-500 text-white text-xs font-semibold rounded-lg">Mark Sold Out</button>
                           )}
-                          {drop.status === 'sold_out' && (
+                          {showEmergency && drop.status === 'sold_out' && (
                             <button onClick={() => updateDropStatus(drop.id, 'closed')} className="px-3 py-1.5 bg-gray-500 text-white text-xs font-semibold rounded-lg">Close Drop</button>
                           )}
                         </div>
                       </div>
                       {isExpanded && (
                         <div className="px-6 pb-4">
+                          {showEmergency && (
+                            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+                              Manual overrides only — drops normally auto-resolve at the deadline. Use these if cron failed or you need to intervene.
+                            </p>
+                          )}
                           {submissions.length === 0 ? (
                             <p className="text-sm text-gray-400 py-4">No submissions yet.</p>
                           ) : (
@@ -3997,10 +4027,10 @@ export default function AdminDashboard() {
                                       </td>
                                       <td className="px-3 py-2">
                                         <div className="flex gap-1 flex-wrap">
-                                          {sub.status !== 'finalist' && sub.status !== 'winner' && (
+                                          {showEmergency && sub.status !== 'finalist' && sub.status !== 'winner' && (
                                             <button onClick={() => updateDropSubmissionStatus(sub.id, 'finalist', drop.id)} className="px-2 py-1 bg-purple-500 text-white text-xs rounded">Finalist</button>
                                           )}
-                                          {sub.status === 'finalist' && (
+                                          {showEmergency && sub.status === 'finalist' && (
                                             <button onClick={() => updateDropSubmissionStatus(sub.id, 'winner', drop.id)} className="px-2 py-1 bg-green-500 text-white text-xs rounded">Winner</button>
                                           )}
                                           {sub.status !== 'rejected' && sub.status !== 'winner' && (
