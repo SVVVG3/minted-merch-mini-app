@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ProductGrid } from './ProductGrid';
 import { DropCollectionView } from './DropCollectionView';
+import { DesignStudioBanner } from './DesignStudioBanner';
 import { Cart } from './Cart';
 import { CheckInButton } from './CheckInButton';
 import { LeaderboardButton } from './LeaderboardButton';
@@ -44,6 +45,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
   const [products, setProducts] = useState(initialProducts || []);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [productsError, setProductsError] = useState(null);
+  const [dropDesignStudioAtBottom, setDropDesignStudioAtBottom] = useState(false);
 
   // Function to fetch products for a specific collection
   const fetchProductsForCollection = async (collection) => {
@@ -86,6 +88,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
   const handleCollectionChange = (collection) => {
     console.log(`🔄 Collection changed to: ${collection.title} (${collection.handle})`);
     setSelectedCollection(collection);
+    setDropDesignStudioAtBottom(false);
     fetchProductsForCollection(collection);
   };
 
@@ -548,35 +551,21 @@ export function HomePage({ collection: initialCollection, products: initialProdu
         </div>
       </div>
 
-      {/* Design Studio banner — below the sticky green bar */}
-      <div className={`px-4 flex justify-center ${
-        selectedCollection?.handle === 'limited-drops' ? 'pt-2 pb-1' : 'pt-4 pb-2'
-      }`}>
-        <Link
-          href="/create"
-          onClick={() => {
-            try { sdk.haptics.impactOccurred('medium'); } catch {}
-          }}
-          className="w-full max-w-xs block rounded-xl overflow-hidden shadow-lg active:scale-[0.98] transition-transform bg-gradient-to-r from-purple-700 to-[#3eb489] p-[2px]"
-        >
-          <div className={`bg-gray-900 rounded-xl px-4 flex items-center justify-center ${
-            selectedCollection?.handle === 'limited-drops' ? 'py-2' : 'py-3'
-          }`}>
-            <img
-              src="/EnterTheMintedMerchDesignStudio.png"
-              alt="Enter the Minted Merch Design Studio"
-              className={`w-full h-auto object-contain ${
-                selectedCollection?.handle === 'limited-drops' ? 'max-h-7' : 'max-h-9'
-              }`}
-            />
-          </div>
-        </Link>
-      </div>
+      {/* Design Studio banner — hidden during live limited drop purchase (shown below Order Now instead) */}
+      {!dropDesignStudioAtBottom && (
+        <DesignStudioBanner
+          compact={selectedCollection?.handle === 'limited-drops'}
+          className={`px-4 ${selectedCollection?.handle === 'limited-drops' ? 'pt-2 pb-1' : 'pt-4 pb-2'}`}
+        />
+      )}
       
       <main>
         {/* Limited Drops collection — drop state UI; other collections — product grid */}
         {selectedCollection?.handle === 'limited-drops' ? (
-          <DropCollectionView products={products} />
+          <DropCollectionView
+            products={products}
+            onDesignStudioPlacementChange={setDropDesignStudioAtBottom}
+          />
         ) : (
           <>
             {isLoadingProducts && (

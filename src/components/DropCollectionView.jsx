@@ -8,6 +8,7 @@ import { useCart } from '@/lib/CartContext';
 import { getProductConfig } from '@/lib/designStudioConfig';
 import { getSoleLeaderSubmissionId } from '@/lib/dropHelpers';
 import { openUrl } from '@/lib/clientAwareUrls';
+import { DesignStudioBanner } from './DesignStudioBanner';
 
 function voteTierLabel(tier, weight) {
   if (tier === 'whale') return `🐋 ${weight} votes`;
@@ -92,7 +93,7 @@ function getCountdownEndsAt(phase, drop) {
   return null;
 }
 
-export function DropCollectionView({ products }) {
+export function DropCollectionView({ products, onDesignStudioPlacementChange }) {
   const router = useRouter();
   const { addItem } = useCart();
   const { getSessionToken, user } = useFarcaster();
@@ -276,6 +277,27 @@ export function DropCollectionView({ products }) {
     }
   };
 
+  const phase = status?.phase || 'none';
+  const drop = status?.drop;
+  const viewer = status?.viewer || {};
+  const entries = status?.entries || status?.finalists || [];
+  const winner = status?.winner;
+
+  const liveUnitsLeft = phase === 'live' && drop
+    ? Math.max(0, (drop.maxUnits || 37) - (drop.unitsSold || 0))
+    : 0;
+  const liveSaleEndsAt = drop?.dropEndsAt;
+  const liveSaleWindowOpen = !liveSaleEndsAt || new Date(liveSaleEndsAt).getTime() > Date.now();
+  const liveDropProduct = phase === 'live' ? resolveDropProduct(drop) : null;
+  const liveProductConfig = winner?.productType ? getProductConfig(winner.productType) : null;
+  const liveCanOrder = phase === 'live' && liveUnitsLeft > 0 && liveSaleWindowOpen
+    && !!(liveProductConfig?.shopifyProductId || drop?.shopifyProductId || liveDropProduct);
+
+  useEffect(() => {
+    onDesignStudioPlacementChange?.(liveCanOrder);
+    return () => onDesignStudioPlacementChange?.(false);
+  }, [liveCanOrder, onDesignStudioPlacementChange]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -283,12 +305,6 @@ export function DropCollectionView({ products }) {
       </div>
     );
   }
-
-  const phase = status?.phase || 'none';
-  const drop = status?.drop;
-  const viewer = status?.viewer || {};
-  const entries = status?.entries || status?.finalists || [];
-  const winner = status?.winner;
 
   if (phase === 'active' || phase === 'submissions' || phase === 'voting') {
     const userSubmission = viewer.userSubmission;
@@ -462,13 +478,13 @@ export function DropCollectionView({ products }) {
   }
 
   if (phase === 'live') {
-    const unitsLeft = Math.max(0, (drop.maxUnits || 37) - (drop.unitsSold || 0));
-    const saleEndsAt = drop.dropEndsAt;
-    const saleWindowOpen = !saleEndsAt || new Date(saleEndsAt).getTime() > Date.now();
-    const dropProduct = resolveDropProduct(drop);
-    const productConfig = winner?.productType ? getProductConfig(winner.productType) : null;
+    const unitsLeft = liveUnitsLeft;
+    const saleEndsAt = liveSaleEndsAt;
+    const saleWindowOpen = liveSaleWindowOpen;
+    const dropProduct = liveDropProduct;
+    const productConfig = liveProductConfig;
     const displayPrice = dropProduct?.priceRange?.minVariantPrice?.amount;
-    const canOrder = unitsLeft > 0 && saleWindowOpen && (productConfig?.shopifyProductId || drop.shopifyProductId || dropProduct);
+    const canOrder = liveCanOrder;
 
     return (
       <div className="px-3 py-2 max-w-lg mx-auto">
@@ -503,13 +519,16 @@ export function DropCollectionView({ products }) {
                 )}
               </p>
               {canOrder ? (
-                <button
-                  type="button"
-                  onClick={() => openOrderSheet(drop, winner)}
-                  className="w-full py-2.5 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-xl text-sm transition-colors"
-                >
-                  Order Now
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => openOrderSheet(drop, winner)}
+                    className="w-full py-2.5 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-xl text-sm transition-colors"
+                  >
+                    Order Now
+                  </button>
+                  <DesignStudioBanner compact className="mt-3" />
+                </>
               ) : (
                 <p className="text-xs text-gray-500">
                   {!saleWindowOpen ? 'Sale window ended (48-hour limit).' : unitsLeft <= 0 ? 'Sold out for this drop.' : 'Product listing coming to shop shortly.'}
