@@ -474,13 +474,15 @@ export function DropCollectionView({ products }) {
       <div className="px-3 py-2 max-w-lg mx-auto">
         {winner?.mockupUrl && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={winner.mockupUrl}
-              alt="Winning drop design"
-              className="w-full max-h-[min(52vw,240px)] object-contain bg-gray-50 mx-auto"
-            />
-            <div className="px-3 py-3 text-center">
+            <div className="w-full aspect-square bg-gray-50 flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={winner.mockupUrl}
+                alt="Winning drop design"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="px-3 py-2.5 text-center">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-green-600">Live Now</p>
               <div className="flex items-center justify-center gap-2 mt-0.5 mb-1">
                 <h2 className="text-base font-bold text-gray-900">Limited Drop</h2>
