@@ -559,7 +559,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
         />
       )}
       
-      <main>
+      <main className="pb-8">
         {/* Limited Drops collection — drop state UI; other collections — product grid */}
         {selectedCollection?.handle === 'limited-drops' ? (
           <DropCollectionView

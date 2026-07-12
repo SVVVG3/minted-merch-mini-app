@@ -713,7 +713,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           })}
         />
 
-        {canOrder && <DesignStudioBanner compact fullWidth />}
+        {canOrder && <DesignStudioBanner compact fullWidth bottomSpaced />}
 
         {orderOpen && (
           <div className="fixed inset-0 z-50 flex flex-col justify-end">
@@ -827,7 +827,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           {...buildDropGuideContent({ phase, drop, viewer, countdown })}
         />
 
-        <DesignStudioBanner compact fullWidth />
+        <DesignStudioBanner compact fullWidth bottomSpaced />
       </div>
     );
   }

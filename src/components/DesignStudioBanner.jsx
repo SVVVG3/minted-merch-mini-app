@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { sdk } from '@farcaster/miniapp-sdk';
 
-export function DesignStudioBanner({ compact = false, className = '', fullWidth = false }) {
+export function DesignStudioBanner({ compact = false, className = '', fullWidth = false, bottomSpaced = false }) {
   return (
-    <div className={`flex justify-center ${className}`}>
+    <div className={`flex justify-center ${bottomSpaced ? 'pb-10' : ''} ${className}`}>
       <Link
         href="/create"
         onClick={() => {
