@@ -16,6 +16,7 @@ export function ShareDropdown({
   customText, // Custom share text for 'custom' type
   buttonStyle = 'icon', // 'icon' or 'text' - determines button appearance
   buttonText = 'Share', // Text to show when buttonStyle is 'text'
+  dropUp = false, // Open menu above the button (for use inside clipped containers)
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -89,7 +90,7 @@ export function ShareDropdown({
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className={`relative ${isOpen ? 'z-30' : ''}`} ref={dropdownRef}>
       {/* Share Button */}
       {buttonStyle === 'text' ? (
         <button
@@ -118,7 +119,9 @@ export function ShareDropdown({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
+        <div className={`absolute right-0 w-48 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50 ${
+          dropUp ? 'bottom-full mb-2' : 'mt-2'
+        }`}>
           {/* Copy Link Option */}
           <button
             onClick={handleCopyLink}

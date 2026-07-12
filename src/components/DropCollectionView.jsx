@@ -54,6 +54,7 @@ function DropEntryShareButton({ entry, shareType, isInFarcaster, className = '' 
         isInFarcaster={isInFarcaster}
         buttonStyle="text"
         buttonText="Share"
+        dropUp
       />
     </div>
   );
@@ -109,6 +110,66 @@ function CreatorAvatar({ username, fid, pfpUrl, size = 'sm' }) {
   return (
     <div className={`${dim} rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-gray-500`}>
       {label.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
+function CreatorProfileLink({ username, fid, pfpUrl, size = 'sm' }) {
+  const label = username || (fid ? String(fid) : 'creator');
+  const canOpen = !!(username || fid);
+
+  return (
+    <button
+      type="button"
+      onClick={() => canOpen && openCreatorProfile({ username, fid })}
+      disabled={!canOpen}
+      className={`flex items-center gap-1.5 min-w-0 transition-opacity ${
+        canOpen ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'
+      }`}
+    >
+      <CreatorAvatar username={username} fid={fid} pfpUrl={pfpUrl} size={size} />
+      <p className="text-xs text-gray-500 truncate">@{label}</p>
+    </button>
+  );
+}
+
+function ViewDesignButton({ mockupId, className = '' }) {
+  if (!mockupId) return null;
+  return (
+    <Link
+      href={`/design/${mockupId}`}
+      className={`block w-full py-2 text-center text-sm font-semibold text-[#3eb489] border border-[#3eb489]/30 rounded-xl hover:bg-[#3eb489]/5 transition-colors ${className}`}
+    >
+      View Design
+    </Link>
+  );
+}
+
+function YourEntryTile({ submission, isInFarcaster }) {
+  return (
+    <div className="bg-white rounded-xl border border-amber-200 bg-amber-50/50 w-full max-w-xs ml-auto">
+      <div className="p-3 flex gap-3 items-center">
+        {submission.mockupUrl && (
+          <div className="w-14 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={submission.mockupUrl} alt="" className="w-full h-full object-contain" />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-amber-800">Your entry · {submission.voteCount || 0} votes</p>
+          <p className="text-sm text-gray-700 capitalize truncate">
+            {submission.productType}{submission.colorName ? ` · ${submission.colorName}` : ''}
+          </p>
+        </div>
+      </div>
+      <div className="px-3 pb-3 space-y-2">
+        <ViewDesignButton mockupId={submission.mockupId} />
+        <DropEntryShareButton
+          entry={submission}
+          shareType="submission"
+          isInFarcaster={isInFarcaster}
+        />
+      </div>
     </div>
   );
 }
@@ -426,6 +487,10 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           </button>
         )}
 
+        {userSubmission && (
+          <YourEntryTile submission={userSubmission} isInFarcaster={isInFarcaster} />
+        )}
+
         <DropGuideCard
           {...buildDropGuideContent({
             phase,
@@ -447,37 +512,6 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
         />
 
         <div ref={votingSectionRef} className="space-y-4">
-        {userSubmission && (
-          <div className="bg-white rounded-xl border border-amber-200 bg-amber-50/50 overflow-hidden">
-            <div className="p-4 flex gap-3 items-center">
-              {userSubmission.mockupUrl && (
-                <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={userSubmission.mockupUrl} alt="" className="w-full h-full object-contain" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-amber-800">Your entry · {userSubmission.voteCount || 0} votes</p>
-                <p className="text-sm text-gray-700 capitalize truncate">
-                  {userSubmission.productType}{userSubmission.colorName ? ` · ${userSubmission.colorName}` : ''}
-                </p>
-                {userSubmission.mockupId && (
-                  <Link href={`/design/${userSubmission.mockupId}`} className="text-xs text-[#3eb489] font-semibold hover:underline">
-                    View design →
-                  </Link>
-                )}
-              </div>
-            </div>
-            <div className="px-4 pb-4">
-              <DropEntryShareButton
-                entry={userSubmission}
-                shareType="submission"
-                isInFarcaster={isInFarcaster}
-              />
-            </div>
-          </div>
-        )}
-
         {voteError && (
           <div className="px-4 py-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">{voteError}</div>
         )}
@@ -498,7 +532,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
               const isVoted = viewer.userVoteSubmissionId === entry.id;
               const canVote = viewer.fid && !viewer.hasVoted && !isOwn;
               return (
-                <div key={entry.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${
+                <div key={entry.id} className={`bg-white rounded-xl border shadow-sm ${
                   isVoted ? 'border-[#3eb489] border-2' : 'border-gray-100'
                 }`}>
                   <div className="flex gap-3 p-3">
@@ -513,21 +547,23 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
                       <p className="text-sm font-semibold text-gray-900 capitalize truncate">
                         {entry.productType}{entry.colorName ? ` · ${entry.colorName}` : ''}
                       </p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <CreatorAvatar username={entry.username} fid={entry.fid} pfpUrl={entry.pfpUrl} />
-                        <p className="text-xs text-gray-500 truncate">@{entry.username || entry.fid || 'creator'}</p>
+                      <div className="flex items-center mt-0.5">
+                        <CreatorProfileLink
+                          username={entry.username}
+                          fid={entry.fid}
+                          pfpUrl={entry.pfpUrl}
+                        />
                       </div>
                       <p className="text-lg font-bold text-[#3eb489] mt-1">
                         {entry.voteCount} <span className="text-xs font-normal text-gray-400">votes</span>
                       </p>
                     </div>
                   </div>
-                  {isOwn ? (
-                    <div className="px-3 pb-3">
+                  <div className="px-3 pb-3 space-y-2">
+                    <ViewDesignButton mockupId={entry.mockupId} />
+                    {isOwn ? (
                       <p className="text-xs text-center text-gray-400 py-2 bg-gray-50 rounded-lg">Your design — others vote for you</p>
-                    </div>
-                  ) : canVote ? (
-                    <div className="px-3 pb-3">
+                    ) : canVote ? (
                       <button
                         type="button"
                         onClick={() => handleVote(entry.id)}
@@ -536,17 +572,17 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
                       >
                         {votingId === entry.id ? 'Submitting…' : `Vote (${viewer.voteWeight} pt${viewer.voteWeight !== 1 ? 's' : ''})`}
                       </button>
-                    </div>
-                  ) : isVoted ? (
-                    <div className="px-3 pb-3 space-y-2">
-                      <p className="text-center text-xs font-semibold text-[#3eb489]">Your pick ✓</p>
-                      <DropEntryShareButton
-                        entry={entry}
-                        shareType="vote"
-                        isInFarcaster={isInFarcaster}
-                      />
-                    </div>
-                  ) : null}
+                    ) : isVoted ? (
+                      <>
+                        <p className="text-center text-xs font-semibold text-[#3eb489]">Your pick ✓</p>
+                        <DropEntryShareButton
+                          entry={entry}
+                          shareType="vote"
+                          isInFarcaster={isInFarcaster}
+                        />
+                      </>
+                    ) : null}
+                  </div>
                 </div>
               );
             })
