@@ -4,18 +4,18 @@ import Link from 'next/link';
 
 function CheckItem({ children }) {
   return (
-    <li className="flex gap-2.5 text-sm text-gray-200 leading-snug">
+    <li className="flex gap-2.5 text-sm text-gray-600 leading-snug">
       <span className="text-[#3eb489] font-bold flex-shrink-0 mt-0.5">✓</span>
       <span>{children}</span>
     </li>
   );
 }
 
-function GuideSection({ label, items }) {
+function GuideSection({ label, items, isFirst }) {
   if (!items?.length) return null;
   return (
-    <div className="mt-4">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-2.5">
+    <div className={isFirst ? '' : 'mt-4'}>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-2.5">
         {label}
       </p>
       <ul className="space-y-2">
@@ -28,7 +28,7 @@ function GuideSection({ label, items }) {
 }
 
 export function DropGuideCard({
-  icon = '🎯',
+  icon,
   title,
   description,
   sections = [],
@@ -36,22 +36,35 @@ export function DropGuideCard({
   footer,
   className = '',
 }) {
-  return (
-    <div className={`rounded-2xl bg-gray-900 text-white p-5 shadow-lg border border-gray-800 ${className}`}>
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#3eb489]/20 flex items-center justify-center text-xl flex-shrink-0">
-          {icon}
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-bold text-base text-white">{title}</h3>
-          {description && (
-            <p className="text-sm text-gray-400 mt-1 leading-relaxed">{description}</p>
-          )}
-        </div>
-      </div>
+  const showHeader = !!(title || description);
 
-      {sections.map((section) => (
-        <GuideSection key={section.label} label={section.label} items={section.items} />
+  return (
+    <div className={`rounded-2xl bg-white border border-gray-100 shadow-sm p-5 ${className}`}>
+      {showHeader && (
+        <div className="flex items-start gap-3">
+          {icon && (
+            <div className="w-10 h-10 rounded-xl bg-[#3eb489]/10 flex items-center justify-center text-xl flex-shrink-0">
+              {icon}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            {title && (
+              <h3 className="font-bold text-base text-gray-900">{title}</h3>
+            )}
+            {description && (
+              <p className="text-sm text-gray-500 mt-1 leading-relaxed">{description}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {sections.map((section, index) => (
+        <GuideSection
+          key={section.label}
+          label={section.label}
+          items={section.items}
+          isFirst={index === 0 && !showHeader}
+        />
       ))}
 
       {primaryAction && (
@@ -77,7 +90,7 @@ export function DropGuideCard({
       )}
 
       {footer && (
-        <p className="text-xs text-gray-500 mt-3 text-center leading-snug">{footer}</p>
+        <p className="text-xs text-gray-400 mt-3 text-center leading-snug">{footer}</p>
       )}
     </div>
   );
@@ -238,10 +251,6 @@ export function buildDropGuideContent({
 
   if (phase === 'none') {
     return {
-      icon: '⏳',
-      title: 'No Drop Live Right Now',
-      description:
-        'Submit & vote isn\'t open at the moment. New limited drops launch regularly — this page will update when the next one goes live.',
       sections: [
         {
           label: 'How limited drops work',
@@ -274,9 +283,6 @@ export function buildDropGuideContent({
   }
 
   return {
-    icon: '🎯',
-    title: 'Limited Drops',
-    description: 'Community-curated weekly drops.',
     sections: [],
     primaryAction: { label: '🎨 Enter Design Studio', href: '/create' },
   };

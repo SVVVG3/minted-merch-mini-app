@@ -439,11 +439,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
 
   if (phase === 'none') {
     return (
-      <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
-        <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Limited Drops</p>
-          <h2 className="text-xl font-bold text-gray-900">Between Drops</h2>
-        </div>
+      <div className="px-4 py-4 max-w-lg mx-auto">
         <DropGuideCard
           {...buildDropGuideContent({ phase, drop, viewer, countdown })}
         />
