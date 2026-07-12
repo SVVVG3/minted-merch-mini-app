@@ -143,7 +143,7 @@ export async function finalizeDropCreatorPayout(dropId) {
       } else {
         payoutRow = claimable;
         console.log(
-          `💰 Drop creator payout claimable — drop ${dropId}, FID ${winner.fid}, ${amountTokens.toLocaleString()} $MM (${unitsSold} units)`
+          `💰 Drop creator payout claimable — drop ${dropId}, FID ${winner.fid}, ${amountTokens.toLocaleString()} $mintedmerch (${unitsSold} units)`
         );
       }
     } catch (sigError) {

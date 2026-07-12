@@ -104,9 +104,21 @@ export function DropGuideCard({
 
 function formatPayoutPerUnit(amount) {
   const n = Number(amount);
-  if (!Number.isFinite(n) || n <= 0) return '5M $MM';
-  if (n >= 1_000_000) return `${Math.round(n / 1_000_000)}M $MM`;
-  return `${n.toLocaleString()} $MM`;
+  if (!Number.isFinite(n) || n <= 0) return '5M $mintedmerch';
+  if (n >= 1_000_000) return `${Math.round(n / 1_000_000)}M $mintedmerch`;
+  return `${n.toLocaleString()} $mintedmerch`;
+}
+
+function getVoteNote(viewer = {}) {
+  const voteWeight = viewer.voteWeight || 1;
+  const tier = viewer.voteTier || 'standard';
+  if (tier === 'whale') {
+    return `Your vote counts as ${voteWeight} points (staking 200M+ $mintedmerch)`;
+  }
+  if (tier === 'mogul') {
+    return `Your vote counts as ${voteWeight} points (staking 50M+ $mintedmerch)`;
+  }
+  return 'Everyone gets 1 vote — stake 50M+ $mintedmerch for boosted voting power';
 }
 
 export function buildDropGuideContent({
@@ -120,55 +132,47 @@ export function buildDropGuideContent({
   const maxUnits = drop?.maxUnits || 37;
   const payout = formatPayoutPerUnit(drop?.creatorPayoutPerUnit);
   const countdownText = countdown && countdown !== 'Ended' ? countdown.replace(' left', '') : null;
-  const voteWeight = viewer.voteWeight || 1;
-  const voteNote = voteWeight > 1
-    ? `Your vote counts as ${voteWeight} points (staked $MM holder)`
-    : 'Everyone gets 1 vote — stake more $MM for up to 10× voting power';
+  const voteNote = getVoteNote(viewer);
 
   if (phase === 'active' || phase === 'submissions' || phase === 'voting') {
-    const whatToDo = [];
-    if (viewer.userSubmission) {
-      whatToDo.push('Your design is in — share it and rally votes from the community');
-    } else {
-      whatToDo.push('Select a saved design from your library and submit it to enter');
-    }
-    if (viewer.hasVoted) {
-      whatToDo.push('Your vote is locked in — watch the leaderboard until voting ends');
-    } else if (viewer.fid) {
-      whatToDo.push('Vote for your favorite entry below (you cannot vote for your own design)');
-    } else {
-      whatToDo.push('Sign in with Farcaster to submit a design and cast your vote');
-    }
-    whatToDo.push(voteNote);
-    if (countdownText) {
-      whatToDo.push(`Submit & vote window closes in ${countdownText}`);
-    }
+    const whatToDo = viewer.fid
+      ? [
+          'Select a saved design from your library or create a new one to submit and enter',
+          viewer.hasVoted
+            ? 'Your vote is locked in — watch the leaderboard until voting ends'
+            : 'Vote for your favorite entry below (you cannot vote for your own design)',
+          voteNote,
+          ...(countdownText ? [`Submit & vote window closes in ${countdownText}`] : []),
+        ]
+      : [
+          'Sign in with Farcaster to submit a design and cast your vote',
+          voteNote,
+          ...(countdownText ? [`Submit & vote window closes in ${countdownText}`] : []),
+        ];
 
     return {
       sections: [
         { label: 'What to do now', items: whatToDo },
         {
-          label: 'If your design wins',
-          items: [
-            'Your design goes live here for a 48-hour sale window',
-            `Only ${maxUnits} units are produced — first come, first served`,
-            `Earn ${payout} per unit sold — claim anytime in Profile → Drop Earnings`,
-          ],
-        },
-        {
           label: 'What happens next',
           items: [
             'When the timer ends, the design with the most votes wins',
-            'The winning design opens for purchase in Limited Drops',
-            'The sale ends after 48 hours or when all units sell out',
+            'The winning design opens for purchase in Limited Drops immediately',
+            `The sale ends after 48 hours or when all ${maxUnits} units sell out — whichever comes first`,
+          ],
+        },
+        {
+          label: 'If your design wins',
+          items: [
+            'Your design goes live here immediately for a 48-hour sale window',
+            `Only ${maxUnits} units will be produced — first come, first served`,
+            'Earn 5M $mintedmerch per unit sold — claim after the drop completes in Profile → Drop Earnings',
           ],
         },
       ],
       footer: !viewer.userSubmission && viewer.fid
         ? 'One submission per person per drop'
-        : viewer.userSubmission && !viewer.hasVoted && viewer.fid
-          ? 'Scroll down to vote for your favorite design'
-          : null,
+        : null,
     };
   }
 

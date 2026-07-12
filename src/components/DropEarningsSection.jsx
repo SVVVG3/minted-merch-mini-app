@@ -171,13 +171,13 @@ export function DropEarningsSection({ getSessionToken, isInFarcaster }) {
           </div>
           <div>
             <h4 className="font-bold text-emerald-400">Drop Earnings</h4>
-            <p className="text-xs text-emerald-500">5M $MM per unit sold on your winning drop</p>
+            <p className="text-xs text-emerald-500">5M $mintedmerch per unit sold on your winning drop</p>
           </div>
         </div>
         {claimableTotal > 0 && (
           <div className="text-right">
             <div className="text-lg font-bold text-emerald-400">{formatTokens(claimableTotal)}</div>
-            <div className="text-xs text-emerald-500">claimable $MM</div>
+            <div className="text-xs text-emerald-500">claimable $mintedmerch</div>
           </div>
         )}
       </div>
@@ -197,7 +197,7 @@ export function DropEarningsSection({ getSessionToken, isInFarcaster }) {
                 {payout.weekLabel || 'Limited Drop'}
               </p>
               <p className="text-xs text-emerald-500">
-                {payout.units_sold} sold × 5M = {formatTokens(payout.amountTokens)} $MM
+                {payout.units_sold} sold × 5M = {formatTokens(payout.amountTokens)} $mintedmerch
               </p>
             </div>
             <div className="flex-shrink-0">

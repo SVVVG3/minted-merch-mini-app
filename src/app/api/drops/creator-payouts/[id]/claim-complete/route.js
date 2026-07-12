@@ -43,7 +43,7 @@ export async function POST(request, { params }) {
     }
 
     console.log(
-      `✅ Drop creator payout ${id} completed — ${payout.amount_tokens} $MM claimed by FID ${auth.fid}`
+      `✅ Drop creator payout ${id} completed — ${payout.amount_tokens} $mintedmerch claimed by FID ${auth.fid}`
     );
 
     return NextResponse.json({ success: true, transactionHash });

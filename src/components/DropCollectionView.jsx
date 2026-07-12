@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useFarcaster } from '@/lib/useFarcaster';
@@ -15,7 +15,7 @@ import { DropSubmitDesignTray } from './DropSubmitDesignTray';
 function VoteTierBadge({ tier, weight }) {
   const pill = (
     <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
-      {weight} vote{weight !== 1 ? 's' : ''}
+      Voting Power: {weight}
     </span>
   );
 
@@ -27,7 +27,7 @@ function VoteTierBadge({ tier, weight }) {
         <img
           src="/GoldVerifiedMerchMogulBadge.png"
           alt="Whale"
-          className="h-10 w-auto object-contain"
+          className="h-5 w-auto object-contain"
           title="200M+ $mintedmerch staked"
         />
       </span>
@@ -41,7 +41,7 @@ function VoteTierBadge({ tier, weight }) {
         <img
           src="/VerifiedMerchMogulBadge.png"
           alt="Merch Mogul"
-          className="h-10 w-auto object-contain"
+          className="h-5 w-auto object-contain"
           title="50M+ $mintedmerch staked"
         />
       </span>
@@ -142,6 +142,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
   const [votingId, setVotingId] = useState(null);
   const [voteError, setVoteError] = useState('');
   const [submitTrayOpen, setSubmitTrayOpen] = useState(false);
+  const votingSectionRef = useRef(null);
 
   const loadStatus = useCallback(async () => {
     const token = getSessionToken();
@@ -368,6 +369,16 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           </div>
         </div>
 
+        {viewer.fid && !viewer.hasVoted && (
+          <button
+            type="button"
+            onClick={() => votingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="w-full py-3 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-2xl text-sm transition-colors"
+          >
+            Vote Now
+          </button>
+        )}
+
         <DropGuideCard
           {...buildDropGuideContent({
             phase,
@@ -388,6 +399,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           getSessionToken={getSessionToken}
         />
 
+        <div ref={votingSectionRef} className="space-y-4">
         {userSubmission && (
           <div className="bg-white rounded-xl border border-amber-200 bg-amber-50/50 p-4 flex gap-3 items-center">
             {userSubmission.mockupUrl && (
@@ -481,6 +493,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
         {!viewer.fid && (
           <p className="text-center text-xs text-gray-400">Sign in with Farcaster to submit and vote</p>
         )}
+        </div>
       </div>
     );
   }

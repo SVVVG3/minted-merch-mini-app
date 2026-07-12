@@ -3734,7 +3734,7 @@ export default function AdminDashboard() {
                       <div className="bg-yellow-50 rounded-xl p-4">
                         <p className="text-xs text-yellow-700 font-medium">Pending</p>
                         <p className="text-2xl font-bold text-yellow-800 mt-1">{pending.length}</p>
-                        <p className="text-xs text-yellow-600 mt-0.5">{(pendingTotal / 1_000_000).toFixed(1)}M $MM owed</p>
+                        <p className="text-xs text-yellow-600 mt-0.5">{(pendingTotal / 1_000_000).toFixed(1)}M $mintedmerch owed</p>
                       </div>
                       <div className="bg-green-50 rounded-xl p-4">
                         <p className="text-xs text-green-700 font-medium">Settled</p>
@@ -3793,7 +3793,7 @@ export default function AdminDashboard() {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-xs text-gray-600">{r.buyer?.username ? `@${r.buyer.username}` : `FID ${r.buyer_fid || '—'}`}</td>
-                            <td className="px-4 py-3"><span className="text-xs font-bold text-purple-700">{Number(r.mintedmerch_amount).toLocaleString()} $MM</span></td>
+                            <td className="px-4 py-3"><span className="text-xs font-bold text-purple-700">{Number(r.mintedmerch_amount).toLocaleString()} $mintedmerch</span></td>
                             <td className="px-4 py-3">
                               <span className={`text-xs px-2 py-1 rounded-full font-medium ${r.status === 'settled' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                                 {r.status}
@@ -3855,7 +3855,7 @@ export default function AdminDashboard() {
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-900">{p.units_sold}</td>
                             <td className="px-4 py-3 text-sm font-bold text-emerald-700">
-                              {Number(p.amount_tokens).toLocaleString()} $MM
+                              {Number(p.amount_tokens).toLocaleString()} $mintedmerch
                             </td>
                             <td className="px-4 py-3">
                               <span className={`text-xs px-2 py-1 rounded-full font-medium ${
@@ -7097,7 +7097,7 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-4 py-3">
                           <span className="text-xs font-bold text-purple-700">
-                            {Number(r.mintedmerch_amount).toLocaleString()} $MM
+                            {Number(r.mintedmerch_amount).toLocaleString()} $mintedmerch
                           </span>
                         </td>
                         <td className="px-4 py-3">

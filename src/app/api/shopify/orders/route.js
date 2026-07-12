@@ -1618,7 +1618,7 @@ export async function POST(request) {
               if (royaltyError) {
                 console.error(`⚠️ Royalty insert error for design ${designRequestId}:`, royaltyError);
               } else {
-                console.log(`💎 Royalty granted: ${ROYALTY_AMOUNT.toLocaleString()} $MM for FID ${creatorFid} (order ${shopifyOrder.name})`);
+                console.log(`💎 Royalty granted: ${ROYALTY_AMOUNT.toLocaleString()} $mintedmerch for FID ${creatorFid} (order ${shopifyOrder.name})`);
               }
             } catch (royaltyErr) {
               console.error(`⚠️ Royalty post-payment check failed for ${designRequestId}:`, royaltyErr.message);
