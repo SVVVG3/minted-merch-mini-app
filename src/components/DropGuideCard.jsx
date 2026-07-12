@@ -279,7 +279,7 @@ export function buildDropGuideContent({
           items: [
             'Create and order your own custom merch in the Minted Merch Design Studio anytime',
             'Turn on mini app notifications so you know when the next drop opens',
-            'Stake $mintedmerch for up to 10× voting power on every drop',
+            'Stake 50M+ $mintedmerch for 15% off every order & up to 10× voting power on every drop',
           ],
         },
       ],
