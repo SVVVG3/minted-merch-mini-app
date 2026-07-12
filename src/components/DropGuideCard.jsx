@@ -261,25 +261,25 @@ export function buildDropGuideContent({
         {
           label: 'How limited drops work',
           items: [
-            'Designers submit one custom design per weekly drop',
+            'Designers submit one custom design per drop',
             'The community votes — most votes wins',
-            `${maxUnits} units go on sale for 48 hours when a winner is chosen`,
+            `Up to ${maxUnits} units go on sale for 48 hours when a winner is chosen`,
           ],
         },
         {
           label: 'If your design wins',
           items: [
-            `Your design is produced as a limited run of ${maxUnits} units`,
-            `Earn ${payout} per unit sold`,
-            'Claim earnings in Profile → Drop Earnings after the sale ends',
+            `Your design goes live for purchase for 48 hours or ${maxUnits} units — whichever comes first`,
+            'Earn 5M $mintedmerch per unit sold',
+            'Claim all earnings in Profile → Drop Earnings after the sale ends',
           ],
         },
         {
           label: 'While you wait',
           items: [
-            'Create and order your own custom merch in Design Studio anytime',
+            'Create and order your own custom merch in the Minted Merch Design Studio anytime',
             'Turn on mini app notifications so you know when the next drop opens',
-            'Stake $MM for up to 10× voting power when submit & vote returns',
+            'Stake $mintedmerch for up to 10× voting power on every drop',
           ],
         },
       ],
