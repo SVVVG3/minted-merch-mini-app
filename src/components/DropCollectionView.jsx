@@ -13,6 +13,16 @@ import { DropGuideCard, buildDropGuideContent } from './DropGuideCard';
 import { DropSubmitDesignTray } from './DropSubmitDesignTray';
 import { ShareDropdown } from './ShareDropdown';
 
+function getSubmitVoteHeading(viewer = {}) {
+  if (!viewer.fid) return 'Submit & Vote';
+  const hasSubmission = !!viewer.userSubmission;
+  const hasVoted = !!viewer.hasVoted;
+  if (hasSubmission && hasVoted) return "You're All Set";
+  if (hasSubmission) return 'Cast Your Vote';
+  if (hasVoted) return 'Submit a Design';
+  return 'Submit & Vote';
+}
+
 function formatDropProductLabel(entry) {
   const type = entry?.productType || entry?.product_type;
   const color = entry?.colorName || entry?.color_name;
@@ -480,10 +490,10 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           <img
             src="/MintedMerchSpinnerLogo.png"
             alt="Minted Merch"
-            className="h-10 mx-auto mb-3 object-contain"
+            className="h-[3.25rem] mx-auto mb-3 object-contain"
           />
           <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Limited Drop Submissions — Live</p>
-          <h2 className="text-xl font-bold text-gray-900">Submit & Vote</h2>
+          <h2 className="text-xl font-bold text-gray-900">{getSubmitVoteHeading(viewer)}</h2>
           <div className="flex flex-wrap justify-center items-center gap-2 mt-3">
             {countdown && (
               <span className="px-3 py-1 bg-[#3eb489]/10 text-[#3eb489] text-xs font-semibold rounded-full">

@@ -2,6 +2,31 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { useFarcaster } from '@/lib/useFarcaster';
+import { ShareDropdown } from './ShareDropdown';
+
+function formatDropProductLabel(mockup) {
+  const type = mockup?.product_type;
+  const color = mockup?.color_name;
+  const label = (value) => value ? value.charAt(0).toUpperCase() + value.slice(1) : '';
+  if (type && color) return `${label(type)} · ${label(color)}`;
+  return label(type) || 'design';
+}
+
+function getSubmittedDesignShareContent(mockup) {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const url = mockup?.id
+    ? `${origin}/design/${mockup.id}`
+    : `${origin}/?collection=limited-drops`;
+  const productLabel = formatDropProductLabel(mockup);
+
+  return {
+    customUrl: url,
+    customText: `I just entered the Minted Merch Limited Drop with my custom ${productLabel} — vote for me! 🎨\n\n@mintedmerch`,
+  };
+}
+
+const SHEET_BOTTOM_PADDING = 'pb-[max(2.5rem,env(safe-area-inset-bottom,0px))]';
 
 export function DropSubmitDesignTray({
   open,
@@ -9,6 +34,7 @@ export function DropSubmitDesignTray({
   onSubmitted,
   getSessionToken,
 }) {
+  const { isInFarcaster } = useFarcaster();
   const [mockups, setMockups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedMockup, setSelectedMockup] = useState(null);
@@ -87,31 +113,34 @@ export function DropSubmitDesignTray({
 
   if (!open) return null;
 
+  const shareContent = success && selectedMockup
+    ? getSubmittedDesignShareContent(selectedMockup)
+    : null;
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+    <div className="fixed inset-0 z-50">
       <div
         className="absolute inset-0 bg-black/40"
         onClick={() => !submitting && onClose()}
       />
-      <div className="relative bg-white rounded-t-3xl px-5 pt-5 pb-10 shadow-xl max-h-[85vh] overflow-y-auto">
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+      <div className={`absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-xl max-h-[85vh] flex flex-col ${success ? 'min-h-[50vh]' : ''}`}>
+        <div className={`flex-1 overflow-y-auto px-5 pt-5 ${success ? '' : SHEET_BOTTOM_PADDING}`}>
+          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
 
-        {success ? (
-          <div className="text-center py-4">
-            <div className="text-5xl mb-3">🎉</div>
-            <h2 className="text-lg font-bold text-gray-900 mb-2">Submitted!</h2>
-            <p className="text-sm text-gray-500 mb-5">
-              Your design is in for the Limited Drop. Vote for your favorite — the community picks the winner when the timer ends.
-            </p>
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full py-3 bg-[#3eb489] text-white font-semibold rounded-2xl text-base"
-            >
-              Done
-            </button>
-          </div>
-        ) : (
+          {success ? (
+            <div className="text-center py-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/GreenVerifiedCheck.png"
+                alt="Design submitted"
+                className="h-16 w-16 mx-auto mb-3 object-contain"
+              />
+              <h2 className="text-lg font-bold text-gray-900 mb-2">Design Submitted!</h2>
+              <p className="text-sm text-gray-500">
+                Your design is submitted & can now be voted to become the next Limited Drop. Vote for your favorite before the timer ends!
+              </p>
+            </div>
+          ) : (
           <>
             <h2 className="text-base font-bold text-gray-900 mb-1">Submit a Design</h2>
             <p className="text-sm text-gray-500 mb-4">
@@ -232,6 +261,32 @@ export function DropSubmitDesignTray({
               </button>
             )}
           </>
+          )}
+        </div>
+
+        {success && (
+          <div className={`px-5 pt-2 space-y-3 ${SHEET_BOTTOM_PADDING}`}>
+            {shareContent && (
+              <div className="w-full [&>div]:w-full [&_button]:w-full [&_button]:justify-center">
+                <ShareDropdown
+                  type="custom"
+                  customUrl={shareContent.customUrl}
+                  customText={shareContent.customText}
+                  isInFarcaster={isInFarcaster}
+                  buttonStyle="text"
+                  buttonText="Share My Design"
+                  dropUp
+                />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full py-3 bg-[#3eb489] text-white font-semibold rounded-2xl text-base"
+            >
+              Done
+            </button>
+          </div>
         )}
       </div>
     </div>
