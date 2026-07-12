@@ -158,7 +158,7 @@ function EntryProductLine({ productType, colorName, mockupId, className = '' }) 
 
 function YourEntryTile({ submission, isInFarcaster }) {
   return (
-    <div className="bg-white rounded-xl border border-amber-200 bg-amber-50/50 w-full max-w-xs ml-auto">
+    <div className="bg-white rounded-xl border border-amber-200 bg-amber-50/50 w-full">
       <div className="p-3 flex gap-3 items-center">
         {submission.mockupUrl && (
           <div className="w-14 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
