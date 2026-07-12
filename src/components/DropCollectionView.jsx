@@ -11,6 +11,53 @@ import { openUrl } from '@/lib/clientAwareUrls';
 import { DesignStudioBanner } from './DesignStudioBanner';
 import { DropGuideCard, buildDropGuideContent } from './DropGuideCard';
 import { DropSubmitDesignTray } from './DropSubmitDesignTray';
+import { ShareDropdown } from './ShareDropdown';
+
+function formatDropProductLabel(entry) {
+  const type = entry?.productType || entry?.product_type;
+  const color = entry?.colorName || entry?.color_name;
+  const label = (value) => value ? value.charAt(0).toUpperCase() + value.slice(1) : '';
+  if (type && color) return `${label(type)} · ${label(color)}`;
+  return label(type) || 'design';
+}
+
+function getDropEntryShareContent(entry, shareType) {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const mockupId = entry?.mockupId || entry?.mockup_id;
+  const url = mockupId
+    ? `${origin}/design/${mockupId}`
+    : `${origin}/?collection=limited-drops`;
+  const productLabel = formatDropProductLabel(entry);
+
+  if (shareType === 'submission') {
+    return {
+      customUrl: url,
+      customText: `I just entered the Minted Merch Limited Drop with my custom ${productLabel} — vote for me! 🎨\n\n@mintedmerch`,
+    };
+  }
+
+  const creator = entry?.username ? `@${entry.username}` : 'this designer';
+  return {
+    customUrl: url,
+    customText: `I voted for ${creator}'s ${productLabel} in the Minted Merch Limited Drop 🗳️\n\nCast your vote on @mintedmerch 👇`,
+  };
+}
+
+function DropEntryShareButton({ entry, shareType, isInFarcaster, className = '' }) {
+  const content = getDropEntryShareContent(entry, shareType);
+  return (
+    <div className={`w-full [&>div]:w-full [&_button]:w-full [&_button]:justify-center ${className}`}>
+      <ShareDropdown
+        type="custom"
+        customUrl={content.customUrl}
+        customText={content.customText}
+        isInFarcaster={isInFarcaster}
+        buttonStyle="text"
+        buttonText="Share"
+      />
+    </div>
+  );
+}
 
 function VoteTierBadge({ tier, weight }) {
   const pill = (
@@ -130,7 +177,7 @@ function getCountdownEndsAt(phase, drop) {
 export function DropCollectionView({ products, onDesignStudioPlacementChange }) {
   const router = useRouter();
   const { addItem } = useCart();
-  const { getSessionToken, user } = useFarcaster();
+  const { getSessionToken, user, isInFarcaster } = useFarcaster();
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState(null);
   const [countdown, setCountdown] = useState(null);
@@ -401,23 +448,32 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
 
         <div ref={votingSectionRef} className="space-y-4">
         {userSubmission && (
-          <div className="bg-white rounded-xl border border-amber-200 bg-amber-50/50 p-4 flex gap-3 items-center">
-            {userSubmission.mockupUrl && (
-              <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={userSubmission.mockupUrl} alt="" className="w-full h-full object-contain" />
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-amber-800">Your entry · {userSubmission.voteCount || 0} votes</p>
-              <p className="text-sm text-gray-700 capitalize truncate">
-                {userSubmission.productType}{userSubmission.colorName ? ` · ${userSubmission.colorName}` : ''}
-              </p>
-              {userSubmission.mockupId && (
-                <Link href={`/design/${userSubmission.mockupId}`} className="text-xs text-[#3eb489] font-semibold hover:underline">
-                  View design →
-                </Link>
+          <div className="bg-white rounded-xl border border-amber-200 bg-amber-50/50 overflow-hidden">
+            <div className="p-4 flex gap-3 items-center">
+              {userSubmission.mockupUrl && (
+                <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={userSubmission.mockupUrl} alt="" className="w-full h-full object-contain" />
+                </div>
               )}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-amber-800">Your entry · {userSubmission.voteCount || 0} votes</p>
+                <p className="text-sm text-gray-700 capitalize truncate">
+                  {userSubmission.productType}{userSubmission.colorName ? ` · ${userSubmission.colorName}` : ''}
+                </p>
+                {userSubmission.mockupId && (
+                  <Link href={`/design/${userSubmission.mockupId}`} className="text-xs text-[#3eb489] font-semibold hover:underline">
+                    View design →
+                  </Link>
+                )}
+              </div>
+            </div>
+            <div className="px-4 pb-4">
+              <DropEntryShareButton
+                entry={userSubmission}
+                shareType="submission"
+                isInFarcaster={isInFarcaster}
+              />
             </div>
           </div>
         )}
@@ -482,7 +538,14 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
                       </button>
                     </div>
                   ) : isVoted ? (
-                    <div className="px-3 pb-3 text-center text-xs font-semibold text-[#3eb489]">Your pick ✓</div>
+                    <div className="px-3 pb-3 space-y-2">
+                      <p className="text-center text-xs font-semibold text-[#3eb489]">Your pick ✓</p>
+                      <DropEntryShareButton
+                        entry={entry}
+                        shareType="vote"
+                        isInFarcaster={isInFarcaster}
+                      />
+                    </div>
                   ) : null}
                 </div>
               );
