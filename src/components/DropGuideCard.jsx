@@ -206,26 +206,23 @@ export function buildDropGuideContent({
   if (phase === 'live') {
     const buyItems = [
       'Tap Order Now, pick your size, and add to cart',
-      'Checkout like any other Minted Merch order',
+      'Tap the cart icon & checkout — best discount is applied in cart',
       `${unitsLeft} of ${maxUnits} units remaining`,
     ];
     if (countdownText) {
-      buyItems.push(`Sale ends in ${countdownText} — don't wait too long`);
+      buyItems.push(`Sale ends in ${countdownText} — don't wait too long!`);
     }
 
     return {
-      icon: '⚡',
-      title: 'Limited Drop — Live Now',
-      description:
-        'This is a community-voted design with a strict cap on quantity and time. Once it\'s gone, it\'s gone.',
       sections: [
         { label: 'How to buy', items: buyItems },
         {
           label: 'About this drop',
           items: [
-            `Only ${maxUnits} units will ever be made for this design`,
+            `Only up to ${maxUnits} units will ever be made for this design`,
             '48-hour sale window — ends early if sold out',
-            'Want your own design instead? Use Design Studio below',
+            'Creator earns $mintedmerch for every unit sold',
+            'Want to order your own design or create one for the next drop? Use the Minted Merch Design Studio below',
           ],
         },
       ],

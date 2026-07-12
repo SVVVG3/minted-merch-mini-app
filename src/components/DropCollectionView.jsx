@@ -685,16 +685,13 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
                 )}
               </p>
               {canOrder ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => openOrderSheet(drop, winner)}
-                    className="w-full py-2.5 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-xl text-sm transition-colors"
-                  >
-                    Order Now
-                  </button>
-                  <DesignStudioBanner compact className="mt-3" />
-                </>
+                <button
+                  type="button"
+                  onClick={() => openOrderSheet(drop, winner)}
+                  className="w-full py-2.5 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-xl text-sm transition-colors"
+                >
+                  Order Now
+                </button>
               ) : (
                 <p className="text-xs text-gray-500">
                   {!saleWindowOpen ? 'Sale window ended (48-hour limit).' : unitsLeft <= 0 ? 'Sold out for this drop.' : 'Product listing coming to shop shortly.'}
@@ -714,6 +711,8 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
             canOrder,
           })}
         />
+
+        {canOrder && <DesignStudioBanner compact fullWidth />}
 
         {orderOpen && (
           <div className="fixed inset-0 z-50 flex flex-col justify-end">
