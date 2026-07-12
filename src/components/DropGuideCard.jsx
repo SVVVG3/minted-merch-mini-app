@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { DesignStudioBanner } from './DesignStudioBanner';
 
 function CheckItem({ children }) {
   return (
@@ -15,7 +16,7 @@ function GuideSection({ label, items, isFirst }) {
   if (!items?.length) return null;
   return (
     <div className={isFirst ? '' : 'mt-4'}>
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-2.5">
+      <p className="text-xs font-bold uppercase tracking-wider text-gray-600 mb-2.5">
         {label}
       </p>
       <ul className="space-y-2">
@@ -33,6 +34,7 @@ export function DropGuideCard({
   description,
   sections = [],
   primaryAction,
+  designStudioBanner = false,
   footer,
   className = '',
 }) {
@@ -87,6 +89,10 @@ export function DropGuideCard({
             </button>
           )}
         </div>
+      )}
+
+      {designStudioBanner && (
+        <DesignStudioBanner compact fullWidth className="mt-5" />
       )}
 
       {footer && (
@@ -277,13 +283,13 @@ export function buildDropGuideContent({
           ],
         },
       ],
-      primaryAction: { label: '🎨 Enter Design Studio', href: '/create' },
+      designStudioBanner: true,
       footer: 'Check back here — the next drop will appear on this page when it opens',
     };
   }
 
   return {
     sections: [],
-    primaryAction: { label: '🎨 Enter Design Studio', href: '/create' },
+    designStudioBanner: true,
   };
 }

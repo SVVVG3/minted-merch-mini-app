@@ -295,9 +295,10 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
     && !!(liveProductConfig?.shopifyProductId || drop?.shopifyProductId || liveDropProduct);
 
   useEffect(() => {
-    onDesignStudioPlacementChange?.(liveCanOrder);
+    if (loading) return;
+    onDesignStudioPlacementChange?.(liveCanOrder || phase === 'none');
     return () => onDesignStudioPlacementChange?.(false);
-  }, [liveCanOrder, onDesignStudioPlacementChange]);
+  }, [liveCanOrder, phase, loading, onDesignStudioPlacementChange]);
 
   if (loading) {
     return (

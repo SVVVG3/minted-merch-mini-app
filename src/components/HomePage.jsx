@@ -551,7 +551,7 @@ export function HomePage({ collection: initialCollection, products: initialProdu
         </div>
       </div>
 
-      {/* Design Studio banner — hidden during live limited drop purchase (shown below Order Now instead) */}
+      {/* Design Studio banner — hidden when shown inside the limited drop module instead */}
       {!dropDesignStudioAtBottom && (
         <DesignStudioBanner
           compact={selectedCollection?.handle === 'limited-drops'}
