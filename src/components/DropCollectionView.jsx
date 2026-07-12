@@ -9,6 +9,7 @@ import { getProductConfig } from '@/lib/designStudioConfig';
 import { getSoleLeaderSubmissionId } from '@/lib/dropHelpers';
 import { openUrl } from '@/lib/clientAwareUrls';
 import { DesignStudioBanner } from './DesignStudioBanner';
+import { DropGuideCard, buildDropGuideContent } from './DropGuideCard';
 
 function voteTierLabel(tier, weight) {
   if (tier === 'whale') return `🐋 ${weight} votes`;
@@ -312,16 +313,13 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
     const viewerFid = viewer.fid ? String(viewer.fid) : null;
 
     return (
-      <div className="px-4 py-6 max-w-lg mx-auto">
-        <div className="text-center mb-5">
+      <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
+        <div className="text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Limited Drop — Live</p>
           <h2 className="text-xl font-bold text-gray-900">Submit & Vote</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Top design wins · {drop?.maxUnits || 37} units produced
-          </p>
           <div className="flex flex-wrap justify-center gap-2 mt-3">
             {countdown && (
-              <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+              <span className="px-3 py-1 bg-[#3eb489]/10 text-[#3eb489] text-xs font-semibold rounded-full">
                 ⏱ {countdown}
               </span>
             )}
@@ -333,18 +331,17 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           </div>
         </div>
 
-        {!userSubmission && user?.fid && (
-          <div className="mb-5 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
-            <p className="text-sm text-gray-500 mb-4">Submit your design, then vote for your favorite (not your own).</p>
-            <Link href="/create" className="block w-full py-3.5 bg-[#3eb489] text-white font-semibold rounded-2xl text-sm">
-              🎨 Create & Submit a Design
-            </Link>
-            <p className="text-xs text-gray-400 mt-3">One submission per person per drop</p>
-          </div>
-        )}
+        <DropGuideCard
+          {...buildDropGuideContent({
+            phase,
+            drop,
+            viewer,
+            countdown,
+          })}
+        />
 
         {userSubmission && (
-          <div className="mb-5 bg-white rounded-xl border border-amber-200 bg-amber-50/50 p-4 flex gap-3 items-center">
+          <div className="bg-white rounded-xl border border-amber-200 bg-amber-50/50 p-4 flex gap-3 items-center">
             {userSubmission.mockupUrl && (
               <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -366,11 +363,11 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
         )}
 
         {voteError && (
-          <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">{voteError}</div>
+          <div className="px-4 py-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">{voteError}</div>
         )}
 
         {viewer.hasVoted && (
-          <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm font-semibold rounded-xl text-center">
+          <div className="px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm font-semibold rounded-xl text-center">
             ✅ Your vote is in ({viewer.voteWeight} pt{viewer.voteWeight !== 1 ? 's' : ''} counted)
           </div>
         )}
@@ -419,7 +416,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
                         type="button"
                         onClick={() => handleVote(entry.id)}
                         disabled={!!votingId}
-                        className="w-full py-2.5 bg-[#6A3CFF] hover:bg-[#5A2FE6] disabled:opacity-50 text-white font-semibold rounded-xl text-sm"
+                        className="w-full py-2.5 bg-[#3eb489] hover:bg-[#359970] disabled:opacity-50 text-white font-semibold rounded-xl text-sm"
                       >
                         {votingId === entry.id ? 'Submitting…' : `Vote (${viewer.voteWeight} pt${viewer.voteWeight !== 1 ? 's' : ''})`}
                       </button>
@@ -434,7 +431,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
         </div>
 
         {!viewer.fid && (
-          <p className="text-center text-xs text-gray-400 mt-6">Sign in with Farcaster to submit and vote</p>
+          <p className="text-center text-xs text-gray-400">Sign in with Farcaster to submit and vote</p>
         )}
       </div>
     );
@@ -442,25 +439,21 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
 
   if (phase === 'none') {
     return (
-      <div className="px-4 py-12 text-center max-w-md mx-auto">
-        <div className="text-4xl mb-3">🎯</div>
-        <h2 className="text-lg font-bold text-gray-900 mb-2">Limited Drops</h2>
-        <p className="text-sm text-gray-500 mb-6">
-          Community-curated weekly drops. Check back soon for the next drop.
-        </p>
-        <Link
-          href="/create"
-          className="inline-block px-6 py-3 bg-[#3eb489] text-white font-semibold rounded-2xl text-sm"
-        >
-          Create a Design →
-        </Link>
+      <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
+        <div className="text-center">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Limited Drops</p>
+          <h2 className="text-xl font-bold text-gray-900">Between Drops</h2>
+        </div>
+        <DropGuideCard
+          {...buildDropGuideContent({ phase, drop, viewer, countdown })}
+        />
       </div>
     );
   }
 
   if (phase === 'winner_pending') {
     return (
-      <div className="px-4 py-6 max-w-lg mx-auto">
+      <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
         {winner?.mockupUrl && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -469,10 +462,12 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
               <p className="text-xs font-semibold uppercase tracking-wide text-green-600 mb-1">🏆 Winner Selected</p>
               <h2 className="text-lg font-bold text-gray-900 mb-2">Limited Drop</h2>
               <DesignerCredit winner={winner} />
-              <p className="text-sm text-gray-400">Launching in the shop soon — {drop?.maxUnits || 37} units only.</p>
             </div>
           </div>
         )}
+        <DropGuideCard
+          {...buildDropGuideContent({ phase, drop, viewer, countdown })}
+        />
       </div>
     );
   }
@@ -487,7 +482,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
     const canOrder = liveCanOrder;
 
     return (
-      <div className="px-3 py-2 max-w-lg mx-auto">
+      <div className="px-3 py-2 max-w-lg mx-auto space-y-4">
         {winner?.mockupUrl && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="w-full aspect-square bg-gray-50 flex items-center justify-center">
@@ -537,6 +532,17 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
             </div>
           </div>
         )}
+
+        <DropGuideCard
+          {...buildDropGuideContent({
+            phase,
+            drop,
+            viewer,
+            countdown,
+            unitsLeft,
+            canOrder,
+          })}
+        />
 
         {orderOpen && (
           <div className="fixed inset-0 z-50 flex flex-col justify-end">
@@ -603,16 +609,16 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
 
   if (phase === 'sold_out') {
     return (
-      <div className="px-4 py-12 text-center max-w-md mx-auto">
-        <div className="text-4xl mb-3">🔥</div>
-        <h2 className="text-lg font-bold text-gray-900 mb-2">Limited Drop — Sold Out</h2>
+      <div className="px-4 py-6 max-w-lg mx-auto space-y-4">
         {winner?.mockupUrl && (
-          <div className="w-48 h-48 mx-auto mb-4 rounded-xl overflow-hidden bg-gray-100">
+          <div className="w-48 h-48 mx-auto rounded-xl overflow-hidden bg-gray-100">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={winner.mockupUrl} alt="" className="w-full h-full object-contain" />
           </div>
         )}
-        <p className="text-sm text-gray-500">All {drop.maxUnits} units are gone. Watch for the next drop!</p>
+        <DropGuideCard
+          {...buildDropGuideContent({ phase, drop, viewer, countdown })}
+        />
       </div>
     );
   }
