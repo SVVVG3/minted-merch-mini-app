@@ -40,7 +40,7 @@ function getDropEntryShareContent(entry, shareType) {
   const creator = entry?.username ? `@${entry.username}` : '@mintedmerch';
   return {
     customUrl: url,
-    customText: `I voted for ${creator}'s design to be the next @mintedmerch Limited Drop!\n\nCast your vote & submit your design in the mini app ↓`,
+    customText: `I voted for ${creator}'s design to be the next @mintedmerch Limited Drop!\n\nVote & submit your design in the mini app ↓`,
   };
 }
 
