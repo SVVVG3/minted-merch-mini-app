@@ -236,8 +236,8 @@ export function buildDropGuideContent({
           label: 'What happens next',
           items: [
             'The winning designer can claim earnings in Profile → Drop Earnings',
-            'Turn on notifications & watch Limited Drops for the next contest',
-            'Create your own custom merch anytime in the Minted Merch Design Studio',
+            'Turn on notifications & watch Limited Drops for a chance to submit a design for the next drop',
+            'Create & order your own custom merch anytime in the Minted Merch Design Studio',
           ],
         },
       ],
