@@ -462,7 +462,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
   const showDesignStudioInModule = liveCanOrder
     || phase === 'sold_out'
     || phase === 'none'
-    || (isActiveVotePhase && viewer.fid && !viewer.userSubmission);
+    || (isActiveVotePhase && viewer.fid);
 
   useEffect(() => {
     if (loading) return;
@@ -516,19 +516,33 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           </button>
         )}
 
-        {!userSubmission && viewer.fid && (
+        {viewer.fid && viewer.hasVoted && (
+          <button
+            type="button"
+            onClick={() => votingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="w-full py-3 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-2xl text-sm transition-colors"
+          >
+            ↓ View Leaderboard ↓
+          </button>
+        )}
+
+        {viewer.fid && (
           <div className="space-y-4">
-            <button
-              type="button"
-              onClick={() => setSubmitTrayOpen(true)}
-              className="w-full py-3.5 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-2xl text-sm transition-colors"
-            >
-              🎨 Submit a Design
-            </button>
+            {!userSubmission && (
+              <button
+                type="button"
+                onClick={() => setSubmitTrayOpen(true)}
+                className="w-full py-3.5 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-2xl text-sm transition-colors"
+              >
+                🎨 Submit a Design
+              </button>
+            )}
             <DesignStudioBanner compact fullWidth />
-            <p className="text-xs text-gray-400 text-center leading-snug">
-              One submission per person per drop
-            </p>
+            {!userSubmission && (
+              <p className="text-xs text-gray-400 text-center leading-snug">
+                One submission per person per drop
+              </p>
+            )}
           </div>
         )}
 
@@ -549,6 +563,12 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           open={submitTrayOpen}
           onClose={() => setSubmitTrayOpen(false)}
           onSubmitted={loadStatus}
+          onVoteNow={() => {
+            setSubmitTrayOpen(false);
+            window.setTimeout(() => {
+              votingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 150);
+          }}
           getSessionToken={getSessionToken}
         />
 

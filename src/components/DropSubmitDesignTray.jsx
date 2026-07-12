@@ -32,6 +32,7 @@ export function DropSubmitDesignTray({
   open,
   onClose,
   onSubmitted,
+  onVoteNow,
   getSessionToken,
 }) {
   const { isInFarcaster } = useFarcaster();
@@ -281,10 +282,10 @@ export function DropSubmitDesignTray({
             )}
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => onVoteNow?.()}
               className="w-full py-3 bg-[#3eb489] text-white font-semibold rounded-2xl text-base"
             >
-              Done
+              Vote Now
             </button>
           </div>
         )}
