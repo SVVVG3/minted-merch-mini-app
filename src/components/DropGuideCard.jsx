@@ -170,9 +170,6 @@ export function buildDropGuideContent({
           ],
         },
       ],
-      footer: !viewer.userSubmission && viewer.fid
-        ? 'One submission per person per drop'
-        : null,
     };
   }
 

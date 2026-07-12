@@ -476,7 +476,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
     return (
       <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Limited Drop — Live</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Limited Drop Submissions — Live</p>
           <h2 className="text-xl font-bold text-gray-900">Submit & Vote</h2>
           <div className="flex flex-wrap justify-center items-center gap-2 mt-3">
             {countdown && (
@@ -500,6 +500,22 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           </button>
         )}
 
+        {!userSubmission && viewer.fid && (
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={() => setSubmitTrayOpen(true)}
+              className="w-full py-3.5 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-2xl text-sm transition-colors"
+            >
+              🎨 Submit a Design
+            </button>
+            <DesignStudioBanner compact fullWidth />
+            <p className="text-xs text-gray-400 text-center leading-snug">
+              One submission per person per drop
+            </p>
+          </div>
+        )}
+
         {userSubmission && (
           <YourEntryTile submission={userSubmission} isInFarcaster={isInFarcaster} />
         )}
@@ -511,10 +527,6 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
             viewer,
             countdown,
           })}
-          primaryAction={!userSubmission && viewer.fid
-            ? { label: '🎨 Submit a Design', onClick: () => setSubmitTrayOpen(true) }
-            : null}
-          designStudioBanner={!userSubmission && !!viewer.fid}
         />
 
         <DropSubmitDesignTray
