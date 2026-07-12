@@ -231,21 +231,16 @@ export function buildDropGuideContent({
 
   if (phase === 'sold_out') {
     return {
-      icon: '🔥',
-      title: 'Drop Complete',
-      description:
-        `All ${maxUnits} units from this limited drop have sold out. Thanks to everyone who participated!`,
       sections: [
         {
           label: 'What happens next',
           items: [
             'The winning designer can claim earnings in Profile → Drop Earnings',
-            'Watch Limited Drops for the next weekly contest',
-            'Create your own custom merch anytime in Design Studio',
+            'Turn on notifications & watch Limited Drops for the next contest',
+            'Create your own custom merch anytime in the Minted Merch Design Studio',
           ],
         },
       ],
-      primaryAction: { label: '🎨 Open Design Studio', href: '/create' },
     };
   }
 

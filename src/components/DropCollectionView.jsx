@@ -450,6 +450,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
     && !!(liveProductConfig?.shopifyProductId || drop?.shopifyProductId || liveDropProduct);
   const isActiveVotePhase = phase === 'active' || phase === 'submissions' || phase === 'voting';
   const showDesignStudioInModule = liveCanOrder
+    || phase === 'sold_out'
     || phase === 'none'
     || (isActiveVotePhase && viewer.fid && !viewer.userSubmission);
 
@@ -778,17 +779,55 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
   }
 
   if (phase === 'sold_out') {
+    const maxUnits = drop?.maxUnits || 37;
+    const dropProduct = resolveDropProduct(drop);
+    const displayPrice = dropProduct?.priceRange?.minVariantPrice?.amount;
+
     return (
-      <div className="px-4 py-6 max-w-lg mx-auto space-y-4">
+      <div className="px-3 py-2 max-w-lg mx-auto space-y-4">
         {winner?.mockupUrl && (
-          <div className="w-48 h-48 mx-auto rounded-xl overflow-hidden bg-gray-100">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={winner.mockupUrl} alt="" className="w-full h-full object-contain" />
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="w-full aspect-square bg-gray-50 flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={winner.mockupUrl}
+                alt="Winning drop design"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="px-3 py-2.5 text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Sold Out</p>
+              <div className="flex items-center justify-center gap-2 mt-0.5 mb-1">
+                <h2 className="text-base font-bold text-gray-900">Limited Drop</h2>
+                {displayPrice && (
+                  <span className="text-base font-bold text-gray-900">
+                    ${parseFloat(displayPrice).toFixed(2)}
+                  </span>
+                )}
+              </div>
+              <DesignerCredit winner={winner} compact />
+              <p className="text-xs text-gray-400 mb-3 leading-snug">
+                Sold out · 0 of {maxUnits} left
+                {winner.productType && (
+                  <span className="capitalize"> · {winner.productType}{winner.colorName ? ` · ${winner.colorName}` : ''}</span>
+                )}
+              </p>
+              <button
+                type="button"
+                disabled
+                className="w-full py-2.5 bg-gray-200 text-gray-500 font-semibold rounded-xl text-sm cursor-not-allowed"
+              >
+                Sold Out
+              </button>
+            </div>
           </div>
         )}
+
         <DropGuideCard
           {...buildDropGuideContent({ phase, drop, viewer, countdown })}
         />
+
+        <DesignStudioBanner compact fullWidth />
       </div>
     );
   }
