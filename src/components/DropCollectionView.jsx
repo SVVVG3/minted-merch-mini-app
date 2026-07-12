@@ -53,7 +53,7 @@ function DropEntryShareButton({ entry, shareType, isInFarcaster, className = '' 
         customText={content.customText}
         isInFarcaster={isInFarcaster}
         buttonStyle="text"
-        buttonText="Share"
+        buttonText={shareType === 'submission' ? 'Share My Entry' : 'Share My Vote'}
         dropUp
       />
     </div>
@@ -133,15 +133,26 @@ function CreatorProfileLink({ username, fid, pfpUrl, size = 'sm' }) {
   );
 }
 
-function ViewDesignButton({ mockupId, className = '' }) {
+function ViewDesignLink({ mockupId }) {
   if (!mockupId) return null;
   return (
     <Link
       href={`/design/${mockupId}`}
-      className={`block w-full py-2 text-center text-sm font-semibold text-[#3eb489] border border-[#3eb489]/30 rounded-xl hover:bg-[#3eb489]/5 transition-colors ${className}`}
+      className="text-xs text-[#3eb489] font-semibold hover:underline flex-shrink-0 whitespace-nowrap"
     >
-      View Design
+      View design →
     </Link>
+  );
+}
+
+function EntryProductLine({ productType, colorName, mockupId, className = '' }) {
+  return (
+    <div className={`flex items-center gap-2 min-w-0 ${className}`}>
+      <p className="text-sm font-semibold text-gray-900 capitalize truncate">
+        {productType}{colorName ? ` · ${colorName}` : ''}
+      </p>
+      <ViewDesignLink mockupId={mockupId} />
+    </div>
   );
 }
 
@@ -157,13 +168,14 @@ function YourEntryTile({ submission, isInFarcaster }) {
         )}
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold text-amber-800">Your entry · {submission.voteCount || 0} votes</p>
-          <p className="text-sm text-gray-700 capitalize truncate">
-            {submission.productType}{submission.colorName ? ` · ${submission.colorName}` : ''}
-          </p>
+          <EntryProductLine
+            productType={submission.productType}
+            colorName={submission.colorName}
+            mockupId={submission.mockupId}
+          />
         </div>
       </div>
-      <div className="px-3 pb-3 space-y-2">
-        <ViewDesignButton mockupId={submission.mockupId} />
+      <div className="px-3 pb-3">
         <DropEntryShareButton
           entry={submission}
           shareType="submission"
@@ -544,9 +556,11 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
                       )}
                     </div>
                     <div className="flex-1 min-w-0 flex flex-col justify-center">
-                      <p className="text-sm font-semibold text-gray-900 capitalize truncate">
-                        {entry.productType}{entry.colorName ? ` · ${entry.colorName}` : ''}
-                      </p>
+                      <EntryProductLine
+                        productType={entry.productType}
+                        colorName={entry.colorName}
+                        mockupId={entry.mockupId}
+                      />
                       <div className="flex items-center mt-0.5">
                         <CreatorProfileLink
                           username={entry.username}
@@ -559,8 +573,8 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
                       </p>
                     </div>
                   </div>
+                  {(isOwn || canVote || isVoted) && (
                   <div className="px-3 pb-3 space-y-2">
-                    <ViewDesignButton mockupId={entry.mockupId} />
                     {isOwn ? (
                       <p className="text-xs text-center text-gray-400 py-2 bg-gray-50 rounded-lg">Your design — others vote for you</p>
                     ) : canVote ? (
@@ -583,6 +597,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
                       </>
                     ) : null}
                   </div>
+                  )}
                 </div>
               );
             })
