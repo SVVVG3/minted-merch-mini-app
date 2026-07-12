@@ -506,24 +506,8 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           </div>
         </div>
 
-        {viewer.fid && !viewer.hasVoted && (
-          <button
-            type="button"
-            onClick={() => votingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            className="w-full py-3 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-2xl text-sm transition-colors"
-          >
-            ↓ Vote Now ↓
-          </button>
-        )}
-
-        {viewer.fid && viewer.hasVoted && (
-          <button
-            type="button"
-            onClick={() => votingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            className="w-full py-3 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-2xl text-sm transition-colors"
-          >
-            ↓ View Leaderboard ↓
-          </button>
+        {userSubmission && (
+          <YourEntryTile submission={userSubmission} isInFarcaster={isInFarcaster} />
         )}
 
         {viewer.fid && (
@@ -546,8 +530,24 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           </div>
         )}
 
-        {userSubmission && (
-          <YourEntryTile submission={userSubmission} isInFarcaster={isInFarcaster} />
+        {viewer.fid && !viewer.hasVoted && (
+          <button
+            type="button"
+            onClick={() => votingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="w-full py-3 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-2xl text-sm transition-colors"
+          >
+            ↓ Vote Now ↓
+          </button>
+        )}
+
+        {viewer.fid && viewer.hasVoted && (
+          <button
+            type="button"
+            onClick={() => votingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="w-full py-3 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-2xl text-sm transition-colors"
+          >
+            ↓ View Leaderboard ↓
+          </button>
         )}
 
         <DropGuideCard
