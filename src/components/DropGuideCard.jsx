@@ -130,7 +130,7 @@ export function buildDropGuideContent({
     if (viewer.userSubmission) {
       whatToDo.push('Your design is in — share it and rally votes from the community');
     } else {
-      whatToDo.push('Create one custom design in Design Studio and submit it to enter');
+      whatToDo.push('Select a saved design from your library and submit it to enter');
     }
     if (viewer.hasVoted) {
       whatToDo.push('Your vote is locked in — watch the leaderboard until voting ends');
@@ -145,10 +145,6 @@ export function buildDropGuideContent({
     }
 
     return {
-      icon: '🎯',
-      title: 'How Limited Drops Work',
-      description:
-        'A weekly community design contest. The top-voted design becomes a real limited-edition product in the Minted Merch shop.',
       sections: [
         { label: 'What to do now', items: whatToDo },
         {
@@ -168,9 +164,6 @@ export function buildDropGuideContent({
           ],
         },
       ],
-      primaryAction: !viewer.userSubmission && viewer.fid
-        ? { label: '🎨 Create & Submit a Design', href: '/create' }
-        : null,
       footer: !viewer.userSubmission && viewer.fid
         ? 'One submission per person per drop'
         : viewer.userSubmission && !viewer.hasVoted && viewer.fid

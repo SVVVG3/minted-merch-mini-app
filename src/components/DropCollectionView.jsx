@@ -10,11 +10,42 @@ import { getSoleLeaderSubmissionId } from '@/lib/dropHelpers';
 import { openUrl } from '@/lib/clientAwareUrls';
 import { DesignStudioBanner } from './DesignStudioBanner';
 import { DropGuideCard, buildDropGuideContent } from './DropGuideCard';
+import { DropSubmitDesignTray } from './DropSubmitDesignTray';
 
-function voteTierLabel(tier, weight) {
-  if (tier === 'whale') return `🐋 ${weight} votes`;
-  if (tier === 'mogul') return `⭐ ${weight} votes`;
-  return `${weight} vote`;
+function VoteTierBadge({ tier, weight }) {
+  if (tier === 'whale') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/GoldVerifiedMerchMogulBadge.png"
+          alt="Whale"
+          className="h-4 w-4 object-contain"
+          title="200M+ $mintedmerch staked"
+        />
+        {weight} votes
+      </span>
+    );
+  }
+  if (tier === 'mogul') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/VerifiedMerchMogulBadge.png"
+          alt="Merch Mogul"
+          className="h-4 w-4 object-contain"
+          title="50M+ $mintedmerch staked"
+        />
+        {weight} votes
+      </span>
+    );
+  }
+  return (
+    <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
+      {weight} vote{weight !== 1 ? 's' : ''}
+    </span>
+  );
 }
 
 function CreatorAvatar({ username, fid, pfpUrl, size = 'sm' }) {
@@ -108,6 +139,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
   const [orderError, setOrderError] = useState('');
   const [votingId, setVotingId] = useState(null);
   const [voteError, setVoteError] = useState('');
+  const [submitTrayOpen, setSubmitTrayOpen] = useState(false);
 
   const loadStatus = useCallback(async () => {
     const token = getSessionToken();
@@ -293,12 +325,16 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
   const liveProductConfig = winner?.productType ? getProductConfig(winner.productType) : null;
   const liveCanOrder = phase === 'live' && liveUnitsLeft > 0 && liveSaleWindowOpen
     && !!(liveProductConfig?.shopifyProductId || drop?.shopifyProductId || liveDropProduct);
+  const isActiveVotePhase = phase === 'active' || phase === 'submissions' || phase === 'voting';
+  const showDesignStudioInModule = liveCanOrder
+    || phase === 'none'
+    || (isActiveVotePhase && viewer.fid && !viewer.userSubmission);
 
   useEffect(() => {
     if (loading) return;
-    onDesignStudioPlacementChange?.(liveCanOrder || phase === 'none');
+    onDesignStudioPlacementChange?.(showDesignStudioInModule);
     return () => onDesignStudioPlacementChange?.(false);
-  }, [liveCanOrder, phase, loading, onDesignStudioPlacementChange]);
+  }, [showDesignStudioInModule, loading, onDesignStudioPlacementChange]);
 
   if (loading) {
     return (
@@ -325,9 +361,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
               </span>
             )}
             {viewer.fid && (
-              <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
-                {voteTierLabel(viewer.voteTier, viewer.voteWeight)}
-              </span>
+              <VoteTierBadge tier={viewer.voteTier} weight={viewer.voteWeight} />
             )}
           </div>
         </div>
@@ -339,6 +373,17 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
             viewer,
             countdown,
           })}
+          primaryAction={!userSubmission && viewer.fid
+            ? { label: '🎨 Submit a Design', onClick: () => setSubmitTrayOpen(true) }
+            : null}
+          designStudioBanner={!userSubmission && !!viewer.fid}
+        />
+
+        <DropSubmitDesignTray
+          open={submitTrayOpen}
+          onClose={() => setSubmitTrayOpen(false)}
+          onSubmitted={loadStatus}
+          getSessionToken={getSessionToken}
         />
 
         {userSubmission && (
