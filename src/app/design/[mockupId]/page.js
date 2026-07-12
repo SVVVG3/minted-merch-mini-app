@@ -5,8 +5,10 @@ const BASE_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.sh
 
 const PRODUCT_LABELS = { tshirt: 'T-Shirt', hoodie: 'Hoodie', hat: 'Hat' };
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata({ params, searchParams }) {
   const { mockupId } = await params;
+  const resolvedSearchParams = searchParams?.then ? await searchParams : searchParams;
+  const isDropShare = resolvedSearchParams?.dropShare === '1';
 
   try {
     const res = await fetch(`${BASE_URL}/api/design-studio/mockup/${mockupId}`, { cache: 'no-store' });
@@ -18,7 +20,9 @@ export async function generateMetadata({ params }) {
       const creatorName = creator?.username ? `@${creator.username}` : 'a Minted Merch creator';
       const title = `Custom ${productLabel} by ${creatorName} — Minted Merch`;
       const description = `Check out this custom design and buy it on Minted Merch!`;
-      const launchUrl = `${BASE_URL}/design/${mockupId}`;
+      const launchUrl = isDropShare
+        ? `${BASE_URL}/?collection=limited-drops`
+        : `${BASE_URL}/design/${mockupId}`;
 
       // Build branded OG image URL
       const mogulTier = creator?.isGoldMogul ? 'gold' : creator?.isMerchMogul ? 'green' : '';

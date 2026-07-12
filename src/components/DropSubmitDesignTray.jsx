@@ -5,24 +5,15 @@ import Link from 'next/link';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { ShareDropdown } from './ShareDropdown';
 
-function formatDropProductLabel(mockup) {
-  const type = mockup?.product_type;
-  const color = mockup?.color_name;
-  const label = (value) => value ? value.charAt(0).toUpperCase() + value.slice(1) : '';
-  if (type && color) return `${label(type)} · ${label(color)}`;
-  return label(type) || 'design';
-}
-
 function getSubmittedDesignShareContent(mockup) {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const url = mockup?.id
-    ? `${origin}/design/${mockup.id}`
+    ? `${origin}/design/${mockup.id}?dropShare=1`
     : `${origin}/?collection=limited-drops`;
-  const productLabel = formatDropProductLabel(mockup);
 
   return {
     customUrl: url,
-    customText: `I just entered the Minted Merch Limited Drop with my custom ${productLabel} — vote for me! 🎨\n\n@mintedmerch`,
+    customText: 'I just submitted my design for the upcoming @mintedmerch Limited Drop!\n\nSubmit your own & cast your vote below ↓',
   };
 }
 

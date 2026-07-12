@@ -23,33 +23,24 @@ function getSubmitVoteHeading(viewer = {}) {
   return 'Submit & Vote';
 }
 
-function formatDropProductLabel(entry) {
-  const type = entry?.productType || entry?.product_type;
-  const color = entry?.colorName || entry?.color_name;
-  const label = (value) => value ? value.charAt(0).toUpperCase() + value.slice(1) : '';
-  if (type && color) return `${label(type)} · ${label(color)}`;
-  return label(type) || 'design';
-}
-
 function getDropEntryShareContent(entry, shareType) {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const mockupId = entry?.mockupId || entry?.mockup_id;
   const url = mockupId
-    ? `${origin}/design/${mockupId}`
+    ? `${origin}/design/${mockupId}?dropShare=1`
     : `${origin}/?collection=limited-drops`;
-  const productLabel = formatDropProductLabel(entry);
 
   if (shareType === 'submission') {
     return {
       customUrl: url,
-      customText: `I just entered the Minted Merch Limited Drop with my custom ${productLabel} — vote for me! 🎨\n\n@mintedmerch`,
+      customText: 'I just submitted my design for the upcoming @mintedmerch Limited Drop!\n\nSubmit your own & cast your vote below ↓',
     };
   }
 
-  const creator = entry?.username ? `@${entry.username}` : 'this designer';
+  const creator = entry?.username ? `@${entry.username}` : '@mintedmerch';
   return {
     customUrl: url,
-    customText: `I voted for ${creator}'s ${productLabel} in the Minted Merch Limited Drop 🗳️\n\nCast your vote on @mintedmerch 👇`,
+    customText: `I voted for ${creator}'s design to be the next @mintedmerch Limited Drop!\n\nCast your vote & submit your design in the mini app ↓`,
   };
 }
 
