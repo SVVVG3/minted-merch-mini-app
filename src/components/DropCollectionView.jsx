@@ -13,39 +13,41 @@ import { DropGuideCard, buildDropGuideContent } from './DropGuideCard';
 import { DropSubmitDesignTray } from './DropSubmitDesignTray';
 
 function VoteTierBadge({ tier, weight }) {
+  const pill = (
+    <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
+      {weight} vote{weight !== 1 ? 's' : ''}
+    </span>
+  );
+
   if (tier === 'whale') {
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
+      <span className="inline-flex items-center gap-2">
+        {pill}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/GoldVerifiedMerchMogulBadge.png"
           alt="Whale"
-          className="h-4 w-4 object-contain"
+          className="h-10 w-auto object-contain"
           title="200M+ $mintedmerch staked"
         />
-        {weight} votes
       </span>
     );
   }
   if (tier === 'mogul') {
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
+      <span className="inline-flex items-center gap-2">
+        {pill}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/VerifiedMerchMogulBadge.png"
           alt="Merch Mogul"
-          className="h-4 w-4 object-contain"
+          className="h-10 w-auto object-contain"
           title="50M+ $mintedmerch staked"
         />
-        {weight} votes
       </span>
     );
   }
-  return (
-    <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
-      {weight} vote{weight !== 1 ? 's' : ''}
-    </span>
-  );
+  return pill;
 }
 
 function CreatorAvatar({ username, fid, pfpUrl, size = 'sm' }) {
@@ -354,7 +356,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
         <div className="text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Limited Drop — Live</p>
           <h2 className="text-xl font-bold text-gray-900">Submit & Vote</h2>
-          <div className="flex flex-wrap justify-center gap-2 mt-3">
+          <div className="flex flex-wrap justify-center items-center gap-2 mt-3">
             {countdown && (
               <span className="px-3 py-1 bg-[#3eb489]/10 text-[#3eb489] text-xs font-semibold rounded-full">
                 ⏱ {countdown}

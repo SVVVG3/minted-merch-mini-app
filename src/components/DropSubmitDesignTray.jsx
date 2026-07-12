@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 
 export function DropSubmitDesignTray({
@@ -16,6 +16,7 @@ export function DropSubmitDesignTray({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const confirmSectionRef = useRef(null);
 
   const loadMockups = useCallback(async () => {
     const token = getSessionToken();
@@ -45,6 +46,14 @@ export function DropSubmitDesignTray({
     setSuccess(false);
     loadMockups();
   }, [open, loadMockups]);
+
+  useEffect(() => {
+    if (!selectedMockup || !confirmSectionRef.current) return;
+    const id = requestAnimationFrame(() => {
+      confirmSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [selectedMockup]);
 
   const handleSubmit = async () => {
     if (!selectedMockup) return;
@@ -172,7 +181,7 @@ export function DropSubmitDesignTray({
                 </div>
 
                 {selectedMockup && (
-                  <>
+                  <div ref={confirmSectionRef} className="pt-1">
                     <label className="flex items-start gap-3 cursor-pointer mb-4">
                       <div
                         onClick={() => setConfirmed((v) => !v)}
@@ -203,7 +212,7 @@ export function DropSubmitDesignTray({
                     >
                       {submitting ? 'Submitting…' : 'Submit Selected Design'}
                     </button>
-                  </>
+                  </div>
                 )}
               </>
             )}
