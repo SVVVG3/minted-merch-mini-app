@@ -476,6 +476,12 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
     return (
       <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
         <div className="text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/MintedMerchSpinnerLogo.png"
+            alt="Minted Merch"
+            className="h-10 mx-auto mb-3 object-contain"
+          />
           <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Limited Drop Submissions — Live</p>
           <h2 className="text-xl font-bold text-gray-900">Submit & Vote</h2>
           <div className="flex flex-wrap justify-center items-center gap-2 mt-3">
@@ -496,7 +502,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
             onClick={() => votingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             className="w-full py-3 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-2xl text-sm transition-colors"
           >
-            Vote Now
+            ↓ Vote Now ↓
           </button>
         )}
 
