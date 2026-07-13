@@ -256,7 +256,7 @@ function getCountdownEndsAt(phase, drop) {
 export function DropCollectionView({ products, onDesignStudioPlacementChange }) {
   const router = useRouter();
   const { addItem } = useCart();
-  const { getSessionToken, user, isInFarcaster } = useFarcaster();
+  const { getSessionToken, user, isInFarcaster, sessionToken } = useFarcaster();
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState(null);
   const [countdown, setCountdown] = useState(null);
@@ -287,8 +287,10 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
   }, [getSessionToken]);
 
   useEffect(() => {
+    // Wait for session token when Farcaster user is known — avoids a false signed-out state
+    if (user?.fid && !sessionToken) return;
     loadStatus();
-  }, [loadStatus, user?.fid]);
+  }, [loadStatus, user?.fid, sessionToken]);
 
   useEffect(() => {
     const endsAt = getCountdownEndsAt(status?.phase, status?.drop);

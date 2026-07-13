@@ -174,9 +174,27 @@ export function useFarcaster() {
     async function getMiniAppSession() {
       // Multi-level guard to prevent duplicate requests
       if (!isInFarcaster || !user?.fid) return;
-      
-      // Check if we already have a valid session token FOR THE SAME USER
+
       const existingToken = localStorage.getItem('fc_session_token');
+
+      // Hydrate in-memory token from localStorage before hitting Quick Auth again
+      if (existingToken && !sessionToken) {
+        try {
+          const parts = existingToken.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]));
+            const expiresAt = payload.exp * 1000;
+            if (payload.fid && parseInt(payload.fid) === user.fid && expiresAt > Date.now()) {
+              setSessionToken(existingToken);
+              return;
+            }
+          }
+        } catch {
+          localStorage.removeItem('fc_session_token');
+        }
+      }
+
+      // Check if we already have a valid session token FOR THE SAME USER
       if (existingToken && sessionToken) {
         try {
           const parts = existingToken.split('.');
