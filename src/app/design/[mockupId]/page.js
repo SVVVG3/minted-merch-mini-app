@@ -33,7 +33,7 @@ export async function generateMetadata({ params, searchParams }) {
       const ogParams = new URLSearchParams({
         ...(mockup?.mockup_url && { mockupUrl: mockup.mockup_url }),
         ...(mockup?.product_type && { productType: mockup.product_type }),
-        ...(mockup?.color_name && { colorName: mockup.color_name }),
+        ...(mockup?.color_name && !isDropShare && { colorName: mockup.color_name }),
         ...(creator?.username && { creatorHandle: `@${creator.username}` }),
         ...(mogulTier && { mogulTier }),
       });
