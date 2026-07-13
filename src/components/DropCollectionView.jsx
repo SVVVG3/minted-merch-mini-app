@@ -25,10 +25,14 @@ function getSubmitVoteHeading(viewer = {}) {
 
 function getLiveDropShareContent(winner, drop) {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const mockupId = winner?.mockupId || winner?.mockup_id;
   const creator = winner?.username ? `@${winner.username}` : '@mintedmerch';
   const maxUnits = drop?.maxUnits || 37;
+  const url = mockupId
+    ? `${origin}/design/${mockupId}?dropShare=1`
+    : `${origin}/?collection=limited-drops`;
   return {
-    customUrl: `${origin}/?collection=limited-drops`,
+    customUrl: url,
     customText: `Check out the latest Limited Drop on @mintedmerch!\n\nDesigned by ${creator} - only ${maxUnits} available for 48 hours`,
   };
 }

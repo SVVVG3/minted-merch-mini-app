@@ -18,8 +18,12 @@ export async function generateMetadata({ params, searchParams }) {
         ? (PRODUCT_LABELS[mockup.product_type] || mockup.product_type.charAt(0).toUpperCase() + mockup.product_type.slice(1))
         : 'Design';
       const creatorName = creator?.username ? `@${creator.username}` : 'a Minted Merch creator';
-      const title = `Custom ${productLabel} by ${creatorName} — Minted Merch`;
-      const description = `Check out this custom design and buy it on Minted Merch!`;
+      const title = isDropShare
+        ? `Limited Drop by ${creatorName} — Minted Merch`
+        : `Custom ${productLabel} by ${creatorName} — Minted Merch`;
+      const description = isDropShare
+        ? `Check out this Limited Drop — only available for 48 hours on Minted Merch!`
+        : `Check out this custom design and buy it on Minted Merch!`;
       const launchUrl = isDropShare
         ? `${BASE_URL}/?collection=limited-drops`
         : `${BASE_URL}/design/${mockupId}`;
@@ -44,7 +48,7 @@ export async function generateMetadata({ params, searchParams }) {
             version: 'next',
             imageUrl,
             button: {
-              title: 'Create & Order Your Design 🎨',
+              title: isDropShare ? 'Shop Limited Drop ↓' : 'Create & Order Your Design 🎨',
               action: {
                 type: 'launch_frame',
                 url: launchUrl,
