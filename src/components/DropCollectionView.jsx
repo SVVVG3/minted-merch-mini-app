@@ -162,6 +162,21 @@ function formatCustomProductLabel(productType) {
   return `Custom ${label}`;
 }
 
+function resolveWinnerShopifyProduct(winner, products) {
+  const productConfig = winner?.productType ? getProductConfig(winner.productType) : null;
+  if (!productConfig?.shopifyProductId || !products?.length) return null;
+  return products.find((p) => p.id === productConfig.shopifyProductId) || null;
+}
+
+function resolveWinnerDisplayPrice(winner, products) {
+  const productConfig = winner?.productType ? getProductConfig(winner.productType) : null;
+  const shopifyProduct = resolveWinnerShopifyProduct(winner, products);
+  const shopifyPrice = shopifyProduct?.priceRange?.minVariantPrice?.amount;
+  if (shopifyPrice != null) return parseFloat(shopifyPrice);
+  if (productConfig?.displayPrice != null) return productConfig.displayPrice;
+  return null;
+}
+
 function EntryProductLine({ productType, mockupId, className = '' }) {
   return (
     <div className={`flex items-center gap-2 min-w-0 ${className}`}>
@@ -703,17 +718,16 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
     const unitsLeft = liveUnitsLeft;
     const saleEndsAt = liveSaleEndsAt;
     const saleWindowOpen = liveSaleWindowOpen;
-    const dropProduct = liveDropProduct;
     const productConfig = liveProductConfig;
-    const displayPrice = dropProduct?.priceRange?.minVariantPrice?.amount;
+    const displayPrice = resolveWinnerDisplayPrice(winner, products);
     const canOrder = liveCanOrder;
     const liveDropShare = getLiveDropShareContent(winner, drop);
 
     return (
       <div className="px-3 py-2 max-w-lg mx-auto space-y-4">
         {winner?.mockupUrl && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="w-full aspect-square bg-gray-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+            <div className="w-full aspect-square bg-gray-50 flex items-center justify-center overflow-hidden rounded-t-2xl">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={winner.mockupUrl}
@@ -758,6 +772,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
                       isInFarcaster={isInFarcaster}
                       buttonStyle="text"
                       buttonText="Share This Drop"
+                      dropUp
                     />
                   </div>
                 </div>
@@ -848,8 +863,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
 
   if (phase === 'sold_out') {
     const maxUnits = drop?.maxUnits || 37;
-    const dropProduct = resolveDropProduct(drop);
-    const displayPrice = dropProduct?.priceRange?.minVariantPrice?.amount;
+    const displayPrice = resolveWinnerDisplayPrice(winner, products);
 
     return (
       <div className="px-3 py-2 max-w-lg mx-auto space-y-4">
