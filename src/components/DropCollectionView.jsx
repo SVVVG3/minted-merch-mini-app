@@ -146,11 +146,17 @@ function ViewDesignLink({ mockupId }) {
   );
 }
 
-function EntryProductLine({ productType, colorName, mockupId, className = '' }) {
+function formatCustomProductLabel(productType) {
+  if (!productType) return 'Custom Design';
+  const label = productType.charAt(0).toUpperCase() + productType.slice(1);
+  return `Custom ${label}`;
+}
+
+function EntryProductLine({ productType, mockupId, className = '' }) {
   return (
     <div className={`flex items-center gap-2 min-w-0 ${className}`}>
-      <p className="text-sm font-semibold text-gray-900 capitalize truncate">
-        {productType}{colorName ? ` · ${colorName}` : ''}
+      <p className="text-sm font-semibold text-gray-900 truncate">
+        {formatCustomProductLabel(productType)}
       </p>
       <ViewDesignLink mockupId={mockupId} />
     </div>
@@ -171,7 +177,6 @@ function YourEntryTile({ submission, isInFarcaster }) {
           <p className="text-xs font-semibold text-amber-800">Your entry · {submission.voteCount || 0} votes</p>
           <EntryProductLine
             productType={submission.productType}
-            colorName={submission.colorName}
             mockupId={submission.mockupId}
           />
         </div>
@@ -598,7 +603,6 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
                     <div className="flex-1 min-w-0 flex flex-col justify-center">
                       <EntryProductLine
                         productType={entry.productType}
-                        colorName={entry.colorName}
                         mockupId={entry.mockupId}
                       />
                       <div className="flex items-center mt-0.5">
