@@ -34,6 +34,129 @@ function getSupabaseAdmin() {
   );
 }
 
+function resolveEffectivePrintfulTechnique(productConfig, reqTechnique) {
+  const raw =
+    productConfig?.printfulTechnique ||
+    reqTechnique ||
+    productConfig?.technique ||
+    null;
+  if (!raw || raw === 'DTG') return null;
+  return raw;
+}
+
+function isSizeOnlyProduct(productConfig) {
+  return productConfig?.technique === 'SUBLIMATION';
+}
+
+function isAllOverPrintTechnique(effectiveTechnique, productConfig) {
+  return (
+    effectiveTechnique === 'CUT-SEW' ||
+    effectiveTechnique === 'SUBLIMATION' ||
+    productConfig?.technique === 'SUBLIMATION'
+  );
+}
+
+function resolveVariantFromList(allVariants, req, productConfig) {
+  const sizeNorm = (req.size || '').toUpperCase().trim();
+  const colorLower = (req.color_name || '').toLowerCase();
+
+  if (isSizeOnlyProduct(productConfig)) {
+    const bySize = allVariants.filter(
+      (v) => v.size && v.size.toUpperCase().trim() === sizeNorm
+    );
+    const matched = bySize.length > 0 ? bySize : allVariants;
+    return matched[0]?.id ?? null;
+  }
+
+  let matched = allVariants.filter(
+    (v) =>
+      v.color &&
+      v.color.toLowerCase() === colorLower &&
+      v.size &&
+      v.size.toUpperCase().trim() === sizeNorm
+  );
+
+  if (matched.length === 0 && colorLower) {
+    console.warn(
+      `⚠️ No exact color+size match for "${req.color_name}" / "${req.size}" — falling back to color-only`
+    );
+    matched = allVariants.filter(
+      (v) => v.color && v.color.toLowerCase() === colorLower
+    );
+  }
+
+  if (matched.length === 0) {
+    const bySize = allVariants.filter(
+      (v) => v.size && v.size.toUpperCase().trim() === sizeNorm
+    );
+    if (bySize.length > 0) matched = bySize;
+  }
+
+  if (matched.length === 0) {
+    console.warn('⚠️ No variant match — using first available variant');
+    matched = allVariants;
+  }
+
+  return matched[0]?.id ?? null;
+}
+
+function resolveStoredVariantId(req, productConfig) {
+  const storedIds = Array.isArray(req.printful_variant_ids) ? req.printful_variant_ids : [];
+  if (!storedIds.length) return null;
+
+  if (isSizeOnlyProduct(productConfig) && productConfig?.sizes?.length) {
+    const sizeIndex = productConfig.sizes.indexOf(req.size);
+    if (sizeIndex >= 0 && sizeIndex < storedIds.length) {
+      return storedIds[sizeIndex];
+    }
+  }
+
+  return storedIds[0] ?? null;
+}
+
+function computeAllOverPosition(pf, req, productConfig) {
+  const aw = pf.width;
+  const ah = pf.height;
+  const scale =
+    typeof req.design_scale === 'number' && req.design_scale > 0
+      ? req.design_scale
+      : productConfig.defaultScale ?? 1.0;
+  const shorter = Math.min(aw, ah);
+  const size = Math.round(shorter * scale);
+  return {
+    area_width: aw,
+    area_height: ah,
+    width: size,
+    height: size,
+    top: Math.round((ah - size) / 2),
+    left: Math.round((aw - size) / 2),
+  };
+}
+
+async function resolvePrintFileType(req, productConfig, effectiveTechnique) {
+  if (req.placement === 'leftchest' && req.technique === 'EMBROIDERY') {
+    return 'embroidery_chest_left';
+  }
+
+  try {
+    const printfilesData = await getPrintfiles(
+      productConfig.printfulProductId,
+      effectiveTechnique
+    );
+    const placements = Object.keys(printfilesData?.available_placements || {});
+    if (placements.length > 0) {
+      if (req.placement && placements.includes(req.placement)) return req.placement;
+      if (placements.includes('default')) return 'default';
+      if (placements.includes('front')) return 'front';
+      return placements[0];
+    }
+  } catch (placementErr) {
+    console.error('⚠️ Could not resolve print file type:', placementErr.message);
+  }
+
+  return req.placement || productConfig.placement || 'front';
+}
+
 /**
  * Creates a draft Printful order for a paid custom design request.
  *
@@ -83,48 +206,26 @@ export async function createPrintfulTemplate(
   // We always call Printful to find the exact match — stored variantIds may be
   // a list of all sizes for the color (not specific to the ordered size).
   let exactVariantId = null;
+  const productConfig = getProductConfig(req.product_type);
 
   try {
-    const productConfig = getProductConfig(req.product_type);
     if (productConfig) {
       const variants = await getProductVariants(productConfig.printfulProductId);
       const allVariants = variants?.variants || variants?.result?.variants || [];
-      const colorLower = (req.color_name || '').toLowerCase();
-      const sizeNorm = (req.size || '').toUpperCase().trim();
-
-      // Match by both color AND size first
-      let matched = allVariants.filter(v =>
-        v.color && v.color.toLowerCase() === colorLower &&
-        v.size && v.size.toUpperCase().trim() === sizeNorm
+      exactVariantId = resolveVariantFromList(allVariants, req, productConfig);
+      console.log(
+        `🎨 Resolved variant: product="${req.product_type}", color="${req.color_name}", size="${req.size}" → Printful variant ID ${exactVariantId}`
       );
-
-      // Fallback: color only (takes first size available)
-      if (matched.length === 0 && colorLower) {
-        console.warn(`⚠️ No exact color+size match for "${req.color_name}" / "${req.size}" — falling back to color-only`);
-        matched = allVariants.filter(v =>
-          v.color && v.color.toLowerCase() === colorLower
-        );
-      }
-
-      // Last resort: first variant
-      if (matched.length === 0) {
-        console.warn('⚠️ No color match — using first available variant');
-        matched = allVariants;
-      }
-
-      exactVariantId = matched[0]?.id ?? null;
-      console.log(`🎨 Resolved variant: color="${req.color_name}", size="${req.size}" → Printful variant ID ${exactVariantId}`);
     }
   } catch (varErr) {
     console.error('⚠️ Variant lookup failed:', varErr.message);
   }
 
-  // Last-ditch fallback: use first stored variant ID
+  // Last-ditch fallback: use stored variant ID (size-aware for all-over products)
   if (!exactVariantId) {
-    const storedIds = Array.isArray(req.printful_variant_ids) ? req.printful_variant_ids : [];
-    exactVariantId = storedIds[0] ?? null;
+    exactVariantId = resolveStoredVariantId(req, productConfig);
     if (exactVariantId) {
-      console.warn(`⚠️ Falling back to first stored variant ID: ${exactVariantId}`);
+      console.warn(`⚠️ Falling back to stored variant ID: ${exactVariantId}`);
     }
   }
 
@@ -135,30 +236,40 @@ export async function createPrintfulTemplate(
 
   // ── Resolve position data (fallback: recompute from printfiles) ───────────
   let positionData = req.position_data || null;
+  const effectiveTechnique = resolveEffectivePrintfulTechnique(productConfig, req.technique);
 
-  if (!positionData) {
+  if (!positionData && productConfig) {
     try {
-      const productConfig = getProductConfig(req.product_type);
-      if (productConfig) {
-        const effectiveTechnique = req.technique === 'DTG' ? null : (req.technique || null);
-        const printfilesData = await getPrintfiles(productConfig.printfulProductId, effectiveTechnique);
-        const printfiles = printfilesData?.printfiles || [];
-        if (printfiles.length > 0) {
-          const pf = printfiles[0];
+      const printfilesData = await getPrintfiles(
+        productConfig.printfulProductId,
+        effectiveTechnique
+      );
+      const printfiles = printfilesData?.printfiles || [];
+      if (printfiles.length > 0) {
+        const pf = printfiles[0];
+        if (isAllOverPrintTechnique(effectiveTechnique, productConfig)) {
+          positionData = computeAllOverPosition(pf, req, productConfig);
+        } else {
           const aw = pf.width;
           const ah = pf.height;
-          const scale = typeof req.design_scale === 'number' && req.design_scale > 0
-            ? req.design_scale
-            : (productConfig.defaultScale ?? (req.technique === 'EMBROIDERY' ? 0.45 : 0.85));
+          const scale =
+            typeof req.design_scale === 'number' && req.design_scale > 0
+              ? req.design_scale
+              : productConfig.defaultScale ??
+                (req.technique === 'EMBROIDERY' ? 0.45 : 0.85);
           const size = Math.round(Math.min(aw, ah) * scale);
           positionData = {
-            area_width: aw, area_height: ah,
-            width: size, height: size,
+            area_width: aw,
+            area_height: ah,
+            width: size,
+            height: size,
             top: Math.round((ah - size) / 2),
             left: Math.round((aw - size) / 2),
           };
-          console.log(`📐 Fallback: computed position for ${req.product_type} (scale=${scale})`);
         }
+        console.log(
+          `📐 Fallback: computed position for ${req.product_type} (technique=${effectiveTechnique || 'DTG'})`
+        );
       }
     } catch (posErr) {
       console.error('⚠️ Fallback position computation failed:', posErr.message);
@@ -167,7 +278,9 @@ export async function createPrintfulTemplate(
 
   // ── Build Printful file type ───────────────────────────────────────────────
   let fileType = 'front';
-  if (req.placement === 'leftchest' && req.technique === 'EMBROIDERY') {
+  if (productConfig) {
+    fileType = await resolvePrintFileType(req, productConfig, effectiveTechnique);
+  } else if (req.placement === 'leftchest' && req.technique === 'EMBROIDERY') {
     fileType = 'embroidery_chest_left';
   }
 
@@ -255,6 +368,9 @@ export async function createPrintfulTemplate(
       }]
     : [];
 
+  const needsEmbroideryOption =
+    req.technique === 'EMBROIDERY' || productConfig?.technique === 'EMBROIDERY';
+
   const orderPayload = {
     confirm: false, // draft — admin confirms in Printful dashboard
     recipient,
@@ -262,7 +378,9 @@ export async function createPrintfulTemplate(
       {
         variant_id: exactVariantId,
         quantity: 1,
-        ...(req.technique === 'EMBROIDERY' && { options: [{ id: 'technique', value: 'EMBROIDERY' }] }),
+        ...(needsEmbroideryOption && {
+          options: [{ id: 'technique', value: 'EMBROIDERY' }],
+        }),
         files,
       },
     ],

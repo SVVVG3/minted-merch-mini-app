@@ -5,6 +5,7 @@ import { createPrintfulTemplate } from '@/lib/printfulTemplates';
 function defaultListingSize(productType) {
   const config = getProductConfig(productType);
   if (!config?.sizes?.length) return 'M';
+  if (config.sizes.includes('One Size')) return 'One Size';
   if (config.sizes.includes('M')) return 'M';
   return config.sizes[0];
 }
@@ -61,7 +62,8 @@ export async function createPrintfulDraftForDropWinner(submissionId, dropId) {
     return { success: false, error: `Unknown product type: ${productType}` };
   }
 
-  const technique = mockup.technique || productConfig.technique || 'DTG';
+  const technique = mockup.technique || productConfig.technique || null;
+  const storedTechnique = productConfig.printfulTechnique || technique;
 
   const { data: designReq, error: insertErr } = await supabaseAdmin
     .from('design_order_requests')
@@ -70,7 +72,7 @@ export async function createPrintfulDraftForDropWinner(submissionId, dropId) {
       product_type: productType,
       size: defaultListingSize(productType),
       color_name: mockup.color_name || submission.color_name,
-      technique: technique === 'DTG' ? null : technique,
+      technique: storedTechnique === 'DTG' ? null : storedTechnique,
       design_url: mockup.design_url || submission.design_url,
       mockup_url: mockup.mockup_url || submission.mockup_url,
       placement: mockup.placement || productConfig.placement,

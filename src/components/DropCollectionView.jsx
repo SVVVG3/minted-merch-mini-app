@@ -181,6 +181,57 @@ function resolveWinnerDisplayPrice(winner, products) {
   return null;
 }
 
+function calculateDiscountedPrice(originalPrice, productDiscount) {
+  const original = parseFloat(originalPrice);
+  if (!Number.isFinite(original) || !productDiscount?.discountValue) return original;
+
+  let discounted = original;
+  if (productDiscount.discountType === 'percentage') {
+    discounted = original - original * (productDiscount.discountValue / 100);
+  } else if (productDiscount.discountType === 'fixed') {
+    discounted = original - Math.min(productDiscount.discountValue, original);
+  }
+  return Math.max(discounted, 0);
+}
+
+function mapBestDiscount(bestDiscount) {
+  if (!bestDiscount) return null;
+  return {
+    code: bestDiscount.code,
+    discountType: bestDiscount.discount_type || bestDiscount.type,
+    discountValue: bestDiscount.discount_value || bestDiscount.value,
+    displayText: bestDiscount.displayText,
+    scope: bestDiscount.discount_scope || bestDiscount.scope,
+  };
+}
+
+function DropPriceDisplay({ price, productDiscount, className = '' }) {
+  if (price == null) return null;
+
+  const originalPrice = parseFloat(price);
+  const discountedPrice = calculateDiscountedPrice(originalPrice, productDiscount);
+  const hasDiscount = productDiscount?.discountValue && discountedPrice < originalPrice;
+
+  if (hasDiscount) {
+    return (
+      <div className={`flex items-center gap-2 ${className}`}>
+        <span className="text-sm text-gray-400 line-through">
+          ${originalPrice.toFixed(2)}
+        </span>
+        <span className="text-base font-bold text-green-600">
+          {discountedPrice === 0 ? 'FREE' : `$${discountedPrice.toFixed(2)}`}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <span className={`text-base font-bold text-gray-900 ${className}`}>
+      ${originalPrice.toFixed(2)}
+    </span>
+  );
+}
+
 function EntryProductLine({ productType, mockupId, className = '' }) {
   return (
     <div className={`flex items-center gap-2 min-w-0 ${className}`}>
@@ -297,6 +348,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
   const [votingId, setVotingId] = useState(null);
   const [voteError, setVoteError] = useState('');
   const [submitTrayOpen, setSubmitTrayOpen] = useState(false);
+  const [dropProductDiscount, setDropProductDiscount] = useState(null);
   const votingSectionRef = useRef(null);
 
   const loadStatus = useCallback(async () => {
@@ -329,6 +381,66 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
     const id = setInterval(tick, 60000);
     return () => clearInterval(id);
   }, [status?.phase, status?.drop?.votingEndsAt, status?.drop?.dropEndsAt]);
+
+  const loadDropProductDiscount = useCallback(async (winnerData) => {
+    if (!user?.fid || !winnerData?.productType) {
+      setDropProductDiscount(null);
+      return;
+    }
+
+    try {
+      let handle = resolveWinnerShopifyProduct(winnerData, products)?.handle;
+      if (!handle) {
+        const productConfig = getProductConfig(winnerData.productType);
+        if (productConfig?.shopifyProductId) {
+          const params = new URLSearchParams({
+            action: 'get',
+            shopifyGraphqlId: productConfig.shopifyProductId,
+          });
+          const prodRes = await fetch(`/api/products?${params.toString()}`);
+          if (prodRes.ok) {
+            const prodData = await prodRes.json();
+            handle = prodData?.product?.handle || null;
+          }
+        }
+      }
+
+      if (!handle) {
+        setDropProductDiscount(null);
+        return;
+      }
+
+      const res = await fetch(
+        `/api/shopify/products?handle=${encodeURIComponent(handle)}&fid=${user.fid}`
+      );
+      const data = await res.json();
+
+      if (res.ok && data.availableDiscounts?.best) {
+        const discount = mapBestDiscount(data.availableDiscounts.best);
+        setDropProductDiscount(discount);
+        sessionStorage.setItem('activeDiscountCode', JSON.stringify({
+          code: discount.code,
+          source: discount.scope === 'product' ? 'product_specific_api' : 'site_wide_api',
+          displayText: discount.displayText,
+          discountType: discount.discountType,
+          discountValue: discount.discountValue,
+        }));
+      } else {
+        setDropProductDiscount(null);
+      }
+    } catch {
+      setDropProductDiscount(null);
+    }
+  }, [products, user?.fid]);
+
+  useEffect(() => {
+    if (user?.fid && !sessionToken) return;
+    if (status?.phase === 'live' && status?.winner) {
+      loadDropProductDiscount(status.winner);
+    } else {
+      setDropProductDiscount(null);
+    }
+  }, [loadDropProductDiscount, user?.fid, sessionToken, status?.phase, status?.winner]);
 
   const resolveDropProduct = useCallback((dropData) => {
     if (!products?.length) return null;
@@ -743,11 +855,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
               <p className="text-[10px] font-semibold uppercase tracking-wide text-green-600">Live Now</p>
               <div className="flex items-center justify-center gap-2 mt-0.5 mb-1">
                 <h2 className="text-base font-bold text-gray-900">Limited Drop</h2>
-                {displayPrice && (
-                  <span className="text-base font-bold text-gray-900">
-                    ${parseFloat(displayPrice).toFixed(2)}
-                  </span>
-                )}
+                <DropPriceDisplay price={displayPrice} productDiscount={dropProductDiscount} />
               </div>
               <DesignerCredit winner={winner} compact />
               <p className="text-xs text-gray-400 mb-3 leading-snug">
@@ -854,8 +962,24 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
               >
                 {orderLoading ? 'Adding to cart…' : (() => {
                   const matched = shopifyVariants.find(v => v.title === selectedSize) || shopifyVariants[0];
-                  const price = matched?.price ?? displayPrice;
-                  return `Add to Cart · ${price ? `$${parseFloat(price).toFixed(2)}` : '—'}`;
+                  const originalPrice = matched?.price ?? displayPrice;
+                  if (!originalPrice) return 'Add to Cart · —';
+
+                  const parsedOriginal = parseFloat(originalPrice);
+                  const discountedPrice = calculateDiscountedPrice(parsedOriginal, dropProductDiscount);
+                  const hasDiscount = dropProductDiscount?.discountValue && discountedPrice < parsedOriginal;
+
+                  if (hasDiscount) {
+                    return (
+                      <span className="inline-flex items-center gap-2">
+                        <span>Add to Cart ·</span>
+                        <span className="line-through opacity-70">${parsedOriginal.toFixed(2)}</span>
+                        <span>{discountedPrice === 0 ? 'FREE' : `$${discountedPrice.toFixed(2)}`}</span>
+                      </span>
+                    );
+                  }
+
+                  return `Add to Cart · $${parsedOriginal.toFixed(2)}`;
                 })()}
               </button>
             </div>

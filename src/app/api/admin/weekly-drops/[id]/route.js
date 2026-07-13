@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withAdminAuth } from '@/lib/adminAuth';
+import { createPrintfulDraftForDropWinner } from '@/lib/dropPrintful';
 
 const VALID_DROP_STATUSES = ['draft', 'voting', 'live', 'sold_out', 'closed'];
 
@@ -28,6 +29,28 @@ export const PATCH = withAdminAuth(async (request, { params }) => {
   try {
     const { id } = params;
     const body = await request.json();
+
+    if (body.retryPrintful === true) {
+      const { data: drop, error: fetchErr } = await supabaseAdmin
+        .from('weekly_drops')
+        .select('id, winning_submission_id')
+        .eq('id', id)
+        .single();
+
+      if (fetchErr || !drop) {
+        return NextResponse.json({ error: 'Drop not found' }, { status: 404 });
+      }
+      if (!drop.winning_submission_id) {
+        return NextResponse.json({ error: 'Drop has no winning submission' }, { status: 400 });
+      }
+
+      const printful = await createPrintfulDraftForDropWinner(
+        drop.winning_submission_id,
+        drop.id
+      );
+
+      return NextResponse.json({ success: printful.success, drop, printful });
+    }
 
     const updates = { updated_at: new Date().toISOString() };
 
