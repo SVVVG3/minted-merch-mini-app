@@ -486,7 +486,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           <img
             src="/MintedMerchSpinnerLogo.png"
             alt="Minted Merch"
-            className="h-[3.9rem] mx-auto mb-1.5 object-contain"
+            className="h-[3.9rem] mx-auto mb-1 object-contain"
           />
           <p className="text-xs font-semibold uppercase tracking-wide text-[#3eb489] mb-1">Limited Drop Submissions — Live</p>
           <h2 className="text-xl font-bold text-gray-900">{getSubmitVoteHeading(viewer)}</h2>
