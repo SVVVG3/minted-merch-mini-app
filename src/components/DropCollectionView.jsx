@@ -23,6 +23,16 @@ function getSubmitVoteHeading(viewer = {}) {
   return 'Submit & Vote';
 }
 
+function getLiveDropShareContent(winner, drop) {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const creator = winner?.username ? `@${winner.username}` : '@mintedmerch';
+  const maxUnits = drop?.maxUnits || 37;
+  return {
+    customUrl: `${origin}/?collection=limited-drops`,
+    customText: `Check out the latest Limited Drop on @mintedmerch!\n\nDesigned by ${creator} - only ${maxUnits} available for 48 hours`,
+  };
+}
+
 function getDropEntryShareContent(entry, shareType) {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const mockupId = entry?.mockupId || entry?.mockup_id;
@@ -697,6 +707,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
     const productConfig = liveProductConfig;
     const displayPrice = dropProduct?.priceRange?.minVariantPrice?.amount;
     const canOrder = liveCanOrder;
+    const liveDropShare = getLiveDropShareContent(winner, drop);
 
     return (
       <div className="px-3 py-2 max-w-lg mx-auto space-y-4">
@@ -727,17 +738,29 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
                   <span> · Sale ends in {countdown.replace(' left', '')}</span>
                 )}
                 {winner.productType && (
-                  <span className="capitalize"> · {winner.productType}{winner.colorName ? ` · ${winner.colorName}` : ''}</span>
+                  <span> · {formatCustomProductLabel(winner.productType)}</span>
                 )}
               </p>
               {canOrder ? (
-                <button
-                  type="button"
-                  onClick={() => openOrderSheet(drop, winner)}
-                  className="w-full py-2.5 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-xl text-sm transition-colors"
-                >
-                  Order Now
-                </button>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => openOrderSheet(drop, winner)}
+                    className="w-full py-2.5 bg-[#3eb489] hover:bg-[#359970] text-white font-semibold rounded-xl text-sm transition-colors"
+                  >
+                    Order Now
+                  </button>
+                  <div className="w-full [&>div]:w-full [&_button]:w-full [&_button]:justify-center">
+                    <ShareDropdown
+                      type="custom"
+                      customUrl={liveDropShare.customUrl}
+                      customText={liveDropShare.customText}
+                      isInFarcaster={isInFarcaster}
+                      buttonStyle="text"
+                      buttonText="Share This Drop"
+                    />
+                  </div>
+                </div>
               ) : (
                 <p className="text-xs text-gray-500">
                   {!saleWindowOpen ? 'Sale window ended (48-hour limit).' : unitsLeft <= 0 ? 'Sold out for this drop.' : 'Product listing coming to shop shortly.'}
@@ -854,7 +877,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
               <p className="text-xs text-gray-400 mb-3 leading-snug">
                 Sold out · 0 of {maxUnits} left
                 {winner.productType && (
-                  <span className="capitalize"> · {winner.productType}{winner.colorName ? ` · ${winner.colorName}` : ''}</span>
+                  <span> · {formatCustomProductLabel(winner.productType)}</span>
                 )}
               </p>
               <button
