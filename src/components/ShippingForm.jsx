@@ -370,6 +370,7 @@ export function ShippingForm({ onShippingChange, initialShipping = null }) {
     { code: 'NO', name: 'Norway' },
     { code: 'PL', name: 'Poland' },
     { code: 'PT', name: 'Portugal' },
+    { code: 'RO', name: 'Romania' },
     { code: 'SG', name: 'Singapore' },
     { code: 'SI', name: 'Slovenia' },
     { code: 'KR', name: 'South Korea' },
