@@ -1,6 +1,8 @@
 import { getCollectionByHandle, getCollections } from '@/lib/shopify';
 import { HomePage } from '@/components/HomePage';
 
+const DEFAULT_HOME_COLLECTION_HANDLE = 'limited-drops';
+
 export async function generateMetadata({ searchParams }) {
   // Fix URL construction to avoid double slashes
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.mintedmerch.shop').replace(/\/$/, '');
@@ -331,19 +333,27 @@ export default async function Page({ searchParams }) {
       targetHandle = sharedCollectionHandle;
       console.log('🔗 Using shared collection from URL:', targetHandle);
     } else if (process.env.TARGET_COLLECTION_HANDLE) {
-      // Check if TARGET_COLLECTION_HANDLE env variable exists
       targetHandle = process.env.TARGET_COLLECTION_HANDLE;
     } else {
-      // Get all collections and use the first one
+      targetHandle = DEFAULT_HOME_COLLECTION_HANDLE;
+      console.log('🏠 Using default home collection:', targetHandle);
+    }
+
+    collection = await getCollectionByHandle(targetHandle);
+
+    // Fallback if configured collection is missing (e.g. typo in env var)
+    if (!collection) {
+      console.warn(`⚠️ Collection "${targetHandle}" not found — falling back`);
       const collections = await getCollections();
-      if (collections && collections.length > 0) {
-        targetHandle = collections[0].handle;
+      const limitedDrops = collections?.find((c) => c.handle === DEFAULT_HOME_COLLECTION_HANDLE);
+      const fallback = limitedDrops || collections?.[0];
+      if (fallback?.handle) {
+        targetHandle = fallback.handle;
+        collection = await getCollectionByHandle(targetHandle);
       } else {
         throw new Error('No collections found');
       }
     }
-
-    collection = await getCollectionByHandle(targetHandle);
     if (collection && collection.products) {
       products = collection.products.edges.map(edge => edge.node);
     }
