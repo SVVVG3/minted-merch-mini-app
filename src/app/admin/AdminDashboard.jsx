@@ -50,6 +50,14 @@ const renderOrderSourceBadge = (source) => {
   );
 };
 
+function dropEndsAtToDatetimeLocal(isoString) {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`;
+}
+
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
@@ -212,8 +220,13 @@ export default function AdminDashboard() {
   const [editDropLabel, setEditDropLabel] = useState('');
   const [editDropShopifyId, setEditDropShopifyId] = useState('');
   const [editDropMaxUnits, setEditDropMaxUnits] = useState('37');
+  const [editDropEndsAt, setEditDropEndsAt] = useState('');
   const [savingDropEdits, setSavingDropEdits] = useState(false);
   const [dropEmergencyOpen, setDropEmergencyOpen] = useState({});
+  const [dropVotesModal, setDropVotesModal] = useState(null);
+  const [dropVotesLoading, setDropVotesLoading] = useState(false);
+  const [dropVotesList, setDropVotesList] = useState([]);
+  const [dropVotesSummary, setDropVotesSummary] = useState(null);
 
   // Partners sub-tab state
   const [partnersSubTab, setPartnersSubTab] = useState('partners'); // 'partners' or 'ambassadors'
@@ -1649,6 +1662,7 @@ export default function AdminDashboard() {
     setEditDropLabel(drop.week_label || '');
     setEditDropShopifyId(drop.shopify_product_id || '');
     setEditDropMaxUnits(String(drop.max_units ?? 37));
+    setEditDropEndsAt(dropEndsAtToDatetimeLocal(drop.voting_ends_at || drop.submissions_close_at));
     setExpandedDropId(drop.id);
   };
 
@@ -1657,6 +1671,41 @@ export default function AdminDashboard() {
     setEditDropLabel('');
     setEditDropShopifyId('');
     setEditDropMaxUnits('37');
+    setEditDropEndsAt('');
+  };
+
+  const closeDropVotesModal = () => {
+    setDropVotesModal(null);
+    setDropVotesList([]);
+    setDropVotesSummary(null);
+    setDropVotesLoading(false);
+  };
+
+  const openDropVotesModal = async (sub) => {
+    setDropVotesModal({
+      submissionId: sub.id,
+      voteCount: sub.vote_count || 0,
+      fid: sub.fid,
+      username: sub.username,
+      productType: sub.product_type,
+    });
+    setDropVotesLoading(true);
+    setDropVotesList([]);
+    setDropVotesSummary(null);
+    try {
+      const res = await adminFetch(
+        `/api/admin/drop-submissions/votes?submissionId=${encodeURIComponent(sub.id)}`
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load voters');
+      setDropVotesList(data.voters || []);
+      setDropVotesSummary(data);
+    } catch (err) {
+      setWeeklyDropsError(err.message);
+      closeDropVotesModal();
+    } finally {
+      setDropVotesLoading(false);
+    }
   };
 
   const saveDropEdits = async (dropId) => {
@@ -1667,14 +1716,22 @@ export default function AdminDashboard() {
     setSavingDropEdits(true);
     setWeeklyDropsError('');
     try {
+      const payload = {
+        weekLabel: editDropLabel.trim(),
+        shopifyProductId: editDropShopifyId.trim() || null,
+        maxUnits: parseInt(editDropMaxUnits, 10) || 37,
+      };
+
+      if (editDropEndsAt) {
+        const endsDate = new Date(editDropEndsAt);
+        endsDate.setMinutes(0, 0, 0);
+        payload.votingEndsAt = endsDate.toISOString();
+      }
+
       const res = await adminFetch(`/api/admin/weekly-drops/${dropId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          weekLabel: editDropLabel.trim(),
-          shopifyProductId: editDropShopifyId.trim() || null,
-          maxUnits: parseInt(editDropMaxUnits, 10) || 37,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save drop');
@@ -3988,6 +4045,18 @@ export default function AdminDashboard() {
                                 className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-xs"
                                 placeholder="Max units"
                               />
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">
+                                  Submissions &amp; voting end (on the hour)
+                                </label>
+                                <input
+                                  type="datetime-local"
+                                  step="3600"
+                                  value={editDropEndsAt}
+                                  onChange={e => setEditDropEndsAt(e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs"
+                                />
+                              </div>
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => saveDropEdits(drop.id)}
@@ -4152,7 +4221,20 @@ export default function AdminDashboard() {
                                       <td className="px-3 py-2 capitalize text-xs">
                                         {sub.product_type}{sub.color_name ? ` · ${sub.color_name}` : ''}
                                       </td>
-                                      <td className="px-3 py-2 text-xs font-medium">{sub.vote_count || 0}</td>
+                                      <td className="px-3 py-2 text-xs font-medium">
+                                        {(sub.vote_count || 0) > 0 ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => openDropVotesModal(sub)}
+                                            className="text-[#3eb489] hover:text-[#359970] hover:underline font-semibold"
+                                            title="View voters"
+                                          >
+                                            {sub.vote_count}
+                                          </button>
+                                        ) : (
+                                          0
+                                        )}
+                                      </td>
                                       <td className="px-3 py-2">
                                         <span className={`px-2 py-0.5 rounded-full text-xs ${
                                           sub.status === 'winner' ? 'bg-green-100 text-green-700' :
@@ -4209,6 +4291,85 @@ export default function AdminDashboard() {
                     </div>
                   );
                 })}
+                {dropVotesModal && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+                      <div className="flex justify-between items-start px-5 py-4 border-b border-gray-100">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">Drop Votes</h3>
+                          <p className="text-sm text-gray-500 mt-1">
+                            @{dropVotesModal.username || dropVotesModal.fid}
+                            {dropVotesModal.productType ? ` · ${dropVotesModal.productType}` : ''}
+                            {' · '}
+                            {dropVotesSummary?.totalWeightedVotes ?? dropVotesModal.voteCount} weighted vote
+                            {(dropVotesSummary?.totalWeightedVotes ?? dropVotesModal.voteCount) !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={closeDropVotesModal}
+                          className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="overflow-y-auto px-5 py-4">
+                        {dropVotesLoading ? (
+                          <div className="flex items-center justify-center py-10">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3eb489]" />
+                          </div>
+                        ) : dropVotesList.length === 0 ? (
+                          <p className="text-sm text-gray-500 text-center py-8">No votes recorded yet.</p>
+                        ) : (
+                          <ul className="space-y-3">
+                            {dropVotesList.map((voter) => (
+                              <li
+                                key={`${voter.fid}-${voter.votedAt}`}
+                                className="flex items-center justify-between gap-3 py-2 border-b border-gray-50 last:border-0"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      closeDropVotesModal();
+                                      openUserModal(voter.fid);
+                                    }}
+                                    className="flex items-center gap-3 min-w-0 text-left hover:opacity-80"
+                                  >
+                                    {voter.pfpUrl ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={voter.pfpUrl}
+                                        alt=""
+                                        className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                                      />
+                                    ) : (
+                                      <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 text-xs font-bold text-gray-500">
+                                        {(voter.username || String(voter.fid))?.charAt(0)?.toUpperCase() || '?'}
+                                      </div>
+                                    )}
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-gray-900 truncate">
+                                        @{voter.username || voter.fid}
+                                      </p>
+                                      <p className="text-xs text-gray-500">FID {voter.fid}</p>
+                                    </div>
+                                  </button>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                  <p className="text-sm font-semibold text-[#3eb489]">
+                                    {voter.voteWeight} vote{voter.voteWeight !== 1 ? 's' : ''}
+                                  </p>
+                                  <p className="text-[10px] text-gray-400">{voter.voteTierLabel}</p>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

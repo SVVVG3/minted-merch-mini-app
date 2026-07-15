@@ -101,7 +101,18 @@ export const PATCH = withAdminAuth(async (request, { params }) => {
       dropEndsAt: 'drop_ends_at',
     };
     for (const key of dateFields) {
-      if (body[key] !== undefined) updates[dbDateFields[key]] = body[key];
+      if (body[key] !== undefined) {
+        if (key === 'votingEndsAt' && body[key] != null) {
+          const endsDate = new Date(body[key]);
+          if (Number.isNaN(endsDate.getTime())) {
+            return NextResponse.json({ error: 'Invalid voting end date' }, { status: 400 });
+          }
+          if (endsDate.getMinutes() !== 0 || endsDate.getSeconds() !== 0 || endsDate.getMilliseconds() !== 0) {
+            return NextResponse.json({ error: 'Drop must end on the hour (:00)' }, { status: 400 });
+          }
+        }
+        updates[dbDateFields[key]] = body[key];
+      }
     }
 
     if (body.weekLabel !== undefined) updates.week_label = body.weekLabel;
