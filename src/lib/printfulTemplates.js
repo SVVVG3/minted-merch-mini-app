@@ -279,6 +279,45 @@ async function resolvePositionData(req, productConfig, effectiveTechnique) {
   }
 }
 
+/**
+ * Printful's /orders API validates the design file aspect ratio against area_width/area_height.
+ * Mockup generation uses a wide CUT-SEW canvas (e.g. bandana 375×150) with a square design —
+ * omit area_* on orders so placement width/height (matching the image) is used instead.
+ */
+async function finalizePrintfulOrderPosition(positionData, designUrl, productConfig, effectiveTechnique) {
+  if (!positionData) return null;
+
+  const dims = designUrl ? await getImageDimensionsFromUrl(designUrl) : null;
+  let pos = dims
+    ? fixPositionAspectRatio(positionData, dims.width, dims.height)
+    : { ...positionData };
+
+  const imageAspect =
+    dims?.width && dims?.height ? dims.width / dims.height : null;
+
+  if (pos.area_width && pos.area_height) {
+    const areaAspect = pos.area_width / pos.area_height;
+    const areaConflictsWithImage =
+      imageAspect != null &&
+      Math.abs(areaAspect - imageAspect) / imageAspect > 0.02;
+    const isAllOver =
+      isAllOverPrintTechnique(effectiveTechnique, productConfig) ||
+      productConfig?.id === 'bandana' ||
+      productConfig?.id === 'pet-collar';
+
+    if (areaConflictsWithImage || (isAllOver && imageAspect == null)) {
+      const { area_width: _aw, area_height: _ah, ...placementOnly } = pos;
+      console.warn(
+        `📐 Printful order position: omitting area_* (${pos.area_width}×${pos.area_height})` +
+          (imageAspect != null ? ` — image aspect ${imageAspect.toFixed(2)}` : '')
+      );
+      return placementOnly;
+    }
+  }
+
+  return pos;
+}
+
 async function resolvePrintFileType(req, productConfig, effectiveTechnique) {
   if (req.placement === 'leftchest' && req.technique === 'EMBROIDERY') {
     return 'embroidery_chest_left';
@@ -433,7 +472,13 @@ export async function createPrintfulTemplate(
 
   // ── Resolve position data (recompute all-over; validate aspect for others) ─
   const effectiveTechnique = resolveEffectivePrintfulTechnique(productConfig, req.technique);
-  const positionData = await resolvePositionData(req, productConfig, effectiveTechnique);
+  let positionData = await resolvePositionData(req, productConfig, effectiveTechnique);
+  positionData = await finalizePrintfulOrderPosition(
+    positionData,
+    req.design_url,
+    productConfig,
+    effectiveTechnique
+  );
 
   // ── Build Printful file type ───────────────────────────────────────────────
   let fileType = 'front';
