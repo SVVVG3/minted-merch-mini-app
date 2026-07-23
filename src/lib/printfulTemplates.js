@@ -133,6 +133,152 @@ function computeAllOverPosition(pf, req, productConfig) {
   };
 }
 
+/** Read PNG width/height from the first bytes of an image URL (Printful designs are PNG). */
+async function getImageDimensionsFromUrl(imageUrl) {
+  if (!imageUrl) return null;
+
+  try {
+    const res = await fetch(imageUrl, {
+      headers: { Range: 'bytes=0-32' },
+    });
+    if (!res.ok) return null;
+
+    const buffer = await res.arrayBuffer();
+    const view = new DataView(buffer);
+    if (view.byteLength < 24) return null;
+
+    const isPng =
+      view.getUint8(0) === 0x89 &&
+      view.getUint8(1) === 0x50 &&
+      view.getUint8(2) === 0x4e &&
+      view.getUint8(3) === 0x47;
+    if (isPng) {
+      return {
+        width: view.getUint32(16),
+        height: view.getUint32(20),
+      };
+    }
+
+    // JPEG: SOF0 marker scan (best-effort for non-PNG uploads)
+    if (view.getUint8(0) === 0xff && view.getUint8(1) === 0xd8) {
+      const full = await fetch(imageUrl).then((r) => r.arrayBuffer());
+      const jpeg = new DataView(full);
+      let offset = 2;
+      while (offset + 9 < jpeg.byteLength) {
+        if (jpeg.getUint8(offset) !== 0xff) break;
+        const marker = jpeg.getUint8(offset + 1);
+        const length = jpeg.getUint16(offset + 2);
+        if (marker === 0xc0 || marker === 0xc2) {
+          return {
+            width: jpeg.getUint16(offset + 7),
+            height: jpeg.getUint16(offset + 5),
+          };
+        }
+        offset += 2 + length;
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ Could not read image dimensions:', err.message);
+  }
+
+  return null;
+}
+
+/**
+ * Printful requires position width/height aspect ratio to match the design file (~2% tolerance).
+ */
+function fixPositionAspectRatio(positionData, imageWidth, imageHeight) {
+  if (!positionData?.width || !positionData?.height || !imageWidth || !imageHeight) {
+    return positionData;
+  }
+
+  const targetAspect = imageWidth / imageHeight;
+  const currentAspect = positionData.width / positionData.height;
+  const relativeDiff = Math.abs(currentAspect - targetAspect) / targetAspect;
+  if (relativeDiff <= 0.02) return positionData;
+
+  const aw = positionData.area_width;
+  const ah = positionData.area_height;
+  let width = positionData.width;
+  let height = Math.round(width / targetAspect);
+
+  if (height > ah) {
+    height = positionData.height;
+    width = Math.round(height * targetAspect);
+  }
+  if (width > aw) {
+    width = aw;
+    height = Math.round(width / targetAspect);
+  }
+
+  console.warn(
+    `⚠️ Adjusted Printful position aspect ${currentAspect.toFixed(2)} → ${(width / height).toFixed(2)} to match image (${imageWidth}×${imageHeight})`
+  );
+
+  return {
+    ...positionData,
+    width,
+    height,
+    top: Math.round((ah - height) / 2),
+    left: Math.round((aw - width) / 2),
+  };
+}
+
+async function resolvePositionData(req, productConfig, effectiveTechnique) {
+  if (!productConfig) return req.position_data || null;
+
+  try {
+    const printfilesData = await getPrintfiles(
+      productConfig.printfulProductId,
+      effectiveTechnique
+    );
+    const printfiles = printfilesData?.printfiles || [];
+    if (printfiles.length === 0) return req.position_data || null;
+
+    const pf = printfiles[0];
+
+    if (isAllOverPrintTechnique(effectiveTechnique, productConfig)) {
+      const position = computeAllOverPosition(pf, req, productConfig);
+      console.log(
+        `📐 Recomputed all-over position for ${req.product_type} (technique=${effectiveTechnique || 'DTG'})`
+      );
+      return position;
+    }
+
+    if (req.position_data) {
+      const dims = await getImageDimensionsFromUrl(req.design_url);
+      if (dims) {
+        return fixPositionAspectRatio(req.position_data, dims.width, dims.height);
+      }
+      return req.position_data;
+    }
+
+    const aw = pf.width;
+    const ah = pf.height;
+    const scale =
+      typeof req.design_scale === 'number' && req.design_scale > 0
+        ? req.design_scale
+        : productConfig.defaultScale ??
+          (req.technique === 'EMBROIDERY' ? 0.45 : 0.85);
+    const size = Math.round(Math.min(aw, ah) * scale);
+    const position = {
+      area_width: aw,
+      area_height: ah,
+      width: size,
+      height: size,
+      top: Math.round((ah - size) / 2),
+      left: Math.round((aw - size) / 2),
+    };
+    console.log(
+      `📐 Fallback: computed position for ${req.product_type} (technique=${effectiveTechnique || 'DTG'})`
+    );
+    return position;
+  } catch (posErr) {
+    console.error('⚠️ Position resolution failed:', posErr.message);
+    return req.position_data || null;
+  }
+}
+
 async function resolvePrintFileType(req, productConfig, effectiveTechnique) {
   if (req.placement === 'leftchest' && req.technique === 'EMBROIDERY') {
     return 'embroidery_chest_left';
@@ -285,47 +431,9 @@ export async function createPrintfulTemplate(
     return { success: false, error: 'No variant ID available' };
   }
 
-  // ── Resolve position data (fallback: recompute from printfiles) ───────────
-  let positionData = req.position_data || null;
+  // ── Resolve position data (recompute all-over; validate aspect for others) ─
   const effectiveTechnique = resolveEffectivePrintfulTechnique(productConfig, req.technique);
-
-  if (!positionData && productConfig) {
-    try {
-      const printfilesData = await getPrintfiles(
-        productConfig.printfulProductId,
-        effectiveTechnique
-      );
-      const printfiles = printfilesData?.printfiles || [];
-      if (printfiles.length > 0) {
-        const pf = printfiles[0];
-        if (isAllOverPrintTechnique(effectiveTechnique, productConfig)) {
-          positionData = computeAllOverPosition(pf, req, productConfig);
-        } else {
-          const aw = pf.width;
-          const ah = pf.height;
-          const scale =
-            typeof req.design_scale === 'number' && req.design_scale > 0
-              ? req.design_scale
-              : productConfig.defaultScale ??
-                (req.technique === 'EMBROIDERY' ? 0.45 : 0.85);
-          const size = Math.round(Math.min(aw, ah) * scale);
-          positionData = {
-            area_width: aw,
-            area_height: ah,
-            width: size,
-            height: size,
-            top: Math.round((ah - size) / 2),
-            left: Math.round((aw - size) / 2),
-          };
-        }
-        console.log(
-          `📐 Fallback: computed position for ${req.product_type} (technique=${effectiveTechnique || 'DTG'})`
-        );
-      }
-    } catch (posErr) {
-      console.error('⚠️ Fallback position computation failed:', posErr.message);
-    }
-  }
+  const positionData = await resolvePositionData(req, productConfig, effectiveTechnique);
 
   // ── Build Printful file type ───────────────────────────────────────────────
   let fileType = 'front';
