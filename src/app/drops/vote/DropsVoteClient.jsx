@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useFarcaster } from '@/lib/useFarcaster';
 import { getSoleLeaderSubmissionId } from '@/lib/dropHelpers';
+import { DropVoteControls } from '@/components/DropVoteControls';
 
 function CreatorAvatar({ username, fid, pfpUrl }) {
   const label = username || (fid ? String(fid) : '?');
@@ -44,11 +45,24 @@ export default function DropsVoteClient() {
   const [voteTier, setVoteTier] = useState('standard');
   const [drop, setDrop] = useState(null);
   const [entries, setEntries] = useState([]);
-  const [userVote, setUserVote] = useState(null);
+  const [viewer, setViewer] = useState({});
   const [votingId, setVotingId] = useState(null);
   const [countdown, setCountdown] = useState(null);
 
   const viewerFid = user?.fid ? String(user.fid) : null;
+
+  const applyVoteResponse = (data) => {
+    setDrop(data.drop);
+    setEntries(data.entries || data.finalists || []);
+    setViewer({
+      userVotes: data.userVotes || [],
+      votesUsed: data.votesUsed || 0,
+      votesRemaining: data.votesRemaining ?? Math.max(0, (data.voteWeight || 1) - (data.votesUsed || 0)),
+      voteWeight: data.voteWeight || 1,
+      voteTier: data.voteTier || 'standard',
+      fid: user?.fid || null,
+    });
+  };
 
   const loadVoteData = useCallback(async () => {
     const token = getSessionToken();
@@ -67,9 +81,7 @@ export default function DropsVoteClient() {
 
       if (!res.ok) throw new Error(data.error || 'Failed to load voting data');
 
-      setDrop(data.drop);
-      setEntries(data.entries || data.finalists || []);
-      setUserVote(data.userVote);
+      applyVoteResponse(data);
       setVoteWeight(data.voteWeight || 1);
       setVoteTier(data.voteTier || 'standard');
       setStakedBalance(data.stakedBalance || 0);
@@ -79,7 +91,7 @@ export default function DropsVoteClient() {
     } finally {
       setLoading(false);
     }
-  }, [getSessionToken]);
+  }, [getSessionToken, user?.fid]);
 
   useEffect(() => {
     if (user?.fid) loadVoteData();
@@ -97,24 +109,26 @@ export default function DropsVoteClient() {
     return () => clearInterval(id);
   }, [drop?.votingEndsAt]);
 
-  const handleVote = async (submissionId) => {
+  const handleVote = async (submissionId, { points, addPoints } = {}) => {
     const token = getSessionToken();
     if (!token) return;
 
     setVotingId(submissionId);
     setError('');
     try {
+      const body = { submissionId };
+      if (typeof points === 'number') body.points = points;
+      if (typeof addPoints === 'number') body.addPoints = addPoints;
+
       const res = await fetch('/api/drops/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ submissionId }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to vote');
 
-      setDrop(data.drop);
-      setEntries(data.entries || data.finalists || []);
-      setUserVote(data.userVote);
+      applyVoteResponse(data);
     } catch (err) {
       setError(err.message || 'Failed to vote');
     } finally {
@@ -131,6 +145,9 @@ export default function DropsVoteClient() {
   }
 
   const leaderId = getSoleLeaderSubmissionId(entries);
+  const votesUsed = viewer.votesUsed || 0;
+  const votesRemaining = viewer.votesRemaining ?? Math.max(0, voteWeight - votesUsed);
+  const canSplitVotes = voteWeight > 1;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
@@ -157,7 +174,9 @@ export default function DropsVoteClient() {
             <div className="mb-6">
               <h2 className="text-xl font-bold text-gray-900">Limited Drop</h2>
               <p className="text-sm text-gray-500 mt-1">
-                Vote for your favorite — you can&apos;t vote on your own design.
+                {canSplitVotes
+                  ? 'Split your voting points across as many designs as you like.'
+                  : 'Vote for your favorite — you can\'t vote on your own design.'}
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
                 <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
@@ -182,9 +201,11 @@ export default function DropsVoteClient() {
               </div>
             )}
 
-            {userVote && (
+            {votesUsed > 0 && (
               <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl font-medium">
-                ✅ You voted ({userVote.voteWeight} vote{userVote.voteWeight !== 1 ? 's' : ''} counted)
+                {canSplitVotes
+                  ? `${votesUsed} of ${voteWeight} points allocated${votesRemaining > 0 ? ` · ${votesRemaining} remaining` : ' · all points allocated'}`
+                  : `✅ You voted (${votesUsed} vote${votesUsed === 1 ? '' : 's'} counted)`}
               </div>
             )}
 
@@ -193,10 +214,9 @@ export default function DropsVoteClient() {
                 <p className="text-center text-gray-400 text-sm py-8">No submissions yet.</p>
               ) : (
                 entries.map((entry) => {
-                  const isVoted = userVote?.submissionId === entry.id;
-                  const isOwn = viewerFid && String(entry.fid) === viewerFid;
+                  const votesOnEntry = (viewer.userVotes || []).find((v) => v.submissionId === entry.id)?.voteWeight || 0;
+                  const isVoted = votesOnEntry > 0;
                   const isLeading = leaderId === entry.id;
-                  const canVote = !userVote && !isOwn;
                   return (
                     <div
                       key={entry.id}
@@ -229,21 +249,15 @@ export default function DropsVoteClient() {
                             <p className="text-[10px] text-gray-400 uppercase tracking-wide">votes</p>
                           </div>
                         </div>
-                        {isOwn ? (
-                          <p className="w-full py-3 text-center text-sm text-gray-400 bg-gray-50 rounded-xl">Your design</p>
-                        ) : canVote ? (
-                          <button
-                            onClick={() => handleVote(entry.id)}
-                            disabled={!!votingId}
-                            className="w-full py-3 bg-[#6A3CFF] hover:bg-[#5A2FE6] disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-sm"
-                          >
-                            {votingId === entry.id ? 'Submitting…' : `Vote (${voteWeight} pt${voteWeight !== 1 ? 's' : ''})`}
-                          </button>
-                        ) : isVoted ? (
-                          <div className="w-full py-3 text-center text-sm font-semibold text-[#3eb489] bg-[#3eb489]/10 rounded-xl">
-                            Your pick ✓
-                          </div>
-                        ) : null}
+                        <DropVoteControls
+                          entry={entry}
+                          viewer={{ ...viewer, voteWeight, voteTier, fid: user?.fid || null }}
+                          viewerFid={viewerFid}
+                          votingId={votingId}
+                          onVote={handleVote}
+                          onSetPoints={(submissionId, points) => handleVote(submissionId, { points })}
+                          isInFarcaster
+                        />
                       </div>
                     </div>
                   );

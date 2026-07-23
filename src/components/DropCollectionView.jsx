@@ -12,14 +12,18 @@ import { DesignStudioBanner } from './DesignStudioBanner';
 import { DropGuideCard, buildDropGuideContent } from './DropGuideCard';
 import { DropSubmitDesignTray } from './DropSubmitDesignTray';
 import { ShareDropdown } from './ShareDropdown';
+import { DropEntryShareButton } from './DropEntryShareButton';
+import { DropVoteControls } from './DropVoteControls';
 
 function getSubmitVoteHeading(viewer = {}) {
   if (!viewer.fid) return 'Submit & Vote';
   const hasSubmission = !!viewer.userSubmission;
-  const hasVoted = !!viewer.hasVoted;
-  if (hasSubmission && hasVoted) return "You're All Set";
-  if (hasSubmission) return 'Cast Your Vote';
-  if (hasVoted) return 'Submit a Design';
+  const votesRemaining = viewer.votesRemaining ?? (viewer.voteWeight || 1);
+  const votesUsed = viewer.votesUsed || 0;
+  if (hasSubmission && votesRemaining === 0 && votesUsed > 0) return "You're All Set";
+  if (hasSubmission && votesRemaining > 0) return 'Cast Your Vote';
+  if (votesUsed > 0 && votesRemaining === 0) return 'Submit a Design';
+  if (votesUsed > 0) return 'Cast Your Vote';
   return 'Submit & Vote';
 }
 
@@ -35,44 +39,6 @@ function getLiveDropShareContent(winner, drop) {
     customUrl: url,
     customText: `Check out the latest Limited Drop on @mintedmerch!\n\nDesigned by ${creator} - only ${maxUnits} available for 48 hours`,
   };
-}
-
-function getDropEntryShareContent(entry, shareType) {
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const mockupId = entry?.mockupId || entry?.mockup_id;
-  const url = mockupId
-    ? `${origin}/design/${mockupId}?dropShare=1`
-    : `${origin}/?collection=limited-drops`;
-
-  if (shareType === 'submission') {
-    return {
-      customUrl: url,
-      customText: 'I just submitted my design for the upcoming @mintedmerch Limited Drop!\n\nSubmit your own & cast your vote below ↓',
-    };
-  }
-
-  const creator = entry?.username ? `@${entry.username}` : '@mintedmerch';
-  return {
-    customUrl: url,
-    customText: `I voted for ${creator}'s design to be the next @mintedmerch Limited Drop!\n\nVote & submit your design in the mini app ↓`,
-  };
-}
-
-function DropEntryShareButton({ entry, shareType, isInFarcaster, className = '' }) {
-  const content = getDropEntryShareContent(entry, shareType);
-  return (
-    <div className={`w-full [&>div]:w-full [&_button]:w-full [&_button]:justify-center ${className}`}>
-      <ShareDropdown
-        type="custom"
-        customUrl={content.customUrl}
-        customText={content.customText}
-        isInFarcaster={isInFarcaster}
-        buttonStyle="text"
-        buttonText={shareType === 'submission' ? 'Share My Entry' : 'Share My Vote'}
-        dropUp
-      />
-    </div>
-  );
 }
 
 function VoteTierBadge({ tier, weight }) {
@@ -549,7 +515,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
     }
   }, [addItem, resolveDropProduct, router, selectedSize, shopifyVariants]);
 
-  const handleVote = async (submissionId) => {
+  const handleVote = async (submissionId, { points, addPoints } = {}) => {
     const token = getSessionToken();
     if (!token) {
       setVoteError('Please sign in with Farcaster to vote.');
@@ -558,10 +524,14 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
     setVotingId(submissionId);
     setVoteError('');
     try {
+      const body = { submissionId };
+      if (typeof points === 'number') body.points = points;
+      if (typeof addPoints === 'number') body.addPoints = addPoints;
+
       const res = await fetch('/api/drops/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ submissionId }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to vote');
@@ -571,8 +541,12 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
         finalists: data.finalists || data.entries,
         viewer: {
           ...prev?.viewer,
-          hasVoted: true,
-          userVoteSubmissionId: data.userVote?.submissionId,
+          userVotes: data.userVotes || [],
+          votesUsed: data.votesUsed ?? prev?.viewer?.votesUsed,
+          votesRemaining: data.votesRemaining ?? prev?.viewer?.votesRemaining,
+          hasVoted: (data.votesUsed ?? 0) > 0,
+          votesFullyAllocated: (data.votesRemaining ?? 0) === 0 && (data.votesUsed ?? 0) > 0,
+          userVoteSubmissionId: data.userVoteSubmissionId ?? data.userVote?.submissionId ?? null,
         },
       }));
     } catch (err) {
@@ -621,6 +595,9 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
     const userSubmission = viewer.userSubmission;
     const leaderId = getSoleLeaderSubmissionId(entries);
     const viewerFid = viewer.fid ? String(viewer.fid) : null;
+    const votesRemaining = viewer.votesRemaining ?? Math.max(0, (viewer.voteWeight || 1) - (viewer.votesUsed || 0));
+    const votesUsed = viewer.votesUsed || 0;
+    const canSplitVotes = (viewer.voteWeight || 1) > 1;
 
     return (
       <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
@@ -669,7 +646,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           </div>
         )}
 
-        {viewer.fid && !viewer.hasVoted && (
+        {viewer.fid && votesRemaining > 0 && (
           <button
             type="button"
             onClick={() => votingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
@@ -679,7 +656,7 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           </button>
         )}
 
-        {viewer.fid && viewer.hasVoted && (
+        {viewer.fid && votesUsed > 0 && votesRemaining === 0 && (
           <button
             type="button"
             onClick={() => votingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
@@ -716,10 +693,23 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           <div className="px-4 py-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">{voteError}</div>
         )}
 
-        {viewer.hasVoted && (
+        {votesUsed > 0 && (
           <div className="px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm font-semibold rounded-xl text-center">
-            ✅ Your vote is in ({viewer.voteWeight} pt{viewer.voteWeight !== 1 ? 's' : ''} counted)
+            {canSplitVotes ? (
+              <>
+                {votesUsed} of {viewer.voteWeight} points allocated
+                {votesRemaining > 0 ? ` · ${votesRemaining} remaining` : ' · all points allocated'}
+              </>
+            ) : (
+              <>✅ Your vote is in (1 pt counted)</>
+            )}
           </div>
+        )}
+
+        {canSplitVotes && votesRemaining > 0 && (
+          <p className="text-xs text-center text-gray-500 px-2">
+            Split your {viewer.voteWeight} points across multiple designs — use +1, +all, or the dropdown on each entry.
+          </p>
         )}
 
         <div className="space-y-3">
@@ -729,8 +719,9 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
           ) : (
             entries.map((entry) => {
               const isOwn = viewerFid && String(entry.fid) === viewerFid;
-              const isVoted = viewer.userVoteSubmissionId === entry.id;
-              const canVote = viewer.fid && !viewer.hasVoted && !isOwn;
+              const votesOnEntry = (viewer.userVotes || []).find((v) => v.submissionId === entry.id)?.voteWeight || 0;
+              const isVoted = votesOnEntry > 0;
+              const showVoteControls = viewer.fid && (!isOwn);
               return (
                 <div key={entry.id} className={`bg-white rounded-xl border shadow-sm ${
                   isVoted ? 'border-[#3eb489] border-2' : 'border-gray-100'
@@ -760,29 +751,17 @@ export function DropCollectionView({ products, onDesignStudioPlacementChange }) 
                       </p>
                     </div>
                   </div>
-                  {(isOwn || canVote || isVoted) && (
+                  {showVoteControls && (
                   <div className="px-3 pb-3 space-y-2">
-                    {isOwn ? (
-                      <p className="text-xs text-center text-gray-400 py-2 bg-gray-50 rounded-lg">Your design — others vote for you</p>
-                    ) : canVote ? (
-                      <button
-                        type="button"
-                        onClick={() => handleVote(entry.id)}
-                        disabled={!!votingId}
-                        className="w-full py-2.5 bg-[#3eb489] hover:bg-[#359970] disabled:opacity-50 text-white font-semibold rounded-xl text-sm"
-                      >
-                        {votingId === entry.id ? 'Submitting…' : `Vote (${viewer.voteWeight} pt${viewer.voteWeight !== 1 ? 's' : ''})`}
-                      </button>
-                    ) : isVoted ? (
-                      <>
-                        <p className="text-center text-xs font-semibold text-[#3eb489]">Your pick ✓</p>
-                        <DropEntryShareButton
-                          entry={entry}
-                          shareType="vote"
-                          isInFarcaster={isInFarcaster}
-                        />
-                      </>
-                    ) : null}
+                    <DropVoteControls
+                      entry={entry}
+                      viewer={viewer}
+                      viewerFid={viewerFid}
+                      votingId={votingId}
+                      onVote={handleVote}
+                      onSetPoints={(submissionId, points) => handleVote(submissionId, { points })}
+                      isInFarcaster={isInFarcaster}
+                    />
                   </div>
                   )}
                 </div>

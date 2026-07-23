@@ -9,6 +9,8 @@ import {
   loadVotableSubmissions,
   mapSubmissionForClient,
   enrichSubmissionsWithProfiles,
+  loadUserDropVotes,
+  buildUserVoteState,
 } from '@/lib/dropHelpers';
 import { resolveDueDrops } from '@/lib/dropResolve';
 import { closeExpiredLiveDrops, getDropLiveEndsAt } from '@/lib/dropInventory';
@@ -33,7 +35,11 @@ export async function GET(request) {
       fid: null,
       voteWeight: 1,
       voteTier: 'standard',
+      userVotes: [],
+      votesUsed: 0,
+      votesRemaining: 1,
       hasVoted: false,
+      votesFullyAllocated: false,
       userVoteSubmissionId: null,
     };
 
@@ -54,16 +60,10 @@ export async function GET(request) {
       viewer.isWhale = viewer.voteTier === 'whale';
 
       if (phase === 'active') {
-        const { data: vote } = await supabaseAdmin
-          .from('drop_votes')
-          .select('submission_id')
-          .eq('drop_id', drop.id)
-          .eq('voter_fid', auth.fid)
-          .maybeSingle();
-        if (vote) {
-          viewer.hasVoted = true;
-          viewer.userVoteSubmissionId = vote.submission_id;
-        }
+        const votes = await loadUserDropVotes(supabaseAdmin, drop.id, auth.fid);
+        const voteState = buildUserVoteState(votes, viewer.voteWeight);
+        Object.assign(viewer, voteState);
+        viewer.votesRemaining = voteState.votesRemaining;
 
         const { data: userSub } = await supabaseAdmin
           .from('drop_submissions')

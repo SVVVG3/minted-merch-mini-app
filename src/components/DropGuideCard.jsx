@@ -113,10 +113,10 @@ function getVoteNote(viewer = {}) {
   const voteWeight = viewer.voteWeight || 1;
   const tier = viewer.voteTier || 'standard';
   if (tier === 'whale') {
-    return `Your vote counts as ${voteWeight} points (staking 200M+ $mintedmerch)`;
+    return `You have ${voteWeight} points to split across designs however you like (200M+ staked)`;
   }
   if (tier === 'mogul') {
-    return `Your vote counts as ${voteWeight} points (staking 50M+ $mintedmerch)`;
+    return `You have ${voteWeight} points to split across designs however you like (50M+ staked)`;
   }
   return 'Everyone gets 1 vote — stake 50M+ $mintedmerch for boosted voting power';
 }
@@ -138,8 +138,10 @@ export function buildDropGuideContent({
     const whatToDo = viewer.fid
       ? [
           'Select a saved design from your library or create a new one to submit and enter',
-          viewer.hasVoted
-            ? 'Your vote is locked in — watch the leaderboard until voting ends'
+          viewer.votesFullyAllocated || ((viewer.votesRemaining ?? 1) === 0 && (viewer.votesUsed || 0) > 0)
+            ? 'All your points are allocated — watch the leaderboard until voting ends'
+            : (viewer.voteWeight || 1) > 1
+            ? 'Split your voting points across multiple entries below (not your own design)'
             : 'Vote for your favorite entry below (you cannot vote for your own design)',
           voteNote,
           ...(countdownText ? [`Submit & vote window closes in ${countdownText}`] : []),

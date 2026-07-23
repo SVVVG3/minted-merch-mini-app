@@ -2,10 +2,13 @@ import { NextResponse } from 'next/server';
 import { verifyFarcasterUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import {
+  applyDropVoteAllocation,
+  buildUserVoteState,
   getActiveDrop,
   getDropEndsAt,
   getDropVoteWeight,
   getDropVoteTier,
+  loadUserDropVotes,
   loadVotableSubmissions,
   mapSubmissionForClient,
 } from '@/lib/dropHelpers';
@@ -23,19 +26,14 @@ async function getVoterProfile(fid) {
   return { profile, stakedBalance, voteWeight, voteTier };
 }
 
-async function loadVotingPayload(drop, fid = null) {
+async function loadVotingPayload(drop, fid = null, maxVoteWeight = 1) {
   const enriched = await loadVotableSubmissions(supabaseAdmin, drop.id);
   const entries = enriched.map(mapSubmissionForClient);
 
-  let userVote = null;
+  let voteState = buildUserVoteState([], maxVoteWeight);
   if (fid) {
-    const { data: vote } = await supabaseAdmin
-      .from('drop_votes')
-      .select('submission_id, vote_weight, created_at')
-      .eq('drop_id', drop.id)
-      .eq('voter_fid', fid)
-      .maybeSingle();
-    userVote = vote || null;
+    const votes = await loadUserDropVotes(supabaseAdmin, drop.id, fid);
+    voteState = buildUserVoteState(votes, maxVoteWeight);
   }
 
   return {
@@ -48,13 +46,11 @@ async function loadVotingPayload(drop, fid = null) {
     entries,
     // Legacy alias for clients not yet updated
     finalists: entries,
-    userVote: userVote
-      ? { submissionId: userVote.submission_id, voteWeight: userVote.vote_weight, votedAt: userVote.created_at }
-      : null,
+    ...voteState,
   };
 }
 
-// GET /api/drops/vote — active drop entries + user's vote
+// GET /api/drops/vote — active drop entries + user's vote allocations
 export async function GET(request) {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
   const auth = await verifyFarcasterUser(token);
@@ -71,14 +67,18 @@ export async function GET(request) {
         drop: null,
         entries: [],
         finalists: [],
+        userVotes: [],
         userVote: null,
+        votesUsed: 0,
+        votesRemaining: voteWeight,
+        hasVoted: false,
         voteWeight,
         voteTier,
         stakedBalance,
       });
     }
 
-    const payload = await loadVotingPayload(drop, auth.fid);
+    const payload = await loadVotingPayload(drop, auth.fid, voteWeight);
     return NextResponse.json({ ...payload, voteWeight, voteTier, stakedBalance });
   } catch (err) {
     console.error('[drops/vote] GET error:', err);
@@ -86,7 +86,7 @@ export async function GET(request) {
   }
 }
 
-// POST /api/drops/vote — cast weighted vote (one per user per drop; no self-vote)
+// POST /api/drops/vote — allocate weighted vote points (split across entries for Moguls/Whales)
 export async function POST(request) {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
   const auth = await verifyFarcasterUser(token);
@@ -102,7 +102,8 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No drop is open right now.' }, { status: 403 });
     }
 
-    const { submissionId } = await request.json();
+    const body = await request.json();
+    const { submissionId, points, addPoints } = body;
     if (!submissionId) {
       return NextResponse.json({ error: 'submissionId is required' }, { status: 400 });
     }
@@ -122,45 +123,36 @@ export async function POST(request) {
       return NextResponse.json({ error: 'You cannot vote on your own design.' }, { status: 403 });
     }
 
-    const { data: existingVote } = await supabaseAdmin
-      .from('drop_votes')
-      .select('id, submission_id')
-      .eq('drop_id', drop.id)
-      .eq('voter_fid', auth.fid)
-      .maybeSingle();
+    const existingVotes = await loadUserDropVotes(supabaseAdmin, drop.id, auth.fid);
+    const currentOnSubmission =
+      existingVotes.find((vote) => vote.submission_id === submissionId)?.vote_weight || 0;
 
-    if (existingVote) {
-      return NextResponse.json({
-        error: existingVote.submission_id === submissionId
-          ? 'You already voted for this design.'
-          : 'You already cast your vote for this drop.',
-      }, { status: 409 });
+    let targetPoints;
+    if (typeof points === 'number' && Number.isFinite(points)) {
+      targetPoints = points;
+    } else if (typeof addPoints === 'number' && Number.isFinite(addPoints)) {
+      targetPoints = currentOnSubmission + addPoints;
+    } else if (voteWeight === 1) {
+      targetPoints = 1;
+    } else {
+      targetPoints = currentOnSubmission + 1;
     }
 
-    const { error: insertErr } = await supabaseAdmin
-      .from('drop_votes')
-      .insert({
-        drop_id: drop.id,
-        submission_id: submissionId,
-        voter_fid: auth.fid,
-        vote_weight: voteWeight,
+    try {
+      await applyDropVoteAllocation({
+        supabaseAdmin,
+        dropId: drop.id,
+        voterFid: auth.fid,
+        submissionId,
+        targetPoints,
+        maxVoteWeight: voteWeight,
       });
-
-    if (insertErr) {
-      console.error('[drops/vote] insert error:', insertErr);
-      if (insertErr.code === '23505') {
-        return NextResponse.json({ error: 'You already cast your vote for this drop.' }, { status: 409 });
-      }
-      return NextResponse.json({ error: 'Failed to record vote.' }, { status: 500 });
+    } catch (allocErr) {
+      const status = allocErr.statusCode || 500;
+      return NextResponse.json({ error: allocErr.message || 'Failed to record vote.' }, { status });
     }
 
-    const newVoteCount = (submission.vote_count || 0) + voteWeight;
-    await supabaseAdmin
-      .from('drop_submissions')
-      .update({ vote_count: newVoteCount })
-      .eq('id', submissionId);
-
-    const payload = await loadVotingPayload(drop, auth.fid);
+    const payload = await loadVotingPayload(drop, auth.fid, voteWeight);
     return NextResponse.json({
       success: true,
       voteWeight,
