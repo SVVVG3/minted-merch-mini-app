@@ -1566,14 +1566,52 @@ export async function POST(request) {
           console.error(`⚠️ [${requestId}] Buyer design request resolution failed — using listing IDs:`, resolveErr);
         }
 
-        for (const designRequestId of resolvedDesignRequestIds) {
+        for (let i = 0; i < resolvedDesignRequestIds.length; i++) {
+          const designRequestId = resolvedDesignRequestIds[i];
+          const cartItem = customDesignItems[i];
+          const cartMeta = cartItem?.customMeta || {};
+
+          // Limited drop purchases reuse the single listing Printful draft created at go-live.
+          if (cartMeta.dropId) {
+            console.log(
+              `ℹ️ [${requestId}] Skipping Printful for limited drop purchase (design request ${designRequestId})`
+            );
+            continue;
+          }
+
+          // Ensure size/color from checkout are persisted before Printful variant resolution.
+          try {
+            const { supabaseAdmin } = await import('@/lib/supabase');
+            const size =
+              cartMeta.size ||
+              (cartItem?.variant?.title && cartItem.variant.title !== 'Default Title'
+                ? cartItem.variant.title
+                : null);
+            const patch = {};
+            if (size) patch.size = size;
+            if (cartMeta.colorName) patch.color_name = cartMeta.colorName;
+            if (Object.keys(patch).length > 0) {
+              await supabaseAdmin
+                .from('design_order_requests')
+                .update(patch)
+                .eq('id', designRequestId);
+            }
+          } catch (syncErr) {
+            console.error(
+              `⚠️ [${requestId}] Failed to sync cart size/color for design request ${designRequestId}:`,
+              syncErr
+            );
+          }
+
           createPrintfulTemplate(
             designRequestId,
             shopifyOrder.id || null,
             shopifyOrder.name || null
           ).then(result => {
-            if (result.success) {
+            if (result.success && !result.skipped) {
               console.log(`✅ Printful draft order created for design request ${designRequestId} — printfulOrderId: ${result.printfulOrderId}`);
+            } else if (result.skipped) {
+              console.log(`ℹ️ Printful skipped for design request ${designRequestId}: ${result.reason}`);
             } else {
               console.error(`❌ Printful draft order failed for ${designRequestId}:`, result.error);
             }

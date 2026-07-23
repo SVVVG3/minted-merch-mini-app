@@ -26,7 +26,7 @@ export const GET = withAdminAuth(async (request) => {
         drop_id,
         drop_submission_id,
         created_at,
-        weekly_drops (
+        weekly_drops!design_order_requests_drop_id_fkey (
           week_label
         )
       `)

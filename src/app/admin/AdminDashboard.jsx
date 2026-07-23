@@ -188,6 +188,7 @@ export default function AdminDashboard() {
   const [designOrdersLoading, setDesignOrdersLoading] = useState(false);
   const [designOrdersError, setDesignOrdersError] = useState('');
   const [showAbandonedDesignOrders, setShowAbandonedDesignOrders] = useState(false);
+  const [retryingDesignOrderId, setRetryingDesignOrderId] = useState(null);
 
   // Royalties state
   const [royaltiesData, setRoyaltiesData] = useState([]);
@@ -1012,6 +1013,35 @@ export default function AdminDashboard() {
       setDesignOrdersError('Failed to load custom orders');
     } finally {
       setDesignOrdersLoading(false);
+    }
+  };
+
+  const canRetryDesignOrderPrintful = (order) => {
+    if (order.order_source === 'limited_drop') return false;
+    if (!order.shopify_order_number) return false;
+    if (order.printful_order_id && order.printful_order_status !== 'failed') return false;
+    return true;
+  };
+
+  const retryDesignOrderPrintful = async (orderId) => {
+    setRetryingDesignOrderId(orderId);
+    setDesignOrdersError('');
+    try {
+      const response = await adminFetch(`/api/admin/design-orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ retryPrintful: true }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Printful retry failed');
+      }
+      await loadDesignOrders();
+    } catch (err) {
+      console.error('Printful retry error:', err);
+      setDesignOrdersError(err.message || 'Printful retry failed');
+    } finally {
+      setRetryingDesignOrderId(null);
     }
   };
 
@@ -4527,9 +4557,31 @@ export default function AdminDashboard() {
                                   }`}>
                                     {order.printful_order_status || 'draft'}
                                   </span>
+                                  {canRetryDesignOrderPrintful(order) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => retryDesignOrderPrintful(order.id)}
+                                      disabled={retryingDesignOrderId === order.id}
+                                      className="text-xs text-left text-[#3eb489] hover:underline disabled:opacity-50"
+                                    >
+                                      {retryingDesignOrderId === order.id ? 'Retrying…' : 'Retry Printful'}
+                                    </button>
+                                  )}
                                 </div>
                               ) : (
-                                <span className="text-xs text-gray-400">—</span>
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-xs text-gray-400">—</span>
+                                  {canRetryDesignOrderPrintful(order) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => retryDesignOrderPrintful(order.id)}
+                                      disabled={retryingDesignOrderId === order.id}
+                                      className="text-xs text-left text-[#3eb489] hover:underline disabled:opacity-50"
+                                    >
+                                      {retryingDesignOrderId === order.id ? 'Retrying…' : 'Retry Printful'}
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </td>
                             {/* Date */}

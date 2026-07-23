@@ -167,8 +167,10 @@ async function resolvePrintFileType(req, productConfig, effectiveTechnique) {
 export async function createPrintfulTemplate(
   designRequestId,
   shopifyOrderId = null,
-  shopifyOrderNumber = null
+  shopifyOrderNumber = null,
+  options = {}
 ) {
+  const { forceRetry = false } = options;
   const apiKey = process.env.PRINTFUL_API_KEY;
   if (!apiKey) {
     console.error('❌ PRINTFUL_API_KEY is not configured');
@@ -187,6 +189,51 @@ export async function createPrintfulTemplate(
   if (fetchError || !req) {
     console.error(`❌ Design request not found: ${designRequestId}`, fetchError);
     return { success: false, error: 'Design request not found' };
+  }
+
+  // Limited Drop buyer purchases share one listing Printful draft created at go-live.
+  if (req.drop_id && !req.drop_submission_id) {
+    if (shopifyOrderId || shopifyOrderNumber) {
+      await supabase
+        .from('design_order_requests')
+        .update({
+          shopify_order_id: shopifyOrderId || null,
+          shopify_order_number: shopifyOrderNumber || null,
+        })
+        .eq('id', designRequestId);
+    }
+    console.log(
+      `ℹ️ Skipping Printful draft for limited drop purchase ${designRequestId} — listing draft is created at go-live`
+    );
+    return { success: true, skipped: true, reason: 'limited_drop_purchase' };
+  }
+
+  // Winner listing row — Printful draft is created when the drop goes live.
+  if (req.drop_submission_id && !forceRetry) {
+    console.log(
+      `ℹ️ Skipping Printful draft for drop listing row ${designRequestId} — already handled at go-live`
+    );
+    return { success: true, skipped: true, reason: 'drop_listing_row' };
+  }
+
+  if (req.printful_order_id && !forceRetry) {
+    if (shopifyOrderId || shopifyOrderNumber) {
+      await supabase
+        .from('design_order_requests')
+        .update({
+          shopify_order_id: shopifyOrderId || null,
+          shopify_order_number: shopifyOrderNumber || null,
+        })
+        .eq('id', designRequestId);
+    }
+    console.log(
+      `ℹ️ Printful draft already exists for ${designRequestId}: ${req.printful_order_id}`
+    );
+    return {
+      success: true,
+      printfulOrderId: req.printful_order_id,
+      alreadyExists: true,
+    };
   }
 
   // Immediately stamp the Shopify order info so the record is marked as paid
@@ -231,6 +278,10 @@ export async function createPrintfulTemplate(
 
   if (!exactVariantId) {
     console.error('❌ No variant ID available — cannot create Printful draft order');
+    await supabase
+      .from('design_order_requests')
+      .update({ printful_order_status: 'failed' })
+      .eq('id', designRequestId);
     return { success: false, error: 'No variant ID available' };
   }
 
@@ -288,7 +339,7 @@ export async function createPrintfulTemplate(
   let recipient = null;
 
   // Limited Drop winner listing draft (no customer order yet)
-  if (req.drop_id) {
+  if (req.drop_submission_id) {
     let weekLabel = 'Limited Drop';
     try {
       const { data: dropRow } = await supabase
@@ -347,7 +398,7 @@ export async function createPrintfulTemplate(
     `| FID ${req.fid}`,
   ].filter(Boolean).join(' ');
 
-  if (req.drop_id) {
+  if (req.drop_submission_id) {
     let weekLabel = 'Limited Drop';
     try {
       const { data: dropRow } = await supabase
@@ -412,6 +463,10 @@ export async function createPrintfulTemplate(
         printfulRes.statusText;
       console.error(`❌ Printful draft order failed (${printfulRes.status}): ${errMsg}`);
       console.error('Printful response body:', JSON.stringify(printfulBody));
+      await supabase
+        .from('design_order_requests')
+        .update({ printful_order_status: 'failed' })
+        .eq('id', designRequestId);
       return { success: false, error: `Printful error: ${errMsg}` };
     }
 
