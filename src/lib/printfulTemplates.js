@@ -318,6 +318,33 @@ async function finalizePrintfulOrderPosition(positionData, designUrl, productCon
   return pos;
 }
 
+function resolveStitchColor(colorName) {
+  const lower = (colorName || '').toLowerCase();
+  if (lower.includes('black')) return 'black';
+  if (lower.includes('white')) return 'white';
+  return 'clear';
+}
+
+function buildPrintfulItemOptions(req, productConfig, effectiveTechnique) {
+  const options = [];
+
+  if (req.technique === 'EMBROIDERY' || productConfig?.technique === 'EMBROIDERY') {
+    options.push({ id: 'technique', value: 'EMBROIDERY' });
+  }
+
+  const needsStitchColor =
+    productConfig?.id === 'bandana' || effectiveTechnique === 'CUT-SEW';
+
+  if (needsStitchColor) {
+    options.push({
+      id: 'stitch_color',
+      value: resolveStitchColor(req.color_name),
+    });
+  }
+
+  return options.length > 0 ? options : null;
+}
+
 async function resolvePrintFileType(req, productConfig, effectiveTechnique) {
   if (req.placement === 'leftchest' && req.technique === 'EMBROIDERY') {
     return 'embroidery_chest_left';
@@ -572,8 +599,7 @@ export async function createPrintfulTemplate(
       }]
     : [];
 
-  const needsEmbroideryOption =
-    req.technique === 'EMBROIDERY' || productConfig?.technique === 'EMBROIDERY';
+  const itemOptions = buildPrintfulItemOptions(req, productConfig, effectiveTechnique);
 
   const orderPayload = {
     confirm: false, // draft — admin confirms in Printful dashboard
@@ -582,9 +608,7 @@ export async function createPrintfulTemplate(
       {
         variant_id: exactVariantId,
         quantity: 1,
-        ...(needsEmbroideryOption && {
-          options: [{ id: 'technique', value: 'EMBROIDERY' }],
-        }),
+        ...(itemOptions && { options: itemOptions }),
         files,
       },
     ],
@@ -596,6 +620,9 @@ export async function createPrintfulTemplate(
   console.log(`🖨️ Creating Printful draft order: "${orderName}" (designRequestId: ${designRequestId})`);
   console.log(`📐 Position data being sent: ${positionData ? JSON.stringify(positionData) : 'NONE (no position — Printful will default to center)'}`);
   console.log(`🎨 File type: ${fileType}, Design URL: ${req.design_url || 'MISSING'}`);
+  if (itemOptions) {
+    console.log(`🧵 Printful item options: ${JSON.stringify(itemOptions)}`);
+  }
 
   try {
     const printfulRes = await fetch(`${PRINTFUL_BASE}/orders`, {
