@@ -100,6 +100,44 @@ export const DESIGN_STUDIO_PRODUCTS = [
   },
 ];
 
+/**
+ * Printful file-guideline targets for client uploads (longest edge in px).
+ * Derived from each product's print file size @ minimum DPI in Printful catalog.
+ */
+export const PRINTFUL_UPLOAD_MAX_PX = {
+  tshirt: 2400,           // 12×16" @ 150 DPI
+  hoodie: 2400,           // back 12×16"; front up to 13×13" @ 150 DPI
+  hoodieEmbroidery: 1500, // chest / sleeve embroidery areas
+  hat: 1500,              // DTFlex 5×2" @ 300 DPI (longest edge)
+  bandana: 4125,          // 27.5×27.5" @ 150 DPI (all sizes)
+  'pet-collar': 2325,     // L/XL 15.5×8.25" @ 150 DPI (largest)
+  'pet-collar-sm': 1530,  // S/M 10.2×6.25" @ 150 DPI
+  default: 1500,
+};
+
+/** Bandana production print area for Printful orders (27.5" @ 150 DPI). */
+export const BANDANA_ORDER_PRINT_SIDE_PX = Math.round(27.5 * 150);
+
+/**
+ * Max longest-edge px for uploads, based on Printful print-file guidelines.
+ * Uses the largest spec when size isn't known yet (e.g. before checkout).
+ */
+export function getProductUploadMaxPx(productId, options = {}) {
+  const technique = options.technique || null;
+  const size = (options.size || '').toUpperCase().trim();
+
+  if (!productId) return PRINTFUL_UPLOAD_MAX_PX.default;
+  if (productId === 'hoodie' && technique === 'EMBROIDERY') {
+    return PRINTFUL_UPLOAD_MAX_PX.hoodieEmbroidery;
+  }
+  if (productId === 'pet-collar') {
+    if (size === 'S' || size === 'M') return PRINTFUL_UPLOAD_MAX_PX['pet-collar-sm'];
+    if (size === 'L' || size === 'XL') return PRINTFUL_UPLOAD_MAX_PX['pet-collar'];
+    return PRINTFUL_UPLOAD_MAX_PX['pet-collar'];
+  }
+  return PRINTFUL_UPLOAD_MAX_PX[productId] ?? PRINTFUL_UPLOAD_MAX_PX.default;
+}
+
 export function getProductConfig(id) {
   return DESIGN_STUDIO_PRODUCTS.find(p => p.id === id) || null;
 }

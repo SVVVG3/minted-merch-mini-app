@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useFarcaster } from '@/lib/useFarcaster';
-import { DESIGN_STUDIO_PRODUCTS } from '@/lib/designStudioConfig';
+import { DESIGN_STUDIO_PRODUCTS, getProductUploadMaxPx } from '@/lib/designStudioConfig';
 import { useCart } from '@/lib/CartContext';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -62,13 +62,12 @@ function exifToRotation(exif) {
 
 // Convert an animated or static GIF to a static PNG File using canvas.
 // Canvas drawImage() always captures the first frame, stripping animation.
-async function convertGifToStaticPng(file) {
+async function convertGifToStaticPng(file, maxDim = 1500) {
   return new Promise((resolve) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
-      const MAX_DIM = 1500;
-      const scale = Math.min(1, MAX_DIM / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+      const scale = Math.min(1, maxDim / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
       const canvas = document.createElement('canvas');
       canvas.width  = Math.round((img.naturalWidth  || 200) * scale);
       canvas.height = Math.round((img.naturalHeight || 200) * scale);
@@ -89,10 +88,9 @@ async function convertGifToStaticPng(file) {
 }
 
 // Resize + optionally rotate an image File/Blob client-side before upload.
-// Caps the longest dimension at MAX_DIM and re-encodes as JPEG to keep
-// the payload well under Vercel's 4.5 MB serverless body-size limit.
-// Also bakes in EXIF rotation so the crop tool always gets upright pixels.
-async function prepareImageForUpload(file, rotationDegrees = 0) {
+// Caps the longest dimension at maxDim (product-specific Printful target) and
+// re-encodes to keep the payload under Vercel's serverless body-size limit.
+async function prepareImageForUpload(file, rotationDegrees = 0, maxDim = 1500) {
   const objectUrl = URL.createObjectURL(file);
   try {
     const img = await new Promise((resolve, reject) => {
@@ -102,8 +100,7 @@ async function prepareImageForUpload(file, rotationDegrees = 0) {
       i.src = objectUrl;
     });
 
-    const MAX_DIM = 1500;
-    const scale = Math.min(1, MAX_DIM / Math.max(img.naturalWidth, img.naturalHeight));
+    const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
     const drawW = Math.round(img.naturalWidth * scale);
     const drawH = Math.round(img.naturalHeight * scale);
 
@@ -121,10 +118,9 @@ async function prepareImageForUpload(file, rotationDegrees = 0) {
     ctx.rotate((rotationDegrees * Math.PI) / 180);
     ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
 
-    // Preserve transparency for PNG/WebP — JPEG fills alpha with black.
     const supportsAlpha = file.type === 'image/png' || file.type === 'image/webp';
     const mimeType = supportsAlpha ? 'image/png' : 'image/jpeg';
-    const quality  = supportsAlpha ? undefined : 0.9;
+    const quality  = supportsAlpha ? undefined : (maxDim > 3000 ? 0.82 : 0.9);
 
     return await new Promise((resolve, reject) => {
       canvas.toBlob(
@@ -139,9 +135,8 @@ async function prepareImageForUpload(file, rotationDegrees = 0) {
 
 // Fetch image via same-origin proxy, rotate using canvas, re-upload to R2.
 // Returns the new R2 URL for the rotated design.
-// Caps canvas size at 1 500 px to avoid mobile memory limits (portrait photos
-// from modern phones can exceed 12 MP which crashes canvas.toBlob on Safari).
-async function rotateAndReupload(imageUrl, degrees, sessionToken) {
+// Caps canvas size at maxDim to balance Printful DPI targets with mobile memory.
+async function rotateAndReupload(imageUrl, degrees, sessionToken, maxDim = 1500) {
   // Proxy fetch avoids cross-origin canvas tainting
   const proxyUrl = `/api/design-studio/proxy-image?url=${encodeURIComponent(imageUrl)}`;
   const res = await fetch(proxyUrl);
@@ -153,8 +148,7 @@ async function rotateAndReupload(imageUrl, degrees, sessionToken) {
     const img = new Image();
     img.onload = () => {
       try {
-        const MAX_DIM = 1500;
-        const scale = Math.min(1, MAX_DIM / Math.max(img.naturalWidth, img.naturalHeight));
+        const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
         const drawW = Math.round(img.naturalWidth * scale);
         const drawH = Math.round(img.naturalHeight * scale);
 
@@ -222,7 +216,7 @@ async function rotateAndReupload(imageUrl, degrees, sessionToken) {
  * @param {string}  sessionToken     - JWT for the upload endpoint
  * @param {number}  [rotationDegrees=0] - clockwise rotation applied to each tile
  */
-async function buildTiledImageUrl(designUrl, printAreaAspect, tileScale, sessionToken, rotationDegrees = 0) {
+async function buildTiledImageUrl(designUrl, printAreaAspect, tileScale, sessionToken, rotationDegrees = 0, maxCanvasW = 2325) {
   const proxyUrl = `/api/design-studio/proxy-image?url=${encodeURIComponent(designUrl)}`;
   const res = await fetch(proxyUrl);
   if (!res.ok) throw new Error(`Proxy fetch failed: ${res.status}`);
@@ -236,8 +230,8 @@ async function buildTiledImageUrl(designUrl, printAreaAspect, tileScale, session
     i.src = objectUrl;
   });
 
-  // Canvas sized to a reasonable printfile resolution, preserving the print area ratio
-  const canvasW = 2800;
+  // Canvas sized to Printful printfile resolution, preserving the print area ratio
+  const canvasW = maxCanvasW;
   const canvasH = Math.max(1, Math.round(canvasW / (printAreaAspect || 1)));
 
   // Each tile is `tileScale` × print area width; maintain design image aspect ratio
@@ -394,6 +388,13 @@ export function CreatePageClient() {
   const [variantsLoading, setVariantsLoading] = useState(false);
   // When buying from past-mockup history (not the current result)
   const [historyMockup, setHistoryMockup] = useState(null);
+
+  /** Printful-target longest-edge px for the currently selected product. */
+  const resolveUploadMaxPx = useCallback(() => {
+    return getProductUploadMaxPx(selectedProduct?.id, {
+      technique: selectedTechnique || selectedProduct?.technique || null,
+    });
+  }, [selectedProduct, selectedTechnique]);
 
   // ─── Cast-action pre-fill ─────────────────────────────────────────────────
   // When opened via the Farcaster cast action, castImageUrl param carries the
@@ -750,19 +751,18 @@ export function CreatePageClient() {
     setError('');
 
     // GIFs don't work on Printful mockups — flatten to a static PNG frame first
+    const uploadMaxPx = resolveUploadMaxPx();
     if (file.type === 'image/gif') {
-      file = await convertGifToStaticPng(file);
+      file = await convertGifToStaticPng(file, uploadMaxPx);
     }
 
     // Detect EXIF orientation so we can bake in the correction during compression.
     const exifOrientation = await readExifOrientation(file);
     const autoRotation = exifToRotation(exifOrientation);
     try {
-      // Resize to ≤1500 px and bake in EXIF rotation in a single canvas pass.
-      // This keeps the upload well under Vercel's 4.5 MB body limit (phone photos
-      // can be 4–12 MB) and ensures the crop tool always gets upright pixels.
+      // Resize to Printful-target px and bake in EXIF rotation in a single canvas pass.
       setError('Preparing image…');
-      const processedBlob = await prepareImageForUpload(file, autoRotation);
+      const processedBlob = await prepareImageForUpload(file, autoRotation, uploadMaxPx);
       setError('');
 
       const supportsAlpha = file.type === 'image/png' || file.type === 'image/webp';
@@ -814,6 +814,7 @@ export function CreatePageClient() {
     try {
       // Apply rotation BEFORE entering the generating step so that any failure
       // is visible on the preview screen rather than silently ignored.
+      const uploadMaxPx = resolveUploadMaxPx();
       let effectiveDesignUrl = designUrl;
       if (isSublimation && patternMode === 'tile') {
         // Tile mode: rotation is baked into the composite canvas — skip rotateAndReupload
@@ -821,14 +822,17 @@ export function CreatePageClient() {
         const printAreaAspect = template
           ? (template.print_area_width / (template.print_area_height || 1))
           : 1;
+        const tileCanvasW = selectedProduct?.id === 'pet-collar'
+          ? getProductUploadMaxPx('pet-collar')
+          : uploadMaxPx;
         effectiveDesignUrl = await buildTiledImageUrl(
-          designUrl, printAreaAspect, designScale, sessionToken, rotationDegrees
+          designUrl, printAreaAspect, designScale, sessionToken, rotationDegrees, tileCanvasW
         );
         setRotationDegrees(0); // baked into the tiled image
         setError('');
       } else if (rotationDegrees !== 0) {
         setError('Applying rotation…');
-        effectiveDesignUrl = await rotateAndReupload(designUrl, rotationDegrees, sessionToken);
+        effectiveDesignUrl = await rotateAndReupload(designUrl, rotationDegrees, sessionToken, uploadMaxPx);
         setDesignUrl(effectiveDesignUrl); // bake in — future re-generates use the corrected URL
         setRotationDegrees(0);
         setError('');
@@ -1692,9 +1696,9 @@ export function CreatePageClient() {
         const srcW  = completedCrop.width  * scaleX;
         const srcH  = completedCrop.height * scaleY;
 
-        // Cap output at 1 500 px to stay within mobile canvas memory limits
-        const MAX_DIM = 1500;
-        const scale  = Math.min(1, MAX_DIM / Math.max(srcW, srcH));
+        // Cap output at Printful-target px for the selected product
+        const uploadMaxPx = resolveUploadMaxPx();
+        const scale  = Math.min(1, uploadMaxPx / Math.max(srcW, srcH));
         const outW   = Math.round(srcW * scale);
         const outH   = Math.round(srcH * scale);
 
@@ -1726,7 +1730,7 @@ export function CreatePageClient() {
         }
         const mimeType = needsPng ? 'image/png' : 'image/jpeg';
         const ext      = needsPng ? 'png' : 'jpg';
-        const quality  = needsPng ? 1 : 0.92;
+        const quality  = needsPng ? 1 : (uploadMaxPx > 3000 ? 0.82 : 0.92);
 
         const blob = await new Promise((resolve, reject) => {
           canvas.toBlob(b => b ? resolve(b) : reject(new Error('canvas.toBlob returned null')), mimeType, quality);

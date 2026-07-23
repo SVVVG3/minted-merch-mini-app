@@ -14,7 +14,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { getProductVariants, getPrintfiles } from '@/lib/printfulMockup';
-import { getProductConfig } from '@/lib/designStudioConfig';
+import { getProductConfig, BANDANA_ORDER_PRINT_SIDE_PX } from '@/lib/designStudioConfig';
 
 const PRINTFUL_BASE = 'https://api.printful.com';
 
@@ -133,6 +133,24 @@ function computeAllOverPosition(pf, req, productConfig) {
   };
 }
 
+/** Bandana orders use Printful's production print area, not mockup-generator coords. */
+function computeBandanaOrderPosition(req, productConfig) {
+  const side = BANDANA_ORDER_PRINT_SIDE_PX;
+  const scale =
+    typeof req.design_scale === 'number' && req.design_scale > 0
+      ? req.design_scale
+      : productConfig?.defaultScale ?? 1.0;
+  const size = Math.round(side * scale);
+  return {
+    area_width: side,
+    area_height: side,
+    width: size,
+    height: size,
+    top: Math.round((side - size) / 2),
+    left: Math.round((side - size) / 2),
+  };
+}
+
 /** Read PNG width/height from the first bytes of an image URL (Printful designs are PNG). */
 async function getImageDimensionsFromUrl(imageUrl) {
   if (!imageUrl) return null;
@@ -227,6 +245,15 @@ function fixPositionAspectRatio(positionData, imageWidth, imageHeight) {
 async function resolvePositionData(req, productConfig, effectiveTechnique) {
   if (!productConfig) return req.position_data || null;
 
+  // Bandana: mockup printfiles (375×150) ≠ order print area (27.5" sq @ 150 DPI).
+  if (productConfig.id === 'bandana') {
+    const position = computeBandanaOrderPosition(req, productConfig);
+    console.log(
+      `📐 Bandana order position: ${position.width}×${position.height} on ${position.area_width}×${position.area_height}px production canvas`
+    );
+    return position;
+  }
+
   try {
     const printfilesData = await getPrintfiles(
       productConfig.printfulProductId,
@@ -281,8 +308,8 @@ async function resolvePositionData(req, productConfig, effectiveTechnique) {
 
 /**
  * Printful's /orders API validates the design file aspect ratio against area_width/area_height.
- * Mockup generation uses a wide CUT-SEW canvas (e.g. bandana 375×150) with a square design —
- * omit area_* on orders so placement width/height (matching the image) is used instead.
+ * Some mockup canvases (e.g. CUT-SEW preview strips) differ from production — omit area_*
+ * only when the canvas aspect conflicts with the design. Bandana uses production coords above.
  */
 async function finalizePrintfulOrderPosition(positionData, designUrl, productConfig, effectiveTechnique) {
   if (!positionData) return null;
@@ -291,6 +318,11 @@ async function finalizePrintfulOrderPosition(positionData, designUrl, productCon
   let pos = dims
     ? fixPositionAspectRatio(positionData, dims.width, dims.height)
     : { ...positionData };
+
+  // Bandana orders already use square production canvas — keep area_* for DPI mapping.
+  if (productConfig?.id === 'bandana') {
+    return pos;
+  }
 
   const imageAspect =
     dims?.width && dims?.height ? dims.width / dims.height : null;
@@ -302,7 +334,6 @@ async function finalizePrintfulOrderPosition(positionData, designUrl, productCon
       Math.abs(areaAspect - imageAspect) / imageAspect > 0.02;
     const isAllOver =
       isAllOverPrintTechnique(effectiveTechnique, productConfig) ||
-      productConfig?.id === 'bandana' ||
       productConfig?.id === 'pet-collar';
 
     if (areaConflictsWithImage || (isAllOver && imageAspect == null)) {
@@ -357,6 +388,12 @@ async function resolvePrintFileType(req, productConfig, effectiveTechnique) {
     );
     const placements = Object.keys(printfilesData?.available_placements || {});
     if (placements.length > 0) {
+      // AOP bandana front placement is exposed as "default" in Printful's CUT-SEW API.
+      if (productConfig?.id === 'bandana') {
+        if (placements.includes('default')) return 'default';
+        if (placements.includes('front')) return 'front';
+        return placements[0];
+      }
       if (req.placement && placements.includes(req.placement)) return req.placement;
       if (placements.includes('default')) return 'default';
       if (placements.includes('front')) return 'front';
@@ -366,6 +403,7 @@ async function resolvePrintFileType(req, productConfig, effectiveTechnique) {
     console.error('⚠️ Could not resolve print file type:', placementErr.message);
   }
 
+  if (productConfig?.id === 'bandana') return 'default';
   return req.placement || productConfig.placement || 'front';
 }
 
